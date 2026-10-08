@@ -33,7 +33,7 @@ public sealed class ReleasePreparationTests
         await Assert.That(second.IsValid).IsTrue();
         await Assert.That(File.ReadAllBytes(fixture.NotesPath)).IsEquivalentTo(firstBytes);
         await Assert.That(Encoding.UTF8.GetString(firstBytes)).IsEqualTo(
-            "# Release 1.1.0\n\n## Maintainer Summary\n\nAttendees can now correct self-hosting details.\n\n## Release-Visible Details\n\n- self-hosting: let attendees correct self-hosting details (cccccccccccc)\n\n### Impact Summary\n\n#### Operator\n\n- `CHG-2026-0001` - documented: Restart self-hosting workers after deployment\\. (Evidence: `docs/RELEASE\\_RUNBOOK\\.md`)\n\n## Complete Commit Range\n\n- `cccccccccccc`\n");
+            "# Release 1.1.0\n\n## Maintainer Summary\n\nAttendees can now correct self-hosting details.\n\n## Release-Visible Details\n\n- self-hosting: let attendees correct self-hosting details (cccccccccccc)\n\n### Impact Summary\n\n#### Operator\n\n- `CHG-2026-0001` - documented: Restart self\\-hosting workers after deployment\\. (Evidence: `docs/RELEASE\\_RUNBOOK\\.md`)\n\n## Complete Commit Range\n\n- `cccccccccccc`\n");
         await Assert.That(first.CommitMessage).IsEqualTo(
             "docs(release): prepare 1.1.0\n\nChangelog: skip\nChangelog-Reason: release metadata commit\n");
         await Assert.That(Encoding.UTF8.GetString(firstBytes)).DoesNotContain("generated-region");

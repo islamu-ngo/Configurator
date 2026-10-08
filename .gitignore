@@ -59,6 +59,8 @@ nunit-*.xml
 # Audited dependency feed is release input, not an arbitrary build output.
 !eng/release/
 !eng/release/dependencies/terminal-gui/feed/*.nupkg
+# Destination-owned release input documentation, not transferred Event history.
+!docs/internal/releases/
 .code-review-graph/
 .omo/senpi-task/
 .omo/evidence/

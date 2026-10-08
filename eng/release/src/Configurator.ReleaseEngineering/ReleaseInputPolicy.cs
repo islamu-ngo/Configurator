@@ -104,7 +104,7 @@ public static class ReleaseInputPolicy
     private static readonly Regex BaselineRefPattern = new("^changelog-baseline-[0-9]{4}-[0-9]{2}-[0-9]{2}$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
     private static readonly Regex FullOidPattern = new("^(?:[0-9a-f]{40}|[0-9a-f]{64})$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
     private static readonly Regex GroupPattern = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-    private static readonly Regex SecretPattern = new("(?:-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|\\bBearer\\s+[A-Za-z0-9._~+/=-]{16,}|\\b(?:gh[pousr]_|github_pat_|glpat-|xox[baprs]-)[A-Za-z0-9_-]{8,}|\\b(?:password|passwd|client_secret|api[_-]?key|output[_-]?token|refresh[_-]?token)\\s*[:=]\\s*\\S+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
+    private static readonly Regex SecretPattern = new("(?:-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|\\bBearer\\s+[A-Za-z0-9._~+/=-]{16,}|\\b(?:gh[pousr]_|github_pat_|glpat-|xox[baprs]-)[A-Za-z0-9_-]{8,}|\\b(?:password|passwd|client_secret|api[_-]?key|(?:access|output)[_-]?token|refresh[_-]?token)\\s*[:=]\\s*\\S+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     private static readonly Regex ProviderIdentityPattern = new("(?:https?://(?:www\\.)?(?:github\\.com|gitlab\\.com|codeberg\\.org|bitbucket\\.org)/\\S+|(?<![\\w@])@[A-Za-z0-9][A-Za-z0-9-]{0,38}(?![\\w-])|\\b(?:workflow|pipeline|job|run)[ _-]?id\\s*[:=]\\s*[0-9]{3,}\\b)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     private static readonly string[] RequiredImpacts = ["breaking", "security", "migration", "configuration", "openapi", "operator"];
     private static readonly string[] ReleaseDescriptorKeys = ["Version", "Line", "Release-Date", "Base-Stable-Tag", "Previous-Published-Tag", "Release-Range", "Compatibility", "Impact-Dispositions"];
@@ -223,7 +223,8 @@ public static class ReleaseInputPolicy
             YamlMappingNode? root = ParseRoot(yaml, "fragment", diagnostics);
             if (root is null)
             {
-                ScanRawFragmentText(yaml, diagnostics);
+                if (yaml is not null && System.Text.Encoding.UTF8.GetByteCount(yaml) <= MaximumYamlBytes)
+                    ScanRawFragmentText(yaml, diagnostics);
                 continue;
             }
 

@@ -1,5 +1,5 @@
-using Configurator.ReleaseEngineering;
 using System.Globalization;
+using Configurator.ReleaseEngineering;
 
 namespace Configurator.ReleaseEngineering.Tests;
 
@@ -39,7 +39,9 @@ public sealed class ReleaseInputPolicyTests
     public async Task RepositoryChangeFragmentsPassReleaseInputPolicy()
     {
         string changesDirectory = Path.Combine(FindRepositoryRoot(), "docs", "internal", "releases", "changes");
-        string[] fragments = Directory.GetFiles(changesDirectory, "CHG-*.yaml", SearchOption.TopDirectoryOnly)
+        string[] fragments = (Directory.Exists(changesDirectory)
+                ? Directory.GetFiles(changesDirectory, "CHG-*.yaml", SearchOption.TopDirectoryOnly)
+                : [])
             .Order(StringComparer.Ordinal)
             .Select(File.ReadAllText)
             .ToArray();
@@ -51,10 +53,8 @@ public sealed class ReleaseInputPolicyTests
 
         await Assert.That(result.IsValid).IsTrue()
             .Because(string.Join("; ", result.Diagnostics));
-        await Assert.That(result.Fragments).IsNotEmpty();
+        await Assert.That(result.Fragments.Count).IsEqualTo(fragments.Length);
         await Assert.That(result.Fragments.All(fragment => ChangeIdPolicy.IsGenerated(fragment.ChangeId))).IsTrue();
-        await Assert.That(result.Fragments.Select(fragment => fragment.ChangeId)).Contains("CHG-01M1VJ17RD9AT6PNN1X0093958");
-        await Assert.That(result.Fragments.Select(fragment => fragment.ChangeId)).Contains("CHG-01M1VJ199BWSA2Y38S8W4GNN64");
     }
 
     [Test]
@@ -315,6 +315,19 @@ public sealed class ReleaseInputPolicyTests
         await Assert.That(prose.IsValid).IsTrue();
         await Assert.That(descriptorSecret.Diagnostics).Contains("release_secret_material");
         await Assert.That(descriptorProvider.Diagnostics).Contains("release_provider_identity");
+    }
+
+    [Test]
+    [Arguments("access_token")]
+    [Arguments("access-token")]
+    public async Task AccessTokenAssignmentsCannotEnterPublicReleaseArtifacts(string name)
+    {
+        string assignment = name + "=" + Guid.NewGuid().ToString("N");
+        string fragment = Fragment("CHG-2026-0015")
+            .Replace("single credential", assignment, StringComparison.Ordinal);
+        await Assert.That(ReleaseArtifactPolicy.EscapeUntrustedMarkdown(assignment).IsValid).IsFalse();
+        ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [fragment], []);
+        await Assert.That(result.Diagnostics).Contains("fragment_secret_material:CHG-2026-0015");
     }
 
     [Test]

@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Fixtures/Scripts/**/*.cs" />
     <ProjectReference Include="../../src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj" />
     <PackageReference Include="TUnit" />
   </ItemGroup>

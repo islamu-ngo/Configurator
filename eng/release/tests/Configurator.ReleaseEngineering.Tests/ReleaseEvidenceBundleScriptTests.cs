@@ -299,7 +299,7 @@ public sealed class ReleaseEvidenceBundleScriptTests
         CreateHardLink(hardlink.ArtifactPath("trusted-bundle/git-cliff-hardlink"), hardlink.ArtifactPath("trusted-bundle/git-cliff"));
         string rejectedPath = Path.Combine(hardlink.Root, "hardlink-checksums.sha256");
 
-        ScriptResult result = RunDotnetScript(".ci/scripts/write-artifact-checksums.cs", new Dictionary<string, string>(), hardlink.ArtifactRoot, rejectedPath);
+        ScriptResult result = RunDotnetScript("eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/write-artifact-checksums.cs", new Dictionary<string, string>(), hardlink.ArtifactRoot, rejectedPath);
 
         await Assert.That(result.ExitCode).IsNotEqualTo(0);
         await Assert.That(result.Output).Contains("artifact_checksums_path_alias");
@@ -310,8 +310,8 @@ public sealed class ReleaseEvidenceBundleScriptTests
     public async Task BundleAndChecksumScriptsInspectWindowsHardlinkCounts()
     {
         string repoRoot = FindRepositoryRoot();
-        string bundleScript = File.ReadAllText(Path.Combine(repoRoot, ".ci", "scripts", "generate-release-evidence-bundle.cs"));
-        string checksumScript = File.ReadAllText(Path.Combine(repoRoot, ".ci", "scripts", "write-artifact-checksums.cs"));
+        string bundleScript = File.ReadAllText(Path.Combine(repoRoot, "eng", "release", "tests", "Configurator.ReleaseEngineering.Tests", "Fixtures", "Scripts", "generate-release-evidence-bundle.cs"));
+        string checksumScript = File.ReadAllText(Path.Combine(repoRoot, "eng", "release", "tests", "Configurator.ReleaseEngineering.Tests", "Fixtures", "Scripts", "write-artifact-checksums.cs"));
 
         foreach (string script in new[] { bundleScript, checksumScript })
         {
@@ -328,7 +328,7 @@ public sealed class ReleaseEvidenceBundleScriptTests
     {
         using var valid = BundleFixture.Create();
         string checksumPath = Path.Combine(valid.Root, "standalone-checksums.sha256");
-        ScriptResult validResult = RunDotnetScript(".ci/scripts/write-artifact-checksums.cs", new Dictionary<string, string>(), valid.ArtifactRoot, checksumPath);
+        ScriptResult validResult = RunDotnetScript("eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/write-artifact-checksums.cs", new Dictionary<string, string>(), valid.ArtifactRoot, checksumPath);
         string[] lines = File.ReadAllLines(checksumPath);
         string[] paths = lines.Select(line => line[(line.IndexOf("  ", StringComparison.Ordinal) + 2)..]).ToArray();
 
@@ -336,7 +336,7 @@ public sealed class ReleaseEvidenceBundleScriptTests
         File.WriteAllText(Path.Combine(alias.ArtifactRoot, "ALIAS.txt"), "one\n");
         File.WriteAllText(Path.Combine(alias.ArtifactRoot, "alias.txt"), "two\n");
         string rejectedPath = Path.Combine(alias.Root, "rejected-checksums.sha256");
-        ScriptResult aliasResult = RunDotnetScript(".ci/scripts/write-artifact-checksums.cs", new Dictionary<string, string>(), alias.ArtifactRoot, rejectedPath);
+        ScriptResult aliasResult = RunDotnetScript("eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/write-artifact-checksums.cs", new Dictionary<string, string>(), alias.ArtifactRoot, rejectedPath);
 
         await Assert.That(validResult.ExitCode).IsEqualTo(0);
         await Assert.That(lines.Length).IsEqualTo(Directory.EnumerateFiles(valid.ArtifactRoot, "*", SearchOption.AllDirectories).Count());
@@ -402,7 +402,7 @@ public sealed class ReleaseEvidenceBundleScriptTests
             {
                 foreach ((string key, string value) in environmentOverrides) environment[key] = value;
             }
-            return RunDotnetScript(".ci/scripts/generate-release-evidence-bundle.cs", environment, ArtifactRoot, outputRoot ?? OutputRoot);
+            return RunDotnetScript("eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/generate-release-evidence-bundle.cs", environment, ArtifactRoot, outputRoot ?? OutputRoot);
         }
 
         public void WriteFinalManifest(string? version = null, string? tagObjectId = null, string? targetOid = null, string? extraPropertyName = null)

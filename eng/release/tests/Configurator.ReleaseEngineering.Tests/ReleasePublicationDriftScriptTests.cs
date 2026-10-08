@@ -223,7 +223,7 @@ public sealed class ReleasePublicationDriftScriptTests
             };
             startInfo.ArgumentList.Add("run");
             startInfo.ArgumentList.Add("--file");
-            startInfo.ArgumentList.Add(".ci/scripts/report-publication-drift.cs");
+            startInfo.ArgumentList.Add("eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/report-publication-drift.cs");
             startInfo.ArgumentList.Add("--");
             startInfo.ArgumentList.Add("--release-directory");
             startInfo.ArgumentList.Add(ReleaseDirectory);

@@ -43,7 +43,8 @@ internal sealed class RuntimePromotionTrustRootScope : IDisposable
 
     public static RuntimePromotionTrustRootScope Use(string sourcePath) => new(sourcePath);
 
-    public static RuntimePromotionTrustRootScope UsePackagedDefault() => new(Path.Combine(RepositoryRoot.Find(), "eng", "release", "trust", "promotion-allowed-signers"));
+    public static RuntimePromotionTrustRootScope UsePackagedDefault() => new(Path.Combine(RepositoryRoot.Find(), "eng", "release", "tests",
+        "Configurator.ReleaseEngineering.Tests", "Fixtures", "Trust", "promotion-allowed-signers"));
 
     public static string GetRuntimeTrustRootPath() => Path.Combine(AppContext.BaseDirectory, RuntimeTrustRootName);
 

@@ -5141,6 +5141,69 @@
       "group": "external-definition-handoff"
     },
     {
+      "source": ".github/workflows/release-publish.yml",
+      "destination": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Workflows/release-publish.yml",
+      "sourceGitBlob": null,
+      "action": "retain-and-adapt-inert-validation-fixture",
+      "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
+      "group": "standalone-release-test-closure",
+      "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
+      "source": ".github/workflows/release-adapter-final.yml",
+      "destination": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Workflows/release-adapter-final.yml",
+      "sourceGitBlob": null,
+      "action": "retain-and-adapt-inert-validation-fixture",
+      "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
+      "group": "standalone-release-test-closure",
+      "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
+      "source": ".ci/scripts/validate-release-provider-adapters.cs",
+      "destination": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/validate-release-provider-adapters.cs",
+      "sourceGitBlob": null,
+      "action": "retain-and-adapt-inert-validation-fixture",
+      "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
+      "group": "standalone-release-test-closure",
+      "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
+      "source": ".ci/scripts/validate-release-impact-pr.cs",
+      "destination": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/validate-release-impact-pr.cs",
+      "sourceGitBlob": null,
+      "action": "retain-and-adapt-inert-validation-fixture",
+      "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
+      "group": "standalone-release-test-closure",
+      "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
+      "source": ".ci/scripts/report-publication-drift.cs",
+      "destination": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/report-publication-drift.cs",
+      "sourceGitBlob": null,
+      "action": "retain-and-adapt-inert-validation-fixture",
+      "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
+      "group": "standalone-release-test-closure",
+      "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
+      "source": ".ci/scripts/generate-release-evidence-bundle.cs",
+      "destination": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/generate-release-evidence-bundle.cs",
+      "sourceGitBlob": null,
+      "action": "retain-and-adapt-inert-validation-fixture",
+      "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
+      "group": "standalone-release-test-closure",
+      "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
+      "source": ".ci/scripts/write-artifact-checksums.cs",
+      "destination": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/write-artifact-checksums.cs",
+      "sourceGitBlob": null,
+      "action": "retain-and-adapt-inert-validation-fixture",
+      "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
+      "group": "standalone-release-test-closure",
+      "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
       "source": "dotnet-tools.json",
       "destination": null,
       "sourceGitBlob": null,

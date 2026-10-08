@@ -359,7 +359,8 @@ public sealed class ReleaseProviderAdapterScriptTests
     [Test]
     public async Task GitHubFinalDiscoveryChecksOutTrustedDefaultBranchNotEventSha()
     {
-        string workflow = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), ".github", "workflows", "release-adapter-final.yml"));
+        string workflow = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "eng", "release", "tests",
+            "Configurator.ReleaseEngineering.Tests", "Fixtures", "Workflows", "release-adapter-final.yml"));
 
         await Assert.That(workflow).DoesNotContain("ref: ${{ github.sha }}");
         await Assert.That(workflow).Contains("ref: ${{ github.event.repository.default_branch }}");
@@ -398,7 +399,7 @@ public sealed class ReleaseProviderAdapterScriptTests
     public async Task ProviderAdapterScriptRejectsNoCheckoutDiscoveryTrustDrift()
     {
         using var forgejoOverclaim = ProviderFixture.CreateSingle("forgejo-codeberg");
-        forgejoOverclaim.MutateProvider("forgejo-codeberg", json => json.Replace("\"trustedRef\": \"no-checkout-launch\"", "\"trustedRef\": \"default-branch\"", StringComparison.Ordinal));
+        forgejoOverclaim.MutateProvider("forgejo-codeberg", json => json.Replace("\"trustedRef\": \"no-checkout-discovery\"", "\"trustedRef\": \"default-branch\"", StringComparison.Ordinal));
         using var forgejoCheckout = ProviderFixture.CreateSingle("forgejo-codeberg");
         forgejoCheckout.MutateFinalWorkflow("forgejo-codeberg", "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n");
         using var forgejoCandidateRef = ProviderFixture.CreateSingle("forgejo-codeberg");
@@ -554,8 +555,8 @@ public sealed class ReleaseProviderAdapterScriptTests
 
         public void MutateFinalEvent(string provider, string finalEvent) => MutateProvider(provider, json => json
             .Replace("\"event\": \"workflow_dispatch\",\n    \"trustedRef\": \"default-branch\"", $"\"event\": \"{finalEvent}\",\n    \"trustedRef\": \"default-branch\"", StringComparison.Ordinal)
-            .Replace("\"event\": \"workflow_dispatch\",\n    \"trustedRef\": \"no-checkout-launch\"", $"\"event\": \"{finalEvent}\",\n    \"trustedRef\": \"no-checkout-launch\"", StringComparison.Ordinal)
-            .Replace("\"event\": \"manual\",\n    \"trustedRef\": \"no-checkout-launch\"", $"\"event\": \"{finalEvent}\",\n    \"trustedRef\": \"no-checkout-launch\"", StringComparison.Ordinal));
+            .Replace("\"event\": \"workflow_dispatch\",\n    \"trustedRef\": \"no-checkout-discovery\"", $"\"event\": \"{finalEvent}\",\n    \"trustedRef\": \"no-checkout-discovery\"", StringComparison.Ordinal)
+            .Replace("\"event\": \"manual\",\n    \"trustedRef\": \"no-checkout-discovery\"", $"\"event\": \"{finalEvent}\",\n    \"trustedRef\": \"no-checkout-discovery\"", StringComparison.Ordinal));
 
         public void MergeDiscoveryWorkflows(string provider)
         {
@@ -573,7 +574,7 @@ public sealed class ReleaseProviderAdapterScriptTests
         public void MutateFinalWorkflow(string provider, string steps)
         {
             string path = Path.Combine(ProvidersRoot, provider, "release-adapter-final.yml");
-            File.WriteAllText(path, File.ReadAllText(path).Replace("      - run: printf '%s\\n' 'release-adapter-final: transport-only no-checkout launch'\n", steps, StringComparison.Ordinal));
+            File.WriteAllText(path, File.ReadAllText(path).Replace("      - run: printf '%s\\n' 'release-adapter-final: transport-only no-checkout discovery'\n", steps, StringComparison.Ordinal));
         }
 
         public ScriptResult Run(params string[] extraArguments)
@@ -587,7 +588,7 @@ public sealed class ReleaseProviderAdapterScriptTests
                 WorkingDirectory = repoRoot,
             };
             startInfo.ArgumentList.Add("run");
-            startInfo.ArgumentList.Add(".ci/scripts/validate-release-provider-adapters.cs");
+            startInfo.ArgumentList.Add("eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/validate-release-provider-adapters.cs");
             startInfo.ArgumentList.Add("--");
             startInfo.ArgumentList.Add("--providers");
             startInfo.ArgumentList.Add(ProvidersRoot);
@@ -617,7 +618,7 @@ public sealed class ReleaseProviderAdapterScriptTests
             bool tangled = provider == "tangled";
             bool forgejo = provider == "forgejo-codeberg";
             string finalEvent = tangled ? "manual" : "workflow_dispatch";
-            string trustedRef = provider == "github" ? "default-branch" : "no-checkout-launch";
+            string trustedRef = provider == "github" ? "default-branch" : "no-checkout-discovery";
             string actions = provider == "github"
                 ? "\"actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\",\n    \"actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68\""
                 : string.Empty;
@@ -671,7 +672,8 @@ public sealed class ReleaseProviderAdapterScriptTests
         {
             if (provider == "github")
             {
-                File.Copy(Path.Combine(FindRepositoryRoot(), ".github", "workflows", "release-publish.yml"),
+                File.Copy(Path.Combine(FindRepositoryRoot(), "eng", "release", "tests",
+                    "Configurator.ReleaseEngineering.Tests", "Fixtures", "Workflows", "release-publish.yml"),
                     Path.Combine(ProvidersRoot, provider, "release-publish.yml"));
                 return;
             }
@@ -695,7 +697,7 @@ public sealed class ReleaseProviderAdapterScriptTests
                 ? "      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68\n"
                 : string.Empty;
             string finalCondition = provider == "github" ? $"    if: ${{{{ github.event_name == '{finalIf}' }}}}\n" : string.Empty;
-            string finalRun = provider == "github" ? "echo 'ref: ${{ github.event.repository.default_branch }}'" : "printf '%s\\n' 'release-adapter-final: transport-only no-checkout launch'";
+            string finalRun = provider == "github" ? "echo 'ref: ${{ github.event.repository.default_branch }}'" : "printf '%s\\n' 'release-adapter-final: transport-only no-checkout discovery'";
             File.WriteAllText(Path.Combine(directory, "release-adapter-preview.yml"), "name: preview\non:\n  pull_request:\njobs:\n  release-adapter-preview:\n    if: ${{ github.event_name == 'pull_request' }}\n    steps:\n      - run: echo preview\n");
             File.WriteAllText(Path.Combine(directory, "release-adapter-final.yml"), $"name: final\non:\n  {finalEvent}:\njobs:\n  release-adapter-final:\n{finalCondition}{finalEnvironment}    steps:\n{finalActions}      - run: {finalRun}\n");
         }

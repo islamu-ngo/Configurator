@@ -1,0 +1,4 @@
+# Test-authored inactive policy; not transferred Event authority.
+schemaVersion: release-signing-policy.v1
+status: inactive-fixture-only
+reason: reviewed production principals and public keys are absent

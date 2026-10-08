@@ -1,5 +1,5 @@
-using System.Security.Cryptography;
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Configurator.ReleaseEngineering;
@@ -387,7 +387,8 @@ public sealed class TrustedReleasePolicyTests
     [Test]
     public async Task BundledSignerFilesAreInactiveSyntheticUniqueAndEd25519Only()
     {
-        string trustRoot = Path.Combine(RepositoryRoot.Find(), "eng", "release", "trust");
+        string trustRoot = Path.Combine(RepositoryRoot.Find(), "eng", "release", "tests",
+            "Configurator.ReleaseEngineering.Tests", "Fixtures", "Trust");
         string policyText = File.ReadAllText(Path.Combine(trustRoot, "release-signing-policy.yaml"));
         Dictionary<object, object> policy = new DeserializerBuilder().Build().Deserialize<Dictionary<object, object>>(policyText);
         string[] signerLines = File.ReadAllLines(Path.Combine(trustRoot, "allowed-signers"))

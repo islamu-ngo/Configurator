@@ -283,7 +283,7 @@ public sealed class SyncPublicChangelogTests
         [
             "sync-public-changelog", "--inventory", path,
             "--retained-evidence", retainedRoot,
-            "--publication-base", "https://github.com/ISLAMU/Event/blob/",
+            "--publication-base", "https://github.com/fixture/configurator/blob/",
         ];
         return check ? [.. arguments, "--check"] : arguments;
     }

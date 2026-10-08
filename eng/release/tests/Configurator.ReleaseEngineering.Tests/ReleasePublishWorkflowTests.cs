@@ -434,9 +434,9 @@ public sealed class ReleasePublishWorkflowTests
         await fixture.PublishSecondRelease(activate: false);
         ProcessResult result = await fixture.Execute("validate", """
             git() {
-              if [[ "$*" == *"ls-remote --exit-code origin refs/heads/develop" ]]; then
+              if [[ "$*" == *"ls-remote --exit-code origin refs/heads/main" ]]; then
                 if [[ -f "$FIXTURE/snapshot-read" ]]; then
-                  command git --git-dir=../remote.git update-ref refs/heads/develop refs/heads/new-inventory
+                  command git --git-dir=../remote.git update-ref refs/heads/main refs/heads/new-inventory
                 else
                   touch "$FIXTURE/snapshot-read"
                 fi
@@ -457,8 +457,8 @@ public sealed class ReleasePublishWorkflowTests
         await fixture.PublishSecondRelease(activate: false);
         ProcessResult result = await fixture.Execute("propose", """
             git() {
-              if [[ "$*" == *"ls-remote --exit-code origin refs/heads/develop" && ! -f "$FIXTURE/race-injected" ]]; then
-                command git --git-dir=../remote.git update-ref refs/heads/develop refs/heads/new-inventory
+              if [[ "$*" == *"ls-remote --exit-code origin refs/heads/main" && ! -f "$FIXTURE/race-injected" ]]; then
+                command git --git-dir=../remote.git update-ref refs/heads/main refs/heads/new-inventory
                 touch "$FIXTURE/race-injected"
               fi
               command git "$@"
@@ -479,9 +479,9 @@ public sealed class ReleasePublishWorkflowTests
         await fixture.PublishSecondRelease(activate: false);
         ProcessResult result = await fixture.Execute("reconcile", """
             git() {
-              if [[ "$*" == *"ls-remote --exit-code origin refs/heads/develop" ]]; then
+              if [[ "$*" == *"ls-remote --exit-code origin refs/heads/main" ]]; then
                 if [[ -f "$FIXTURE/snapshot-read" ]]; then
-                  command git --git-dir=../remote.git update-ref refs/heads/develop refs/heads/new-inventory
+                  command git --git-dir=../remote.git update-ref refs/heads/main refs/heads/new-inventory
                 else
                   touch "$FIXTURE/snapshot-read"
                 fi
@@ -544,7 +544,7 @@ public sealed class ReleasePublishWorkflowTests
                   fi
                   printf 'HTTP/2.0 200 OK\r\n\r\n{"ready":true}\n'
                 }
-                gh_api repos/islamu/event/branches/develop
+                gh_api repos/fixture/configurator/branches/develop
                 """;
             ProcessResult result = await RunBash(program, environment: new Dictionary<string, string>
             {
@@ -708,7 +708,8 @@ public sealed class ReleasePublishWorkflowTests
     private static YamlMappingNode LoadWorkflow()
     {
         var stream = new YamlStream();
-        using var reader = File.OpenText(Path.Combine(RepositoryRoot(), ".github", "workflows", "release-publish.yml"));
+        using var reader = File.OpenText(Path.Combine(RepositoryRoot(), "eng", "release", "tests",
+            "Configurator.ReleaseEngineering.Tests", "Fixtures", "Workflows", "release-publish.yml"));
         stream.Load(reader);
         if (stream.Documents.Count != 1) throw new InvalidOperationException("Expected one workflow document.");
         return (YamlMappingNode)stream.Documents[0].RootNode;
@@ -790,10 +791,10 @@ public sealed class ReleasePublishWorkflowTests
         private string Retained => Path.Combine(Repository, "eng/release/publication/retained");
         private Dictionary<string, string> Environment => new()
         {
-            ["GH_REPO"] = "islamu/event",
+            ["GH_REPO"] = "fixture/configurator",
             ["DEFAULT_BRANCH"] = "main",
             ["PUBLICATION_ENABLED"] = "true",
-            ["PUBLICATION_BASE"] = "https://github.com/ISLAMU/Event/blob/",
+            ["PUBLICATION_BASE"] = "https://github.com/fixture/configurator/blob/",
             ["TRUSTED_LAUNCHER"] = Path.Combine(Runtime, "Configurator.ReleaseEngineering"),
             ["PROPOSAL_PR"] = "17",
             ["PROPOSAL_HEAD"] = ProposalHead,
@@ -848,13 +849,14 @@ public sealed class ReleasePublishWorkflowTests
                     git config user.name 'Publication fixture'
                     git config user.email 'fixture@example.invalid'
                     git remote add origin ../remote.git
+                    git branch develop main
                     git branch docs/gitbook-sync
                     git branch docs/publication
                     git branch docs/publication-receipts
-                    git switch develop
+                    git switch main
                     git add eng/release/publication/retained
                     git commit -m 'Retain signed complete publication inventory'
-                    git push --tags origin develop docs/gitbook-sync docs/publication docs/publication-receipts
+                    git push --tags origin main develop docs/gitbook-sync docs/publication docs/publication-receipts
                     """);
                 RequireSuccess(setup);
                 fixture.Initial = await fixture.RemoteOid("docs/publication");
@@ -889,8 +891,8 @@ public sealed class ReleasePublishWorkflowTests
                 state = merged ? "closed" : "open",
                 number = 17,
                 merge_commit_sha = Accepted,
-                @base = new { @ref = "docs/publication", sha = Initial, repo = new { full_name = "islamu/event" } },
-                head = new { @ref = ProposalBranch, sha = ProposalHead, repo = new { full_name = "islamu/event" } },
+                @base = new { @ref = "docs/publication", sha = Initial, repo = new { full_name = "fixture/configurator" } },
+                head = new { @ref = ProposalBranch, sha = ProposalHead, repo = new { full_name = "fixture/configurator" } },
             }));
 
         public async Task AcceptProposal()
@@ -1010,10 +1012,10 @@ public sealed class ReleasePublishWorkflowTests
         {
             RequireSuccess(await Git("""
                 set -euo pipefail
-                git switch develop
+                git switch main
                 git rm eng/release/publication/retained/authorized-inventory.v1.json.sig
                 git commit -m 'Remove retained authority'
-                git push origin develop
+                git push origin main
                 """));
         }
 
@@ -1021,7 +1023,7 @@ public sealed class ReleasePublishWorkflowTests
         {
             // Evidence and tag signatures were retained before runtime promotion. Publishing
             // changes only the signed complete authorization set, never the release identities.
-            RequireSuccess(await Git("git switch -c new-inventory develop"));
+            RequireSuccess(await Git("git switch -c new-inventory main"));
             entries.Add(secondRelease);
             await WriteInventory();
             RequireSuccess(await Git($"""
@@ -1124,8 +1126,8 @@ public sealed class ReleasePublishWorkflowTests
                 esac
               done
               case "$endpoint" in
-                repos/islamu/event/pulls/17) cat "$FIXTURE/pull.json" ;;
-                repos/islamu/event/pulls)
+                repos/fixture/configurator/pulls/17) cat "$FIXTURE/pull.json" ;;
+                repos/fixture/configurator/pulls)
                   if [[ "$method" == GET ]]; then
                     if [[ -f "$FIXTURE/pull.json" ]]; then
                       jq -s --arg head "${head#*:}" --arg state "$state" \
@@ -1134,11 +1136,11 @@ public sealed class ReleasePublishWorkflowTests
                   else
                     sha=$(command git --git-dir="$FIXTURE/remote.git" rev-parse "refs/heads/$head")
                     jq -n --arg head "$head" --arg sha "$sha" --arg base "$base" \
-                      '{number:17,state:"open",merged:false,head:{ref:$head,sha:$sha,repo:{full_name:"islamu/event"}},
-                        base:{ref:$base,repo:{full_name:"islamu/event"}}}' > "$FIXTURE/pull.json"
+                      '{number:17,state:"open",merged:false,head:{ref:$head,sha:$sha,repo:{full_name:"fixture/configurator"}},
+                        base:{ref:$base,repo:{full_name:"fixture/configurator"}}}' > "$FIXTURE/pull.json"
                     printf '17\n'
                   fi ;;
-                repos/islamu/event/git/refs)
+                repos/fixture/configurator/git/refs)
                   command git --git-dir="$FIXTURE/remote.git" update-ref "$ref" "$sha" 0000000000000000000000000000000000000000 ;;
                 graphql)
                   local branch old path contents blob tree new index
@@ -1178,15 +1180,15 @@ public sealed class ReleasePublishWorkflowTests
                     return 137
                   fi
                   jq -n --arg oid "$new" '{data:{createCommitOnBranch:{commit:{oid:$oid}}}}' ;;
-                repos/islamu/event/commits/*/check-runs)
+                repos/fixture/configurator/commits/*/check-runs)
                   printf 'HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n'
                   cat "$FIXTURE/checks.json" ;;
-                repos/islamu/event/check-suites/123) cat "$FIXTURE/suite.json" ;;
-                repos/islamu/event/statuses/*)
+                repos/fixture/configurator/check-suites/123) cat "$FIXTURE/suite.json" ;;
+                repos/fixture/configurator/statuses/*)
                   printf '%s\n' "$state" >> "$FIXTURE/statuses"
                   jq -cn --arg sha "${endpoint##*/}" --arg state "$state" --arg context "$context" \
                     '{sha:$sha,state:$state,context:$context}' >> "$FIXTURE/status-records" ;;
-                repos/islamu/event/branches/*) cat "$FIXTURE/branch.json" ;;
+                repos/fixture/configurator/branches/*) cat "$FIXTURE/branch.json" ;;
                 *) printf '%s\n' "Unexpected GitHub request: $endpoint" >&2; return 9 ;;
               esac
             }
@@ -1200,7 +1202,7 @@ public sealed class ReleasePublishWorkflowTests
         private static string Digest(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
         private static void RequireSuccess(ProcessResult result)
         {
-            if (result.ExitCode != 0) throw new InvalidOperationException(result.Output + result.Error);
+            if (result.ExitCode != 0) throw new InvalidOperationException($"exit={result.ExitCode}\n{result.Output}{result.Error}");
         }
         public void Dispose() => releases.Dispose();
     }

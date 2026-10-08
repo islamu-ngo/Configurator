@@ -124,7 +124,7 @@ public sealed class ReleaseImpactScriptTests
                 UseShellExecute = false
             };
             start.ArgumentList.Add("run");
-            start.ArgumentList.Add(".ci/scripts/validate-release-impact-pr.cs");
+            start.ArgumentList.Add("eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/Scripts/validate-release-impact-pr.cs");
             start.ArgumentList.Add("--");
             start.ArgumentList.Add(eventPath);
             start.Environment.Remove("GITHUB_TOKEN");
