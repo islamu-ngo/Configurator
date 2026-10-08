@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SetupTargetEnabled>true</SetupTargetEnabled>
+    <SetupTargetRole>OfflineDesktop</SetupTargetRole>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Configurator.Presentation\Configurator.Presentation.csproj" />
+    <ProjectReference Include="..\Configurator.Artifacts\Configurator.Artifacts.csproj" />
+  </ItemGroup>
+</Project>

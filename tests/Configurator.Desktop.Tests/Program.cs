@@ -1,0 +1,1 @@
+namespace Configurator.Desktop.Tests;

@@ -1,0 +1,70 @@
+<Window
+    x:Class="Configurator.Desktop.Views.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    x:DataType="vm:SetupDesktopShellViewModel"
+    Title="Configurator — offline preparation"
+    Width="960" Height="800" MinWidth="600" MinHeight="540"
+    AutomationProperties.Name="Configurator offline definition editor">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+    <StackPanel Grid.Row="0" Spacing="8">
+      <TextBlock Text="Offline configuration preparation" FontSize="26" FontWeight="SemiBold" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="Local definition path (JSON or YAML)" />
+          <TextBox Name="DefinitionPath" Text="{Binding DefinitionPath, Mode=TwoWay}"
+                   AutomationProperties.Name="Local definition path" />
+        </StackPanel>
+        <Button Grid.Column="1" Name="LoadDefinition" Content="_Load definition"
+                VerticalAlignment="Bottom" Click="LoadClicked" />
+      </Grid>
+      <TextBlock Text="{Binding DefinitionPin}" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <StackPanel>
+          <TextBlock Text="Display mode (validation is unchanged)" />
+          <ComboBox Name="DisplayMode" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="Field display mode" SelectionChanged="DisplayModeChanged">
+            <ComboBoxItem Content="Essential" />
+            <ComboBoxItem Content="Guided" IsSelected="True" />
+            <ComboBoxItem Content="Advanced" />
+          </ComboBox>
+        </StackPanel>
+        <CheckBox Grid.Column="1" Content="_Right-to-left layout" VerticalAlignment="Bottom"
+                  AutomationProperties.Name="Use right-to-left layout" Click="DirectionClicked" />
+      </Grid>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" Margin="0,12">
+      <StackPanel Name="Fields" Spacing="14" />
+    </ScrollViewer>
+    <StackPanel Grid.Row="2" Spacing="8">
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <StackPanel>
+          <TextBlock Text="Declared artifact" />
+          <ComboBox Name="Artifact" ItemsSource="{Binding Artifacts}" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="Declared artifact" SelectionChanged="ArtifactChanged" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="New file name" />
+          <TextBox Name="FileName" Text="{Binding FileName, Mode=TwoWay}" AutomationProperties.Name="New output file name" />
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="{Binding ArtifactConsequences}" TextWrapping="Wrap" />
+      <StackPanel>
+        <TextBlock Text="Existing output directory" />
+        <TextBox Name="OutputDirectory" Text="{Binding OutputDirectory, Mode=TwoWay}"
+                 AutomationProperties.Name="Existing protected output directory" />
+      </StackPanel>
+      <WrapPanel>
+        <Button Name="Validate" Content="_Validate" Margin="0,0,8,0" Click="ValidateClicked" />
+        <Button Name="Prepare" Content="_Prepare artifact" Margin="0,0,8,0"
+                IsEnabled="{Binding CanPrepare}" Click="PrepareClicked" />
+        <Button Name="Save" Content="_Save new protected file" Margin="0,0,8,0"
+                IsEnabled="{Binding CanSave}" Click="SaveClicked" />
+        <Button Name="Cancel" Content="_Cancel / discard preparation" Click="CancelClicked" />
+      </WrapPanel>
+      <TextBlock Name="Status" Text="{Binding Status}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Operation status" />
+    </StackPanel>
+  </Grid>
+</Window>
