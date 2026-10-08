@@ -23,6 +23,17 @@ public sealed class SetupCliContractTests
     }
 
     [Test]
+    public async Task SchemaVerifierRejectsUndeclaredArtifactOperation()
+    {
+        JsonObject schema = SetupCliMachineContractVerifier.ParseSchema(SetupCliCommandSchemaMetadata.GenerateSchema());
+        JsonNode artifact = schema["_metadata"]!["commands"]!.AsArray()
+            .Single(command => command!["name"]!.GetValue<string>() == "artifact")!;
+        artifact["operations"]![0]!["name"] = "apply";
+        await Assert.That(SetupCliMachineContractVerifier.InspectSchema(schema))
+            .Contains("schema-operation-vocabulary");
+    }
+
+    [Test]
     public async Task MachineVerifierRejectsFramingControlsAndValueBearingObjects()
     {
         byte[] good = SetupCliMachineContractVerifier.GoodFixture();

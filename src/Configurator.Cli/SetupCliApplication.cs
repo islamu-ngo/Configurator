@@ -1,7 +1,7 @@
-using System.Text.Json;
 using System.Text;
-using Configurator.Core.Definitions;
+using System.Text.Json;
 using Configurator.Cli.Commands;
+using Configurator.Core.Definitions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 

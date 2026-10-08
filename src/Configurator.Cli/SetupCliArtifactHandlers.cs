@@ -3,8 +3,8 @@ using System.Text.Json;
 using Configurator.Artifacts;
 using Configurator.Core;
 using Configurator.Core.Artifacts;
-using Configurator.Core.Definitions;
 using Configurator.Core.Composition;
+using Configurator.Core.Definitions;
 using Configurator.Core.Environment;
 
 namespace Configurator.Cli;

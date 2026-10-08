@@ -47,6 +47,18 @@ internal static partial class SetupCliMachineContractVerifier
         }
 
         InspectNode(schema, "$", errors, new HashSet<JsonNode>(ReferenceEqualityComparer.Instance));
+        JsonArray commands = schema["_metadata"]!["commands"]!.AsArray();
+        if (!commands.Select(command => command!["name"]!.GetValue<string>()).ToHashSet(StringComparer.Ordinal)
+            .SetEquals(SetupCliContractSpecification.Operations.Keys))
+            errors.Add("schema-family-vocabulary");
+        foreach (JsonNode? command in commands)
+        {
+            string family = command!["name"]!.GetValue<string>();
+            if (!SetupCliContractSpecification.Operations.TryGetValue(family, out IReadOnlySet<string>? expected)
+                || !expected.SetEquals(command["operations"]!.AsArray()
+                    .Select(operation => operation!["name"]!.GetValue<string>())))
+                errors.Add("schema-operation-vocabulary");
+        }
         return errors;
     }
 

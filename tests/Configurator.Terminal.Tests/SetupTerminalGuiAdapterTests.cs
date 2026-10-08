@@ -70,12 +70,16 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task NativeButtonsDoNotOverwriteAdjacentStatusOrArtifactLabels()
     {
         using var harness = new Harness(initialize: true);
+        harness.Window.BeginInit();
+        harness.Window.EndInit();
         harness.Window.Frame = new Rectangle(0, 0, 100, 30);
         harness.Window.ApplyViewportPolicy(harness.Window.Frame.Size);
         foreach (View view in harness.Window.SubViews)
             view.SetRelativeLayout(harness.Window.Viewport.Size);
         View[] labels = harness.Window.SubViews.OfType<Label>().Where(label => label.Visible).ToArray();
         View[] buttons = harness.Window.SubViews.OfType<Button>().Where(button => button.Visible).ToArray();
+        foreach (View button in buttons)
+            await Assert.That(button.Viewport.Height).IsGreaterThan(0);
         string[] overlaps = buttons.SelectMany(button => labels.Where(label =>
                 Rectangle.Intersect(button.Frame, label.Frame) is { Width: > 0, Height: > 0 })
             .Select(label => $"{button.Text}:{button.Frame} intersects {label.Text}:{label.Frame}")).ToArray();

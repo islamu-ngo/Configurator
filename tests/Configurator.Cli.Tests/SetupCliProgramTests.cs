@@ -1,7 +1,7 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Security.Cryptography;
 
 namespace Configurator.Cli.Tests;
 

@@ -8,6 +8,7 @@ using Configurator.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
+using global::Terminal.Gui.Drawing;
 using global::Terminal.Gui.Input;
 using global::Terminal.Gui.ViewBase;
 using global::Terminal.Gui.Views;
@@ -54,8 +55,13 @@ internal sealed class SetupTerminalWindow : Window
         Width = Dim.Fill();
         Height = Dim.Fill();
         var definition = operation.Form.Definition;
-        var heading = new Label { X = 1, Y = 0, Width = Dim.Fill(2),
-            Text = Safe($"{definition.Title} | {definition.ApplicationId} | r{definition.Revision}") };
+        var heading = new Label
+        {
+            X = 1,
+            Y = 0,
+            Width = Dim.Fill(2),
+            Text = Safe($"{definition.Title} | {definition.ApplicationId} | r{definition.Revision}")
+        };
         _mode = Button("DisplayMode", 1, 2, CycleMode);
         _fieldLabel = new Label { X = 1, Y = 4, Width = Dim.Fill(2) };
         _value = new TextField { X = 1, Y = 5, Width = Dim.Fill(2) };
@@ -80,8 +86,15 @@ internal sealed class SetupTerminalWindow : Window
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
         var limitations = new Label { X = 1, Y = 22, Width = Dim.Fill(2), Height = 2, Text = SetupTerminalText.Get("Limitations") };
-        _smallNotice = new Label { X = 1, Y = 1, Width = Dim.Fill(2), Height = 3,
-            Text = SetupTerminalText.Get("TerminalTooSmall"), Visible = false };
+        _smallNotice = new Label
+        {
+            X = 1,
+            Y = 1,
+            Width = Dim.Fill(2),
+            Height = 3,
+            Text = SetupTerminalText.Get("TerminalTooSmall"),
+            Visible = false
+        };
         Add(heading, _mode, _fieldLabel, _value, _masked, _help, _choice, previous, next, apply,
             _artifactLabel, artifact, fileLabel, _fileName, validate, _prepare, _save, _status,
             clear, close, limitations, previousItem, nextItem, removeItem);
@@ -114,7 +127,12 @@ internal sealed class SetupTerminalWindow : Window
     {
         var button = new Button
         {
-            X = x, Y = y, Height = 1, Text = SetupTerminalText.Get(key), ShadowStyle = ShadowStyles.None
+            X = x,
+            Y = y,
+            Height = 1,
+            Text = SetupTerminalText.Get(key),
+            BorderStyle = LineStyle.None,
+            ShadowStyle = null
         };
         button.Accepting += (_, args) => { args.Handled = true; action(); };
         return button;

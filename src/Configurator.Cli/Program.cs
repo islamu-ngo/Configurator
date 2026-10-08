@@ -1,5 +1,5 @@
-using Configurator.Cli;
 using Configurator.Artifacts;
+using Configurator.Cli;
 using Configurator.Core;
 
 return SetupCliProgram.Run(args);
