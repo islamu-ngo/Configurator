@@ -3921,10 +3921,11 @@
       "group": "foundation-tooling"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": ".gitignore",
+      "sourceGitBlob": "1c7eb4fe559180811c9234a9e54a6ff61bba9fa6",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
       "destination": ".gitignore",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
@@ -4065,18 +4066,20 @@
       "group": "foundation-tooling"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": "AGENTS.md",
+      "sourceGitBlob": "e3543e68d116ae1a58e7c67c3d8e074bc94fbbeb",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
       "destination": "AGENTS.md",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": "AI_REVIEW.md",
+      "sourceGitBlob": "3a3eeadd00e1c6c9d4eab7c5adf29c558146a7b9",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
       "destination": "AI_REVIEW.md",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
@@ -4097,10 +4100,11 @@
       "group": "foundation-root"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": "CONTRIBUTING.md",
+      "sourceGitBlob": "6ab0f1cf7e323b7731bed93996c82db6ff6b62ee",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
       "destination": "CONTRIBUTING.md",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
@@ -4161,10 +4165,10 @@
       "group": "foundation-tooling"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": "docs/internal/legal/IP_GOVERNANCE.md",
+      "sourceGitBlob": "686ec6eb89ac19aa64cb4060a1e993570e551f09",
       "destination": "docs/internal/legal/IP_GOVERNANCE.md",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
@@ -5025,26 +5029,29 @@
       "group": "foundation-root"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": "PROJECTS.md",
+      "sourceGitBlob": "ab8563cf9ebb3038cc644d3ef61b42bde31acd68",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
       "destination": "PROJECTS.md",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": "README.md",
+      "sourceGitBlob": "83da1607f6d6abe290fe93227fed52e93b369add",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
       "destination": "README.md",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
     {
-      "source": null,
-      "sourceGitBlob": null,
+      "source": "SECURITY.md",
+      "sourceGitBlob": "0c9f6d3d875fea9c7fe51eb5a8b995b7a5403b91",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
       "destination": "SECURITY.md",
-      "action": "author-or-adapt-target-foundation",
+      "action": "restore-original-with-required-target-adaptation",
       "license": "MIT ISLAMU authored/adapted guidance",
       "group": "foundation-root"
     },
@@ -5202,6 +5209,175 @@
       "license": "MIT ISLAMU authored mechanism; no production authority or third-party implementation",
       "group": "standalone-release-test-closure",
       "provenance": "eng/release/tests/Configurator.ReleaseEngineering.Tests/Fixtures/README.md"
+    },
+    {
+      "source": "docs/internal/GOVERNANCE.md",
+      "sourceGitBlob": "180779f554deefb313a24e4448b88fa43f67d91d",
+      "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
+      "destination": "docs/internal/GOVERNANCE.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "docs/internal/DOCUMENTATION_ARCHITECTURE.md",
+      "sourceGitBlob": "90a17df9de48aa2b34846d4a358b5a6c30a7d7ab",
+      "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
+      "destination": "docs/internal/DOCUMENTATION_ARCHITECTURE.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "docs/internal/TESTING.md",
+      "sourceGitBlob": "b3d4768f37a069f22c48e632457bd01d25b71b74",
+      "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
+      "destination": "docs/internal/TESTING.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "docs/internal/OPERATIONS.md",
+      "sourceGitBlob": "6b30fea1ebabc3602a47a94dbb6419e99219848c",
+      "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
+      "destination": "docs/internal/OPERATIONS.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "docs/internal/RELEASE_RUNBOOK.md",
+      "sourceGitBlob": "f3c0d8132778d629324d1c8aab2761caa6a5add9",
+      "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
+      "destination": "docs/internal/RELEASE_RUNBOOK.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "docs/internal/QUICK_REFERENCE.md",
+      "sourceGitBlob": "39af5b03ca18fbafcdc141bcf3eb9a9f8fbe162b",
+      "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
+      "destination": "docs/internal/QUICK_REFERENCE.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "docs/README.md",
+      "sourceGitBlob": "1652db78fbf8dae61894e546677bc29beed708b0",
+      "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
+      "destination": "docs/README.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": ".github/copilot-instructions.md",
+      "sourceGitBlob": "7080fce43cad2e260753f96aa3e40c03ed82cfd1",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": ".github/copilot-instructions.md",
+      "action": "copy-original",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": ".github/PULL_REQUEST_TEMPLATE.md",
+      "sourceGitBlob": "31d96925f33ec3e956a50a4931709dd7072ecb19",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": ".github/PULL_REQUEST_TEMPLATE.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": ".github/ISSUE_TEMPLATE/01_BUG_REPORT.yaml",
+      "sourceGitBlob": "f446b2ba0c413cc31d49336424927870e39db730",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": ".github/ISSUE_TEMPLATE/01_BUG_REPORT.yaml",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": ".github/ISSUE_TEMPLATE/config.yaml",
+      "sourceGitBlob": "22f66f612bda1e6d32c1603e02fb31680a07b6a3",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": ".github/ISSUE_TEMPLATE/config.yaml",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": ".github/ISSUE_TEMPLATE/documentation.yml",
+      "sourceGitBlob": "3801ef24ad660cbb8de23f6d08adbf7e8b4c5ae4",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": ".github/ISSUE_TEMPLATE/documentation.yml",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": ".github/FUNDING.yml",
+      "sourceGitBlob": "38c482f126d9266c2344d4595938e41b0d42bc73",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": ".github/FUNDING.yml",
+      "action": "copy-original",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": ".github/CODEOWNERS",
+      "sourceGitBlob": "f1f3fb85bbd3ca68e17f8189ae3e3487a6f3e484",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": ".github/CODEOWNERS",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "dev/_journal/README.md",
+      "sourceGitBlob": "09ae0fd2c9c380428252a3e878ba99c0aa5cc75a",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": "dev/_journal/README.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "dev/_journal/FINDING_TEMPLATE.md",
+      "sourceGitBlob": "3350fa6b10f48902f2a61e245e54f79c7bf2c27c",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": "dev/_journal/FINDING_TEMPLATE.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": "dev/_journal/PROMOTION_RULES.md",
+      "sourceGitBlob": "026012f092eb36c2c37e0fe4e2fea738a1f3e34b",
+      "sourceRevision": "072f2b6dbd8e4b87e16b795bc02a9ea23f902046",
+      "destination": "dev/_journal/PROMOTION_RULES.md",
+      "action": "selective-original-transfer-with-required-target-adaptation",
+      "license": "MIT Steward direction for ISLAMU-owned scaffold; third-party exclusions unchanged",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": null,
+      "sourceGitBlob": null,
+      "destination": "dev/_journal/journal.md",
+      "action": "initialize-target-owned-index-without-Event-history",
+      "license": "MIT ISLAMU authored guidance",
+      "group": "fidelity-restoration"
+    },
+    {
+      "source": null,
+      "sourceGitBlob": null,
+      "destination": "dev/_journal/MAJOR_DECISIONS.md",
+      "action": "initialize-target-owned-index-without-Event-history",
+      "license": "MIT ISLAMU authored guidance",
+      "group": "fidelity-restoration"
     },
     {
       "source": "dotnet-tools.json",

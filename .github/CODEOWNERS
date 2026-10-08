@@ -1,0 +1,23 @@
+# GitHub Actions, issue templates, PR templates, CODEOWNERS, and Dependabot configuration.
+.github/** @amirakrari
+.ci/** @amirakrari
+
+# Native/static packaging and deterministic dependency inputs.
+eng/configurator/** @amirakrari
+eng/release/** @amirakrari
+Directory.Packages.props @amirakrari
+Directory.Build.props @amirakrari
+global.json @amirakrari
+**/*.csproj @amirakrari
+**/packages.lock.json @amirakrari
+
+# CI/CD, release, operations, self-hosting, and legal contribution governance.
+docs/internal/GOVERNANCE.md @amirakrari
+docs/internal/OPERATIONS.md @amirakrari
+docs/internal/RELEASE_RUNBOOK.md @amirakrari
+docs/public/packaging.md @amirakrari
+docs/internal/PROTECTED_ARTIFACTS.md @amirakrari
+docs/internal/CORE_DEFINITION_CONTRACT.md @amirakrari
+CONTRIBUTING.md @amirakrari
+docs/internal/legal/** @amirakrari
+legal/** @amirakrari

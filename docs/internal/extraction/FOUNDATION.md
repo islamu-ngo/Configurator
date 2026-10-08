@@ -8,7 +8,10 @@ host Event services, apply configuration remotely or authenticate operators.
 The transferred knowledge library preserves generic engineering material;
 Event-specific examples remain reference-only and cannot introduce requirements
 for absent backend projects, HAL affordances, database providers or AGPL service
-covenants. Links formerly targeting nontransferred Event policies route here.
+covenants. Reusable policies retain their distinct target documents and source
+anchors; this overview is not a replacement for governance, testing, operations,
+release instructions or documentation architecture. Absent Event-only policies
+are explicitly historical references, not disguised target requirements.
 
 ## Build and tooling
 
@@ -39,11 +42,30 @@ root contract. No local MCP configuration, session state or credentials transfer
 
 ## Verification and provenance
 
-Engineering changes run engineering tests only. Source-derived tests that
-require Event CI scripts/workflows are retained as reference and must be rebased
-by the workflow owner before claiming the complete release suite passes.
+Engineering changes run engineering tests only. Generic release tests use local
+inert workflow/script fixtures; the verified fixture closure requires no Event
+checkout and does not activate publication or import signer authority.
 No historical Event trust, publication receipt or changelog is installed.
 
 See `transfer-manifest.json` for exact dispositions and `PROVENANCE.md` for the
 Steward MIT direction, excluded example corpus and dependency rebuild evidence.
 Existing design/strategy files remain user-owned and unmodified.
+
+## Faithful scaffold adaptation
+
+The transfer preserves original ISLAMU-owned structure and reusable content,
+changing only target names, actual owner/test paths, product/privacy boundaries
+and licensing/publication facts. Thin summaries are not equivalent transfers.
+The README retains the source project's community, maintainer, sponsorship,
+acknowledgement and document-router structure; Event feature/service claims are
+replaced by actual Configurator capabilities.
+
+Original benchmark fields/context budgets, rule bodies, test discipline, generic
+Markdown examples and contribution/finding workflows are preserved. Event-only
+rules retain historical bodies with nonmatching activation paths. Target journal
+assets contain their reusable templates/procedures, not Event finding history.
+
+Contributor Covenant expression remains outside the first-party MIT grant.
+The 154-file unlicensed Evolve corpus, Event production trust and credentials
+remain excluded. Necessary differences are recorded separately from restored
+reusable content in the scoped fidelity evidence.
