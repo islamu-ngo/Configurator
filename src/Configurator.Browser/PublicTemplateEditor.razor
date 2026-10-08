@@ -14,7 +14,7 @@
     @foreach (SetupFieldState state in _validation!.Fields)
     {
         var field = state.Definition;
-        @if (field.Sensitivity == SetupFieldSensitivity.Public)
+        @if (field.Sensitivity == SetupFieldSensitivity.Public && state.IsActive)
         {
             <div class="question" data-field="@field.Id" data-active="@state.IsActive.ToString().ToLowerInvariant()">
                 @if (BrowserPublicTemplate.IsSelectable(field) && state.IsActive)

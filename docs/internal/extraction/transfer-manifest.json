@@ -3,7 +3,7 @@
   "sourceRepository": "ISLAMU Event",
   "sourceRevision": "c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38",
   "destinationRepository": "ISLAMU Configurator",
-  "scope": "Repository foundation owned paths only; parent owns product/generator/solution/workflow inventory",
+  "scope": "Repository foundation and external Event definition handoff; authored product owners are recorded by their verified increment commits",
   "authority": "Explicit Project Steward MIT transfer direction for ISLAMU-owned source; third-party material retains its terms",
   "originalEngineeringVerified": true,
   "excludedExpressiveCorpusFiles": 154,
@@ -5113,6 +5113,32 @@
       "action": "preserve-existing-user-owned-document",
       "license": "Existing destination authorship untouched",
       "group": "protected-input"
+    },
+    {
+      "source": "configurator/definitions/islamu-event",
+      "destination": "examples/islamu-event",
+      "sourceGitBlob": null,
+      "action": "generate-data-only-external-target",
+      "license": "MIT ISLAMU authored definition and synthetic vectors",
+      "group": "external-definition-handoff",
+      "definitionRevision": 4,
+      "definitionDigest": "33661343436560b8004903d6efe569c6e3342d278f3fae6e9df49fad9e0e65bf"
+    },
+    {
+      "source": "configurator/definitions/islamu-event/public-definition.json",
+      "destination": "src/Configurator.Browser/Definitions/islamu-event.public.json",
+      "sourceGitBlob": null,
+      "action": "bundle-identical-public-safe-metadata",
+      "license": "MIT ISLAMU authored metadata",
+      "group": "external-definition-handoff"
+    },
+    {
+      "source": "eng/setup-assistant/environment-catalogue.json",
+      "destination": "tests/Configurator.Core.Tests/EventHandoff/environment-catalogue.json",
+      "sourceGitBlob": null,
+      "action": "retain-archived-contract-vector-not-production-authority",
+      "license": "MIT Steward transfer direction",
+      "group": "external-definition-handoff"
     },
     {
       "source": "dotnet-tools.json",

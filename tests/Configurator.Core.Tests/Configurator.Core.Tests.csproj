@@ -15,4 +15,11 @@
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../examples/islamu-event/setup-definition.json" LogicalName="EventDefinition" />
+    <EmbeddedResource Include="../../examples/islamu-event/public-definition.json" LogicalName="EventPublicDefinition" />
+    <EmbeddedResource Include="../../examples/islamu-event/answers/*" LogicalName="EventAnswers.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../examples/islamu-event/expected/*" LogicalName="EventExpected.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

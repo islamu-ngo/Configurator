@@ -32,7 +32,11 @@ public sealed record BrowserLaunchSelection(SetupDefinition Definition, string E
                 string value = Uri.UnescapeDataString(part[(separator + 1)..]);
                 int maximum = name switch
                 {
-                    "appVersion" => 64, "entry" => 128, "locale" => 35, "digest" => 64, _ => 0
+                    "appVersion" => 64,
+                    "entry" => 128,
+                    "locale" => 35,
+                    "digest" => 64,
+                    _ => 0
                 };
                 if (value.Length == 0 || value.Length > maximum
                     || !value.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_')

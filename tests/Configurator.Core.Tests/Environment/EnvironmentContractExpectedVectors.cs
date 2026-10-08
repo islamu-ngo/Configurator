@@ -6,7 +6,7 @@ internal static class EnvironmentContractExpectedVectors
 {
     internal const string ProductNamespace = "Configurator.Core.Environment";
     internal const string MachineCatalogueRelativePath =
-        "eng/setup-assistant/generated/environment-catalogue.json";
+        "tests/Configurator.Core.Tests/EventHandoff/environment-catalogue.json";
 
     internal static readonly string[] RequiredCatalogueProductTypes =
     [

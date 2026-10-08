@@ -11,6 +11,32 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class LaunchRouteTests
 {
     [Test]
+    public async Task ExternalBundledDefinitionKeepsNativeDigestAndOnlyOffersPublicChoices()
+    {
+        var registry = BrowserDefinitionRegistry.LoadBundled();
+        var definition = registry.Current.Resolve(Guid.Parse("a4bcfaa6-9979-43e5-b1f5-00d552618cdf"));
+        using var context = BrowserFixture.Context(registry);
+        context.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}&entry=environment");
+        var component = context.Render<App>();
+
+        await Assert.That(component.Find("[data-digest]").GetAttribute("data-digest"))
+            .IsEqualTo(definition.Digest.Value);
+        await Assert.That(component.FindAll("[data-field]").Count).IsEqualTo(1);
+        component.Find("#choice-operation").Change("environment");
+        foreach (var field in definition.Fields.Where(field => !BrowserPublicTemplate.IsSelectable(field)))
+            await Assert.That(component.FindAll($"[id=\"choice-{field.Id}\"]")).IsEmpty();
+        await Assert.That(component.FindAll("input[type=password],textarea,input[type=text]")).IsEmpty();
+        component.Find("button").Click();
+        using JsonDocument template = BrowserFixture.Download(component.Find("a[download]").GetAttribute("href")!);
+        await Assert.That(template.RootElement.GetProperty("definitionDigest").GetString())
+            .IsEqualTo(definition.Digest.Value);
+        foreach (JsonProperty choice in template.RootElement.GetProperty("selections").EnumerateObject())
+            await Assert.That(BrowserPublicTemplate.IsSelectable(definition.Fields.Single(field => field.Id == choice.Name)))
+                .IsTrue();
+    }
+
+    [Test]
     [Arguments("not-a-guid", "", "family-invalid")]
     [Arguments("69CDB122-41D2-4FAB-9B82-7929A889C726", "", "family-invalid")]
     [Arguments("00000000-0000-0000-0000-000000000000", "", "family-invalid")]
@@ -119,10 +145,18 @@ public sealed class LaunchRouteTests
     }
 
     [Test]
-    public async Task RegistryCannotReplaceSameFamilyRevisionWithDifferentContent()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task RegistryCannotReplaceSameFamilyRevisionWithDifferentContent(bool removeBeforeConflict)
     {
         SetupDefinition first = BrowserFixture.Definition;
         var registry = new BrowserDefinitionRegistry([first]);
+        SetupDefinition current = first;
+        if (removeBeforeConflict)
+        {
+            current = BrowserFixture.Revision(2);
+            registry.Replace([current]);
+        }
         byte[] changedBytes = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(first.CanonicalBytes.Span)
             .Replace("Example service", "Changed service", StringComparison.Ordinal));
         SetupDefinition changed = SetupDefinitionCodec.ParseJson(changedBytes);
@@ -130,6 +164,6 @@ public sealed class LaunchRouteTests
         try { registry.Replace([changed]); }
         catch (SetupDefinitionException exception) { failure = exception; }
         await Assert.That(failure?.Code).IsEqualTo("revision-conflict");
-        await Assert.That(registry.Current.Resolve(first.FamilyId).Digest).IsEqualTo(first.Digest);
+        await Assert.That(registry.Current.Resolve(first.FamilyId).Digest).IsEqualTo(current.Digest);
     }
 }

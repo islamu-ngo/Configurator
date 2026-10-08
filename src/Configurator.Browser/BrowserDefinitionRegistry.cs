@@ -5,8 +5,13 @@ using Configurator.Core.Definitions;
 /// <summary>Admits bundled data without remote discovery or host authority.</summary>
 public sealed class BrowserDefinitionRegistry
 {
-    public BrowserDefinitionRegistry(IEnumerable<SetupDefinition> definitions) =>
+    private SetupDefinitionRegistry _admitted;
+
+    public BrowserDefinitionRegistry(IEnumerable<SetupDefinition> definitions)
+    {
         Current = new SetupDefinitionRegistry(definitions);
+        _admitted = Current;
+    }
 
     public SetupDefinitionRegistry Current { get; private set; }
 
@@ -14,7 +19,8 @@ public sealed class BrowserDefinitionRegistry
     {
         var replacement = new SetupDefinitionRegistry(definitions);
         // A refreshed registry cannot relabel a revision that an active session may have pinned.
-        _ = new SetupDefinitionRegistry(Current.Definitions.Concat(replacement.Definitions));
+        var admitted = new SetupDefinitionRegistry(_admitted.Definitions.Concat(replacement.Definitions));
+        _admitted = admitted;
         Current = replacement;
     }
 
