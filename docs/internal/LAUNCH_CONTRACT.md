@@ -7,8 +7,8 @@ Status: implemented browser unit of `configurator-extraction-r2`.
 Browser references Core and Blazor WASM only. `BrowserDefinitionRegistry` loads
 embedded `Definitions/**/*.json` through `SetupDefinitionCodec.ParseJson` and
 constructs the real `SetupDefinitionRegistry`. There is no Event wire/catalogue
-or native artifact dependency. Parent-owned examples and Event exporters are
-separate from the neutral browser bundle.
+or native artifact dependency. Event is bundled only as external definition
+data; its exporter and host validators remain in the Event repository.
 
 The full admitted definition is retained. A browser render restriction is not
 a new definition variant: `FamilyId`, `Revision`, `Digest` and `CanonicalBytes`
@@ -36,8 +36,10 @@ They do not select another document or certify translation/trust.
 The selection holds the immutable admitted definition itself. Repeated renders
 of the same URI retain it, even after registry replacement. A different URI
 invalidates the editor immediately and creates a new keyed workspace. Registry
-replacement validates old/current revision identities against new content to
-reject conflicting digests. There is no asynchronous definition fetch.
+replacement validates all previously admitted family/revision identities against
+new content, including removed revisions, to reject conflicting digests. The
+admitted history retains Core registry bounds; it cannot grow without limit.
+There is no asynchronous definition fetch.
 
 ## Closed public transfer boundary
 
@@ -79,8 +81,9 @@ trust or apply authority.
 Browser tests use real bundled definition admission and the real registry,
 with bUnit route/render tests and event-gated stale-upload races. Targeted
 Release verification belongs to `Configurator.Browser` and
-`Configurator.Browser.Tests`; final desktop/mobile real-browser QA belongs to
-the parent workstream, not this unit.
+`Configurator.Browser.Tests`. Actual desktop/mobile rendering was checked at
+1440x1000 and 390x844, with no page overflow, alongside the rendered semantic
+tests. This does not establish screen-reader or broad stakeholder evidence.
 
 Public contracts: [browser](../public/browser.md) and
 [launch integration](../public/launch-integration.md). Core authority:

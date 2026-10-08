@@ -113,9 +113,29 @@ change directory in a fresh checkout is a valid empty inventory, not imported
 Event history. The inventory class is reverified after that adaptation.
 
 Event source cutover verification is recorded separately, not inferred from
-destination success. No database/provider matrix ran because backend semantics did
+destination success. The whole Event Release solution build succeeded after
+cutover in 5m 32.83s with zero errors and 2,650 warnings. Sampled warning owners
+in Application, Persistence and BFF are unchanged; this extraction did not
+audit or repair the entire inherited warning inventory. The architecture suite
+passed 660 of 661 cases; its new CI guard incorrectly rejected Event
+fork-safe Codecov wiring. The guard now permits only the optional CODECOV_TOKEN
+contract and its guarded expression, with negative mutations for unguarded
+access, literal tokens and other token names. Coverage outcome names are not
+secret context. The affected three-case class passed after correction, preserving
+the 660 unchanged full-suite passes. Native `preflight-staged --target develop` passed with
+one populated operator-impact fragment and the exact source-cutover packet.
+No database/provider matrix ran because backend semantics did
 not change. Non-Linux runtime execution/protected writes, screen readers,
 braille, RTL shaping and managed-string erasure are unverified capabilities.
 Missing editor LSP servers and C# diagnostic timeouts were not bypassed by
 installing dependencies; actual builds/tests supplied compiler evidence.
 Signed publication remains fail-closed until Configurator has its own authority.
+
+Final native JSON validation and byte-identical agent rule twins passed. Local
+link targets from all owned Event cutover and selected destination graduation
+guides were checked: 236 references, one unrelated historical target missing.
+The Mailpit provenance link in Event SELF_HOSTING.md predates extraction
+(git blame at 7975687c5 attributes it to 5d2069e171 on 2026-09-08) and points
+to an ignored earlier task artifact. It is quarantined without changing
+unrelated self-hosting history. Extraction-owned handoff/ADR/backlog targets
+exist. The authoritative active triad exists only in Configurator.

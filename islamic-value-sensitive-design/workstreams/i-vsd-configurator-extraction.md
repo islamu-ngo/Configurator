@@ -21,15 +21,15 @@ Last Updated: 2026-10-08
 The planning analysis below is retained as historical reasoning, not a current
 claim that no implementation exists. This section records the observed
 implementation evidence against the same finding and mitigation identifiers.
-The workstream remains open until standalone engineering readiness and the
-Event source cutover are verified.
+Standalone engineering readiness preceded the verified Event source cutover.
+The observed scope below does not imply broader host or stakeholder evidence.
 
 | Finding / mitigation | Current disposition | Observed implementation evidence |
 | --- | --- | --- |
 | IVSD-F001 / IVSD-M001 | resolved within offline scope | Browser: 57 passing cases cover bounded launch selection, pinned revision/digest, rejected private inputs and registry refresh integrity; Event live transport remains in its client, committed a6b5fba7. No launch token, target authentication or remote apply is introduced. |
 | IVSD-F002 / IVSD-M002 | resolved on verified Linux host | Core: 63, Artifacts: 14 and Presentation: 20 passing cases cover sensitivity floors, competing create-only writes and generation fencing. Terminal: 35 and Desktop: 23 passing cases preserve masked editing and output invalidation. Non-Linux restricted saves remain disabled. |
 | IVSD-F003 / IVSD-M003 | resolved for admitted transfer scope | File transfer manifest and explicit Steward authority separate ISLAMU ownership from third-party rights. The 154 incompatible example-corpus files are excluded; the approved Terminal.Gui archive and 21 component hashes remain intact. Native dependency policy admitted 83 package/version pairs; complete restored-owner vulnerability audit exited 0. |
-| IVSD-F004 / IVSD-M004 | open, source-removal gate retained | Three native packages and independent static browser refreshed successfully; Architecture: 35 package/closure cases passed. Actual CLI output matched all five Event vectors and Event host validators accepted them. Copied release engineering still needs inert workflow fixture closure; Event setup source is not removed before readiness. |
+| IVSD-F004 / IVSD-M004 | resolved within verified extraction scope | Three native packages and independent static browser refreshed successfully; Architecture: 35 package/closure cases passed. Actual CLI output matched all five Event vectors and Event host validators accepted them. Release engineering passed 405 cases with inert fixture closure; the later secret-boundary classes passed 24 and 11 cases. Locked destination restore, whole Release build and formatting passed before Event removed 201 literal source/tool files and updated 33 owned paths. Event Release build passed with zero errors and 2,650 warnings; its architecture suite preserved 660 unchanged passes and the corrected three-case CI class passed. Governed staged preflight accepted the populated operator-impact fragment. |
 
 Browser rendering was observed at 1440x1000 and 390x844 without horizontal
 overflow. A real 120x40 terminal exposed a zero-height button content frame;
