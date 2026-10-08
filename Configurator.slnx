@@ -2,13 +2,16 @@
   <Folder Name="/src/">
     <Project Path="src/Configurator.Core/Configurator.Core.csproj" />
     <Project Path="src/Configurator.Artifacts/Configurator.Artifacts.csproj" />
+    <Project Path="src/Configurator.Cli/Configurator.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj" />
     <Project Path="tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj" />
+    <Project Path="tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj" />
   </Folder>
   <Folder Name="/eng/">
     <Project Path="eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj" />
+    <Project Path="eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj" />
     <Project Path="eng/agent-workflow/src/Configurator.AgentWorkflow/Configurator.AgentWorkflow.csproj" />
     <Project Path="eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj" />
     <Project Path="eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj" />

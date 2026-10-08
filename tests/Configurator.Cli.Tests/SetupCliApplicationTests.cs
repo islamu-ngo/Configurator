@@ -1,0 +1,161 @@
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
+
+namespace Configurator.Cli.Tests;
+
+public sealed class SetupCliApplicationTests
+{
+    [Test]
+    public async Task GenericOperationsPrepareCanonicalTargetArtifactsWithoutEvent()
+    {
+        foreach (string operation in new[] { "create", "open", "validate", "format", "diff", "coverage", "export", "preview" })
+        {
+            var io = new CliFixture();
+            string[] options = operation switch
+            {
+                "create" or "format" or "export" or "preview" => ["--output", "prepared.json"],
+                "diff" => ["--baseline", "baseline.json"],
+                _ => []
+            };
+            await Assert.That(io.Artifact(operation, options: options)).IsEqualTo(SetupCliExitCode.Success);
+            await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+            await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-answer-marker");
+            if (io.Files.TryGetValue("prepared.json", out byte[]? output))
+                await Assert.That(Encoding.UTF8.GetString(output)).IsEqualTo("""{"enabled":true,"name":"private-answer-marker"}""");
+        }
+    }
+
+    [Test]
+    public async Task DiffComparesProjectedBytesNotUnprojectedAnswers()
+    {
+        var io = new CliFixture();
+        await Assert.That(io.Artifact("diff", options: ["--baseline", "baseline.json"])).IsEqualTo(SetupCliExitCode.Success);
+        using JsonDocument same = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(same.RootElement.GetProperty("coverage").GetProperty("coveredKeys")[0].GetString()).IsEqualTo("config");
+        io.Files["baseline.json"] = """{"service.name":"different-marker"}"""u8.ToArray();
+        await Assert.That(io.Artifact("diff", options: ["--baseline", "baseline.json"])).IsEqualTo(SetupCliExitCode.Success);
+        using JsonDocument changed = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(changed.RootElement.GetProperty("coverage").GetProperty("missingKeys")[0].GetString()).IsEqualTo("config");
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("different-marker");
+    }
+
+    [Test]
+    public async Task CatalogueExposesOnlyStructuralDefinitionMetadata()
+    {
+        var io = new CliFixture();
+        foreach (string operation in new[] { "list", "show", "describe" })
+        {
+            string[] key = operation == "list" ? [] : ["--key", "service.name"];
+            await Assert.That(io.Run(["catalogue", operation, "--definition", "definition.json",
+                "--output", operation + ".json", "--machine", .. key])).IsEqualTo(SetupCliExitCode.Success);
+            using JsonDocument result = JsonDocument.Parse(io.Files[operation + ".json"]);
+            JsonElement field = operation == "list" ? result.RootElement.EnumerateArray()
+                .First(item => item.GetProperty("id").GetString() == "service.name") : result.RootElement;
+            await Assert.That(field.GetProperty("id").GetString()).IsEqualTo("service.name");
+            await Assert.That(field.TryGetProperty("title", out _)).IsFalse();
+            await Assert.That(field.TryGetProperty("default", out _)).IsFalse();
+            if (operation == "describe")
+                await Assert.That(field.GetProperty("conditionalActivation").GetBoolean()).IsFalse();
+        }
+        await Assert.That(io.Run("catalogue", "show", "--definition", "definition.json",
+            "--key", "missing", "--dry-run", "--machine")).IsEqualTo(SetupCliExitCode.Validation);
+    }
+
+    [Test]
+    public async Task EnvironmentUsesSelectedDefinitionDotenvProjectionOnly()
+    {
+        var io = new CliFixture();
+        await Assert.That(io.Run("env", "render", "--definition", "definition.json", "--artifact", "environment",
+            "--input", "answers.json", "--output", "environment.env", "--machine")).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(Encoding.UTF8.GetString(io.Files["environment.env"])).Contains("SERVICE_NAME=private-answer-marker");
+        await Assert.That(io.Run("env", "validate", "--definition", "definition.json", "--artifact", "environment",
+            "--input", "answers.json", "--machine")).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(io.Run("env", "validate", "--definition", "definition.json", "--artifact", "config",
+            "--input", "answers.json", "--machine")).IsEqualTo(SetupCliExitCode.Usage);
+    }
+
+    [Test]
+    public async Task FormatsComeFromDefinitionAndMarkdownNeverEntersStdout()
+    {
+        var io = new CliFixture();
+        await Assert.That(io.Artifact("export", "yaml", "--output", "out.yaml", "--format", "yaml")).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(Encoding.UTF8.GetString(io.Files["out.yaml"])).Contains("private-answer-marker");
+        await Assert.That(io.Artifact("format", "config", "--format", "yaml", "--dry-run")).IsEqualTo(SetupCliExitCode.Usage);
+        await Assert.That(io.Artifact("preview", "markdown", "--output", "draft.md")).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(Encoding.UTF8.GetString(io.Files["draft.md"])).Contains("Draft");
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("Draft");
+        await Assert.That(io.Artifact("preview", "markdown", "--output", "-", "--text")).IsEqualTo(SetupCliExitCode.Usage);
+        await Assert.That(io.Run("artifact", "preview", "--definition", "definition.json", "--artifact", "markdown",
+            "--input", "answers.json", "--output", "-", "--dry-run")).IsEqualTo(SetupCliExitCode.Blocked);
+    }
+
+    [Test]
+    public async Task ReadinessCoverageActivationAndInvalidAnswersHaveTruthfulOutcomes()
+    {
+        var io = new CliFixture();
+        io.Files["answers.json"] = "{}"u8.ToArray();
+        await Assert.That(io.Artifact("coverage")).IsEqualTo(SetupCliExitCode.Incomplete);
+        using JsonDocument missing = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(missing.RootElement.GetProperty("coverage").GetProperty("missingKeys")[0].GetString()).IsEqualTo("service.name");
+        io.Files["answers.json"] = """{"service.name":42}"""u8.ToArray();
+        await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Validation);
+        io.Files["answers.json"] = """{"unknown":"hidden-marker"}"""u8.ToArray();
+        await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Validation);
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("hidden-marker");
+        io.Files["definition.json"] = Encoding.UTF8.GetBytes(CliFixture.Definition.Replace(
+            "\"required\":true", "\"required\":true,\"activeWhen\":{\"op\":\"equals\",\"field\":\"enabled\",\"value\":true}", StringComparison.Ordinal));
+        io.Files["answers.json"] = """{"enabled":false}"""u8.ToArray();
+        await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Success);
+    }
+
+    [Test]
+    public async Task DryRunWritesNothingAndExistingOutputIsNeverReplaced()
+    {
+        var io = new CliFixture();
+        await Assert.That(io.Artifact("create", options: ["--dry-run"])).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(io.Files.Keys).IsEquivalentTo(["definition.json", "answers.json", "baseline.json"]);
+        await Assert.That(io.Artifact("create", options: ["--output", "prepared.json"])).IsEqualTo(SetupCliExitCode.Success);
+        byte[] original = io.Files["prepared.json"];
+        await Assert.That(io.Artifact("create", options: ["--output", "prepared.json"])).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(io.Files["prepared.json"]).IsEquivalentTo(original);
+    }
+
+    [Test]
+    public async Task MalformedDuplicateAndOversizedInputsFailWithoutPublishing()
+    {
+        var io = new CliFixture();
+        foreach (byte[] bytes in new[] { "[]"u8.ToArray(), "{bad}"u8.ToArray(),
+            """{"service.name":"first","service.name":"second"}"""u8.ToArray(), new byte[4 * 1024 * 1024] })
+        {
+            io.Files["answers.json"] = bytes;
+            await Assert.That(io.Artifact("create", options: ["--output", "prepared.json"])).IsEqualTo(SetupCliExitCode.Data);
+            await Assert.That(io.Files.ContainsKey("prepared.json")).IsFalse();
+        }
+        io.Files["answers.json"] = new byte[(4 * 1024 * 1024) + 1];
+        await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(io.MaximumRead).IsEqualTo(4 * 1024 * 1024);
+        io.Files["definition.json"] = "{bad}"u8.ToArray();
+        await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Data);
+    }
+
+    [Test]
+    public async Task MachineOutputRemainsSingleFramedAndCultureIndependent()
+    {
+        var io = new CliFixture();
+        CultureInfo original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Success);
+            byte[] first = io.StandardOutput;
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("ar-SA");
+            await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Success);
+            await Assert.That(io.StandardOutput).IsEquivalentTo(first);
+            await Assert.That(SetupCliMachineContractVerifier.Validate(first)).IsEmpty();
+            await Assert.That(first.Count(value => value == (byte)'\n')).IsEqualTo(1);
+            await Assert.That(io.StandardError).IsEmpty();
+        }
+        finally { CultureInfo.CurrentCulture = original; }
+    }
+}
