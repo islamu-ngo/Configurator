@@ -1,0 +1,21 @@
+schemaVersion: 1
+maximumCommitMessageBytes: 8192
+releaseVisibleTypes:
+  - feat
+  - fix
+  - perf
+  - revert
+  - docs
+internalTypes:
+  - test
+  - refactor
+  - style
+  - build
+  - ci
+  - chore
+requiredBreakingSignals:
+  bang: true
+  footer: BREAKING CHANGE
+skipTrailer: Changelog
+skipValue: skip
+skipReasonTrailer: Changelog-Reason

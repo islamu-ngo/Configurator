@@ -1,0 +1,5 @@
+[extend]
+useDefault = true
+
+# Do not inherit Event's whole-directory documentation/resource allowlists.
+# False positives require bounded reviewed evidence, not blanket path exclusions.

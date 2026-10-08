@@ -55,3 +55,22 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Audited dependency feed is release input, not an arbitrary build output.
+!eng/release/
+!eng/release/dependencies/terminal-gui/feed/*.nupkg
+.code-review-graph/
+.omo/senpi-task/
+.omo/evidence/
+.claude/settings.local.json
+AGENTS.local.md
+.env.*
+!.env.example
+dev/active/*
+!dev/active/README.md
+*.pfx
+*.pem
+*.key
+node_modules/
+.idea/
+.vs/

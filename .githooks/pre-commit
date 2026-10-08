@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+exec dotnet run \
+  --project "$(dirname "$0")/../eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj" \
+  --configuration Release --no-launch-profile -- \
+  preflight-staged --target main

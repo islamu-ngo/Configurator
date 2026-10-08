@@ -1,0 +1,23 @@
+schemaVersion: 1
+publicScopes:
+  - definitions
+  - self-hosting
+  - artifacts
+  - launch
+  - cli
+  - terminal
+  - desktop
+  - browser
+  - output
+  - privacy
+  - localization
+  - accessibility
+engineeringScopes:
+  - ci
+  - dependencies
+  - architecture
+  - observability
+  - documentation
+  - release
+  - testing
+  - build

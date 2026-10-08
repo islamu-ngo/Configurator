@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+  exit 0
+fi
+
+if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+  echo "commit_message_file_required" >&2
+  exit 64
+fi
+
+exec dotnet run \
+  --project "$(dirname "$0")/../eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj" \
+  --configuration Release --no-launch-profile -- \
+  preflight-commit "$1" --target main

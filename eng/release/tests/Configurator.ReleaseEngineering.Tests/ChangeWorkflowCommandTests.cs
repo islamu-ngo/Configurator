@@ -1,0 +1,440 @@
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using Configurator.ReleaseEngineering;
+
+namespace Configurator.ReleaseEngineering.Tests;
+
+/// <summary>
+/// Exercises identifier allocation, collision rejection, exact-commit corrections, and hook
+/// preservation against isolated Git repositories using the shipped release policy.
+/// </summary>
+[NotInParallel]
+public sealed class ChangeWorkflowCommandTests
+{
+    private const string TargetOption = "--target";
+    private const string TargetBranch = "main";
+    private const string GitUserName = "user.name=Release Test";
+    private const string GitUserEmail = "user.email=release@example.invalid";
+    private const string GitCommitCommand = "commit";
+    private const string GitRevisionCommand = "rev-parse";
+    private const string HookInstallCommand = "install-change-hooks";
+    private static readonly Regex GeneratedId = new(
+        "^CHG-[0-9A-HJKMNP-TV-Z]{26}$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(100));
+
+    [Test]
+    public async Task CollisionResistantIdsAreSortableAndNeverUseSequentialFormat()
+    {
+        byte[] entropy = Enumerable.Range(0, 10).Select(value => (byte)value).ToArray();
+
+        string first = ChangeIdPolicy.Create(new DateTimeOffset(2026, 8, 27, 12, 0, 0, TimeSpan.Zero), entropy);
+        string second = ChangeIdPolicy.Create(new DateTimeOffset(2026, 8, 27, 12, 0, 1, TimeSpan.Zero), entropy);
+
+        await Assert.That(GeneratedId.IsMatch(first)).IsTrue();
+        await Assert.That(GeneratedId.IsMatch(second)).IsTrue();
+        await Assert.That(string.CompareOrdinal(first, second)).IsLessThan(0);
+        await Assert.That(ChangeIdPolicy.IsGenerated(first)).IsTrue();
+        await Assert.That(ChangeIdPolicy.IsValid("CHG-2026-0014")).IsTrue();
+        await Assert.That(ChangeIdPolicy.IsGenerated("CHG-2026-0014")).IsFalse();
+    }
+
+    /// <summary>
+    /// Verifies allocation accepts large commit messages within its Git output bound and
+    /// rejects history exceeding that bound rather than silently scanning a truncated history.
+    /// </summary>
+    [Test]
+    [Arguments(1_100_000, Program.Success)]
+    [Arguments(4_200_000, Program.ToolchainRejected)]
+    public async Task AllocationReadsLargeHistoryWithinItsBound(int messageLength, int expectedCode)
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        string messagePath = Path.Join(repository.Path, "history-message");
+        await File.WriteAllTextAsync(messagePath, "docs: history record\n\n" + new string('x', messageLength));
+        repository.Git("-c", GitUserName, "-c", GitUserEmail,
+            GitCommitCommand, "--allow-empty", "-F", messagePath);
+
+        (int code, _) = repository.Run("allocate-change-id", TargetOption, TargetBranch);
+
+        await Assert.That(code).IsEqualTo(expectedCode);
+    }
+
+    /// <summary>Exercises allocation, real fragment creation and indexed commit validation against an isolated Git repository.</summary>
+    [Test]
+    public async Task AllocateAndCreateEmitUnusedIdFragmentAndExactFooter()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+
+        (int allocationCode, string allocationOutput) = repository.Run("allocate-change-id", TargetOption, TargetBranch);
+        string allocated = allocationOutput.Trim().Split(' ').Last();
+        (int createCode, string createOutput) = repository.Run(
+            "create-change",
+            TargetOption, TargetBranch,
+            "--type", "feat",
+            "--scope", "self-hosting",
+            "--title", "Attendee correction window",
+            "--summary", "Attendees can correct self-hosting details.",
+            "--group", "self-hosting-correction");
+
+        string created = createOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)[0].Split("id=", StringSplitOptions.None)[1].Split(' ')[0];
+        string fragmentPath = Path.Combine(repository.Path, "docs", "internal", "releases", "changes", created + ".yaml");
+        repository.Git("add", Path.GetRelativePath(repository.Path, fragmentPath));
+        string messagePath = Path.Combine(repository.Path, "COMMIT_EDITMSG");
+        await File.WriteAllTextAsync(
+            messagePath,
+            $"feat(self-hosting): add attendee correction window\n\nChange-Id: {created}\n");
+        (int preflightCode, string preflightOutput) = repository.Run(
+            "preflight-commit", messagePath, TargetOption, TargetBranch);
+
+        await Assert.That(allocationCode).IsEqualTo(Program.Success);
+        await Assert.That(GeneratedId.IsMatch(allocated)).IsTrue();
+        await Assert.That(createCode).IsEqualTo(Program.Success);
+        await Assert.That(GeneratedId.IsMatch(created)).IsTrue();
+        await Assert.That(created).IsNotEqualTo(allocated);
+        await Assert.That(File.Exists(fragmentPath)).IsTrue();
+        await Assert.That(File.ReadAllText(fragmentPath)).Contains($"Change-Id: {created}");
+        await Assert.That(File.ReadAllText(fragmentPath)).Contains("Group: self-hosting-correction");
+        await Assert.That(createOutput).Contains($"commit_footer: Change-Id: {created}");
+        await Assert.That(preflightCode).IsEqualTo(Program.Success);
+        await Assert.That(preflightOutput).Contains($"change_commit_verified: change-id={created}");
+    }
+
+    /// <summary>Rejects identifier reuse both before commit and in a completed feature range that collides with its target.</summary>
+    [Test]
+    public async Task CommitAndRangePreflightRejectTargetCollisionsBeforeHistoryChanges()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        string collision = "CHG-2026-0011";
+        string messagePath = Path.Combine(repository.Path, "COMMIT_EDITMSG");
+        await File.WriteAllTextAsync(messagePath, $"feat(self-hosting): add another correction flow\n\nChange-Id: {collision}\n");
+        repository.WriteFragment(collision);
+
+        (int commitCode, string commitOutput) = repository.Run(
+            "preflight-commit", messagePath, TargetOption, TargetBranch);
+
+        repository.CreateBranch("feature");
+        repository.Commit(
+            "feature.txt",
+            "feature\n",
+            $"feat(self-hosting): add another correction flow\n\nChange-Id: {collision}");
+        (int rangeCode, string rangeOutput) = repository.Run(
+            "preflight-range", TargetOption, TargetBranch, "--head", "HEAD");
+
+        await Assert.That(commitCode).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(commitOutput).Contains($"change_preflight_failed: change_id_already_reachable:{collision}");
+        await Assert.That(rangeCode).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(rangeOutput).Contains($"change_preflight_failed: change_id_target_collision:{collision}");
+    }
+
+    /// <summary>Corrects effective provenance through an exact-commit record while preserving the immutable original footer.</summary>
+    [Test]
+    public async Task ExactCommitRenameMakesRangeValidWithoutRewritingFooter()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        repository.CreateBranch("feature");
+        string commit = repository.Commit(
+            "feature.txt",
+            "feature\n",
+            "feat(self-hosting): add another correction flow\n\nChange-Id: CHG-2026-0011");
+        string replacement = ChangeIdPolicy.Create(
+            new DateTimeOffset(2026, 8, 27, 12, 0, 0, TimeSpan.Zero),
+            Enumerable.Repeat((byte)7, 10).ToArray());
+        repository.WriteFragment(replacement);
+
+        (int renameCode, string renameOutput) = repository.Run(
+            "rename-change",
+            "--commit", commit,
+            "--from", "CHG-2026-0011",
+            "--to", replacement,
+            "--reason", "Target branch already owns the original identifier.");
+        repository.Git("add", "docs/internal/releases");
+        repository.CommitStaged("chore(release): bind collision correction");
+        (int rangeCode, string rangeOutput) = repository.Run(
+            "preflight-range", TargetOption, TargetBranch, "--head", "HEAD");
+        string message = repository.Git("show", "-s", "--format=%B", commit);
+        string renamePath = Path.Combine(
+            repository.Path,
+            "docs",
+            "internal",
+            "releases",
+            "change-id-renames",
+            commit + ".yaml");
+
+        await Assert.That(renameCode).IsEqualTo(Program.Success);
+        await Assert.That(renameOutput).Contains($"change_renamed: commit={commit} from=CHG-2026-0011 to={replacement}");
+        await Assert.That(File.Exists(renamePath)).IsTrue();
+        await Assert.That(File.ReadAllText(renamePath)).Contains($"Commit-Oid: {commit}");
+        await Assert.That(File.ReadAllText(renamePath)).Contains($"New-Change-Id: {replacement}");
+        await Assert.That(message).Contains("Change-Id: CHG-2026-0011");
+        await Assert.That(message).DoesNotContain(replacement);
+        await Assert.That(rangeCode).IsEqualTo(Program.Success);
+        await Assert.That(rangeOutput).Contains("change_range_verified:");
+    }
+
+    [Test]
+    public async Task RenamePolicyLinksReplacementFragmentToUnchangedCommit()
+    {
+        string oid = new('a', 40);
+        string replacement = ChangeIdPolicy.Create(
+            new DateTimeOffset(2026, 8, 27, 12, 0, 0, TimeSpan.Zero),
+            Enumerable.Repeat((byte)9, 10).ToArray());
+        ChangeIdRename rename = new(oid, "CHG-2026-0011", replacement, "Collision correction.");
+        ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(
+            ReleaseYaml(),
+            [FragmentYaml(replacement)],
+            []);
+
+        ReleaseContextValidationResult result = ReleaseContextPolicy.Build(
+            input,
+            [new ReleaseCommit(oid, "feat(self-hosting): add another correction flow\n\nChange-Id: CHG-2026-0011")],
+            ReleasePolicy.LoadFromRepositoryRoot(RepositoryRoot.Find()),
+            changeIdRenames: [rename]);
+
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Context?.Changes.Single().ChangeId).IsEqualTo(replacement);
+        await Assert.That(result.Context?.Changes.Single().Oid).IsEqualTo(oid);
+    }
+
+    /// <summary>Preserves existing hooks on initial installation and rejects a later unmanaged replacement.</summary>
+    [Test]
+    public async Task HookInstallerChainsExistingCheckAndRefusesAmbiguousOverwrite()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+
+        string gitDirectory = repository.Git(
+            GitRevisionCommand,
+            "--path-format=absolute",
+            "--git-common-dir").Trim();
+        string preCommit = Path.Combine(gitDirectory, "hooks", "pre-commit");
+        string commitMessage = Path.Combine(gitDirectory, "hooks", "commit-msg");
+        await File.WriteAllTextAsync(preCommit, "#!/bin/sh\nexit 0\n");
+        (int firstCode, string firstOutput) = repository.Run(HookInstallCommand, TargetOption, TargetBranch);
+        (int secondCode, _) = repository.Run(HookInstallCommand, TargetOption, TargetBranch);
+        string backup = preCommit + ".before-islamu-release";
+        string managedPreCommit = File.ReadAllText(preCommit);
+        await File.WriteAllTextAsync(preCommit, "#!/bin/sh\nexit 7\n");
+        (int thirdCode, string thirdOutput) = repository.Run(HookInstallCommand, TargetOption, TargetBranch);
+
+        await Assert.That(firstCode).IsEqualTo(Program.Success);
+        await Assert.That(firstOutput).Contains("change_hooks_installed:");
+        await Assert.That(File.Exists(preCommit)).IsTrue();
+        await Assert.That(File.Exists(commitMessage)).IsTrue();
+        await Assert.That(File.Exists(backup)).IsTrue();
+        await Assert.That(File.ReadAllText(backup)).Contains("exit 0");
+        await Assert.That(managedPreCommit).Contains(backup);
+        await Assert.That(File.ReadAllText(commitMessage)).Contains("preflight-commit");
+        await Assert.That(secondCode).IsEqualTo(Program.Success);
+        await Assert.That(thirdCode).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(thirdOutput).Contains("change_hooks_failed: existing_hook_not_managed:pre-commit");
+    }
+
+    /// <summary>Installation targets the hook directory Git actually executes, including core.hooksPath overrides.</summary>
+    [Test]
+    public async Task HookInstallerUsesConfiguredHooksPath()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        repository.Git("config", "core.hooksPath", ".configured-hooks");
+
+        (int code, _) = repository.Run(HookInstallCommand, TargetOption, TargetBranch);
+
+        await Assert.That(code).IsEqualTo(Program.Success);
+        await Assert.That(File.Exists(Path.Join(repository.Path, ".configured-hooks", "commit-msg"))).IsTrue();
+        await Assert.That(File.Exists(Path.Join(repository.Path, ".configured-hooks", "pre-commit"))).IsTrue();
+        await Assert.That(File.Exists(Path.Join(repository.Path, ".git", "hooks", "commit-msg"))).IsFalse();
+    }
+
+    /// <summary>The configured repository hook rejects native policy violations before Git changes HEAD.</summary>
+    [Test]
+    [Arguments("Changelog: skip\n\nChangelog: skip\n\nChangelog-Reason: Internal correction.", "invalid_changelog_trailer")]
+    [Arguments("Changelog: skip\n\nChangelog-Reason: First reason.\n\nChangelog-Reason: Second reason.", "invalid_changelog_trailer")]
+    [Arguments("Changelog: skip\nChangelog-Reason: Internal correction.\nChange-Id: CHG-2026-0011", "change_id_already_reachable")]
+    public async Task ConfiguredMessageHookRejectsInvalidCommitBeforeRecordingIt(string trailers, string diagnostic)
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        repository.Git("config", "core.hooksPath", Path.Join(RepositoryRoot.Find(), ".githooks"));
+        string before = repository.Git(GitRevisionCommand, "HEAD").Trim();
+        InvalidOperationException? rejection = null;
+        try
+        {
+            repository.CommitStaged("test(output): guard issuance recovery\n\n" + trailers);
+        }
+        catch (InvalidOperationException exception)
+        {
+            rejection = exception;
+        }
+
+        await Assert.That(rejection).IsNotNull();
+        await Assert.That(rejection?.Message).Contains(diagnostic);
+        await Assert.That(repository.Git(GitRevisionCommand, "HEAD").Trim()).IsEqualTo(before);
+    }
+
+    /// <summary>Agent-style separate message arguments pass the actual hook and retain native range validity.</summary>
+    [Test]
+    public async Task ConfiguredMessageHookAcceptsWhitespaceSeparatedAgentTrailers()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        repository.CreateBranch("feature");
+        repository.Git("config", "core.hooksPath", Path.Join(RepositoryRoot.Find(), ".githooks"));
+        repository.Git("-c", GitUserName, "-c", GitUserEmail,
+            GitCommitCommand, "--allow-empty",
+            "-m", "test(output): isolate committed cancellation observation",
+            "-m", "Observe only keys created by this invocation.",
+            "-m", "Changelog: skip",
+            "-m", "Changelog-Reason: Internal test isolation correction.");
+
+        (int code, _) = repository.Run("preflight-range", TargetOption, TargetBranch, "--head", "HEAD");
+
+        await Assert.That(code).IsEqualTo(Program.Success);
+    }
+
+    private static string ReleaseYaml() =>
+        """
+        Version: 1.1.0
+        Line: v1.1
+        Release-Date: 2026-08-27
+        Base-Stable-Tag: v1.0.0
+        Previous-Published-Tag: v1.0.0
+        Release-Range:
+          Base-Ref: v1.0.0
+          Base-Oid: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          Previous-Ref: v1.0.0
+          Previous-Oid: cccccccccccccccccccccccccccccccccccccccc
+        Compatibility:
+          - v1
+        Impact-Dispositions:
+          breaking: not-applicable
+          security: not-applicable
+          migration: not-applicable
+          configuration: not-applicable
+          openapi: not-applicable
+          operator: not-applicable
+        """;
+
+    private static string FragmentYaml(string changeId) =>
+        $"""
+        Change-Id: {changeId}
+        Title: Registration correction
+        Type: feat
+        Scope: self-hosting
+        Summary: Attendees can correct self-hosting details.
+        Supersedes: []
+        Impacts:
+          Breaking:
+            Reference: docs/internal/releases/README.md
+            Disposition: not-applicable
+          Security:
+            Reference: docs/SECURITY_OVERVIEW.md
+            Disposition: not-applicable
+          Migration:
+            Reference: docs/RELEASE_RUNBOOK.md
+            Disposition: not-applicable
+          Configuration:
+            Reference: docs/CONFIGURATION.md
+            Disposition: not-applicable
+          OpenAPI:
+            Reference: docs/API_CHANGELOG.md
+            Disposition: not-applicable
+          Operator:
+            Reference: docs/RELEASE_CHECKLIST.md
+            Disposition: not-applicable
+        """;
+
+    private sealed class ChangeRepositoryFixture : IDisposable
+    {
+        private ChangeRepositoryFixture(string path) => Path = path;
+
+        public string Path { get; }
+
+        /// <summary>Creates an isolated repository with real release policy and target-owned collision provenance.</summary>
+        public static ChangeRepositoryFixture Create()
+        {
+            string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"islamu-change-workflow-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(path);
+            var fixture = new ChangeRepositoryFixture(path);
+            fixture.Git("init", $"--initial-branch={TargetBranch}");
+            Directory.CreateDirectory(System.IO.Path.Combine(path, "docs", "internal", "releases", "changes"));
+            Directory.CreateDirectory(System.IO.Path.Combine(path, "eng", "release", "policy"));
+            File.WriteAllText(
+                System.IO.Path.Combine(path, "eng", "release", "policy", "release-policy.yaml"),
+                File.ReadAllText(System.IO.Path.Combine(RepositoryRoot.Find(), "eng", "release", "policy", "release-policy.yaml")));
+            File.WriteAllText(
+                System.IO.Path.Combine(path, "eng", "release", "policy", "scope-registry.yaml"),
+                File.ReadAllText(System.IO.Path.Combine(RepositoryRoot.Find(), "eng", "release", "policy", "scope-registry.yaml")));
+            fixture.WriteFragment("CHG-2026-0011");
+            fixture.Commit(
+                "base.txt",
+                "base\n",
+                "feat(self-hosting): existing correction flow\n\nChange-Id: CHG-2026-0011");
+            return fixture;
+        }
+
+        public (int ExitCode, string Output) Run(params string[] args)
+        {
+            using var output = new StringWriter();
+            int exitCode = ChangeWorkflowCommand.Run(args, output, Path, TimeSpan.FromSeconds(5));
+            return (exitCode, output.ToString());
+        }
+
+        public void WriteFragment(string changeId) =>
+            File.WriteAllText(
+                System.IO.Path.Combine(Path, "docs", "internal", "releases", "changes", changeId + ".yaml"),
+                FragmentYaml(changeId));
+
+        public void CreateBranch(string name) => Git("switch", "-c", name);
+
+        public string Commit(string file, string content, string message)
+        {
+            File.WriteAllText(System.IO.Path.Combine(Path, file), content);
+            Git("add", ".");
+            Git("-c", GitUserName, "-c", GitUserEmail, GitCommitCommand, "-m", message);
+            return Git(GitRevisionCommand, "HEAD").Trim();
+        }
+
+        public string CommitStaged(string message)
+        {
+            Git(
+                "-c", GitUserName,
+                "-c", GitUserEmail,
+                GitCommitCommand, "--allow-empty", "-m", message);
+            return Git(GitRevisionCommand, "HEAD").Trim();
+        }
+
+        public string Git(params string[] args)
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo("git")
+                {
+                    WorkingDirectory = Path,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                },
+            };
+            foreach (string arg in args) process.StartInfo.ArgumentList.Add(arg);
+            process.Start();
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderr = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            try
+            {
+                process.WaitForExitAsync(timeout.Token).GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill(entireProcessTree: true);
+                throw;
+            }
+            string output = stdout.GetAwaiter().GetResult();
+            string error = stderr.GetAwaiter().GetResult();
+            return process.ExitCode == 0
+                ? output
+                : throw new InvalidOperationException($"git_failed:{string.Join(' ', args)}:{output}:{error}");
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path)) Directory.Delete(Path, recursive: true);
+        }
+    }
+}

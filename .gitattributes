@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.nupkg binary
+*.png binary
+*.ico binary
+# Frozen upstream patch contexts are hash-verified input, not source indentation.
+eng/release/dependencies/terminal-gui/patches/*.patch -whitespace

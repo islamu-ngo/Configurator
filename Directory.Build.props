@@ -1,0 +1,25 @@
+<Project>
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <Deterministic>true</Deterministic>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <Authors>Amir Akrari, ISLAMU Team, and Contributors</Authors>
+    <Company>ISLAMU</Company>
+    <Copyright>Copyright (c) 2026 ISLAMU. Licensed under MIT.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/islamu-ngo/Configurator</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/islamu-ngo/Configurator</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RuntimeFrameworkVersion Condition="'$(UsingMicrosoftNETSdkBlazorWebAssembly)' == 'true'">10.0.10</RuntimeFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TF_BUILD)' == 'true' or '$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <RestoreLockedMode>true</RestoreLockedMode>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(MSBuildProjectFullPath.Contains('/tests/')) or '$(IsTestProject)' == 'true'">
+    <EnableMicrosoftTestingPlatformExtensions>true</EnableMicrosoftTestingPlatformExtensions>
+  </PropertyGroup>
+</Project>

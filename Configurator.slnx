@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/eng/">
+    <Project Path="eng/agent-workflow/src/Configurator.AgentWorkflow/Configurator.AgentWorkflow.csproj" />
+    <Project Path="eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj" />
+    <Project Path="eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj" />
+    <Project Path="eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj" />
+    <Project Path="eng/configurator/probes/communitytoolkit/Configurator.DependencyProbes.CommunityToolkit.csproj" />
+    <Project Path="eng/configurator/probes/dependency-injection/Configurator.DependencyProbes.DependencyInjection.csproj" />
+    <Project Path="eng/configurator/probes/yamldotnet/Configurator.DependencyProbes.YamlDotNet.csproj" />
+  </Folder>
+</Solution>
