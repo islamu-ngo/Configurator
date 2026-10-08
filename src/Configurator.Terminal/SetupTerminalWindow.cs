@@ -112,7 +112,10 @@ internal sealed class SetupTerminalWindow : Window
 
     private Button Button(string key, int x, int y, Action action)
     {
-        var button = new Button { X = x, Y = y, Text = SetupTerminalText.Get(key) };
+        var button = new Button
+        {
+            X = x, Y = y, Height = 1, Text = SetupTerminalText.Get(key), ShadowStyle = ShadowStyles.None
+        };
         button.Accepting += (_, args) => { args.Handled = true; action(); };
         return button;
     }

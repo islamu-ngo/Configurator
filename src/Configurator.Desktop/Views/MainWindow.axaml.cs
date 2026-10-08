@@ -29,7 +29,11 @@ public sealed partial class MainWindow : Window
     {
         Detach();
         _shell = DataContext as SetupDesktopShellViewModel;
-        if (_shell is not null) _shell.PropertyChanged += ShellChanged;
+        if (_shell is not null)
+        {
+            _shell.PropertyChanged += ShellChanged;
+            this.GetControl<ComboBox>("DisplayMode").SelectedIndex = (int)_shell.DisplayMode;
+        }
         BuildFields();
     }
     private void Detach()
@@ -73,6 +77,7 @@ public sealed partial class MainWindow : Window
             _form.InputChanged += InputsChanged;
         }
         var artifacts = this.GetControl<ComboBox>("Artifact");
+        artifacts.ItemsSource = _shell?.Artifacts;
         artifacts.SelectedItem = _shell?.Artifacts.FirstOrDefault(item => item.Id == _shell.ArtifactId);
         RefreshFields();
     }

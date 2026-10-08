@@ -34,17 +34,17 @@
                   AutomationProperties.Name="Use right-to-left layout" Click="DirectionClicked" />
       </Grid>
     </StackPanel>
-    <ScrollViewer Grid.Row="1" Margin="0,12">
+    <ScrollViewer Grid.Row="1" Margin="0,12" ClipToBounds="True">
       <StackPanel Name="Fields" Spacing="14" />
     </ScrollViewer>
     <StackPanel Grid.Row="2" Spacing="8">
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
         <StackPanel>
           <TextBlock Text="Declared artifact" />
-          <ComboBox Name="Artifact" ItemsSource="{Binding Artifacts}" HorizontalAlignment="Stretch"
+          <ComboBox Name="Artifact" HorizontalAlignment="Stretch"
                     AutomationProperties.Name="Declared artifact" SelectionChanged="ArtifactChanged" />
         </StackPanel>
-        <StackPanel>
+        <StackPanel Grid.Column="1">
           <TextBlock Text="New file name" />
           <TextBox Name="FileName" Text="{Binding FileName, Mode=TwoWay}" AutomationProperties.Name="New output file name" />
         </StackPanel>

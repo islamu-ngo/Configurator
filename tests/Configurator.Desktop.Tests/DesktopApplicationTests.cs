@@ -24,6 +24,31 @@ public sealed class DesktopApplicationTests
 
     [Test]
     [NotInParallel]
+    public async Task ArtifactAndFilenameControlsRemainSeparateAtMinimumWindowWidth()
+    {
+        var result = await InWindow(window =>
+        {
+            window.Width = window.MinWidth;
+            Dispatcher.UIThread.RunJobs();
+            var artifact = window.GetControl<ComboBox>("Artifact");
+            var filename = window.GetControl<TextBox>("FileName");
+            Point left = artifact.TranslatePoint(default, window)!.Value;
+            Point right = filename.TranslatePoint(default, window)!.Value;
+            return (artifact.Bounds.Width, filename.Bounds.Width,
+                separate: left.X + artifact.Bounds.Width <= right.X,
+                selected: artifact.SelectedItem is SetupArtifactDefinition,
+                modeSelected: window.GetControl<ComboBox>("DisplayMode").SelectedIndex
+                    == (int)((SetupDesktopShellViewModel)window.DataContext!).DisplayMode);
+        });
+        await Assert.That(result.Item1 > 0).IsTrue();
+        await Assert.That(result.Item2 > 0).IsTrue();
+        await Assert.That(result.separate).IsTrue();
+        await Assert.That(result.selected).IsTrue();
+        await Assert.That(result.modeSelected).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
     public async Task RealControlsEditNestedFieldsAndListsThenInvalidatePreparedOutput()
     {
         var result = await InWindow(window =>
