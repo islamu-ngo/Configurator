@@ -1,0 +1,422 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "familyId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "applicationId": {
+      "type": "string"
+    },
+    "applicationVersions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "publisher": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "entryPoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "locales": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "sensitivity": {
+            "type": "string"
+          },
+          "disclosure": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "help": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "group": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "format": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "consequence": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "validator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default": true,
+          "recommended": true,
+          "choices": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "minLength": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxLength": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "minimum": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maximum": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "minItems": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxItems": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "itemType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "properties": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/properties/fields/items"
+            }
+          },
+          "activeWhen": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "op": {
+                "type": "string"
+              },
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "value": true,
+              "operands": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "value": true,
+                    "operands": {
+                      "$ref": "#/properties/fields/items/properties/activeWhen/properties/operands"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "additionalProperties": false
+          },
+          "requiredWhen": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "op": {
+                "type": "string"
+              },
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "value": true,
+              "operands": {
+                "$ref": "#/properties/fields/items/properties/activeWhen/properties/operands"
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "sensitivity",
+          "disclosure"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 1024
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "applySemantics": {
+            "type": "string"
+          },
+          "restart": {
+            "type": "string"
+          },
+          "projection": {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string"
+              },
+              "value": true,
+              "field": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "members": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "op": {
+                      "type": "string"
+                    },
+                    "value": true,
+                    "field": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "members": {
+                      "$ref": "#/properties/artifacts/items/properties/projection/properties/members"
+                    },
+                    "items": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "$ref": "#/properties/artifacts/items/properties/projection/properties/members/additionalProperties"
+                      }
+                    },
+                    "item": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "op": {
+                          "type": "string"
+                        },
+                        "value": true,
+                        "field": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "members": {
+                          "$ref": "#/properties/artifacts/items/properties/projection/properties/members"
+                        },
+                        "items": {
+                          "$ref": "#/properties/artifacts/items/properties/projection/properties/members/additionalProperties/properties/items"
+                        },
+                        "item": {
+                          "$ref": "#/properties/artifacts/items/properties/projection/properties/members/additionalProperties/properties/item"
+                        },
+                        "when": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "op": {
+                              "type": "string"
+                            },
+                            "field": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "value": true,
+                            "operands": {
+                              "$ref": "#/properties/fields/items/properties/activeWhen/properties/operands"
+                            }
+                          },
+                          "required": [
+                            "op"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "op"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "when": {
+                      "$ref": "#/properties/artifacts/items/properties/projection/properties/members/additionalProperties/properties/item/properties/when"
+                    }
+                  },
+                  "required": [
+                    "op"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "items": {
+                "$ref": "#/properties/artifacts/items/properties/projection/properties/members/additionalProperties/properties/items"
+              },
+              "item": {
+                "$ref": "#/properties/artifacts/items/properties/projection/properties/members/additionalProperties/properties/item"
+              },
+              "when": {
+                "$ref": "#/properties/artifacts/items/properties/projection/properties/members/additionalProperties/properties/item/properties/when"
+              }
+            },
+            "required": [
+              "op"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "format",
+          "fileName",
+          "applySemantics",
+          "restart",
+          "projection"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 64
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "familyId",
+    "revision",
+    "applicationId",
+    "applicationVersions",
+    "publisher",
+    "title",
+    "entryPoints",
+    "locales",
+    "fields",
+    "artifacts"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:islamu:configurator:setup-definition:v1",
+  "title": "Configurator SetupDefinition v1",
+  "description": "Closed wire structure; Core admission additionally checks vocabulary, bounds, references, cycles and sensitive defaults."
+}

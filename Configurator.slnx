@@ -1,5 +1,12 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Configurator.Core/Configurator.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj" />
+  </Folder>
   <Folder Name="/eng/">
+    <Project Path="eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj" />
     <Project Path="eng/agent-workflow/src/Configurator.AgentWorkflow/Configurator.AgentWorkflow.csproj" />
     <Project Path="eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj" />
     <Project Path="eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj" />

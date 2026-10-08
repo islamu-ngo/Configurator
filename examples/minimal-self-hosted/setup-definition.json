@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "familyId": "69cdb122-41d2-4fab-9b82-7929a889c726",
+  "revision": 1,
+  "applicationId": "example.service",
+  "applicationVersions": ["1.0"],
+  "publisher": "example",
+  "title": "Minimal self-hosted service",
+  "entryPoints": ["setup"],
+  "locales": ["en", "ar"],
+  "fields": [
+    {
+      "id": "service.name",
+      "type": "string",
+      "title": "Service name",
+      "sensitivity": "public",
+      "disclosure": "essential",
+      "required": true,
+      "default": "local-service",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    {
+      "id": "service.mode",
+      "type": "enum",
+      "title": "Deployment mode",
+      "sensitivity": "public",
+      "disclosure": "guided",
+      "choices": ["minimal", "extended"],
+      "default": "minimal"
+    },
+    {
+      "id": "metrics.enabled",
+      "type": "boolean",
+      "title": "Enable metrics",
+      "help": "Expose metrics only on a network controlled by the operator.",
+      "sensitivity": "public",
+      "disclosure": "advanced",
+      "default": false
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "environment",
+      "format": "dotenv",
+      "fileName": ".env",
+      "applySemantics": "create",
+      "restart": "process",
+      "projection": {
+        "op": "object",
+        "members": {
+          "SERVICE_NAME": {"op": "copy", "field": "service.name"},
+          "SERVICE_MODE": {"op": "copy", "field": "service.mode"},
+          "METRICS_ENABLED": {"op": "copy", "field": "metrics.enabled"}
+        }
+      }
+    },
+    {
+      "id": "configuration",
+      "format": "json",
+      "fileName": "service.json",
+      "applySemantics": "create",
+      "restart": "process",
+      "projection": {
+        "op": "object",
+        "members": {
+          "name": {"op": "copy", "field": "service.name"},
+          "mode": {"op": "copy", "field": "service.mode"},
+          "metrics": {"op": "copy", "field": "metrics.enabled"}
+        }
+      }
+    }
+  ]
+}
