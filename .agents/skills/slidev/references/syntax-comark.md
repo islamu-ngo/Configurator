@@ -1,0 +1,54 @@
+---
+name: comark
+description: Comark Syntax support
+---
+
+> Configurator authority: follow AGENTS.md and PROJECTS.md. Source-system backend examples are reference-only; absent Event layers and deployment policies do not apply.
+
+
+# Comark Syntax
+
+Enhanced Markdown with component and style syntax.
+
+## Enable
+
+```md
+---
+comark: true
+---
+```
+
+## Inline Styles
+
+```md
+This is a [red text]{style="color:red"}
+```
+
+## Inline Components
+
+```md
+:inline-component{prop="value"}
+```
+
+## Image Attributes
+
+```md
+![](../../../../docs/internal/extraction/FOUNDATION.md){width=500px lazy}
+```
+
+## Block Components
+
+```md
+::block-component{prop="value"}
+The **default** slot content
+::
+```
+
+## Use Cases
+
+- Add inline styles without HTML
+- Use Vue components inline
+- Add attributes to images
+- Create complex component layouts
+
+Based on Comark Syntax.

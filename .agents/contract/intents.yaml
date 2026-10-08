@@ -1,0 +1,146 @@
+version: 1
+intents:
+  - id: repository-tooling
+    title: "Maintain repository foundation and native engineering tools"
+    category: infrastructure
+    triggers: ["repository foundation","build configuration","engineering tools"]
+    must_read_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+    load_skills: ["conventional-commit","ip-clean-room"]
+    load_rules: [.agents/rules/tests.md, .agents/rules/ip-clean-room.md]
+    paths_in_scope: ["eng/agent-workflow/**","eng/release/**","eng/configurator/probes/**","Directory.*.props","global.json","NuGet.Config"]
+    minimum_tests: ["Configurator.AgentWorkflow.Tests","Configurator.ReleaseEngineering.Tests"]
+    docs_to_update: [docs/internal/extraction/FOUNDATION.md]
+    unique_acceptance: ["No Event assembly, runtime service or trust authority dependency"]
+    pr_checklist: ["Record exact affected-owner verification commands and outcomes"]
+    forbidden_without_approval: ["Publishing releases or replacing trusted signer authority"]
+    criticality:
+      tier: standard
+      required_model_tier: economical
+      verification_depth: standard
+      tenancy_scope: system_level
+      rollback_strategy: atomic_revert
+      intake_clarification_mode: autonomous_defaults
+      exploration_protocol: bounded_caller_callee
+      testing_strategy: behavioral_unit_integration
+      review_protocol: peer_review
+      safety_gates: ["no_private_to_public_projection", "no_warning_suppression"]
+  - id: definition-engine
+    title: "Change bounded offline definition engine behavior"
+    category: domain
+    triggers: ["definition admission","validation engine","offline preparation"]
+    must_read_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+    load_skills: ["criticality-guardrail","refactor-safely"]
+    load_rules: [.agents/rules/tests.md, .agents/rules/ip-clean-room.md]
+    paths_in_scope: ["src/Configurator.Core/**","tests/Configurator.Core.Tests/**"]
+    minimum_tests: ["Configurator.Core.Tests"]
+    docs_to_update: [docs/internal/extraction/FOUNDATION.md]
+    unique_acceptance: ["No Event assembly, runtime service or trust authority dependency"]
+    pr_checklist: ["Record exact affected-owner verification commands and outcomes"]
+    forbidden_without_approval: ["Publishing releases or replacing trusted signer authority"]
+    criticality:
+      tier: privacy
+      required_model_tier: advanced
+      verification_depth: extended
+      tenancy_scope: system_level
+      rollback_strategy: atomic_revert
+      intake_clarification_mode: standard_qa
+      exploration_protocol: bounded_caller_callee
+      testing_strategy: adversarial_concurrency_invariant_breakers
+      review_protocol: peer_review
+      safety_gates: ["no_private_to_public_projection", "no_warning_suppression"]
+  - id: protected-artifacts
+    title: "Change protected native artifact publication"
+    category: cross-cutting
+    triggers: ["protected save","artifact publication","private output"]
+    must_read_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+    load_skills: ["criticality-guardrail"]
+    load_rules: [.agents/rules/tests.md, .agents/rules/ip-clean-room.md]
+    paths_in_scope: ["src/Configurator.Artifacts/**","tests/Configurator.Artifacts.Tests/**"]
+    minimum_tests: ["Configurator.Artifacts.Tests"]
+    docs_to_update: [docs/internal/extraction/FOUNDATION.md]
+    unique_acceptance: ["No Event assembly, runtime service or trust authority dependency"]
+    pr_checklist: ["Record exact affected-owner verification commands and outcomes"]
+    forbidden_without_approval: ["Publishing releases or replacing trusted signer authority"]
+    criticality:
+      tier: privacy
+      required_model_tier: advanced
+      verification_depth: extended
+      tenancy_scope: system_level
+      rollback_strategy: atomic_revert
+      intake_clarification_mode: standard_qa
+      exploration_protocol: bounded_caller_callee
+      testing_strategy: adversarial_concurrency_invariant_breakers
+      review_protocol: peer_review
+      safety_gates: ["no_private_to_public_projection", "no_warning_suppression"]
+  - id: client-interface
+    title: "Change offline client and public browser behavior"
+    category: blazor
+    triggers: ["CLI","Terminal.Gui","Avalonia","Blazor browser","launch selection"]
+    must_read_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+    load_skills: ["accessibility"]
+    load_rules: [.agents/rules/tests.md, .agents/rules/ip-clean-room.md]
+    paths_in_scope: ["src/Configurator.Cli/**","src/Configurator.Terminal/**","src/Configurator.Desktop/**","src/Configurator.Browser/**","src/Configurator.Presentation/**","tests/Configurator.*.Tests/**"]
+    minimum_tests: []
+    docs_to_update: [docs/internal/extraction/FOUNDATION.md]
+    unique_acceptance: ["No Event assembly, runtime service or trust authority dependency"]
+    pr_checklist: ["Record exact affected-owner verification commands and outcomes"]
+    forbidden_without_approval: ["Publishing releases or replacing trusted signer authority"]
+    criticality:
+      tier: standard
+      required_model_tier: economical
+      verification_depth: standard
+      tenancy_scope: system_level
+      rollback_strategy: atomic_revert
+      intake_clarification_mode: autonomous_defaults
+      exploration_protocol: bounded_caller_callee
+      testing_strategy: behavioral_unit_integration
+      review_protocol: peer_review
+      safety_gates: ["no_private_to_public_projection", "no_warning_suppression"]
+  - id: agent-context
+    title: "Maintain agent contracts skills and harness parity"
+    category: cross-cutting
+    triggers: ["agent context","skills","path rules","harness"]
+    must_read_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+    load_skills: ["skill-authoring"]
+    load_rules: [.agents/rules/tests.md, .agents/rules/ip-clean-room.md]
+    paths_in_scope: [".agents/**",".omo/rules/**",".github/instructions/**","AGENTS.md","PROJECTS.md","AI_REVIEW.md"]
+    minimum_tests: []
+    docs_to_update: [docs/internal/extraction/FOUNDATION.md]
+    unique_acceptance: ["No Event assembly, runtime service or trust authority dependency"]
+    pr_checklist: ["Record exact affected-owner verification commands and outcomes"]
+    forbidden_without_approval: ["Publishing releases or replacing trusted signer authority"]
+    criticality:
+      tier: standard
+      required_model_tier: economical
+      verification_depth: standard
+      tenancy_scope: system_level
+      rollback_strategy: atomic_revert
+      intake_clarification_mode: autonomous_defaults
+      exploration_protocol: bounded_caller_callee
+      testing_strategy: behavioral_unit_integration
+      review_protocol: peer_review
+      safety_gates: ["no_private_to_public_projection", "no_warning_suppression"]
+  - id: provenance-docs
+    title: "Maintain MIT transfer provenance and component notices"
+    category: cross-cutting
+    triggers: ["provenance","license","documentation"]
+    must_read_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+    load_skills: ["ip-clean-room"]
+    load_rules: [.agents/rules/tests.md, .agents/rules/ip-clean-room.md]
+    paths_in_scope: ["docs/**","THIRD-PARTY-NOTICES.md","README.md"]
+    minimum_tests: []
+    docs_to_update: [docs/internal/extraction/FOUNDATION.md]
+    unique_acceptance: ["No Event assembly, runtime service or trust authority dependency"]
+    pr_checklist: ["Record exact affected-owner verification commands and outcomes"]
+    forbidden_without_approval: ["Publishing releases or replacing trusted signer authority"]
+    criticality:
+      tier: standard
+      required_model_tier: economical
+      verification_depth: standard
+      tenancy_scope: system_level
+      rollback_strategy: atomic_revert
+      intake_clarification_mode: autonomous_defaults
+      exploration_protocol: bounded_caller_callee
+      testing_strategy: behavioral_unit_integration
+      review_protocol: peer_review
+      safety_gates: ["no_private_to_public_projection", "no_warning_suppression"]

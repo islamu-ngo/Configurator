@@ -1,0 +1,14 @@
+> Configurator authority: follow AGENTS.md and PROJECTS.md. Source-system backend examples are reference-only; absent Event layers and deployment policies do not apply.
+
+<!-- Database performance monitoring guidance via tracing. -->
+<!-- Keeps ActivitySource usage minimal and targeted. -->
+
+# DB Performance Monitoring (Lean)
+
+## Rules
+- Use `ActivitySource` spans for critical repository operations.
+- Tag spans with operation name and duration.
+- Avoid excessive custom spans; rely on EF Core instrumentation when possible.
+
+## Related
+- [opentelemetry-tracing.md](opentelemetry-tracing.md)

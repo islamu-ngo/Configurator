@@ -1,0 +1,960 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "2.0",
+  "description": "Skill activation triggers for .NET Clean Architecture solutions (API, Application, Persistence, Blazor).",
+  "customizationNote": "Patterns are project-agnostic by default. If your solution uses non-standard naming, adjust path patterns to your folder structure.",
+  "lastUpdated": "2026-08-20",
+  "skills": {
+    "clean-architecture-rules": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "critical",
+      "description": "Enforces Clean Architecture dependency rules (Domain → Application → Infrastructure → API/Blazor). Blocks violations to maintain architectural integrity.",
+      "promptTriggers": {
+        "keywords": [
+          "dependency",
+          "reference",
+          "architecture",
+          "layer",
+          "clean architecture",
+          "domain logic",
+          "ef core",
+          "dbcontext",
+          "violation",
+          "specification pattern",
+          "hateoas",
+          "middleware",
+          "pipeline behavior"
+        ],
+        "intentPatterns": [
+          "(add|create|reference).*?(dependency|project|layer)",
+          "(where).*?(logic|entity|dto).*?(go|belong)",
+          "fix.*?(dependency|reference).*?error"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*Domain/**/*.cs",
+          "**/*Application/**/*.cs"
+        ],
+        "contentPatterns": [
+          "using.*Infrastructure",
+          "using.*Api",
+          "using.*Microsoft.AspNetCore.Mvc"
+        ]
+      },
+      "blockMessage": "⚠️ BLOCKED - Clean Architecture Violation\n\n📋 VIOLATION DETECTED:\nYou are attempting to add a reference that violates the Dependency Rule.\n\n**Allowed Dependencies:**\n1. **Domain** → Cannot reference ANY other layer\n2. **Application** → Can only reference **Domain**\n3. **Infrastructure** → References **Application** and **Domain**\n4. **API/Blazor** → References **Application** and **Infrastructure**\n\n**Required Action:**\n1. Review the `clean-architecture-rules` skill\n2. Move logic to the correct layer (interfaces in Application, implementations in Infrastructure)",
+      "skipConditions": {
+        "sessionSkillUsed": true,
+        "fileMarkers": ["@skip-architecture-check"]
+      }
+    },
+    "cqrs-guidelines": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "CQRS (Command Query Responsibility Segregation) patterns with native CQS handlers. Covers commands, queries, handlers, and validation.",
+      "promptTriggers": {
+        "keywords": [
+          "command",
+          "query",
+          "handler",
+          "cqs",
+          "cqrs",
+          "validation",
+          "validator",
+          "feature",
+          "use case"
+        ],
+        "intentPatterns": [
+          "(create|add|implement).*?(feature|endpoint|use case)",
+          "(handle|validate).*?(request|command|query)",
+          "(how to).*?(cqs|cqrs)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*Application/**/*Handler.cs",
+          "**/*Application/**/*Command.cs",
+          "**/*Application/**/*Query.cs",
+          "**/*Application/**/*Validator.cs",
+          "**/*Application/**/*Request.cs",
+          "**/*Application/**/*Specification.cs",
+          "**/*Application/**/*Filter.cs"
+        ],
+        "contentPatterns": [
+          "ICommand",
+          "IQuery",
+          "ICommandHandler",
+          "IQueryHandler",
+          "AbstractValidator",
+          "FluentValidation",
+          "BaseCommandResponse",
+          "IQuerySpecification",
+          "PaginatedResult",
+          "HybridCache"
+        ]
+      }
+    },
+    "blazor-ui-conventions": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Comprehensive Blazor UI conventions including MudBlazor components, BEM CSS methodology, theming, render modes, state management, and component patterns.",
+      "promptTriggers": {
+        "keywords": [
+          "blazor",
+          "component",
+          "razor",
+          "mudblazor",
+          "blazouter",
+          "route guard",
+          "ui",
+          "page",
+          "dialog",
+          "render",
+          "parameter",
+          "eventcallback",
+          "theme",
+          "css",
+          "state",
+          "lifecycle"
+        ],
+        "intentPatterns": [
+          "(create|fix|style).*?(component|page|ui|button|grid|form)",
+          "(how to).*?(blazor|mudblazor)",
+          "(render|lifecycle).*?(issue|bug|mode)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*.razor",
+          "**/*.razor.cs",
+          "**/*Blazor/**/*.cs",
+          "**/*Blazor.Client/**/*.cs",
+          "**/*.css",
+          "**/*.scss"
+        ],
+        "contentPatterns": [
+          "<Mud",
+          "Blazouter",
+          "@page",
+          "@inject",
+          "[Parameter]",
+          "CascadingValue",
+          "EventCallback",
+          "@rendermode"
+        ]
+      }
+    },
+    "blazor-bff-patterns": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Backend-for-Frontend (BFF) patterns for Blazor including YARP proxy, token forwarding, cookie management, and service layer patterns.",
+      "promptTriggers": {
+        "keywords": [
+          "bff",
+          "yarp",
+          "proxy",
+          "interactiveauto",
+          "antiforgery",
+          "token forwarding",
+          "cookie",
+          "api client",
+          "service layer",
+          "nswag"
+        ],
+        "intentPatterns": [
+          "(configure|setup).*?(bff|proxy|yarp)",
+          "(forward|pass).*?(token|auth)",
+          "(call|consume).*?api"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*Blazor/Program.cs",
+          "**/*Blazor/Services/**/*.cs",
+          "**/*Blazor.Client/Services/**/*.cs",
+          "**/*Blazor.Client/Clients/**/*.cs"
+        ],
+        "contentPatterns": [
+          "AddReverseProxy",
+          "AccessTokenForwardingHandler",
+          "AddAntiforgery",
+          "ApiClient",
+          "HttpClient"
+        ]
+      }
+    },
+    "auth-patterns": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "critical",
+      "description": "Authentication and authorization patterns for OIDC/JWT APIs, including claim extraction, HATEOAS authorization, and security headers.",
+      "promptTriggers": {
+        "keywords": [
+          "auth",
+          "authentication",
+          "authorization",
+          "keycloak",
+          "oidc",
+          "token",
+          "jwt",
+          "claim",
+          "role",
+          "policy",
+          "cookies",
+          "user id",
+          "hateoas auth",
+          "security headers",
+          "rate limiting",
+          "cors"
+        ],
+        "intentPatterns": [
+          "(login|logout|auth).*?(issue|fail|error)",
+          "(check|verify|debug|extract).*?(token|claim|role|user)",
+          "(configure).*?(keycloak|oidc|auth)",
+          "(hateoas|link).*?(auth|permission)",
+          "(security).*?(header|middleware)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*API/Program.cs",
+          "**/*Api/Program.cs",
+          "**/Program.cs",
+          "**/appsettings*.json",
+          "**/*Controller.cs",
+          "**/Explore.Application/Authentication/*.cs"
+        ],
+        "contentPatterns": [
+          "AddAuthentication",
+          "AddOpenIdConnect",
+          "[Authorize]",
+          "[AllowAnonymous]",
+          "ClaimTypes",
+          "JwtBearer",
+          "GetRequiredUserId",
+          "PlatformIdentityPrincipalExtensions",
+          "GetPlatformUserId",
+          "GetRequiredPlatformUserId",
+          "ResolveCurrentUserIdAsync",
+          "GetProviderIdentity",
+          "IAuthorizedRequest",
+          "AuthorizationBehavior",
+          "HateoasAuthorizationEvaluator",
+          "SecurityHeaders"
+        ]
+      }
+    },
+    "dotnet-efcore-guidelines": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "EF Core patterns for PostgreSQL including DbContext configuration, entity mappings, migrations, repository pattern, specification pattern.",
+      "promptTriggers": {
+        "keywords": [
+          "database",
+          "postgres",
+          "postgresql",
+          "migration",
+          "dbcontext",
+          "entity",
+          "relationship",
+          "foreign key",
+          "index",
+          "seeding",
+          "repository",
+          "include",
+          "navigation",
+          "specification",
+          "query filter",
+          "soft delete"
+        ],
+        "intentPatterns": [
+          "(add|modify|create).*?(table|column|entity|migration)",
+          "(run|create|apply).*?(migration)",
+          "(configure).*?(db|context|connection|relationship)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*Persistence/**/*.cs",
+          "**/*DbContext.cs",
+          "**/*Configuration.cs",
+          "**/*Repository.cs"
+        ],
+        "contentPatterns": [
+          "DbSet<",
+          "IEntityTypeConfiguration",
+          "OnModelCreating",
+          "UseNpgsql",
+          "HasQueryFilter",
+          "Include(",
+          "IQuerySpecification",
+          "JsonContains",
+          "JsonKeyExists",
+          "IgnoreQueryFilter"
+        ]
+      }
+    },
+    "error-tracking": {
+      "type": "guardrail",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Error tracking and observability patterns including chained IExceptionHandler, correlation IDs, business metrics, and structured logging.",
+      "promptTriggers": {
+        "keywords": [
+          "error",
+          "exception",
+          "logging",
+          "monitoring",
+          "error boundary",
+          "performance",
+          "observability",
+          "metrics",
+          "correlation id",
+          "problem details",
+          "rate limit",
+          "429"
+        ],
+        "intentPatterns": [
+          "(track|log|capture).*?(error|exception)",
+          "(add|configure).*?(error handling|metrics|observability)",
+          "(monitor).*?(performance)",
+          "(correlation|trace).*?(id|request)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/Program.cs",
+          "**/*Controller.cs",
+          "**/*Handler.cs"
+        ],
+        "contentPatterns": [
+          "try.*catch",
+          "ILogger",
+          "ErrorBoundary",
+          "IExceptionHandler",
+          "ProblemDetails",
+          "BusinessMetrics",
+          "CorrelationId",
+          "PerformanceBehavior"
+        ]
+      }
+    },
+    "blazor-css-isolation": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "high",
+
+      "description": "Blazor CSS isolation patterns with BEM methodology, @layer architecture, scoped styling, and ::deep selector for child components.",
+      "promptTriggers": {
+        "keywords": [
+          "css isolation",
+          "scoped css",
+          "razor css",
+          "bem",
+          "@layer",
+          "css layers",
+          "::deep",
+          "css nesting",
+          "container queries",
+          "design tokens",
+          "css variables",
+          "custom properties"
+        ],
+        "intentPatterns": [
+          "(style|css).*?(component|blazor|razor)",
+          "(create|add|fix).*?(css|styling|layer)",
+          "(override).*?(mudblazor|mud)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*.razor.css",
+          "**/wwwroot/css/**/*.css"
+        ],
+        "contentPatterns": [
+          "::deep",
+          "@layer",
+          "--isl-",
+          "display: contents",
+          ".isl-"
+        ]
+      }
+    },
+    "agentic-research": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Local-first research workflow for selecting the right evidence source before using official docs or external research.",
+      "promptTriggers": {
+        "keywords": [
+          "research",
+          "investigate",
+          "look into",
+          "find out",
+          "documentation",
+          "how does",
+          "why does",
+          "what is the pattern"
+        ],
+        "intentPatterns": [
+          "(research|investigate|explore).*?(pattern|approach|library)",
+          "(find|check).*?(documentation|docs|examples)",
+          "(look into|understand).*?(how|why|what)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "outbox-pattern": {
+      "type": "pattern",
+      "enforcement": "block",
+      "priority": "high",
+      "description": "Transactional outbox pattern for reliable at-least-once event delivery with dead-letter handling.",
+      "promptTriggers": {
+        "keywords": [
+          "outbox",
+          "outbox message",
+          "outbox processor",
+          "dead letter",
+          "message dispatch",
+          "at-least-once",
+          "event delivery"
+        ],
+        "intentPatterns": [
+          "(create|implement|add).*?(outbox|message dispatch)",
+          "(dispatch|publish|send).*?(event|message|outbox)",
+          "(dead letter|retry).*?(message|outbox)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/OutboxMessage.cs",
+          "**/OutboxProcessor.cs",
+          "**/IOutboxRepository.cs",
+          "**/IOutboxMessageDispatcher.cs"
+        ],
+        "contentPatterns": [
+          "OutboxMessage",
+          "OutboxProcessor",
+          "IOutboxMessageDispatcher",
+          "OutboxMessageStatus",
+          "DeadLettered"
+        ]
+      }
+    },
+    "design-system": {
+      "type": "reference",
+      "enforcement": "block",
+      "priority": "high",
+      "description": "CSS @layer architecture, 3-tier design tokens, MudBlazor wrapper components, and appearance builder patterns.",
+      "promptTriggers": {
+        "keywords": [
+          "design system",
+          "design tokens",
+          "wrapper component",
+          "AppButton",
+          "AppCard",
+          "AppTextField",
+          "AppIconButton",
+          "AppDialogShell",
+          "DialogOptionsFactory",
+          "AppearanceStyleBuilder",
+          "appearance editor"
+        ],
+        "intentPatterns": [
+          "(create|modify|style).*?(wrapper|app component)",
+          "(design|token|appearance).*?(system|builder|style)",
+          "(dialog|factory).*?(options|preset)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/Components/Common/App*.razor",
+          "**/wwwroot/css/tokens.css",
+          "**/wwwroot/css/layers.css",
+          "**/Helpers/AppearanceStyleBuilder.cs",
+          "**/Services/DialogOptionsFactory.cs"
+        ],
+        "contentPatterns": [
+          "AppButton",
+          "AppCard",
+          "AppTextField",
+          "AppDialogShell",
+          "DialogOptionsFactory",
+          "AppearanceStyleBuilder",
+          "display: contents"
+        ]
+      }
+    },
+    "footer-management": {
+      "type": "reference",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "description": "Footer customization system with template-based rendering, governance locking, and social link management.",
+      "promptTriggers": {
+        "keywords": [
+          "footer",
+          "footer template",
+          "footer link",
+          "footer group",
+          "footer governance",
+          "social links",
+          "footer settings"
+        ],
+        "intentPatterns": [
+          "(create|modify|configure).*?(footer|social link)",
+          "(footer).*?(template|governance|lock|setting)",
+          "(manage|admin).*?(footer|link group)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/Footer*.razor",
+          "**/FooterController.cs",
+          "**/FooterAdminService.cs",
+          "**/TenantFooterLink*.cs"
+        ],
+        "contentPatterns": [
+          "TenantFooterLinkGroup",
+          "TenantFooterLink",
+          "FooterAdminService",
+          "footer.template",
+          "footer.enabled"
+        ]
+      }
+    },
+    "accessibility": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "high",
+      "description": "Load for Blazor/MudBlazor UI changes involving forms, dialogs, focus, keyboard navigation, landmarks, ARIA, color contrast, RTL-safe styling, or WCAG 2.2 AA tests; not for backend-only changes.",
+      "promptTriggers": {
+        "keywords": ["accessibility", "WCAG", "ARIA", "keyboard navigation", "focus management", "color contrast", "RTL"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/*.razor", "**/*.razor.css"],
+        "contentPatterns": []
+      }
+    },
+    "aspire": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "description": "Load for Aspire AppHost work: start/stop/wait resources, inspect dashboard/logs/traces, add integrations/resources, rebuild a service, run isolated worktrees, or diagnose Aspire orchestration; not for plain dotnet apps, container-only deployments, or cloud deployment.",
+      "promptTriggers": {
+        "keywords": ["Aspire", "AppHost", "Aspire dashboard", "Aspire logs", "Aspire resources"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/AppHost.cs", "**/*AppHost/**/*.cs"],
+        "contentPatterns": []
+      }
+    },
+    "conventional-commit": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "high",
+      "description": "Load when asked to write, split, squash, or review git commit messages, Conventional Commits, changelog subjects, or release-note entries from a diff; not for implementing the underlying change.",
+      "promptTriggers": {
+        "keywords": ["conventional commit", "commit message", "changelog", "release note", "commit scope"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/docs/internal/releases/changes/*.yaml", "**/eng/release/**"],
+        "contentPatterns": []
+      }
+    },
+    "cto-consultation": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when the user asks for CTO advice on feature strategy, architecture direction, build-vs-buy, infrastructure, market positioning, roadmap, self-hosting, cost, or organizational tradeoffs; not for reviewing an existing implementation-plan workstream.",
+      "promptTriggers": {
+        "keywords": ["CTO advice", "build vs buy", "roadmap", "architecture strategy", "self-hosting cost"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "debug-issue": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when diagnosing a bug, exception, regression, wrong result, failing flow, or unknown root cause in repository code using callers/callees, execution flows, recent changes, and impact analysis; not for implementing a known fix without investigation.",
+      "promptTriggers": {
+        "keywords": ["debug", "bug", "exception", "regression", "wrong result", "root cause"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "explore-codebase": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "description": "Load when asked where code lives, how modules relate, what calls a symbol, what implements a feature, or for an architecture/codebase tour using the knowledge graph; not for bug diagnosis, diff review, or refactoring.",
+      "promptTriggers": {
+        "keywords": ["where is", "codebase tour", "callers", "callees", "architecture overview", "knowledge graph"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "finding": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "description": "Load when asked to record/log a durable finding, or after discovering a non-obvious reusable root cause or repository behavior that should be appended to `dev/_journal/journal.md`; not for routine progress notes or facts already documented.",
+      "promptTriggers": {
+        "keywords": ["record finding", "log finding", "durable finding", "journal"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/dev/_journal/journal.md"],
+        "contentPatterns": []
+      }
+    },
+    "grill-me": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "description": "Load when the user asks to be grilled, interviewed relentlessly, or stress-tested on a plan or design; not for ordinary plan creation, review, or implementation.",
+      "promptTriggers": {
+        "keywords": ["grill me", "interview me", "stress-test", "edge cases"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "i-vsd": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when evaluating an Islamic software feature, provider policy, AI behavior, moderation, monetization, privacy, defaults, ranking, self-hosting, or deployment model for provider responsibility and Islamic value-sensitive design; not for generic fiqh rulings or ordinary technical implementation.",
+      "promptTriggers": {
+        "keywords": ["I-VSD", "Islamic value-sensitive design", "provider responsibility", "moral review", "Islamic ethics"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/islamic-value-sensitive-design/**/*.md", "**/islamic-value-sensitive-design/*.md"],
+        "contentPatterns": []
+      }
+    },
+    "implement-tasks": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when executing, running, or resuming an approved task plan from `dev/active/<task>/` or `.worktrees/<task>`; orchestrates fresh worktree setup, in-flight worktree/develop resume, Red/Green/Refactor task loops, semantic phase commits, pre-PR rebase conflict protection, PR creation with pre-flight Release Impact, and parked worktree lifecycle.",
+      "promptTriggers": {
+        "keywords": ["implement tasks", "execute plan", "run tasks", "start implementation", "execute phase", "worktree", "resume task", "resume implementation", "continue implementation", "continue task", "resume plan"],
+        "intentPatterns": [
+          "(implement|execute|run).*?(task|plan|phase)",
+          "(start|begin).*?implementation",
+          "(worktree).*?(implement|task)",
+          "(resume|continue).*?(task|plan|implementation|phase)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/dev/active/**/*-tasks.md"],
+        "contentPatterns": []
+      }
+    },
+    "implementation-plan": {
+      "type": "workflow",
+      "enforcement": "block",
+      "priority": "high",
+      "description": "Load when asked to create, update, re-baseline, or continue a repository-grounded implementation/technical/refactor plan and its `dev/active/<task>` plan/context/tasks files; not for a product PRD, informal advice, or reviewing an already-written plan.",
+      "promptTriggers": {
+        "keywords": ["implementation plan", "technical plan", "refactor plan", "dev/active", "re-baseline"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/dev/active/**/*-plan.md", "**/dev/active/**/*-context.md", "**/dev/active/**/*-tasks.md"],
+        "contentPatterns": []
+      }
+    },
+    "ip-clean-room": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "critical",
+      "description": "Load before external product/design research, competitor comparison, clean-room implementation, or adding/updating code, packages, images, fonts, datasets, generated artifacts, or other dependencies whose source/provenance/license may affect outbound licensing; not for purely internal source use with no dependency change.",
+      "promptTriggers": {
+        "keywords": ["clean room", "license compatibility", "provenance", "dependency review", "competitor research", "external source"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+
+        "pathPatterns": ["**/Directory.Packages.props", "**/docs/internal/legal/**", "**/.agents/skills/ip-clean-room/**"],
+        "contentPatterns": []
+      }
+    },
+    "dotnet-mcp": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when creating, scaffolding, configuring, debugging, testing, containerizing, or publishing a C#/.NET Model Context Protocol (MCP) server using the official Microsoft ModelContextProtocol SDK; not for non-.NET MCP servers, general ASP.NET Core APIs without MCP, or consuming external MCP tools as a client.",
+      "promptTriggers": {
+        "keywords": [
+          "C# MCP",
+          ".NET MCP",
+          "dotnet-mcp",
+          "ModelContextProtocol",
+          "create MCP server",
+          "debug MCP server",
+          "test MCP server",
+          "publish MCP server",
+          "MCP Inspector",
+          "McpClient",
+          "mcp.json",
+          "server.json"
+        ],
+        "intentPatterns": [
+          "(create|scaffold|build|implement).*?(mcp server|mcp tool)",
+          "(debug|inspect|trace).*?(mcp server)",
+          "(test|evaluate).*?(mcp server|mcp tool)",
+          "(publish|package|deploy).*?(mcp server)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "**/*Mcp*.cs",
+          "**/mcp.json",
+          "**/server.json",
+          ".agents/skills/dotnet-mcp/**"
+        ],
+        "contentPatterns": [
+          "AddMcpServer",
+          "WithStdioServerTransport",
+          "WithHttpServerTransport",
+          "McpServerToolType",
+          "McpServerTool"
+        ]
+      }
+    },
+    "optimize-ef-core-queries": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when EF Core reads are slow, emit N+1 or excessive SQL, over-fetch, track too many entities, cause high DB load, or need projection/split-query/compiled-query analysis; not for general migrations, DbContext setup, or repository conventions.",
+      "promptTriggers": {
+        "keywords": ["EF Core performance", "N+1", "slow query", "over-fetch", "AsNoTracking", "compiled query"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/*Repository.cs", "**/*Specification.cs"],
+        "contentPatterns": []
+      }
+    },
+    "plane-mcp": {
+      "type": "pattern",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when the user asks to create, find, update, assign, label, prioritize, transition, or organize ISLAMU Event issues/cycles/modules in Plane via MCP; not for local todo lists or implementation-plan markdown.",
+      "promptTriggers": {
+        "keywords": ["Plane", "work item", "issue", "cycle", "module", "EVENT-"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "refactor-safely": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load for behavior-preserving rename, move, decomposition, dead-code removal, dependency cleanup, or structural refactoring that needs caller, flow, test, and impact analysis; not for feature work or a one-line local cleanup.",
+      "promptTriggers": {
+        "keywords": ["refactor", "rename", "move", "dead code", "decompose", "dependency cleanup"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "review-changes": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when asked to review a local diff/change set for correctness, regressions, blast radius, affected flows, and missing tests using the knowledge graph; use `review-pr` for intent/checklist/merge-gate evidence.",
+      "promptTriggers": {
+        "keywords": ["review changes", "review diff", "blast radius", "regression review", "affected flows"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "review-pr": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "high",
+      "description": "Load for pre-PR self-review or pull-request review that must verify the matched intent, allowed scope, required tests/docs, forbidden actions, architecture gates, and merge readiness; not for a general code-quality diff review alone.",
+      "promptTriggers": {
+        "keywords": ["review PR", "pre-PR", "merge readiness", "PR checklist", "pull request review"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/.github/PULL_REQUEST_TEMPLATE.md"],
+        "contentPatterns": []
+      }
+    },
+    "robin-neutral": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "low",
+      "description": "Load only when the user asks for Robin/Rodin neutral mode, Socratic intellectual sparring, steelmanning, anti-echo-chamber critique, or a deep societal/political/religious/economic discussion; not for coding, factual lookup, or ordinary advice.",
+      "promptTriggers": {
+        "keywords": ["robin neutral", "Rodin", "steelman", "Socratic sparring", "anti-echo-chamber"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": [],
+        "contentPatterns": []
+      }
+    },
+    "senior-cto-feedback": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when asked for blunt Senior CTO critique, approval/rejection, risk review, sequencing correction, or rewrite of an existing `dev/active/<task>` implementation plan/context/tasks workstream before coding; not for open-ended CTO advice or direct implementation.",
+      "promptTriggers": {
+        "keywords": ["Senior CTO feedback", "review plan", "approve plan", "reject plan", "plan risk review"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/dev/active/**/*-plan.md"],
+        "contentPatterns": []
+      }
+    },
+    "skill-authoring": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when creating, updating, auditing, simplifying, routing, or validating `.agents/skills/*`, `SKILL.md` descriptions/resources, the skill schema, or skill-related agent context tests; not for ordinary application code or generic documentation.",
+      "promptTriggers": {
+        "keywords": ["skill authoring", "SKILL.md", "skill schema", "skill router", "skill-rules"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/.agents/skills/*/SKILL.md", "**/.agents/skills/*/resources/*.md"],
+        "contentPatterns": []
+      }
+    },
+    "slidev": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "description": "Load when creating or editing a Slidev `slides.md` developer talk/workshop with Markdown slides, Vue components, live code, Mermaid/LaTeX, presenter notes, or Slidev PDF/PPTX export; not for native PowerPoint decks or general docs.",
+      "promptTriggers": {
+        "keywords": ["Slidev", "slides.md", "developer talk", "workshop slides", "Slidev export"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/slides.md"],
+        "contentPatterns": []
+      }
+    },
+    "text-to-lottie": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "medium",
+      "description": "Load when creating, editing, or debugging Lottie/Bodymovin JSON for the local Skia Skottie player: logo/type/SVG animation, loaders, icons, UI microinteractions, lower thirds, charts, diagrams, scene motion, effects, slots, or controls; not for static raster/SVG, CSS-only motion, or video editing.",
+      "promptTriggers": {
+        "keywords": ["Lottie", "Bodymovin", "Skottie", "animation JSON", "UI animation"],
+        "intentPatterns": []
+      },
+      "fileTriggers": {
+        "pathPatterns": ["**/*lottie*.json", "**/animations/**/*.json"],
+        "contentPatterns": []
+      }
+    },
+    "gitbook": {
+      "type": "workflow",
+      "enforcement": "suggest",
+      "priority": "high",
+      "description": "Load when configuring GitBook documentation sites, authoring GitBook-flavored markdown pages and custom blocks, integrating OpenAPI/Swagger specs, driving GitBook Change Request workflows (create, review, comment, resolve), or building GitBook platform integrations. Do not use for general repository code reviews, general .NET OpenAPI schema generation, or non-GitBook markdown.",
+      "promptTriggers": {
+        "keywords": [
+          "gitbook",
+          "git sync",
+          "gitbook-docs",
+          "gitbook block",
+          "gitbook space",
+          "gitbook change request",
+          "gitbook cr",
+          "gitbook integration",
+          "contentkit",
+          "gitbook openapi",
+          "gitbook preview link"
+        ],
+        "intentPatterns": [
+          "(configure|setup|scaffold|update).*?gitbook",
+          "(gitbook).*?(change request|review|diff|preview)",
+          "(gitbook).*?(block|stepper|hint|tabs|cards table)",
+          "(publish|sync).*?(gitbook)"
+        ]
+      },
+      "fileTriggers": {
+        "pathPatterns": [
+          "docs/public/**",
+          "**/.gitbook/**",
+          "**/gitbook-docs.yaml",
+          "**/.gitbook.yaml",
+          "**/gitbook-manifest.yaml",
+          ".agents/skills/gitbook/**"
+        ],
+        "contentPatterns": [
+          "builtin:openapi",
+          "gitbook-docs.yaml",
+          "https://api.gitbook.com",
+          "{% openapi",
+          "{% stepper",
+          "{% tabs",
+          "{% hint",
+          "{% updates"
+        ]
+      }
+    }
+  },
+  "architectureLayers": {
+    "Domain": {
+      "project": "{Project}.Domain",
+      "description": "Core business logic, entities, enums, value objects. No external dependencies.",
+      "allowedDependencies": []
+    },
+    "Application": {
+      "project": "{Project}.Application",
+      "description": "Use cases, CQRS handlers, DTOs, interfaces, validation, Specification Pattern (filters/sorts), native operation pipeline behaviors, and Mapperly mapping. Orchestrates domain logic.",
+      "allowedDependencies": ["Domain"]
+    },
+    "Infrastructure": {
+      "projects": ["{Project}.Persistence", "{Project}.Infrastructure"],
+      "description": "Database access, external services, repository implementations.",
+      "allowedDependencies": ["Application", "Domain"]
+    },
+    "Presentation": {
+      "projects": ["{Project}.API", "{Project}.Blazor", "{Project}.Blazor.Client"],
+      "description": "REST API controllers, Blazor UI components, HATEOAS assemblers/policies, middleware, action filters. Entry points to the application.",
+      "allowedDependencies": ["Application", "Infrastructure"]
+    }
+  }
+}

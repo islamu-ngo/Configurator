@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/islamu-ngo/Configurator/.agents/contract/schema.json",
+  "title": "Contribution Contract Intents",
+  "description": "Schema for intents.yaml. YAML syntax is checked by the lightweight eng/agent-workflow guard.",
+  "type": "object",
+  "required": ["version", "intents"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema major version. Bumped only when backward-incompatible changes are made."
+    },
+    "intents": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/intent" }
+    }
+  },
+  "$defs": {
+    "intent": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "category",
+        "triggers",
+        "must_read_docs",
+        "load_skills",
+        "load_rules",
+        "paths_in_scope",
+        "minimum_tests",
+        "docs_to_update",
+        "unique_acceptance",
+        "forbidden_without_approval",
+        "criticality"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Kebab-case slug. Unique within intents.yaml."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 8,
+          "description": "One-line human-readable description."
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "api",
+            "application",
+            "persistence",
+            "domain",
+            "blazor",
+            "auth",
+            "authorization",
+            "infrastructure",
+            "federation",
+            "cross-cutting"
+          ],
+          "description": "Broad grouping. Restricted enum so routing/reporting stays predictable."
+        },
+        "triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 3 },
+          "description": "Phrase patterns used to classify an incoming request to this intent."
+        },
+        "must_read_docs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))(AGENTS\\.md|(?:docs|dev|schemas|islamic-value-sensitive-design)/.+\\.md|\\.agents/skills/_SKILL_SCHEMA\\.md)$"
+          },
+          "description": "Repo-relative paths; validation must verify each exists."
+        },
+        "load_skills": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "description": "Skill slugs under .agents/skills/."
+        },
+        "load_rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\.agents/rules/[a-z0-9-]+\\.md$"
+          },
+          "description": "Rule file paths under .agents/rules/; validation must verify each exists."
+        },
+        "paths_in_scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+          },
+          "description": "Glob allow-list of files the agent may modify for this intent."
+        },
+        "paths_forbidden": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+          },
+          "description": "Glob deny-list. Takes precedence over paths_in_scope when a file matches both."
+        },
+        "minimum_tests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9.]*Tests?$"
+          },
+          "description": "Test project names (e.g. Configurator.Core.Tests). The contract validator verifies each project exists."
+        },
+        "docs_to_update": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))((docs|dev|schemas)/.+\\.md|\\.agents/contract/intents\\.yaml|\\.agents/skills/_SKILL_SCHEMA\\.md)$"
+          },
+          "description": "Docs that SHOULD be updated in the same PR if the intent causes user-visible changes."
+        },
+        "unique_acceptance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 8 },
+          "description": "Intent-specific acceptance criteria that distinguish this change from related intents."
+        },
+        "pr_checklist": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 8 },
+          "description": "Concrete, verifiable PR checklist items specific to this intent."
+        },
+        "forbidden_without_approval": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 8 },
+          "description": "Actions that require explicit user approval. If the change requires one of these, stop and ask."
+        },
+        "related_agents": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "description": "Agents under .agents/agents/ that may be invoked for this intent."
+        },
+        "related_intents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "description": "Cross-references to sibling intents by id."
+        },
+        "routing": {
+          "type": "object",
+          "required": ["precedence", "secondary", "conflict_overrides"],
+          "additionalProperties": false,
+          "properties": {
+            "precedence": {
+              "type": "string",
+              "enum": ["primary_then_secondary"]
+            },
+            "secondary": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["intent", "when_paths"],
+                "additionalProperties": false,
+                "properties": {
+                  "intent": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                  },
+                  "when_paths": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+                    }
+                  }
+                }
+              }
+            },
+            "conflict_overrides": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["secondary_intent", "secondary_gate", "controlling_gate", "resolution"],
+                "additionalProperties": false,
+                "properties": {
+                  "secondary_intent": { "type": "string", "minLength": 3 },
+                  "secondary_gate": { "type": "string", "minLength": 3 },
+                  "controlling_gate": { "type": "string", "minLength": 3 },
+                  "resolution": { "type": "string", "minLength": 8 }
+                }
+              }
+            }
+          },
+          "description": "Optional deterministic primary/secondary routing. Secondary obligations are additive; only listed conflict overrides replace a secondary gate."
+        },
+        "verification_commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 8 },
+          "description": "Shell commands the agent must run before declaring the change complete."
+        },
+        "criticality": {
+          "type": "object",
+          "required": [
+            "tier",
+            "required_model_tier",
+            "verification_depth",
+            "safety_gates",
+            "rollback_strategy",
+            "tenancy_scope",
+            "intake_clarification_mode",
+            "exploration_protocol",
+            "testing_strategy",
+            "review_protocol"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "tier": {
+              "type": "string",
+              "enum": [
+                "sovereign",
+                "security",
+                "privacy",
+                "domain_state",
+                "standard"
+              ],
+              "description": "Risk and criticality tier of the work."
+            },
+            "required_model_tier": {
+              "type": "string",
+              "enum": [
+                "economical",
+                "balanced",
+                "advanced"
+              ],
+              "description": "Minimum capability tier of the executing model."
+            },
+            "verification_depth": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "extended",
+                "exhaustive"
+              ],
+              "description": "Required verification rigor (e.g. happy path vs adversarial/fuzzing/negative testing)."
+            },
+            "tenancy_scope": {
+              "type": "string",
+              "enum": [
+                "tenant_isolated",
+                "cross_tenant_admin",
+                "system_level"
+              ],
+              "description": "Multi-tenancy boundary affected by this intent."
+            },
+            "rollback_strategy": {
+              "type": "string",
+              "enum": [
+                "expand_contract",
+                "atomic_revert",
+                "forward_fix_only"
+              ],
+              "description": "Safe rollback and deployment strategy."
+            },
+            "intake_clarification_mode": {
+              "type": "string",
+              "enum": [
+                "mandatory_grill_me",
+                "standard_qa",
+                "autonomous_defaults"
+              ],
+              "description": "Direction alignment requirement (e.g. proactive grill-me interview vs autonomous defaults)."
+            },
+            "exploration_protocol": {
+              "type": "string",
+              "enum": [
+                "exhaustive_graph_blast_radius",
+                "bounded_caller_callee",
+                "local_surface_only"
+              ],
+              "description": "Codebase exploration and blast radius tracing depth."
+            },
+            "testing_strategy": {
+              "type": "string",
+              "enum": [
+                "adversarial_concurrency_invariant_breakers",
+                "behavioral_unit_integration",
+                "affordance_render_only"
+              ],
+              "description": "Required testing strategy (adversarial failing-first invariants vs unit vs affordance)."
+            },
+            "review_protocol": {
+              "type": "string",
+              "enum": [
+                "anonymized_epistemic_mad",
+                "peer_review",
+                "lightweight_self_check"
+              ],
+              "description": "Multi-agent review and deliberation protocol."
+            },
+            "safety_gates": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 3 },
+              "description": "Mandatory safety invariants and gates required for this intent."
+            },
+            "mandatory_reviewers": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+              "description": "Required specialist subagents that must review or verify before completion."
+            }
+          }
+        }
+      }
+    }
+  }
+}

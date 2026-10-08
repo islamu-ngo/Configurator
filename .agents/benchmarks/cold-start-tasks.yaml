@@ -1,0 +1,29 @@
+version: 1
+benchmarks:
+  - id: tooling-intake
+    request: "Update the native repository build configuration"
+    expected_intent: repository-tooling
+    required_reads: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+    forbidden_actions: ["Run unrelated product suites", "Copy Event production trust"]
+  - id: bounded-definition
+    request: "Reject an oversized offline definition"
+    expected_intent: definition-engine
+    required_tests: [Configurator.Core.Tests]
+    acceptance: ["No partial preparation", "Value-safe rejection"]
+  - id: protected-output
+    request: "Reject competing protected save writes"
+    expected_intent: protected-artifacts
+    required_tests: [Configurator.Artifacts.Tests]
+    acceptance: ["At most one create-only winner", "No overwrite fallback"]
+  - id: public-launch
+    request: "Review public Blazor launch selection"
+    expected_intent: client-interface
+    acceptance: ["Registered definition only", "Pinned revision and digest", "No private browser input"]
+  - id: harness-parity
+    request: "Update agent path rules"
+    expected_intent: agent-context
+    acceptance: ["Twin rule bytes agree", "Local resource links resolve"]
+  - id: notices-transfer
+    request: "Record component provenance"
+    expected_intent: provenance-docs
+    acceptance: ["Retain component terms", "Exclude unlicensed expressive corpus"]
