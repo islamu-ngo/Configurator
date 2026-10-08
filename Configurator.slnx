@@ -4,12 +4,14 @@
     <Project Path="src/Configurator.Artifacts/Configurator.Artifacts.csproj" />
     <Project Path="src/Configurator.Cli/Configurator.Cli.csproj" />
     <Project Path="src/Configurator.Presentation/Configurator.Presentation.csproj" />
+    <Project Path="src/Configurator.Terminal/Configurator.Terminal.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj" />
     <Project Path="tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj" />
     <Project Path="tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj" />
     <Project Path="tests/Configurator.Presentation.Tests/Configurator.Presentation.Tests.csproj" />
+    <Project Path="tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/eng/">
     <Project Path="eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj" />

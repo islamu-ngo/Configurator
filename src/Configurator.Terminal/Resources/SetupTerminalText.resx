@@ -1,0 +1,40 @@
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="WindowTitle" xml:space="preserve"><value>Configurator - local definition</value></data>
+  <data name="OutputFile" xml:space="preserve"><value>Output file:</value></data>
+  <data name="Close" xml:space="preserve"><value>Cl_ose / cancel</value></data>
+  <data name="Ready" xml:space="preserve"><value>Local preparation only. Existing files are never overwritten.</value></data>
+  <data name="Limitations" xml:space="preserve"><value>Tab/Shift+Tab and button shortcuts. Private input is masked; clipboard/history blocked. Screen-reader, braille, RTL shaping and managed-heap erasure are unverified.</value></data>
+  <data name="TerminalTooSmall" xml:space="preserve"><value>Resize to at least 80 columns by 26 rows. Editing is hidden until then.</value></data>
+  <data name="InvalidSecret" xml:space="preserve"><value>Input exceeds the supported bound.</value></data>
+  <data name="SecretCommandsDisabled" xml:space="preserve"><value>Clipboard, context-menu and history commands are disabled for protected input.</value></data>
+  <data name="InvalidOutput" xml:space="preserve"><value>Prepare a current artifact and enter a simple output filename (letters, digits, dot, underscore, hyphen; max 64).</value></data>
+  <data name="Cancelled" xml:space="preserve"><value>Operation cancelled; private state cleared.</value></data>
+  <data name="Writing" xml:space="preserve"><value>Writing protected output...</value></data>
+  <data name="DisplayMode" xml:space="preserve"><value>_Disclosure</value></data>
+  <data name="ModeGuided" xml:space="preserve"><value>Guided</value></data>
+  <data name="ModeAdvanced" xml:space="preserve"><value>Advanced</value></data>
+  <data name="ModeAllDeclared" xml:space="preserve"><value>All declared</value></data>
+  <data name="Choose" xml:space="preserve"><value>Cycle _choice</value></data>
+  <data name="Previous" xml:space="preserve"><value>_Previous field</value></data>
+  <data name="Next" xml:space="preserve"><value>_Next field</value></data>
+  <data name="ApplyField" xml:space="preserve"><value>_Apply field</value></data>
+  <data name="PreviousItem" xml:space="preserve"><value>Previous _item</value></data>
+  <data name="NextItem" xml:space="preserve"><value>Next / add ite_m</value></data>
+  <data name="RemoveItem" xml:space="preserve"><value>_Remove item</value></data>
+  <data name="Artifact" xml:space="preserve"><value>Cycle ar_tifact</value></data>
+  <data name="PreparePreview" xml:space="preserve"><value>Pr_epare artifact</value></data>
+  <data name="SaveProtected" xml:space="preserve"><value>_Save protected</value></data>
+  <data name="PreviewReady" xml:space="preserve"><value>Validation passed. Prepared content stays private.</value></data>
+  <data name="DraftInvalid" xml:space="preserve"><value>Invalid or incomplete fields. Check field types and required values.</value></data>
+  <data name="ProtectedDraftSaved" xml:space="preserve"><value>Protected local artifact created.</value></data>
+  <data name="ProtectedDraftFailed" xml:space="preserve"><value>Protected output failed; no insecure fallback.</value></data>
+  <data name="ValidateDraft" xml:space="preserve"><value>_Validate fields</value></data>
+  <data name="ClearPrivate" xml:space="preserve"><value>Clear pri_vate state</value></data>
+  <data name="PrivateCleared" xml:space="preserve"><value>Private inputs and prepared bytes cleared.</value></data>
+  <data name="InputChanged" xml:space="preserve"><value>Input changed; prepare again before saving.</value></data>
+  <data name="NoFields" xml:space="preserve"><value>No active fields in this disclosure mode.</value></data>
+</root>

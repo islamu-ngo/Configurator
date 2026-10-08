@@ -1,0 +1,40 @@
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="WindowTitle" xml:space="preserve"><value>المهيئ - تعريف محلي</value></data>
+  <data name="OutputFile" xml:space="preserve"><value>ملف الإخراج:</value></data>
+  <data name="Close" xml:space="preserve"><value>إ_غلاق / إلغاء</value></data>
+  <data name="Ready" xml:space="preserve"><value>إعداد محلي فقط. لا تُستبدل الملفات الموجودة.</value></data>
+  <data name="Limitations" xml:space="preserve"><value>تنقل بلوحة المفاتيح. الإدخال الخاص محجوب والحافظة والسجل معطلان. قارئ الشاشة وبرايل وتشكيل RTL ومسح ذاكرة .NET غير متحقق منها.</value></data>
+  <data name="TerminalTooSmall" xml:space="preserve"><value>غيّر الحجم إلى 80 عمودًا و26 صفًا على الأقل. التحرير مخفي حتى ذلك الحين.</value></data>
+  <data name="InvalidSecret" xml:space="preserve"><value>الإدخال يتجاوز الحد المدعوم.</value></data>
+  <data name="SecretCommandsDisabled" xml:space="preserve"><value>أوامر الحافظة وقائمة السياق والسجل معطلة في الإدخال المحمي.</value></data>
+  <data name="InvalidOutput" xml:space="preserve"><value>أعد الملف الحالي وأدخل اسم ملف بسيطًا بحروف لاتينية وأرقام ونقطة وشرطة وشرطة سفلية؛ 64 حرفًا كحد أقصى.</value></data>
+  <data name="Cancelled" xml:space="preserve"><value>أُلغيت العملية ومُسحت البيانات الخاصة.</value></data>
+  <data name="Writing" xml:space="preserve"><value>جارٍ كتابة الإخراج المحمي...</value></data>
+  <data name="DisplayMode" xml:space="preserve"><value>_العرض</value></data>
+  <data name="ModeGuided" xml:space="preserve"><value>موجّه</value></data>
+  <data name="ModeAdvanced" xml:space="preserve"><value>متقدم</value></data>
+  <data name="ModeAllDeclared" xml:space="preserve"><value>كل الحقول المعلنة</value></data>
+  <data name="Choose" xml:space="preserve"><value>تبديل ال_خيار</value></data>
+  <data name="Previous" xml:space="preserve"><value>الحقل ال_سابق</value></data>
+  <data name="Next" xml:space="preserve"><value>الحقل ال_تالي</value></data>
+  <data name="ApplyField" xml:space="preserve"><value>اع_تماد الحقل</value></data>
+  <data name="PreviousItem" xml:space="preserve"><value>العنصر السا_بق</value></data>
+  <data name="NextItem" xml:space="preserve"><value>العنصر التالي / إ_ضافة</value></data>
+  <data name="RemoveItem" xml:space="preserve"><value>ح_ذف العنصر</value></data>
+  <data name="Artifact" xml:space="preserve"><value>تبديل ال_ملف</value></data>
+  <data name="PreparePreview" xml:space="preserve"><value>إ_عداد الملف</value></data>
+  <data name="SaveProtected" xml:space="preserve"><value>_حفظ محمي</value></data>
+  <data name="PreviewReady" xml:space="preserve"><value>نجح التحقق. يبقى المحتوى المُعد خاصًا.</value></data>
+  <data name="DraftInvalid" xml:space="preserve"><value>حقول غير صالحة أو غير مكتملة. تحقق من الأنواع والقيم المطلوبة.</value></data>
+  <data name="ProtectedDraftSaved" xml:space="preserve"><value>تم إنشاء الملف المحلي المحمي.</value></data>
+  <data name="ProtectedDraftFailed" xml:space="preserve"><value>فشل الإخراج المحمي؛ لا يوجد بديل غير آمن.</value></data>
+  <data name="ValidateDraft" xml:space="preserve"><value>ال_تحقق من الحقول</value></data>
+  <data name="ClearPrivate" xml:space="preserve"><value>مسح البيانات الخا_صة</value></data>
+  <data name="PrivateCleared" xml:space="preserve"><value>مُسحت المدخلات الخاصة والبيانات المُعدة.</value></data>
+  <data name="InputChanged" xml:space="preserve"><value>تغير الإدخال؛ أعد الملف قبل الحفظ.</value></data>
+  <data name="NoFields" xml:space="preserve"><value>لا توجد حقول نشطة في وضع العرض هذا.</value></data>
+</root>

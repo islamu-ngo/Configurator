@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <SetupTargetEnabled>true</SetupTargetEnabled>
+    <SetupTargetRole>Terminal</SetupTargetRole>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Configurator.Presentation\Configurator.Presentation.csproj" />
+    <ProjectReference Include="..\Configurator.Core\Configurator.Core.csproj" />
+    <ProjectReference Include="..\Configurator.Artifacts\Configurator.Artifacts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ISLAMU.Terminal.Gui" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+</Project>
