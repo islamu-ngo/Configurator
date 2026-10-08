@@ -15,8 +15,8 @@ checkout, backend contracts or running service may be a build input.
 | Static public Blazor WASM | `src/Configurator.Browser` |
 
 Corresponding focused suites live in `tests/Configurator.<owner>.Tests`.
-Projects are registered in `Configurator.slnx` only after their owner proves
-readiness; root configuration already applies to projects outside the solution.
+`Configurator.slnx` registers all seven product owners and their suites, the
+architecture suite, engineering tools, schema generators and dependency probes.
 
 ## Engineering commands
 
@@ -39,3 +39,18 @@ and launch changes require invariant tests as well as their client surface.
 The approved Terminal.Gui package is reconstructed by its retained native
 generator, not replaced with upstream Terminal.Gui. See
 `eng/release/dependencies/terminal-gui/dependency-review.md`.
+
+## Standalone packaging
+
+`eng/configurator/Configurator.Release.proj` owns `PublishConfigurator` and
+`PublishConfiguratorBrowser`. Native outputs live under
+`artifacts/configurator/<surface>/<rid>/`; static browser output is
+`artifacts/configurator/browser/wwwroot/`. See the
+[public packaging guide](docs/public/packaging.md) and
+[technical anchor](docs/internal/PACKAGING.md) for commands and host limits.
+
+`tests/Configurator.Architecture.Tests` verifies compiled product boundaries,
+evaluated release contracts and actual package closure. Publish all three Linux
+surfaces and browser before running its complete suite. A package build is not
+evidence that every product or engineering suite passes; record their actual
+commands and outcomes separately.

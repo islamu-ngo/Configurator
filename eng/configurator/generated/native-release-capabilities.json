@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "surfaces": {
+    "cli": {
+      "surface": "cli",
+      "runtimeIdentifiers": [
+        "linux-x64",
+        "linux-arm64",
+        "osx-arm64",
+        "win-x64"
+      ],
+      "selfContained": true,
+      "publishSingleFile": true,
+      "publishTrimmed": false,
+      "includeNativeLibrariesForSelfExtract": true,
+      "enableCompressionInSingleFile": true,
+      "useAppHost": true,
+      "executableName": "islamu-configurator",
+      "protectedExportHosts": [
+        "linux"
+      ]
+    },
+    "terminal": {
+      "surface": "terminal",
+      "runtimeIdentifiers": [
+        "linux-x64",
+        "linux-arm64",
+        "osx-arm64",
+        "win-x64"
+      ],
+      "selfContained": true,
+      "publishSingleFile": true,
+      "publishTrimmed": false,
+      "includeNativeLibrariesForSelfExtract": true,
+      "enableCompressionInSingleFile": true,
+      "useAppHost": true,
+      "executableName": "islamu-configurator-terminal",
+      "protectedExportHosts": [
+        "linux"
+      ]
+    },
+    "desktop": {
+      "surface": "desktop",
+      "runtimeIdentifiers": [
+        "linux-x64"
+      ],
+      "selfContained": true,
+      "publishSingleFile": true,
+      "publishTrimmed": false,
+      "includeNativeLibrariesForSelfExtract": true,
+      "enableCompressionInSingleFile": true,
+      "useAppHost": true,
+      "executableName": "islamu-configurator-desktop",
+      "protectedExportHosts": [
+        "linux"
+      ]
+    }
+  },
+  "protectedExportRequiresSupportedFilesystem": true,
+  "targetApply": false,
+  "signedPublicationEnabled": false,
+  "_metadata": {
+    "generatedBy": "eng/configurator/GenerateConfiguratorRatchets.cs"
+  }
+}

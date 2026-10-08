@@ -1,0 +1,100 @@
+name: Configurator build and package validation
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: configurator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  standalone:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout only Configurator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Verify immutable downstream Terminal.Gui package
+        run: |
+          dotnet run eng/release/dependencies/terminal-gui/VerifyTerminalGuiPackage.cs -- --check
+          bash eng/release/dependencies/terminal-gui/BuildTerminalGuiPackage.sh --check
+      - name: Validate external Action pins
+        run: dotnet run .ci/scripts/validate-action-pins.cs -- .github/workflows
+      - name: Restore and build explicit destination owners
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Explicit owners do not depend on extraction-time solution registration.
+          for project in \
+            tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj \
+            eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \
+            eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj \
+            eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
+            eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj
+          do
+            dotnet restore "$project" --locked-mode
+            dotnet build "$project" --no-restore --configuration Release --verbosity quiet
+          done
+          for project in eng/configurator/probes/*/*.csproj; do
+            dotnet restore "$project" --locked-mode
+            dotnet build "$project" --no-restore --configuration Release --verbosity quiet
+          done
+          for project in tests/Configurator.*.Tests/*.csproj; do
+            dotnet restore "$project" --locked-mode
+            dotnet build "$project" --no-restore --configuration Release --verbosity quiet
+          done
+      - name: Validate dependency rights and compiled contracts
+        run: |
+          dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
+          dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator --configuration Release --no-build -- --check schemas/setup-definition-v1.schema.json
+          dotnet run --project eng/configurator/Configurator.CommandSchemaGenerator --configuration Release --no-build -- --check
+          dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check
+      - name: Audit restored dependency closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/audit
+          for project in src/Configurator.*/*.csproj tests/Configurator.*.Tests/*.csproj eng/configurator/*/*.csproj eng/configurator/probes/*/*.csproj eng/agent-workflow/src/*/*.csproj eng/release/src/*/*.csproj; do
+            dotnet list "$project" package --vulnerable --include-transitive --format json --no-restore > artifacts/audit/current.json
+            dotnet run .ci/scripts/validate-nuget-vulnerabilities.cs -- artifacts/audit/current.json
+          done
+      - name: Build release owner and assemble standalone packages
+        run: |
+          dotnet build eng/configurator/Configurator.Release.proj --configuration Release --verbosity quiet
+          for surface in cli terminal desktop; do
+            dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface="$surface" -p:ConfiguratorRid=linux-x64 -verbosity:minimal
+          done
+          dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -verbosity:minimal
+      - name: Assert compiled boundaries and actual package closure
+        run: |
+          dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
+          for project in tests/Configurator.*.Tests/*.csproj; do
+            dotnet test --project "$project" --configuration Release -- --minimum-expected-tests 1
+          done
+          dotnet test --project eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj --configuration Release -- --minimum-expected-tests 1
+          dotnet test --project eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj --configuration Release -- --minimum-expected-tests 1
+      - name: Write package checksums
+        run: dotnet run .ci/scripts/write-artifact-checksums.cs -- artifacts/configurator artifacts/configurator/checksums.sha256
+      - name: Retain unsigned validation packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: configurator-linux-x64-and-static-browser
+          path: artifacts/configurator/
+          if-no-files-found: error
+          retention-days: 7

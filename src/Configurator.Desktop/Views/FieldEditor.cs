@@ -128,8 +128,12 @@ public sealed class FieldEditor : StackPanel
         {
             string[] choices = type == "boolean" ? ["", "true", "false"] :
                 UnsetChoice.Concat(_schema.GetProperty("choices").EnumerateArray().Select(Display)).ToArray();
-            var combo = new ComboBox { ItemsSource = choices, SelectedItem = initial is { } value ? Display(value) : "",
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch };
+            var combo = new ComboBox
+            {
+                ItemsSource = choices,
+                SelectedItem = initial is { } value ? Display(value) : "",
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch
+            };
             if (_masked)
                 combo.SelectionBoxItemTemplate = new FuncDataTemplate<string>((_, _) => new TextBlock { Text = "••••••" });
             AutomationProperties.SetName(combo, Title);
@@ -140,8 +144,12 @@ public sealed class FieldEditor : StackPanel
         }
         else
         {
-            var text = new TextBox { Text = initial is { } value ? Display(value) : string.Empty,
-                MaxLength = 65_536, PasswordChar = _masked ? '●' : '\0' };
+            var text = new TextBox
+            {
+                Text = initial is { } value ? Display(value) : string.Empty,
+                MaxLength = 65_536,
+                PasswordChar = _masked ? '●' : '\0'
+            };
             AutomationProperties.SetName(text, Title);
             AutomationProperties.SetHelpText(text, Help);
             text.TextChanged += (_, _) => ChangedInput();
@@ -154,7 +162,9 @@ public sealed class FieldEditor : StackPanel
     {
         var schema = JsonSerializer.SerializeToElement(new
         {
-            id = "item", title = $"{Title} item", type = _schema.GetProperty("itemType").GetString(),
+            id = "item",
+            title = $"{Title} item",
+            type = _schema.GetProperty("itemType").GetString(),
             sensitivity = _masked ? "secret" : "public"
         });
         var editor = new FieldEditor(schema, _masked, initial);

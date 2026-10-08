@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "target": "browser",
+  "targetEnabled": true,
+  "capabilities": {
+    "publicMetadata": true,
+    "secretEntry": false,
+    "privateExport": false,
+    "persistence": false,
+    "targetAuthentication": false,
+    "targetApply": false,
+    "telemetry": false
+  },
+  "_metadata": {
+    "generatedBy": "eng/configurator/GenerateConfiguratorRatchets.cs"
+  }
+}

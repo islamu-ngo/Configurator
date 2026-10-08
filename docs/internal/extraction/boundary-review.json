@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "method": "Independent privacy and architecture reviews; no peer identity or output exchanged",
+  "weights": { "privacyIntegrity": 0.6, "architectureClosure": 0.4 },
+  "findings": [
+    {
+      "severity": "medium",
+      "path": "src/Configurator.Browser/BrowserDefinitionRegistry.cs",
+      "defect": "Removed revisions could return with conflicting bytes after two registry replacements",
+      "resolution": "Retain bounded admitted identity history before replacing Current",
+      "regression": "RegistryCannotReplaceSameFamilyRevisionWithDifferentContent(true)",
+      "evidence": "Browser suite: 57 passed"
+    },
+    {
+      "severity": "medium",
+      "path": "tests/Configurator.Cli.Tests/SetupCliContractSpecification.cs",
+      "defect": "Operation vocabulary test oracle mirrored production metadata",
+      "resolution": "Independent literal vocabulary and mutation rejection assertion",
+      "regression": "SchemaVerifierRejectsUndeclaredArtifactOperation",
+      "evidence": "CLI suite: 42 passed; forbidden-operation mutation rejected"
+    },
+    {
+      "severity": "low",
+      "path": "Event/eng/configurator/DefinitionExporter/packages.lock.json",
+      "defect": "Generated lock retained removed Configurator.Core and Event.Setup.Core project entries",
+      "resolution": "Native force-evaluate restore from Event-only references",
+      "evidence": "Restore exit 0; current lock contains only Event.Wire.Contracts and Explore.Domain project entries"
+    }
+  ],
+  "additionalInvariant": {
+    "defect": "Extraction renamed access-token secret detection into output-token detection",
+    "regression": "AccessTokenAssignmentsCannotEnterPublicReleaseArtifacts",
+    "redEvidence": "Two argument cases failed before detector restoration",
+    "resolution": "Reject both access-token and output-token assignments in artifact and release-input boundaries",
+    "greenEvidence": "ReleaseInputPolicyTests: 24 passed; ReleaseArtifactPolicyTests: 11 passed"
+  },
+  "decision": "Fix all observed defects; source cutover remains gated on standalone readiness",
+  "excluded": ["Publisher authentication", "Non-Linux protected saves", "Remote catalog", "Event database matrix"]
+}

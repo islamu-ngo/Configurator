@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "definitionSchemaSha256": "1239221223e52b7df3526f39420e94f14e94db946271b388067faac51929f3ea",
+  "commandSchemaSha256": "0af4b4017901db0fc76d03fb64457b06a273a17388334513fdfccc07672b5426",
+  "commandFamilies": [
+    "catalogue",
+    "artifact",
+    "env",
+    "doctor"
+  ],
+  "targetApply": false,
+  "signedPublicationEnabled": false,
+  "_metadata": {
+    "generatedBy": "eng/configurator/GenerateConfiguratorRatchets.cs"
+  }
+}

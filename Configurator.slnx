@@ -16,6 +16,7 @@
     <Project Path="tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj" />
     <Project Path="tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj" />
     <Project Path="tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj" />
+    <Project Path="tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj" />
   </Folder>
   <Folder Name="/eng/">
     <Project Path="eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj" />

@@ -1,0 +1,94 @@
+<Project DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration>Release</Configuration>
+    <ConfiguratorRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</ConfiguratorRoot>
+    <ConfiguratorSurface Condition="'$(ConfiguratorSurface)' == ''">cli</ConfiguratorSurface>
+    <ConfiguratorAssemblyName Condition="'$(ConfiguratorSurface)' == 'cli'">Configurator.Cli</ConfiguratorAssemblyName>
+    <ConfiguratorAssemblyName Condition="'$(ConfiguratorSurface)' == 'terminal'">Configurator.Terminal</ConfiguratorAssemblyName>
+    <ConfiguratorAssemblyName Condition="'$(ConfiguratorSurface)' == 'desktop'">Configurator.Desktop</ConfiguratorAssemblyName>
+    <ConfiguratorExecutableName Condition="'$(ConfiguratorSurface)' == 'cli'">islamu-configurator</ConfiguratorExecutableName>
+    <ConfiguratorExecutableName Condition="'$(ConfiguratorSurface)' == 'terminal'">islamu-configurator-terminal</ConfiguratorExecutableName>
+    <ConfiguratorExecutableName Condition="'$(ConfiguratorSurface)' == 'desktop'">islamu-configurator-desktop</ConfiguratorExecutableName>
+    <ConfiguratorProject>$(ConfiguratorRoot)/src/$(ConfiguratorAssemblyName)/$(ConfiguratorAssemblyName).csproj</ConfiguratorProject>
+    <ConfiguratorOutputRoot Condition="'$(ConfiguratorOutputRoot)' == ''">$(ConfiguratorRoot)/artifacts/configurator</ConfiguratorOutputRoot>
+    <ConfiguratorPublishDirectory>$(ConfiguratorOutputRoot)/$(ConfiguratorSurface)/$(ConfiguratorRid)/</ConfiguratorPublishDirectory>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <UseAppHost>true</UseAppHost>
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ConfiguratorRuntimeIdentifier Include="linux-x64" />
+    <ConfiguratorRuntimeIdentifier Include="linux-arm64;osx-arm64;win-x64" Condition="'$(ConfiguratorSurface)' != 'desktop'" />
+    <ConfiguratorNotice Include="$(ConfiguratorRoot)/LICENSE;$(ConfiguratorRoot)/THIRD-PARTY-NOTICES.md" />
+    <ConfiguratorCapability Include="$(MSBuildThisFileDirectory)generated/*.json" />
+    <ConfiguratorSchema Include="$(ConfiguratorRoot)/schemas/*.schema.json" />
+  </ItemGroup>
+
+  <Target Name="ValidateConfiguratorRelease">
+    <Error Condition="'$(ConfiguratorSurface)' != 'cli' and '$(ConfiguratorSurface)' != 'terminal' and '$(ConfiguratorSurface)' != 'desktop'" Text="Unsupported Configurator surface '$(ConfiguratorSurface)'." />
+    <Error Condition="'$(ConfiguratorRid)' != '' and '$(ConfiguratorRid)' != 'linux-x64' and '$(ConfiguratorRid)' != 'linux-arm64' and '$(ConfiguratorRid)' != 'osx-arm64' and '$(ConfiguratorRid)' != 'win-x64'" Text="Unsupported Configurator runtime identifier '$(ConfiguratorRid)'." />
+    <Error Condition="'$(ConfiguratorSurface)' == 'desktop' and '$(ConfiguratorRid)' != '' and '$(ConfiguratorRid)' != 'linux-x64'" Text="Desktop releases are limited to the verified linux-x64 host." />
+    <Error Condition="'$(SelfContained)' != 'true' or '$(PublishSingleFile)' != 'true' or '$(UseAppHost)' != 'true' or '$(PublishTrimmed)' != 'false' or '$(IncludeNativeLibrariesForSelfExtract)' != 'true' or '$(EnableCompressionInSingleFile)' != 'true'" Text="Native releases require untrimmed standalone single-file executables with embedded native libraries." />
+    <Error Condition="('$(ConfiguratorSurface)' == 'cli' and '$(ConfiguratorExecutableName)' != 'islamu-configurator') or ('$(ConfiguratorSurface)' == 'terminal' and '$(ConfiguratorExecutableName)' != 'islamu-configurator-terminal') or ('$(ConfiguratorSurface)' == 'desktop' and '$(ConfiguratorExecutableName)' != 'islamu-configurator-desktop')" Text="The Configurator executable name is part of the operator contract." />
+  </Target>
+
+  <Target Name="Build" DependsOnTargets="ValidateConfiguratorRelease">
+    <MSBuild Projects="$(ConfiguratorProject)" Targets="Restore;Build"
+      RemoveProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;UseAppHost"
+      Properties="Configuration=$(Configuration);RestoreLockedMode=true" />
+  </Target>
+
+  <Target Name="WriteConfiguratorReleaseContract" DependsOnTargets="ValidateConfiguratorRelease">
+    <Error Condition="'$(ConfiguratorContractOutput)' == ''" Text="ConfiguratorContractOutput is required." />
+    <PropertyGroup>
+      <_RuntimeIdentifiersJson>@(ConfiguratorRuntimeIdentifier->'&quot;%(Identity)&quot;', ',')</_RuntimeIdentifiersJson>
+      <_Contract>{&quot;surface&quot;:&quot;$(ConfiguratorSurface)&quot;,&quot;runtimeIdentifiers&quot;:[$(_RuntimeIdentifiersJson)],&quot;selfContained&quot;:$(SelfContained),&quot;publishSingleFile&quot;:$(PublishSingleFile),&quot;publishTrimmed&quot;:$(PublishTrimmed),&quot;includeNativeLibrariesForSelfExtract&quot;:$(IncludeNativeLibrariesForSelfExtract),&quot;enableCompressionInSingleFile&quot;:$(EnableCompressionInSingleFile),&quot;useAppHost&quot;:$(UseAppHost),&quot;executableName&quot;:&quot;$(ConfiguratorExecutableName)&quot;,&quot;protectedExportHosts&quot;:[&quot;linux&quot;]}</_Contract>
+    </PropertyGroup>
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(ConfiguratorContractOutput)'))" />
+    <WriteLinesToFile File="$(ConfiguratorContractOutput)" Lines="$(_Contract)" Overwrite="true" Encoding="ASCII" />
+  </Target>
+
+  <Target Name="CheckConfiguratorRatchets">
+    <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check" />
+  </Target>
+
+  <Target Name="PublishConfigurator" DependsOnTargets="ValidateConfiguratorRelease;CheckConfiguratorRatchets">
+    <Error Condition="'$(ConfiguratorRid)' == ''" Text="ConfiguratorRid is required for native publication." />
+    <!-- RID restore locks are separate from the framework-only development locks. -->
+    <MSBuild Projects="$(ConfiguratorProject)" Targets="Restore"
+      Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ConfiguratorRid);SelfContained=true;PublishSingleFile=true;RestoreLockedMode=false;NuGetLockFilePath=obj/configurator-release/$(ConfiguratorRid)/packages.lock.json" />
+    <Exec Command="dotnet publish &quot;$(ConfiguratorProject)&quot; --no-restore --configuration &quot;$(Configuration)&quot; --runtime &quot;$(ConfiguratorRid)&quot; --self-contained true --output &quot;$(ConfiguratorPublishDirectory)&quot; --tl:off -p:RestoreLockedMode=true -p:NuGetLockFilePath=obj/configurator-release/$(ConfiguratorRid)/packages.lock.json -p:PublishSingleFile=true -p:PublishTrimmed=false -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:UseAppHost=true -p:DebugSymbols=false -p:DebugType=none" />
+    <PropertyGroup>
+      <_ExecutableExtension Condition="'$(ConfiguratorRid)' == 'win-x64'">.exe</_ExecutableExtension>
+    </PropertyGroup>
+    <Move SourceFiles="$(ConfiguratorPublishDirectory)$(ConfiguratorAssemblyName)$(_ExecutableExtension)" DestinationFiles="$(ConfiguratorPublishDirectory)$(ConfiguratorExecutableName)$(_ExecutableExtension)" />
+    <Copy SourceFiles="@(ConfiguratorNotice)" DestinationFolder="$(ConfiguratorPublishDirectory)" />
+    <Copy SourceFiles="@(ConfiguratorCapability)" DestinationFolder="$(ConfiguratorPublishDirectory)contracts" />
+    <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorPublishDirectory)schemas" />
+    <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/$(ConfiguratorAssemblyName)/obj/project.assets.json&quot; &quot;$(ConfiguratorPublishDirectory)dependency-notices&quot; &quot;$(ConfiguratorProject)&quot; &quot;$(ConfiguratorRid)&quot;" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="WriteConfiguratorReleaseContract"
+      Properties="ConfiguratorContractOutput=$(ConfiguratorPublishDirectory)contracts/package.json" />
+  </Target>
+
+  <Target Name="PublishConfiguratorBrowser" DependsOnTargets="CheckConfiguratorRatchets">
+    <!-- Native release properties must never leak into static WASM publication. -->
+    <MSBuild Projects="$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj" Targets="Restore;Publish"
+      RemoveProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;PublishTrimmed;UseAppHost;EnableCompressionInSingleFile;IncludeNativeLibrariesForSelfExtract;DebugSymbols;DebugType"
+      Properties="Configuration=$(Configuration);PublishDir=$(ConfiguratorOutputRoot)/browser/;RestoreLockedMode=true" />
+    <Error Condition="!Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/index.html')" Text="Static browser index is missing." />
+    <Copy SourceFiles="@(ConfiguratorNotice)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot" />
+    <Copy SourceFiles="@(ConfiguratorCapability)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot/contracts" />
+    <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot/schemas" />
+    <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/Configurator.Browser/obj/project.assets.json&quot; &quot;$(ConfiguratorOutputRoot)/browser/wwwroot/dependency-notices&quot; &quot;$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj&quot; browser-wasm" />
+  </Target>
+
+  <Target Name="PublishAllConfiguratorRids" DependsOnTargets="ValidateConfiguratorRelease">
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="PublishConfigurator" BuildInParallel="false"
+      Properties="ConfiguratorRid=%(ConfiguratorRuntimeIdentifier.Identity);ConfiguratorSurface=$(ConfiguratorSurface);ConfiguratorOutputRoot=$(ConfiguratorOutputRoot)" />
+  </Target>
+</Project>

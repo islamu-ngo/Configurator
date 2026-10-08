@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "allowedExpressions": [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "Unlicense",
+    "CC0-1.0",
+    "Zlib",
+    "BSL-1.0",
+    "MS-PL",
+    "(MIT OR Apache-2.0)"
+  ],
+  "metadataApprovals": [
+    {
+      "id": "avalonia.angle.windows.natives",
+      "version": "2.1.27548.20260419",
+      "license": "BSD-3-Clause",
+      "nuspecSha256": "2dd03940159c3b637786264f5a5563ffd3e9aad3bdab4a4c75270e095a485a1f",
+      "licenseFileSha256": "54aff7276217df9f6b5181613999d208c9e40d2b1d51bf55217837e6871a4a63",
+      "rationale": "The bundled ANGLE LICENSE contains the three-clause BSD redistribution and attribution terms; NuGet declares a file rather than an SPDX expression. Exact metadata and license bytes are frozen."
+    }
+  ]
+}
