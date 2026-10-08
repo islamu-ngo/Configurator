@@ -12,10 +12,10 @@ priority: high
 <!-- ABOUTME: Keeps Explore.Application handlers thin, entity-first, cancellation-aware, and aligned with repository and response contracts. -->
 
 ## Resources
-- [Record contracts](../../../docs/internal/extraction/FOUNDATION.md) — load for request/result record selection, factories, collection ownership, and trusted authority.
-- [Architecture](../../../docs/internal/extraction/FOUNDATION.md) — load for Application boundaries and CQS flow.
-- [API](../../../docs/internal/extraction/FOUNDATION.md) — load when result mapping or the public HTTP contract changes.
-- [Quick reference](../../../docs/internal/extraction/FOUNDATION.md) — load for repository-wide CQS invariants.
+- Record contracts: `docs/internal/RECORD_CONTRACTS.md` (Event source, historical only) — request/result record selection, factories, collection ownership, and trusted authority.
+- Architecture: `docs/internal/ARCHITECTURE.md` (Event source, historical only) — Application boundaries and CQS flow.
+- API: `docs/internal/API.md` (Event source, historical only) — result mapping or the public HTTP contract.
+- [Configurator quick reference](../../../docs/internal/QUICK_REFERENCE.md) — target invariants; Event CQS invariants remain historical only.
 
 ## Rules
 

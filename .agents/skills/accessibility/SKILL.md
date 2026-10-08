@@ -12,7 +12,7 @@ priority: high
 <!-- ABOUTME: Routes agents to local WCAG 2.2 AA rules, implementation patterns, and verification evidence. -->
 
 ## Must-Read Docs
-- [Accessibility Standards](../../../docs/internal/extraction/FOUNDATION.md)
+- Accessibility Standards: `docs/internal/ACCESSIBILITY.md` (Event source, historical only; use the transferred resources below for reusable guidance).
 - [Accessibility Resources](resources/index.md)
 - [Blazor UI Conventions](../blazor-ui-conventions/SKILL.md)
 

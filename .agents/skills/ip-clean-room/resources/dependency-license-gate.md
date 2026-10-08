@@ -32,7 +32,7 @@ MediatR.Contracts, their edition selectors, commercial version overrides and
 vendor license inputs are retired. CI and the API/Blazor Dockerfiles enforce
 locked restore; there is no commercial restore bypass.
 
-[Mapperly provenance](../../../../docs/internal/extraction/FOUNDATION.md)
+Mapperly provenance (`docs/internal/legal/dependencies/mapperly.md`, Event source, historical only)
 records the Apache-2.0 build-time generator, notice obligations and limits of
 generated-output claims. Native operations use repository-owned contracts and
 Microsoft DI, not a substitute mediator package. Every new dependency must

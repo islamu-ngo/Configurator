@@ -42,7 +42,9 @@ For events with matchers (PreToolUse, PostToolUse):
 }
 ```
 
-## Agent Integration Mapping
+## Agent Integration Mapping (Historical Event Source)
+
+This retained mapping describes source-system suggestions, not Configurator agent activation or build-error routing. BuildCheck emits the targeted build output directly and returns its actual exit code; it does not invoke any agent.
 
 | Hook Trigger | Targeted Agent | Purpose |
 |---|---|---|
@@ -69,7 +71,7 @@ if (prompt.Contains("keyword1") || prompt.Contains("keyword2"))
 
 ### Adjusting Architecture Detection
 
-If projects are renamed, update `ContextTracker.cs` layer detection:
+The following is the historical Event layer-detection example, not Configurator project ownership. If adapting tracking in a separately authorized change, use the actual owners from `PROJECTS.md`. BuildCheck never consumes this mapping:
 
 ```csharp
 // Map path patterns to architecture layers
@@ -85,17 +87,19 @@ static string DetectCleanArchLayer(string filePath) =>
     };
 ```
 
-### Excluding Files from Build Checks
+### Selecting the Targeted Build
 
-Modify `BuildCheck.cs` to add build flags:
+BuildCheck requires exactly one existing `.csproj`; there is no no-argument or solution fallback. Choose the affected owner from `PROJECTS.md`:
 
-```csharp
-var processInfo = new ProcessStartInfo("dotnet", "build --configuration Release --verbosity quiet");
+```bash
+dotnet run .agents/hooks/BuildCheck.cs -- eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj
 ```
+
+That engineering-owner invocation is an example, not a default. For a Stop registration, use the same complete command after selecting the affected project; omit the build entry for documentation-only work. The retained implementation adds `build`, the project path, `--configuration Release`, `--verbosity quiet`, and `--nologo` through `ProcessStartInfo.ArgumentList`. It drains stdout/stderr concurrently and returns the actual build exit code. Invalid arguments return `64`; a three-minute timeout kills the process tree, emits `build_check_timeout`, and returns `1`. Do not add warning suppressions to make a build pass.
 
 ## Cache Management
 
 - **Location**: `.claude/build-cache/`
-- **Contents**: Modified layer tracking, last build errors, session logs.
-- **Auto-cleanup**: BuildCheck deletes cache on successful build (exit code 0).
+- **Contents**: ContextTracker's historical layer tracking and session logs. BuildCheck does not cache build errors.
+- **Ownership**: BuildCheck neither reads nor clears the cache; it emits build output directly.
 - **Manual cleanup**: Delete the `build-cache` directory to reset tracking state.

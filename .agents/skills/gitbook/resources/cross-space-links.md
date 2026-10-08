@@ -25,7 +25,7 @@ You'll also see a fully-qualified form in some content: `https://app.gitbook.com
 
 ## When to use this vs. relative links
 
-- **Within a space** — use plain relative paths: `[Quickstart](../../../../docs/internal/extraction/FOUNDATION.md)`, `[Concepts](../../../../docs/internal/extraction/FOUNDATION.md)`. These resolve at the markdown level, no IDs needed.
+- **Within a space** — use plain relative paths: `[Quickstart](quickstart.md)`, `[Concepts](../concepts/data-model.md)`. These resolve at the markdown level, no IDs needed.
 - **Across spaces** — use the `app.gitbook.com/s/<spaceId>/...` form. Relative paths can't cross space boundaries.
 - **External URLs** — just the URL: `[Status](https://status.example.com)`.
 
@@ -160,9 +160,9 @@ Cross-space links work in `SUMMARY.md` too — useful for cross-referencing rela
 ```markdown
 # Table of contents
 
-* [Guides homepage](../../../../docs/internal/extraction/FOUNDATION.md)
-* [Quickstart](../../../../docs/internal/extraction/FOUNDATION.md)
-* [Concepts](../../../../docs/internal/extraction/FOUNDATION.md)
+* [Guides homepage](README.md)
+* [Quickstart](getting-started/quickstart.md)
+* [Concepts](concepts/README.md)
 
 ## See also
 

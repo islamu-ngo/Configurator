@@ -12,4 +12,4 @@ Read only the resources needed for the current phase:
 3. [Dependency License Gate](dependency-license-gate.md) — outbound-license compatibility, CI evidence, exceptions, and the AutoMapper/MediatR precedent.
 4. [Audit Record Template](audit-record-template.md) — source register, attestation, review decision, and journal/PR evidence fields.
 
-The governing authority is [IP Governance](../../../../docs/internal/extraction/FOUNDATION.md). These resources operationalize it and do not provide legal advice.
+Configurator's governing authority is [AGENTS.md](../../../../AGENTS.md), with target provenance in [the extraction foundation](../../../../docs/internal/extraction/FOUNDATION.md). The original `docs/internal/legal/IP_GOVERNANCE.md` is an Event source reference, historical only. These resources provide reusable guidance and do not provide legal advice.

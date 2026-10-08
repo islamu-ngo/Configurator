@@ -149,7 +149,7 @@ grep -rn '^```[a-z]\+ [^a-z]' --include='*.md'
 
 Source-platform paths (`/docs/...`, `/getting-started/...`) usually don't survive the migration. After the GitBook structure is known, walk every markdown file and rewrite:
 
-- Within-space links: relative `.md` paths (e.g. `[Authentication](../../../../docs/internal/extraction/FOUNDATION.md)`)
+- Within-space links: relative `.md` paths (e.g. `[Authentication](concepts/authentication.md)`)
 - Cross-space links: `https://app.gitbook.com/s/<spaceId>/<path>` (use `XSPACE_<KEY>` sentinels during scaffolding — see `cross-space-links.md`)
 - External links: leave alone
 
@@ -170,7 +170,7 @@ for md in Path(".").rglob("*.md"):
     text = md.read_text()
     new = text
     for old, new_path in LINK_MAP.items():
-        new = re.sub(rf']\({re.escape(old)}([#?][^)]*)?\)', f'](../../../../docs/internal/extraction/FOUNDATION.md)', new)
+        new = re.sub(rf']\({re.escape(old)}([#?][^)]*)?\)', f']({new_path}\\1)', new)
     if new != text:
         md.write_text(new)
 ```

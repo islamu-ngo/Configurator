@@ -36,11 +36,11 @@ Implement the smallest complete backend change at the correct Clean Architecture
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [Architecture](../../docs/internal/extraction/FOUNDATION.md)
-5. [Domain](../../docs/internal/extraction/FOUNDATION.md)
-6. [Governance](../../docs/internal/extraction/FOUNDATION.md)
+4. [Architecture](../../docs/internal/adr/ADR-definition-runtime-boundary.md)
+5. [Domain (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/DOMAIN.md)
+6. [Governance](../../docs/internal/GOVERNANCE.md)
 
 ## Skill Routing
 

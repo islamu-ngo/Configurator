@@ -1,15 +1,65 @@
 ---
 name: payments-commerce
-description: Reference-only Event payments-commerce guidance; no matching Configurator layer.
+description: Historical/reference-only Event payments-commerce guidance; never binds Configurator product paths.
 paths:
   - "reference-only/payments-commerce/**"
-related_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+related_skills: []
+related_docs: [AGENTS.md, PROJECTS.md, docs/internal/GOVERNANCE.md, docs/internal/QUICK_REFERENCE.md]
 minimum_tests: []
 related_intents: []
 ---
 
-# payments-commerce rules
+# Historical Event Rule: payments-commerce
 
-Twin files at `.agents/rules/payments-commerce.md` and `.omo/rules/payments-commerce.md` must remain byte-identical.
+Twin copies at `.agents/rules/payments-commerce.md` and `.omo/rules/payments-commerce.md` are byte-identical.
 
-This preserved router is inactive in Configurator. Its source-system layer does not exist here; do not introduce it to satisfy historical Event guidance. See [target authority](../../docs/internal/extraction/FOUNDATION.md).
+## Reference-Only Scope
+
+The reserved `reference-only/payments-commerce/**` glob matches no Configurator path.
+The original body below is retained verbatim from Event revision
+`c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38` for historical engineering reference.
+Its original paths, docs, intents, commands, libraries and mandatory language
+are source-system facts, not Configurator instructions or active links. Do not
+introduce Event HAL, EF, BFF, payment, identity or scheduling requirements.
+Target authority remains [AGENTS.md](../../AGENTS.md), [PROJECTS.md](../../PROJECTS.md)
+and [Governance](../../docs/internal/GOVERNANCE.md).
+
+## Original Rule Body (Inactive)
+
+```markdown
+
+<!-- ABOUTME: Path-scoped rules for Tier 0 Sovereign Financial workflows, Stripe Connect, and payment contracts. -->
+<!-- ABOUTME: Twin copy at .omo/rules/payments-commerce.md. When modifying this file, update both paths. -->
+
+# Payments and Commerce Rules (Tier 0 — Sovereign)
+
+## Applies To
+- `src/**/*Payment*.cs`, `src/**/*Stripe*.cs`, `src/**/*Checkout*.cs`, `src/**/*Refund*.cs`, `src/**/*Dispute*.cs`, `src/**/*Payout*.cs`
+
+## Critical Rules & Invariants
+
+| # | Rule | Correct | Wrong |
+|---|---|---|---|
+| 1 | **Zero Cardholder Data (PCI-DSS)** | Delegate payment capture exclusively to provider-hosted pages (e.g. Stripe Checkout). | Handling, transmitting, or persisting raw card numbers, CVVs, or bank account credentials. |
+| 2 | **Integer Minor-Unit Money** | Store and compute all amounts in checked integer minor units (cents as `long` or `int`). | Using `float`, `double`, or `decimal` in core arithmetic or currency logic. |
+| 3 | **Monotonic Payment States** | State transitions move strictly forward (`Pending` $\rightarrow$ `Succeeded` / `Failed`); reconcile via provider truth. | Overwriting succeeded payments or allowing client-driven state resets. |
+| 4 | **Transactional Outbox Pairing** | Pair every order mutation emitting domain events or webhook side-effects with an Outbox insert in the same DB transaction. | Direct HTTP calls, email sending, or webhook dispatch inside a DB transaction. |
+| 5 | **Idempotent Webhooks** | Verify exact signed UTF-8 body bytes against server-only webhook secret (`whsec_...`); deduplicate via monotonic event IDs. | Processing webhooks without signature verification or mutating state directly in controller. |
+| 6 | **Secret Isolation** | Resolve platform API keys (`sk_live_...`) server-side via `SecretDefinitionRegistry`. | Logging keys, returning secrets in browser DTOs, or embedding in OpenAPI schemas. |
+| 7 | **Multi-Tenant Account Fencing** | Create ticket charges as direct charges in the organizer's connected merchant account context (`StripeAccount: acct_...`). | Mixing organizer payouts or routing payments to instance-level administrator accounts. |
+
+## Must Read
+- [docs/internal/PAYMENTS.md](../../docs/internal/PAYMENTS.md)
+- [docs/internal/adr/ADR-022-paid-event-commerce-and-stripe-connect.md](../../docs/internal/adr/ADR-022-paid-event-commerce-and-stripe-connect.md)
+- [docs/internal/QUICK_REFERENCE.md#critical-rules](../../docs/internal/QUICK_REFERENCE.md#critical-rules)
+
+## Verification
+- Build: `dotnet build --configuration Release --verbosity quiet`
+- Tests: `Event.Domain.UnitTests`, `Event.Application.UnitTests`, `Explore.Infrastructure.Tests`, `Event.API.IntegrationTests`, `Event.Architecture.Tests`
+- Fuzzing / Negative tests: Duplicate webhook replay, out-of-order event dispatch, and currency rounding tests must pass.
+
+## Related
+- Intents: `registration-data-collection`, `webhook-delivery-redesign`
+- Agents: `security-privacy-agent.md`, `quality-verifier-agent.md`, `backend-engineer-agent.md`
+- Skills: `clean-architecture-rules`, `outbox-pattern`, `auth-patterns`
+```

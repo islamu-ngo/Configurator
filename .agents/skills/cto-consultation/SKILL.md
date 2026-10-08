@@ -13,16 +13,17 @@ priority: high
 
 ## Must-Read Docs
 - [../../../AGENTS.md](../../../AGENTS.md)
-- [../../../docs/internal/PROJECT.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/ARCHITECTURE.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/DOMAIN.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/API.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/BLAZOR.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/SECURITY-MODEL.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/MULTI_TENANCY.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/SELF_HOSTING.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/DEPLOYMENT_TIERS.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/CONFIGURATION.md](../../../docs/internal/extraction/FOUNDATION.md)
+- [Configurator project ownership](../../../PROJECTS.md)
+- `docs/internal/PROJECT.md` (Event source, historical only).
+- `docs/internal/ARCHITECTURE.md` (Event source, historical only).
+- `docs/internal/DOMAIN.md` (Event source, historical only).
+- `docs/internal/API.md` (Event source, historical only).
+- `docs/internal/BLAZOR.md` (Event source, historical only).
+- `docs/internal/SECURITY-MODEL.md` (Event source, historical only).
+- `docs/internal/MULTI_TENANCY.md` (Event source, historical only).
+- `docs/internal/SELF_HOSTING.md` (Event source, historical only).
+- `docs/internal/DEPLOYMENT_TIERS.md` (Event source, historical only).
+- `docs/internal/CONFIGURATION.md` (Event source, historical only).
 - [resources/consultation-framework.md](resources/consultation-framework.md)
 
 ## Top 5 Invariants

@@ -30,7 +30,7 @@ GitBook transforms OpenAPI documents into interactive, testable API reference do
    In `SUMMARY.md`, declare the spec reference using a fenced YAML block:
    ```markdown
    # Table of contents
-   * [API Overview](../../../../docs/internal/extraction/FOUNDATION.md)
+   * [API Overview](README.md)
    * ```yaml
      type: builtin:openapi
      spec: my-spec

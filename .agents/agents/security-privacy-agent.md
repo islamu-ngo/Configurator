@@ -36,13 +36,13 @@ Protect confidentiality, integrity, tenant isolation, least privilege, and truth
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [Security Model](../../docs/internal/extraction/FOUNDATION.md)
-5. [Authorization](../../docs/internal/extraction/FOUNDATION.md)
-6. [Authorization Patterns](../../docs/internal/extraction/FOUNDATION.md)
-7. [Multi-Tenancy](../../docs/internal/extraction/FOUNDATION.md)
-8. [Secrets](../../docs/internal/extraction/FOUNDATION.md)
+4. [Security Model](../../SECURITY.md)
+5. [Authorization (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/AUTHORIZATION.md)
+6. [Authorization Patterns (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/AUTHORIZATION_PATTERNS.md)
+7. [Multi-Tenancy (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/MULTI_TENANCY.md)
+8. [Secrets (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/SECRETS.md)
 
 ## Skill Routing
 
@@ -53,7 +53,7 @@ Protect confidentiality, integrity, tenant isolation, least privilege, and truth
 - High-criticality verification & guardrails: [criticality-guardrail](../skills/criticality-guardrail/SKILL.md).
 - Multi-agent adversarial review: [epistemic-mad-review](../skills/epistemic-mad-review/SKILL.md).
 - External research or dependency terms: [agentic-research](../skills/agentic-research/SKILL.md) plus [ip-clean-room](../skills/ip-clean-room/SKILL.md).
-- AI/ML technology or local-model boundary: [technology-selection](../../docs/internal/extraction/FOUNDATION.md).
+- AI/ML technology or local-model boundary: [technology-selection (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/.agents/skills/technology-selection/SKILL.md).
 - MCP server surface: [dotnet-mcp](../skills/dotnet-mcp/SKILL.md).
 
 ## Operating Workflow

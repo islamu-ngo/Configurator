@@ -77,7 +77,7 @@ Section names beyond these are allowed when they communicate the domain more dir
 
 ### Human-facing output guidance
 
-Skills that produce commit/PR text, reports, or decision requests follow [Reader-First Technical Communication](../../docs/internal/extraction/FOUNDATION.md). Route to the [shared writing guide](conventional-commit/resources/reader-first-writing.md) rather than copying its rules. Examples must add concrete explanations while preserving technical terminology, mechanisms, constraints, and evidence; vague benefits and unexplained internal jargon both fail review. Do not impose brevity that removes substance.
+Skills that produce commit/PR text, reports, or decision requests follow [Reader-First Technical Communication](../../docs/internal/GOVERNANCE.md). Route to the [shared writing guide](conventional-commit/resources/reader-first-writing.md) rather than copying its rules. Examples must add concrete explanations while preserving technical terminology, mechanisms, constraints, and evidence; vague benefits and unexplained internal jargon both fail review. Do not impose brevity that removes substance.
 
 ## 6. Forbidden Content
 
@@ -103,4 +103,4 @@ Existing nonconforming skills are migration debt and must not grow. New or chang
 
 - Agent schema → [`.agents/agents/_AGENT_SCHEMA.md`](../agents/_AGENT_SCHEMA.md)
 - Intent registry → [`.agents/contract/intents.yaml`](../contract/intents.yaml)
-- Documentation style → [`docs/internal/DOCUMENTATION_STYLE_GUIDE.md`](../../docs/internal/extraction/FOUNDATION.md)
+- Documentation style → [documentation architecture](../../docs/internal/DOCUMENTATION_ARCHITECTURE.md); `docs/internal/DOCUMENTATION_STYLE_GUIDE.md` is an Event source reference, historical only.

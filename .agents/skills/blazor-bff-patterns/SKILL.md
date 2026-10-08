@@ -16,7 +16,7 @@ priority: high
 
 > **Project-Agnostic BFF Patterns for Blazor Web Apps (InteractiveAuto)**
 >
-> Placeholders use `{Placeholder}` syntax - see [docs/internal/TEMPLATE_GLOSSARY.md](../../../docs/internal/extraction/FOUNDATION.md).
+> Placeholders use `{Placeholder}` syntax - `docs/internal/TEMPLATE_GLOSSARY.md` is an Event source reference, historical only.
 
 ## Non‑Inferable Rules (Must Follow)
 - **BFF boundary**: Browser never sees tokens; BFF uses HttpOnly cookies.
@@ -37,6 +37,6 @@ priority: high
 - [interactiveauto-yarp-security.md](resources/interactiveauto-yarp-security.md)
 
 ## Related Documentation
-- [`docs/internal/ARCHITECTURE.md`](../../../docs/internal/extraction/FOUNDATION.md)
-- [`docs/internal/BLAZOR.md`](../../../docs/internal/extraction/FOUNDATION.md)
+- `docs/internal/ARCHITECTURE.md` (Event source, historical only).
+- `docs/internal/BLAZOR.md` (Event source, historical only).
 - [`auth-patterns`](../auth-patterns/SKILL.md)

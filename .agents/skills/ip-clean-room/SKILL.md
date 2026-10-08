@@ -13,12 +13,13 @@ priority: critical
 
 ## Must-Read Docs
 - [../../../AGENTS.md](../../../AGENTS.md)
-- [../../../docs/internal/QUICK_REFERENCE.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/legal/IP_GOVERNANCE.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../legal/CLA.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/legal/CONTRIBUTION_GOVERNANCE.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/legal/dependencies/mapperly.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/CI_CD_GOVERNANCE.md](../../../docs/internal/extraction/FOUNDATION.md)
+- [Configurator quick reference](../../../docs/internal/QUICK_REFERENCE.md)
+- [Configurator extraction provenance](../../../docs/internal/extraction/FOUNDATION.md)
+- `docs/internal/legal/IP_GOVERNANCE.md` (Event source, historical only).
+- `legal/CLA.md` (Event source, historical only; Configurator does not impose Event CLA policy).
+- `docs/internal/legal/CONTRIBUTION_GOVERNANCE.md` (Event source, historical only).
+- `docs/internal/legal/dependencies/mapperly.md` (Event source, historical only).
+- `docs/internal/CI_CD_GOVERNANCE.md` (Event source, historical only).
 - [resources/index.md](resources/index.md)
 
 ## Top 5 Invariants

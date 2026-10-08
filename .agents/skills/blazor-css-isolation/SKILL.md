@@ -16,7 +16,7 @@ priority: high
 
 > **Project-Agnostic CSS Isolation Patterns for Blazor**
 >
-> Placeholders use `{Placeholder}` syntax - see [docs/internal/TEMPLATE_GLOSSARY.md](../../../docs/internal/extraction/FOUNDATION.md).
+> Placeholders use `{Placeholder}` syntax - `docs/internal/TEMPLATE_GLOSSARY.md` is an Event source reference, historical only.
 
 ## Non‑Inferable Rules (Must Follow)
 - `.razor.css` file must match component name (colocated).
@@ -88,5 +88,5 @@ Use `container-type: inline-size` on layout wrappers, then `@container` queries 
 - [debugging-scoped-css.md](resources/debugging-scoped-css.md)
 
 ## Related Documentation
-- [`docs/internal/BLAZOR.md`](../../../docs/internal/extraction/FOUNDATION.md)
+- `docs/internal/BLAZOR.md` (Event source, historical only).
 - [`blazor-ui-conventions`](../blazor-ui-conventions/SKILL.md)

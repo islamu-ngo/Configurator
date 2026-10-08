@@ -12,9 +12,9 @@ priority: medium
 <!-- ABOUTME: Keeps technical decks practical, accessible, and easy to verify without duplicating Slidev reference material inline. -->
 
 ## Must-Read Docs
-- [../../../docs/internal/DESIGN_SYSTEM.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/ACCESSIBILITY.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/DOCUMENTATION_STYLE_GUIDE.md](../../../docs/internal/extraction/FOUNDATION.md)
+- [Design-system skill](../design-system/SKILL.md); `docs/internal/DESIGN_SYSTEM.md` is an Event source reference, historical only.
+- [Accessibility skill](../accessibility/SKILL.md); `docs/internal/ACCESSIBILITY.md` is an Event source reference, historical only.
+- [Documentation architecture](../../../docs/internal/DOCUMENTATION_ARCHITECTURE.md); `docs/internal/DOCUMENTATION_STYLE_GUIDE.md` is an Event source reference, historical only.
 
 ## Top 5 Invariants
 1. A Slidev deck starts with headmatter and uses `---` separators for slide boundaries.

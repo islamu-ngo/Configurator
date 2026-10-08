@@ -121,7 +121,7 @@ Either way the spec gets a slug (e.g. `lyra-v1`) that you reference from the SUM
 ````markdown
 ## Feedback API
 
-* [Overview](../../../../docs/internal/extraction/FOUNDATION.md)
+* [Overview](feedback-api/README.md)
 * ```yaml
   type: builtin:openapi
   props:

@@ -36,12 +36,12 @@ Keep repository knowledge accurate, navigable, source-anchored, and reusable fro
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [Documentation Index](../../docs/internal/extraction/FOUNDATION.md)
-5. [Documentation Architecture](../../docs/internal/extraction/FOUNDATION.md)
-6. [Documentation Style Guide](../../docs/internal/extraction/FOUNDATION.md)
-7. [IP Governance](../../docs/internal/extraction/FOUNDATION.md)
+4. [Documentation Index](../../docs/README.md)
+5. [Documentation Architecture](../../docs/internal/DOCUMENTATION_ARCHITECTURE.md)
+6. [Documentation Style Guide](../../docs/internal/DOCUMENTATION_ARCHITECTURE.md)
+7. [IP Governance](../../docs/internal/legal/IP_GOVERNANCE.md)
 
 ## Skill Routing
 

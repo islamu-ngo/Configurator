@@ -36,7 +36,7 @@ priority: medium
 
 ## High-Criticality Intake Decision Trees
 
-When triggered by the [criticality-guardrail](../../../docs/internal/extraction/FOUNDATION.md) for high-criticality intents, focus questions on:
+When triggered by the [criticality-guardrail](../criticality-guardrail/SKILL.md) for high-criticality intents, focus questions on:
 
 1. **Tier 0 Sovereign (Money / Stripe Connect)**:
    - Hold expiration vs. payment finalization race resolution.

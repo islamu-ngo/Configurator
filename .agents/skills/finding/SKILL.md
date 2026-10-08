@@ -6,10 +6,9 @@ enforcement: suggest
 priority: medium
 ---
 
-> Configurator authority: follow AGENTS.md and PROJECTS.md. Source-system backend examples are reference-only; absent Event layers and deployment policies do not apply.
-
-
 # finding
+
+> Configurator authority: follow AGENTS.md and PROJECTS.md. Journal assets and promotion policy are target-owned; Event history is not a target finding.
 
 ## Command Template
 
@@ -19,9 +18,9 @@ priority: medium
 # /finding — Record a Durable Finding
 
 > **Primary references:**
-> - [`dev/_journal/README.md`](../../../docs/internal/extraction/FOUNDATION.md) — when and how to record.
-> - [`dev/_journal/FINDING_TEMPLATE.md`](../../../docs/internal/extraction/FOUNDATION.md) — exact entry format.
-> - [`dev/_journal/PROMOTION_RULES.md`](../../../docs/internal/extraction/FOUNDATION.md) — when a journal entry graduates to QUICK_REFERENCE / rule / skill / governance.
+> - [`dev/_journal/README.md`](../../../dev/_journal/README.md) — when and how to record.
+> - [`dev/_journal/FINDING_TEMPLATE.md`](../../../dev/_journal/FINDING_TEMPLATE.md) — exact entry format.
+> - [`dev/_journal/PROMOTION_RULES.md`](../../../dev/_journal/PROMOTION_RULES.md) — when a journal entry graduates to QUICK_REFERENCE / rule / skill / governance.
 
 ## When to Record
 
@@ -41,7 +40,7 @@ Do NOT record:
 
 ### 1. Open the Template
 
-Read [`dev/_journal/FINDING_TEMPLATE.md`](../../../docs/internal/extraction/FOUNDATION.md). Copy its block.
+Read [`dev/_journal/FINDING_TEMPLATE.md`](../../../dev/_journal/FINDING_TEMPLATE.md). Copy its block.
 
 ### 2. Fill In the Fields
 
@@ -57,7 +56,7 @@ Read [`dev/_journal/FINDING_TEMPLATE.md`](../../../docs/internal/extraction/FOUN
 
 ### 3. Append to the Journal
 
-Open [`dev/_journal/journal.md`](../../../docs/internal/extraction/FOUNDATION.md). Append the filled-in block at the end. Leave exactly one blank line between entries.
+Open [`dev/_journal/journal.md`](../../../dev/_journal/journal.md). Append the filled-in block at the end. Leave exactly one blank line between entries.
 
 Do NOT:
 - Insert in the middle (chronological order only).
@@ -78,12 +77,12 @@ If the finding closes a bug that a test should catch, add a comment in the test 
 
 ## Promotion Cadence
 
-When an entry has been referenced by ≥2 subsequent entries, cited in a PR review, or generalizes beyond its original feature — it's a candidate for promotion. See [`dev/_journal/PROMOTION_RULES.md`](../../../docs/internal/extraction/FOUNDATION.md).
+When an entry has been referenced by ≥2 subsequent entries, cited in a PR review, or generalizes beyond its original feature — it's a candidate for promotion. See [`dev/_journal/PROMOTION_RULES.md`](../../../dev/_journal/PROMOTION_RULES.md).
 
 ## Related
 
-- [`dev/_journal/README.md`](../../../docs/internal/extraction/FOUNDATION.md)
-- [`dev/_journal/FINDING_TEMPLATE.md`](../../../docs/internal/extraction/FOUNDATION.md)
-- [`dev/_journal/PROMOTION_RULES.md`](../../../docs/internal/extraction/FOUNDATION.md)
+- [`dev/_journal/README.md`](../../../dev/_journal/README.md)
+- [`dev/_journal/FINDING_TEMPLATE.md`](../../../dev/_journal/FINDING_TEMPLATE.md)
+- [`dev/_journal/PROMOTION_RULES.md`](../../../dev/_journal/PROMOTION_RULES.md)
 - [`AGENTS.md`](../../../AGENTS.md) §8 Memory & Findings.
 - [`AGENTS.md`](../../../AGENTS.md) — closing the loop on a change.

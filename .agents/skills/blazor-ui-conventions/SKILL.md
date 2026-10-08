@@ -12,10 +12,10 @@ priority: high
 <!-- ABOUTME: Keeps Explore.Blazor and Explore.Blazor.Client aligned with InteractiveAuto, wrapper components, immutable state flows, and BFF-safe UI behavior. -->
 
 ## Resources
-- [Blazor architecture](../../../docs/internal/extraction/FOUNDATION.md) — load for hosting, service, generated-client, and component boundaries.
-- [Record contracts](../../../docs/internal/extraction/FOUNDATION.md) — load for generated record eligibility, initialization, `with`, AOT extension data, and diagnostic privacy.
-- [Design system](../../../docs/internal/extraction/FOUNDATION.md) — load for tokens or shared wrappers.
-- [Accessibility](../../../docs/internal/extraction/FOUNDATION.md) — load only when forms, dialogs, focus, keyboard, landmarks, ARIA, or contrast are touched.
+- Blazor architecture: `docs/internal/BLAZOR.md` (Event source, historical only) — hosting, service, generated-client, and component boundaries.
+- Record contracts: `docs/internal/RECORD_CONTRACTS.md` (Event source, historical only) — generated record eligibility, initialization, `with`, AOT extension data, and diagnostic privacy.
+- [Design system](../design-system/SKILL.md) — load for tokens or shared wrappers; `docs/internal/DESIGN_SYSTEM.md` is an Event source reference, historical only.
+- [Accessibility](../accessibility/SKILL.md) — load only when forms, dialogs, focus, keyboard, landmarks, ARIA, or contrast are touched; `docs/internal/ACCESSIBILITY.md` is an Event source reference, historical only.
 
 ## Rules
 

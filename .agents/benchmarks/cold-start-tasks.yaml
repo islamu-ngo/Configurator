@@ -1,29 +1,237 @@
+# Six target scenarios using the original ISLAMU-owned cold-start harness schema.
+# Each is a self-contained task for a fresh agent using AGENTS.md and the context system.
+# Version 1 is synthetic; replace scenarios with real Configurator issue evidence.
+
 version: 1
-benchmarks:
+last_updated: "2026-10-08"
+owner: "context-system-maintainers"
+
+context_budget:
+  additional_bootstrap_bytes: 12288
+  discovery_result_bytes: 40960
+  single_retrieval_bytes: 12288
+  scout_result_characters: 1500
+  duplicate_unchanged_bytes: 0
+  full_registry_reads: 0
+
+scenarios:
   - id: tooling-intake
-    request: "Update the native repository build configuration"
-    expected_intent: repository-tooling
-    required_reads: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
-    forbidden_actions: ["Run unrelated product suites", "Copy Event production trust"]
+    intent_id: repository-tooling
+    summary: |
+      Maintain the native agent-workflow engineering boundary without product-suite sprawl.
+    prompt: |
+      Update the native agent-workflow YAML intake validation so a malformed or
+      multi-document input fails with its stable error code and nonzero status.
+      Preserve valid single-document input and bounded UTF-8 admission. Exercise
+      the real public command, not a reimplementation of its parser.
+    expected_must_reads:
+      - "AGENTS.md"
+      - "PROJECTS.md"
+      - "docs/internal/OPERATIONS.md"
+      - ".agents/rules/tests.md"
+      - ".agents/rules/ip-clean-room.md"
+    expected_paths_in_scope:
+      - "eng/agent-workflow/src/Configurator.AgentWorkflow/**"
+      - "eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/**"
+    expected_paths_forbidden:
+      - "src/**"
+      - "tests/**"
+      - "eng/release/**"
+    expected_verification_commands:
+      - "dotnet build eng/agent-workflow/src/Configurator.AgentWorkflow/Configurator.AgentWorkflow.csproj --configuration Release --verbosity quiet"
+      - "dotnet test --project eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj --configuration Release"
+    acceptance_criteria:
+      - "Valid single-document UTF-8 input succeeds through the actual command."
+      - "Malformed, oversized and multi-document input fail with stable value-safe codes."
+      - "Tests use independent expected statuses and public command seams, not parser mirroring."
+      - "No product suites, Event runtime services, signers or trust activation."
+    notes: |
+      Tooling-only owner verification. Do not treat this scenario as permission
+      to add a second parser, helper script or unrelated release changes.
+
   - id: bounded-definition
-    request: "Reject an oversized offline definition"
-    expected_intent: definition-engine
-    required_tests: [Configurator.Core.Tests]
-    acceptance: ["No partial preparation", "Value-safe rejection"]
+    intent_id: definition-engine
+    summary: |
+      Reject oversized offline definitions before any partial preparation.
+    prompt: |
+      Reject an oversized offline definition through the Core admission contract.
+      Preserve the existing input ceilings and sensitivity floors. Rejection
+      must not publish a partially admitted definition or expose input values,
+      paths or raw exception text. Establish the violating case before the fix.
+    expected_must_reads:
+      - "AGENTS.md"
+      - "PROJECTS.md"
+      - "docs/internal/CORE_DEFINITION_CONTRACT.md"
+      - ".agents/rules/tests.md"
+      - ".agents/rules/privacy-and-pii.md"
+      - ".agents/rules/work-criticality-matrix.md"
+    expected_paths_in_scope:
+      - "src/Configurator.Core/**"
+      - "tests/Configurator.Core.Tests/**"
+    expected_paths_forbidden:
+      - "src/Configurator.Artifacts/**"
+      - "src/Configurator.Browser/**"
+      - "eng/release/**"
+    expected_verification_commands:
+      - "dotnet build src/Configurator.Core/Configurator.Core.csproj --configuration Release --verbosity quiet"
+      - "dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --configuration Release"
+    acceptance_criteria:
+      - "Oversized input fails through the real public codec with a stable value-free code."
+      - "No partial preparation, increased ceiling or permissive fallback."
+      - "Independent boundary examples cover accepted limit and rejected excess."
+      - "Definition labels cannot demote private answers or restricted artifacts."
+      - "Caller mutation cannot change an admitted snapshot."
+    notes: |
+      Core owns bounded data-only admission, not native save or host apply authority.
+
   - id: protected-output
-    request: "Reject competing protected save writes"
-    expected_intent: protected-artifacts
-    required_tests: [Configurator.Artifacts.Tests]
-    acceptance: ["At most one create-only winner", "No overwrite fallback"]
+    intent_id: protected-artifacts
+    summary: |
+      Preserve create-only publication under competing protected native saves.
+    prompt: |
+      Reject competing protected save writes to the same native destination.
+      At most one create-only publication may win; no overwritten, partially
+      visible or insecure fallback file may appear. Use the real supported-host
+      writer and deterministic completion gates, not timing sleeps.
+    expected_must_reads:
+      - "AGENTS.md"
+      - "PROJECTS.md"
+      - "docs/internal/PROTECTED_ARTIFACTS.md"
+      - ".agents/rules/tests.md"
+      - ".agents/rules/privacy-and-pii.md"
+      - ".agents/rules/work-criticality-matrix.md"
+    expected_paths_in_scope:
+      - "src/Configurator.Artifacts/**"
+      - "tests/Configurator.Artifacts.Tests/**"
+    expected_paths_forbidden:
+      - "src/Configurator.Core/**"
+      - "src/Configurator.Browser/**"
+      - "eng/release/**"
+    expected_verification_commands:
+      - "dotnet build src/Configurator.Artifacts/Configurator.Artifacts.csproj --configuration Release --verbosity quiet"
+      - "dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release"
+    acceptance_criteria:
+      - "At most one create-only winner; the losing attempt never overwrites."
+      - "No partial private file or insecure save fallback."
+      - "Preparation cleanup and one-shot commit remain owned by the writer."
+      - "Race assertions use real filesystem/public writer seams and pre-armed signals."
+      - "Unsupported hosts fail value-safely; supported-host evidence is not universal certification."
+    notes: |
+      A definition filename is a hint, never destination authority. The caller
+      chooses the native destination; local preparation does not apply remotely.
+
   - id: public-launch
-    request: "Review public Blazor launch selection"
-    expected_intent: client-interface
-    acceptance: ["Registered definition only", "Pinned revision and digest", "No private browser input"]
+    intent_id: client-interface
+    summary: |
+      Constrain static public browser launch selection to registered pinned metadata.
+    prompt: |
+      Fix public Blazor launch selection to resolve only registered bounded public
+      definitions and pin the selected revision and digest. Reject unknown or
+      mismatched selections without accepting arbitrary remote URLs. Keep all
+      secret entry, private preview/storage and target authentication outside
+      the static browser. Preserve keyboard, focus and status semantics.
+    expected_must_reads:
+      - "AGENTS.md"
+      - "PROJECTS.md"
+      - "docs/internal/LAUNCH_CONTRACT.md"
+      - ".agents/rules/blazor-client.md"
+      - ".agents/rules/privacy-and-pii.md"
+      - ".agents/rules/tests.md"
+      - ".agents/skills/accessibility/SKILL.md"
+    expected_paths_in_scope:
+      - "src/Configurator.Browser/**"
+      - "tests/Configurator.Browser.Tests/**"
+    expected_paths_forbidden:
+      - "src/Configurator.Core/**"
+      - "src/Configurator.Artifacts/**"
+      - "src/Configurator.Presentation/**"
+      - "eng/release/**"
+    expected_verification_commands:
+      - "dotnet build src/Configurator.Browser/Configurator.Browser.csproj --configuration Release --verbosity quiet"
+      - "dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release"
+    acceptance_criteria:
+      - "Resolve registered definitions only; retain pinned revision and digest."
+      - "Unknown/mismatched metadata rejects without arbitrary remote launch authority."
+      - "No private browser input, preview, storage, service worker, cookies or authentication."
+      - "bUnit interactions re-query DOM and assert rendered keyboard/focus/status behavior."
+      - "Inspect changed desktop/mobile rendering; no Event BFF, HAL or InteractiveAuto."
+    notes: |
+      Browser references Core only. Public metadata and publisher labels do not
+      establish trust or host administration/apply authority.
+
   - id: harness-parity
-    request: "Update agent path rules"
-    expected_intent: agent-context
-    acceptance: ["Twin rule bytes agree", "Local resource links resolve"]
+    intent_id: agent-context
+    summary: |
+      Maintain physical twin rules and correct harness discovery without policy forks.
+    prompt: |
+      Update Configurator agent path rules to bind actual owner paths and retain
+      byte-identical .agents/rules and .omo/rules copies. Repair their index and
+      target documentation links. Keep absent Event-only layer bodies historical
+      and inactive; do not rewrite reusable mechanisms into thin equivalents.
+    expected_must_reads:
+      - "AGENTS.md"
+      - "PROJECTS.md"
+      - ".agents/rules/README.md"
+      - ".agents/rules/_schema.md"
+      - ".agents/CONTEXT_ENGINEERING.md"
+      - "docs/internal/QUICK_REFERENCE.md"
+    expected_paths_in_scope:
+      - ".agents/rules/**"
+      - ".omo/rules/**"
+    expected_paths_forbidden:
+      - "src/**"
+      - "tests/**"
+      - "eng/**"
+      - "AGENTS.md"
+    expected_verification_commands:
+      - "git diff --check -- .agents/rules .omo/rules"
+      - 'for f in .agents/rules/*.md; do cmp -s "$f" ".omo/rules/${f##*/}" || exit 1; done'
+    acceptance_criteria:
+      - "All 17 physical rule twin pairs are byte-identical, without symlinks."
+      - "Rule YAML fields, target paths, skills, intent IDs and test names resolve."
+      - "Live relative links resolve from both directories; historical fenced links remain reference text."
+      - "Index describes actual OmO discovery, source priority, distance and 12K/40K budgets."
+      - "No absent Event backend requirement binds Configurator source."
+      - "No product build/test for prose-only context changes."
+    notes: |
+      Verify YAML syntax with the retained native engineering parser when metadata
+      changes; manually check rule semantics against _schema.md. The parser's
+      validate-intents command validates one YAML document, not rule field semantics.
+
   - id: notices-transfer
-    request: "Record component provenance"
-    expected_intent: provenance-docs
-    acceptance: ["Retain component terms", "Exclude unlicensed expressive corpus"]
+    intent_id: provenance-docs
+    summary: |
+      Record permitted component provenance without laundering third-party expression.
+    prompt: |
+      Record component provenance for the Configurator MIT transfer. Preserve
+      exact component identity, terms, approval, patches, hashes and notices.
+      Steward permission covers original ISLAMU-owned text only. Exclude the
+      154 unlicensed Evolve example-site corpus entries and Contributor Covenant
+      expression; do not ingest or reconstruct them from their URLs.
+    expected_must_reads:
+      - "AGENTS.md"
+      - "docs/internal/legal/IP_GOVERNANCE.md"
+      - "THIRD-PARTY-NOTICES.md"
+      - ".agents/rules/ip-clean-room.md"
+      - ".agents/skills/ip-clean-room/SKILL.md"
+      - "docs/internal/DOCUMENTATION_ARCHITECTURE.md"
+    expected_paths_in_scope:
+      - "docs/internal/legal/**"
+      - "docs/internal/extraction/**"
+      - "THIRD-PARTY-NOTICES.md"
+    expected_paths_forbidden:
+      - "src/**"
+      - "tests/**"
+      - "eng/**"
+      - ".agents/skills/gitbook/resources/example-site/**"
+    expected_verification_commands:
+      - "git diff --check -- docs/internal/legal docs/internal/extraction THIRD-PARTY-NOTICES.md"
+    acceptance_criteria:
+      - "Retain component terms, identity and traceable first-party transfer provenance."
+      - "Keep source identities/access dates without restricted expressive material."
+      - "No excluded corpus, Contributor Covenant, Event trust or credentials transfer."
+      - "No dependency change, ratchet weakening or signed trust activation hidden in documentation."
+      - "Local documentation links resolve; no product build/test for prose."
+    notes: |
+      First-party MIT transfer is an explicit exception, not third-party
+      relicensing authority. This scenario records existing evidence only.

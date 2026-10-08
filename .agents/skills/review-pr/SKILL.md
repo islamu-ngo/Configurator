@@ -94,9 +94,9 @@ dotnet test --project tests/Event.Architecture.Tests/Event.Architecture.Tests.cs
 ## Step 6 — Documentation Sanity
 
 - [ ] `docs/internal/QUICK_REFERENCE.md` updated if a new invariant was introduced.
-- [ ] `docs/internal/API_CHANGELOG.md` updated if a public contract changed.
-- [ ] `dev/_journal/journal.md` appended if a non-obvious finding emerged.
-- [ ] `docs/internal/index.md` cross-references still resolve; use [`AGENTS.md`](../../../AGENTS.md) and [`docs/internal/OPERATIONS.md`](../../../docs/internal/extraction/FOUNDATION.md) as the primary verification entrypoints.
+- [ ] Public contract changes follow [the release runbook](../../../docs/internal/RELEASE_RUNBOOK.md); `docs/internal/API_CHANGELOG.md` is an Event source reference, historical only.
+- [ ] Non-obvious findings follow [the finding skill](../finding/SKILL.md). Event's `dev/_journal/journal.md` append step is historical only until Configurator owns its journal assets; report the finding without writing to FOUNDATION.
+- [ ] [Documentation index](../../../docs/README.md) cross-references still resolve; use [`AGENTS.md`](../../../AGENTS.md) and [`docs/internal/OPERATIONS.md`](../../../docs/internal/OPERATIONS.md) as the primary verification entrypoints. Event's `docs/internal/index.md` is historical only.
 
 ## Step 7 — Forbidden-Without-Approval Gate
 
@@ -127,5 +127,5 @@ Outstanding questions: <list or None>
 ## Related
 
 - [`AGENTS.md`](../../../AGENTS.md) — get to a valid PR state.
-- [`docs/internal/OPERATIONS.md`](../../../docs/internal/extraction/FOUNDATION.md) — run the repository verification commands.
-- [`docs/internal/DOCUMENTATION_STYLE_GUIDE.md`](../../../docs/internal/extraction/FOUNDATION.md) — review documentation accuracy and links.
+- [`docs/internal/OPERATIONS.md`](../../../docs/internal/OPERATIONS.md) — run the repository verification commands.
+- [Documentation architecture](../../../docs/internal/DOCUMENTATION_ARCHITECTURE.md) — review documentation accuracy and links; `docs/internal/DOCUMENTATION_STYLE_GUIDE.md` is an Event source reference, historical only.

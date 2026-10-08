@@ -16,6 +16,17 @@ priority: high
 - Definitions are local bounded data. Preparation never authenticates to a target, provisions it or certifies host acceptance.
 - Native answer-derived artifacts are restricted. Never send private output to stdout, public previews or ordinary file writes.
 - Argument binding failure emits one value-safe machine result and the documented usage exit code, not framework diagnostic content.
+- Automate through the single machine JSON result, not human-rendered help or results. Branch on the actual schema's status and diagnostic fields and the process exit code; an empty diagnostic list alone does not prove success.
+- Never place passwords, tokens, credentials, private keys, API keys, or connection strings in arguments, input paths, environment names, logs, or retained command output. Do not echo rejected values; bounded diagnostic codes are the failure detail.
+- Use only input/output transports admitted by the current command schema. Do not infer stdin, stdout, dry-run flags, aliases, or exit-code meanings from historical Event commands.
+
+## Workflow
+
+1. Confirm the current executable and generated machine contract through the CLI owner's documented help/schema. Resolve command grammar and exit codes before invocation.
+2. Inspect only public definition metadata using an admitted read-only operation; never expose native answers in browser or public output.
+3. Validate bounded local inputs before artifact preparation. Select only capabilities and providers actually admitted by the definition and command schema.
+4. Prepare restricted answer-derived artifacts through the protected native output owner, not stdout or an ordinary file-write fallback. Treat a planning result as unwritten unless the actual contract proves a successful protected write.
+5. Read the machine result and process exit code together. Successful local validation or preparation is not host acceptance, authentication, provisioning, or permission to mutate a server.
 
 ## Verification
 

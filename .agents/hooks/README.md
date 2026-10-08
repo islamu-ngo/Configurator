@@ -36,11 +36,19 @@ Runs `dotnet format` on modified files to enforce `.editorconfig` rules.
 
 ### 4. BuildCheck.cs (Stop)
 
-Verifies compilation. Reads the ContextTracker cache for targeted builds, falls back to full solution build. Captures errors to `.claude/build-cache/last-errors.txt` for the `auto-error-resolver` agent.
+Verifies compilation of exactly one existing `.csproj`, supplied explicitly:
+
+```bash
+dotnet run .agents/hooks/BuildCheck.cs -- eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj
+```
+
+Choose the affected owner from `PROJECTS.md`; this engineering project is an example, not a default. The hook runs `dotnet build <project> --configuration Release --verbosity quiet --nologo`, drains stdout and stderr concurrently, and returns the actual build exit code. Missing, extra, non-`.csproj`, or nonexistent arguments return usage exit code `64`. The three-minute deadline kills the process tree, emits `build_check_timeout`, and returns `1`.
+
+BuildCheck does not read ContextTracker state, discover a solution, cache errors, invoke an error resolver, or clean up tracking files.
 
 ## Configuration
 
-Hooks are registered in `.claude/settings.json`:
+Hooks are registered in `.claude/settings.json`. The Stop build below is an explicit engineering-owner example; select the affected project before enabling it. Omit the BuildCheck Stop entry for documentation-only work rather than running a no-argument hook or unrelated product build:
 
 ```json
 {
@@ -80,7 +88,7 @@ Hooks are registered in `.claude/settings.json`:
       },
       {
         "type": "command",
-        "command": "dotnet .agents/hooks/BuildCheck.cs"
+        "command": "dotnet run .agents/hooks/BuildCheck.cs -- eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj"
       }
     ]
   }
@@ -107,9 +115,9 @@ Hooks are registered in `.claude/settings.json`:
 Path separator issues. The C# scripts handle path normalization automatically. Use relative paths like `dotnet .agents/hooks/...` in settings.json.
 
 ### Build is too slow
-ContextTracker identifies modified layers so BuildCheck can run targeted builds. Verify ContextTracker is correctly detecting layers in `.claude/build-cache/`.
+Pass only the affected owner's `.csproj` from `PROJECTS.md`. ContextTracker's historical layer cache does not select a BuildCheck project. Documentation-only work uses link, schema, and whitespace checks instead of a build.
 
 ## Cache
 
 - **Location**: `.claude/build-cache/`
-- **Auto-cleanup**: BuildCheck deletes cache on successful build (exit code 0).
+- **Ownership**: ContextTracker owns its tracking cache. BuildCheck neither reads nor deletes it; build output is emitted directly to stdout/stderr.

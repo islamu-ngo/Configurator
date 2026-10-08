@@ -26,7 +26,7 @@ GitBook uses GitHub Flavored Markdown with custom extensions.
 2. Second item
 
 [Link text](https://example.com)
-[Internal link](../../../../docs/internal/extraction/FOUNDATION.md)
+[Internal link](getting-started.md)
 ```
 
 ## Code blocks
@@ -53,9 +53,9 @@ console.log(foo);
 
 ```markdown
 [External site](https://example.com)
-[Page in this space](../../../../docs/internal/extraction/FOUNDATION.md)
-[Page up a level](../../../../docs/internal/extraction/FOUNDATION.md)
-[Page in a subfolder](../../../../docs/internal/extraction/FOUNDATION.md)
+[Page in this space](page.md)
+[Page up a level](../folder/page.md)
+[Page in a subfolder](subfolder/page.md)
 [Email address](mailto:email@example.com)
 ```
 

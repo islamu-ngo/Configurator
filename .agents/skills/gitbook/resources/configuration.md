@@ -79,7 +79,7 @@ When using Git Sync, GitBook creates a `.gitbook` directory in your repository t
 * **Reusable content**: Each reusable content block is exported as a separate markdown file in `.gitbook/includes/`
 * **Variables**: Space-level variables are stored in `.gitbook/vars.yaml` as key-value pairs
 * **References**: Pages reference reusable content using `{% include "/reusable-content/rc12345" %}`
-* **Images**: Markdown pages reference images like `![alt](../../../../docs/internal/extraction/FOUNDATION.md)`
+* **Images**: Markdown pages reference images like `![alt](../.gitbook/assets/image-name.svg)`
 * **Table of contents**: The `.gitbook/includes` folder and its files may appear in your space's table of contents. You may need to manually hide them from the TOC if this happens.
 * **Location**: In monorepos, the `.gitbook` directory is created in the root of each synced space (not necessarily the repository root)
 
@@ -94,16 +94,16 @@ The `SUMMARY.md` file defines your table of contents and navigation structure. I
 
 ## Use headings to create page groups like this one
 
-* [First page's title](../../../../docs/internal/extraction/FOUNDATION.md)
-    * [Some child page](../../../../docs/internal/extraction/FOUNDATION.md)
-    * [Some other child page](../../../../docs/internal/extraction/FOUNDATION.md)
-* [Second page's title](../../../../docs/internal/extraction/FOUNDATION.md)
-    * [Some child page](../../../../docs/internal/extraction/FOUNDATION.md)
-    * [Some other child page](../../../../docs/internal/extraction/FOUNDATION.md)
+* [First page's title](page1/README.md)
+    * [Some child page](page1/page1-1.md)
+    * [Some other child page](page1/page1-2.md)
+* [Second page's title](page2/README.md)
+    * [Some child page](page2/page2-1.md)
+    * [Some other child page](page2/page2-2.md)
 
 ## A second page group
 
-* [Another page](../../../../docs/internal/extraction/FOUNDATION.md)
+* [Another page](another-page.md)
 ```
 
 **Key rules:**
@@ -112,7 +112,7 @@ The `SUMMARY.md` file defines your table of contents and navigation structure. I
 * Use `##` headings to create page groups (section headers in the sidebar)
 * Use `*` for unordered lists to define pages and subpages
 * Indent with spaces (not tabs) to create nested/child pages
-* Each list item should be a markdown link: `[Link text](../../../../docs/internal/extraction/FOUNDATION.md)`
+* Each list item should be a markdown link: `[Link text](path/to/file.md)`
 * Paths are relative to the location specified in `.gitbook.yaml` (typically the root)
 
 **Page link titles (optional):**

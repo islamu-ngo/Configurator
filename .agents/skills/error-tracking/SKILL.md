@@ -16,7 +16,7 @@ priority: high
 
 > **Project-Agnostic Observability Patterns for .NET**
 >
-> Placeholders use `{Placeholder}` syntax - see [docs/internal/TEMPLATE_GLOSSARY.md](../../../docs/internal/extraction/FOUNDATION.md).
+> Placeholders use `{Placeholder}` syntax - `docs/internal/TEMPLATE_GLOSSARY.md` is an Event source reference, historical only.
 
 ## Non‑Inferable Rules (Must Follow)
 - **Do not swallow exceptions.**
@@ -42,6 +42,6 @@ priority: high
 - [observability-stack.md](resources/observability-stack.md)
 
 ## Related Documentation
-- [`docs/internal/CONFIGURATION.md`](../../../docs/internal/extraction/FOUNDATION.md)
-- [`docs/internal/API.md`](../../../docs/internal/extraction/FOUNDATION.md) — Middleware pipeline, exception handling chain, rate limiting
-- [`docs/internal/OPERATIONS.md`](../../../docs/internal/extraction/FOUNDATION.md) — Business metrics, correlation ID, security headers
+- `docs/internal/CONFIGURATION.md` (Event source, historical only).
+- `docs/internal/API.md` (Event source, historical only) — middleware pipeline, exception handling chain, rate limiting.
+- [Configurator operations](../../../docs/internal/OPERATIONS.md) — target verification; Event business metrics, correlation ID, and security headers remain historical only.

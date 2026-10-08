@@ -35,20 +35,20 @@ Turn ambiguous or cross-cutting requests into a verified architecture decision a
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [Architecture](../../docs/internal/extraction/FOUNDATION.md)
-5. [Governance](../../docs/internal/extraction/FOUNDATION.md)
-6. [Operations](../../docs/internal/extraction/FOUNDATION.md)
+4. [Architecture](../../docs/internal/adr/ADR-definition-runtime-boundary.md)
+5. [Governance](../../docs/internal/GOVERNANCE.md)
+6. [Operations](../../docs/internal/OPERATIONS.md)
 
 ## Skill Routing
 
 - New or re-baselined workstream: [implementation-plan](../skills/implementation-plan/SKILL.md).
 - Approval-quality critique: [senior-cto-feedback](../skills/senior-cto-feedback/SKILL.md).
 - Layer placement or dependency direction: [clean-architecture-rules](../skills/clean-architecture-rules/SKILL.md).
-- Technology or AI capability choice: [technology-selection](../../docs/internal/extraction/FOUNDATION.md).
+- Technology or AI capability choice: [technology-selection (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/.agents/skills/technology-selection/SKILL.md).
 - External comparison, dependency, or design influence: [agentic-research](../skills/agentic-research/SKILL.md) plus [ip-clean-room](../skills/ip-clean-room/SKILL.md).
-- Product strategy rather than implementation architecture: [cto-consultation](../skills/cto-consultation/SKILL.md) or [prd](../../docs/internal/extraction/FOUNDATION.md).
+- Product strategy rather than implementation architecture: [cto-consultation](../skills/cto-consultation/SKILL.md) or [prd (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/.agents/skills/prd/SKILL.md).
 
 ## Operating Workflow
 

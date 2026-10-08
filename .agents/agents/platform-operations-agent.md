@@ -36,13 +36,13 @@ Turn runtime and delivery changes into an operable system with explicit configur
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [Operations](../../docs/internal/extraction/FOUNDATION.md)
-5. [Configuration](../../docs/internal/extraction/FOUNDATION.md)
-6. [Self-Hosting](../../docs/internal/extraction/FOUNDATION.md)
-7. [CI/CD Governance](../../docs/internal/extraction/FOUNDATION.md)
-8. [Backup, Restore, Upgrade](../../docs/internal/extraction/FOUNDATION.md)
+4. [Operations](../../docs/internal/OPERATIONS.md)
+5. [Configuration](../../docs/internal/CORE_DEFINITION_CONTRACT.md)
+6. [Self-Hosting](../../docs/public/packaging.md)
+7. [CI/CD Governance](../../docs/internal/GOVERNANCE.md)
+8. [Backup, Restore, Upgrade](../../docs/internal/PROTECTED_ARTIFACTS.md)
 
 ## Skill Routing
 

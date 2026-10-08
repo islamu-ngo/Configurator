@@ -12,10 +12,10 @@ priority: critical
 <!-- ABOUTME: Blocks upward dependencies, misplaced validation, and layer leakage that would violate the repository contract. -->
 
 ## Resources
-- [Architecture](../../../docs/internal/extraction/FOUNDATION.md) — load for project/layer ownership and runtime composition.
-- [Record contracts](../../../docs/internal/extraction/FOUNDATION.md) — load for record/class selection, immutable collections, semantic values, persistence leaves, or generated-client ownership.
-- [Codebase structure](../../../docs/internal/extraction/FOUNDATION.md) — load when the destination project or folder is unresolved.
-- [Quick reference](../../../docs/internal/extraction/FOUNDATION.md) — load for global repository invariants.
+- [Project ownership](../../../PROJECTS.md) — load for Configurator project boundaries; `docs/internal/ARCHITECTURE.md` is an Event source reference, historical only.
+- Record contracts: `docs/internal/RECORD_CONTRACTS.md` (Event source, historical only) — record/class selection, immutable collections, semantic values, persistence leaves, or generated-client ownership.
+- [Codebase structure](../../../PROJECTS.md) — load when the destination project or folder is unresolved; `docs/internal/CODEBASE_STRUCTURE.md` is an Event source reference, historical only.
+- [Quick reference](../../../docs/internal/QUICK_REFERENCE.md) — load for global repository invariants.
 
 ## Rules
 

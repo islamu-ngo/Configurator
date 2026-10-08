@@ -123,4 +123,4 @@ A proposed agent is rejected when any answer is "no":
 
 - [Skill schema](../skills/_SKILL_SCHEMA.md)
 - [Contribution contract](../contract/README.md)
-- [Documentation style](../../docs/internal/extraction/FOUNDATION.md)
+- [Documentation style](../../docs/internal/DOCUMENTATION_ARCHITECTURE.md)

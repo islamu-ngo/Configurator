@@ -12,11 +12,11 @@ priority: critical
 <!-- ABOUTME: Keeps tokens out of the browser, preserves claim extraction order, and aligns API, handler, and client authorization behavior. -->
 
 ## Must-Read Docs
-- [../../../docs/internal/SECURITY-MODEL.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/API.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/AUTHORIZATION.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/AUTHORIZATION_PATTERNS.md](../../../docs/internal/extraction/FOUNDATION.md)
-- [../../../docs/internal/QUICK_REFERENCE.md](../../../docs/internal/extraction/FOUNDATION.md)
+- `docs/internal/SECURITY-MODEL.md` (Event source, historical only).
+- `docs/internal/API.md` (Event source, historical only).
+- `docs/internal/AUTHORIZATION.md` (Event source, historical only).
+- `docs/internal/AUTHORIZATION_PATTERNS.md` (Event source, historical only).
+- [Configurator quick reference](../../../docs/internal/QUICK_REFERENCE.md) — target invariants, not Event authentication policy.
 - [resources/local-authorization-provider.md](resources/local-authorization-provider.md)
 
 ## Top 5 Invariants

@@ -35,11 +35,11 @@ Review changes like an owner and find defects that materially affect behavior, s
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [Governance](../../docs/internal/extraction/FOUNDATION.md)
-5. [Testing](../../docs/internal/extraction/FOUNDATION.md)
-6. [Operations](../../docs/internal/extraction/FOUNDATION.md)
+4. [Governance](../../docs/internal/GOVERNANCE.md)
+5. [Testing](../../docs/internal/TESTING.md)
+6. [Operations](../../docs/internal/OPERATIONS.md)
 
 ## Skill Routing
 

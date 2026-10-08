@@ -78,8 +78,8 @@ my-docs/
 ```
 
 ### SUMMARY.md Rules
-- Top-level `README.md` is a sibling at the top, not a parent: `* [Homepage](../../../../docs/internal/extraction/FOUNDATION.md)`.
-- Group headings use `## Group Name`. Bulleted pages under headings are flat: `* [Title](../../../../docs/internal/extraction/FOUNDATION.md)`.
+- Top-level `README.md` is a sibling at the top, not a parent: `* [Homepage](README.md)`.
+- Group headings use `## Group Name`. Bulleted pages under headings are flat: `* [Title](path/to/page.md)`.
 - Do not indent all pages under `README.md`.
 - Group names reflect user navigation intent, not raw folder names.
 - OpenAPI pages use fenced YAML bullets (`type: builtin:openapi`).

@@ -349,8 +349,7 @@ Once the spec is registered, link to it from the space's `SUMMARY.md`. The patte
 ````markdown
 ## Feedback API
 
-* [Overview](../../../../docs/internal/extraction/FOUNDATION.md)
-
+* [Overview](feedback-api/README.md)
 * ```yaml
   type: builtin:openapi
   props:

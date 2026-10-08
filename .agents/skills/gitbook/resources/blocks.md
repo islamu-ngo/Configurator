@@ -393,11 +393,11 @@ For an API reference space, instead of hand-authoring one page per endpoint, use
 ```markdown
 # Table of contents
 
-* [Overview](../../../../docs/internal/extraction/FOUNDATION.md)
+* [Overview](README.md)
 
 ## Feedback API
 
-* [Overview](../../../../docs/internal/extraction/FOUNDATION.md)
+* [Overview](feedback/README.md)
 * ```yaml
   type: builtin:openapi
   props:

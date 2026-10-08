@@ -78,7 +78,7 @@ For full syntax and code examples, consult [blocks.md](blocks.md) and [block-eco
 
 ## Links & Navigation
 
-- **Relative Links (Same Space)**: `[Quickstart](../../../../docs/internal/extraction/FOUNDATION.md)` or `[Overview](../../../../docs/internal/extraction/FOUNDATION.md)`.
+- **Relative Links (Same Space)**: `[Quickstart](getting-started/quickstart.md)` or `[Overview](../README.md)`.
 - **Cross-Space Links (Different Space)**: `https://app.gitbook.com/s/<spaceId>/<path>`. Never use relative paths across space boundaries (they fail to resolve). For spaces not yet created, use `XSPACE_<KEY>` sentinels resolved by [cross-space-links.md](cross-space-links.md).
 - **Page Renames**: GitBook automatically maintains redirects when pages are renamed or moved within a space.
 

@@ -35,12 +35,12 @@ Deliver observable presentation behavior from HTTP contract through HAL affordan
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [API](../../docs/internal/extraction/FOUNDATION.md)
-5. [Blazor](../../docs/internal/extraction/FOUNDATION.md)
-6. [Blazor Development Workflow](../../docs/internal/extraction/FOUNDATION.md)
-7. [Accessibility](../../docs/internal/extraction/FOUNDATION.md)
+4. [API (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/API.md)
+5. [Blazor (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/BLAZOR.md)
+6. [Blazor Development Workflow (Event reference only)](https://github.com/islamu-ngo/Event/blob/c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38/docs/BLAZOR_DEV_WORKFLOW.md)
+7. [Accessibility](../skills/accessibility/SKILL.md)
 
 ## Skill Routing
 

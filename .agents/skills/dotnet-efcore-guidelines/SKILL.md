@@ -12,11 +12,11 @@ priority: high
 <!-- ABOUTME: Keeps persistence entity-first, tenant-safe, soft-delete-aware, and consistent with lookup seeding and migration discipline. -->
 
 ## Resources
-- [Domain model](../../../docs/internal/extraction/FOUNDATION.md) — load for entity ownership and persisted invariants.
-- [Record contracts](../../../docs/internal/extraction/FOUNDATION.md) — load for semantic value leaves, portable checks, generated-provider ownership, and migration preflight.
-- [Architecture](../../../docs/internal/extraction/FOUNDATION.md) — load for repository and layer boundaries.
-- [Codebase insights](../../../docs/internal/extraction/FOUNDATION.md) — load for non-obvious EF conventions.
-- [Lookup seeder](../../../docs/internal/extraction/FOUNDATION.md) — load only for lookup-row changes.
+- Domain model: `docs/internal/DOMAIN.md` (Event source, historical only) — entity ownership and persisted invariants.
+- Record contracts: `docs/internal/RECORD_CONTRACTS.md` (Event source, historical only) — semantic value leaves, portable checks, generated-provider ownership, and migration preflight.
+- Architecture: `docs/internal/ARCHITECTURE.md` (Event source, historical only) — repository and layer boundaries.
+- Codebase insights: `docs/internal/CODEBASE_INSIGHTS.md` (Event source, historical only) — non-obvious EF conventions.
+- Lookup seeder: `src/Explore.Persistence/Seed/LookupTableSeeder.cs` (Event source, historical only) — lookup-row changes.
 
 ## Rules
 

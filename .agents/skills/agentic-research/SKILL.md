@@ -38,4 +38,4 @@ Do not load all resources by default. The scout returns findings and source hand
 
 ## Related Documentation
 - [`AGENTS.md`](../../../AGENTS.md) - repo operating rules and tool hierarchy.
-- [`docs/internal/GOVERNANCE.md`](../../../docs/internal/extraction/FOUNDATION.md) - agentic engineering governance.
+- [`docs/internal/GOVERNANCE.md`](../../../docs/internal/GOVERNANCE.md) - agentic engineering governance.

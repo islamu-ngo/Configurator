@@ -35,12 +35,12 @@ Prove what works, what fails, and why using reproducible evidence. Keep verifica
 ## Mandatory Reads
 
 1. [AGENTS.md](../../AGENTS.md)
-2. [Quick Reference](../../docs/internal/extraction/FOUNDATION.md)
+2. [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 3. [Intent Registry](../contract/intents.yaml)
-4. [Testing](../../docs/internal/extraction/FOUNDATION.md)
-5. [Operations](../../docs/internal/extraction/FOUNDATION.md)
-6. [Test Reliability](../../docs/internal/extraction/FOUNDATION.md)
-7. [Troubleshooting](../../docs/internal/extraction/FOUNDATION.md)
+4. [Testing](../../docs/internal/TESTING.md)
+5. [Operations](../../docs/internal/OPERATIONS.md)
+6. [Test Reliability](../../docs/internal/TESTING.md)
+7. [Troubleshooting](../../docs/internal/OPERATIONS.md)
 
 ## Skill Routing
 

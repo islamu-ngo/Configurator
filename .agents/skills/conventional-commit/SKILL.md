@@ -113,10 +113,10 @@ successful hook validation does not replace complete-range validation.
 ## Resources
 
 - [Reader-first writing](resources/reader-first-writing.md) - use for commit wording, PR composition, reports, and decision briefs; includes balanced examples and a PR template.
-- [Governed releases](../../../docs/internal/extraction/FOUNDATION.md)
-- [Release policy](../../../docs/internal/extraction/FOUNDATION.md)
-- [Release policy schema](../../../docs/internal/extraction/FOUNDATION.md)
-- [Scope registry](../../../docs/internal/extraction/FOUNDATION.md)
+- [Governed releases](../../../docs/internal/RELEASE_RUNBOOK.md)
+- [Release policy](../../../docs/internal/RELEASE_RUNBOOK.md)
+- [Release policy schema](../../../eng/release/policy/release-policy.yaml)
+- [Scope registry](../../../eng/release/policy/scope-registry.yaml)
 - [Conventional Commits 1.0](https://www.conventionalcommits.org/en/v1.0.0/)
 
 ## Verification

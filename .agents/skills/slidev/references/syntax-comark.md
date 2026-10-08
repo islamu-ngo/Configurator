@@ -33,7 +33,7 @@ This is a [red text]{style="color:red"}
 ## Image Attributes
 
 ```md
-![](../../../../docs/internal/extraction/FOUNDATION.md){width=500px lazy}
+![](/image.png){width=500px lazy}
 ```
 
 ## Block Components

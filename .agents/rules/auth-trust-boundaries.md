@@ -1,15 +1,65 @@
 ---
 name: auth-trust-boundaries
-description: Reference-only Event auth-trust-boundaries guidance; no matching Configurator layer.
+description: Historical/reference-only Event auth-trust-boundaries guidance; never binds Configurator product paths.
 paths:
   - "reference-only/auth-trust-boundaries/**"
-related_docs: [AGENTS.md, docs/internal/extraction/FOUNDATION.md]
+related_skills: []
+related_docs: [AGENTS.md, PROJECTS.md, docs/internal/GOVERNANCE.md, docs/internal/QUICK_REFERENCE.md]
 minimum_tests: []
 related_intents: []
 ---
 
-# auth-trust-boundaries rules
+# Historical Event Rule: auth-trust-boundaries
 
-Twin files at `.agents/rules/auth-trust-boundaries.md` and `.omo/rules/auth-trust-boundaries.md` must remain byte-identical.
+Twin copies at `.agents/rules/auth-trust-boundaries.md` and `.omo/rules/auth-trust-boundaries.md` are byte-identical.
 
-This preserved router is inactive in Configurator. Its source-system layer does not exist here; do not introduce it to satisfy historical Event guidance. See [target authority](../../docs/internal/extraction/FOUNDATION.md).
+## Reference-Only Scope
+
+The reserved `reference-only/auth-trust-boundaries/**` glob matches no Configurator path.
+The original body below is retained verbatim from Event revision
+`c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38` for historical engineering reference.
+Its original paths, docs, intents, commands, libraries and mandatory language
+are source-system facts, not Configurator instructions or active links. Do not
+introduce Event HAL, EF, BFF, payment, identity or scheduling requirements.
+Target authority remains [AGENTS.md](../../AGENTS.md), [PROJECTS.md](../../PROJECTS.md)
+and [Governance](../../docs/internal/GOVERNANCE.md).
+
+## Original Rule Body (Inactive)
+
+```markdown
+
+<!-- ABOUTME: Path-scoped rules for Tier 1 Security & Identity Trust Boundaries. -->
+<!-- ABOUTME: Twin copy at .omo/rules/auth-trust-boundaries.md. When modifying this file, update both paths. -->
+
+# Auth & Trust Boundary Rules (Tier 1 — Security)
+
+## Applies To
+- `src/Explore.API/Controllers/**/*.cs`, `src/Event.Web.BffHosting/**/*.cs`, `src/Explore.Application/Authorization/**/*.cs`, `cerbos/**/*.yaml`
+
+## Critical Rules & Invariants
+
+| # | Rule | Correct | Wrong |
+|---|---|---|---|
+| 1 | **Fail-Closed Authorization** | Default all write endpoints to explicit `[Authorize]` and `[EndpointClassification]`; GET endpoints explicitly declare `[AllowAnonymous]`. | Omitting authorization attributes on mutative API controllers. |
+| 2 | **Single User ID Authority** | Derive user identity exclusively via `Explore.Application.Authentication.PlatformIdentityPrincipalExtensions` (`sub` $\rightarrow$ `nameidentifier` $\rightarrow$ `sid` $\rightarrow$ `internal_user_id`). | Parsing raw claims or re-deriving identity ad-hoc in controllers. |
+| 3 | **Central Tenant Isolation** | Enforce tenant isolation centrally via EF Core global query filters in `ExploreDbContext`. | Using `IgnoreQueryFilters()` casually without proven architectural isolation. |
+| 4 | **BFF Anti-Spoofing** | Trust tenant and user headers only from the verified BFF gateway; strip incoming client `X-Tenant-Slug` on public edge. | Trusting caller-supplied tenancy or identity headers from browser clients. |
+| 5 | **Server-Side Action Authority** | Gate actual mutation authority server-side in handlers/policies; client HAL links are affordances for UI visibility only. | Checking roles or permissions in client Blazor code to authorise actions. |
+| 6 | **Air-Gapped Fallback** | Wrap external OAuth and identity provider communication in circuit breakers with offline/local fallback support. | Creating synchronous hard dependencies on external cloud identity services. |
+| 7 | **Secrets Source of Truth** | Sourced strictly from Infisical or `.env` (documented in `.env.example`). | Hard-coding credentials/keys in `AppHost.cs`, test fixtures, or code. |
+
+## Must Read
+- [docs/internal/AUTHORIZATION.md](../../docs/internal/AUTHORIZATION.md)
+- [docs/internal/SECURITY-MODEL.md](../../docs/internal/SECURITY-MODEL.md)
+- [docs/internal/MULTI_TENANCY.md](../../docs/internal/MULTI_TENANCY.md)
+
+## Verification
+- Build: `dotnet build --configuration Release --verbosity quiet`
+- Tests: `Event.API.IntegrationTests`, `Event.Architecture.Tests`, `Explore.Blazor.IntegrationTests`
+- Invariant-Breaker tests: Exploit/bypass tests verifying 401/403 on invalid tokens, cross-tenant leak attempts, and header spoofing.
+
+## Related
+- Intents: `bff-auth-bug`, `cerbos-policy-change`, `add-write-endpoint`
+- Agents: `security-privacy-agent.md`, `quality-verifier-agent.md`
+- Skills: `auth-patterns`, `blazor-bff-patterns`
+```

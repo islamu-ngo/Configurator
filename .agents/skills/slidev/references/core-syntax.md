@@ -126,7 +126,7 @@ Enable with `comark: true`:
 
 ```md
 [styled text]{style="color:red"}
-![](../../../../docs/internal/extraction/FOUNDATION.md){width=500px}
+![](/image.png){width=500px}
 ::component{prop="value"}
 ```
 
