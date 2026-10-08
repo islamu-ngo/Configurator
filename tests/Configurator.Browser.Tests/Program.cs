@@ -1,0 +1,1 @@
+namespace Configurator.Browser.Tests;

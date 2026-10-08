@@ -1,0 +1,27 @@
+@page "/"
+@inject BrowserDefinitionRegistry Registry
+
+<PageTitle>Configurator public definitions</PageTitle>
+<section class="hero" aria-labelledby="catalogue-heading">
+    <p class="eyebrow">Local public workspace</p>
+    <h1 id="catalogue-heading">Public configuration templates</h1>
+    <p class="lede">
+        Choose a bundled definition to explore public options. No secrets, free-text answers,
+        target connections or configuration apply. Use a native client to complete configuration.
+        The first load needs this static site; disconnected relaunch is not promised.
+    </p>
+</section>
+<section aria-labelledby="definitions-heading">
+    <h2 id="definitions-heading">Bundled definitions</h2>
+    <ul class="definition-list">
+        @foreach (var definition in Registry.Current.Definitions)
+        {
+            <li>
+                <NavLink href="@($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}")">
+                    @definition.Title - revision @definition.Revision
+                </NavLink>
+                <p>Publisher claim: @definition.Publisher. Family identity does not establish trust.</p>
+            </li>
+        }
+    </ul>
+</section>

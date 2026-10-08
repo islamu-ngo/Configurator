@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "familyId": "69cdb122-41d2-4fab-9b82-7929a889c726",
+  "revision": 1,
+  "applicationId": "example.service",
+  "applicationVersions": ["1.0"],
+  "publisher": "Example publisher (unverified)",
+  "title": "Example service",
+  "entryPoints": ["setup"],
+  "locales": ["en"],
+  "fields": [
+    {
+      "id": "mode",
+      "type": "enum",
+      "title": "Deployment mode",
+      "help": "Choose a declared public deployment option.",
+      "sensitivity": "public",
+      "disclosure": "essential",
+      "required": true,
+      "choices": ["single", "cluster"]
+    },
+    {
+      "id": "replicas",
+      "type": "boolean",
+      "title": "Enable replicas",
+      "sensitivity": "public",
+      "disclosure": "guided",
+      "required": true,
+      "activeWhen": {"op": "equals", "field": "mode", "value": "cluster"}
+    },
+    {
+      "id": "hostname",
+      "type": "string",
+      "title": "Service hostname",
+      "help": "Provide this value only in a native client.",
+      "sensitivity": "public",
+      "disclosure": "guided",
+      "required": true,
+      "validator": "hostname"
+    },
+    {
+      "id": "credential",
+      "type": "string",
+      "title": "Service credential",
+      "sensitivity": "secret",
+      "disclosure": "essential",
+      "required": true
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "config",
+      "format": "json",
+      "fileName": "service.json",
+      "applySemantics": "create",
+      "restart": "process",
+      "projection": {
+        "op": "object",
+        "members": {
+          "mode": {"op": "copy", "field": "mode"},
+          "replicas": {"op": "copy", "field": "replicas"},
+          "hostname": {"op": "copy", "field": "hostname"},
+          "credential": {"op": "copy", "field": "credential"}
+        }
+      }
+    }
+  ]
+}

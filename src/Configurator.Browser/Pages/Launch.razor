@@ -1,0 +1,80 @@
+@page "/launch/{FamilyId}"
+@implements IDisposable
+@inject BrowserDefinitionRegistry Registry
+@inject NavigationManager Navigation
+
+<PageTitle>Configurator public template</PageTitle>
+@if (_selection is { } selected)
+{
+    <section class="hero" aria-labelledby="launch-heading">
+        <p class="eyebrow">Pinned public workspace</p>
+        <h1 id="launch-heading">@selected.Definition.Title</h1>
+        <p>Revision <strong data-revision="@selected.Definition.Revision">@selected.Definition.Revision</strong>,
+            digest <code data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
+        <p>Entry: @selected.Entry. Locale: @selected.Locale (metadata selection, not a translation guarantee).</p>
+        <p>Publisher claim: @selected.Definition.Publisher. A family GUID does not authenticate a publisher.</p>
+    </section>
+    <PublicTemplateEditor @key="selected" @ref="_editor" Definition="@selected.Definition" />
+}
+else
+{
+    <h1>Launch rejected</h1>
+    <p role="alert" data-code="@_error">This launch cannot select a bundled definition. Code: @_error.</p>
+    <NavLink href="">Return to bundled definitions</NavLink>
+}
+
+@code {
+    [Parameter] public string FamilyId { get; set; } = string.Empty;
+    private BrowserLaunchSelection? _selection;
+    private PublicTemplateEditor? _editor;
+    private string? _request;
+    private string _error = "launch-invalid";
+    private bool _disposed;
+
+    protected override void OnInitialized() => Navigation.LocationChanged += LocationChanged;
+
+    protected override void OnParametersSet() => Select();
+
+    private void Select()
+    {
+        if (_request == Navigation.Uri) return;
+        _editor?.Invalidate();
+        _request = Navigation.Uri;
+        _selection = null;
+        Uri uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        try
+        {
+            string path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0];
+            if (path != $"launch/{FamilyId}") throw new BrowserLaunchException("family-invalid");
+            if (uri.Fragment.Length > 0) throw new BrowserLaunchException("query-invalid");
+            _selection = BrowserLaunchSelection.Resolve(Registry.Current, FamilyId, uri.Query);
+        }
+        catch (BrowserLaunchException exception)
+        {
+            _error = exception.Code;
+        }
+    }
+
+    private void LocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (_disposed || args.Location == _request) return;
+        // Invalidate immediately, before a pending upload can commit into the old route.
+        _editor?.Invalidate();
+        _selection = null;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            string path = Navigation.ToBaseRelativePath(args.Location).Split('?', '#')[0];
+            if (path == $"launch/{FamilyId}") Select();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Navigation.LocationChanged -= LocationChanged;
+        _editor?.Invalidate();
+        _selection = null;
+    }
+}

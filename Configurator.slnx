@@ -6,6 +6,7 @@
     <Project Path="src/Configurator.Presentation/Configurator.Presentation.csproj" />
     <Project Path="src/Configurator.Terminal/Configurator.Terminal.csproj" />
     <Project Path="src/Configurator.Desktop/Configurator.Desktop.csproj" />
+    <Project Path="src/Configurator.Browser/Configurator.Browser.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj" />
@@ -14,6 +15,7 @@
     <Project Path="tests/Configurator.Presentation.Tests/Configurator.Presentation.Tests.csproj" />
     <Project Path="tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj" />
     <Project Path="tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj" />
+    <Project Path="tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj" />
   </Folder>
   <Folder Name="/eng/">
     <Project Path="eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj" />
