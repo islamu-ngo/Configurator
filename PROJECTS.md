@@ -165,6 +165,18 @@ evidence. See [Desktop qualification](docs/internal/DESKTOP_CLIENT.md#native-qua
 [public packaging guide](docs/public/packaging.md) and
 [technical anchor](docs/internal/PACKAGING.md) for commands and host limits.
 
+`eng/configurator/package-desktop-arch.sh` freshly publishes and assembles a local
+unsigned Desktop `.pkg.tar.zst` using native `makepkg`. It requires x86_64 Arch
+and the documented build tools. Its focused native owner check is
+`bash eng/configurator/test-desktop-arch-package.sh <older-archive> <newer-archive>`;
+this uses real pacman in a read-only-host user namespace and checks install,
+upgrade, removal, payload equivalence, operator-data preservation and installed
+X11/Wayland-XWayland launches. It requires a Wayland session with XWayland,
+`bubblewrap`, `strace` and `xorg-server-xvfb`. Run
+`bash -n` on both scripts and `desktop-file-validate` on the desktop entry.
+Broader unchanged product suites are not package assembly checks. X11 and
+Wayland/XWayland installed launch evidence is separate from release qualification.
+
 `tests/Configurator.Architecture.Tests` verifies compiled product boundaries,
 evaluated release contracts and actual package closure. Publish all three Linux
 x64 surfaces and Browser before running its complete current suite. The

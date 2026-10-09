@@ -53,3 +53,44 @@ separately established Configurator trust authority.
 The audited Terminal.Gui feed is repository-owned; do not replace it with an
 upstream package or change approved hashes. See the
 [internal packaging anchor](../internal/PACKAGING.md) for verification.
+
+## Arch Linux development package
+
+On x86_64 Arch Linux or an Arch derivative, build a native pacman package as an
+ordinary user. Install the build tools and .NET SDK version specified above:
+
+```bash
+sudo pacman -S --needed base-devel jq desktop-file-utils
+bash eng/configurator/package-desktop-arch.sh
+```
+
+The command freshly publishes Desktop and prints the resulting
+`artifacts/configurator/packages/arch/islamu-configurator-desktop-0.0.0.dev<UTC-timestamp>-1-x86_64.pkg.tar.zst`
+path. Install that exact file, then start the application:
+
+```bash
+sudo pacman -U "/absolute/path/to/the/generated.pkg.tar.zst"
+islamu-configurator-desktop
+```
+
+Replace the placeholder path with the printed path. The application also appears
+as **ISLAMU Configurator** in the desktop menu. No .NET runtime is needed on the
+installed host. The package declares its native libraries and XWayland dependency;
+it runs in X11 sessions and in Wayland sessions through XWayland. The Wayland
+compositor must enable XWayland. This package does not select Avalonia's native
+Wayland backend. Optional `noto-fonts` improves Unicode coverage.
+
+The builder accepts an explicit `0.0.0.devYYYYMMDDhhmmss` version for repeatable
+identification, refuses to overwrite an existing package, and writes a SHA-256
+sidecar, original payload inventory, generated PKGBUILD and native-generated
+SRCINFO beside the archive.
+These are unsigned local development packages, without a qualified release or
+AUR publication claim. Install newer builds with `pacman -U`; remove with:
+
+```bash
+sudo pacman -R islamu-configurator-desktop
+```
+
+Removal deletes package-owned application, menu and icon files. Your selected
+definitions, prepared files and output directories are not package-owned and
+remain intact.

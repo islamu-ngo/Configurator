@@ -6,6 +6,11 @@ There is no built-in target, network connection, plugin execution, or apply step
 
 ## Start and load
 
+For x86_64 Arch Linux, use the native
+[pacman development package](packaging.md#arch-linux-development-package).
+It provides the `islamu-configurator-desktop` command and desktop menu entry in
+X11 and Wayland/XWayland sessions without an external .NET runtime.
+
 Run from the Configurator checkout:
 
 ```bash

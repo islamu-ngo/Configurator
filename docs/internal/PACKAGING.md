@@ -103,3 +103,50 @@ retained optional Event fixture conformance and package closure. The Browser
 package embeds the same neutral definition file as the native minimal example;
 the distributed raw bytes must remain public safe. Package creation alone does
 not prove target acceptance or activate publication trust.
+
+## Native Arch development assembly
+
+`eng/configurator/package-desktop-arch.sh` owns local unsigned x86_64 Arch
+packages. It invokes the existing `PublishConfigurator` owner with Desktop,
+Linux x64 and an empty temporary output root; callers cannot supply a stale or
+arbitrary payload. It checks the evaluated package contract, required metadata
+and absence of symlinks, validates the desktop entry, and retains every published
+file. The first-party Browser SVG is reused for the desktop icon. No new asset
+license or shipped build tool is introduced.
+
+`packaging/linux/arch/PKGBUILD.in` installs the closure under
+`/usr/lib/islamu-configurator-desktop`, a relative symlink under `/usr/bin`, the
+standard desktop entry, hicolor icon and MIT license. Native `makepkg` verifies
+the staging archive's SHA-256 and generates package metadata, BUILDINFO, MTREE
+and SRCINFO. `!strip` and `!debug` prevent rewriting the appended .NET bundle.
+Native libraries remain distro dependencies; `xorg-xwayland` is required for
+the same X11 backend to run under a Wayland compositor. No installer scripts,
+user-directory writes, target apply, answer migration or root build is involved.
+
+Version admission accepts only `0.0.0.dev` plus a fourteen-digit UTC timestamp.
+The default timestamp identifies a local development build; this route does not
+admit stable releases or bypass promoted-release/signing authority. It is separate
+from future qualified installer assembly and its readiness evidence gate.
+See the [operator commands](../public/packaging.md#arch-linux-development-package).
+
+The package-specific native integration check takes two successive development
+archives and verifies real pacman metadata, declared host dependencies, standalone
+closure, launcher integration, installation, upgrade, complete installed payload
+equivalence and removal. An owner-only synthetic operator file must survive
+upgrade/removal byte-for-byte with mode `0600`. Bubblewrap gives pacman root
+inside a user namespace, makes the host read-only and disconnects the network;
+all mutations occur under its temporary root. `--nodeps --nodeps` is used only for that
+empty test root, after actual host dependencies pass `pacman -T`. No host package
+database is changed. Run in a Wayland session with XWayland enabled on Arch,
+with `bubblewrap`, `strace` and `xorg-server-xvfb` installed:
+
+```bash
+bash eng/configurator/test-desktop-arch-package.sh /absolute/older.pkg.tar.zst /absolute/newer.pkg.tar.zst
+```
+
+The same check launches the installed executable on the host's Wayland/XWayland
+display and on a dedicated Xvfb X11 display with the .NET SDK hidden and network
+disabled. Each must connect to its display and remain running for the bounded
+eight-second smoke check; timeout terminates it, without claiming graceful
+closure. Package checks and bounded launch checks do not establish assistive-technology support,
+all workflow scenarios or full release qualification.

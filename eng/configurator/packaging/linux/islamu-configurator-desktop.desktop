@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ISLAMU Configurator
+Comment=Prepare configuration files locally
+Exec=islamu-configurator-desktop
+Icon=islamu-configurator-desktop
+Terminal=false
+Categories=Development;
+StartupWMClass=Configurator.Desktop

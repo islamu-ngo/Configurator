@@ -29,6 +29,13 @@ Change-Id allocation, deterministic presentation and signed evidence validation.
 Missing promotion trust rejects signed publication; the project does not embed
 Event's signer list.
 
+Local Arch Desktop development assembly lives in
+`eng/configurator/package-desktop-arch.sh`, reuses standalone publication and
+native makepkg, and has a focused isolated-pacman verification command. It
+retains public notices/contracts, requires XWayland for Wayland sessions and
+does not activate signing or release publication. See
+[packaging ownership](../PACKAGING.md#native-arch-development-assembly).
+
 ## Knowledge library use
 
 Load generic debugging, refactoring, research, accessibility, native tooling,

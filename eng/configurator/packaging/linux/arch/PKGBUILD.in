@@ -1,0 +1,26 @@
+pkgname=islamu-configurator-desktop
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc='Offline configuration preparation utility (local development build)'
+arch=('x86_64')
+url='https://github.com/islamu-ngo/Configurator'
+license=('MIT')
+depends=('glibc' 'gcc-libs' 'zlib' 'icu' 'openssl' 'fontconfig' 'freetype2'
+         'libx11' 'libice' 'libsm' 'libxrandr' 'libxi' 'libxcursor' 'gtk3' 'mesa'
+         'xorg-xwayland')
+optdepends=('noto-fonts: Unicode font coverage')
+# The apphost has an appended .NET bundle; strip/debug rewriting can destroy it.
+options=('!strip' '!debug')
+source=('payload.tar')
+sha256sums=('@PAYLOAD_SHA256@')
+
+package() {
+    install -d "$pkgdir/usr/lib/$pkgname" "$pkgdir/usr/bin"
+    cp -a "$srcdir/payload/." "$pkgdir/usr/lib/$pkgname/"
+    ln -s "../lib/$pkgname/$pkgname" "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 "$srcdir/integration/$pkgname.desktop" \
+        "$pkgdir/usr/share/applications/$pkgname.desktop"
+    install -Dm644 "$srcdir/integration/$pkgname.svg" \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+    install -Dm644 "$srcdir/payload/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
