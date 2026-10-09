@@ -63,6 +63,11 @@ See [browser custody ADR](../adr/ADR-browser-session-trust-and-export.md),
 
 ## Verification and provenance
 
+Desktop verifies bundle composition before enabling protected save, disposes
+the temporary restricted buffers, and recomposes the current revision at save.
+Both single and bundle output enforce the host capability at the operation
+boundary. See [Desktop custody](../DESKTOP_CLIENT.md).
+
 Engineering changes run engineering tests only. Generic release tests use local
 inert workflow/script fixtures; the verified fixture closure requires no Event
 checkout and does not activate publication or import signer authority.

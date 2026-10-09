@@ -58,7 +58,9 @@ remain local and do not appear in operation status.
 
 For multiple outputs, check the declared files under **Bundle outputs**, choose
 **Prepare bundle**, then **Save protected bundle**. The selection and current
-answers produce one prepared bundle. Editing an answer or destination discards
+answers are checked for complete composition before saving becomes available.
+An empty or inactive selection must be corrected and prepared again; conflicting
+declared file names reject definition admission. Editing an answer or destination discards
 it. The capability notice shows whether this host can save protected files.
 
 ## Save safely

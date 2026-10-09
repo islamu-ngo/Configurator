@@ -79,8 +79,12 @@ the same boundary. `CommitAsync` enforces native create-only publication and
 Linux owner-only permissions; no definition value grants filesystem authority.
 Unsupported hosts fail closed.
 
-Bundle preparation retains only an answer revision and declared IDs, never
-composed bytes. Save composes against the current snapshot immediately before
+Bundle preparation verifies the selected IDs through `DefinitionBundleComposer`
+against the current snapshot, rejecting empty, inactive or uncomposable output.
+It immediately disposes the temporary bundle, retaining only an answer revision
+and declared IDs, never composed bytes. Admission rejects case-insensitive
+filename conflicts. Save rechecks host protection capability and composes
+against the current snapshot immediately before
 publication and disposes the Core bundle afterward to zero its private buffers.
 Each answer, definition, destination, or selection change discards it.
 Publication consumes the bundle and preflights every target before committing

@@ -248,7 +248,13 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         Invalidate();
         if (!Validate() || _form is null) return false;
         string[] selection = SelectedArtifactIds.ToArray();
-        if (selection.Length == 0) { Status = "bundle-invalid:artifact-empty"; return false; }
+        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
+            _form.Definition, selection, _form.Snapshot());
+        if (!bundle.Succeeded)
+        {
+            Status = "bundle-invalid:" + string.Join(",", bundle.Diagnostics.Select(item => item.Code));
+            return false;
+        }
         _preparedBundleSelection = selection;
         _preparedBundleInputRevision = _form.InputRevision;
         Status = $"bundle-selected:{selection.Length}";
@@ -269,6 +275,11 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         _saveCancellation = cancellation;
         try
         {
+            if (!ProtectedSaveAvailable)
+            {
+                Status = "bundle-save-blocked:UnsupportedPlatform";
+                return null;
+            }
             if (cancellation.Token.IsCancellationRequested || _form.InputRevision != inputRevision)
                 return null;
             using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
