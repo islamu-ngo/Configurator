@@ -321,7 +321,7 @@ internal sealed class PresentationWorkspaceHandle : IDisposable
         Activator.CreateInstance(_outcomeType, coreResult, output)
         ?? throw new InvalidOperationException("presentation-outcome-construction-failed");
 
-    internal void Complete(int invocation, object coreResult, ReadOnlyMemory<byte> output) =>
+    internal ReadOnlyMemory<byte> Complete(int invocation, object coreResult, ReadOnlyMemory<byte> output) =>
         Operation.Invocations[invocation].Complete(_outcomeType, coreResult, output);
 
     internal IDisposable SubscribeInvalidated(Action<EventArgs> observer) =>
@@ -491,13 +491,14 @@ internal sealed class ControlledPresentationInvocation
         return completionType.GetProperty("Task")!.GetValue(_completion)!;
     }
 
-    internal void Complete(Type outcomeType, object coreResult, ReadOnlyMemory<byte> output)
+    internal ReadOnlyMemory<byte> Complete(Type outcomeType, object coreResult, ReadOnlyMemory<byte> output)
     {
         object outcome = Activator.CreateInstance(outcomeType, coreResult, output)
             ?? throw new InvalidOperationException("presentation-outcome-construction-failed");
         if (_completion is null || _trySetResult is null)
             throw new InvalidOperationException("presentation-operation-not-started");
         _trySetResult.Invoke(_completion, [outcome]);
+        return SetupPresentationModelContract.Property<ReadOnlyMemory<byte>>(outcome, "Output");
     }
 }
 

@@ -1,5 +1,7 @@
 namespace Configurator.Presentation;
 
+using System.Security.Cryptography;
+
 public enum SetupOperationStatus
 {
     Succeeded,
@@ -26,18 +28,23 @@ public interface ISetupPresentationOperation
     Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken);
 }
 
-public sealed class SetupPresentationOutcome
+/// <summary>Owns a private copy of operation output; disposal clears that copy.</summary>
+public sealed class SetupPresentationOutcome : IDisposable
 {
+    private byte[] _output;
+
     public SetupPresentationOutcome(object coreResult, ReadOnlyMemory<byte> output)
     {
         ArgumentNullException.ThrowIfNull(coreResult);
         CoreResult = coreResult;
-        Output = output;
+        _output = output.ToArray();
     }
 
     public object CoreResult { get; }
 
-    public ReadOnlyMemory<byte> Output { get; }
+    public ReadOnlyMemory<byte> Output => _output;
+
+    public void Dispose() => CryptographicOperations.ZeroMemory(Interlocked.Exchange(ref _output, []));
 
     public override string ToString() => nameof(SetupPresentationOutcome);
 }

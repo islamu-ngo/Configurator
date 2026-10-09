@@ -1,0 +1,30 @@
+Change-Id: CHG-01M4G97J4EKCFBXYFN2AGFQJHD
+Title: "clear replaced and discarded prepared output"
+Type: fix
+Scope: privacy
+Summary: "Give presentation outcomes their own output buffer and clear it when replaced, invalidated, terminated, disposed or discarded after cancellation. Dispose composed artifacts and clear temporary copies while retaining a settled result when cancellation explicitly preserves it."
+Group: custody
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Presentation outcomes now copy supplied output instead of retaining its backing memory. Consumers must use the owned outcome bytes and dispose directly held outcomes after use."
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Give presentation outcomes their own output buffer and clear it when replaced, invalidated, terminated, disposed or discarded after cancellation. Dispose composed artifacts and clear temporary copies while retaining a settled result when cancellation explicitly preserves it."
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Presentation outcomes now copy supplied output instead of retaining its backing memory. Consumers must use the owned outcome bytes and dispose directly held outcomes after use."
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Give presentation outcomes their own output buffer and clear it when replaced, invalidated, terminated, disposed or discarded after cancellation. Dispose composed artifacts and clear temporary copies while retaining a settled result when cancellation explicitly preserves it."

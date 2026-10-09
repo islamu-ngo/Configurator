@@ -1,5 +1,7 @@
 namespace Configurator.Presentation;
 
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Configurator.Core;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
@@ -17,8 +19,8 @@ public sealed class DefinitionPresentationOperation(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = DefinitionArtifactComposer.Compose(definition, artifactId, answers);
+        using DefinitionArtifact? artifact = result.Artifact;
         cancellationToken.ThrowIfCancellationRequested();
-        var artifact = result.Artifact;
         var metadata = new DefinitionPreparationMetadata(
             result.Succeeded,
             artifactId,
@@ -28,10 +30,15 @@ public sealed class DefinitionPresentationOperation(
             definition.Digest,
             answers.InputRevision,
             Array.AsReadOnly(result.Diagnostics.Select(diagnostic => diagnostic.Code).ToArray()));
-        ReadOnlyMemory<byte> output = artifact is null
+        ReadOnlyMemory<byte> source = artifact is null
             ? ReadOnlyMemory<byte>.Empty
-            : artifact.Bytes.ToArray();
-        return Task.FromResult(new SetupPresentationOutcome(metadata, output));
+            : artifact.Bytes;
+        try { return Task.FromResult(new SetupPresentationOutcome(metadata, source)); }
+        finally
+        {
+            if (MemoryMarshal.TryGetArray(source, out ArraySegment<byte> segment))
+                CryptographicOperations.ZeroMemory(segment.AsSpan());
+        }
     }
 }
 

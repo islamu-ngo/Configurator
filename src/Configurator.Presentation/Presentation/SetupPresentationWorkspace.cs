@@ -15,6 +15,7 @@ public sealed partial class SetupPresentationWorkspace :
     private readonly SetupPresentationSession _session;
     private readonly IMessenger _sessionMessenger;
     private CancellationTokenSource? _activeCancellation;
+    private SetupPresentationOutcome? _ownedOutcome;
     private SetupOperationGeneration _activeGeneration;
     private Guid _activeOperationId;
     private bool _disposed;
@@ -177,6 +178,7 @@ public sealed partial class SetupPresentationWorkspace :
     internal void TerminateFromSession()
     {
         CancellationTokenSource? cancellation;
+        SetupPresentationOutcome? outcome;
         SetupOperationGeneration invalidatedGeneration;
         bool hadActive;
         lock (_gate)
@@ -188,11 +190,16 @@ public sealed partial class SetupPresentationWorkspace :
             hadActive = _hasActiveOperation;
             invalidatedGeneration = _activeGeneration;
             cancellation = _activeCancellation;
+            outcome = _ownedOutcome;
+            _ownedOutcome = null;
             _hasActiveOperation = false;
             _activeCancellation = null;
+            Result = null;
+            Output = ReadOnlyMemory<byte>.Empty;
             IsBusy = false;
         }
 
+        outcome?.Dispose();
         if (hadActive)
             RaiseInvalidated(invalidatedGeneration, SetupOperationInvalidationReason.SessionTerminated);
         cancellation?.Cancel();
@@ -227,6 +234,7 @@ public sealed partial class SetupPresentationWorkspace :
         SetupPresentationOutcome outcome)
     {
         bool accepted;
+        SetupPresentationOutcome? previous = null;
         lock (_gate)
         {
             accepted = !_disposed
@@ -237,6 +245,8 @@ public sealed partial class SetupPresentationWorkspace :
                 && _activeCancellation is { IsCancellationRequested: false };
             if (accepted)
             {
+                previous = _ownedOutcome;
+                _ownedOutcome = outcome;
                 _hasActiveOperation = false;
                 _activeCancellation?.Dispose();
                 _activeCancellation = null;
@@ -248,9 +258,11 @@ public sealed partial class SetupPresentationWorkspace :
 
         if (!accepted)
         {
+            outcome.Dispose();
             RaiseDiscarded(operationId, generation);
             return;
         }
+        if (!ReferenceEquals(previous, outcome)) previous?.Dispose();
 
         _sessionMessenger.Send(new SetupOperationSettledMessage(
             _session.SessionId,
@@ -265,6 +277,7 @@ public sealed partial class SetupPresentationWorkspace :
         bool preserveResult)
     {
         CancellationTokenSource? cancellation;
+        SetupPresentationOutcome? outcome = null;
         SetupOperationGeneration invalidatedGeneration;
         bool hadActive;
         lock (_gate)
@@ -277,11 +290,14 @@ public sealed partial class SetupPresentationWorkspace :
             IsBusy = false;
             if (!preserveResult)
             {
+                outcome = _ownedOutcome;
+                _ownedOutcome = null;
                 Result = null;
                 Output = ReadOnlyMemory<byte>.Empty;
             }
         }
 
+        outcome?.Dispose();
         RaiseInvalidated(invalidatedGeneration, reason);
         if (hadActive)
             cancellation?.Cancel();
@@ -311,7 +327,7 @@ public sealed partial class SetupPresentationWorkspace :
     {
         try
         {
-            _ = await pending;
+            (await pending).Dispose();
         }
         catch
         {

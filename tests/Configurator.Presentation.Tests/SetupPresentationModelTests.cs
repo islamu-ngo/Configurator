@@ -10,6 +10,42 @@ public sealed class SetupPresentationModelTests
     private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(5);
 
     [Test]
+    public async Task WorkspaceOwnsAndClearsAcceptedReplacedAndDiscardedOutput()
+    {
+        var contract = new SetupPresentationModelContract();
+        using SetupPresentationSessionHandle session = contract.CreateSession();
+        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("private-output", invocationCount: 3);
+        byte[] caller = [11, 22, 33];
+        Task first = workspace.ExecuteAsync(Guid.CreateVersion7());
+        await workspace.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        ReadOnlyMemory<byte> accepted = workspace.Complete(0, CoreResult(), caller);
+        await first.WaitAsync(SignalTimeout);
+        caller[0] = 99;
+        await Assert.That(accepted.Span.SequenceEqual(new byte[] { 11, 22, 33 })).IsTrue();
+
+        Task second = workspace.ExecuteAsync(Guid.CreateVersion7());
+        await workspace.Operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
+        ReadOnlyMemory<byte> replacement = workspace.Complete(1, CoreResult(), new byte[] { 44, 55 });
+        await second.WaitAsync(SignalTimeout);
+        await Assert.That(accepted.Span.SequenceEqual(new byte[] { 0, 0, 0 })).IsTrue();
+        await Assert.That(replacement.Span.SequenceEqual(new byte[] { 44, 55 })).IsTrue();
+
+        Task third = workspace.ExecuteAsync(Guid.CreateVersion7());
+        await workspace.Operation.Invocations[2].Started.Task.WaitAsync(SignalTimeout);
+        var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using IDisposable subscription = workspace.SubscribeDiscarded(_ => discarded.TrySetResult());
+        workspace.Cancel();
+        ReadOnlyMemory<byte> late = workspace.Complete(2, CoreResult(), new byte[] { 66, 77 });
+        await third.WaitAsync(SignalTimeout);
+        await discarded.Task.WaitAsync(SignalTimeout);
+        await Assert.That(late.Span.SequenceEqual(new byte[] { 0, 0 })).IsTrue();
+        await Assert.That(replacement.Span.SequenceEqual(new byte[] { 44, 55 })).IsTrue();
+
+        workspace.Deactivate();
+        await Assert.That(replacement.Span.SequenceEqual(new byte[] { 0, 0 })).IsTrue();
+    }
+
+    [Test]
     public async Task SessionsOwnDistinctMessengersAndNeverCrossTalk()
     {
         var contract = new SetupPresentationModelContract();
@@ -93,7 +129,7 @@ public sealed class SetupPresentationModelTests
     }
 
     [Test]
-    public async Task SettlementWinsBeforeLaterCancellationAndRetainsExactOutcome()
+    public async Task SettlementWinsBeforeLaterCancellationAndRetainsOwnedOutcome()
     {
         var contract = new SetupPresentationModelContract();
         _ = contract.WorkspaceType;
@@ -117,7 +153,7 @@ public sealed class SetupPresentationModelTests
 
         await Assert.That(invocation.Cancelled.Task.IsCompleted).IsFalse();
         await Assert.That(ReferenceEquals(workspace.Result, result)).IsTrue();
-        await AssertExactMemoryIdentity(workspace.Output, region);
+        await AssertOwnedMemory(workspace.Output, region);
     }
 
     [Test]
@@ -378,7 +414,7 @@ public sealed class SetupPresentationModelTests
     }
 
     [Test]
-    public async Task CoreResultAndReadOnlyMemoryProjectWithExactIdentityAndBackingRegion()
+    public async Task CoreResultAndReadOnlyMemoryProjectWithOwnedBytes()
     {
         var contract = new SetupPresentationModelContract();
         _ = contract.RequireProductType("SetupPresentationOutcome");
@@ -394,7 +430,7 @@ public sealed class SetupPresentationModelTests
         await execution.WaitAsync(SignalTimeout);
 
         await Assert.That(ReferenceEquals(workspace.Result, coreResult)).IsTrue();
-        await AssertExactMemoryIdentity(workspace.Output, bytes);
+        await AssertOwnedMemory(workspace.Output, bytes);
     }
 
     [Test]
@@ -545,7 +581,7 @@ public sealed class SetupPresentationModelTests
         await Assert.That(signal.ToString()).DoesNotContain("=");
     }
 
-    private static async Task AssertExactMemoryIdentity(
+    private static async Task AssertOwnedMemory(
         ReadOnlyMemory<byte> actual,
         ReadOnlyMemory<byte> expected)
     {
@@ -553,9 +589,8 @@ public sealed class SetupPresentationModelTests
         bool expectedArray = MemoryMarshal.TryGetArray(expected, out ArraySegment<byte> expectedSegment);
         await Assert.That(actualArray).IsTrue();
         await Assert.That(expectedArray).IsTrue();
-        await Assert.That(ReferenceEquals(actualSegment.Array, expectedSegment.Array)).IsTrue();
-        await Assert.That(actualSegment.Offset).IsEqualTo(expectedSegment.Offset);
-        await Assert.That(actualSegment.Count).IsEqualTo(expectedSegment.Count);
+        await Assert.That(ReferenceEquals(actualSegment.Array, expectedSegment.Array)).IsFalse();
+        await Assert.That(actual.Span.SequenceEqual(expected.Span)).IsTrue();
     }
 
     private static SetupReadinessResult CoreResult() => SetupReadiness.Evaluate(
