@@ -42,6 +42,7 @@ Use this checklist before proposing, authoring, or accepting code changes. It pr
 - [ ] **Closed Data Vocabulary**: Definitions remain bounded declarative data; no executable plugin or arbitrary remote definition loader is introduced.
 - [ ] **Canonical Identity**: Family/revision identity binds canonical content. Previously admitted revisions cannot be replaced with conflicting digests, and active sessions cannot silently upgrade.
 - [ ] **Restricted Output**: Native answer-derived artifacts retain sensitivity floors, create-only writes and unsupported-host refusal.
+- [ ] **Actual Host Proof**: Any newly claimed native RID has actual-host restricted-save and package/flow evidence; cross-publication alone is not treated as support.
 - [ ] **Operation Generations**: Completion commits only the current workspace generation; cancellation or replacement cannot publish stale results.
 - [ ] **Thin Adapters**: CLI, Terminal.Gui, Avalonia and Blazor consume the shared contracts rather than duplicating target logic or adding Event dependencies.
 

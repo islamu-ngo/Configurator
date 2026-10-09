@@ -48,6 +48,9 @@ do not apply.
     reasons belong in every completion. Do not claim unexecuted checks passed.
 14. **Publication fails closed:** generic release validation and synthetic trust
     fixtures do not activate signers, provider publication or hosted docs.
+15. **Native host proof:** Linux x64 package checks do not prove Windows x64,
+    macOS arm64 or Linux arm64 restricted save. Keep their matrix status Planned
+    until actual-host tests pass; unsupported saves refuse without fallback.
 
 ## Build And Test Baseline
 

@@ -43,7 +43,7 @@ solution-level `dotnet test`.
 
 ## The 3-Ring Progressive Verification Model
 
-Keep verification bounded to actual owners. For this approved extraction,
+Keep verification bounded to actual owners. For the universal MVP workstream,
 security invariant-breaker Red runs once before the relevant fix. Otherwise
 complete coherent source/caller/docs/regression slices continuously, then run
 one targeted Release build and affected classes at phase exit. Preserve passes;
@@ -64,6 +64,10 @@ output just to prove pure in-memory behavior. Native Artifacts tests exercise
 real protected create-only output; client tests exercise the actual adapter
 seam. Architecture/package checks verify evaluated project contracts and actual
 closure. None requires an Event database or running service.
+
+Windows/macOS protected save and Linux arm64 package behavior remain
+**Planned** until Artifacts and package/flow checks execute on those actual
+hosts. A Linux x64 test or cross-publish does not satisfy their host gate.
 
 ### The Yak-Shaving Quarantine Rule
 
@@ -108,9 +112,9 @@ dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.cspr
 `<TestClass>` is a selector placeholder, not a literal runnable test name. Confirm
 the actual class/method and retain passing counts. Use the commands in
 [PROJECTS.md](../../PROJECTS.md) for owner and packaging gates.
-Full architecture execution requires the three native Linux surface packages
-and static browser output first; a package build alone is not evidence that
-every suite passes.
+Full current architecture execution requires the three native Linux x64 surface
+packages and static Browser output first; a package build alone is not evidence
+that every suite passes.
 
 ### Disabled Test Governance
 

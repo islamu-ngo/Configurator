@@ -39,6 +39,11 @@ described in [TESTING.md](TESTING.md#the-3-ring-progressive-verification-model).
 Preserve passing evidence; rerun only failed/newly affected checks. Broader
 affected-owner and architecture/package checks run once at workstream exit.
 
+The current CI/package lane covers Linux x64 native clients and static Browser.
+The Windows x64, macOS arm64 and Linux arm64 actual-host preparation,
+restricted-save and package checks are **Planned**. Record those as unrun until
+their host commands and results exist; cross-published output is not a substitute.
+
 Documentation-only changes verify local targets, anchors, formatting and
 whitespace. They do not run product builds or .NET test suites. Never broaden a
 tooling-only change into product suites or an Event database matrix.

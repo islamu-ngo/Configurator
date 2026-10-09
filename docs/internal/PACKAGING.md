@@ -26,6 +26,14 @@ before restoring/publishing `Configurator.Browser`. Distribute its complete
 capability as native protected-save support. Supported native packaging RIDs and
 operator paths are listed in the [public guide](../public/packaging.md).
 
+The current release project admits CLI and Terminal packages for `linux-x64`,
+`linux-arm64`, `osx-arm64` and `win-x64`; Desktop is limited to `linux-x64`.
+CI publishes and checks the three Linux x64 packages and static Browser only.
+The four-RID native host/surface matrix is **Planned**: cross-publication does
+not establish that a package runs or saves restricted output on that host.
+Windows/macOS protected save and Linux arm64 host execution require actual-host
+evidence before those capabilities are claimed.
+
 `GenerateConfiguratorRatchets.cs` uses compiled Core definition schema and CLI
 command metadata. It evaluates `WriteConfiguratorReleaseContract` for each
 native client to derive the native matrix rather than maintaining a second
@@ -44,8 +52,9 @@ assembly metadata, not source text. It rejects Event/test dependencies, enforces
 Core's narrow closure and Browser's Core-only product boundary, exercises neutral
 artifact preparation and validates evaluated release refusal behavior.
 
-The package tests require the three Linux packages and browser package from the
-public commands first. Set `CONFIGURATOR_PACKAGE_ROOT` for a nondefault output root:
+The current package tests require the three Linux x64 packages and Browser
+package from the public commands first. Set `CONFIGURATOR_PACKAGE_ROOT` for a
+nondefault output root:
 
 ```bash
 dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release -- --minimum-expected-tests 1
@@ -70,6 +79,7 @@ The workflow runs on fork pull requests with `contents: read`, no retained
 checkout credentials and pinned Actions. It assembles unsigned validation
 artifacts only. It has no deployment/signing credentials or trust activation.
 The workstream exit checks include all seven product suites, engineering suites,
-actual Event fixture conformance and package closure. Event source removal is
-separately gated on this destination evidence; package creation alone does not
-authorize the cutover.
+retained optional Event fixture conformance and package closure. The Browser
+package embeds the same neutral definition file as the native minimal example;
+the distributed raw bytes must remain public safe. Package creation alone does
+not prove target acceptance or activate publication trust.

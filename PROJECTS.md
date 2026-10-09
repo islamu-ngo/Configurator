@@ -153,9 +153,11 @@ use their native engineering owner; no unrelated product or Event suites.
 
 `tests/Configurator.Architecture.Tests` verifies compiled product boundaries,
 evaluated release contracts and actual package closure. Publish all three Linux
-surfaces and browser before running its complete suite. A package build is not
-evidence that every product or engineering suite passes; record their actual
-commands and outcomes separately.
+x64 surfaces and Browser before running its complete current suite. The
+Windows x64, macOS arm64 and Linux arm64 actual-host package and restricted-save
+matrix is Planned; cross-publishing does not establish host behavior. A package
+build is not evidence that every product or engineering suite passes; record
+their actual commands and outcomes separately.
 
 ---
 
