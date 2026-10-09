@@ -20,7 +20,7 @@ See [`_schema.md`](_schema.md) before adding or editing any rule file.
 
 | Rule | Paths | Focus |
 |---|---|---|
-| [blazor-client.md](blazor-client.md) | `src/Configurator.Browser/**/*.cs`, `**/*.razor`, `**/*.css` under that owner | Static public browser, parameters, immutable snapshots, BEM/scoped CSS and accessibility |
+| [blazor-client.md](blazor-client.md) | `src/Configurator.Browser/**/*.cs`, `**/*.razor`, `**/*.css` under that owner | Static browser custody, pinned sources, public caches, parameters, immutable snapshots, BEM/scoped CSS and accessibility |
 | [tests.md](tests.md) | `tests/**/*.cs`, `eng/**/tests/**/*.cs` | Independent oracle, public mocks, deterministic async, bUnit, invariant disposition and quarantine |
 | [privacy-and-pii.md](privacy-and-pii.md) | `src/Configurator.{Core,Artifacts,Presentation,Cli,Terminal,Desktop,Browser}/**/*.cs`; browser Razor | Explicit owner globs in rule: sensitivity floors, generation fencing, protected writes and value-safe public boundary |
 | [work-criticality-matrix.md](work-criticality-matrix.md) | `src/**/*.cs`, `tests/**/*.cs`, `eng/**/*.cs`, `src/**/*.razor`, `.agents/contract/intents.yaml` | Proportional intake, model capability, data-flow exploration and adversarial tests |

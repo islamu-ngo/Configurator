@@ -20,7 +20,8 @@
 ## 2. Solution Structure & Project Roles
 
 The product dependency direction is clients -> Presentation/Artifacts -> Core.
-Browser references Core only and ships public static data. No sibling Event
+Browser references browser-safe Presentation and Core, never native Artifacts,
+and ships public static data. No sibling Event
 checkout, backend contracts or running service may be a build input.
 
 | Owner | Project directory |
@@ -31,7 +32,7 @@ checkout, backend contracts or running service may be a build input.
 | Machine CLI | `src/Configurator.Cli` |
 | Terminal.Gui client | `src/Configurator.Terminal` |
 | Avalonia Desktop client | `src/Configurator.Desktop` |
-| Static public Blazor WASM | `src/Configurator.Browser` |
+| Static Blazor WASM with transient local configuration | `src/Configurator.Browser` |
 
 Corresponding focused suites live in `tests/Configurator.<owner>.Tests`.
 `Configurator.slnx` registers all seven product owners and their suites, the
@@ -64,7 +65,7 @@ architecture suite, engineering tools, schema generators and dependency probes.
 | `tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj` | Command vocabulary, machine envelopes and artifact workflows | Affected CLI behavior |
 | `tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj` | Native terminal controls and transient input lifecycle | Affected headless/native surface |
 | `tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj` | Avalonia controls, selected state and protected-save workflow | Affected headless/native surface |
-| `tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj` | Launch pinning, public choice privacy and rendered semantics | Affected bUnit/registry behavior |
+| `tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj` | Launch pinning, secret consent, transient custody, drafts, exports and offline policy | Affected bUnit/registry behavior; published-platform QA separately |
 | `tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj` | Product boundaries, actual published packages and policy gates | Workstream packaging/closure exit |
 
 Select tests by the changed behavior, not by the number of files. These scopes

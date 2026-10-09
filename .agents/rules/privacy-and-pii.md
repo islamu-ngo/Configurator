@@ -1,6 +1,6 @@
 ---
 name: privacy-and-pii
-description: Apply when editing offline sensitivity, private native output, workspace disclosure, or public browser boundaries.
+description: Apply when editing offline sensitivity, private native output, workspace disclosure, browser custody, or public cache boundaries.
 paths:
   - "src/Configurator.Core/**/*.cs"
   - "src/Configurator.Artifacts/**/*.cs"
@@ -13,7 +13,7 @@ paths:
 related_skills: [criticality-guardrail, clean-architecture-rules]
 related_docs: [AGENTS.md, docs/internal/QUICK_REFERENCE.md, docs/internal/CORE_DEFINITION_CONTRACT.md, docs/internal/PROTECTED_ARTIFACTS.md, docs/internal/PRESENTATION_STATE.md, docs/internal/LAUNCH_CONTRACT.md]
 minimum_tests: []
-related_intents: [definition-engine, protected-artifacts, client-interface]
+related_intents: [definition-engine, protected-artifacts, client-interface, browser-session-privacy]
 ---
 
 # Privacy and PII Rules (Tier 2 - Privacy)
@@ -31,14 +31,15 @@ Twin files at `.agents/rules/privacy-and-pii.md` and `.omo/rules/privacy-and-pii
 | 2 | **Authority Before Publication** | Native adapter selects the destination; one-shot create-only writer commits protected output. | Let a definition filename grant filesystem authority or retry with insecure overwrite fallback. |
 | 3 | **Anti-Resurrection Fencing** | Reject late completions after edit, cancellation, deactivation or disposal through captured generations/revisions. | Restore an invalidated private preview or stale prepared output into the current workspace. |
 | 4 | **Atomic Native Publication** | Own preparation/cleanup and publish without partial visible output on the supported host. | Expose a partial private file or claim unsupported-host protection from mocked integration. |
-| 5 | **Public-Only Browser** | Consume admitted registered public metadata with pinned revision/digest. | Add secret input, private preview/storage, target authentication or remote apply. |
+| 5 | **Transient Browser Custody** | Pin admitted public definition metadata before answers; require workspace consent for secrets; deliberately export restricted output. | Persist answers/artifacts, send answer-bearing requests, bypass nested secret consent, add target authentication or remote apply. |
 | 6 | **Zero Values in Diagnostics** | Emit stable codes and bounded metadata only. | Emit answer values, tokens, raw exception messages or path contents in output, logs or errors. |
-| 7 | **Owned Buffer Lifetime** | Snapshot inputs; clear/dispose prepared output when invalidated. Mask sensitive and secret fields in native rendering. | Keep caller-mutable collections or orphaned private buffers alive after invalidation. |
+| 7 | **Owned Buffer Lifetime** | Snapshot inputs; clear/dispose prepared output when invalidated. Mask sensitive/secret rendering; consent revocation recursively removes secret leaves and output. | Keep caller-mutable collections, orphaned private buffers or revived secret rows after invalidation. |
+| 8 | **Public Offline Retention** | Cache only reviewed public app assets and explicitly retained admitted definitions. | Cache answers/artifacts or activate an update over a live answer workspace. |
 
 Configurator has no erasure database, receipt endpoint, telemetry/redaction stack or provider outbox. Historical Event purge/receipt requirements do not bind this offline boundary.
 
 ## Path-Specific Constraints
-- **Dependency Direction**: Core stays independent of Artifacts, Presentation and client adapters. Native clients consume Presentation/Artifacts over Core; browser consumes Core only.
+- **Dependency Direction**: Core stays independent of Artifacts, Presentation and client adapters. Native clients consume Presentation/Artifacts over Core; browser consumes browser-safe Presentation/Core and has no native writer closure.
 - **Cancellation**: Pass `CancellationToken` through asynchronous preparation/publication flows; cancellation also invalidates the captured operation generation.
 - **Published Collections**: Snapshot caller-owned collections and bytes before publishing read-only/immutable state. Do not relabel mutable input as immutable or let caller mutation change validated output.
 
@@ -53,8 +54,8 @@ Configurator has no erasure database, receipt endpoint, telemetry/redaction stac
 - Target the changed owner using [PROJECTS.md](../../PROJECTS.md); run its Release build and affected suite.
 - Invariant-Breakers: malicious sensitivity demotion, caller mutation, stale completion after invalidation and competing create-only saves.
 - Diagnostic evidence: exercise success and failure through actual output/diagnostic sinks using distinctive synthetic sentinel values; prove values, secrets and raw exception/path contents never appear. Do not substitute a redaction framework or source-text scan for observable evidence.
-- Browser evidence: prove private inputs/artifact bytes cannot enter the public projection or storage path. Supported-host writer evidence is not a cross-platform certification.
+- Browser evidence: prove private inputs/artifact bytes cannot enter caches, storage, worker messages or requests; test consent revocation, nested secret import and stale output through actual seams. Published-browser network/cache/update evidence is separate from bUnit/package tests. Browser copy/download is deliberate custody transfer, not native protected-write certification.
 
 ## Related
-- Intents: `definition-engine`, `protected-artifacts`, `client-interface`
+- Intents: `definition-engine`, `protected-artifacts`, `client-interface`, `browser-session-privacy`
 - Rules: [Tests](tests.md), [Criticality](work-criticality-matrix.md)

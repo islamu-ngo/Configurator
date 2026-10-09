@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-08 Europe/Brussels
+Last Updated: 2026-10-09 Europe/Brussels
 
 ## Index & Recent
 
@@ -9,3 +9,5 @@ Use [README.md](README.md), [FINDING_TEMPLATE.md](FINDING_TEMPLATE.md) and [PROM
 ## Durable Findings
 
 Append observed target findings chronologically using the template.
+
+- 2026-10-09 — [Browser cache capabilities and download filename custody](domains/presentation-and-clients.md).

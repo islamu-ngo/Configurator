@@ -10,7 +10,7 @@ Open-source, offline configuration preparation software for application authors,
 
 ISLAMU Configurator prepares application-owned configuration artifacts, while the target application retains validation, authorization and apply authority.
 
-> 🚧 **Active Pre-Release Development:** ISLAMU Configurator has **no official release yet**. Native clients, the public browser and local validation packages are implemented. No public release, signed publication or hosted deployment is claimed.
+> 🚧 **Active Pre-Release Development:** ISLAMU Configurator has **no official release yet**. Native clients, the static configuration browser and local validation packages are developed here. No public release, signed publication or hosted deployment is claimed.
 
 ![GitHub Workflow Status][github-workflow-status-shield]
 [![GitHub License][github-license-shield]][github-license-link]
@@ -46,13 +46,13 @@ The software is **purpose-agnostic**: Event is one external definition target, n
 
 - **🧩 Declarative Definitions:** Describe fields, activation, validation and output using bounded data rather than executable plugins — see [Definitions](docs/public/definitions.md).
 - **🔗 Pinned Public Launch:** Link to a registered family with bounded version, entry, locale and digest selectors; the session retains its admitted revision and digest — see [Launch Integration](docs/public/launch-integration.md).
-- **🌐 Public Choice Templates:** The static Blazor browser collects active public enum/boolean choices, not private answers, arbitrary text or credentials — see [Public Browser](docs/public/browser.md).
+- **🌐 Complete Browser Preparation:** The static Blazor app collects ordinary settings and bounded tenant rows, with voluntary workspace-local secret entry or explicit secret-deferred drafts. Copy/download transfers restricted files deliberately — see [Browser Configuration](docs/public/browser.md).
 - **🛡️ Target-Owned Authority:** Keep authentication, semantic acceptance and apply authorization in your application. Local preparation does not grant administration.
 
 ### Platform Owners & Self-Hosters
 
 - **🆓 Free & Open Source:** ISLAMU-owned material is MIT-licensed; third-party components retain their terms and notices.
-- **🛡️ Local Preparation:** Native preparation has no Event API, domain, wire or database dependency. The browser has no target authentication, telemetry, persistence or arbitrary remote-definition fetch.
+- **🛡️ Local Preparation:** Preparation has no Event API, domain, wire or database dependency. The browser has no target authentication, telemetry or answer persistence; bounded public HTTPS definitions are admitted and pinned before answers.
 - **🧰 Independent Clients:** Choose the machine CLI, Terminal.Gui TUI, Avalonia Desktop or static Blazor WebAssembly browser without installing Event services.
 - **📚 Dual Documentation Tracks:** Public guides explain operator workflows; internal contracts explain architecture, privacy and verification.
 - **📜 Real Reference Target:** Event owns its exporter and host validators. All five current reference artifacts are prepared through the generic runtime — see [Event example](examples/islamu-event/README.md).
@@ -68,9 +68,9 @@ ISLAMU Configurator separates native preparation from public static hosting:
 | **Machine CLI** | Reproducible local automation with explicit definitions and answer workspaces. | 📖 **[CLI Guide](docs/public/cli.md)** |
 | **Terminal Client** | Keyboard-driven native preparation with protected output. | 📖 **[Terminal Guide](docs/public/terminal.md)** |
 | **Desktop Client** | Avalonia native forms over the shared workspace. | 📖 **[Desktop Guide](docs/public/desktop.md)** |
-| **Public Static Browser** | Public choice templates served from an ordinary static host. | 📖 **[Browser Hosting](docs/public/browser.md#hosting)** |
+| **Static Configuration Browser** | Transient local answers, deliberate file export and a public-asset PWA cache. | 📖 **[Browser Hosting](docs/public/browser.md#hosting)** |
 
-See [Standalone Packaging](docs/public/packaging.md) for supported RIDs, executable names and package boundaries. Protected writes are verified on Linux only. Browser boot requires its static assets; disconnected relaunch is not promised because there is no service worker. No public Configurator deployment is claimed.
+See [Standalone Packaging](docs/public/packaging.md) for supported RIDs, executable names and package boundaries. Protected native writes are verified on Linux only. Browser offline reopening requires complete public app assets and an explicitly retained admitted definition; answers are never retained. Browser downloads cannot establish native owner-only/create-only protection. No public Configurator deployment is claimed.
 
 ---
 
@@ -91,7 +91,7 @@ Security and privacy fail closed at every layer:
 - **🔐 Definition Admission:** Closed schemas and bounded values reject unsupported definitions before use.
 - **🛡️ Session Integrity:** Family, revision and digest remain pinned; removed revisions cannot return with conflicting content.
 - **🔒 Private Artifacts:** Native answer-derived output is restricted and cannot overwrite an existing protected artifact.
-- **🌐 Browser Boundary:** Public templates are partial choices, not full configuration, credentials or host readiness.
+- **🌐 Browser Custody:** Secret entry requires per-workspace consent; revocation clears secret leaves and output. Drafts visibly defer secrets, public caches exclude answers/artifacts, and neither preparation mode grants host authority.
 - **🗝️ Target Authority:** The target performs semantic validation and authorization; Configurator does not authenticate or apply remotely.
 
 See [SECURITY.md](SECURITY.md), [Core Contract](docs/internal/CORE_DEFINITION_CONTRACT.md) and [Protected Artifacts](docs/internal/PROTECTED_ARTIFACTS.md).
@@ -142,7 +142,7 @@ The CLI registers `catalogue list|show|describe`, `artifact create|open|validate
 | Machine CLI | `dotnet run --project src/Configurator.Cli --configuration Release -- doctor --machine` | `islamu-configurator` |
 | Terminal | `dotnet run --project src/Configurator.Terminal --configuration Release -- --definition examples/minimal-self-hosted/setup-definition.json` | `islamu-configurator-terminal` |
 | Desktop | `dotnet run --project src/Configurator.Desktop --configuration Release -- /absolute/path/setup.json /absolute/path/output-directory` | `islamu-configurator-desktop` |
-| Public browser | Publish `Configurator.Browser`, then serve its complete `wwwroot/` | `/` catalogue and `/launch/<familyId>` |
+| Browser | Publish `Configurator.Browser`, then serve its complete `wwwroot/` | `/` catalogue, `/launch/<familyId>` and pinned `/open#src=…` |
 
 The neutral public family can be opened at `/launch/69cdb122-41d2-4fab-9b82-7929a889c726?appVersion=1.0&entry=setup&locale=en`. Configure a SPA navigation fallback for deep links, not missing framework assets. Native preparation requires no Aspire, database, Keycloak or Event server.
 
@@ -171,7 +171,7 @@ ISLAMU Configurator maintains a deliberate separation between **Public Adopter D
 * **[CLI](docs/public/cli.md)** — Machine operations, answer workspaces and deterministic envelopes.
 * **[Terminal](docs/public/terminal.md)** — Keyboard-driven native preparation.
 * **[Desktop](docs/public/desktop.md)** — Avalonia forms and protected saves.
-* **[Public Browser](docs/public/browser.md)** — Partial public choices and static hosting.
+* **[Browser Configuration](docs/public/browser.md)** — Transient complete preparation, secret-deferred drafts, deliberate exports and static PWA hosting.
 * **[Launch Integration](docs/public/launch-integration.md)** — Family/version/entry/locale/digest selection.
 * **[Definitions](docs/public/definitions.md)** — Data-only target definition authoring.
 * **[Native Output](docs/public/native-output.md)** — Restricted artifacts and host limits.
@@ -193,7 +193,7 @@ For developers contributing code, architecture reviewers, and AI agents, use the
 | **Testing Strategy** | [TESTING.md](docs/internal/TESTING.md) | Deterministic assertions, focused owners and measured evidence. |
 | **Operations & Build Verification** | [OPERATIONS.md](docs/internal/OPERATIONS.md) | Native tooling, verification and execution evidence. |
 | **Machine CLI Contracts** | [CLI_CONTRACT.md](docs/internal/CLI_CONTRACT.md) | Closed operation vocabulary and output envelopes. |
-| **Browser Launch** | [LAUNCH_CONTRACT.md](docs/internal/LAUNCH_CONTRACT.md) | Exact selection, public-template privacy and immutable sessions. |
+| **Browser Launch** | [LAUNCH_CONTRACT.md](docs/internal/LAUNCH_CONTRACT.md) | Pinned bounded sources, transient custody and immutable sessions. |
 | **Protected Native Output** | [PROTECTED_ARTIFACTS.md](docs/internal/PROTECTED_ARTIFACTS.md) | Create-only writes and unsupported-host refusal. |
 | **Documentation Architecture** | [DOCUMENTATION_ARCHITECTURE.md](docs/internal/DOCUMENTATION_ARCHITECTURE.md) | Separate public guidance and technical source anchors. |
 | **AI Agent Contribution Contract** | [AGENTS.md](AGENTS.md) / [intents.yaml](.agents/contract/intents.yaml) | Shared contribution contract and task intake. |

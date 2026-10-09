@@ -1,7 +1,7 @@
 # AGENTS.md - Agent Contribution Contract
 
 > **This is the required entrypoint for every AI tool contributing to this repository.**
-> Last Updated: 2026-10-08
+> Last Updated: 2026-10-09
 
 ---
 
@@ -100,16 +100,21 @@ owners. Harness pointer files must not introduce a second policy.
    `Configurator.*`. Core has no Event backend, domain, wire or database
    dependency. Preserve third-party identities such as `ISLAMU.Terminal.Gui`.
 2. **Data-Only Definitions:** Admit bounded fields, activation, validation and
-   output vocabulary before use. No executable definition plugins or arbitrary
-   remote launch URL loading.
+   output vocabulary before use. No executable definition plugins. Browser
+   definition retrieval admits only bounded, credential-free public HTTPS
+   sources pinned to canonical content before answer collection; no arbitrary
+   remote launch authority or answer-bearing fetch is permitted.
 3. **Canonical Identity:** Family/revision identity binds canonical content.
    Publisher labels and GUIDs are not authentication or curation evidence.
    Active sessions retain their admitted revision and digest; conflicting
    previously admitted revisions reject even after registry removal.
-4. **Private-To-Public Boundary:** Browser answer controls accept active public
-   enum/boolean choices only. No secrets, private answers, tokens, persistence,
-   telemetry, target authentication or native I/O belong in that browser.
-   Public templates are deliberately partial, not full native readiness.
+4. **Browser Custody Boundary:** Browser configuration answers are transient and
+   local to the workspace. Secret entry requires explicit per-workspace consent;
+   revocation clears secret leaves and prepared output. Public asset/definition
+   caches never contain answers or artifacts. Restricted copy/download is a
+   deliberate user action, with no native protected-save guarantee. No telemetry,
+   target authentication, native I/O or answer-bearing network requests belong
+   in that browser. Secret-deferred drafts never imply complete readiness.
 5. **Protected Output:** Native answer-derived artifacts remain restricted.
    Verified Linux writes are create-only; existing-file/concurrent conflicts do
    not overwrite. Unsupported protected-save hosts reject without ordinary-file
