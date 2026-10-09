@@ -1,0 +1,221 @@
+namespace Configurator.Browser.Tests;
+
+using System.Text;
+using System.Text.Json.Nodes;
+using Bunit;
+using Configurator.Core.Definitions;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
+
+public sealed class BrowserDefinitionSourceTests
+{
+    [Test]
+    public async Task PublicSourceAndSelectorsAreDecodedWithoutAnswerTransfer()
+    {
+        BrowserDefinitionPointer request = BrowserDefinitionPointer.Parse(
+            "#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json&entry=setup&locale=en&appVersion=1.0");
+        await Assert.That(request.Source.AbsoluteUri).IsEqualTo("https://publisher.example/definition.json");
+        await Assert.That(request.Entry).IsEqualTo("setup");
+        await Assert.That(request.AppVersion).IsEqualTo("1.0");
+    }
+
+    [Test]
+    public async Task UnsafeSourcesAndAmbiguousMetadataRejectWithoutEcho()
+    {
+        string[] fragments =
+        [
+            "#src=http%3A%2F%2Fpublisher.example%2Fdefinition.json",
+            "#src=https%3A%2F%2Fsecret%40publisher.example%2Fa.json",
+            "#src=https%3A%2F%2Flocalhost%2Fa.json",
+            "#src=https%3A%2F%2F127.0.0.1%2Fa.json",
+            "#src=https%3A%2F%2F10.0.0.1%2Fa.json",
+            "#src=https%3A%2F%2F169.254.169.254%2Fa.json",
+            "#src=https%3A%2F%2F%5B%3A%3A1%5D%2Fa.json",
+            "#src=https%3A%2F%2Fpublisher.local%2Fa.json",
+            "#src=https%3A%2F%2Fpublisher.example%2Fa.json%3Ftoken%3Dprivate-canary",
+            "#src=https%3A%2F%2Fpublisher.example%2Fa.json%23private-canary",
+            "#src=https%3A%2F%2Fpublisher.example%2Fa.json&%73rc=https%3A%2F%2Fother.example%2Fa.json",
+            "#src=https%3A%2F%2Fpublisher.example%2Fa.json&answer=private-canary",
+            "#src=%xy", "#src=", "#digest=" + new string('a', 64),
+            "#src=https%3A%2F%2Fpublisher.example%2Fa.json&digest=bad",
+            "#src=" + new string('a', 4096)
+        ];
+        foreach (string fragment in fragments)
+        {
+            BrowserLaunchException? failure = null;
+            try { _ = BrowserDefinitionPointer.Parse(fragment); }
+            catch (BrowserLaunchException exception) { failure = exception; }
+            await Assert.That(failure).IsNotNull();
+            await Assert.That(failure!.Message).DoesNotContain("private-canary");
+            await Assert.That(failure.Message).DoesNotContain("publisher");
+        }
+        await Assert.That(() => BrowserDefinitionPointer.Parse(
+            "#src=https%3A%2F%2Fpublisher.example%2Fa.json", "?answer=private-canary"))
+            .Throws<BrowserLaunchException>();
+    }
+
+    [Test]
+    public async Task LocalAdmissionKeepsCanonicalIdentityAndRejectsRevisionConflicts()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        using var input = new MemoryStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        SetupDefinition admitted = await source.ReadLocalAsync(input);
+        await Assert.That(admitted.Digest).IsEqualTo(BrowserFixture.Definition.Digest);
+        JsonNode conflict = JsonNode.Parse(admitted.CanonicalBytes.Span)!;
+        conflict["title"] = "Different content at the same revision";
+        using var invalid = new MemoryStream(Encoding.UTF8.GetBytes(conflict.ToJsonString()));
+        await Assert.That(async () => { await source.ReadLocalAsync(invalid); }).Throws<BrowserLaunchException>();
+        await Assert.That(registry.Current.Resolve(admitted.FamilyId).Digest).IsEqualTo(admitted.Digest);
+    }
+
+    [Test]
+    public async Task LocalReadRejectsOverflowAndHostileBytesWithoutPublication()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        using var oversized = new MemoryStream(new byte[4 * 1024 * 1024 + 1]);
+        await Assert.That(async () => { await source.ReadLocalAsync(oversized); }).Throws<BrowserLaunchException>();
+        using var hostile = new MemoryStream(Encoding.UTF8.GetBytes("{\"answer\":\"private-canary\"}"));
+        await Assert.That(async () => { await source.ReadLocalAsync(hostile); }).Throws<BrowserLaunchException>();
+        await Assert.That(registry.Current.Definitions).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task RemoteSelectionPinsCanonicalDigestAndClearsTransportBytes()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        byte[] bytes = BrowserFixture.Definition.CanonicalBytes.ToArray();
+        var module = context.JSInterop.SetupModule("./browser-definition-source.js");
+        module.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(bytes);
+        var request = BrowserDefinitionPointer.Parse("#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json&digest=" + BrowserFixture.Definition.Digest.Value);
+        BrowserLaunchSelection selected = await source.FetchAsync(request);
+        await Assert.That(selected.Definition.Digest).IsEqualTo(BrowserFixture.Definition.Digest);
+        await Assert.That(bytes.All(item => item == 0)).IsTrue();
+        await Assert.That(registry.Current.Definitions).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task DigestAndSelectorsRejectBeforeRegistryPublication()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        var module = context.JSInterop.SetupModule("./browser-definition-source.js");
+        foreach (string selector in new[] { "digest=" + new string('f', 64), "appVersion=unknown", "entry=unknown", "locale=unknown" })
+        {
+            module.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
+                .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
+            var request = BrowserDefinitionPointer.Parse("#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json&" + selector);
+            await Assert.That(async () => { await source.FetchAsync(request); }).Throws<BrowserLaunchException>();
+            await Assert.That(registry.Current.Definitions).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task LocalReadIgnoringCancellationCannotAdmitAfterInvalidation()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        using var input = new GatedDefinitionStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        Task<SetupDefinition> read = source.ReadLocalAsync(input);
+        await input.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        source.Invalidate();
+        input.Release.SetResult();
+        await Assert.That(async () => { await read; }).Throws<BrowserLaunchException>();
+        await Assert.That(registry.Current.Definitions).IsEmpty();
+        await Assert.That(input.Buffer!.All(item => item == 0)).IsTrue();
+    }
+
+    [Test]
+    public async Task CleanRouteInvalidatesLateFetchAndRestoresLocalDefinitionPicker()
+    {
+        using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
+        lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
+        lifecycle.Setup<string[]>("retainedDigests").SetResult([]);
+        await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
+        context.Services.AddSingleton(policy);
+        var transport = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var pending = transport.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes);
+        NavigationManager navigation = context.Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/open#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
+        var component = context.Render<App>();
+        await Assert.That(component.Find("#definition-file").HasAttribute("disabled")).IsTrue();
+        await component.InvokeAsync(() => navigation.NavigateTo("/open"));
+        await Assert.That(component.Find("#definition-file").HasAttribute("disabled")).IsFalse();
+        pending.SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        await component.InvokeAsync(() => { });
+        await Assert.That(component.FindAll(".configuration-editor")).IsEmpty();
+        await Assert.That(component.FindAll("[data-code=source-admitted]")).IsEmpty();
+    }
+
+    [Test]
+    public async Task LateWorkspaceDiscardCannotEraseNewSourceSelection()
+    {
+        using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
+        lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
+        lifecycle.Setup<string[]>("retainedDigests").SetResult([]);
+        lifecycle.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
+        await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
+        context.Services.AddSingleton(policy);
+        var transport = context.JSInterop.SetupModule("./browser-definition-source.js");
+        transport.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
+            .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        var exports = context.JSInterop.SetupModule("./browser-artifacts.js");
+        exports.SetupVoid("open", _ => true).SetVoidResult();
+        exports.Setup<bool>("copy", _ => true).SetResult(true);
+        var cleanup = exports.SetupVoid("invalidate", _ => true);
+        NavigationManager navigation = context.Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/open#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
+        var component = context.Render<App>();
+        component.FindAll("button").Single(button => button.TextContent == "Open configuration workspace").Click();
+        component.Find("#choice-mode").Change("single");
+        component.Find("#choice-hostname").Input("example.test");
+        component.Find("#prepare-draft").Click();
+        component.Find(".configuration-editor__artifact button").Click();
+        Task discard = component.FindAll("button").Single(button => button.TextContent == "Discard this workspace to choose another definition")
+            .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await Assert.That(cleanup.Invocations.Count).IsEqualTo(1);
+        transport.Setup<byte[]>("fetchDefinition", "https://other.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
+            .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        await component.InvokeAsync(() => navigation.NavigateTo("/open#src=https%3A%2F%2Fother.example%2Fdefinition.json"));
+        await Assert.That(component.Find("[data-code=source-admitted]").TextContent).Contains("admitted");
+        cleanup.SetVoidResult();
+        await discard.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(component.Find("[data-code=source-admitted]").TextContent).Contains("admitted");
+        await Assert.That(component.FindAll("button").Any(button => button.TextContent == "Open configuration workspace")).IsTrue();
+    }
+
+    private sealed class GatedDefinitionStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public byte[]? Buffer { get; private set; }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment)) Buffer = segment.Array;
+            Entered.TrySetResult();
+            await Release.Task;
+            return await base.ReadAsync(buffer, CancellationToken.None);
+        }
+    }
+}

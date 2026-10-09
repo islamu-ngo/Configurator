@@ -8,14 +8,17 @@
     <SetupTargetEnabled>true</SetupTargetEnabled>
     <SetupTargetRole>StandalonePublicBrowser</SetupTargetRole>
     <IsPackable>false</IsPackable>
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Configurator.Core\Configurator.Core.csproj" />
+    <ProjectReference Include="..\Configurator.Presentation\Configurator.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <ServiceWorker Include="wwwroot/service-worker.js" PublishedContent="wwwroot/service-worker.published.js" />
   </ItemGroup>
 
   <ItemGroup>

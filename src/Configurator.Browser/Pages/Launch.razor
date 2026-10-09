@@ -3,18 +3,18 @@
 @inject BrowserDefinitionRegistry Registry
 @inject NavigationManager Navigation
 
-<PageTitle>Configurator public template</PageTitle>
+<PageTitle>Configurator configuration workspace</PageTitle>
 @if (_selection is { } selected)
 {
     <section class="hero" aria-labelledby="launch-heading">
-        <p class="eyebrow">Pinned public workspace</p>
+        <p class="eyebrow">Pinned local workspace</p>
         <h1 id="launch-heading">@selected.Definition.Title</h1>
         <p>Revision <strong data-revision="@selected.Definition.Revision">@selected.Definition.Revision</strong>,
             digest <code data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
         <p>Entry: @selected.Entry. Locale: @selected.Locale (metadata selection, not a translation guarantee).</p>
         <p>Publisher claim: @selected.Definition.Publisher. A family GUID does not authenticate a publisher.</p>
     </section>
-    <PublicTemplateEditor @key="selected" @ref="_editor" Definition="@selected.Definition" />
+    <ConfigurationEditor @key="selected" @ref="_editor" Definition="@selected.Definition" />
 }
 else
 {
@@ -26,7 +26,7 @@ else
 @code {
     [Parameter] public string FamilyId { get; set; } = string.Empty;
     private BrowserLaunchSelection? _selection;
-    private PublicTemplateEditor? _editor;
+    private ConfigurationEditor? _editor;
     private string? _request;
     private string _error = "launch-invalid";
     private bool _disposed;

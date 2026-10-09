@@ -15,6 +15,15 @@ public sealed class BrowserDefinitionRegistry
 
     public SetupDefinitionRegistry Current { get; private set; }
 
+    public void Admit(SetupDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        var admitted = new SetupDefinitionRegistry(_admitted.Definitions.Append(definition));
+        var current = new SetupDefinitionRegistry(Current.Definitions.Append(definition));
+        _admitted = admitted;
+        Current = current;
+    }
+
     public void Replace(IEnumerable<SetupDefinition> definitions)
     {
         var replacement = new SetupDefinitionRegistry(definitions);

@@ -381,6 +381,7 @@
         "type": "Project",
         "dependencies": {
           "Configurator.Core": "[1.0.0, )",
+          "Configurator.Presentation": "[1.0.0, )",
           "Microsoft.AspNetCore.Components.WebAssembly": "[10.0.10, )"
         }
       },
@@ -389,6 +390,19 @@
         "dependencies": {
           "YamlDotNet": "[18.1.0, )"
         }
+      },
+      "configurator.presentation": {
+        "type": "Project",
+        "dependencies": {
+          "CommunityToolkit.Mvvm": "[8.4.2, )",
+          "Configurator.Core": "[1.0.0, )"
+        }
+      },
+      "CommunityToolkit.Mvvm": {
+        "type": "CentralTransitive",
+        "requested": "[8.4.2, )",
+        "resolved": "8.4.2",
+        "contentHash": "WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg=="
       },
       "Microsoft.AspNetCore.Components.WebAssembly": {
         "type": "CentralTransitive",

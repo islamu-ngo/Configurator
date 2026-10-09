@@ -1,0 +1,206 @@
+@page "/open"
+@implements IAsyncDisposable
+@inject BrowserDefinitionRegistry Registry
+@inject BrowserOfflinePolicy Offline
+@inject Microsoft.JSInterop.IJSRuntime Javascript
+@inject NavigationManager Navigation
+@using Configurator.Core.Definitions
+
+<PageTitle>Open a configuration definition</PageTitle>
+<h1>Open a configuration definition</h1>
+@if (_selection is { } selection)
+{
+    <section aria-labelledby="source-heading">
+        <h2 id="source-heading">@selection.Definition.Title</h2>
+        <p>Publisher claim: @selection.Definition.Publisher. This label does not authenticate the publisher.</p>
+        <p>Revision @selection.Definition.Revision; canonical digest <code>@selection.Definition.Digest.Value</code>.</p>
+        <p>Entry @selection.Entry; locale @selection.Locale. Preparation grants no target administration or apply authority.</p>
+    </section>
+    @if (_workspaceOpen)
+    {
+        <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" />
+        <button type="button" @onclick="DiscardAsync">Discard this workspace to choose another definition</button>
+    }
+    else
+    {
+        <p>This definition remains in memory unless you deliberately retain its public metadata. Never retain a definition containing private explanatory text or defaults.</p>
+        <label><input type="checkbox" @bind="_publicSafeConfirmed" /> I confirm this definition is safe to retain as public metadata</label>
+        <button type="button" disabled="@(!_publicSafeConfirmed)" @onclick="RetainAsync">Retain definition for offline use</button>
+        <button type="button" @onclick="OpenWorkspace">Open configuration workspace</button>
+    }
+}
+@if (!_workspaceOpen)
+{
+    <p>Use a local JSON definition when disconnected or when the publisher blocks cross-origin access. Files are admitted through the same bounded engine; they grant no publisher authenticity.</p>
+    <label for="definition-file">Choose a definition JSON file (maximum 4 MiB)</label>
+    <InputFile @key="_fileKey" id="definition-file" @ref="_fileInput" OnChange="LoadLocalAsync" disabled="@_loading" />
+    @if (_retained.Count > 0)
+    {
+        <h2>Retained public definitions</h2>
+        <ul>@foreach (SetupDefinition definition in _retained)
+        {
+            <li><button type="button" @onclick="() => SelectRetained(definition)">@definition.Title — revision @definition.Revision</button></li>
+        }</ul>
+    }
+}
+<p role="status" data-code="@_statusCode">@_status</p>
+<NavLink href="">Return to bundled definitions</NavLink>
+
+@code {
+    private BrowserDefinitionSource? _source;
+    private BrowserLaunchSelection? _selection;
+    private ConfigurationEditor? _editor;
+    private IReadOnlyList<SetupDefinition> _retained = [];
+    private string? _request;
+    private long _generation;
+    private long _fileKey;
+    private bool _loading;
+    private bool _workspaceOpen;
+    private bool _publicSafeConfirmed;
+    private bool _disposed;
+    private bool _restoreFileFocus;
+    private InputFile? _fileInput;
+    private string _statusCode = "source-ready";
+    private string _status = "Choose a public publisher link or a local definition. Answers are never carried by this route.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _source = new BrowserDefinitionSource(Registry, Javascript, Offline);
+        Navigation.LocationChanged += LocationChanged;
+        await Offline.InitializeAsync();
+        _retained = await Offline.ReadRetainedDefinitionsAsync();
+        await SelectSourceAsync();
+    }
+
+    private async Task SelectSourceAsync()
+    {
+        if (_disposed || _request == Navigation.Uri) return;
+        long generation = ++_generation;
+        string request = Navigation.Uri;
+        _request = request;
+        _source!.Invalidate();
+        if (_editor is not null) await _editor.DiscardAsync();
+        if (_disposed || generation != _generation) return;
+        _editor = null;
+        _selection = null;
+        _workspaceOpen = false;
+        _loading = false;
+        _publicSafeConfirmed = false;
+        Uri uri = Navigation.ToAbsoluteUri(request);
+        if (uri.Query.Length == 0 && uri.Fragment.Length == 0) return;
+        _loading = true;
+        _status = "Loading public definition metadata before collecting answers…";
+        _statusCode = "source-loading";
+        try
+        {
+            BrowserLaunchSelection selection = await _source.FetchAsync(BrowserDefinitionPointer.Parse(uri.Fragment, uri.Query));
+            if (_disposed || generation != _generation) return;
+            _selection = selection;
+            _status = "Definition admitted and pinned. Open this workspace, or deliberately retain public metadata first.";
+            _statusCode = "source-admitted";
+        }
+        catch (BrowserLaunchException exception)
+        {
+            if (_disposed || generation != _generation) return;
+            _statusCode = exception.Code;
+            _status = "Source selection rejected. Choose a local definition JSON file instead. Code: " + exception.Code + ".";
+        }
+        finally { if (generation == _generation) _loading = false; }
+    }
+
+    private async Task LoadLocalAsync(InputFileChangeEventArgs args)
+    {
+        long generation = ++_generation;
+        _source!.Invalidate();
+        _selection = null;
+        _publicSafeConfirmed = false;
+        _loading = true;
+        try
+        {
+            using Stream stream = args.File.OpenReadStream(BrowserDefinitionSource.MaximumDocumentBytes);
+            SetupDefinition definition = await _source.ReadLocalAsync(stream);
+            if (_disposed || generation != _generation) return;
+            _selection = new(definition, definition.EntryPoints[0], definition.Locales[0]);
+            _statusCode = "source-admitted";
+            _status = "Local definition admitted. Open a fresh workspace with secret entry disabled.";
+        }
+        catch (BrowserLaunchException exception) { if (generation == _generation) Reject(exception.Code); }
+        catch (IOException) { if (generation == _generation) Reject("source-unavailable"); }
+        finally
+        {
+            if (!_disposed && generation == _generation) { _loading = false; _fileKey++; _restoreFileFocus = true; }
+        }
+    }
+
+    private void Reject(string code)
+    {
+        _selection = null;
+        _statusCode = code;
+        _status = "Definition rejected; no workspace was created. Code: " + code + ".";
+    }
+
+    private void SelectRetained(SetupDefinition definition)
+    {
+        _generation++;
+        _source!.Invalidate();
+        _loading = false;
+        _fileKey++;
+        try { Registry.Admit(definition); _selection = new(definition, definition.EntryPoints[0], definition.Locales[0]); }
+        catch (SetupDefinitionException exception) { Reject(exception.Code); }
+        _publicSafeConfirmed = false;
+    }
+
+    private void OpenWorkspace() { _workspaceOpen = true; _publicSafeConfirmed = false; }
+
+    private async Task RetainAsync()
+    {
+        if (_selection is null || !_publicSafeConfirmed) return;
+        bool retained = await Offline.PrepareOfflineAsync(_selection.Definition, _publicSafeConfirmed);
+        _statusCode = retained ? "definition-retained" : "offline-preparation-unavailable";
+        _status = retained ? "Public definition retained for offline reopening. Answers and output are never retained." : "Offline retention could not complete. The memory-only workspace remains available.";
+        if (retained) _retained = await Offline.ReadRetainedDefinitionsAsync();
+    }
+
+    private async Task DiscardAsync()
+    {
+        long generation = ++_generation;
+        _source!.Invalidate();
+        if (_editor is not null) await _editor.DiscardAsync();
+        if (_disposed || generation != _generation) return;
+        _editor = null;
+        _workspaceOpen = false;
+        _selection = null;
+        _loading = false;
+        _fileKey++;
+        _restoreFileFocus = true;
+        _statusCode = "workspace-discarded";
+        _status = "Answers and output discarded. Choose another definition.";
+    }
+
+    private void LocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (_disposed || args.Location == _request) return;
+        _generation++;
+        _source?.Invalidate();
+        _editor?.Invalidate();
+        _ = InvokeAsync(async () => { await SelectSourceAsync(); if (!_disposed) StateHasChanged(); });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_restoreFileFocus || _fileInput is null) return;
+        _restoreFileFocus = false;
+        await _fileInput.Element!.Value.FocusAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _generation++;
+        Navigation.LocationChanged -= LocationChanged;
+        _editor?.Invalidate();
+        if (_source is not null) await _source.DisposeAsync();
+        _selection = null;
+    }
+}

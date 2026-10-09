@@ -8,7 +8,7 @@ public sealed class BrowserReleaseContractTests
     [Test]
     public async Task EnabledBrowserRuntimeExcludesConnectedAndTelemetryProducts()
     {
-        Assembly assembly = typeof(BrowserPublicTemplate).Assembly;
+        Assembly assembly = typeof(BrowserOfflinePolicy).Assembly;
         string[] forbidden =
         [
             "Configurator.Presentation.SetupLive",
@@ -29,21 +29,16 @@ public sealed class BrowserReleaseContractTests
     }
 
     [Test]
-    public async Task BrowserPublicSurfaceExposesNoConnectionOrStorageContract()
+    public async Task BundledDefinitionsRemainDataOnlyWithCanonicalRevisions()
     {
-        string[] forbiddenTerms =
-        [
-            "HttpClient", "Token", "Login", "Identity", "Storage",
-            "Telemetry", "ServiceWorker", "InstanceUrl", "ApiKey"
-        ];
-        Type[] publicTypes = typeof(BrowserPublicTemplate).Assembly.GetExportedTypes();
-        string[] publicMembers = publicTypes
-            .SelectMany(type => type.GetMembers(BindingFlags.Public
-                | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
-            .Select(member => $"{member.DeclaringType?.FullName}.{member.Name}")
-            .ToArray();
-
-        await Assert.That(publicMembers.Any(member => forbiddenTerms.Any(term =>
-            member.Contains(term, StringComparison.OrdinalIgnoreCase)))).IsFalse();
+        BrowserDefinitionRegistry registry = BrowserDefinitionRegistry.LoadBundled();
+        await Assert.That(registry.Current.Definitions.Count > 0).IsTrue();
+        foreach (var definition in registry.Current.Definitions)
+        {
+            var readmitted = Configurator.Core.Definitions.SetupDefinitionCodec.ParseJson(definition.CanonicalBytes);
+            await Assert.That(readmitted.Digest).IsEqualTo(definition.Digest);
+            await Assert.That(readmitted.FamilyId).IsEqualTo(definition.FamilyId);
+            await Assert.That(readmitted.Revision).IsEqualTo(definition.Revision);
+        }
     }
 }

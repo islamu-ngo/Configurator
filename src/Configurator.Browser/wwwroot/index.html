@@ -3,19 +3,24 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Prepare public configuration choices locally without secrets or target connections." />
+    <meta name="description" content="Prepare configuration locally, choose secret custody and export your files." />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <base href="/" />
     <link rel="stylesheet" href="css/setup.css" />
+    <link rel="stylesheet" href="Configurator.Browser.styles.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#143b2a" />
     <title>ISLAMU Configurator</title>
 </head>
 <body>
     <div id="app">
-        <output class="loading">Loading the public setup workspace…</output>
+        <output class="loading">Loading the configuration workspace…</output>
     </div>
     <div id="blazor-error-ui" role="alert">
-        The public setup workspace could not continue.
+        The configuration workspace could not continue.
         <a href="">Reload</a>
     </div>
+    <script type="module" src="pwa-lifecycle.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

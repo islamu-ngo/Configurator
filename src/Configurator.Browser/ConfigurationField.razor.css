@@ -1,0 +1,5 @@
+.configuration-field { margin-block: 1rem; }
+.configuration-field label { display: block; font-weight: 700; }
+.configuration-field fieldset { min-inline-size: 0; border: 1px solid var(--border); border-radius: .6rem; }
+.configuration-field__row { border-block-end: 1px solid var(--border); padding-block: .75rem; }
+.configuration-field input { inline-size: min(100%, 30rem); min-block-size: 2.75rem; padding: .65rem; border: 1px solid var(--border); border-radius: .6rem; background: var(--surface); color: var(--text); font: inherit; }

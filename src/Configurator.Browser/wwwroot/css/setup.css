@@ -34,6 +34,7 @@ a {
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
+textarea:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
     outline: 3px solid #0b6fb8;

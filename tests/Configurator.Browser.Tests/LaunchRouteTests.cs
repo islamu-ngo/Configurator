@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class LaunchRouteTests
 {
     [Test]
-    public async Task NeutralLaunchKeepsConditionalPublicTemplatePartialForNativeCompletion()
+    public async Task NeutralLaunchOffersConditionalFieldsAndSecretDeferredDraft()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
         SetupDefinition definition = registry.Current.Resolve(Guid.Parse("69cdb122-41d2-4fab-9b82-7929a889c726"));
@@ -22,27 +22,12 @@ public sealed class LaunchRouteTests
 
         await Assert.That(component.FindAll("#choice-metrics\\.enabled")).IsEmpty();
         component.Find("#choice-service\\.mode").Change("extended");
+        await Assert.That(component.FindAll("#choice-metrics\\.enabled")).IsEmpty();
+        component.Find("#display-mode").Change("Advanced");
         component.Find("#choice-metrics\\.enabled").Change("true");
-        await Assert.That(component.FindAll("[data-field='service.credential']")).IsEmpty();
-        await Assert.That(component.Find("[data-native-required]").GetAttribute("data-native-required")).IsEqualTo("1");
-        component.Find("button").Click();
-        using JsonDocument template = BrowserFixture.Download(component.Find("a[download]").GetAttribute("href")!);
-        await Assert.That(template.RootElement.GetProperty("selections").GetProperty("service.mode").GetString())
-            .IsEqualTo("extended");
-        await Assert.That(template.RootElement.GetProperty("selections").GetProperty("metrics.enabled").GetBoolean())
-            .IsTrue();
-        BrowserTemplateResult imported = BrowserPublicTemplate.Parse(definition,
-            Encoding.UTF8.GetBytes(template.RootElement.GetRawText()));
-        await Assert.That(imported.IsAccepted).IsTrue();
-        await Assert.That(DefinitionValidator.Validate(definition, imported.Answers!).IsReady).IsFalse();
-        foreach (string rejected in new[]
-        {
-            """{"service.mode":"minimal","metrics.enabled":true}""",
-            """{"service.credential":"synthetic-placeholder"}""",
-            """{"service.name":"sample"}"""
-        })
-            await Assert.That(BrowserPublicTemplate.Parse(definition,
-                BrowserFixture.Template(rejected, definition)).IsAccepted).IsFalse();
+        await Assert.That(component.Find("#choice-service\\.credential").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.FindAll("input[type=text]")).IsNotEmpty();
+        await Assert.That(component.FindAll("a[download]")).IsEmpty();
     }
 
     [Test]
@@ -87,7 +72,7 @@ public sealed class LaunchRouteTests
     }
 
     [Test]
-    public async Task ExternalBundledDefinitionKeepsNativeDigestAndOnlyOffersPublicChoices()
+    public async Task ExternalBundledDefinitionKeepsNativeDigestAndOffersFullLocalControls()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
         var definition = registry.Current.Resolve(Guid.Parse("a4bcfaa6-9979-43e5-b1f5-00d552618cdf"));
@@ -98,18 +83,13 @@ public sealed class LaunchRouteTests
 
         await Assert.That(component.Find("[data-digest]").GetAttribute("data-digest"))
             .IsEqualTo(definition.Digest.Value);
-        await Assert.That(component.FindAll("[data-field]").Count).IsEqualTo(1);
         component.Find("#choice-operation").Change("environment");
-        foreach (var field in definition.Fields.Where(field => !BrowserPublicTemplate.IsSelectable(field)))
-            await Assert.That(component.FindAll($"[id=\"choice-{field.Id}\"]")).IsEmpty();
-        await Assert.That(component.FindAll("input[type=password],textarea,input[type=text]")).IsEmpty();
-        component.Find("button").Click();
-        using JsonDocument template = BrowserFixture.Download(component.Find("a[download]").GetAttribute("href")!);
-        await Assert.That(template.RootElement.GetProperty("definitionDigest").GetString())
-            .IsEqualTo(definition.Digest.Value);
-        foreach (JsonProperty choice in template.RootElement.GetProperty("selections").EnumerateObject())
-            await Assert.That(BrowserPublicTemplate.IsSelectable(definition.Fields.Single(field => field.Id == choice.Name)))
-                .IsTrue();
+        await Assert.That(component.FindAll("[data-field]").Count).IsGreaterThan(1);
+        component.Find("#choice-select\\.feature\\.security-config").Change("true");
+        component.Find("#display-mode").Change("Advanced");
+        await Assert.That(component.Find("#choice-env\\.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION").HasAttribute("disabled")).IsFalse();
+        await Assert.That(component.FindAll("input[type=text]")).IsNotEmpty();
+        await Assert.That(component.FindAll("a[download]")).IsEmpty();
     }
 
     [Test]
@@ -194,11 +174,11 @@ public sealed class LaunchRouteTests
         registry.Replace([BrowserFixture.Revision(2)]);
         component.FindComponent<Launch>().Render(parameters => parameters.Add(item => item.FamilyId, BrowserFixture.Family));
         component.Find("#choice-mode").Change("single");
-        component.Find("button").Click();
-        using JsonDocument template = BrowserFixture.Download(component.Find("a[download]").GetAttribute("href")!);
+        component.Find("#choice-hostname").Input("example.test");
+        component.Find("#prepare-draft").Click();
         await Assert.That(component.Find("[data-digest]").GetAttribute("data-digest")).IsEqualTo(first.Digest.Value);
-        await Assert.That(template.RootElement.GetProperty("revision").GetInt64()).IsEqualTo(1L);
-        await Assert.That(template.RootElement.GetProperty("definitionDigest").GetString()).IsEqualTo(first.Digest.Value);
+        await Assert.That(component.Find("[data-revision]").GetAttribute("data-revision")).IsEqualTo("1");
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsNotEmpty();
     }
 
     [Test]
@@ -210,7 +190,8 @@ public sealed class LaunchRouteTests
         navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
         var component = context.Render<App>();
         component.Find("#choice-mode").Change("single");
-        component.Find("button").Click();
+        component.Find("#choice-hostname").Input("example.test");
+        component.Find("#prepare-draft").Click();
         registry.Replace([BrowserFixture.Revision(2)]);
         await component.InvokeAsync(() => navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0&entry=setup"));
         await Assert.That(component.Find("[data-revision]").GetAttribute("data-revision")).IsEqualTo("2");
