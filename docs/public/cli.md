@@ -15,13 +15,13 @@ Definitions use the flat `schemaVersion: 1` contract. `.yaml` and `.yml` definit
 files use the bounded YAML admission path; other extensions use JSON.
 Answers are a JSON object whose property names are definition field IDs, for
 example `{"service.name":"my-service"}`. Answers are never command-line values.
-The input is an answer workspace, not an already projected host artifact: generic
+For ordinary artifact operations, the input is an answer workspace. Generic
 projections are not necessarily reversible. Existing host manifests, identity
 exports and legal drafts must be represented as declared object/list fields by
 their target-owned definition. The target remains responsible for integrity and
 full semantic acceptance of its exported/imported formats.
 
-Every `artifact` and `env` operation also accepts `--answers PATH`. With that
+Ordinary `artifact` and `env` operations also accept `--answers PATH`. With that
 option, `--input` is an existing projected artifact and `--answers` is its answer
 workspace proof. The CLI recomposes using the admitted definition and rejects a
 projection mismatch. JSON/YAML compare bounded parsed documents, dotenv compares
@@ -56,6 +56,8 @@ exclusive. Every value option occurs at most once. Commands are case sensitive.
 | `artifact coverage` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--input-revision NUMBER` |
 | `artifact export` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `artifact import` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH`, `--expected-revision REVISION`, `--revision-field ID` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
+| `artifact check-existing` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--answers PATH`, `--input-revision NUMBER` |
+| `artifact prefill` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--answers PATH`, `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `artifact preview` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `doctor` | none | none |
 
@@ -88,6 +90,25 @@ host wrapper, implicit revision or integrity claim is added.
 Import-semantic artifacts cannot be published through `create`, `format`,
 `export`, `preview` or `env render`; those routes reject with
 `import-command-required` rather than bypassing explicit revision binding.
+
+`check-existing` assesses a local dotenv, JSON or YAML file through a selected
+definition projection. `prefill` performs the same check and writes a restricted
+JSON answer workspace. Only present top-level output keys with unconditional
+`copy` mappings can be read back; unknown, duplicate, conditional, transformed,
+inactive, invalid or conflicting values reject the whole import. Optional
+`--answers` supplies current answers for conflict detection; without it the
+workspace starts empty. `--input-revision` labels that current workspace and a
+successful prefill advances it by one. Missing fields remain unanswered, so a
+successful check or prefill does not mean the configuration is ready for a host.
+These operations are separate from revision-bound `artifact import` and the
+`--answers` recomposition proof on ordinary operations.
+
+```bash
+islamu-configurator artifact check-existing --definition definition.json \
+  --artifact config --input service.json --machine
+islamu-configurator artifact prefill --definition definition.json \
+  --artifact config --input service.json --output prefilled-answers.json --machine
+```
 
 Catalogue output is structural metadata only: ID, type, sensitivity, required
 flag, disclosure, and (for `describe`) presence of activation, required-condition,
@@ -127,7 +148,7 @@ operation, mode), `status`, `exitCategory`, `exitCode`, `dryRun`, `diagnostics`,
 `artifacts`, `coverage`, `readiness`. Diagnostic objects contain code/path/severity.
 Artifact objects contain kind/mediaType/digest/sensitivity/coverage/readiness/
 pathIntent/writeStatus. No artifact body is included. Kinds are `catalogue`,
-`definition-artifact`, `doctor-report`; sensitivities are `public`, `restricted`.
+`definition-artifact`, `answer-snapshot`, `doctor-report`; sensitivities are `public`, `restricted`.
 Coverage lists are unique and ordinally sorted. Successful local preparation
 reports `host-validation-required` readiness, not host acceptance.
 

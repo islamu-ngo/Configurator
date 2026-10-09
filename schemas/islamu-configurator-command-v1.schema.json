@@ -196,6 +196,35 @@
             ]
           },
           {
+            "name": "check-existing",
+            "options": [
+              "--answers",
+              "--artifact",
+              "--definition",
+              "--help",
+              "--input",
+              "--input-revision",
+              "--machine",
+              "--text"
+            ]
+          },
+          {
+            "name": "prefill",
+            "options": [
+              "--answers",
+              "--artifact",
+              "--definition",
+              "--dry-run",
+              "--format",
+              "--help",
+              "--input",
+              "--input-revision",
+              "--machine",
+              "--output",
+              "--text"
+            ]
+          },
+          {
             "name": "preview",
             "options": [
               "--answers",
@@ -399,6 +428,7 @@
         },
         "operation": {
           "enum": [
+            "check-existing",
             "coverage",
             "create",
             "describe",
@@ -409,6 +439,7 @@
             "import",
             "list",
             "open",
+            "prefill",
             "preview",
             "render",
             "show",
@@ -470,6 +501,7 @@
           "enum": [
             "catalogue",
             "definition-artifact",
+            "answer-snapshot",
             "doctor-report"
           ]
         },

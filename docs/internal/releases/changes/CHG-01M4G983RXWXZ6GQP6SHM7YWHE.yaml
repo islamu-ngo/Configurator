@@ -1,0 +1,28 @@
+Change-Id: CHG-01M4G983RXWXZ6GQP6SHM7YWHE
+Title: "assess and prefill existing configuration files"
+Type: feat
+Scope: cli
+Summary: "Expose distinct check-existing and prefill operations through the bounded machine contract. Preserve revision-bound artifact import and answer proof semantics, save prefilled answers through protected create-only output, and clear transient private byte copies."
+Group: cli-import
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Expose distinct check-existing and prefill operations through the bounded machine contract. Preserve revision-bound artifact import and answer proof semantics, save prefilled answers through protected create-only output, and clear transient private byte copies."
+  Migration:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Expose distinct check-existing and prefill operations through the bounded machine contract. Preserve revision-bound artifact import and answer proof semantics, save prefilled answers through protected create-only output, and clear transient private byte copies."

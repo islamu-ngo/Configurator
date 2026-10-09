@@ -9,7 +9,7 @@ internal static class SetupCliContractSpecification
             new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
             {
                 ["catalogue"] = new HashSet<string>(["list", "show", "describe"], StringComparer.Ordinal),
-                ["artifact"] = new HashSet<string>(["create", "open", "validate", "format", "diff", "coverage", "export", "import", "preview"], StringComparer.Ordinal),
+                ["artifact"] = new HashSet<string>(["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "prefill", "preview"], StringComparer.Ordinal),
                 ["env"] = new HashSet<string>(["render", "validate"], StringComparer.Ordinal),
                 ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal)
             });

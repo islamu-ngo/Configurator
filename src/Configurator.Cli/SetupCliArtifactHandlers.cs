@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Configurator.Artifacts;
 using Configurator.Core;
@@ -23,6 +25,9 @@ internal static class SetupCliArtifactHandlers
         if (artifact.ApplySemantics == "import"
             && command.Operation is "create" or "format" or "export" or "preview" or "render")
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "import-command-required", "$.artifact");
+
+        if (command.Operation is "check-existing" or "prefill")
+            return AssessExisting(command, invocation, definition, artifact);
 
         SetupAnswerSnapshot answers = SetupCliIoOperations.Answers(invocation, command.Answers ?? command.Input!, command.InputRevision);
         if (command.Operation == "import")
@@ -58,41 +63,53 @@ internal static class SetupCliArtifactHandlers
         DefinitionArtifactResult composed = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers);
         if (!composed.Succeeded)
             return SetupCliResults.Failure(SetupCliExitCode.Validation, "artifact-composition-failed", "$.input");
-        DefinitionArtifact output = composed.Artifact!;
-        if (command.Answers is not null && !Equivalent(
-            artifact.Format, SetupCliIoOperations.Read(invocation, command.Input!), output.Bytes))
-            return SetupCliResults.Failure(SetupCliExitCode.Data, "artifact-projection-mismatch", "$.input");
-        if (command.Operation == "diff")
+        using DefinitionArtifact output = composed.Artifact!;
+        ReadOnlyMemory<byte> outputBytes = output.Bytes;
+        try
         {
-            if (command.Answers is not null)
+            if (command.Answers is not null && !EquivalentInput(
+                invocation, command.Input!, artifact.Format, outputBytes))
+                return SetupCliResults.Failure(SetupCliExitCode.Data, "artifact-projection-mismatch", "$.input");
+            if (command.Operation == "diff")
             {
-                bool equal = Equivalent(artifact.Format, SetupCliIoOperations.Read(invocation, command.Baseline!), output.Bytes);
-                var compared = new SetupCliMachineCoverage(equal ? [artifact.Id] : [], equal ? [] : [artifact.Id]);
-                return SetupCliResults.Success(coverage: compared);
+                if (command.Answers is not null)
+                {
+                    bool equal = EquivalentInput(invocation, command.Baseline!, artifact.Format, outputBytes);
+                    var compared = new SetupCliMachineCoverage(equal ? [artifact.Id] : [], equal ? [] : [artifact.Id]);
+                    return SetupCliResults.Success(coverage: compared);
+                }
+                SetupAnswerSnapshot baseline = SetupCliIoOperations.Answers(invocation, command.Baseline!, command.InputRevision);
+                DefinitionArtifactResult previous = DefinitionArtifactComposer.Compose(definition, artifact.Id, baseline);
+                if (!previous.Succeeded)
+                    return SetupCliResults.Failure(SetupCliExitCode.Validation, "baseline-invalid", "$.baseline");
+                using DefinitionArtifact prior = previous.Artifact!;
+                ReadOnlyMemory<byte> priorBytes = prior.Bytes;
+                try
+                {
+                    bool same = priorBytes.Span.SequenceEqual(outputBytes.Span);
+                    var facts = new SetupCliMachineCoverage(same ? [artifact.Id] : [], same ? [] : [artifact.Id]);
+                    return SetupCliResults.Success(coverage: facts);
+                }
+                finally { Clear(priorBytes); }
             }
-            SetupAnswerSnapshot baseline = SetupCliIoOperations.Answers(invocation, command.Baseline!, command.InputRevision);
-            DefinitionArtifactResult previous = DefinitionArtifactComposer.Compose(definition, artifact.Id, baseline);
-            if (!previous.Succeeded)
-                return SetupCliResults.Failure(SetupCliExitCode.Validation, "baseline-invalid", "$.baseline");
-            bool same = previous.Artifact!.Bytes.Span.SequenceEqual(output.Bytes.Span);
-            var facts = new SetupCliMachineCoverage(same ? [artifact.Id] : [], same ? [] : [artifact.Id]);
-            return SetupCliResults.Success(coverage: facts);
-        }
-        if (command.Operation == "coverage")
-            return SetupCliResults.Success(coverage: coverage);
+            if (command.Operation == "coverage")
+                return SetupCliResults.Success(coverage: coverage);
 
-        bool write = command.Operation is "create" or "format" or "export" or "import" or "preview" or "render";
-        if (write)
-        {
-            if (command.Output == "-")
-                return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "$.output");
-            SetupCliIoOperations.Write(invocation, command,
-                artifact.Format == "dotenv" ? SetupArtifactKind.Environment : SetupArtifactKind.Configuration, output.Bytes);
+            bool write = command.Operation is "create" or "format" or "export" or "import" or "preview" or "render";
+            if (write)
+            {
+                if (command.Output == "-")
+                    return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "$.output");
+                SetupCliIoOperations.Write(invocation, command,
+                    artifact.Format == "dotenv" ? SetupArtifactKind.Environment : SetupArtifactKind.Configuration, outputBytes);
+            }
+            var hostReadiness = new SetupCliMachineReadiness("incomplete", ["host-validation-required"], []);
+            return SetupCliResults.Success([new SetupCliMachineArtifact("definition-artifact", output.MediaType,
+                output.Digest.Value, "restricted", coverage, hostReadiness,
+                write ? SetupCliResults.PathIntent(command.Output) : "input",
+                write ? command.DryRun ? "planned" : "written" : "none")], coverage, hostReadiness);
         }
-        var hostReadiness = new SetupCliMachineReadiness("incomplete", ["host-validation-required"], []);
-        return SetupCliResults.Success([SetupCliResults.Artifact("definition-artifact", output.MediaType, output.Bytes.Span,
-            "restricted", write ? SetupCliResults.PathIntent(command.Output) : "input",
-            write ? command.DryRun ? "planned" : "written" : "none", coverage, hostReadiness)], coverage, hostReadiness);
+        finally { Clear(outputBytes); }
     }
 
     internal static SetupCliCommandResult Doctor()
@@ -102,6 +119,60 @@ internal static class SetupCliArtifactHandlers
         byte[] schema = SetupCliCommandSchemaMetadata.GenerateSchema();
         return SetupCliResults.Success([SetupCliResults.Artifact("doctor-report", "application/json", schema,
             "public", "none", "none")]);
+    }
+
+    private static SetupCliCommandResult AssessExisting(SetupCliCommand command, SetupCliInvocation invocation,
+        SetupDefinition definition, SetupArtifactDefinition artifact)
+    {
+        SetupAnswerSnapshot current = command.Answers is null
+            ? new(long.Parse(command.InputRevision, CultureInfo.InvariantCulture),
+                new Dictionary<string, JsonElement>(StringComparer.Ordinal))
+            : SetupCliIoOperations.Answers(invocation, command.Answers, command.InputRevision);
+        byte[] source = SetupCliIoOperations.Read(invocation, command.Input!);
+        DefinitionImportResult result;
+        try { result = DefinitionImport.Assess(definition, artifact.Id, source, current); }
+        finally { CryptographicOperations.ZeroMemory(source); }
+        if (!result.Succeeded)
+            return SetupCliResults.Failure(result.Code == "answer-conflict" ? SetupCliExitCode.Validation
+                : result.Code == "inverse-unsupported" || result.Code == "import-unsupported"
+                    ? SetupCliExitCode.Blocked : SetupCliExitCode.Data, result.Code, "$.input");
+
+        DefinitionValidationResult validation = DefinitionValidator.Validate(definition, result.Answers!);
+        var coverage = new SetupCliMachineCoverage(
+            validation.Fields.Where(field => field.IsActive && field.IsProvided && !field.HasError)
+                .Select(field => field.Id),
+            validation.Fields.Where(field => field.IsRequired && (!field.IsProvided || field.HasError))
+                .Select(field => field.Id));
+        var readiness = validation.IsReady ? SetupCliResults.Ready()
+            : new SetupCliMachineReadiness("incomplete", coverage.MissingKeys, []);
+        if (command.Operation == "check-existing")
+            return SetupCliResults.Success(coverage: coverage, readiness: readiness);
+
+        if (command.Output == "-")
+            return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "$.output");
+        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(result.Answers!.Values);
+        try
+        {
+            SetupCliIoOperations.Write(invocation, command, SetupArtifactKind.Configuration, bytes);
+            return SetupCliResults.Success([SetupCliResults.Artifact("answer-snapshot", "application/json", bytes,
+                "restricted", SetupCliResults.PathIntent(command.Output),
+                command.DryRun ? "planned" : "written", coverage, readiness)], coverage, readiness);
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+    }
+
+    private static bool EquivalentInput(SetupCliInvocation invocation, string path,
+        string format, ReadOnlyMemory<byte> expected)
+    {
+        byte[] candidate = SetupCliIoOperations.Read(invocation, path);
+        try { return Equivalent(format, candidate, expected); }
+        finally { CryptographicOperations.ZeroMemory(candidate); }
+    }
+
+    private static void Clear(ReadOnlyMemory<byte> bytes)
+    {
+        if (MemoryMarshal.TryGetArray(bytes, out ArraySegment<byte> segment))
+            CryptographicOperations.ZeroMemory(segment.AsSpan());
     }
 
     private static bool CopiesRevision(SetupDefinition definition, string artifactId, string field)
@@ -192,20 +263,29 @@ internal static class SetupCliIoOperations
     internal static SetupDefinition Definition(SetupCliInvocation invocation, string path)
     {
         byte[] bytes = Read(invocation, path);
-        return Path.GetExtension(path).ToLowerInvariant() is ".yaml" or ".yml"
-            ? SetupDefinitionCodec.ParseYaml(bytes) : SetupDefinitionCodec.ParseJson(bytes);
+        try
+        {
+            return Path.GetExtension(path).ToLowerInvariant() is ".yaml" or ".yml"
+                ? SetupDefinitionCodec.ParseYaml(bytes) : SetupDefinitionCodec.ParseJson(bytes);
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
     internal static SetupAnswerSnapshot Answers(SetupCliInvocation invocation, string path, string revision)
     {
-        using JsonDocument document = JsonDocument.Parse(Read(invocation, path),
-            new JsonDocumentOptions { MaxDepth = 32 });
-        if (document.RootElement.ValueKind != JsonValueKind.Object)
-            throw new JsonException();
-        var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        foreach (JsonProperty property in document.RootElement.EnumerateObject())
-            if (!values.TryAdd(property.Name, property.Value.Clone())) throw new JsonException();
-        return new(long.Parse(revision, CultureInfo.InvariantCulture), values);
+        byte[] bytes = Read(invocation, path);
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(bytes,
+                new JsonDocumentOptions { MaxDepth = 32 });
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                throw new JsonException();
+            var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            foreach (JsonProperty property in document.RootElement.EnumerateObject())
+                if (!values.TryAdd(property.Name, property.Value.Clone())) throw new JsonException();
+            return new(long.Parse(revision, CultureInfo.InvariantCulture), values);
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
     internal static void Write(SetupCliInvocation invocation, SetupCliCommand command,

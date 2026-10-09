@@ -7,6 +7,33 @@ namespace Configurator.Cli.Tests;
 public sealed class SetupCliApplicationTests
 {
     [Test]
+    public async Task ExistingFileCheckAndPrefillUseDistinctMachineOperations()
+    {
+        var io = new CliFixture();
+        io.Files["existing.json"] = """{"name":"private-import-marker","enabled":true}"""u8.ToArray();
+        string[] args = ["--definition", "definition.json", "--artifact", "config",
+            "--input", "existing.json", "--machine"];
+        await Assert.That(io.Run(["artifact", "check-existing", .. args])).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-import-marker");
+        await Assert.That(io.Run(["artifact", "prefill", .. args, "--output", "prefilled.json"]))
+            .IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(Encoding.UTF8.GetString(io.Files["prefilled.json"]))
+            .Contains("private-import-marker");
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-import-marker");
+
+        io.Files["existing.json"] = """{"name":"private-import-marker","name":"second"}"""u8.ToArray();
+        await Assert.That(io.Run(["artifact", "check-existing", .. args])).IsEqualTo(SetupCliExitCode.Data);
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-import-marker");
+
+        io.Files["existing.json"] = """{"name":"private-import-marker","enabled":true}"""u8.ToArray();
+        io.Files["answers.json"] = """{"service.name":"different"}"""u8.ToArray();
+        await Assert.That(io.Run(["artifact", "prefill", .. args, "--answers", "answers.json",
+            "--output", "rejected.json"])).IsEqualTo(SetupCliExitCode.Validation);
+        await Assert.That(io.Files.ContainsKey("rejected.json")).IsFalse();
+    }
+
+    [Test]
     public async Task GenericOperationsPrepareCanonicalTargetArtifactsWithoutEvent()
     {
         foreach (string operation in new[] { "create", "open", "validate", "format", "diff", "coverage", "export", "preview" })

@@ -12,5 +12,7 @@ internal static class ArtifactCommands
         SetupCliCommandRegistry.Operation<ArtifactInputSettings>("coverage"),
         SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("export"),
         SetupCliCommandRegistry.Operation<ArtifactImportSettings>("import"),
+        SetupCliCommandRegistry.Operation<ArtifactInputSettings>("check-existing"),
+        SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("prefill"),
         SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("preview"));
 }

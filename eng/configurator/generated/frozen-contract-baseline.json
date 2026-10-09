@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "definitionSchemaSha256": "1239221223e52b7df3526f39420e94f14e94db946271b388067faac51929f3ea",
-  "commandSchemaSha256": "0af4b4017901db0fc76d03fb64457b06a273a17388334513fdfccc07672b5426",
+  "commandSchemaSha256": "74005c95c3f66dd2a8931dd5776de3cc59c612cfcb020d9e25ab01a07944b910",
   "commandFamilies": [
     "catalogue",
     "artifact",

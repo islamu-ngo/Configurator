@@ -63,7 +63,7 @@ public static class SetupCliCommandSchemaMetadata
             }),
             ["artifact"] = ObjectSchema(["kind", "mediaType", "digest", "sensitivity", "coverage", "readiness", "pathIntent", "writeStatus"], new()
             {
-                ["kind"] = Enum(["catalogue", "definition-artifact", "doctor-report"]),
+                ["kind"] = Enum(["catalogue", "definition-artifact", "answer-snapshot", "doctor-report"]),
                 ["mediaType"] = String(1, 128, "^[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*(?:;v=[a-z0-9.-]+)?$"),
                 ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
                 ["sensitivity"] = Enum(["public", "restricted"]),

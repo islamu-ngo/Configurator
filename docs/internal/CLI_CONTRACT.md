@@ -16,9 +16,18 @@ codes. Human rendering is isolated from machine output.
 `SetupCliIoOperations` reads bounded bytes, admits a local definition using
 `SetupDefinitionCodec`, rejects duplicate answer properties and snapshots JSON
 answers with `SetupAnswerSnapshot`. `SetupCliArtifactHandlers` uses
-`DefinitionValidator` and `DefinitionArtifactComposer`; no compiled target DTO,
-catalogue or transport occurs. The input represents answers, not inverse artifact
-parsing. General projections cannot reconstruct omitted or transformed fields.
+`DefinitionValidator`, `DefinitionArtifactComposer` and the bounded
+`DefinitionImport` inverse; no compiled target DTO, catalogue or transport occurs.
+For ordinary artifact operations, input represents answers. `artifact
+check-existing` and `artifact prefill` instead read a local projected file for
+one selected artifact. Only present, unconditional top-level `copy` members of
+a JSON, YAML or dotenv root object can prefill answers. Duplicate, unknown,
+conditional, transformed, inactive, invalid or conflicting input rejects the
+whole candidate. Missing fields stay missing; this does not establish full
+native readiness or target acceptance. `--answers` on these two operations is
+an optional existing answer workspace, and `prefill` writes one new restricted
+answer snapshot to a create-only destination. Its values never enter the
+machine envelope.
 Host-specific imports must describe their fields/request projection as data.
 With `--answers`, input is a prepared artifact and the answers provide a
 recomposition proof: bounded Core JSON/YAML normalization, dotenv parsing, or
@@ -28,12 +37,6 @@ bytes rather than copying untrusted input. Artifact-source diff compares the
 bounded baseline with the proven candidate; it never claims target acceptance.
 Import-semantic artifacts publish only through `artifact import`; other write
 operations reject before reading answers so they cannot bypass revision binding.
-With `--answers`, input is a prepared artifact and the answers provide a
-recomposition proof: bounded Core JSON/YAML normalization, dotenv parsing, or
-exact Markdown comparison checks it against the composer's output. A mismatch
-returns data failure without publication. Formatting writes canonical composer
-bytes rather than copying untrusted input. Artifact-source diff compares the
-bounded baseline with the proven candidate; it never claims target acceptance.
 `open` and `validate` compose without writing; `coverage` derives required/provided
 facts; `diff` compares composed bytes without value disclosure.
 
@@ -82,9 +85,8 @@ vectors used Event manifest/tenant DTO acceptance. The specialized operator
 identity YAML/export/import roundtrip and tamper vectors used Event identity
 content digests and revision hashes. Their **target-specific** acceptance/integrity
 oracles belong in Event exporter/backend contract tests. They are not claimed as
-generic equivalents or silently considered passing here. Parent must preserve
-those original vectors from Event's still-owned source in the Event handoff before
-source removal. Generic CLI tests separately cover projection determinism,
-canonical JSON/YAML output, revision injection/conflict/rejection and non-disclosure.
-The former compiled activation/provider selection vectors move to Event-owned
-definition data tests; generic activation/readiness remains Core/CLI tested.
+generic equivalents or silently considered passing here. Generic CLI tests
+separately cover projection determinism, canonical JSON/YAML output, revision
+injection/conflict/rejection and non-disclosure. Compiled activation/provider
+selection remains Event-owned definition data; generic activation/readiness is
+Core/CLI tested.
