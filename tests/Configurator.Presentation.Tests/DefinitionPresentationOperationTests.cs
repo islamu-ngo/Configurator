@@ -7,6 +7,47 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionPresentationOperationTests
 {
     [Test]
+    public async Task ImportCommitsOneRevisionOnlyWhileOriginalFormIsCurrent()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        var pending = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<DefinitionImportResult> import = form.ImportAsync("config", _ => pending.Task);
+        form.Fields.Single().Text = "later-edit";
+        pending.SetResult("""{"name":"private-import-marker"}"""u8.ToArray());
+
+        DefinitionImportResult discarded = await import;
+        await Assert.That(discarded.Succeeded).IsFalse();
+        await Assert.That(form.Snapshot().Values["service.name"].GetString()).IsEqualTo("later-edit");
+        await Assert.That(form.InputRevision).IsEqualTo(1);
+        await Assert.That(discarded.ToString()).DoesNotContain("private-import-marker");
+
+        form.Fields.Single().Text = string.Empty;
+        DefinitionImportResult applied = await form.ImportAsync("config",
+            _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"name":"private-import-marker"}"""u8.ToArray()));
+        await Assert.That(applied.Succeeded).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(3);
+        await Assert.That(form.Fields.Single().Text).IsEqualTo("private-import-marker");
+    }
+
+    [Test]
+    public async Task CancelledOrDisposedFormNeverAppliesPendingImport()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        using var cancellation = new CancellationTokenSource();
+        var pending = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<DefinitionImportResult> import = form.ImportAsync("config", _ => pending.Task, cancellation.Token);
+        cancellation.Cancel();
+        pending.SetResult("""{"name":"private-import-marker"}"""u8.ToArray());
+        await Assert.That((await import).Succeeded).IsFalse();
+
+        var replaced = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<DefinitionImportResult> oldImport = form.ImportAsync("config", _ => replaced.Task);
+        form.Dispose();
+        replaced.SetResult("""{"name":"private-import-marker"}"""u8.ToArray());
+        await Assert.That((await oldImport).Succeeded).IsFalse();
+    }
+
+    [Test]
     public async Task CapturedAnswersRemainStableAfterCallerChangesItsDictionary()
     {
         SetupDefinition definition = Definition();

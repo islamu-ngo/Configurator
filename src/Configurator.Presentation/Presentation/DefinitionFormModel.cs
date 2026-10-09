@@ -11,6 +11,7 @@ using Configurator.Core.Definitions;
 /// </summary>
 public sealed class DefinitionFormModel : ObservableObject, IDisposable
 {
+    private readonly object _gate = new();
     private long _inputRevision;
     private SetupDisplayMode _displayMode = SetupDisplayMode.Guided;
     private bool _disposed;
@@ -19,7 +20,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
     {
         Definition = definition;
         Fields = Array.AsReadOnly(definition.Fields.Select(field =>
-            new DefinitionFieldInput(field, OnInputChanged)).ToArray());
+            new DefinitionFieldInput(field, Edit)).ToArray());
     }
 
     public SetupDefinition Definition { get; }
@@ -63,18 +64,60 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public SetupAnswerSnapshot Snapshot()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        foreach (var field in Fields)
+        lock (_gate)
         {
-            if (field.TryValue(out JsonElement? value) && value is { } supplied)
-                values.Add(field.Definition.Id, supplied);
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            foreach (var field in Fields)
+            {
+                if (field.TryValue(out JsonElement? value) && value is { } supplied)
+                    values.Add(field.Definition.Id, supplied);
+            }
+            return new SetupAnswerSnapshot(_inputRevision, values);
         }
-        return new SetupAnswerSnapshot(_inputRevision, values);
     }
 
     public DefinitionValidationResult Validate() =>
         DefinitionValidator.Validate(Definition, Snapshot());
+
+    public async Task<DefinitionImportResult> ImportAsync(string artifactId,
+        Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        SetupAnswerSnapshot original = Snapshot();
+        if (cancellationToken.IsCancellationRequested)
+            return new(false, null, "import-cancelled");
+        ReadOnlyMemory<byte> bytes;
+        try { bytes = await read(cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new(false, null, "import-cancelled");
+        }
+        if (cancellationToken.IsCancellationRequested)
+            return new(false, null, "import-cancelled");
+        DefinitionImportResult result = DefinitionImport.Assess(Definition, artifactId, bytes, original);
+        if (!result.Succeeded) return result;
+        lock (_gate)
+        {
+            if (_disposed || cancellationToken.IsCancellationRequested || _inputRevision != original.InputRevision)
+                return new(false, null, "import-stale");
+            foreach (DefinitionFieldInput field in Fields)
+                if (result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value))
+                    field.SetImported(value);
+            OnInputChanged();
+            return result;
+        }
+    }
+
+    private void Edit(Func<bool> edit)
+    {
+        lock (_gate)
+        {
+            if (_disposed) return;
+            if (edit()) OnInputChanged();
+        }
+    }
 
     private void OnInputChanged()
     {
@@ -87,19 +130,22 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        foreach (var field in Fields) field.Clear();
-        InputChanged = null;
+        lock (_gate)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            foreach (var field in Fields) field.Clear();
+            InputChanged = null;
+        }
     }
 }
 
 public sealed class DefinitionFieldInput : ObservableObject
 {
-    private readonly Action _changed;
+    private readonly Action<Func<bool>> _changed;
     private string _text;
 
-    internal DefinitionFieldInput(SetupFieldDefinition definition, Action changed)
+    internal DefinitionFieldInput(SetupFieldDefinition definition, Action<Func<bool>> changed)
     {
         Definition = definition;
         _changed = changed;
@@ -116,12 +162,11 @@ public sealed class DefinitionFieldInput : ObservableObject
     public string Text
     {
         get => _text;
-        set
-        {
-            if (SetProperty(ref _text, value))
-                _changed();
-        }
+        set => _changed(() => SetProperty(ref _text, value));
     }
+
+    internal void SetImported(JsonElement value) =>
+        SetProperty(ref _text, Display(value), nameof(Text));
 
     internal void Clear()
     {

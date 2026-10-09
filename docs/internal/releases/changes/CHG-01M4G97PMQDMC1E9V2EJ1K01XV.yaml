@@ -1,0 +1,28 @@
+Change-Id: CHG-01M4G97PMQDMC1E9V2EJ1K01XV
+Title: "prefill answers from declared existing files"
+Type: feat
+Scope: definitions
+Summary: "Read bounded JSON, YAML and dotenv values through unconditional direct-copy mappings. Reject unsupported, ambiguous, inactive or conflicting input and apply all imported answers as one revision only while the captured form revision and cancellation state remain current."
+Group: inverse
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Read bounded JSON, YAML and dotenv values through unconditional direct-copy mappings. Reject unsupported, ambiguous, inactive or conflicting input and apply all imported answers as one revision only while the captured form revision and cancellation state remain current."
+  Migration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Read bounded JSON, YAML and dotenv values through unconditional direct-copy mappings. Reject unsupported, ambiguous, inactive or conflicting input and apply all imported answers as one revision only while the captured form revision and cancellation state remain current."

@@ -28,3 +28,8 @@ The generated schema is `schemas/setup-definition-v1.schema.json`. See
 Configurator v1 canonicalization profile. It is not an RFC 8785 compatibility
 claim. Local YAML is normalized to the same definition model; distribution,
 integrity and digest pinning use the canonical JSON bytes.
+
+Existing dotenv, JSON and YAML files can prefill answers only where an artifact
+projection directly copies an active field into an unconditional top-level key.
+Configurator rejects ambiguous, transformed or conflicting input without
+changing a native workspace. Missing fields still need operator answers.

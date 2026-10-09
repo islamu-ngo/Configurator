@@ -40,6 +40,13 @@ with `Succeeded`, `Artifact`, and `Diagnostics`. A successful
 All answer-derived artifacts are `Restricted`, including those whose fields
 are declared public. No definition value grants filesystem or network authority.
 
+`DefinitionImport.Assess` provides a bounded inverse for present, unconditional
+root-object `copy` members in JSON, YAML and dotenv artifacts. Duplicate,
+unknown, transformed, conditional, inactive or conflicting input rejects with
+a value-free code. It returns an answer snapshot without mutating the caller's
+current workspace. A partial prefill may still lack required native answers;
+it does not imply native readiness or target acceptance.
+
 `DotenvEntry`, `DotenvDocument`, `DotenvCodec`, `ArtifactDigest`, and
 `SetupArtifactKind`/`SetupArtifactPolicy` remain writer-compatible. The old
 Event-specific manifest, tenant-package, identity, legal DTO, and platform
