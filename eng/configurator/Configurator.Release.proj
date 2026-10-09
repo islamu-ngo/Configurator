@@ -81,6 +81,7 @@
       RemoveProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;PublishTrimmed;UseAppHost;EnableCompressionInSingleFile;IncludeNativeLibrariesForSelfExtract;DebugSymbols;DebugType"
       Properties="Configuration=$(Configuration);PublishDir=$(ConfiguratorOutputRoot)/browser/;RestoreLockedMode=true" />
     <Error Condition="!Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/index.html')" Text="Static browser index is missing." />
+    <Error Condition="!Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/service-worker.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/service-worker-assets.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/pwa-lifecycle.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/manifest.webmanifest') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/icons/configurator-192.svg') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/icons/configurator-512.svg')" Text="Published offline browser assets are incomplete." />
     <Copy SourceFiles="@(ConfiguratorNotice)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot" />
     <Copy SourceFiles="@(ConfiguratorCapability)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot/contracts" />
     <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot/schemas" />

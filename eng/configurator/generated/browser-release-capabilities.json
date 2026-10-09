@@ -4,9 +4,15 @@
   "targetEnabled": true,
   "capabilities": {
     "publicMetadata": true,
-    "secretEntry": false,
-    "privateExport": false,
+    "secretEntry": true,
+    "secretEntryRequiresWorkspaceConsent": true,
+    "privateExport": true,
+    "privateExportRequiresUserAction": true,
     "persistence": false,
+    "answerPersistence": false,
+    "publicAssetCache": true,
+    "explicitPublicDefinitionCache": true,
+    "nativeProtectedSave": false,
     "targetAuthentication": false,
     "targetApply": false,
     "telemetry": false

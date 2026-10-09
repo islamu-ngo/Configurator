@@ -51,26 +51,50 @@ public sealed class StandalonePackageTests
     public async Task BrowserPackageIsCompleteStaticWasmWithoutNativeOrTestAssemblies()
     {
         string directory = Path.Combine(ReleaseTestPaths.PackageRoot, "browser/wwwroot");
-        foreach (string path in new[] { "index.html", "LICENSE", "THIRD-PARTY-NOTICES.md",
+        foreach (string path in new[] { "index.html", "manifest.webmanifest", "service-worker.js", "service-worker-assets.js",
+            "pwa-lifecycle.js", "LICENSE", "THIRD-PARTY-NOTICES.md",
             "contracts/browser-release-capabilities.json", "schemas/setup-definition-v1.schema.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
+        using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "manifest.webmanifest")));
+        JsonElement icons = manifest.RootElement.GetProperty("icons");
+        await Assert.That(icons.GetArrayLength()).IsGreaterThan(0);
+        foreach (JsonElement icon in icons.EnumerateArray())
+        {
+            string relative = icon.GetProperty("src").GetString()!;
+            await Assert.That(Uri.TryCreate(relative, UriKind.Relative, out _) && !relative.Contains("..", StringComparison.Ordinal)).IsTrue();
+            await Assert.That(File.Exists(Path.Combine(directory, relative))).IsTrue().Because(relative);
+        }
         string[] frameworkFiles = Directory.GetFiles(Path.Combine(directory, "_framework"));
         await Assert.That(frameworkFiles.Any(path => Path.GetFileName(path).StartsWith("dotnet", StringComparison.Ordinal)
             && Path.GetExtension(path) == ".js")).IsTrue();
         await Assert.That(frameworkFiles.Any(path => Path.GetFileName(path).StartsWith("Configurator.Browser", StringComparison.Ordinal)
             && Path.GetExtension(path) == ".wasm")).IsTrue();
+        foreach (string owner in new[] { "Core", "Presentation" })
+            await Assert.That(frameworkFiles.Any(path => Path.GetFileName(path).StartsWith($"Configurator.{owner}", StringComparison.Ordinal)
+                && Path.GetExtension(path) == ".wasm")).IsTrue().Because($"Browser-safe {owner} must be packaged.");
         await Assert.That(Directory.GetFiles(Path.Combine(directory, "dependency-notices"), "*.nuspec", SearchOption.AllDirectories).Length)
             .IsGreaterThan(0);
         using JsonDocument dependencies = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "dependency-notices/packages.json")));
         await Assert.That(dependencies.RootElement.EnumerateArray().Any(item =>
             item.GetString()!.StartsWith("Microsoft.NETCore.App.Runtime.Mono.browser-wasm/", StringComparison.Ordinal))).IsTrue();
         await Assert.That(frameworkFiles.Where(path => Path.GetFileName(path).StartsWith("Configurator.Artifacts", StringComparison.Ordinal)
-            || Path.GetFileName(path).StartsWith("Configurator.Presentation", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Configurator.Cli", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Configurator.Terminal", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Configurator.Desktop", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Avalonia", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("ISLAMU.Terminal.Gui", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Terminal.Gui", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Spectre.Console", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Event.", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Explore.", StringComparison.Ordinal)
             || Path.GetFileName(path).Contains("TUnit", StringComparison.Ordinal)
             || Path.GetFileName(path).Contains("Tests", StringComparison.Ordinal))).IsEmpty();
         using JsonDocument contract = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "contracts/browser-release-capabilities.json")));
-        await Assert.That(contract.RootElement.GetProperty("capabilities").GetProperty("secretEntry").GetBoolean()).IsFalse();
-        await Assert.That(contract.RootElement.GetProperty("capabilities").GetProperty("targetApply").GetBoolean()).IsFalse();
+        JsonElement capabilities = contract.RootElement.GetProperty("capabilities");
+        foreach (string enabled in new[] { "secretEntry", "secretEntryRequiresWorkspaceConsent", "privateExport",
+            "privateExportRequiresUserAction", "publicAssetCache", "explicitPublicDefinitionCache" })
+            await Assert.That(capabilities.GetProperty(enabled).GetBoolean()).IsTrue().Because(enabled);
+        foreach (string disabled in new[] { "persistence", "answerPersistence", "nativeProtectedSave", "targetAuthentication", "targetApply", "telemetry" })
+            await Assert.That(capabilities.GetProperty(disabled).GetBoolean()).IsFalse().Because(disabled);
     }
 }

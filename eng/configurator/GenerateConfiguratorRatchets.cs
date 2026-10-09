@@ -32,8 +32,12 @@ var outputs = new Dictionary<string, JsonObject>(StringComparer.Ordinal)
         ["targetEnabled"] = true,
         ["capabilities"] = new JsonObject
         {
-            ["publicMetadata"] = true, ["secretEntry"] = false,
-            ["privateExport"] = false, ["persistence"] = false,
+            ["publicMetadata"] = true, ["secretEntry"] = true,
+            ["secretEntryRequiresWorkspaceConsent"] = true,
+            ["privateExport"] = true, ["privateExportRequiresUserAction"] = true,
+            ["persistence"] = false, ["answerPersistence"] = false,
+            ["publicAssetCache"] = true, ["explicitPublicDefinitionCache"] = true,
+            ["nativeProtectedSave"] = false,
             ["targetAuthentication"] = false, ["targetApply"] = false,
             ["telemetry"] = false
         }
