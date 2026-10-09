@@ -158,9 +158,10 @@ public static class SetupDefinitionCodec
                 throw new SetupDefinitionException("choices-invalid");
         }
         else if (field.TryGetProperty("choices", out _)) throw new SetupDefinitionException("constraint-invalid");
-        if (type == "list") Choice(field, "itemType", "string", "boolean", "integer", "number");
+        if (type == "list") Choice(field, "itemType", "string", "boolean", "integer", "number", "object");
         else if (field.TryGetProperty("itemType", out _)) throw new SetupDefinitionException("constraint-invalid");
-        if (type == "object")
+        bool objectList = type == "list" && field.GetProperty("itemType").GetString() == "object";
+        if (type == "object" || objectList)
         {
             if (!field.TryGetProperty("properties", out var properties) || properties.ValueKind != JsonValueKind.Array)
                 throw new SetupDefinitionException("properties-invalid");
@@ -173,6 +174,27 @@ public static class SetupDefinitionCodec
             }
         }
         else if (field.TryGetProperty("properties", out _)) throw new SetupDefinitionException("constraint-invalid");
+        if (field.TryGetProperty("uniqueBy", out var uniqueBy))
+        {
+            if (!objectList || uniqueBy.GetArrayLength() is < 1 or > SetupCompositionLimits.DefaultNestingDepth)
+                throw new SetupDefinitionException("unique-key-invalid");
+            JsonElement current = field;
+            int position = 0;
+            foreach (JsonElement segment in uniqueBy.EnumerateArray())
+            {
+                string name = Identifier(segment);
+                if (!current.TryGetProperty("properties", out var properties))
+                    throw new SetupDefinitionException("unique-key-invalid");
+                JsonElement child = properties.EnumerateArray().FirstOrDefault(property => property.GetProperty("id").GetString() == name);
+                if (child.ValueKind == JsonValueKind.Undefined || !child.TryGetProperty("required", out var required) || !required.GetBoolean())
+                    throw new SetupDefinitionException("unique-key-invalid");
+                current = child;
+                if (++position < uniqueBy.GetArrayLength() && current.GetProperty("type").GetString() != "object")
+                    throw new SetupDefinitionException("unique-key-invalid");
+            }
+            if (current.GetProperty("type").GetString() != "string")
+                throw new SetupDefinitionException("unique-key-invalid");
+        }
         if (nested && (field.TryGetProperty("activeWhen", out _) || field.TryGetProperty("requiredWhen", out _)))
             throw new SetupDefinitionException("nested-condition");
         foreach (string name in new[] { "default", "recommended" })
@@ -333,6 +355,7 @@ internal sealed record FieldDocument
     public int? MinItems { get; init; }
     public int? MaxItems { get; init; }
     public string? ItemType { get; init; }
+    public IReadOnlyList<string>? UniqueBy { get; init; }
     public IReadOnlyList<FieldDocument>? Properties { get; init; }
     public ConditionDocument? ActiveWhen { get; init; }
     public ConditionDocument? RequiredWhen { get; init; }

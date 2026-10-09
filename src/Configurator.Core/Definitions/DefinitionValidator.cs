@@ -2,6 +2,7 @@ namespace Configurator.Core.Definitions;
 
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using Configurator.Core.Composition;
 
 public sealed class SetupFieldState
 {
@@ -34,24 +35,36 @@ public sealed class SetupFieldState
 public sealed class DefinitionValidationResult
 {
     internal DefinitionValidationResult(IEnumerable<SetupFieldState> fields,
-        IEnumerable<DefinitionDiagnostic> diagnostics, Dictionary<string, JsonElement> values)
+        IEnumerable<DefinitionDiagnostic> diagnostics, Dictionary<string, JsonElement> values,
+        IReadOnlySet<string>? deferred = null, IReadOnlySet<string>? unresolved = null)
     {
         Fields = Array.AsReadOnly(fields.ToArray());
         Diagnostics = Array.AsReadOnly(diagnostics.OrderBy(item => item.FieldId, StringComparer.Ordinal)
             .ThenBy(item => item.Code, StringComparer.Ordinal).ToArray());
         Values = new ReadOnlyDictionary<string, JsonElement>(values);
+        DeferredFields = deferred ?? new HashSet<string>(StringComparer.Ordinal);
+        UnresolvedFields = unresolved ?? new HashSet<string>(StringComparer.Ordinal);
     }
 
     public IReadOnlyList<SetupFieldState> Fields { get; }
     public IReadOnlyList<DefinitionDiagnostic> Diagnostics { get; }
     public bool IsReady => Diagnostics.Count == 0;
     internal IReadOnlyDictionary<string, JsonElement> Values { get; }
+    internal IReadOnlySet<string> DeferredFields { get; }
+    internal IReadOnlySet<string> UnresolvedFields { get; }
     public override string ToString() => $"{nameof(DefinitionValidationResult)}:Ready={IsReady}:Diagnostics={Diagnostics.Count}";
 }
 
 public static class DefinitionValidator
 {
     public static DefinitionValidationResult Validate(SetupDefinition definition, SetupAnswerSnapshot answers)
+        => ValidateCore(definition, answers, draft: false);
+
+    /// <summary>Validates draft answers, deferring only empty or absent secret leaves. Ordinary answer errors remain blocking.</summary>
+    public static DefinitionValidationResult ValidateDraft(SetupDefinition definition, SetupAnswerSnapshot answers)
+        => ValidateCore(definition, answers, draft: true);
+
+    private static DefinitionValidationResult ValidateCore(SetupDefinition definition, SetupAnswerSnapshot answers, bool draft)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(answers);
@@ -59,6 +72,8 @@ public static class DefinitionValidator
         var active = new Dictionary<string, bool>(StringComparer.Ordinal);
         var effective = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         var diagnostics = new List<DefinitionDiagnostic>();
+        var deferred = new HashSet<string>(StringComparer.Ordinal);
+        var unresolved = new HashSet<string>(StringComparer.Ordinal);
         if (answers.Values.Keys.Any(key => !definitions.ContainsKey(key)))
             diagnostics.Add(new("field-unknown", ""));
         foreach (SetupFieldDefinition field in definition.Fields) Activate(field);
@@ -68,45 +83,80 @@ public static class DefinitionValidator
             foreach (string name in new[] { "activeWhen", "requiredWhen" })
                 if (field.Data.TryGetProperty(name, out var condition))
                     foreach (string reference in References(condition)) Activate(definitions[reference]);
-            bool enabled = !field.Data.TryGetProperty("activeWhen", out var expression)
-                || ConditionMatches(expression, effective);
+            bool? activation = field.Data.TryGetProperty("activeWhen", out var expression)
+                ? EvaluateCondition(expression, effective, draft ? UnknownFields() : null) : true;
+            if (activation is null) unresolved.Add(field.Id);
+            bool enabled = activation != false;
             active.Add(field.Id, enabled);
             if (!enabled) return;
             if (answers.Values.TryGetValue(field.Id, out var value)) effective.Add(field.Id, value);
             else if (field.Default is { } fallback) effective.Add(field.Id, fallback);
+            if (draft)
+            {
+                var missingLeaves = new HashSet<string>(StringComparer.Ordinal);
+                bool present = effective.TryGetValue(field.Id, out var answer);
+                _ = ValueValid(field.Data, answer, present, missingLeaves, field.Id, false);
+                if (missingLeaves.Count > 0) deferred.Add(field.Id);
+                if (!field.Required && Missing(present, answer) && field.Data.TryGetProperty("requiredWhen", out var requiredWhen)
+                    && EvaluateCondition(requiredWhen, effective, UnknownFields()) is null)
+                    unresolved.Add(field.Id);
+            }
         }
+
+        HashSet<string> UnknownFields() => deferred.Concat(unresolved).ToHashSet(StringComparer.Ordinal);
 
         var states = new List<SetupFieldState>();
         foreach (SetupFieldDefinition field in definition.Fields)
         {
             bool enabled = active[field.Id];
-            bool required = enabled && (field.Required || field.Data.TryGetProperty("requiredWhen", out var condition)
-                && ConditionMatches(condition, effective));
+            bool? conditionalRequired = field.Data.TryGetProperty("requiredWhen", out var condition)
+                ? EvaluateCondition(condition, effective, draft ? UnknownFields() : null) : false;
+            if (draft && enabled && !field.Required && conditionalRequired is null
+                && Missing(effective.TryGetValue(field.Id, out var candidate), candidate)) unresolved.Add(field.Id);
+            bool required = enabled && (field.Required || conditionalRequired == true);
             bool present = effective.TryGetValue(field.Id, out var value);
-            bool invalid = enabled && present && !ValueValid(field.Data, value);
+            var missingLeaves = draft ? new HashSet<string>(StringComparer.Ordinal) : null;
+            bool valid = draft ? ValueValid(field.Data, value, present, missingLeaves, field.Id, false)
+                : !present || ValueValid(field.Data, value);
+            bool invalid = enabled && present && !valid;
             bool missing = required && (!present || value.ValueKind == JsonValueKind.Null
                 || value.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(value.GetString()));
-            if (invalid) diagnostics.Add(new("value-invalid", field.Id));
+            if (draft && missingLeaves!.Contains(field.Id)) missing = false;
+            if (draft && unresolved.Contains(field.Id)) missing = false;
+            if (invalid)
+            {
+                int duplicate = DuplicateIndex(field.Data, value);
+                diagnostics.Add(duplicate >= 0 ? new("value-duplicate", field.Id + "/" + duplicate.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    : new("value-invalid", field.Id));
+            }
             if (missing) diagnostics.Add(new("value-required", field.Id));
             states.Add(new(field, enabled, required, present, invalid || missing));
         }
-        return new(states, diagnostics, effective);
+        return new(states, diagnostics, effective, deferred, unresolved);
     }
 
+    private static bool Missing(bool present, JsonElement value) => !present || value.ValueKind == JsonValueKind.Null
+        || value.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(value.GetString());
+
     internal static bool ConditionMatches(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values)
+        => EvaluateCondition(condition, values, null) == true;
+
+    /// <summary>Unknown draft dependencies stay unresolved; strict evaluation uses its original Boolean truth values.</summary>
+    internal static bool? EvaluateCondition(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values,
+        IReadOnlySet<string>? unresolved)
     {
         string op = condition.GetProperty("op").GetString()!;
         if (op is "all" or "any" or "not")
         {
             JsonElement operands = condition.GetProperty("operands");
-            return op switch
-            {
-                "all" => operands.EnumerateArray().All(item => ConditionMatches(item, values)),
-                "any" => operands.EnumerateArray().Any(item => ConditionMatches(item, values)),
-                _ => !ConditionMatches(operands[0], values)
-            };
+            bool?[] results = operands.EnumerateArray().Select(item => EvaluateCondition(item, values, unresolved)).ToArray();
+            if (op == "not") return !results[0];
+            if (op == "all") return results.Contains(false) ? false : results.Contains(null) ? null : true;
+            return results.Contains(true) ? true : results.Contains(null) ? null : false;
         }
-        bool present = values.TryGetValue(condition.GetProperty("field").GetString()!, out var value)
+        string fieldId = condition.GetProperty("field").GetString()!;
+        if (unresolved?.Contains(fieldId) == true) return null;
+        bool present = values.TryGetValue(fieldId, out var value)
             && value.ValueKind != JsonValueKind.Null;
         if (op == "present") return present;
         if (!present) return false;
@@ -120,13 +170,26 @@ public static class DefinitionValidator
         };
     }
 
-    private static IEnumerable<string> References(JsonElement condition) =>
+    internal static IEnumerable<string> References(JsonElement condition) =>
         condition.TryGetProperty("field", out var field) ? [field.GetString()!]
             : condition.GetProperty("operands").EnumerateArray().SelectMany(References);
 
     internal static bool ValueValid(JsonElement field, JsonElement value)
+        => ValueValid(field, value, true, null, "", false);
+
+    private static bool ValueValid(JsonElement field, JsonElement value, bool present,
+        HashSet<string>? deferred, string path, bool secretAncestor)
     {
         string type = field.GetProperty("type").GetString()!;
+        bool secret = secretAncestor || field.GetProperty("sensitivity").GetString() == "secret";
+        if (deferred is not null && secret && type is not ("object" or "list")
+            && (!present || value.ValueKind == JsonValueKind.Null
+                || value.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(value.GetString())))
+        {
+            deferred.Add(path);
+            return true;
+        }
+        if (!present) return !field.TryGetProperty("required", out var required) || !required.GetBoolean();
         if (!TypeMatches(type, value)) return false;
         if (value.ValueKind == JsonValueKind.String)
         {
@@ -147,21 +210,35 @@ public static class DefinitionValidator
             int count = value.GetArrayLength();
             if (field.TryGetProperty("minItems", out var min) && count < min.GetInt32()
                 || field.TryGetProperty("maxItems", out var max) && count > max.GetInt32()
-                || value.EnumerateArray().Any(item => !TypeMatches(field.GetProperty("itemType").GetString()!, item)))
+                || value.GetArrayLength() > SetupCompositionLimits.DefaultSequenceEntries)
                 return false;
-        }
-        if (type == "object")
-        {
-            JsonElement[] properties = field.GetProperty("properties").EnumerateArray().ToArray();
-            if (value.EnumerateObject().Any(property => !properties.Any(item =>
-                item.GetProperty("id").GetString() == property.Name))) return false;
-            foreach (JsonElement property in properties)
+            string itemType = field.GetProperty("itemType").GetString()!;
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            int index = 0;
+            foreach (JsonElement item in value.EnumerateArray())
             {
-                bool exists = value.TryGetProperty(property.GetProperty("id").GetString()!, out var child);
-                if (exists ? !ValueValid(property, child)
-                    : property.TryGetProperty("required", out var required) && required.GetBoolean()) return false;
+                if (deferred is not null && secret && itemType != "object"
+                    && (item.ValueKind == JsonValueKind.Null
+                        || item.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(item.GetString())))
+                {
+                    deferred.Add(path + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    index++;
+                    continue;
+                }
+                if (!TypeMatches(itemType, item)
+                    || itemType == "object" && !ObjectValid(field, item, deferred, path + "/" + index, secret)) return false;
+                if (field.TryGetProperty("uniqueBy", out var uniqueBy))
+                {
+                    JsonElement key = item;
+                    foreach (JsonElement segment in uniqueBy.EnumerateArray())
+                        if (!key.TryGetProperty(segment.GetString()!, out key)) return false;
+                    if (key.ValueKind != JsonValueKind.String || !keys.Add(key.GetString()!)) return false;
+                }
+                index++;
             }
         }
+        if (type == "object")
+            if (!ObjectValid(field, value, deferred, path, secret)) return false;
         if (!field.TryGetProperty("validator", out var validator)) return true;
         string? textValue = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
         return validator.GetString() switch
@@ -182,6 +259,38 @@ public static class DefinitionValidator
                 && value.TryGetInt64(out long number) && number > 0,
             _ => false
         };
+    }
+
+    private static bool ObjectValid(JsonElement field, JsonElement value, HashSet<string>? deferred,
+        string path, bool secretAncestor)
+    {
+        JsonElement[] properties = field.GetProperty("properties").EnumerateArray().ToArray();
+        if (value.EnumerateObject().Any(property => !properties.Any(item =>
+            item.GetProperty("id").GetString() == property.Name))) return false;
+        foreach (JsonElement property in properties)
+        {
+            string id = property.GetProperty("id").GetString()!;
+            bool exists = value.TryGetProperty(id, out var child);
+            if (!ValueValid(property, child, exists, deferred, path + "/" + id, secretAncestor)) return false;
+        }
+        return true;
+    }
+
+    private static int DuplicateIndex(JsonElement field, JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Array || !field.TryGetProperty("uniqueBy", out var path)) return -1;
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        int index = 0;
+        foreach (JsonElement row in value.EnumerateArray())
+        {
+            JsonElement key = row;
+            foreach (JsonElement segment in path.EnumerateArray())
+                if (key.ValueKind != JsonValueKind.Object || !key.TryGetProperty(segment.GetString()!, out key)) return -1;
+            if (key.ValueKind != JsonValueKind.String) return -1;
+            if (!keys.Add(key.GetString()!)) return index;
+            index++;
+        }
+        return -1;
     }
 
     private static bool TypeMatches(string type, JsonElement value) => type switch

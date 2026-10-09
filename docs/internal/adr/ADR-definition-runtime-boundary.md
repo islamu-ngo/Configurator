@@ -4,6 +4,13 @@
 - Date: 2026-10-08
 - Decision owners: Configurator Core, Artifacts, Presentation, and adapter maintainers
 
+Browser custody amendment, 2026-10-09: the public-only browser paragraphs below
+describe the original extraction decision. They are superseded by
+[Browser session trust and export](ADR-browser-session-trust-and-export.md),
+which permits consented transient secret custody, bounded public source loading
+and deliberate restricted copy/download. Data-only admission, canonical
+identity, native protected-save and target authority decisions remain active.
+
 ## Context
 
 Configurator is an offline configuration-preparation utility. It must let

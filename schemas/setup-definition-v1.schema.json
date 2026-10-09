@@ -146,6 +146,15 @@
               "null"
             ]
           },
+          "uniqueBy": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
           "properties": {
             "type": [
               "array",

@@ -54,7 +54,14 @@ public sealed class SetupDefinition
 
 public sealed class SetupFieldDefinition
 {
-    internal SetupFieldDefinition(JsonElement data) => Data = data.Clone();
+    internal SetupFieldDefinition(JsonElement data)
+    {
+        Data = data.Clone();
+        Properties = Array.AsReadOnly(data.TryGetProperty("properties", out var properties)
+            ? properties.EnumerateArray().Select(item => new SetupFieldDefinition(item)).ToArray() : []);
+        UniqueBy = Array.AsReadOnly(data.TryGetProperty("uniqueBy", out var path)
+            ? path.EnumerateArray().Select(item => item.GetString()!).ToArray() : []);
+    }
     internal JsonElement Data { get; }
     public string Id => Data.GetProperty("id").GetString()!;
     public string Type => Data.GetProperty("type").GetString()!;
@@ -64,6 +71,17 @@ public sealed class SetupFieldDefinition
     public string? Format => Text("format");
     public string? Consequence => Text("consequence");
     public bool Required => Data.TryGetProperty("required", out var value) && value.GetBoolean();
+    public string? ItemType => Text("itemType");
+    public int? MinimumItems => Data.TryGetProperty("minItems", out var value) ? value.GetInt32() : null;
+    public int? MaximumItems => Data.TryGetProperty("maxItems", out var value) ? value.GetInt32() : null;
+    public IReadOnlyList<SetupFieldDefinition> Properties { get; }
+    public IReadOnlyList<string> UniqueBy { get; }
+    public SetupFieldSensitivity DeclaredSensitivity => Data.GetProperty("sensitivity").GetString() switch
+    {
+        "public" => SetupFieldSensitivity.Public,
+        "secret" => SetupFieldSensitivity.Secret,
+        _ => SetupFieldSensitivity.Sensitive
+    };
     public SetupFieldSensitivity Sensitivity => EffectiveSensitivity(Data);
     public SetupFieldDisclosure Disclosure => Text("disclosure") switch
     {
@@ -117,12 +135,13 @@ public sealed class SetupAnswerSnapshot
         InputRevision = inputRevision;
         if (values.Count > 1024) throw new SetupDefinitionException("answer-limit");
         var snapshot = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var budget = new Composition.CompositionBudget(Composition.SetupCompositionLimits.Default);
         int bytes = 0;
         foreach ((string key, JsonElement value) in values)
         {
             if (key.Length > 128 || value.ValueKind == JsonValueKind.Undefined)
                 throw new SetupDefinitionException("answer-invalid");
-            byte[] canonical = DefinitionJson.Canonicalize(value);
+            byte[] canonical = DefinitionJson.Canonicalize(value, budget);
             bytes = checked(bytes + canonical.Length);
             if (bytes > Composition.SetupCompositionLimits.DefaultAggregateSourceBytes)
                 throw new SetupDefinitionException("answer-limit");

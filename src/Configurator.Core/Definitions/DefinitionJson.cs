@@ -8,11 +8,11 @@ using Configurator.Core.Composition;
 
 internal static class DefinitionJson
 {
-    internal static byte[] Canonicalize(JsonElement value)
+    internal static byte[] Canonicalize(JsonElement value, CompositionBudget? budget = null)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
-            Write(writer, value, new CompositionBudget(SetupCompositionLimits.Default), 1);
+            Write(writer, value, budget ?? new CompositionBudget(SetupCompositionLimits.Default), 1);
         if (buffer.WrittenCount > SetupCompositionLimits.DefaultAggregateSourceBytes)
             throw new SetupDefinitionException("document-limit");
         return buffer.WrittenSpan.ToArray();

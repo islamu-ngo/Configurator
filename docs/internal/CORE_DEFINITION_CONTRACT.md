@@ -25,7 +25,7 @@ The checked [minimal self-hosted definition](../../examples/minimal-self-hosted/
 is the canonical neutral sample for native clients and the Browser bundle. Its
 family, revision and canonical digest must match across those surfaces; Core's
 native conformance test pins literal `.env`, JSON and YAML output and readiness.
-The sample definition contains a native-only required credential field without
+The sample definition contains a required credential field without
 a default. The checked answer and expected-output fixtures use an explicitly
 synthetic placeholder; those answer files are never embedded in Browser.
 The separate [Grafana OSS 13.2.2 example](../../examples/grafana-13.2.2/README.md)
@@ -50,6 +50,36 @@ with `Succeeded`, `Artifact`, and `Diagnostics`. A successful
 `Sensitivity`, `ApplySemantics`, and `Restart`.
 All answer-derived artifacts are `Restricted`, including those whose fields
 are declared public. No definition value grants filesystem or network authority.
+
+`DefinitionDraftArtifactComposer.Compose` and `ComposeBundle` are distinct
+secret-deferred APIs. Their disposable results expose `Artifact`/`Artifacts`,
+value-free `Diagnostics`, `Completions`, `Succeeded` and `IsDraft`.
+`DefinitionDraftCompletion(ArtifactId, FieldPath, OutputPath)` identifies where
+the operator must finish a secret: field paths start with the root ID and use
+`/index/property`; output paths use JSON Pointer with `~0`/`~1` escaping.
+Draft dotenv emits blank assignments and a draft-warning comment. JSON/YAML
+emit empty strings for string/enum secret leaves and null for other secret
+leaves; Markdown emits an empty string within the declared list projection.
+No placeholder escapes into complete composition.
+
+Draft preparation reuses the same bounded interpreter, serializers and
+validator. Missing ordinary fields, malformed provided values and unresolved
+secret-dependent conditions reject; strict `DefinitionValidator.IsReady` and
+complete composition remain unchanged. An unresolved artifact is withheld with
+its artifact-ID diagnostic while unrelated bundle artifacts may remain usable.
+A fatal bundle failure clears every owned output/completion. Results own their
+artifact buffers and disposal invalidates reads and clears bytes. Neither
+`IsDraft` nor successful preparation grants target acceptance.
+
+`DefinitionValidator.ValidateDraft` exposes the shared draft-validation seam
+for associated ordinary-field errors without changing strict `Validate` or
+complete readiness. `DefinitionBundleComposer.ComposeActive(definition,
+answers)` prepares the browser's currently active complete artifact set from
+one snapshot. It skips only `artifact-omitted`; fatal/nonsecret validation and
+aggregate-budget failures clear the whole retained bundle. Zero active outputs
+returns `artifact-empty`, never an empty successful preparation. Native
+`Compose` with explicit artifact selection remains strict, including rejection
+of a selected omitted artifact. Adapters do not reproduce this selection logic.
 
 `DefinitionImport.Assess` provides a bounded inverse for present, unconditional
 root-object `copy` members in JSON, YAML and dotenv artifacts. Duplicate,
@@ -122,11 +152,17 @@ required wire format. The following is a minimal neutral example:
 Field types: `string`, `boolean`, `integer`, `number`, `enum`, `list`, `object`.
 Optional field metadata: `help`, `group`, `format`, `default`, `recommended`,
 `consequence`, `activeWhen`, `requiredWhen`, `choices`, `minLength`, `maxLength`,
-`minimum`, `maximum`, `minItems`, `maxItems`, `itemType`, `properties`, `validator`.
+`minimum`, `maximum`, `minItems`, `maxItems`, `itemType`, `properties`, `uniqueBy`, `validator`.
 Default/recommended values are allowed only on public fields. `properties`
 contains nested field definitions; nested IDs are property names.
-`itemType` is a scalar type for lists. Repeated object structures use list
-projection items or a bounded repeat over a list field, never executable code.
+`itemType` is a scalar type or `object` for lists. Object lists declare
+`properties` and validate each row with the same closed property grammar,
+required/type/unknown-member checks and nested sensitivity floor as objects.
+`uniqueBy` is a nonempty path of declared property names ending at a string
+field; values are compared ordinally across rows and duplicate diagnostics
+never include the key value. Admission rejects invalid paths and private
+defaults/recommendations, including those hidden below public object/list
+labels. No new projection language or executable row behavior is introduced.
 
 Conditions use `{"op":"equals","field":"mode","value":"external"}` and the closed
 operations `present`, `equals`, `notEquals`, `in`, `all`, `any`, and `not`.
@@ -135,7 +171,7 @@ References must identify declared fields; activation dependency cycles fail.
 
 Projection operations are `literal` (`value`), `copy` (`field`), `omit`,
 `object` (`members`), `list` (`items`), and `repeat` (`field`, `item`).
-Within a repeat, `{"op":"copy","field":"$item"}` copies the current scalar item,
+Within a repeat, `{"op":"copy","field":"$item"}` copies the current scalar or object item,
 and `{"op":"index"}` emits its zero-based index. These two forms are illegal
 outside a repeat; nested repeats are rejected.
 Optional `when` uses the same condition grammar. Missing/inactive copies omit

@@ -7,16 +7,19 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class ExternalDefinitionConformanceTests
 {
     [Test]
-    [Arguments("environment", "environment.env")]
-    [Arguments("configuration-manifest", "configuration-manifest.json")]
-    [Arguments("tenant-package", "tenant-package.json")]
-    [Arguments("operator-identity", "operator-identity.json")]
-    [Arguments("legal-drafts", "legal-drafts.json")]
+    [Arguments("environment", "environment", "environment.env")]
+    [Arguments("configuration-manifest", "configuration-manifest", "configuration-manifest.json")]
+    [Arguments("configuration-manifest", "configuration-manifest-1-tenants", "configuration-manifest-1-tenants.json")]
+    [Arguments("configuration-manifest", "configuration-manifest-2-tenants", "configuration-manifest-2-tenants.json")]
+    [Arguments("configuration-manifest", "configuration-manifest-3-tenants", "configuration-manifest-3-tenants.json")]
+    [Arguments("tenant-package", "tenant-package", "tenant-package.json")]
+    [Arguments("operator-identity", "operator-identity", "operator-identity.json")]
+    [Arguments("legal-drafts", "legal-drafts", "legal-drafts.json")]
     public async Task ExternalTargetProjectsRestrictedBytesMatchingIndependentHostVectors(
-        string artifactId, string expectedName)
+        string artifactId, string answerName, string expectedName)
     {
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
-        using JsonDocument answers = JsonDocument.Parse(Resource("EventAnswers." + artifactId + ".json"));
+        using JsonDocument answers = JsonDocument.Parse(Resource("EventAnswers." + answerName + ".json"));
         var snapshot = new SetupAnswerSnapshot(7, answers.RootElement.EnumerateObject()
             .ToDictionary(item => item.Name, item => item.Value.Clone(), StringComparer.Ordinal));
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifactId, snapshot);
@@ -25,6 +28,13 @@ public sealed class ExternalDefinitionConformanceTests
         await Assert.That(result.Artifact!.DefinitionDigest).IsEqualTo(definition.Digest);
         await Assert.That(result.Artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
         await Assert.That(result.Artifact.Bytes.Span.SequenceEqual(Resource("EventExpected." + expectedName))).IsTrue();
+        string? directory = System.Environment.GetEnvironmentVariable("CONFIGURATOR_EVENT_ARTIFACT_DIRECTORY");
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+            await File.WriteAllBytesAsync(Path.Combine(directory, expectedName), result.Artifact.Bytes.ToArray());
+        }
+        result.Artifact.Dispose();
     }
 
     [Test]
