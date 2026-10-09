@@ -34,6 +34,7 @@ public sealed class DefinitionArtifact : IDisposable
             _ => "text/plain"
         };
     }
+    /// <summary>Returns a caller-owned copy. Disposal clears the artifact's retained buffer, not copies already returned.</summary>
     public ReadOnlyMemory<byte> Bytes
     {
         get
@@ -86,19 +87,26 @@ public static class DefinitionArtifactComposer
 {
     public static DefinitionArtifactResult Compose(
         SetupDefinition definition, string artifactId, SetupAnswerSnapshot answers)
+        => ComposeCore(definition, artifactId, answers, false, []);
+
+    internal static DefinitionArtifactResult ComposeCore(SetupDefinition definition, string artifactId,
+        SetupAnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactId);
         ArgumentNullException.ThrowIfNull(answers);
         SetupArtifactDefinition? artifact = definition.Artifacts.SingleOrDefault(item => item.Id == artifactId);
         if (artifact is null) return new(null, [new("artifact-unknown", "")]);
-        DefinitionValidationResult validation = DefinitionValidator.Validate(definition, answers);
+        DefinitionValidationResult validation = draft ? DefinitionValidator.ValidateDraft(definition, answers)
+            : DefinitionValidator.Validate(definition, answers);
         if (!validation.IsReady) return new(null, validation.Diagnostics);
+        string unresolvedField = "";
         try
         {
             var budget = new CompositionBudget(SetupCompositionLimits.Default);
             int operations = 0;
-            (bool include, JsonNode? output) = Project(artifact.Data.GetProperty("projection"), null, null, 1);
+            var unknown = validation.DeferredFields.Concat(validation.UnresolvedFields).ToHashSet(StringComparer.Ordinal);
+            (bool include, JsonNode? output) = Project(artifact.Data.GetProperty("projection"), null, null, null, "", "", 1);
             if (!include) return new(null, [new("artifact-omitted", "")]);
             using JsonDocument document = JsonDocument.Parse(output?.ToJsonString() ?? "null");
             byte[] canonical = DefinitionJson.Canonicalize(document.RootElement);
@@ -109,10 +117,16 @@ public static class DefinitionArtifactComposer
                 {
                     "json" => canonical,
                     "yaml" => WriteYaml(document.RootElement),
-                    "dotenv" => WriteDotenv(document.RootElement),
+                    "dotenv" => WriteDotenv(document.RootElement, draft),
                     "markdown" => WriteMarkdown(document.RootElement),
                     _ => throw new SetupDefinitionException("format-invalid")
                 };
+                if (draft && completions.Count > 0 && artifact.Format == "dotenv")
+                {
+                    byte[] original = bytes;
+                    bytes = Encoding.UTF8.GetBytes("# Draft: fill deferred secret keys before use.\n" + Encoding.UTF8.GetString(original));
+                    CryptographicOperations.ZeroMemory(original);
+                }
                 if (bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
                     throw new SetupDefinitionException("artifact-limit");
                 return new(new(definition, artifact, answers, bytes), []);
@@ -124,12 +138,21 @@ public static class DefinitionArtifactComposer
                 CryptographicOperations.ZeroMemory(canonical);
             }
 
-            (bool Include, JsonNode? Node) Project(JsonElement projection, JsonElement? item, int? index, int depth)
+            (bool Include, JsonNode? Node) Project(JsonElement projection, JsonElement? item, int? index,
+                SetupFieldDefinition? itemField, string itemPath, string outputPath, int depth)
             {
                 if (++operations > SetupCompositionLimits.DefaultParserEvents)
                     throw new SetupDefinitionException("projection-limit");
-                if (projection.TryGetProperty("when", out var condition)
-                    && !DefinitionValidator.ConditionMatches(condition, validation.Values)) return (false, null);
+                if (projection.TryGetProperty("when", out var condition))
+                {
+                    bool? matches = DefinitionValidator.EvaluateCondition(condition, validation.Values, draft ? unknown : null);
+                    if (matches is null)
+                    {
+                        unresolvedField = DefinitionValidator.References(condition).First(unknown.Contains);
+                        throw new SetupDefinitionException("draft-dependency-unresolved");
+                    }
+                    if (matches == false) return (false, null);
+                }
                 switch (projection.GetProperty("op").GetString())
                 {
                     case "omit": return (false, null);
@@ -137,8 +160,17 @@ public static class DefinitionArtifactComposer
                         return Copy(projection.GetProperty("value"), depth);
                     case "copy":
                         string field = projection.GetProperty("field").GetString()!;
-                        if (field == "$item") return item.HasValue ? Copy(item.Value, depth) : (false, null);
-                        return validation.Values.TryGetValue(field, out var value) ? Copy(value, depth) : (false, null);
+                        if (field == "$item") return item.HasValue
+                            ? draft ? CopyField(itemField!, item, itemPath, outputPath, depth, false, true) : Copy(item.Value, depth)
+                            : (false, null);
+                        if (draft && validation.UnresolvedFields.Contains(field))
+                        {
+                            unresolvedField = field;
+                            throw new SetupDefinitionException("draft-dependency-unresolved");
+                        }
+                        bool present = validation.Values.TryGetValue(field, out var value);
+                        return draft ? CopyField(definition.Fields.Single(entry => entry.Id == field), present ? value : null,
+                            field, outputPath, depth, false, false) : present ? Copy(value, depth) : (false, null);
                     case "index":
                         budget.Node(depth);
                         return (true, JsonValue.Create(index!.Value));
@@ -147,7 +179,7 @@ public static class DefinitionArtifactComposer
                         var mapping = new JsonObject();
                         foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
                         {
-                            var child = Project(member.Value, item, index, depth + 1);
+                            var child = Project(member.Value, item, index, itemField, itemPath, outputPath + "/" + Pointer(member.Name), depth + 1);
                             if (!child.Include) continue;
                             budget.Scalar(member.Name);
                             mapping.Add(member.Name, child.Node);
@@ -158,12 +190,17 @@ public static class DefinitionArtifactComposer
                         var array = new JsonArray();
                         foreach (JsonElement entry in projection.GetProperty("items").EnumerateArray())
                         {
-                            var child = Project(entry, item, index, depth + 1);
+                            var child = Project(entry, item, index, itemField, itemPath, outputPath + "/" + array.Count.ToString(CultureInfo.InvariantCulture), depth + 1);
                             if (child.Include) array.Add(child.Node);
                         }
                         return (true, array);
                     case "repeat":
                         string listField = projection.GetProperty("field").GetString()!;
+                        if (draft && validation.UnresolvedFields.Contains(listField))
+                        {
+                            unresolvedField = listField;
+                            throw new SetupDefinitionException("draft-dependency-unresolved");
+                        }
                         if (!validation.Values.TryGetValue(listField, out var source)) return (false, null);
                         if (source.ValueKind != JsonValueKind.Array) throw new SetupDefinitionException("repeat-source");
                         budget.Node(depth);
@@ -171,7 +208,10 @@ public static class DefinitionArtifactComposer
                         int position = 0;
                         foreach (JsonElement entry in source.EnumerateArray())
                         {
-                            var child = Project(projection.GetProperty("item"), entry, position++, depth + 1);
+                            int itemIndex = position++;
+                            var child = Project(projection.GetProperty("item"), entry, itemIndex,
+                                definition.Fields.Single(field => field.Id == listField), listField + "/" + itemIndex.ToString(CultureInfo.InvariantCulture),
+                                outputPath + "/" + repeated.Count.ToString(CultureInfo.InvariantCulture), depth + 1);
                             if (child.Include) repeated.Add(child.Node);
                         }
                         return (true, repeated);
@@ -183,6 +223,50 @@ public static class DefinitionArtifactComposer
             {
                 Charge(value, depth);
                 return (true, JsonNode.Parse(value.GetRawText()));
+            }
+
+            (bool, JsonNode?) CopyField(SetupFieldDefinition field, JsonElement? value, string fieldPath,
+                string outputPath, int depth, bool secretAncestor, bool listItem)
+            {
+                bool secret = secretAncestor || field.DeclaredSensitivity == SetupFieldSensitivity.Secret;
+                string type = listItem ? field.ItemType! : field.Type;
+                if (secret && type is not ("object" or "list") && (!value.HasValue
+                    || value.Value.ValueKind == JsonValueKind.Null
+                    || value.Value.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(value.Value.GetString())))
+                {
+                    budget.Node(depth);
+                    completions.Add(new(artifact.Id, fieldPath, outputPath));
+                    return (true, type is "string" or "enum" || artifact.Format is "dotenv" or "markdown"
+                        ? JsonValue.Create("") : null);
+                }
+                if (!value.HasValue) return (false, null);
+                if (type == "object")
+                {
+                    budget.Node(depth);
+                    var mapping = new JsonObject();
+                    foreach (SetupFieldDefinition property in field.Properties)
+                    {
+                        bool exists = value.Value.TryGetProperty(property.Id, out var childValue);
+                        var child = CopyField(property, exists ? childValue : null, fieldPath + "/" + Pointer(property.Id),
+                            outputPath + "/" + Pointer(property.Id), depth + 1, secret, false);
+                        if (!child.Item1) continue;
+                        budget.Scalar(property.Id);
+                        mapping.Add(property.Id, child.Item2);
+                    }
+                    return (true, mapping);
+                }
+                if (type == "list")
+                {
+                    budget.Node(depth);
+                    var array = new JsonArray();
+                    foreach (JsonElement row in value.Value.EnumerateArray())
+                    {
+                        string indexPath = "/" + array.Count.ToString(CultureInfo.InvariantCulture);
+                        array.Add(CopyField(field, row, fieldPath + indexPath, outputPath + indexPath, depth + 1, secret, true).Item2);
+                    }
+                    return (true, array);
+                }
+                return Copy(value.Value, depth);
             }
             void Charge(JsonElement value, int depth)
             {
@@ -204,11 +288,13 @@ public static class DefinitionArtifactComposer
                 }
             }
         }
-        catch (SetupDefinitionException exception) { return new(null, [new(exception.Code, "")]); }
+        catch (SetupDefinitionException exception) { return new(null, [new(exception.Code, unresolvedField)]); }
         catch (SetupCompositionException) { return new(null, [new("artifact-limit", "")]); }
     }
 
-    private static byte[] WriteDotenv(JsonElement value)
+    private static string Pointer(string name) => name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+
+    private static byte[] WriteDotenv(JsonElement value, bool draft = false)
     {
         if (value.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("dotenv-shape");
         var entries = new List<DotenvEntry>();
@@ -218,7 +304,9 @@ public static class DefinitionArtifactComposer
                 throw new SetupDefinitionException("dotenv-shape");
             string text = property.Value.ValueKind == JsonValueKind.String
                 ? property.Value.GetString()! : property.Value.GetRawText();
-            entries.Add(new(property.Name, text, DotenvEntryKind.LocalHumanValue, true, DotenvProvenance.UserInput));
+            bool placeholder = draft && text.Length == 0;
+            entries.Add(new(property.Name, placeholder ? null : text,
+                placeholder ? DotenvEntryKind.EmptyPlaceholder : DotenvEntryKind.LocalHumanValue, true, DotenvProvenance.UserInput));
         }
         DotenvRenderResult rendered = DotenvCodec.Render(new DotenvDocument(entries), true);
         if (!rendered.Succeeded) throw new SetupDefinitionException("dotenv-value");

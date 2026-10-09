@@ -26,6 +26,17 @@ public static class DefinitionBundleComposer
 {
     public static DefinitionBundleResult Compose(SetupDefinition definition, IEnumerable<string> artifactIds,
         SetupAnswerSnapshot answers)
+        => ComposeCore(definition, artifactIds, answers, skipOmitted: false);
+
+    /// <summary>Composes declared active artifacts. Omitted artifacts are skipped; validation and output limits remain strict.</summary>
+    public static DefinitionBundleResult ComposeActive(SetupDefinition definition, SetupAnswerSnapshot answers)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return ComposeCore(definition, definition.Artifacts.Select(item => item.Id), answers, skipOmitted: true);
+    }
+
+    private static DefinitionBundleResult ComposeCore(SetupDefinition definition, IEnumerable<string> artifactIds,
+        SetupAnswerSnapshot answers, bool skipOmitted)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactIds);
@@ -52,13 +63,18 @@ public static class DefinitionBundleComposer
             {
                 if (!selected.Contains(artifact.Id)) continue;
                 DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers);
-                if (!result.Succeeded) return new([], result.Diagnostics);
+                if (!result.Succeeded)
+                {
+                    if (skipOmitted && result.Diagnostics.Count == 1 && result.Diagnostics[0].Code == "artifact-omitted") continue;
+                    return new([], result.Diagnostics);
+                }
                 DefinitionArtifact output = result.Artifact!;
                 composed.Add(output);
                 totalBytes += output.ByteLength;
                 if (totalBytes > SetupCompositionLimits.DefaultAggregateSourceBytes)
                     return new([], [new("bundle-limit", "")]);
             }
+            if (composed.Count == 0) return new([], [new("artifact-empty", "")]);
             complete = true;
             return new(composed, []);
         }

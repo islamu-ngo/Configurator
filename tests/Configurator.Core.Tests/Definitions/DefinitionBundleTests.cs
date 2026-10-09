@@ -90,6 +90,61 @@ public sealed class DefinitionBundleTests
         await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("artifact-limit");
     }
 
+    [Test]
+    public async Task ActiveBundleIncludesOnlyResolvedActiveArtifactsWithoutWeakeningExplicitSelection()
+    {
+        JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
+        root["artifacts"]![0]!["projection"]!["when"] = JsonNode.Parse(
+            """{"op":"equals","field":"service.name","value":"first"}""");
+        JsonNode second = root["artifacts"]![0]!.DeepClone();
+        second["id"] = "second";
+        second["fileName"] = "second.json";
+        second["projection"]!["when"]!["value"] = "second";
+        root["artifacts"]!.AsArray().Add(second);
+        SetupDefinition definition = DefinitionFixture.Parse(root.ToJsonString());
+        SetupAnswerSnapshot answers = DefinitionFixture.Answers("""{"service.name":"first"}""");
+
+        using DefinitionBundleResult explicitSelection = DefinitionBundleComposer.Compose(definition, ["config", "second"], answers);
+        await Assert.That(explicitSelection.Succeeded).IsFalse();
+        await Assert.That(explicitSelection.Artifacts).IsEmpty();
+        await Assert.That(explicitSelection.Diagnostics.Single().Code).IsEqualTo("artifact-omitted");
+        using DefinitionBundleResult active = DefinitionBundleComposer.ComposeActive(definition, answers);
+        await Assert.That(active.Succeeded).IsTrue();
+        await Assert.That(active.Artifacts.Single().ArtifactId).IsEqualTo("config");
+        await Assert.That(Encoding.UTF8.GetString(active.Artifacts.Single().Bytes.Span)).IsEqualTo("""{"name":"first"}""");
+
+        using DefinitionBundleResult inactive = DefinitionBundleComposer.ComposeActive(definition,
+            DefinitionFixture.Answers("""{"service.name":"neither"}"""));
+        await Assert.That(inactive.Artifacts).IsEmpty();
+        await Assert.That(inactive.Diagnostics.Single().Code).IsEqualTo("artifact-empty");
+        using DefinitionBundleResult invalid = DefinitionBundleComposer.ComposeActive(definition, DefinitionFixture.Answers("{}"));
+        await Assert.That(invalid.Artifacts).IsEmpty();
+        await Assert.That(invalid.Diagnostics.Single().Code).IsEqualTo("value-required");
+    }
+
+    [Test]
+    public async Task ActiveBundleLateFailureClearsEveryEarlierArtifact()
+    {
+        JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
+        root["artifacts"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"bad","format":"dotenv","fileName":"bad.env","applySemantics":"create","restart":"none",
+             "projection":{"op":"literal","value":[]}}
+            """));
+        using DefinitionBundleResult result = DefinitionBundleComposer.ComposeActive(
+            DefinitionFixture.Parse(root.ToJsonString()), DefinitionFixture.Answers());
+        await Assert.That(result.Artifacts).IsEmpty();
+        await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("dotenv-shape");
+    }
+
+    [Test]
+    public async Task ActiveBundleRetainsTheAggregateOutputLimit()
+    {
+        using DefinitionBundleResult result = DefinitionBundleComposer.ComposeActive(Definition(64),
+            DefinitionFixture.Answers("{\"service.name\":\"" + new string('x', SetupCompositionLimits.DefaultScalarCharacters) + "\"}"));
+        await Assert.That(result.Artifacts).IsEmpty();
+        await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("bundle-limit");
+    }
+
     private static SetupDefinition Definition(int count)
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
