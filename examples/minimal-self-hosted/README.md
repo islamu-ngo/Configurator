@@ -19,6 +19,8 @@ on a protected Linux path. No target service is included or started.
 | Expected YAML | [`expected/service.yaml`](expected/service.yaml) |
 
 The sample credential is a synthetic placeholder. Replace it in a locally
-protected answer file for real use. The browser can choose public options, but
-the required credential and all complete native artifacts stay in native
-clients. Target validation and application remain with the target software.
+protected answer file for real use. The [browser](../../docs/public/browser.md)
+can prepare these files with transient answers: explicitly consent to enter
+the required credential, or defer it in an incomplete draft and finish it
+locally. Browser downloads cannot establish protected native-save permissions.
+Target validation and application remain with the target software.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "familyId": "69cdb122-41d2-4fab-9b82-7929a889c726",
-  "revision": 1,
+  "revision": 2,
   "applicationId": "example.service",
   "applicationVersions": ["1.0"],
   "publisher": "example",
@@ -43,7 +43,7 @@
       "id": "service.credential",
       "type": "string",
       "title": "Service credential",
-      "help": "Enter a local credential in a native client only.",
+      "help": "Enter a local credential after enabling secret entry, or defer it and complete the exported draft locally.",
       "sensitivity": "secret",
       "disclosure": "essential",
       "required": true,
