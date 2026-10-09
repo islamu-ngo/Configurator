@@ -36,8 +36,14 @@ package metadata and license/notice files; keep it with the executable.
 Browser has the same public metadata under `wwwroot/`.
 Serve the entire browser `wwwroot/` tree from a static server with appropriate
 WASM MIME types and route fallback to `index.html`; there is no application
-server, private input, authentication, target apply or persistence. Serving is
-an operator action, not performed by the build.
+server, authentication, target apply or answer persistence. Browser private
+answers are transient and secret entry requires workspace consent. Public PWA
+caches and explicit public-definition retention are separate from answer
+custody. Serve the manifest, worker, SDK asset manifest, lifecycle module and
+icons together under HTTPS (localhost for local tests); `/open` and `/launch/*`
+need navigation fallback, while missing assets must remain errors. See
+[browser hosting](browser.md#hosting) for base/scope/CSP/update requirements.
+Serving is an operator action, not performed by the build.
 
 `ConfiguratorOutputRoot` selects another package destination. Do not publish into
 a directory containing unrelated files. The CI artifact is unsigned validation

@@ -94,7 +94,7 @@ heuristic:
 
 Repository-native architecture is evidence of independent design when it follows
 real requirements: bounded data-only definitions, Core/Artifacts/Presentation
-ownership, immutable operation generations, public-only browser input, protected
+ownership, immutable operation generations, transient consent-gated browser custody, protected
 native output and separate host apply authority. Patterns are not a safe harbor
 by themselves.
 

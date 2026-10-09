@@ -26,6 +26,16 @@ before restoring/publishing `Configurator.Browser`. Distribute its complete
 capability as native protected-save support. Supported native packaging RIDs and
 operator paths are listed in the [public guide](../public/packaging.md).
 
+The published PWA includes `manifest.webmanifest`, `service-worker.js`, the
+SDK-generated `service-worker-assets.js`, `pwa-lifecycle.js` and original icons.
+The worker caches only allowlisted public SDK-manifest app assets; explicit
+definition retention is separate. No answers or output enter either cache.
+Publish all assets as one static tree with correct MIME types, HTTPS/localhost
+secure context and SPA fallback for `/launch/*` and `/open`. Missing asset
+requests must not return `index.html`. Base path, worker scope and manifest
+must agree. Worker activation waits for a clean lifecycle across tabs; a package
+does not prove real browser update/network/cache behavior.
+
 The current release project admits CLI and Terminal packages for `linux-x64`,
 `linux-arm64`, `osx-arm64` and `win-x64`; Desktop is limited to `linux-x64`.
 CI publishes and checks the three Linux x64 packages and static Browser only.
@@ -37,7 +47,7 @@ evidence before those capabilities are claimed.
 `GenerateConfiguratorRatchets.cs` uses compiled Core definition schema and CLI
 command metadata. It evaluates `WriteConfiguratorReleaseContract` for each
 native client to derive the native matrix rather than maintaining a second
-matrix. The three generated JSON files record public browser restrictions,
+matrix. The three generated JSON files record browser custody capabilities,
 schema digests and native release facts. They contain no Event backend schema,
 import session or production trust. Regenerate and check from the repository root:
 
@@ -46,11 +56,21 @@ dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --write
 dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check
 ```
 
+Browser capabilities distinguish opt-in `secretEntry` and deliberate
+`privateExport` from always-false `persistence`/`answerPersistence`.
+`publicAssetCache` and `explicitPublicDefinitionCache` permit public retention
+only. `nativeProtectedSave`, target authentication/apply and telemetry remain
+false. The generator is the sole source; do not hand-edit capability JSON.
+
 The architecture project is registered in `Configurator.slnx` alongside the
 seven product owners. It builds their assemblies and inspects compiled
 assembly metadata, not source text. It rejects Event/test dependencies, enforces
-Core's narrow closure and Browser's Core-only product boundary, exercises neutral
+Core's narrow closure and Browser's Presentation/Core product boundary, exercises neutral
 artifact preparation and validates evaluated release refusal behavior.
+Presentation itself must reference Core only. Actual browser `_framework`
+package inspection requires Presentation/Core WASM and excludes native UI,
+Artifacts, Event and test assemblies. Package tests also require PWA assets and
+check generated capability flags; they do not inspect source/CSS text.
 
 The current package tests require the three Linux x64 packages and Browser
 package from the public commands first. Set `CONFIGURATOR_PACKAGE_ROOT` for a

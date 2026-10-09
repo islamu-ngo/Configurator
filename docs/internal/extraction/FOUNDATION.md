@@ -40,6 +40,27 @@ Rules targeting Core, Artifacts, Presentation, browser and tests bind those
 actual paths. Twin rules are byte-identical. Harness pointer files defer to the
 root contract. No local MCP configuration, session state or credentials transfer.
 
+## Browser preparation and custody
+
+The browser is a complete configuration-preparation adapter over browser-safe
+Presentation/Core. Its public definition distribution boundary is distinct
+from transient private answers. Secret input is disabled for each new workspace
+until the operator explicitly consents. Revocation recursively clears secret
+leaves and prepared output; edits and replacement invalidate old operations.
+Complete composition remains strict. A secret-deferred draft instead identifies
+completion locations and never claims complete readiness or target acceptance.
+
+Bounded credential-free HTTPS or local JSON definition admission occurs before
+answer collection and pins canonical identity. Remote origin and publisher
+labels are not authentication. The PWA retains only public app assets and
+explicitly selected admitted definitions; answers/output never enter caches,
+requests or worker messages. Restricted copy/download deliberately transfers
+custody to the operator and cannot establish native create-only/owner-only
+protection. Native Artifacts and target authorization remain separate owners.
+See [browser custody ADR](../adr/ADR-browser-session-trust-and-export.md),
+[launch](../LAUNCH_CONTRACT.md), [presentation](../PRESENTATION_STATE.md) and
+[packaging](../PACKAGING.md) for the corresponding source and evidence anchors.
+
 ## Verification and provenance
 
 Engineering changes run engineering tests only. Generic release tests use local

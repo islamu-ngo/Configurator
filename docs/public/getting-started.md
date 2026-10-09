@@ -20,9 +20,11 @@ The definition declares the output files and their field mappings. The answers
 choose `extended` mode, enable metrics and provide a **synthetic placeholder**
 credential. They are safe for reproducing this example, not for operating a
 real service. For real use, replace the placeholder in a locally protected
-answer file. Do not pass private answers on the command line or into the
-[public browser](browser.md); that surface can select public enum and boolean
-choices but cannot complete this definition's required credential.
+answer file. Do not pass private answers on the command line. Alternatively,
+use the [browser](browser.md) with transient local answers: explicitly consent
+before entering secrets, or export an incomplete secret-deferred draft and
+finish its completion locations locally. Browser downloads do not establish
+native protected-save permissions.
 
 ## 2. Check all outputs without writing
 

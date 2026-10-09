@@ -2,7 +2,9 @@
 
 Configurator prepares files; it never applies configuration to an application.
 Answer-derived content is restricted, regardless of the definition's field labels.
-Private bytes cannot be sent to stdout or exported through the browser.
+Native private bytes cannot be sent to stdout or to a public writer. The
+[browser](browser.md) has a separate deliberate copy/download custody boundary;
+it does not use this native writer or promise its filesystem protections.
 
 On the supported Linux path, the writer prepares an anonymous file and publishes
 it with create-only, no-replacement semantics. Existing destinations are never

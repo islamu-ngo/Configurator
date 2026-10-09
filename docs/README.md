@@ -35,7 +35,7 @@ exposing internal framework mechanics:
 - [CLI](public/cli.md): machine command usage and results.
 - [Terminal](public/terminal.md): Terminal.Gui interaction.
 - [Desktop](public/desktop.md): Avalonia workflow.
-- [Browser](public/browser.md): public-only static preparation.
+- [Browser](public/browser.md): transient complete/draft preparation, deliberate export and public-cache offline hosting.
 - [Definitions](public/definitions.md): bounded data-only input.
 - [Native output](public/native-output.md): protected save procedures.
 - [Launch integration](public/launch-integration.md): target handoff and authority limits.

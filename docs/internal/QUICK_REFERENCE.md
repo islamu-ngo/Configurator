@@ -25,9 +25,11 @@ do not apply.
    are the default. Persistent high-value C#/Bash tools belong in `eng/`;
    `.ci/scripts/` is for CI pipelines only.
 6. **Separate offline privacy and authority:** Core admits bounded data-only
-   definitions; Browser accepts public metadata only. Local preparation never
-   grants host apply/admin authority. No executable plugins, arbitrary remote
-   launch URLs, browser secret entry, telemetry or insecure save fallback.
+   definitions; Browser keeps answers transient and requires per-workspace
+   consent for secret entry. Public caches exclude answers/output. Bounded
+   credential-free HTTPS definitions are pinned before answer collection.
+   Local preparation never grants host apply/admin authority. No executable
+   plugins, answer-bearing requests, telemetry or insecure native save fallback.
 7. **Self-contained interaction:** questions, status and decisions must explain
    feature names, current position, tradeoffs and recommendation inline. Never
    require the user to open a plan to decode bare task codes.
@@ -62,7 +64,9 @@ not product builds/tests. Engineering changes run engineering suites.
 ## UI Quick Rules
 
 CLI, Terminal.Gui and Avalonia adapt shared Presentation/Artifacts/Core
-contracts; Browser is public-only static Blazor WASM over Core. Test actual
+contracts; Browser is static Blazor WASM over browser-safe Presentation/Core.
+Secret-deferred drafts remain incomplete; browser downloads cannot establish
+native file protection. Test actual
 keyboard/focus/rendering semantics and accessibility, not CSS/source text.
 Do not import backend role inspection or HAL gating into this offline utility.
 Use the existing surface contracts and [test-layer guide](TESTING.md#choosing-the-right-test-layer).

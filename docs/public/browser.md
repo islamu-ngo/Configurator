@@ -1,91 +1,145 @@
-# Public browser
+# Browser configuration
 
-The Blazor WebAssembly client prepares a **partial public choice template** in
-memory. It does not prepare full native configuration, enter secrets, connect to
-an application, authenticate an operator, or apply configuration to a target.
-Use the CLI, terminal or desktop client with the same definition to finish
-native-only answers and prepare restricted configuration artifacts.
+Use the static Blazor WebAssembly app to prepare configuration files locally.
+Choose a bundled definition, open a publisher's pinned definition link, or
+import a public JSON definition from your machine. The browser can collect
+ordinary settings and tenant rows without installing a native client. It does
+not connect to the target application, authenticate you, deploy services or
+grant administration authority.
 
 ## Use
 
-Open the static site's root and choose a bundled definition. The neutral
-minimal self-hosted entry appears first. It uses the same checked definition as
-the [native sample](../../examples/minimal-self-hosted/setup-definition.json).
-The catalogue link includes its exact digest. The workspace displays the
-selected revision and SHA-256 definition digest. It retains that admitted
-document for the session
-even if the registry changes; navigation to another launch starts a new session
-and clears choices, uploads and generated previews.
+The workspace shows the admitted family, revision and SHA-256 definition digest.
+It retains that exact definition for the session. A different launch or definition
+starts a fresh workspace and clears prior answers and output; registry changes
+cannot silently upgrade your running workspace.
 
-Only active fields declared **public enum or boolean** have answer controls.
-Public free-text and other public question metadata can be reviewed, but their
-answers belong in native clients. Sensitive and secret questions have no entry
-control or public preview. Activation follows Core's field states. Deactivating
-a public choice removes its previous selection. Native-only required answers
-are counted separately; a public template never means full configuration is
-ready.
+A publisher source or local-file launch first shows the admitted metadata.
+Review it, optionally confirm the definition is safe for public offline
+retention, then open the workspace. That confirmation concerns definition
+metadata only; it neither retains answers nor enables secret entry.
 
-For the neutral sample, select **extended** deployment mode to make **Enable
-metrics** available. The required service credential must be entered in a
-native client; the Browser cannot complete native readiness. The definition
-embedded in the Browser contains no credential answer.
+Complete active public and sensitive nonsecret fields using the typed controls.
+Guided, Advanced and All Declared views change disclosure, not validation.
+Required fields remain required; active invalid fields remain reachable in
+Guided view even when normally disclosed under Advanced. For an object whose
+declared properties may be empty, explicitly supply the object when the target
+requires its presence; leaving it absent and supplying `{}` are different
+answers. Object lists use declared row properties and
+bounded add/remove controls; removed rows are excluded from the next output.
+For Event, tenant names must be unique and the definition permits at most 256
+tenants; Core's aggregate budgets still apply.
 
-Select public choices, then choose **Prepare public template** and download the
-JSON. Importing a public template restores only supported choices for the exact
-pinned family, revision and digest. Import is at most **64 KiB**; extra or
-duplicate properties, unknown/private fields, inactive selections, arbitrary
-text and unsupported values reject without preview or download. Rejection
-clears an earlier preview. **Clear choices** removes all selections and output.
+Secret entry is **off for every new workspace**. You have two choices:
 
-The closed envelope is:
+- Leave secret entry disabled and prepare a **secret-deferred draft**. Complete
+  ordinary required fields first. The result identifies secret completion
+  locations so you can finish the downloaded files locally. It is incomplete
+  and may fail the target's validation until completed.
+- Explicitly enable secret entry for this workspace after deciding that you
+  trust this origin, its shipped code and your browser environment. Secret
+  controls are masked. Complete preparation validates all required answers.
 
-```json
-{
-  "schemaVersion": "configurator-public-template/v1",
-  "familyId": "69cdb122-41d2-4fab-9b82-7929a889c726",
-  "revision": 1,
-  "definitionDigest": "<the displayed 64-character lowercase SHA-256>",
-  "selections": {
-    "service.mode": "extended",
-    "metrics.enabled": true
-  }
-}
-```
+Revoking consent clears secret leaves, including those nested in objects or
+rows, and invalidates prepared output while retaining ordinary settings.
+Consent is never remembered for another workspace. Imports cannot bypass this
+policy; a secret-bearing import is rejected without consent. Malformed values,
+invalid nonsecret fields and unresolved secret-dependent conditions do not
+become valid merely because draft preparation was selected.
 
-Copy the actual displayed digest; the placeholder above is not a valid import.
-Selections may be partial or empty. Enum values must match a declared choice
-exactly; booleans are JSON `true`/`false`, not strings. The envelope has exactly
-these five properties. It is a browser-specific public transfer format, not a
-Core composed artifact and not an application configuration manifest.
+Existing artifact import is limited to 1 MiB and the definition's supported
+unconditional top-level copy mappings. Transformed, conditional or repeated
+projections do not have a supported inverse; for example, Event's nested
+manifest cannot be universally imported. Use the typed controls for those
+definitions. Unsupported import is distinct from invalid file contents.
 
-No input is sent to a target API. No cookies, application persistence,
-telemetry, service worker, remote definition download, native filesystem access
-or secret entry is added. Downloads use a transient data URL and an explicit
-browser download action. Uploaded byte buffers are zeroed on invalidation and
-completion, and file controls are replaced after processing. The browser and
-user-controlled downloads still have their own lifecycle; this is not a
-guarantee of forensic erasure.
+For the [neutral sample](../../examples/minimal-self-hosted/setup-definition.json),
+extended deployment mode activates the metrics choice. Supply the service name
+and ordinary settings, then defer the required credential or voluntarily enter
+it with consent. The bundled definition contains no credential answer.
+
+## Copy and download
+
+Prepare the definition's active artifacts using complete or draft preparation.
+Inactive outputs are withheld. Ordinary validation or aggregate-limit failure
+clears the prepared set; no active artifacts means no successful output.
+Output is
+redacted until you deliberately reveal it. **Copy** invokes the clipboard only
+on your action; **Download** creates a short-lived Blob download for the current
+artifact. Clipboard failures leave download available and do not silently send
+data elsewhere. Edits, clear, consent revocation, definition replacement and
+disposal invalidate output and revoke download capabilities.
+
+Every answer-derived file is **restricted**, even if its source fields are
+labelled public. A browser download cannot guarantee `0600` permissions,
+create-only writes or prevention of browser/OS download history. Check the
+destination and protect downloaded files yourself. Native clients remain an
+alternative when you need the
+[protected native save contract](../internal/PROTECTED_ARTIFACTS.md).
+
+Check the actual downloaded filename against the declared name before target
+use. Browsers may normalize names: published Chrome testing downloaded the
+declared `.env` artifact as `env.txt`, despite the explicit download hint.
+Rename that file to `.env` if that is the target's required name; do not assume
+the browser preserves a leading dot or extension.
+
+All answers and prepared output are transient application state. They are
+excluded from application storage, public caches, worker messages and network
+requests. Closing/clearing work clears the application's owned state; browser
+extensions, managed runtimes, clipboard and user-controlled downloads have
+their own lifetimes. This is not a forensic-erasure guarantee.
+
+## Offline work
+
+The published PWA can prepare its public app assets and explicitly retain an
+admitted public definition before answer collection. Only retain definitions
+whose metadata is safe to distribute publicly; never upload credentials,
+private defaults or confidential explanatory text as definition data.
+Reopening a selected definition offline requires both a complete app-asset cache
+and that retained definition, not merely a registered worker or an installed
+shortcut. Retention is bounded to eight definitions, each within Core's 4 MiB
+limit, and each is re-admitted and checked against its canonical digest on read.
+
+After preparing the app and definition online, you can disconnect and reopen
+the retained workspace definition, then edit, validate, compose and export
+locally. Answers are not retained: reopening starts a new empty workspace.
+Offline operation and live answer work block application remote-definition
+fetches. Starting another definition deliberately ends the current workspace.
+Worker updates wait rather than reload or replace a live workspace; close
+active work in all tabs before taking an update.
+
+Browser-managed worker update checks and installation of public app assets can
+still generate traffic while an older workspace remains pinned. These requests
+carry no answers. The page's remote-definition guard does not control all worker,
+extension or hosting-origin traffic, so physical disconnection is the
+stronger guarantee. Published-platform validation must inspect actual requests,
+caches, update behavior and downloads; unit/package tests alone do not prove
+those browser behaviors. See the
+[operating evidence](../internal/OPERATIONS.md#browser-custody-and-offline-verification).
 
 ## Hosting
 
-Build the static client with the repository SDK:
+Build the standalone static package with the repository SDK:
 
 ```bash
-dotnet publish src/Configurator.Browser/Configurator.Browser.csproj --configuration Release
+dotnet msbuild eng/configurator/Configurator.Release.proj -target:PublishConfiguratorBrowser -property:Configuration=Release
 ```
 
-Serve its published `wwwroot` using an ordinary static host. Keep `_framework`
-and other asset requests distinct from navigation. Configure a SPA fallback to
-`index.html` for `/launch/*` and other application navigations, not missing
-framework assets. The shipped `<base href="/">` assumes origin-root hosting;
-for a subpath, set the base to that directory with a trailing slash and serve
-fallback navigation within it.
+Serve the complete `artifacts/configurator/browser/wwwroot/` tree using HTTPS
+(or localhost for local testing). Keep `_framework`, worker, manifest and other
+asset requests distinct from navigation; missing assets must not return HTML.
+Configure SPA fallback to `index.html` for `/launch/*`, `/open` and application
+navigations. The shipped base path `/` assumes origin-root hosting. For a
+subpath, align the base, worker scope, manifest and fallback directory.
 
-Initial boot requires the static site and framework assets. Definitions are
-embedded in the application assembly, not fetched from arbitrary URLs. Work
-after boot is local; disconnected relaunch is **not** promised because there
-is no service worker or offline installation cache. No deployed public origin
-is claimed.
+Publish the worker, SDK-generated asset manifest, icons, notices, schemas and
+capability metadata together. Use correct WASM/JSON/JavaScript MIME types and
+avoid long immutable caching of the worker itself. Review the shipped CSP with
+your hosting headers: WASM boot, same-origin assets/worker and credential-free
+HTTPS definition reads must work without broadening target authority.
+No application server, answer persistence, authentication or target API is
+required. Building a package does not deploy a public origin.
 
-See [launch integration](launch-integration.md) for bounded selectors and
-application-owned deep links.
+See [launch integration](launch-integration.md) for pinned links, source limits,
+CORS requirements and local-file alternatives, and
+[packaging](packaging.md) for distribution boundaries.

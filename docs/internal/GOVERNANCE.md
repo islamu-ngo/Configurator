@@ -87,12 +87,13 @@ than synthetic comment tags:
 | Machine command-line adapter | CLI | `src/Configurator.Cli/` |
 | Terminal.Gui interaction | Terminal | `src/Configurator.Terminal/` |
 | Avalonia interaction | Desktop | `src/Configurator.Desktop/` |
-| Public-only static Blazor WebAssembly | Browser | `src/Configurator.Browser/` |
+| Static Blazor WebAssembly with transient local answers | Browser | `src/Configurator.Browser/` |
 
 ### Dependency Rules
 
-Clients depend on Presentation/Artifacts and Core; Browser references Core only
-and ships public static data. No sibling Event checkout, backend contract or
+Clients depend on Presentation/Artifacts and Core; Browser references
+browser-safe Presentation/Core, never native Artifacts, and ships public static
+data. Public caches contain no answers or output. No sibling Event checkout, backend contract or
 running service is a build input. The [project map](../../PROJECTS.md) owns
 project references and protected paths.
 

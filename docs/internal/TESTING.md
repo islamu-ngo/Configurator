@@ -213,8 +213,10 @@ need documentation checks, not new tests that pin wording.
   assert stale-generation rejection through observable behavior.
 - **Artifacts tests:** use isolated temporary output directories and real native
   protection; preserve sensitivity floors and create-only failure semantics.
-- **Client tests:** exercise public adapter semantics; browser accepts public
-  metadata only, never secret entry.
+- **Client tests:** exercise adapter semantics; Browser keeps answers transient,
+  requires workspace consent for secret leaves and excludes answers/output from
+  public caches/requests. Unit seams do not replace published-browser network,
+  cache/update, accessibility and export evidence.
 - **Release tests:** disposable Git repositories and synthetic trust fixtures
   prove local validation only. Real-renderer checks run sequentially because
   independent processes share the synthetic promotion-root output.
