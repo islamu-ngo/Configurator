@@ -37,6 +37,7 @@ internal sealed class SetupTerminalWindow : Window
     private readonly Button _prepare;
     private readonly Button _mode;
     private readonly Button _choice;
+    private readonly Button _addItem;
     private readonly Button[] _listButtons;
     private readonly View[] _normal;
     private SetupTerminalFieldEditor.Slot? _slot;
@@ -80,6 +81,7 @@ internal sealed class SetupTerminalWindow : Window
         var nextItem = Button("NextItem", 25, 10, () => MoveItem(1));
         var removeItem = Button("RemoveItem", 49, 10, RemoveItem);
         _listButtons = [previousItem, nextItem, removeItem];
+        _addItem = Button("AddItem", 1, 11, AddItem);
         var artifact = Button("Artifact", 1, 12, CycleArtifact);
         var selectOutput = Button("SelectOutput", 27, 12, ToggleOutput);
         _artifactLabel = new Label { X = 1, Y = 13, Width = Dim.Fill(2) };
@@ -107,7 +109,7 @@ internal sealed class SetupTerminalWindow : Window
         Add(heading, _mode, _fieldLabel, _value, _masked, _help, _choice, previous, next, apply,
             _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import,
             validate, _prepare, _save, _nextOutcome, _status,
-            clear, close, limitations, previousItem, nextItem, removeItem);
+            clear, close, limitations, previousItem, nextItem, removeItem, _addItem);
         _normal = SubViews.ToArray();
         Add(_smallNotice);
         _value.ValueChanged += (_, _) => EditorChanged();
@@ -183,6 +185,13 @@ internal sealed class SetupTerminalWindow : Window
         int current = _slot is null ? 0 : slots.ToList().FindIndex(slot =>
             slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
         _fieldIndex = (Math.Max(0, current) + delta + slots.Count) % slots.Count;
+        if (_slot is { IsObjectList: true } collection && delta > 0)
+        {
+            string[] rowPath = [.. collection.Path, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+            int firstRowField = slots.ToList().FindIndex(slot => slot.Input == collection.Input &&
+                slot.Path.Length > rowPath.Length && slot.Path.Take(rowPath.Length).SequenceEqual(rowPath));
+            if (firstRowField >= 0) _fieldIndex = firstRowField;
+        }
         _itemIndex = 0;
         ShowField();
         FocusInput();
@@ -205,6 +214,13 @@ internal sealed class SetupTerminalWindow : Window
         FocusInput();
     }
 
+    private void AddItem()
+    {
+        if (_slot is not { IsObjectList: true } collection || !SetupTerminalFieldEditor.AddObjectItem(collection)) return;
+        _itemIndex = SetupTerminalFieldEditor.ItemCount(collection) - 1;
+        MoveField(1);
+    }
+
     private void ShowField()
     {
         _loading = true;
@@ -216,7 +232,7 @@ internal sealed class SetupTerminalWindow : Window
             _fieldIndex = Math.Clamp(_fieldIndex, 0, Math.Max(0, slots.Count - 1));
             _slot = slots.Count == 0 ? null : slots[_fieldIndex];
             _fieldLabel.Text = _slot is null ? SetupTerminalText.Get("NoFields")
-                : Safe($"{_fieldIndex + 1}/{slots.Count} {_slot.Input.Definition.Id} / {_slot.Title} ({_slot.ScalarType})"
+                : Safe($"{_fieldIndex + 1}/{slots.Count} {string.Join('/', _slot.FullPath)} / {_slot.Title} ({_slot.ScalarType})"
                     + (_slot.IsList ? $" [{_itemIndex + 1}/{SetupTerminalFieldEditor.ItemCount(_slot) + 1}]" : ""));
             _help.Text = _slot is null ? string.Empty : Safe(_slot.Help);
             if (_slot is not null)
@@ -235,15 +251,17 @@ internal sealed class SetupTerminalWindow : Window
 
     private void SetEditorVisibility()
     {
-        _value.Visible = !_tooSmall && _slot is { RequiresMasking: false };
-        _masked.Visible = !_tooSmall && _slot is { RequiresMasking: true };
+        _value.Visible = !_tooSmall && _slot is { RequiresMasking: false, IsObjectList: false };
+        _masked.Visible = !_tooSmall && _slot is { RequiresMasking: true, IsObjectList: false };
+        _addItem.Visible = !_tooSmall && _slot is { IsObjectList: true };
         _choice.Visible = !_tooSmall && _slot is not null && SetupTerminalFieldEditor.Choices(_slot).Count > 0;
         foreach (var button in _listButtons) button.Visible = !_tooSmall && _slot is { IsList: true };
     }
 
     private void FocusInput()
     {
-        if (_slot?.RequiresMasking == true) _masked.SetFocus();
+        if (_slot?.IsObjectList == true) _addItem.SetFocus();
+        else if (_slot?.RequiresMasking == true) _masked.SetFocus();
         else _value.SetFocus();
     }
 

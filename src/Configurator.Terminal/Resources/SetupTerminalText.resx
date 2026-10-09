@@ -47,4 +47,5 @@
   <data name="PrivateCleared" xml:space="preserve"><value>Private inputs and prepared bytes cleared.</value></data>
   <data name="InputChanged" xml:space="preserve"><value>Input changed; prepare again before saving.</value></data>
   <data name="NoFields" xml:space="preserve"><value>No active fields in this disclosure mode.</value></data>
+  <data name="AddItem" xml:space="preserve"><value>_Add item</value></data>
 </root>

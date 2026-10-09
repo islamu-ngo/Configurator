@@ -47,4 +47,5 @@
   <data name="PrivateCleared" xml:space="preserve"><value>مُسحت المدخلات الخاصة والبيانات المُعدة.</value></data>
   <data name="InputChanged" xml:space="preserve"><value>تغير الإدخال؛ أعد الملف قبل الحفظ.</value></data>
   <data name="NoFields" xml:space="preserve"><value>لا توجد حقول نشطة في وضع العرض هذا.</value></data>
+  <data name="AddItem" xml:space="preserve"><value>إ_ضافة عنصر</value></data>
 </root>

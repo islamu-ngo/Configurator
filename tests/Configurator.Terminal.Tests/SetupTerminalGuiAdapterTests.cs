@@ -26,7 +26,7 @@ public sealed class SetupTerminalGuiAdapterTests
                 "WindowTitle", "ImportFile", "Close", "Ready", "Limitations", "TerminalTooSmall",
                 "InvalidSecret", "SecretCommandsDisabled", "InvalidOutput", "Cancelled", "Writing",
                 "DisplayMode", "ModeGuided", "ModeAdvanced", "ModeAllDeclared", "Choose", "Previous",
-                "Next", "ApplyField", "PreviousItem", "NextItem", "RemoveItem", "Artifact",
+                "Next", "ApplyField", "PreviousItem", "NextItem", "RemoveItem", "AddItem", "Artifact",
                 "SelectOutput", "Selected", "NotSelected", "ImportSelected", "ImportReady",
                 "ImportFailed", "NextOutcome", "NotAttempted", "PartialBundle", "ManualRecovery",
                 "PreparePreview", "SaveProtected", "PreviewReady", "DraftInvalid",
@@ -275,16 +275,100 @@ public sealed class SetupTerminalGuiAdapterTests
         await Assert.That(harness.Workspace.Output).IsEmpty();
     }
 
+    [Test]
+    public async Task ObjectListAdapterExpandsTypedLeavesAndRemovesWholeRows()
+    {
+        using var form = new DefinitionFormModel(ObjectListDefinition());
+        var editor = new SetupTerminalFieldEditor(form);
+        var collection = editor.Slots.Single(slot => slot.IsObjectList);
+        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(collection)).IsTrue();
+        var name = editor.Slots.Single(slot => slot.Title == "Row name");
+        var password = editor.Slots.Single(slot => slot.Title == "Row password");
+        await Assert.That(SetupTerminalFieldEditor.Write(name, "first")).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.Write(password, "synthetic-secret")).IsTrue();
+        await Assert.That(password.RequiresMasking).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(collection)).IsTrue();
+        var secondName = editor.Slots.Single(slot => slot.Title == "Row name" && slot.Path[0] == "1");
+        await Assert.That(SetupTerminalFieldEditor.Write(secondName, "second")).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(collection)).IsFalse();
+        var aliases = editor.Slots.Single(slot => slot.Title == "Aliases" && slot.Path[0] == "0");
+        await Assert.That(SetupTerminalFieldEditor.Write(aliases, "alpha", 0)).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.Write(aliases, "beta", 1)).IsTrue();
+        SetupTerminalFieldEditor.Remove(aliases, 0);
+        await Assert.That(SetupTerminalFieldEditor.Read(aliases)).IsEqualTo("beta");
+        var localizations = editor.Slots.Single(slot => slot.Title == "Localizations" && slot.Path[0] == "0");
+        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(localizations)).IsTrue();
+        var locale = editor.Slots.Single(slot => slot.Title == "Locale");
+        await Assert.That(SetupTerminalFieldEditor.Write(locale, "en")).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(localizations)).IsTrue();
+        var secondLocale = editor.Slots.Single(slot => slot.Title == "Locale" && slot.Path[2] == "1");
+        await Assert.That(SetupTerminalFieldEditor.Write(secondLocale, "ar")).IsTrue();
+        SetupTerminalFieldEditor.Remove(localizations, 0);
+        await Assert.That(form.Snapshot().Values["rows"][0].GetProperty("localizations")[0].GetProperty("locale").GetString()).IsEqualTo("ar");
+        await Assert.That(form.Snapshot().Values["rows"][0].GetProperty("name").GetString()).IsEqualTo("first");
+        await Assert.That(form.Snapshot().Values["rows"][1].GetProperty("name").GetString()).IsEqualTo("second");
+        SetupTerminalFieldEditor.Remove(collection, 0);
+        var rows = form.Snapshot().Values["rows"];
+        await Assert.That(rows.GetArrayLength()).IsEqualTo(1);
+        await Assert.That(rows[0].GetProperty("name").GetString()).IsEqualTo("second");
+        await Assert.That(rows[0].GetProperty("settings").ValueKind).IsEqualTo(System.Text.Json.JsonValueKind.Object);
+        await Assert.That(form.InputRevision).IsEqualTo(14);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task NativeObjectRowButtonsAddFocusEditAndRemoveUsingTheSharedForm()
+    {
+        using var harness = new Harness(initialize: true, form: new DefinitionFormModel(ObjectListDefinition()));
+        var add = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("AddItem"));
+        var remove = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("RemoveItem"));
+        await Assert.That(add.Visible).IsTrue();
+        await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
+        await Assert.That(add.InvokeCommand(Command.Accept)).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.Visible).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.HasFocus).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("first")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        harness.Window.MoveField(-1);
+        await Assert.That(add.InvokeCommand(Command.Accept)).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("second")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        // Pass the second row's password, aliases and localizations to return to the outer collection.
+        for (int navigation = 0; navigation < 4; navigation++) harness.Window.MoveField(1);
+        await Assert.That(add.Visible).IsTrue();
+        await Assert.That(remove.InvokeCommand(Command.Accept)).IsTrue();
+        await Assert.That(add.HasFocus).IsTrue();
+        var rows = harness.Form.Snapshot().Values["rows"];
+        await Assert.That(rows.GetArrayLength()).IsEqualTo(1);
+        await Assert.That(rows[0].GetProperty("name").GetString()).IsEqualTo("second");
+        await Assert.That(harness.Secret.Count).IsEqualTo(0);
+    }
+
+    private static SetupDefinition ObjectListDefinition() => SetupDefinitionCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes("""
+        {"schemaVersion":1,"familyId":"9282a2b1-84a0-436d-8c4d-1c75b81d314c","revision":1,
+         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example","entryPoints":["setup"],"locales":["en"],
+         "fields":[{"id":"rows","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"guided","maxItems":2,
+           "properties":[
+             {"id":"name","title":"Row name","type":"string","required":true,"sensitivity":"public","disclosure":"guided"},
+             {"id":"password","title":"Row password","type":"string","sensitivity":"secret","disclosure":"guided"},
+             {"id":"settings","title":"Settings","type":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[]},
+             {"id":"aliases","title":"Aliases","type":"list","itemType":"string","required":true,"sensitivity":"public","disclosure":"guided"},
+             {"id":"localizations","title":"Localizations","type":"list","itemType":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[
+               {"id":"locale","title":"Locale","type":"string","required":true,"sensitivity":"public","disclosure":"guided"}]}]}],
+         "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+           "projection":{"op":"object","members":{"rows":{"op":"copy","field":"rows"}}}}]}
+        """));
+
     private sealed class Harness : IDisposable
     {
         private readonly IApplication _application;
         private readonly SetupPresentationSession _session;
         internal Harness(bool initialize = false, bool empty = false, string? directory = null,
-            Func<CancellationToken, Task>? beforePublication = null)
+            Func<CancellationToken, Task>? beforePublication = null, DefinitionFormModel? form = null)
         {
             _application = Application.Create();
             if (initialize) _application.Init("dotnet");
-            Form = empty ? new DefinitionFormModel(TerminalDefinitionFixture.Definition()) : TerminalDefinitionFixture.Form();
+            Form = form ?? (empty ? new DefinitionFormModel(TerminalDefinitionFixture.Definition()) : TerminalDefinitionFixture.Form());
             Secret = new SetupTerminalSecretBuffer(262144, urlSafeOnly: false);
             Operation = new SetupTerminalArtifactOperation(Form, new ProtectedArtifactWriter(), directory ?? Path.GetTempPath(), beforePublication);
             _session = new SetupPresentationSession(new StrongReferenceMessenger());
