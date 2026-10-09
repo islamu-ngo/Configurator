@@ -21,6 +21,14 @@ ambiguous unversioned requests fail rather than selecting the newest revision.
 Compatibility is an exact declared version set, not a guessed version range.
 Family identity and publisher claims do not establish trust.
 
+The checked [minimal self-hosted definition](../../examples/minimal-self-hosted/setup-definition.json)
+is the canonical neutral sample for native clients and the Browser bundle. Its
+family, revision and canonical digest must match across those surfaces; Core's
+native conformance test pins literal `.env`, JSON and YAML output and readiness.
+The sample definition contains a native-only required credential field without
+a default. The checked answer and expected-output fixtures use an explicitly
+synthetic placeholder; those answer files are never embedded in Browser.
+
 `SetupAnswerSnapshot(long inputRevision,
 IReadOnlyDictionary<string, JsonElement> values)` clones answer values.
 `DefinitionValidator.Validate(SetupDefinition, SetupAnswerSnapshot)` returns

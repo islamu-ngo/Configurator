@@ -8,9 +8,12 @@ native-only answers and prepare restricted configuration artifacts.
 
 ## Use
 
-Open the static site's root and choose a bundled definition. The catalogue link
-includes its exact digest. The workspace displays the selected revision and
-SHA-256 definition digest. It retains that admitted document for the session
+Open the static site's root and choose a bundled definition. The neutral
+minimal self-hosted entry appears first. It uses the same checked definition as
+the [native sample](../../examples/minimal-self-hosted/setup-definition.json).
+The catalogue link includes its exact digest. The workspace displays the
+selected revision and SHA-256 definition digest. It retains that admitted
+document for the session
 even if the registry changes; navigation to another launch starts a new session
 and clears choices, uploads and generated previews.
 
@@ -21,6 +24,11 @@ control or public preview. Activation follows Core's field states. Deactivating
 a public choice removes its previous selection. Native-only required answers
 are counted separately; a public template never means full configuration is
 ready.
+
+For the neutral sample, select **extended** deployment mode to make **Enable
+metrics** available. The required service credential must be entered in a
+native client; the Browser cannot complete native readiness. The definition
+embedded in the Browser contains no credential answer.
 
 Select public choices, then choose **Prepare public template** and download the
 JSON. Importing a public template restores only supported choices for the exact
@@ -38,7 +46,8 @@ The closed envelope is:
   "revision": 1,
   "definitionDigest": "<the displayed 64-character lowercase SHA-256>",
   "selections": {
-    "mode": "single"
+    "service.mode": "extended",
+    "metrics.enabled": true
   }
 }
 ```

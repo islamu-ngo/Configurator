@@ -5,9 +5,10 @@ mappings. Configurator interprets bounded data; it does not execute scripts,
 install services or grant application-administration authority.
 
 Start with `examples/minimal-self-hosted/setup-definition.json`. Its fields
-produce a dotenv file or JSON document through the same definition used by the
-native clients. Native answer-derived artifacts are restricted even when all
-fields are declared public.
+produce a dotenv file, JSON document or YAML document through the same
+definition used by the native clients. The sample's private credential must be
+answered in a native client. Native answer-derived artifacts are restricted even
+when all fields are declared public.
 
 Each definition has a stable family GUID, a revision, declared application
 versions and a digest computed from canonical definition bytes. GUID identity

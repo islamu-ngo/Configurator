@@ -1,0 +1,31 @@
+Change-Id: CHG-01M4G97TW8M7R4GF9EYR9KGHK9
+Title: "share one neutral definition across native and browser setup"
+Type: fix
+Scope: browser
+Summary: "Embed the checked native sample in the browser so family, revision and canonical digest identify the same content. Pin independent dotenv, JSON and YAML vectors and preserve activation coverage in a distinct fixture. Browser controls still accept only active public choices and leave native credential completion to native clients."
+Group: neutral
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Regenerate neutral browser launch links pinned to the former digest. The sample now requires a native credential answer and declares a YAML output."
+  Security:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Embed the checked native sample in the browser so family, revision and canonical digest identify the same content. Pin independent dotenv, JSON and YAML vectors and preserve activation coverage in a distinct fixture. Browser controls still accept only active public choices and leave native credential completion to native clients."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Regenerate neutral browser launch links pinned to the former digest. The sample now requires a native credential answer and declares a YAML output."
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Embed the checked native sample in the browser so family, revision and canonical digest identify the same content. Pin independent dotenv, JSON and YAML vectors and preserve activation coverage in a distinct fixture. Browser controls still accept only active public choices and leave native credential completion to native clients."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Embed the checked native sample in the browser so family, revision and canonical digest identify the same content. Pin independent dotenv, JSON and YAML vectors and preserve activation coverage in a distinct fixture. Browser controls still accept only active public choices and leave native credential completion to native clients."

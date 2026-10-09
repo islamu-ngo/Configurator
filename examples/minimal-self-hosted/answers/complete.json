@@ -1,0 +1,6 @@
+{
+  "service.name": "sample",
+  "service.mode": "extended",
+  "metrics.enabled": true,
+  "service.credential": "synthetic-placeholder"
+}

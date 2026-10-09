@@ -5,10 +5,24 @@ Status: implemented browser unit of `configurator-extraction-r2`.
 ## Ownership and admission
 
 Browser references Core and Blazor WASM only. `BrowserDefinitionRegistry` loads
-embedded `Definitions/**/*.json` through `SetupDefinitionCodec.ParseJson` and
-constructs the real `SetupDefinitionRegistry`. There is no Event wire/catalogue
+embedded `Configurator.Browser.Definitions.*.json` resources through
+`SetupDefinitionCodec.ParseJson` and constructs the real
+`SetupDefinitionRegistry`. There is no Event wire/catalogue
 or native artifact dependency. Event is bundled only as external definition
 data; its exporter and host validators remain in the Event repository.
+
+The neutral resource is linked at build time to the
+[native minimal sample](../../examples/minimal-self-hosted/setup-definition.json),
+so one source supplies the same family, revision and canonical digest to both
+surfaces. Its resource name sorts first in the bundled catalogue, ahead of the
+optional Event example. The former browser-only activation and private-field
+scenario is now a distinct test fixture. Raw embedded JSON is distributed with
+the static app;
+its content must be public safe before admission, regardless of hidden controls.
+In the linked neutral sample, `metrics.enabled` becomes a public choice only
+when `service.mode` is `extended`, while `service.credential` has no browser
+answer control or default. A rendered launch test confirms its public download
+remains incomplete under native validation.
 
 The full admitted definition is retained. A browser render restriction is not
 a new definition variant: `FamilyId`, `Revision`, `Digest` and `CanonicalBytes`

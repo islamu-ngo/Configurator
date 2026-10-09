@@ -48,9 +48,12 @@ performed.
 
 ## Bundling and privacy
 
-Install data-only definition JSON under
+Install other data-only definition JSON under
 `src/Configurator.Browser/Definitions/`; the generic project resource glob
-embeds it and Core admission validates it at boot. Preserve the complete
+embeds it. The neutral sample is linked from
+[`examples/minimal-self-hosted/setup-definition.json`](../../examples/minimal-self-hosted/setup-definition.json)
+at build time. Core admission validates every bundled definition at boot.
+Preserve the complete
 definition's canonical identity. Do not silently filter private field metadata
 out of an existing family/revision and publish a conflicting digest. The browser
 only renders nonsecret public question metadata and collects declared public

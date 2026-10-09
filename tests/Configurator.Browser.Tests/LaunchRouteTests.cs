@@ -11,6 +11,82 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class LaunchRouteTests
 {
     [Test]
+    public async Task NeutralLaunchKeepsConditionalPublicTemplatePartialForNativeCompletion()
+    {
+        var registry = BrowserDefinitionRegistry.LoadBundled();
+        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("69cdb122-41d2-4fab-9b82-7929a889c726"));
+        using var context = BrowserFixture.Context(registry);
+        context.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
+        var component = context.Render<App>();
+
+        await Assert.That(component.FindAll("#choice-metrics\\.enabled")).IsEmpty();
+        component.Find("#choice-service\\.mode").Change("extended");
+        component.Find("#choice-metrics\\.enabled").Change("true");
+        await Assert.That(component.FindAll("[data-field='service.credential']")).IsEmpty();
+        await Assert.That(component.Find("[data-native-required]").GetAttribute("data-native-required")).IsEqualTo("1");
+        component.Find("button").Click();
+        using JsonDocument template = BrowserFixture.Download(component.Find("a[download]").GetAttribute("href")!);
+        await Assert.That(template.RootElement.GetProperty("selections").GetProperty("service.mode").GetString())
+            .IsEqualTo("extended");
+        await Assert.That(template.RootElement.GetProperty("selections").GetProperty("metrics.enabled").GetBoolean())
+            .IsTrue();
+        BrowserTemplateResult imported = BrowserPublicTemplate.Parse(definition,
+            Encoding.UTF8.GetBytes(template.RootElement.GetRawText()));
+        await Assert.That(imported.IsAccepted).IsTrue();
+        await Assert.That(DefinitionValidator.Validate(definition, imported.Answers!).IsReady).IsFalse();
+        foreach (string rejected in new[]
+        {
+            """{"service.mode":"minimal","metrics.enabled":true}""",
+            """{"service.credential":"synthetic-placeholder"}""",
+            """{"service.name":"sample"}"""
+        })
+            await Assert.That(BrowserPublicTemplate.Parse(definition,
+                BrowserFixture.Template(rejected, definition)).IsAccepted).IsFalse();
+    }
+
+    [Test]
+    public async Task BundledNeutralDefinitionHasNativeCanonicalIdentityAndPublicSafeRawBytes()
+    {
+        using Stream nativeInput = typeof(LaunchRouteTests).Assembly.GetManifestResourceStream("NativeNeutralDefinition")!;
+        using var nativeBytes = new MemoryStream();
+        nativeInput.CopyTo(nativeBytes);
+        SetupDefinition native = SetupDefinitionCodec.ParseJson(nativeBytes.ToArray());
+        SetupDefinition browser = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(native.FamilyId);
+        await Assert.That(browser.Revision).IsEqualTo(native.Revision);
+        await Assert.That(browser.Digest).IsEqualTo(native.Digest);
+        await Assert.That(browser.CanonicalBytes.Span.SequenceEqual(native.CanonicalBytes.Span)).IsTrue();
+
+        string[] resources = typeof(BrowserDefinitionRegistry).Assembly.GetManifestResourceNames();
+        await Assert.That(resources.Any(name => name.Contains("answers", StringComparison.OrdinalIgnoreCase)))
+            .IsFalse();
+        string resourceName = resources
+            .Single(name => name.EndsWith("neutral-service.json", StringComparison.Ordinal));
+        using Stream publicInput = typeof(BrowserDefinitionRegistry).Assembly.GetManifestResourceStream(resourceName)!;
+        using var publicBytes = new MemoryStream();
+        publicInput.CopyTo(publicBytes);
+        using JsonDocument raw = JsonDocument.Parse(publicBytes.ToArray());
+        await Assert.That(raw.RootElement.TryGetProperty("answers", out _)).IsFalse();
+        await Assert.That(raw.RootElement.GetProperty("fields").EnumerateArray()
+            .Where(field => field.GetProperty("sensitivity").GetString() != "public")
+            .All(field => !field.TryGetProperty("default", out _))).IsTrue();
+        await Assert.That(raw.RootElement.GetProperty("artifacts").EnumerateArray()
+            .All(artifact =>
+            {
+                string name = artifact.GetProperty("fileName").GetString()!;
+                return !Path.IsPathRooted(name) && !name.Contains('/') && !name.Contains('\\')
+                    && !name.Contains(':') && name is not ("." or "..");
+            })).IsTrue();
+        await Assert.That(Encoding.UTF8.GetString(publicBytes.ToArray())).DoesNotContain("private-canary");
+        await Assert.That(Encoding.UTF8.GetString(publicBytes.ToArray())).DoesNotContain("synthetic-placeholder");
+
+        using var context = BrowserFixture.Context(BrowserDefinitionRegistry.LoadBundled());
+        var catalogue = context.Render<Catalogue>();
+        await Assert.That(catalogue.Find(".definition-list a").GetAttribute("href"))
+            .IsEqualTo($"launch/{native.FamilyId:D}?digest={native.Digest.Value}");
+    }
+
+    [Test]
     public async Task ExternalBundledDefinitionKeepsNativeDigestAndOnlyOffersPublicChoices()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();

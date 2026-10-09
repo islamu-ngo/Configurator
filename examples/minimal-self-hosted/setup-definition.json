@@ -36,7 +36,19 @@
       "help": "Expose metrics only on a network controlled by the operator.",
       "sensitivity": "public",
       "disclosure": "advanced",
+      "activeWhen": {"op": "equals", "field": "service.mode", "value": "extended"},
       "default": false
+    },
+    {
+      "id": "service.credential",
+      "type": "string",
+      "title": "Service credential",
+      "help": "Enter a local credential in a native client only.",
+      "sensitivity": "secret",
+      "disclosure": "essential",
+      "required": true,
+      "minLength": 1,
+      "maxLength": 128
     }
   ],
   "artifacts": [
@@ -51,7 +63,8 @@
         "members": {
           "SERVICE_NAME": {"op": "copy", "field": "service.name"},
           "SERVICE_MODE": {"op": "copy", "field": "service.mode"},
-          "METRICS_ENABLED": {"op": "copy", "field": "metrics.enabled"}
+          "METRICS_ENABLED": {"op": "copy", "field": "metrics.enabled"},
+          "SERVICE_CREDENTIAL": {"op": "copy", "field": "service.credential"}
         }
       }
     },
@@ -66,7 +79,24 @@
         "members": {
           "name": {"op": "copy", "field": "service.name"},
           "mode": {"op": "copy", "field": "service.mode"},
-          "metrics": {"op": "copy", "field": "metrics.enabled"}
+          "metrics": {"op": "copy", "field": "metrics.enabled"},
+          "credential": {"op": "copy", "field": "service.credential"}
+        }
+      }
+    },
+    {
+      "id": "configuration-yaml",
+      "format": "yaml",
+      "fileName": "service.yaml",
+      "applySemantics": "create",
+      "restart": "process",
+      "projection": {
+        "op": "object",
+        "members": {
+          "name": {"op": "copy", "field": "service.name"},
+          "mode": {"op": "copy", "field": "service.mode"},
+          "metrics": {"op": "copy", "field": "metrics.enabled"},
+          "credential": {"op": "copy", "field": "service.credential"}
         }
       }
     }

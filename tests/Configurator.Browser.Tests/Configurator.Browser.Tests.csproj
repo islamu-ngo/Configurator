@@ -16,4 +16,9 @@
     <PackageReference Include="bunit" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../examples/minimal-self-hosted/setup-definition.json" LogicalName="NativeNeutralDefinition" />
+    <EmbeddedResource Include="Fixtures/InteractiveDefinition.json" LogicalName="InteractiveDefinition" />
+  </ItemGroup>
 </Project>

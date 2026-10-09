@@ -9,9 +9,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 internal static class BrowserFixture
 {
-    internal const string Family = "69cdb122-41d2-4fab-9b82-7929a889c726";
+    internal const string Family = "d66d02af-6a66-4396-9717-452e8eb9541b";
 
-    internal static SetupDefinition Definition => BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse(Family));
+    internal static SetupDefinition Definition
+    {
+        get
+        {
+            using Stream input = typeof(BrowserFixture).Assembly.GetManifestResourceStream("InteractiveDefinition")!;
+            using var bytes = new MemoryStream();
+            input.CopyTo(bytes);
+            return SetupDefinitionCodec.ParseJson(bytes.ToArray());
+        }
+    }
 
     internal static SetupDefinition Revision(long revision, string appVersion = "1.0")
     {

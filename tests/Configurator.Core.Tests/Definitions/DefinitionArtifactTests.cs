@@ -7,6 +7,44 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionArtifactTests
 {
     [Test]
+    public async Task CheckedNeutralSampleProducesIndependentNativeBytesAndReadiness()
+    {
+        DirectoryInfo? root = new(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName,
+            "examples", "minimal-self-hosted", "setup-definition.json"))) root = root.Parent;
+        string sample = Path.Combine(root?.FullName ?? throw new InvalidOperationException("Neutral sample missing."),
+            "examples", "minimal-self-hosted");
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(File.ReadAllBytes(
+            Path.Combine(sample, "setup-definition.json")));
+        SetupAnswerSnapshot answers = DefinitionFixture.Answers(File.ReadAllText(
+            Path.Combine(sample, "answers", "complete.json")));
+
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"service.name":""}""")).IsReady).IsFalse();
+        await Assert.That(DefinitionValidator.Validate(definition, answers).IsReady).IsTrue();
+        SetupAnswerSnapshot publicOnly = DefinitionFixture.Answers(
+            """{"service.mode":"extended","metrics.enabled":true}""");
+        DefinitionValidationResult partial = DefinitionValidator.Validate(definition, publicOnly);
+        await Assert.That(partial.IsReady).IsFalse();
+        await Assert.That(partial.Fields.Single(field => field.Id == "service.credential").IsRequired).IsTrue();
+        await Assert.That(partial.Fields.Single(field => field.Id == "service.credential").IsProvided).IsFalse();
+        foreach ((string artifactId, string expectedFile) in new[]
+        {
+            ("environment", "environment.env"),
+            ("configuration", "service.json"),
+            ("configuration-yaml", "service.yaml")
+        })
+        {
+            DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifactId, answers);
+            await Assert.That(result.Succeeded).IsTrue();
+            byte[] expected = File.ReadAllBytes(Path.Combine(sample, "expected", expectedFile));
+            await Assert.That(result.Artifact!.Bytes.Span.SequenceEqual(expected)).IsTrue();
+            await Assert.That(result.Artifact.DefinitionDigest).IsEqualTo(definition.Digest);
+            await Assert.That(result.Artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+        }
+    }
+
+    [Test]
     public async Task NeutralProjectionProducesPinnedJsonBytesAndInputRevision()
     {
         SetupDefinition definition = DefinitionFixture.Parse();

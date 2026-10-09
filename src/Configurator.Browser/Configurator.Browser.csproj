@@ -20,5 +20,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Definitions/**/*.json" />
+    <!-- Registry orders resource names; put the neutral first-run example before optional target examples. -->
+    <EmbeddedResource Include="../../examples/minimal-self-hosted/setup-definition.json"
+                      LogicalName="Configurator.Browser.Definitions.00-neutral-service.json" />
   </ItemGroup>
 </Project>
