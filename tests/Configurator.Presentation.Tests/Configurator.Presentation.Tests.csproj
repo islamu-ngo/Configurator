@@ -15,4 +15,11 @@
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../examples/islamu-event/setup-definition.json"
+          Link="Fixtures/Event/setup-definition.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../examples/islamu-event/expected/configuration-manifest-1-tenants.json"
+          Link="Fixtures/Event/configuration-manifest-1-tenants.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

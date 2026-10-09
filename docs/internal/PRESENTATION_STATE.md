@@ -1,6 +1,6 @@
 # Definition presentation state
 
-Native clients use the same admitted definition and answer snapshots.
+Native clients and Browser use the same admitted definition and answer snapshots.
 `DefinitionFormModel` owns typed editing and disclosure; guided/advanced views
 do not change validation. `DefinitionPresentationOperation` captures the
 definition, artifact ID and input revision for a workspace execution.
@@ -9,10 +9,30 @@ before reading an existing file. After Core assesses its declared inverse, the
 form applies imported field text as one revision only if the captured revision
 still matches and cancellation/disposal have not invalidated the operation.
 Manual edits use the same form gate, so a late read cannot overwrite them.
+Guided disclosure includes active invalid fields even when their ordinary
+disclosure is Advanced, keeping correction controls reachable. `SupplyObject`
+expresses explicit empty-object presence through the same bounded snapshot
+gate; absent objects and supplied `{}` remain distinct. It does not infer
+values, bypass secret consent or duplicate target semantics in an adapter.
 Native bundle clients compose a selected set from one captured snapshot through
 `DefinitionBundleComposer` and hand the immutable result to the protected
 bundle publisher; per-file publication can have a written prefix after a later
 failure.
+
+`DefinitionSessionPrivacy` distinguishes native complete custody from
+`BrowserNoSecrets` and explicit `BrowserSecretsEnabled` custody. Shared form
+editing/import gates recursively inspect declared object/list properties, so a
+public parent label or import cannot bypass secret denial. Revocation removes
+secret leaves while preserving ordinary answers, increments the input revision
+and invalidates pending/prepared output. New browser workspaces always begin
+without secret consent; no policy choice persists across navigation.
+
+Typed object-list edits add, modify or remove declared rows in one immutable
+snapshot revision. Native Desktop and Terminal controls use this same form
+seam rather than inventing tenant semantics. Definition admission and Core
+validation enforce item bounds/structure/uniqueness; stale operations cannot
+restore a removed row. Browser exports are deliberately local copy/download
+through the adapter, with no dependency on native protected writers.
 
 The existing session/workspace model allocates generations, invalidates old
 work on edit, deactivation, cancellation and disposal, and rejects late results.
@@ -24,7 +44,9 @@ are cleared before discard notification. Cancellation after a settled result
 intentionally retains that result until its next invalidation or replacement.
 
 The masking predicate describes rendering requirements for both sensitive and
-secret fields. It is not an administration or trust capability. Shared state
+secret fields. Browser secret controls require consent as well as masking;
+ordinary sensitive fields remain locally editable. It is not an administration
+or trust capability. Shared state
 contains no target API transport. Event's live adapter remains Event-owned.
 
 `DefinitionPresentationOperationTests` covers captured snapshots and the

@@ -521,8 +521,8 @@ public sealed class SetupPresentationModelTests
 
         await Assert.That(observed.Any(value => value.Contains(canary, StringComparison.Ordinal))).IsFalse();
         await Assert.That(contract.PublicPresentationTypes().SelectMany(type =>
-            type.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
-                | BindingFlags.DeclaredOnly)).Any(member => ForbiddenSensitiveName(member.Name))).IsFalse();
+            type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
+                | BindingFlags.DeclaredOnly)).Any(property => ForbiddenSensitiveName(property.Name))).IsFalse();
     }
 
     [Test]

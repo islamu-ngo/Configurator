@@ -13,23 +13,31 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionPresentationOperation(
     SetupDefinition definition,
     string artifactId,
-    SetupAnswerSnapshot answers) : ISetupPresentationOperation
+    SetupAnswerSnapshot answers,
+    bool prepareDraft = false) : ISetupPresentationOperation
 {
     public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var result = DefinitionArtifactComposer.Compose(definition, artifactId, answers);
-        using DefinitionArtifact? artifact = result.Artifact;
+        using DefinitionDraftArtifactResult? draft = prepareDraft
+            ? DefinitionDraftArtifactComposer.Compose(definition, artifactId, answers) : null;
+        DefinitionArtifactResult? complete = prepareDraft ? null
+            : DefinitionArtifactComposer.Compose(definition, artifactId, answers);
+        using DefinitionArtifact? artifact = draft?.Artifact ?? complete?.Artifact;
         cancellationToken.ThrowIfCancellationRequested();
         var metadata = new DefinitionPreparationMetadata(
-            result.Succeeded,
+            draft?.Succeeded ?? complete!.Succeeded,
             artifactId,
             artifact?.FileName,
             artifact?.MediaType,
             artifact?.Digest,
             definition.Digest,
             answers.InputRevision,
-            Array.AsReadOnly(result.Diagnostics.Select(diagnostic => diagnostic.Code).ToArray()));
+            Array.AsReadOnly((draft?.Diagnostics ?? complete!.Diagnostics).Select(diagnostic => diagnostic.Code).ToArray()))
+        {
+            IsDraft = draft?.IsDraft ?? false,
+            Completions = draft?.Completions ?? []
+        };
         ReadOnlyMemory<byte> source = artifact is null
             ? ReadOnlyMemory<byte>.Empty
             : artifact.Bytes;
@@ -50,4 +58,8 @@ public sealed record DefinitionPreparationMetadata(
     ArtifactDigest? Digest,
     ArtifactDigest DefinitionDigest,
     long InputRevision,
-    IReadOnlyList<string> DiagnosticCodes);
+    IReadOnlyList<string> DiagnosticCodes)
+{
+    public bool IsDraft { get; init; }
+    public IReadOnlyList<DefinitionDraftCompletion> Completions { get; init; } = [];
+}
