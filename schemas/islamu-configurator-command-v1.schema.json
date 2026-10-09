@@ -8,6 +8,7 @@
     "commandOptions": [
       "--answers",
       "--artifact",
+      "--artifacts",
       "--baseline",
       "--definition",
       "--dry-run",
@@ -225,6 +226,32 @@
             ]
           },
           {
+            "name": "bundle-check",
+            "options": [
+              "--artifacts",
+              "--definition",
+              "--help",
+              "--input",
+              "--input-revision",
+              "--machine",
+              "--text"
+            ]
+          },
+          {
+            "name": "bundle-create",
+            "options": [
+              "--artifacts",
+              "--definition",
+              "--dry-run",
+              "--help",
+              "--input",
+              "--input-revision",
+              "--machine",
+              "--output",
+              "--text"
+            ]
+          },
+          {
             "name": "preview",
             "options": [
               "--answers",
@@ -244,6 +271,7 @@
         "options": [
           "--answers",
           "--artifact",
+          "--artifacts",
           "--baseline",
           "--definition",
           "--dry-run",
@@ -396,7 +424,7 @@
     },
     "artifacts": {
       "type": "array",
-      "maxItems": 32,
+      "maxItems": 64,
       "items": {
         "$ref": "#/$defs/artifact"
       }
@@ -428,6 +456,8 @@
         },
         "operation": {
           "enum": [
+            "bundle-check",
+            "bundle-create",
             "check-existing",
             "coverage",
             "create",
@@ -539,7 +569,11 @@
           "enum": [
             "none",
             "planned",
-            "written"
+            "written",
+            "not-attempted",
+            "conflict",
+            "blocked",
+            "failed"
           ]
         }
       }

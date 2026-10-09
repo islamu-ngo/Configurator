@@ -16,6 +16,8 @@ internal static class SetupCliArtifactHandlers
     internal static SetupCliCommandResult Execute(SetupCliCommand command, SetupCliInvocation invocation)
     {
         SetupDefinition definition = SetupCliIoOperations.Definition(invocation, command.Definition!);
+        if (command.Operation is "bundle-check" or "bundle-create")
+            return Bundle(command, invocation, definition);
         SetupArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == command.Artifact);
         if (artifact is null)
             return SetupCliResults.Failure(SetupCliExitCode.Validation, "artifact-unknown", "$.artifact");
@@ -160,6 +162,83 @@ internal static class SetupCliArtifactHandlers
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
+
+    private static SetupCliCommandResult Bundle(SetupCliCommand command, SetupCliInvocation invocation,
+        SetupDefinition definition)
+    {
+        string[] ids = command.Artifacts!.Split(',');
+        if (definition.Artifacts.Any(item => ids.Contains(item.Id, StringComparer.Ordinal)
+            && item.ApplySemantics == "import"))
+            return SetupCliResults.Failure(SetupCliExitCode.Blocked, "import-command-required", "$.artifacts");
+        SetupAnswerSnapshot answers = SetupCliIoOperations.Answers(invocation, command.Input!, command.InputRevision);
+        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers);
+        if (!bundle.Succeeded)
+            return SetupCliResults.Failure(SetupCliExitCode.Validation,
+                bundle.Diagnostics[0].Code, "$.input");
+
+        IReadOnlyList<ProtectedArtifactStatus?> statuses = command.Operation == "bundle-check" || command.DryRun
+            ? Enumerable.Repeat<ProtectedArtifactStatus?>(null, bundle.Artifacts.Count).ToArray()
+            : invocation.Io.Output.WriteBundle(bundle.Artifacts, command.Output!, invocation.Io.MaximumBytes);
+        if (statuses.Count != bundle.Artifacts.Count)
+            return SetupCliResults.Failure(SetupCliExitCode.Internal, "bundle-status-invalid");
+        ProtectedArtifactStatus? failure = statuses.FirstOrDefault(status =>
+            status is not null and not ProtectedArtifactStatus.Written);
+        if (failure is null && command.Operation == "bundle-create" && !command.DryRun
+            && statuses.Any(status => status is null))
+            failure = ProtectedArtifactStatus.IoFailure;
+        SetupCliExitCode exit = failure switch
+        {
+            null => SetupCliExitCode.Success,
+            ProtectedArtifactStatus.IoFailure => SetupCliExitCode.Io,
+            _ => SetupCliExitCode.Blocked
+        };
+        bool inspectedOnly = command.Operation == "bundle-check" || command.DryRun;
+        var coverage = new SetupCliMachineCoverage(bundle.Artifacts.Where((_, index) =>
+            inspectedOnly || statuses[index] == ProtectedArtifactStatus.Written).Select(item => item.ArtifactId),
+            bundle.Artifacts.Where((_, index) => !inspectedOnly
+                && statuses[index] != ProtectedArtifactStatus.Written).Select(item => item.ArtifactId));
+        var hostReadiness = exit == SetupCliExitCode.Success
+            ? new SetupCliMachineReadiness("incomplete", ["host-validation-required"], [])
+            : new SetupCliMachineReadiness("blocked", [], coverage.MissingKeys);
+        SetupCliMachineArtifact[] metadata = bundle.Artifacts.Select((artifact, index) =>
+            new SetupCliMachineArtifact("definition-artifact", artifact.MediaType,
+                artifact.Digest.Value, "restricted",
+                new SetupCliMachineCoverage(
+                    inspectedOnly || statuses[index] == ProtectedArtifactStatus.Written
+                        ? [artifact.ArtifactId] : [],
+                    !inspectedOnly && statuses[index] != ProtectedArtifactStatus.Written
+                        ? [artifact.ArtifactId] : []),
+                exit == SetupCliExitCode.Success ? hostReadiness
+                    : new SetupCliMachineReadiness("blocked", [],
+                        statuses[index] == ProtectedArtifactStatus.Written ? [] : [artifact.ArtifactId]),
+                SetupCliResults.PathIntent(command.Output),
+                command.Operation == "bundle-check" ? "none" : command.DryRun ? "planned"
+                    : BundleWriteStatus(statuses[index]))).ToArray();
+        return new(exit,
+            failure is null ? [] : [new SetupCliMachineDiagnostic(
+                BundleFailureCode(failure.Value), "$.output", "error")],
+            metadata, coverage, hostReadiness);
+    }
+
+    private static string BundleFailureCode(ProtectedArtifactStatus status) => status switch
+    {
+        ProtectedArtifactStatus.TargetExists => "bundle-target-exists",
+        ProtectedArtifactStatus.TargetChanged => "bundle-target-changed",
+        ProtectedArtifactStatus.UnsafeTarget => "bundle-unsafe-target",
+        ProtectedArtifactStatus.UnsupportedPlatform => "bundle-host-unsupported",
+        ProtectedArtifactStatus.PermissionDenied => "bundle-permission-denied",
+        ProtectedArtifactStatus.InvalidRequest => "bundle-invalid-request",
+        _ => "bundle-io-failed"
+    };
+
+    private static string BundleWriteStatus(ProtectedArtifactStatus? status) => status switch
+    {
+        ProtectedArtifactStatus.Written => "written",
+        ProtectedArtifactStatus.TargetExists or ProtectedArtifactStatus.TargetChanged => "conflict",
+        ProtectedArtifactStatus.IoFailure => "failed",
+        null => "not-attempted",
+        _ => "blocked"
+    };
 
     private static bool EquivalentInput(SetupCliInvocation invocation, string path,
         string format, ReadOnlyMemory<byte> expected)

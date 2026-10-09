@@ -17,7 +17,7 @@ public sealed class SetupCliContractTests
         await Assert.That(schema["_metadata"]!["commandOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--help", "--machine", "--text", "--dry-run", "--input", "--baseline",
                 "--output", "--key", "--definition", "--artifact", "--format", "--expected-revision",
-                "--revision-field", "--input-revision", "--answers"]);
+                "--revision-field", "--input-revision", "--answers", "--artifacts"]);
         await Assert.That(schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()))
             .IsEquivalentTo([0, 2, 3, 4, 64, 65, 70, 74]);
     }

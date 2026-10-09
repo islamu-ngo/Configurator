@@ -78,6 +78,7 @@ internal static class SetupCliArgumentPreflight
             ExpectedRevision = GetFirst(values, ExpectedRevisionOption),
             RevisionField = GetFirst(values, "--revision-field"),
             Answers = GetFirst(values, "--answers"),
+            Artifacts = GetFirst(values, "--artifacts"),
             InputRevision = GetFirst(values, "--input-revision") ?? "0"
         };
         return new(command, spectreArguments, error is null && (!help || !machine), error);
@@ -177,6 +178,11 @@ internal static class SetupCliArgumentPreflight
                 return "identifier-invalid";
         }
 
+        if (GetFirst(values, "--artifacts") is { } artifacts
+            && (artifacts.Split(',').Length is < 1 or > 64
+                || artifacts.Split(',').Any(value => !IsIdentifier(value))))
+            return "artifact-selection-invalid";
+
         if (GetFirst(values, "--format") is { } format && format is not ("json" or "yaml" or "dotenv" or "markdown"))
             return "format-not-supported";
 
@@ -206,7 +212,7 @@ internal static class SetupCliArgumentPreflight
         bool dryRun)
     {
         if (help) return null;
-        foreach (string option in new[] { "--definition", "--artifact", "--revision-field" })
+        foreach (string option in new[] { "--definition", "--artifact", "--artifacts", "--revision-field" })
             if (options.ContainsKey(option) && !values.ContainsKey(option))
                 return option[2..] + "-required";
         if (options.ContainsKey(InputOption) && !values.ContainsKey(InputOption))

@@ -70,7 +70,8 @@ public static class SetupCliCommandSchemaMetadata
                 ["coverage"] = Ref("coverage"),
                 ["readiness"] = Ref("readiness"),
                 ["pathIntent"] = Enum(["none", "input", "output", "stdout"]),
-                ["writeStatus"] = Enum(["none", "planned", "written"])
+                ["writeStatus"] = Enum(["none", "planned", "written", "not-attempted",
+                    "conflict", "blocked", "failed"])
             }),
             ["coverage"] = ObjectSchema(["coveredKeys", "missingKeys"], new()
             { ["coveredKeys"] = Ref("keyList"), ["missingKeys"] = Ref("keyList") }),
@@ -117,7 +118,7 @@ public static class SetupCliCommandSchemaMetadata
                 ["exitCode"] = new JsonObject { ["enum"] = new JsonArray(System.Enum.GetValues<SetupCliExitCode>().Select(value => (JsonNode?)JsonValue.Create((int)value)).ToArray()) },
                 ["dryRun"] = new JsonObject { ["type"] = "boolean" },
                 ["diagnostics"] = BoundedArray("diagnostic", 128),
-                ["artifacts"] = BoundedArray("artifact", 32),
+                ["artifacts"] = BoundedArray("artifact", 64),
                 ["coverage"] = Ref("coverage"),
                 ["readiness"] = Ref("readiness")
             },

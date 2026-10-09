@@ -1,0 +1,30 @@
+Change-Id: CHG-01M4G9887AFN4PY9ZEPR80VKVY
+Title: "report protected bundle publication outcomes"
+Type: feat
+Scope: cli
+Summary: "Add bundle-check and bundle-create with up to 64 declared artifact IDs. Reuse shared protected publication and report per-artifact written, conflict, blocked, failed and unattempted outcomes without private bytes or paths. Keep command schema and generated ratchet aligned with the new machine envelope."
+Group: cli-bundle
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "ISetupCliWriter implementations must provide WriteBundle. Machine contract consumers must accept up to 64 artifacts and the additional writeStatus values."
+  Security:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Add bundle-check and bundle-create with up to 64 declared artifact IDs. Reuse shared protected publication and report per-artifact written, conflict, blocked, failed and unattempted outcomes without private bytes or paths. Keep command schema and generated ratchet aligned with the new machine envelope."
+  Migration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "ISetupCliWriter implementations must provide WriteBundle. Machine contract consumers must accept up to 64 artifacts and the additional writeStatus values."
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Add bundle-check and bundle-create with up to 64 declared artifact IDs. Reuse shared protected publication and report per-artifact written, conflict, blocked, failed and unattempted outcomes without private bytes or paths. Keep command schema and generated ratchet aligned with the new machine envelope."

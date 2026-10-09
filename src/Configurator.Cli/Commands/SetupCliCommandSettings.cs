@@ -110,4 +110,32 @@ internal sealed class ArtifactImportSettings : ArtifactOutputSettings
         { ExpectedRevision = ExpectedRevision, RevisionField = RevisionField };
 }
 
+internal class BundleInputSettings : DefinitionSettings
+{
+    [CommandOption("--artifacts <IDS>")]
+    public string? Artifacts { get; set; }
+
+    [CommandOption("--input <PATH>")]
+    public string? Input { get; set; }
+
+    [CommandOption("--input-revision <NUMBER>")]
+    public string InputRevision { get; set; } = "0";
+
+    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+        base.Bind(family, operation, invocationMode) with
+        { Artifacts = Artifacts, Input = Path(Input), InputRevision = InputRevision };
+}
+
+internal sealed class BundleOutputSettings : BundleInputSettings
+{
+    [CommandOption("--output <DIRECTORY>")]
+    public string? Output { get; set; }
+
+    [CommandOption("--dry-run")]
+    public bool DryRun { get; set; }
+
+    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+        base.Bind(family, operation, invocationMode) with { Output = Path(Output), DryRun = DryRun };
+}
+
 internal sealed class DoctorSettings : SetupCliCommandSettings;

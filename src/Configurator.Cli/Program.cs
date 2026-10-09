@@ -1,6 +1,7 @@
 using Configurator.Artifacts;
 using Configurator.Cli;
 using Configurator.Core;
+using Configurator.Core.Artifacts;
 
 return SetupCliProgram.Run(args);
 
@@ -104,6 +105,16 @@ internal static class SetupCliProgram
                 .PrepareAsync(kind, path, bytes, CancellationToken.None).GetAwaiter().GetResult();
             if (preparation.CommitAsync().GetAwaiter().GetResult() != ProtectedArtifactStatus.Written)
                 throw new IOException("protected-output-unavailable");
+        }
+
+        public IReadOnlyList<ProtectedArtifactStatus?> WriteBundle(
+            IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes)
+        {
+            if (artifacts.Any(item => item.ByteLength > maximumBytes))
+                throw new IOException("output-bound");
+            ProtectedArtifactBundleResult result = ProtectedArtifactBundlePublisher.PublishAsync(
+                new ProtectedArtifactWriter(), artifacts, directory).GetAwaiter().GetResult();
+            return result.Outcomes.Select(item => item.Status).ToArray();
         }
     }
 }

@@ -1,11 +1,83 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Configurator.Cli.Tests;
 
 public sealed class SetupCliApplicationTests
 {
+    [Test]
+    public async Task MaximumBundleSelectionStillProducesOneBoundedMachineEnvelope()
+    {
+        var io = new CliFixture();
+        JsonObject definition = JsonNode.Parse(CliFixture.Definition)!.AsObject();
+        JsonNode template = definition["artifacts"]!.AsArray()[0]!;
+        var artifacts = new JsonArray();
+        var ids = new List<string>();
+        for (int index = 0; index < 64; index++)
+        {
+            string id = "a" + index.ToString("D2", CultureInfo.InvariantCulture) + new string('a', 59);
+            JsonObject artifact = (JsonObject)template.DeepClone();
+            artifact["id"] = id;
+            artifact["fileName"] = $"file{index:D2}.json";
+            artifacts.Add(artifact);
+            ids.Add(id);
+        }
+        definition["artifacts"] = artifacts;
+        io.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
+
+        await Assert.That(io.Run("artifact", "bundle-check", "--definition", "definition.json",
+            "--artifacts", string.Join(',', ids), "--input", "answers.json", "--machine"))
+            .IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        await Assert.That(io.StandardOutput.Length).IsLessThanOrEqualTo(65_536);
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-answer-marker");
+    }
+
+    [Test]
+    public async Task BundleCommandReportsCompleteConflictBlockedAndPartialOutcomesWithoutPrivateBytes()
+    {
+        string[] args = ["--definition", "definition.json", "--artifacts", "config,yaml",
+            "--input", "answers.json", "--output", "bundle", "--machine"];
+        var complete = new CliFixture();
+        await Assert.That(complete.Run(["artifact", "bundle-check", .. args.Where(item => item != "--output" && item != "bundle")]))
+            .IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(complete.Run(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(complete.Files.ContainsKey("bundle/service.json")).IsTrue();
+        await Assert.That(complete.Files.ContainsKey("bundle/service.yaml")).IsTrue();
+        await Assert.That(SetupCliMachineContractVerifier.Validate(complete.StandardOutput)).IsEmpty();
+        await Assert.That(Encoding.UTF8.GetString(complete.StandardOutput)).DoesNotContain("private-answer-marker");
+        await Assert.That(Encoding.UTF8.GetString(complete.StandardOutput)).DoesNotContain("bundle/");
+
+        var conflict = new CliFixture();
+        conflict.Files["bundle/service.yaml"] = "untouched"u8.ToArray();
+        await Assert.That(conflict.Run(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Blocked);
+        await Assert.That(conflict.Files.ContainsKey("bundle/service.json")).IsFalse();
+        await Assert.That(Encoding.UTF8.GetString(conflict.Files["bundle/service.yaml"])).IsEqualTo("untouched");
+
+        var blocked = new CliFixture { BundleBlocked = true };
+        await Assert.That(blocked.Run(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Blocked);
+        await Assert.That(blocked.Files.ContainsKey("bundle/service.json")).IsFalse();
+
+        var partial = new CliFixture { BundleFailureAfter = 1 };
+        await Assert.That(partial.Run(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(partial.Files.ContainsKey("bundle/service.json")).IsTrue();
+        await Assert.That(partial.Files.ContainsKey("bundle/service.yaml")).IsFalse();
+        using JsonDocument machine = JsonDocument.Parse(partial.StandardOutput);
+        await Assert.That(machine.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString())
+            .IsEqualTo("written");
+        await Assert.That(machine.RootElement.GetProperty("artifacts")[1].GetProperty("writeStatus").GetString())
+            .IsEqualTo("failed");
+        await Assert.That(Encoding.UTF8.GetString(partial.StandardOutput)).DoesNotContain("private-answer-marker");
+
+        var revisionBound = new CliFixture();
+        await Assert.That(revisionBound.Run("artifact", "bundle-create", "--definition", "definition.json",
+            "--artifacts", "config,request", "--input", "answers.json", "--output", "bundle",
+            "--machine")).IsEqualTo(SetupCliExitCode.Blocked);
+        await Assert.That(revisionBound.Files.ContainsKey("bundle/service.json")).IsFalse();
+    }
+
     [Test]
     public async Task ExistingFileCheckAndPrefillUseDistinctMachineOperations()
     {

@@ -12,6 +12,7 @@ internal sealed record SetupCliCommand(
     internal string? ExpectedRevision { get; init; }
     internal string? RevisionField { get; init; }
     internal string? Answers { get; init; }
+    internal string? Artifacts { get; init; }
 }
 
 internal sealed record SetupCliCommandResult(

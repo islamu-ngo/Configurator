@@ -1,5 +1,8 @@
+using System.Security.Cryptography;
 using System.Text;
+using Configurator.Artifacts;
 using Configurator.Core;
+using Configurator.Core.Artifacts;
 
 namespace Configurator.Cli.Tests;
 
@@ -38,6 +41,8 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
     internal byte[] StandardOutput { get; private set; } = [];
     internal byte[] StandardError { get; private set; } = [];
     internal int MaximumRead { get; private set; }
+    internal bool BundleBlocked { get; set; }
+    internal int? BundleFailureAfter { get; set; }
 
     internal SetupCliExitCode Run(params string[] arguments)
     {
@@ -74,11 +79,57 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         else if (!Files.TryAdd(path, bytes.ToArray())) throw new IOException();
     }
 
+    public IReadOnlyList<ProtectedArtifactStatus?> WriteBundle(
+        IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes)
+    {
+        var statuses = new ProtectedArtifactStatus?[artifacts.Count];
+        if (BundleBlocked)
+        {
+            Array.Fill(statuses, ProtectedArtifactStatus.UnsupportedPlatform);
+            return statuses;
+        }
+        if (artifacts.Any(item => item.ByteLength > maximumBytes))
+        {
+            Array.Fill(statuses, ProtectedArtifactStatus.InvalidRequest);
+            return statuses;
+        }
+        for (int index = 0; index < artifacts.Count; index++)
+        {
+            if (!Files.ContainsKey(Path.Combine(directory, artifacts[index].FileName))) continue;
+            statuses[index] = ProtectedArtifactStatus.TargetExists;
+            return statuses;
+        }
+        for (int index = 0; index < artifacts.Count; index++)
+        {
+            if (BundleFailureAfter == index)
+            {
+                statuses[index] = ProtectedArtifactStatus.IoFailure;
+                break;
+            }
+            string path = Path.Combine(directory, artifacts[index].FileName);
+            ReadOnlyMemory<byte> payload = artifacts[index].Bytes;
+            if (!Files.TryAdd(path, payload.ToArray()))
+            {
+                statuses[index] = ProtectedArtifactStatus.TargetExists;
+                if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(payload, out ArraySegment<byte> rejected))
+                    CryptographicOperations.ZeroMemory(rejected.AsSpan());
+                break;
+            }
+            if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(payload, out ArraySegment<byte> written))
+                CryptographicOperations.ZeroMemory(written.AsSpan());
+            statuses[index] = ProtectedArtifactStatus.Written;
+        }
+        return statuses;
+    }
+
     private sealed class ErrorWriter(CliFixture owner) : ISetupCliWriter
     {
         public void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes) =>
             owner.StandardError = bytes.ToArray();
         public void WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes) =>
+            throw new IOException();
+        public IReadOnlyList<ProtectedArtifactStatus?> WriteBundle(
+            IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes) =>
             throw new IOException();
     }
 }

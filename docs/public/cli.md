@@ -58,6 +58,8 @@ exclusive. Every value option occurs at most once. Commands are case sensitive.
 | `artifact import` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH`, `--expected-revision REVISION`, `--revision-field ID` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `artifact check-existing` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--answers PATH`, `--input-revision NUMBER` |
 | `artifact prefill` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--answers PATH`, `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
+| `artifact bundle-check` | `--definition PATH`, `--artifacts IDS`, `--input PATH` | `--input-revision NUMBER` |
+| `artifact bundle-create` | `--definition PATH`, `--artifacts IDS`, `--input PATH`, `--output DIRECTORY` | `--input-revision NUMBER`, `--dry-run` |
 | `artifact preview` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `doctor` | none | none |
 
@@ -110,6 +112,25 @@ islamu-configurator artifact prefill --definition definition.json \
   --artifact config --input service.json --output prefilled-answers.json --machine
 ```
 
+`bundle-check` composes multiple declared artifacts from one answer workspace
+without writing them. `bundle-create` prepares all selected destinations in the
+output directory before writing any, then creates them in definition order.
+Pass artifact IDs as a comma-separated `--artifacts` value, for example
+`config,environment`. Existing files and unsupported protected-save hosts block
+the write. A later race or I/O failure may leave an earlier file written; the
+machine result reports each artifact as `written`, `conflict`, `blocked`,
+`failed` or `not-attempted` and exits unsuccessfully. Inspect those statuses
+before retrying. Neither command accepts an artifact with import semantics;
+use revision-bound `artifact import` for that artifact. `--dry-run` checks
+composition only and does not reserve or inspect destinations.
+
+```bash
+islamu-configurator artifact bundle-check --definition definition.json \
+  --artifacts config,environment --input answers.json --machine
+islamu-configurator artifact bundle-create --definition definition.json \
+  --artifacts config,environment --input answers.json --output ./prepared --machine
+```
+
 Catalogue output is structural metadata only: ID, type, sensitivity, required
 flag, disclosure, and (for `describe`) presence of activation, required-condition,
 default and recommendation metadata. It excludes answer values, titles, help,
@@ -149,6 +170,9 @@ operation, mode), `status`, `exitCategory`, `exitCode`, `dryRun`, `diagnostics`,
 Artifact objects contain kind/mediaType/digest/sensitivity/coverage/readiness/
 pathIntent/writeStatus. No artifact body is included. Kinds are `catalogue`,
 `definition-artifact`, `answer-snapshot`, `doctor-report`; sensitivities are `public`, `restricted`.
+Bundle results use one `definition-artifact` entry per selected output, each
+with a value-free `writeStatus`. A successful local check does not claim the
+target application accepted the configuration.
 Coverage lists are unique and ordinally sorted. Successful local preparation
 reports `host-validation-required` readiness, not host acceptance.
 

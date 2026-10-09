@@ -40,6 +40,20 @@ operations reject before reading answers so they cannot bypass revision binding.
 `open` and `validate` compose without writing; `coverage` derives required/provided
 facts; `diff` compares composed bytes without value disclosure.
 
+`artifact bundle-check` and `artifact bundle-create` take a bounded comma-separated
+`--artifacts` ID selection and one answer snapshot. Core composes the selected
+artifacts in definition order with an aggregate byte limit before native output.
+Import-semantic artifacts are excluded so a bundle cannot bypass explicit
+revision binding. The check reports local composition metadata only. Create
+passes the complete ordered bundle through `ISetupCliWriter.WriteBundle` to
+`ProtectedArtifactBundlePublisher`: all destinations are prepared before the
+first commit, then create-only commits may leave a written prefix if a later
+race, cancellation or I/O failure occurs. The machine envelope reports one
+digest and value-free write status per selected artifact, plus covered/missing
+artifact IDs; it never includes filenames, directory paths or bytes. Dry run
+composes but does not preflight destinations or write. Partial publication is
+an unsuccessful exit and does not roll back already written files.
+
 Import preparation requires declared import semantics, an explicit expected
 revision and a declared string revision field. The selected projection must copy
 it unconditionally to a root object member, and validation must confirm it is

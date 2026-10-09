@@ -288,7 +288,7 @@ internal static partial class SetupCliMachineContractVerifier
 
     private static void ValidateArtifacts(JsonArray? artifacts, List<string> errors)
     {
-        if (artifacts is null || artifacts.Count > 32)
+        if (artifacts is null || artifacts.Count > 64)
         {
             errors.Add("machine-artifact-count");
             return;

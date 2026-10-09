@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
+using Configurator.Artifacts;
 using Configurator.Core;
+using Configurator.Core.Artifacts;
 
 namespace Configurator.Cli;
 
@@ -16,6 +18,9 @@ public interface ISetupCliWriter
     void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes);
 
     void WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes);
+
+    IReadOnlyList<ProtectedArtifactStatus?> WriteBundle(
+        IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes);
 }
 
 public sealed record SetupCliIo

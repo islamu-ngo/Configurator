@@ -14,5 +14,7 @@ internal static class ArtifactCommands
         SetupCliCommandRegistry.Operation<ArtifactImportSettings>("import"),
         SetupCliCommandRegistry.Operation<ArtifactInputSettings>("check-existing"),
         SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("prefill"),
+        SetupCliCommandRegistry.Operation<BundleInputSettings>("bundle-check"),
+        SetupCliCommandRegistry.Operation<BundleOutputSettings>("bundle-create"),
         SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("preview"));
 }
