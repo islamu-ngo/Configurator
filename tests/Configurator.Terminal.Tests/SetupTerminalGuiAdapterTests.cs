@@ -23,10 +23,12 @@ public sealed class SetupTerminalGuiAdapterTests
         {
             string[] keys =
             [
-                "WindowTitle", "OutputFile", "Close", "Ready", "Limitations", "TerminalTooSmall",
+                "WindowTitle", "ImportFile", "Close", "Ready", "Limitations", "TerminalTooSmall",
                 "InvalidSecret", "SecretCommandsDisabled", "InvalidOutput", "Cancelled", "Writing",
                 "DisplayMode", "ModeGuided", "ModeAdvanced", "ModeAllDeclared", "Choose", "Previous",
                 "Next", "ApplyField", "PreviousItem", "NextItem", "RemoveItem", "Artifact",
+                "SelectOutput", "Selected", "NotSelected", "ImportSelected", "ImportReady",
+                "ImportFailed", "NextOutcome", "NotAttempted", "PartialBundle", "ManualRecovery",
                 "PreparePreview", "SaveProtected", "PreviewReady", "DraftInvalid",
                 "ProtectedDraftSaved", "ProtectedDraftFailed", "ValidateDraft", "ClearPrivate",
                 "PrivateCleared", "InputChanged", "NoFields"
@@ -146,9 +148,98 @@ public sealed class SetupTerminalGuiAdapterTests
 
     [Test]
     [NotInParallel]
+    public async Task NativeImportAndOutputSelectionPrepareTheDeclaredBundleWithoutRenderingPrivateAnswers()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-guided-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string source = Path.Combine(directory, "existing.json");
+            await File.WriteAllTextAsync(source, """{"name":"sample","token":"privateValue"}""");
+            using var harness = new Harness(initialize: true, empty: true, directory: directory);
+            TextField importPath = harness.Window.SubViews.OfType<TextField>()
+                .Single(field => field.Y == 14);
+            importPath.Text = source;
+            Button import = harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("ImportSelected"));
+            await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
+            await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
+            Button cycle = harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("Artifact"));
+            Button select = harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("SelectOutput"));
+            await Assert.That(cycle.InvokeCommand(Command.Accept)).IsTrue();
+            await Assert.That(select.InvokeCommand(Command.Accept)).IsTrue();
+            await Assert.That(harness.Operation.PrepareAsync().GetAwaiter().GetResult()).IsTrue();
+            await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
+            await harness.Workspace.ExecuteAsync(Guid.NewGuid());
+            await Assert.That(Directory.EnumerateFiles(directory).Select(Path.GetFileName))
+                .Contains("config.json");
+            await Assert.That(Directory.EnumerateFiles(directory).Select(Path.GetFileName))
+                .Contains("config.env");
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ConflictingNativeImportLeavesAnswersAndStatusValueFree()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-import-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string source = Path.Combine(directory, "existing.json");
+            await File.WriteAllTextAsync(source, """{"name":"sample","token":"differentPrivateValue"}""");
+            using var harness = new Harness(initialize: true, directory: directory);
+            TextField importPath = harness.Window.SubViews.OfType<TextField>()
+                .Single(field => field.Y == 14);
+            importPath.Text = source;
+            Button import = harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("ImportSelected"));
+            await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
+            await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
+            await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
+            await Assert.That(harness.Window.StatusText).DoesNotContain("differentPrivateValue");
+            await Assert.That(harness.Window.StatusText).DoesNotContain(directory);
+            await Assert.That(importPath.Text).IsEmpty();
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task PartialSaveStatusIdentifiesEachCommittedOutputAndManualRecovery()
+    {
+        using var harness = new Harness(initialize: true);
+        var result = new SetupTerminalArtifactResult(
+        [
+            new("config", ProtectedArtifactStatus.Written),
+            new("environment", ProtectedArtifactStatus.TargetExists),
+            new("yaml", null)
+        ]);
+        harness.Window.PresentResult(result);
+        Button next = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == SetupTerminalText.Get("NextOutcome"));
+        await Assert.That(next.Visible).IsTrue();
+        string first = harness.Window.StatusText;
+        await Assert.That(next.InvokeCommand(Command.Accept)).IsTrue();
+        string second = harness.Window.StatusText;
+        await Assert.That(next.InvokeCommand(Command.Accept)).IsTrue();
+        string third = harness.Window.StatusText;
+        await Assert.That(first).Contains("config: Written");
+        await Assert.That(second).Contains("environment: TargetExists");
+        await Assert.That(third).Contains("yaml: " + SetupTerminalText.Get("NotAttempted"));
+        await Assert.That(first).Contains(SetupTerminalText.Get("ManualRecovery"));
+        await Assert.That(first).DoesNotContain("privateValue");
+    }
+
+    [Test]
+    [NotInParallel]
     [Arguments(false)]
     [Arguments(true)]
-    public async Task ClearOrSignalCancelsInFlightWriteBeforeCommit(bool signal)
+    public async Task ClearOrSignalCancelsBeforeBundlePublication(bool signal)
     {
         if (!OperatingSystem.IsLinux()) return;
         string directory = Path.Combine(Path.GetTempPath(), "configurator-cancel-" + Guid.NewGuid());
@@ -158,7 +249,7 @@ public sealed class SetupTerminalGuiAdapterTests
         try
         {
             using var harness = new Harness(initialize: true, directory: directory,
-                beforeCommit: async token => { reached.TrySetResult(); await resume.Task.WaitAsync(token); });
+                beforePublication: async token => { reached.TrySetResult(); await resume.Task.WaitAsync(token); });
             await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
             Task execution = harness.Workspace.ExecuteAsync(Guid.NewGuid());
             await reached.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -189,13 +280,13 @@ public sealed class SetupTerminalGuiAdapterTests
         private readonly IApplication _application;
         private readonly SetupPresentationSession _session;
         internal Harness(bool initialize = false, bool empty = false, string? directory = null,
-            Func<CancellationToken, Task>? beforeCommit = null)
+            Func<CancellationToken, Task>? beforePublication = null)
         {
             _application = Application.Create();
             if (initialize) _application.Init("dotnet");
             Form = empty ? new DefinitionFormModel(TerminalDefinitionFixture.Definition()) : TerminalDefinitionFixture.Form();
             Secret = new SetupTerminalSecretBuffer(262144, urlSafeOnly: false);
-            Operation = new SetupTerminalArtifactOperation(Form, new ProtectedArtifactWriter(), directory ?? Path.GetTempPath(), beforeCommit);
+            Operation = new SetupTerminalArtifactOperation(Form, new ProtectedArtifactWriter(), directory ?? Path.GetTempPath(), beforePublication);
             _session = new SetupPresentationSession(new StrongReferenceMessenger());
             SetupWorkspaceId.TryCreate("definition", out var id);
             Workspace = _session.CreateWorkspace(id, Operation);

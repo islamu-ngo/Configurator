@@ -23,8 +23,13 @@ public sealed class SetupTerminalOfflineWorkflowTests
         try
         {
             using var form = TerminalDefinitionFixture.Form();
-            using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory)
-            { ArtifactId = id };
+            using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory);
+            if (id != operation.ArtifactId)
+            {
+                operation.ToggleCurrentArtifact();
+                operation.ArtifactId = id;
+                operation.ToggleCurrentArtifact();
+            }
             using var session = new SetupPresentationSession(new StrongReferenceMessenger());
             SetupWorkspaceId.TryCreate("definition", out var workspaceId);
             using var workspace = session.CreateWorkspace(workspaceId, operation);
@@ -33,15 +38,16 @@ public sealed class SetupTerminalOfflineWorkflowTests
             await Assert.That(operation.Preparation!.ToString()).DoesNotContain("privateValue");
             await workspace.ExecuteAsync(Guid.NewGuid());
             var result = (SetupTerminalArtifactResult)workspace.Result!;
-            await Assert.That(result.Status).IsEqualTo(ProtectedArtifactStatus.Written);
-            string path = Path.Combine(directory, operation.FileName);
+            await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
+            string path = Path.Combine(directory, form.Definition.Artifacts.Single(item => item.Id == id).FileName);
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(expected);
             await Assert.That(File.GetUnixFileMode(path)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
             await Assert.That(operation.IsPrepared).IsFalse();
             await Assert.That(workspace.Output).IsEmpty();
             await Assert.That(await operation.PrepareAsync()).IsTrue();
             var repeated = await operation.ExecuteAsync(CancellationToken.None);
-            await Assert.That(((SetupTerminalArtifactResult)repeated.CoreResult).Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+            await Assert.That(((SetupTerminalArtifactResult)repeated.CoreResult).Outcomes[0].Status)
+                .IsEqualTo(ProtectedArtifactStatus.TargetExists);
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(expected);
         }
         finally { Directory.Delete(directory, true); }
@@ -56,11 +62,13 @@ public sealed class SetupTerminalOfflineWorkflowTests
         form.Fields.Single(input => input.Definition.Id == "name").Text = "changed";
         await Assert.That(operation.IsPrepared).IsFalse();
         var result = await operation.ExecuteAsync(CancellationToken.None);
-        await Assert.That(((SetupTerminalArtifactResult)result.CoreResult).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That(((SetupTerminalArtifactResult)result.CoreResult).Outcomes[0].Status)
+            .IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
         await Assert.That(await operation.PrepareAsync()).IsTrue();
         operation.ArtifactId = "legal";
         await Assert.That(operation.IsPrepared).IsFalse();
-        await Assert.That(operation.FileName).IsEqualTo("legal.md");
+        await Assert.That(form.Definition.Artifacts.Single(item => item.Id == operation.ArtifactId).FileName)
+            .IsEqualTo("legal.md");
     }
 
     [Test]
@@ -159,7 +167,8 @@ public sealed class SetupTerminalOfflineWorkflowTests
         await Assert.That(await operation.PrepareAsync()).IsTrue();
         await Assert.That(operation.ProtectedOutputAvailable).IsFalse();
         var outcome = await operation.ExecuteAsync(CancellationToken.None);
-        await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Status).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
+        await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Status)
+            .IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
         await Assert.That(operation.IsPrepared).IsFalse();
     }
 

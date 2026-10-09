@@ -18,19 +18,22 @@ public sealed class SetupTerminalSecurityTests
     }
 
     [Test]
-    [Arguments("../outside")]
-    [Arguments("/tmp/private")]
-    [Arguments("-")]
-    [Arguments("..")]
-    public async Task SaveCannotEscapeTheExplicitLocalDirectory(string name)
+    public async Task EmptyOutputSelectionCannotPublishPrivateAnswers()
     {
-        using var form = TerminalDefinitionFixture.Form();
-        using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath())
-        { FileName = name };
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
-        var outcome = await operation.ExecuteAsync(CancellationToken.None);
-        await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
-        await Assert.That(operation.IsPrepared).IsFalse();
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-empty-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var form = TerminalDefinitionFixture.Form();
+            using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory);
+            operation.ToggleCurrentArtifact();
+            await Assert.That(await operation.PrepareAsync()).IsFalse();
+            var outcome = await operation.ExecuteAsync(CancellationToken.None);
+            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Succeeded).IsFalse();
+            await Assert.That(operation.IsPrepared).IsFalse();
+            await Assert.That(Directory.EnumerateFiles(directory)).IsEmpty();
+        }
+        finally { Directory.Delete(directory); }
     }
 
     [Test]
@@ -88,7 +91,7 @@ public sealed class SetupTerminalSecurityTests
     }
 
     [Test]
-    public async Task SignalDuringPreparedWriteCancelsBeforeAtomicCommitAndClearsState()
+    public async Task SignalBeforeBundlePublicationCancelsAndClearsState()
     {
         if (!OperatingSystem.IsLinux()) return;
         string directory = Path.Combine(Path.GetTempPath(), "configurator-signal-" + Guid.NewGuid());
@@ -117,7 +120,7 @@ public sealed class SetupTerminalSecurityTests
     }
 
     [Test]
-    public async Task SharedWriterKeepsTerminalStagingAnonymous()
+    public async Task SharedPublisherLeavesNoVisibleStagingFiles()
     {
         if (!OperatingSystem.IsLinux()) return;
         string directory = Path.Combine(Path.GetTempPath(), "configurator-staging-" + Guid.NewGuid());
@@ -125,16 +128,14 @@ public sealed class SetupTerminalSecurityTests
         try
         {
             using var form = TerminalDefinitionFixture.Form();
-            using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory,
-                _ =>
-                {
-                    if (Directory.EnumerateFiles(directory).Any())
-                        throw new InvalidOperationException("replaceable-staging-entry");
-                    return Task.CompletedTask;
-                });
+            using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory);
             await Assert.That(await operation.PrepareAsync()).IsTrue();
             var outcome = await operation.ExecuteAsync(CancellationToken.None);
-            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Status).IsEqualTo(ProtectedArtifactStatus.Written);
+            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Status)
+                .IsEqualTo(ProtectedArtifactStatus.Written);
+            await Assert.That(Directory.EnumerateFiles(directory).Select(Path.GetFileName))
+                .Contains("config.json");
+            await Assert.That(Directory.EnumerateFiles(directory).Count()).IsEqualTo(1);
         }
         finally { Directory.Delete(directory, true); }
     }

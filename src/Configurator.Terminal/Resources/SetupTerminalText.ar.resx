@@ -4,14 +4,14 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="WindowTitle" xml:space="preserve"><value>المهيئ - تعريف محلي</value></data>
-  <data name="OutputFile" xml:space="preserve"><value>ملف الإخراج:</value></data>
+  <data name="ImportFile" xml:space="preserve"><value>ملف الاستيراد:</value></data>
   <data name="Close" xml:space="preserve"><value>إ_غلاق / إلغاء</value></data>
   <data name="Ready" xml:space="preserve"><value>إعداد محلي فقط. لا تُستبدل الملفات الموجودة.</value></data>
   <data name="Limitations" xml:space="preserve"><value>تنقل بلوحة المفاتيح. الإدخال الخاص محجوب والحافظة والسجل معطلان. قارئ الشاشة وبرايل وتشكيل RTL ومسح ذاكرة .NET غير متحقق منها.</value></data>
   <data name="TerminalTooSmall" xml:space="preserve"><value>غيّر الحجم إلى 80 عمودًا و26 صفًا على الأقل. التحرير مخفي حتى ذلك الحين.</value></data>
   <data name="InvalidSecret" xml:space="preserve"><value>الإدخال يتجاوز الحد المدعوم.</value></data>
   <data name="SecretCommandsDisabled" xml:space="preserve"><value>أوامر الحافظة وقائمة السياق والسجل معطلة في الإدخال المحمي.</value></data>
-  <data name="InvalidOutput" xml:space="preserve"><value>أعد الملف الحالي وأدخل اسم ملف بسيطًا بحروف لاتينية وأرقام ونقطة وشرطة وشرطة سفلية؛ 64 حرفًا كحد أقصى.</value></data>
+  <data name="InvalidOutput" xml:space="preserve"><value>أعد تجهيز ملفات الإخراج المحددة قبل الحفظ.</value></data>
   <data name="Cancelled" xml:space="preserve"><value>أُلغيت العملية ومُسحت البيانات الخاصة.</value></data>
   <data name="Writing" xml:space="preserve"><value>جارٍ كتابة الإخراج المحمي...</value></data>
   <data name="DisplayMode" xml:space="preserve"><value>_العرض</value></data>
@@ -26,6 +26,16 @@
   <data name="NextItem" xml:space="preserve"><value>العنصر التالي / إ_ضافة</value></data>
   <data name="RemoveItem" xml:space="preserve"><value>ح_ذف العنصر</value></data>
   <data name="Artifact" xml:space="preserve"><value>تبديل ال_ملف</value></data>
+  <data name="SelectOutput" xml:space="preserve"><value>تبديل تحديد ال_إخراج</value></data>
+  <data name="Selected" xml:space="preserve"><value>محدد</value></data>
+  <data name="NotSelected" xml:space="preserve"><value>غير محدد</value></data>
+  <data name="ImportSelected" xml:space="preserve"><value>ا_ستيراد الملف المحدد</value></data>
+  <data name="ImportReady" xml:space="preserve"><value>تم استيراد الحقول المدعومة. راجع الإجابات المحجوبة وتحقق منها.</value></data>
+  <data name="ImportFailed" xml:space="preserve"><value>رُفض الاستيراد ولم تتغير الإجابات.</value></data>
+  <data name="NextOutcome" xml:space="preserve"><value>نتيجة الإخراج ال_تالية</value></data>
+  <data name="NotAttempted" xml:space="preserve"><value>لم يُحاول</value></data>
+  <data name="PartialBundle" xml:space="preserve"><value>حفظ محمي جزئي.</value></data>
+  <data name="ManualRecovery" xml:space="preserve"><value>راجع الملفات المنشأة قبل إعادة المحاولة؛ لا تُستبدل الملفات الموجودة.</value></data>
   <data name="PreparePreview" xml:space="preserve"><value>إ_عداد الملف</value></data>
   <data name="SaveProtected" xml:space="preserve"><value>_حفظ محمي</value></data>
   <data name="PreviewReady" xml:space="preserve"><value>نجح التحقق. يبقى المحتوى المُعد خاصًا.</value></data>

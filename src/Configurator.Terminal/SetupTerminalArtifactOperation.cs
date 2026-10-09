@@ -1,123 +1,120 @@
 namespace Configurator.Terminal;
 
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using Configurator.Artifacts;
-using Configurator.Core;
+using Configurator.Core.Artifacts;
 using Configurator.Presentation;
 
-internal sealed record SetupTerminalArtifactResult(ProtectedArtifactStatus Status, string? Digest)
+internal sealed record SetupTerminalArtifactResult(IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes)
 {
-    public override string ToString() => $"{nameof(SetupTerminalArtifactResult)}:{Status}";
+    internal bool Succeeded => Outcomes.Count > 0
+        && Outcomes.All(item => item.Status == ProtectedArtifactStatus.Written);
+    public override string ToString() => $"{nameof(SetupTerminalArtifactResult)}:Succeeded={Succeeded}:Count={Outcomes.Count}";
 }
 
-/// <summary>Owns the restricted prepared bytes; the shared workspace fences saves.</summary>
+internal sealed record SetupTerminalPreparation(long InputRevision, int ArtifactCount)
+{
+    public override string ToString() => $"{nameof(SetupTerminalPreparation)}:Count={ArtifactCount}";
+}
+
+/// <summary>Tracks selected outputs and current readiness while the workspace fences native publication.</summary>
 internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperation, IDisposable
 {
     private readonly IProtectedArtifactWriter _writer;
     private readonly string _baseDirectory;
-    private readonly Func<CancellationToken, Task>? _beforeCommit;
-    private byte[] _bytes = [];
+    private readonly Func<CancellationToken, Task>? _beforePublication;
+    private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
     private string _artifactId;
     private bool _disposed;
 
     internal SetupTerminalArtifactOperation(
         DefinitionFormModel form, IProtectedArtifactWriter writer, string baseDirectory,
-        Func<CancellationToken, Task>? beforeCommit = null)
+        Func<CancellationToken, Task>? beforePublication = null)
     {
         Form = form;
         _writer = writer;
         _baseDirectory = baseDirectory;
-        _beforeCommit = beforeCommit;
+        _beforePublication = beforePublication;
         _artifactId = form.Definition.Artifacts[0].Id;
-        FileName = form.Definition.Artifacts[0].FileName;
+        _selected.Add(_artifactId);
         Form.InputChanged += InputChanged;
     }
 
     internal DefinitionFormModel Form { get; }
     internal event EventHandler? Invalidated;
-    internal DefinitionPreparationMetadata? Preparation { get; private set; }
-    internal bool IsPrepared => _bytes.Length > 0 && Preparation?.InputRevision == Form.InputRevision;
+    internal SetupTerminalPreparation? Preparation { get; private set; }
+    internal bool IsPrepared => Preparation?.InputRevision == Form.InputRevision;
     internal bool ProtectedOutputAvailable => _writer.IsAvailable;
-    internal string FileName { get; set; }
+    internal IReadOnlyList<string> SelectedArtifactIds => Form.Definition.Artifacts
+        .Where(item => _selected.Contains(item.Id)).Select(item => item.Id).ToArray();
     internal string ArtifactId
     {
         get => _artifactId;
         set
         {
             if (_artifactId == value) return;
-            var artifact = Form.Definition.Artifacts.Single(item => item.Id == value);
+            _ = Form.Definition.Artifacts.Single(item => item.Id == value);
             Invalidate();
             _artifactId = value;
-            FileName = artifact.FileName;
         }
     }
 
-    internal async Task<bool> PrepareAsync(CancellationToken cancellationToken = default)
+    internal bool CurrentArtifactSelected => _selected.Contains(_artifactId);
+
+    internal void ToggleCurrentArtifact()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_selected.Add(_artifactId)) _selected.Remove(_artifactId);
+        Invalidate();
+    }
+
+    internal Task<bool> PrepareAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         Invalidate();
-        if (Form.HasInputErrors) return false;
-        var outcome = await new DefinitionPresentationOperation(
-            Form.Definition, ArtifactId, Form.Snapshot()).ExecuteAsync(cancellationToken);
-        try
-        {
-            Preparation = (DefinitionPreparationMetadata)outcome.CoreResult;
-            if (!Preparation.Succeeded || Preparation.InputRevision != Form.InputRevision)
-                return false;
-            _bytes = outcome.Output.ToArray();
-            return IsPrepared;
-        }
-        finally
-        {
-            if (MemoryMarshal.TryGetArray(outcome.Output, out ArraySegment<byte> segment))
-                CryptographicOperations.ZeroMemory(segment.AsSpan());
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        if (Form.HasInputErrors) return Task.FromResult(false);
+        var snapshot = Form.Snapshot();
+        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
+            Form.Definition, SelectedArtifactIds, snapshot);
+        if (!bundle.Succeeded || snapshot.InputRevision != Form.InputRevision) return Task.FromResult(false);
+        Preparation = new(snapshot.InputRevision, bundle.Artifacts.Count);
+        return Task.FromResult(true);
     }
 
     public async Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
     {
-        byte[] bytes = _bytes;
-        DefinitionPreparationMetadata? metadata = Preparation;
-        _bytes = [];
+        SetupTerminalPreparation? prepared = Preparation;
+        string[] selected = SelectedArtifactIds.ToArray();
         Preparation = null;
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (bytes.Length == 0 || metadata?.InputRevision != Form.InputRevision
-                || !SetupTerminalFileName.IsSafe(FileName))
-                return Outcome(ProtectedArtifactStatus.InvalidRequest, null);
-            if (!_writer.IsAvailable)
-                return Outcome(ProtectedArtifactStatus.UnsupportedPlatform, null);
-            string? digest = metadata.Digest?.Value;
-            using ProtectedArtifactPreparation preparation = await _writer.PrepareAsync(
-                SetupArtifactKind.Configuration, Path.Combine(_baseDirectory, FileName), bytes, cancellationToken);
-            if (_beforeCommit is not null) await _beforeCommit(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            return Outcome(await preparation.CommitAsync(cancellationToken), digest);
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(bytes);
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        if (prepared?.InputRevision != Form.InputRevision || selected.Length == 0)
+            return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
+        if (!_writer.IsAvailable)
+            return Outcome(selected, ProtectedArtifactStatus.UnsupportedPlatform);
+
+        var snapshot = Form.Snapshot();
+        if (snapshot.InputRevision != prepared.InputRevision)
+            return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
+        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(Form.Definition, selected, snapshot);
+        if (!bundle.Succeeded || Form.InputRevision != snapshot.InputRevision)
+            return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
+        if (_beforePublication is not null) await _beforePublication(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
+            _writer, bundle.Artifacts, _baseDirectory, cancellationToken);
+        return new(new SetupTerminalArtifactResult(result.Outcomes), ReadOnlyMemory<byte>.Empty);
     }
 
-    private static SetupPresentationOutcome Outcome(ProtectedArtifactStatus status, string? digest) =>
-        new(new SetupTerminalArtifactResult(status, digest), ReadOnlyMemory<byte>.Empty);
+    private static SetupPresentationOutcome Outcome(IEnumerable<string> selected, ProtectedArtifactStatus status) =>
+        new(new SetupTerminalArtifactResult(selected.Select(id =>
+            new ProtectedArtifactBundleOutcome(id, status)).ToArray()), ReadOnlyMemory<byte>.Empty);
 
     private void InputChanged(object? sender, EventArgs args) => Invalidate();
 
     internal void Invalidate()
     {
-        ClearBytes();
-        Invalidated?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void ClearBytes()
-    {
-        CryptographicOperations.ZeroMemory(_bytes);
-        _bytes = [];
         Preparation = null;
+        Invalidated?.Invoke(this, EventArgs.Empty);
     }
 
     internal void ClearPrivateState()
@@ -135,14 +132,4 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         ClearPrivateState();
         Invalidated = null;
     }
-}
-
-internal static class SetupTerminalFileName
-{
-    internal const int MaximumLength = 64;
-    internal static bool IsPartialSafe(string value) => value.Length <= MaximumLength && value.All(IsAllowed);
-    internal static bool IsSafe(string value) => value.Length is > 0 and <= MaximumLength
-        && value.All(IsAllowed) && value is not "-" and not "." and not "..";
-    private static bool IsAllowed(char value) => value is >= 'a' and <= 'z'
-        or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '_' or '-';
 }

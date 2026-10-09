@@ -4,14 +4,14 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="WindowTitle" xml:space="preserve"><value>Configurator - local definition</value></data>
-  <data name="OutputFile" xml:space="preserve"><value>Output file:</value></data>
+  <data name="ImportFile" xml:space="preserve"><value>Import file:</value></data>
   <data name="Close" xml:space="preserve"><value>Cl_ose / cancel</value></data>
   <data name="Ready" xml:space="preserve"><value>Local preparation only. Existing files are never overwritten.</value></data>
   <data name="Limitations" xml:space="preserve"><value>Tab/Shift+Tab and button shortcuts. Private input is masked; clipboard/history blocked. Screen-reader, braille, RTL shaping and managed-heap erasure are unverified.</value></data>
   <data name="TerminalTooSmall" xml:space="preserve"><value>Resize to at least 80 columns by 26 rows. Editing is hidden until then.</value></data>
   <data name="InvalidSecret" xml:space="preserve"><value>Input exceeds the supported bound.</value></data>
   <data name="SecretCommandsDisabled" xml:space="preserve"><value>Clipboard, context-menu and history commands are disabled for protected input.</value></data>
-  <data name="InvalidOutput" xml:space="preserve"><value>Prepare a current artifact and enter a simple output filename (letters, digits, dot, underscore, hyphen; max 64).</value></data>
+  <data name="InvalidOutput" xml:space="preserve"><value>Prepare the selected outputs again before saving.</value></data>
   <data name="Cancelled" xml:space="preserve"><value>Operation cancelled; private state cleared.</value></data>
   <data name="Writing" xml:space="preserve"><value>Writing protected output...</value></data>
   <data name="DisplayMode" xml:space="preserve"><value>_Disclosure</value></data>
@@ -26,6 +26,16 @@
   <data name="NextItem" xml:space="preserve"><value>Next / add ite_m</value></data>
   <data name="RemoveItem" xml:space="preserve"><value>_Remove item</value></data>
   <data name="Artifact" xml:space="preserve"><value>Cycle ar_tifact</value></data>
+  <data name="SelectOutput" xml:space="preserve"><value>Toggle _output</value></data>
+  <data name="Selected" xml:space="preserve"><value>selected</value></data>
+  <data name="NotSelected" xml:space="preserve"><value>not selected</value></data>
+  <data name="ImportSelected" xml:space="preserve"><value>_Import selected artifact</value></data>
+  <data name="ImportReady" xml:space="preserve"><value>Supported fields imported. Review the masked answers and validate.</value></data>
+  <data name="ImportFailed" xml:space="preserve"><value>Import rejected; answers were not changed.</value></data>
+  <data name="NextOutcome" xml:space="preserve"><value>Next output _result</value></data>
+  <data name="NotAttempted" xml:space="preserve"><value>not attempted</value></data>
+  <data name="PartialBundle" xml:space="preserve"><value>Partial protected save.</value></data>
+  <data name="ManualRecovery" xml:space="preserve"><value>Review created files before retrying; existing files are never overwritten.</value></data>
   <data name="PreparePreview" xml:space="preserve"><value>Pr_epare artifact</value></data>
   <data name="SaveProtected" xml:space="preserve"><value>_Save protected</value></data>
   <data name="PreviewReady" xml:space="preserve"><value>Validation passed. Prepared content stays private.</value></data>

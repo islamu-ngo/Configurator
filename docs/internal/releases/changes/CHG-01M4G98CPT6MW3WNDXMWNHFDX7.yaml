@@ -1,0 +1,30 @@
+Change-Id: CHG-01M4G98CPT6MW3WNDXMWNHFDX7
+Title: "guide declared bundle preparation and recovery"
+Type: feat
+Scope: terminal
+Summary: "Add bounded existing-file import, declared output selection, revision-based readiness and ordered partial-save recovery to the keyboard flow. Compose and dispose restricted bundles within publication operations and retain only readiness metadata between actions."
+Group: terminal
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Terminal output selection now uses definition-declared filenames. Use the selected output IDs and inspect each publication status when recovering from a partial save."
+  Security:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Add bounded existing-file import, declared output selection, revision-based readiness and ordered partial-save recovery to the keyboard flow. Compose and dispose restricted bundles within publication operations and retain only readiness metadata between actions."
+  Migration:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Terminal output selection now uses definition-declared filenames. Use the selected output IDs and inspect each publication status when recovering from a partial save."
+  Configuration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Add bounded existing-file import, declared output selection, revision-based readiness and ordered partial-save recovery to the keyboard flow. Compose and dispose restricted bundles within publication operations and retain only readiness metadata between actions."

@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Security.Cryptography;
 using System.Text;
 using Configurator.Artifacts;
+using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
@@ -29,7 +30,9 @@ internal sealed class SetupTerminalWindow : Window
     private readonly Label _smallNotice;
     private readonly TextField _value;
     private readonly SetupSecretTextField _masked;
-    private readonly TextField _fileName;
+    private readonly TextField _importPath;
+    private readonly Button _import;
+    private readonly Button _nextOutcome;
     private readonly Button _save;
     private readonly Button _prepare;
     private readonly Button _mode;
@@ -39,6 +42,8 @@ internal sealed class SetupTerminalWindow : Window
     private SetupTerminalFieldEditor.Slot? _slot;
     private int _fieldIndex;
     private int _itemIndex;
+    private int _outcomeIndex;
+    private SetupTerminalArtifactResult? _lastResult;
     private bool _loading;
     private bool _disposed;
     private bool _tooSmall;
@@ -76,12 +81,16 @@ internal sealed class SetupTerminalWindow : Window
         var removeItem = Button("RemoveItem", 49, 10, RemoveItem);
         _listButtons = [previousItem, nextItem, removeItem];
         var artifact = Button("Artifact", 1, 12, CycleArtifact);
+        var selectOutput = Button("SelectOutput", 27, 12, ToggleOutput);
         _artifactLabel = new Label { X = 1, Y = 13, Width = Dim.Fill(2) };
-        var fileLabel = new Label { X = 1, Y = 14, Text = SetupTerminalText.Get("OutputFile") };
-        _fileName = new TextField { X = 20, Y = 14, Width = Dim.Fill(2), Text = operation.FileName };
+        var fileLabel = new Label { X = 1, Y = 14, Text = SetupTerminalText.Get("ImportFile") };
+        _importPath = new TextField { X = 20, Y = 14, Width = Dim.Fill(2) };
+        _import = Button("ImportSelected", 1, 15, ImportSelected);
         var validate = Button("ValidateDraft", 1, 16, Validate);
         _prepare = Button("PreparePreview", 26, 16, Prepare);
         _save = Button("SaveProtected", 51, 16, Save);
+        _nextOutcome = Button("NextOutcome", 1, 17, NextOutcome);
+        _nextOutcome.Visible = false;
         _status = new Label { X = 1, Y = 18, Width = Dim.Fill(2), Height = 3, Text = SetupTerminalText.Get("Ready") };
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
@@ -96,7 +105,8 @@ internal sealed class SetupTerminalWindow : Window
             Visible = false
         };
         Add(heading, _mode, _fieldLabel, _value, _masked, _help, _choice, previous, next, apply,
-            _artifactLabel, artifact, fileLabel, _fileName, validate, _prepare, _save, _status,
+            _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import,
+            validate, _prepare, _save, _nextOutcome, _status,
             clear, close, limitations, previousItem, nextItem, removeItem);
         _normal = SubViews.ToArray();
         Add(_smallNotice);
@@ -104,13 +114,7 @@ internal sealed class SetupTerminalWindow : Window
         _masked.ValueChanged += (_, _) => EditorChanged();
         _masked.InputRejected += (_, _) => Status("InvalidSecret");
         _masked.SensitiveCommandBlocked += (_, _) => Status("SecretCommandsDisabled");
-        _fileName.ValueChanged += (_, _) =>
-        {
-            _workspace.Deactivate();
-            _workspace.Activate();
-            operation.FileName = _fileName.Text;
-            RefreshCommands();
-        };
+        _importPath.ValueChanged += (_, _) => RefreshCommands();
         _operation.Invalidated += OperationInvalidated;
         _workspace.PropertyChanged += WorkspaceChanged;
         ViewportChanged += ViewportUpdated;
@@ -270,15 +274,60 @@ internal sealed class SetupTerminalWindow : Window
         var artifacts = _operation.Form.Definition.Artifacts;
         int index = artifacts.ToList().FindIndex(item => item.Id == _operation.ArtifactId);
         _operation.ArtifactId = artifacts[(index + 1) % artifacts.Count].Id;
-        _fileName.Text = _operation.FileName;
         ShowArtifact();
+        RefreshCommands();
+    }
+
+    private void ToggleOutput()
+    {
+        if (!CommitField()) return;
+        _operation.ToggleCurrentArtifact();
+        ShowArtifact();
+        Status("InputChanged");
         RefreshCommands();
     }
 
     private void ShowArtifact()
     {
         var artifact = _operation.Form.Definition.Artifacts.Single(item => item.Id == _operation.ArtifactId);
-        _artifactLabel.Text = Safe($"{artifact.Id} | {artifact.Format} | {artifact.ApplySemantics} | {artifact.Restart}");
+        _artifactLabel.Text = Safe($"{artifact.Id} | "
+            + $"{(_operation.CurrentArtifactSelected ? SetupTerminalText.Get("Selected") : SetupTerminalText.Get("NotSelected"))} "
+            + $"{_operation.SelectedArtifactIds.Count}/{_operation.Form.Definition.Artifacts.Count} | "
+            + $"{artifact.FileName} | {artifact.Format} | {artifact.ApplySemantics} | {artifact.Restart}");
+    }
+
+    private void ImportSelected()
+    {
+        if (!CommitField()) return;
+        byte[] bytes = [];
+        try
+        {
+            string path = _importPath.Text;
+            DefinitionImportResult result = _operation.Form.ImportAsync(_operation.ArtifactId, async token =>
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (stream.Length is < 1 or > SetupCompositionLimits.DefaultAggregateSourceBytes)
+                    throw new InvalidDataException();
+                bytes = new byte[(int)stream.Length];
+                await stream.ReadExactlyAsync(bytes, token);
+                if (stream.ReadByte() != -1) throw new InvalidDataException();
+                return bytes;
+            }).GetAwaiter().GetResult();
+            if (!result.Succeeded) { _status.Text = SetupTerminalText.Get("ImportFailed") + " " + result.Code; return; }
+            ShowField();
+            FocusInput();
+            Status("ImportReady");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or ArgumentException or NotSupportedException)
+        {
+            Status("ImportFailed");
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(bytes);
+            _importPath.Text = string.Empty;
+        }
     }
 
     private void Validate()
@@ -301,7 +350,8 @@ internal sealed class SetupTerminalWindow : Window
         try
         {
             bool ready = _operation.PrepareAsync().GetAwaiter().GetResult();
-            _status.Text = ready ? SetupTerminalText.Get("PreviewReady") + " " + _operation.Preparation!.Digest
+            _status.Text = ready ? SetupTerminalText.Get("PreviewReady") + " "
+                + _operation.Preparation!.ArtifactCount + " " + SetupTerminalText.Get("Selected")
                 : SetupTerminalText.Get("DraftInvalid");
         }
         catch (SetupDefinitionException) { Status("DraftInvalid"); }
@@ -310,8 +360,7 @@ internal sealed class SetupTerminalWindow : Window
 
     internal void Save()
     {
-        _operation.FileName = _fileName.Text;
-        if (!_operation.IsPrepared || !SetupTerminalFileName.IsSafe(_fileName.Text)) { Status("InvalidOutput"); return; }
+        if (!_operation.IsPrepared) { Status("InvalidOutput"); return; }
         Status("Writing");
         _workspace.ExecuteCommand.Execute(Guid.CreateVersion7());
     }
@@ -320,6 +369,7 @@ internal sealed class SetupTerminalWindow : Window
     {
         _loading = true;
         _masked.ClearSensitiveState();
+        _importPath.Text = string.Empty;
         _operation.ClearPrivateState();
         _loading = false;
         ShowField();
@@ -356,10 +406,11 @@ internal sealed class SetupTerminalWindow : Window
     {
         if (_workspace.Result is SetupTerminalArtifactResult result)
         {
-            ExitCode = result.Status == ProtectedArtifactStatus.Written ? 0 : 4;
-            _status.Text = SetupTerminalText.FormatResult(result);
+            ExitCode = result.Succeeded ? 0 : 4;
+            PresentResult(result);
             _loading = true;
             _masked.ClearSensitiveState();
+            _importPath.Text = string.Empty;
             _loading = false;
             _operation.ClearPrivateState();
             ShowField();
@@ -367,13 +418,36 @@ internal sealed class SetupTerminalWindow : Window
         RefreshCommands();
     }
 
+    internal void PresentResult(SetupTerminalArtifactResult result)
+    {
+        _lastResult = result;
+        _outcomeIndex = 0;
+        ShowOutcome();
+    }
+
+    private void NextOutcome()
+    {
+        if (_lastResult is null || _lastResult.Outcomes.Count == 0) return;
+        _outcomeIndex = (_outcomeIndex + 1) % _lastResult.Outcomes.Count;
+        ShowOutcome();
+    }
+
+    private void ShowOutcome()
+    {
+        if (_lastResult is null) return;
+        _status.Text = SetupTerminalText.FormatResult(_lastResult, _outcomeIndex);
+        _nextOutcome.Visible = !_tooSmall && _lastResult.Outcomes.Count > 1;
+        _status.SetNeedsDraw();
+    }
+
     private void Status(string key) { _status.Text = SetupTerminalText.Get(key); _status.SetNeedsDraw(); }
 
     private void RefreshCommands()
     {
         _save.Enabled = !_tooSmall && !_workspace.IsBusy && _operation.ProtectedOutputAvailable
-            && _operation.IsPrepared && SetupTerminalFileName.IsSafe(_fileName.Text);
+            && _operation.IsPrepared;
         _prepare.Enabled = !_tooSmall && !_workspace.IsBusy;
+        _import.Enabled = !_tooSmall && !_workspace.IsBusy && !string.IsNullOrWhiteSpace(_importPath.Text);
     }
 
     private void ViewportUpdated(object? sender, DrawEventArgs args) => ApplyViewportPolicy(args.NewViewport.Size);
@@ -381,6 +455,7 @@ internal sealed class SetupTerminalWindow : Window
     {
         _tooSmall = size.Width < MinimumTerminalWidth || size.Height < MinimumTerminalHeight;
         foreach (View view in _normal) view.Visible = !_tooSmall;
+        _nextOutcome.Visible = !_tooSmall && _lastResult is { Outcomes.Count: > 1 };
         _smallNotice.Visible = _tooSmall;
         SetEditorVisibility();
         RefreshCommands();
@@ -395,6 +470,7 @@ internal sealed class SetupTerminalWindow : Window
             _operation.Invalidated -= OperationInvalidated;
             ViewportChanged -= ViewportUpdated;
             _masked.ClearSensitiveState();
+            _importPath.Text = string.Empty;
             _workspace.Deactivate();
             _operation.ClearPrivateState();
         }
