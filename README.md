@@ -330,23 +330,13 @@ We appreciate these generally available public-repository tools. They are not pr
 
 These projects support the wider ISLAMU ecosystem. Configurator’s direct library dependencies are listed separately below.
 
-- [Keycloak][keycloak-link]: An Open Source Identity and Access Management Provider.
-- [Cerbos][cerbos-link]: An Open Source Policy Decision Point.
 - [Infisical][infisical-link]: An Open Source Secret Management Platform.
 - [MudBlazor][mudblazor-link]: An Open Source Blazor UI library that simplifies the creation of beautiful websites and webapps.
-- [ROOST Coop][roost-coop-link]: An Open Source Review and Moderation Platform.
-- [ROOST Osprey][roost-osprey-link]: An Open Source Investigation and Rules Engine.
-- [Svix][svix-link]: An Open Source Webhooks Service.
 - [Penpot][penpot-link]: An Open Source Design Tool.
 - [Plane][plane-link]: An Open Source Project Management Platform that unifies projects, knowledge and agents with all-in-one workspace: projects, wiki, and AI.
 - [Coolify][coolify-link]: An Open Source Platform as a Service, alternative to Vercel, Heroku, Netlify, and Railway for easy deploying to your own servers.
 - [Weblate][weblate-link]: An Open Source Translation Management Platform.
 - [Kener][kener-link]: An Open Source Status Page.
-- [SQLite][sqlite-link]: The database used by Event’s standalone deployment.
-- [PostgreSQL][postgresql-link]: An optional database for larger deployments.
-- [Redis][redis-link]: Optional distributed caching.
-- [RabbitMQ][rabbitmq-link]: Optional messaging for email dispatch.
-- [MinIO][minio-link]: Optional S3-compatible object storage.
 - [Formbricks][formbricks-link]: Optional surveys and feedback collection.
 
 ### Open-Source Libraries & Dependencies
@@ -364,14 +354,6 @@ Our codebase is enriched by dozens of community-crafted .NET libraries. For the 
 - [bUnit][bunit-link]: Blazor component tests.
 
 *A heartfelt thank you to every open-source author and maintainer whose work (direct or transitive) helps make this project possible.*
-
-## Inspiration (UI/...)
-
-- [Luma][luma-link]: A Modern Event Management & Discovery Platform
-- [Smoke Signals][smoke-signals-link]: An Event & RSVP Management and Discovery Web Application built on top of ATProtocol.
-- [Mangadex][mangadex-link]: A Manga Discovery Platform with advanced filtering and multi-language support.
-- [Plane][plane-link]: An Open Source Project Management Platform that unifies projects, knowledge and agents with all-in-one workspace: projects, wiki, and AI.
-- [Hi.Events][hi.events-link]: An Open Source Event Ticketing and Management Platform
 
 ## 🌱 Sustainability
 
@@ -458,23 +440,12 @@ The audited `ISLAMU.Terminal.Gui` package identity, approval, patch, hashes, SBO
 [contributors-image]: https://contrib.rocks/image?repo=islamu-ngo/Configurator
 [contributors-link]: https://github.com/islamu-ngo/Configurator/graphs/contributors
 
-[keycloak-link]: https://www.keycloak.org/
-[cerbos-link]: https://www.cerbos.dev/
-[infisical-link]: https://infisical.com/
-[roost-coop-link]: https://roost.tools/coop
-[roost-osprey-link]: https://roost.tools/osprey
-[svix-link]: https://www.svix.com/
-[listmonk-link]: https://listmonk.app/
 [mudblazor-link]: https://www.mudblazor.com/
 [weblate-link]: https://weblate.org/
 [penpot-link]: https://penpot.app/
 [plane-link]: https://plane.so/
 [coolify-link]: https://coolify.io/
 [kener-link]: https://kener.ing/
-[luma-link]: https://luma.com/
-[smoke-signals-link]: https://smokesignal.events/
-[mangadex-link]: https://mangadex.org/
-[hi.events-link]: https://hi.events/
 [gitbook-link]: https://www.gitbook.com/
 [sonar-gitar-link]: https://gitar.ai/
 [coderabbit-link]: https://www.coderabbit.ai/
@@ -494,12 +465,6 @@ The audited `ISLAMU.Terminal.Gui` package identity, approval, patch, hashes, SBO
 [serilog-link]: https://serilog.net/
 [tunit-link]: https://tunit.dev/
 [bunit-link]: https://bunit.dev/
-[sqlite-link]: https://www.sqlite.org/
-[postgresql-link]: https://www.postgresql.org/
-[redis-link]: https://redis.io/
-[rabbitmq-link]: https://www.rabbitmq.com/
-[minio-link]: https://github.com/minio/minio
-[formbricks-link]: https://formbricks.com/
 [stripe-monthly-link]: https://donate.stripe.com/bJeeVeesc9kIdpCbMPaR201
 [stripe-oneoff-link]: https://donate.stripe.com/14A6oIesc0Oc2KYg35aR200
 [stripe-donation-link]: https://donate.stripe.com/bJeeVeesc9kIdpCbMPaR201
