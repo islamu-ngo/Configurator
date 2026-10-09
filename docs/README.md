@@ -19,7 +19,7 @@ No Event hosted portal or publication activation is implied.
 
 | I am a... | Goal | Go To |
 |---|---|---|
-| Adopter | Prepare configuration offline | [CLI](public/cli.md), [Terminal](public/terminal.md), [Desktop](public/desktop.md), [Browser](public/browser.md) |
+| Adopter | Prepare configuration offline | [Getting started](public/getting-started.md), then [CLI](public/cli.md), [Terminal](public/terminal.md), [Desktop](public/desktop.md) or [Browser](public/browser.md) |
 | Definition author | Supply bounded declarative input | [Definitions](public/definitions.md) |
 | Integrator | Hand prepared configuration to a target without granting apply authority | [Launch integration](public/launch-integration.md) |
 | Developer contributor | Change C# owners or client interaction | [PROJECTS.md](../PROJECTS.md), [Governance](internal/GOVERNANCE.md), [Testing](internal/TESTING.md) |
@@ -30,6 +30,8 @@ No Event hosted portal or publication activation is implied.
 This track is curated for clarity, actionable guidance and adoption without
 exposing internal framework mechanics:
 
+- [Getting started](public/getting-started.md): neutral offline first run with checked example files.
+- [Neutral example](../examples/minimal-self-hosted/README.md): definition, synthetic answers and expected outputs.
 - [CLI](public/cli.md): machine command usage and results.
 - [Terminal](public/terminal.md): Terminal.Gui interaction.
 - [Desktop](public/desktop.md): Avalonia workflow.

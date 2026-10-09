@@ -1,0 +1,27 @@
+Change-Id: CHG-01M4G98P3SX1VH2D8ZWR8CX3EF
+Title: "document the checked offline setup journey"
+Type: docs
+Scope: self-hosting
+Summary: "Walk operators through a neutral local definition, synthetic answers, bundle check and create-only save. Link the example and surface guides, explain partial-save recovery and distinguish local preparation from target acceptance."
+Group: onboarding
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/getting-started.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/getting-started.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/public/getting-started.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/getting-started.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/getting-started.md
+    Disposition: documented
+    Detail: "Walk operators through a neutral local definition, synthetic answers, bundle check and create-only save. Link the example and surface guides, explain partial-save recovery and distinguish local preparation from target acceptance."

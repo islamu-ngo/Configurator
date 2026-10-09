@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Adopters | Integrators | AI agents
 > **Status:** Implemented repository documentation policy
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-08
+> **Last Verified:** 2026-10-09
 > **Source Anchors:** `README.md`, `docs/README.md`, `PROJECTS.md`, `docs/public/`, `docs/internal/`
 
 This repository uses Markdown-first documentation as the authoritative adopter,
@@ -34,9 +34,9 @@ or need a specific reference.
 
 | Audience | Start Here | Then Read |
 |---|---|---|
-| Evaluators | `README.md` | Public CLI, terminal, desktop or browser guide |
+| Evaluators | `README.md` | `docs/public/getting-started.md`, then the relevant client guide |
 | Local developers | `CONTRIBUTING.md`, `PROJECTS.md` | `TESTING.md`, `GOVERNANCE.md`, affected owner contract |
-| Adopters | Public surface guide | `definitions.md`, `native-output.md`, `packaging.md` |
+| Adopters | `docs/public/getting-started.md` | `definitions.md`, `native-output.md`, `packaging.md` |
 | Integrators | `docs/public/launch-integration.md` | `LAUNCH_CONTRACT.md`, definition/runtime ADR |
 | Contributors | `PROJECTS.md` | `GOVERNANCE.md`, `QUICK_REFERENCE.md`, `DOCUMENTATION_ARCHITECTURE.md` |
 | AI agents | `AGENTS.md` | Matching intent, path rules and task-owned context |
@@ -52,7 +52,7 @@ responsible for accuracy, not that only that team may edit it.
 | Core | `CORE_DEFINITION_CONTRACT.md`, `LAUNCH_CONTRACT.md`, definition/runtime ADR |
 | Artifacts/Security | `PROTECTED_ARTIFACTS.md`, `SECURITY.md`, IP/dependency governance |
 | Presentation | `PRESENTATION_STATE.md`, `CLI_CONTRACT.md`, `TERMINAL_CLIENT.md`, `DESKTOP_CLIENT.md`, public browser guide |
-| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, this document |
+| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `docs/public/getting-started.md`, this document |
 | Agent Context | `AGENTS.md`, `.agents/contract/`, `.agents/skills/`, `dev/_journal/` |
 
 ## Metadata Policy
@@ -135,6 +135,7 @@ Single Responsibility and do not duplicate content:
 
 | Domain | Public Adopter Guide | Technical Source Anchor | Boundary of Separation |
 |---|---|---|---|
+| First run | [getting-started.md](../public/getting-started.md), [neutral example](../../examples/minimal-self-hosted/README.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md), [CLI_CONTRACT.md](CLI_CONTRACT.md), [PROTECTED_ARTIFACTS.md](PROTECTED_ARTIFACTS.md) | Public: reproducible local steps; internal: admission, command and save contracts |
 | Definitions | [definitions.md](../public/definitions.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md) | Public: authoring and admission usage; internal: bounded declarative model and validation |
 | CLI | [cli.md](../public/cli.md) | [CLI_CONTRACT.md](CLI_CONTRACT.md) | Public: commands and results; internal: machine contract and exit semantics |
 | Terminal | [terminal.md](../public/terminal.md) | [TERMINAL_CLIENT.md](TERMINAL_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: interaction; internal: shared state and terminal adapter |
