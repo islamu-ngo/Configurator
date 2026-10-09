@@ -28,6 +28,9 @@ native conformance test pins literal `.env`, JSON and YAML output and readiness.
 The sample definition contains a native-only required credential field without
 a default. The checked answer and expected-output fixtures use an explicitly
 synthetic placeholder; those answer files are never embedded in Browser.
+The separate [Grafana OSS 13.2.2 example](../../examples/grafana-13.2.2/README.md)
+proves declared format projection against checked synthetic vectors only. It
+has not been accepted or executed by a Grafana target.
 
 `SetupAnswerSnapshot(long inputRevision,
 IReadOnlyDictionary<string, JsonElement> values)` clones answer values.

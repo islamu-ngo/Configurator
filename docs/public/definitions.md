@@ -30,6 +30,12 @@ Configurator v1 canonicalization profile. It is not an RFC 8785 compatibility
 claim. Local YAML is normalized to the same definition model; distribution,
 integrity and digest pinning use the canonical JSON bytes.
 
+For a second independently authored format example, see
+[`examples/grafana-13.2.2`](../../examples/grafana-13.2.2/README.md). It shows
+synthetic Docker environment and provisioning YAML preparation for pinned
+Grafana OSS v13.2.2; the example has not been tested against a running Grafana
+host and does not prove Grafana will accept those files.
+
 Existing dotenv, JSON and YAML files can prefill answers only where an artifact
 projection directly copies an active field into an unconditional top-level key.
 Configurator rejects ambiguous, transformed or conflicting input without

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "familyId": "cf4b22d7-a1a2-4bb8-9d56-30cedffb1234",
+  "revision": 1,
+  "applicationId": "grafana.oss",
+  "applicationVersions": ["13.2.2"],
+  "publisher": "Configurator example (unverified)",
+  "title": "Grafana OSS 13.2.2 configuration example",
+  "entryPoints": ["setup"],
+  "locales": ["en"],
+  "fields": [
+    {
+      "id": "server.domain",
+      "type": "string",
+      "title": "Dashboard domain",
+      "sensitivity": "public",
+      "disclosure": "essential",
+      "required": true,
+      "validator": "hostname"
+    },
+    {
+      "id": "signup.enabled",
+      "type": "boolean",
+      "title": "Allow sign-up",
+      "sensitivity": "public",
+      "disclosure": "guided",
+      "default": false
+    },
+    {
+      "id": "source.name",
+      "type": "string",
+      "title": "Data source label",
+      "sensitivity": "public",
+      "disclosure": "guided",
+      "required": true
+    },
+    {
+      "id": "source.url",
+      "type": "string",
+      "title": "Graphite endpoint",
+      "sensitivity": "public",
+      "disclosure": "guided",
+      "required": true,
+      "validator": "absolute-uri"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "environment",
+      "format": "dotenv",
+      "fileName": ".env",
+      "applySemantics": "create",
+      "restart": "process",
+      "projection": {
+        "op": "object",
+        "members": {
+          "GF_SERVER_DOMAIN": {"op": "copy", "field": "server.domain"},
+          "GF_USERS_ALLOW_SIGN_UP": {"op": "copy", "field": "signup.enabled"}
+        }
+      }
+    },
+    {
+      "id": "datasource",
+      "format": "yaml",
+      "fileName": "datasource.yaml",
+      "applySemantics": "create",
+      "restart": "process",
+      "projection": {
+        "op": "object",
+        "members": {
+          "apiVersion": {"op": "literal", "value": 1},
+          "datasources": {
+            "op": "list",
+            "items": [
+              {
+                "op": "object",
+                "members": {
+                  "name": {"op": "copy", "field": "source.name"},
+                  "type": {"op": "literal", "value": "graphite"},
+                  "access": {"op": "literal", "value": "proxy"},
+                  "url": {"op": "copy", "field": "source.url"}
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

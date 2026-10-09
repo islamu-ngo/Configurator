@@ -1,0 +1,28 @@
+Change-Id: CHG-01M4G97ZDHN9W24YJJ6QTJC1RY
+Title: "add a checked Grafana configuration example"
+Type: docs
+Scope: self-hosting
+Summary: "Provide independently authored synthetic Docker environment and provisioning YAML vectors for Grafana OSS 13.2.2. Record official functional sources and compare exact bytes and digests without claiming Grafana startup or target acceptance."
+Group: grafana
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: examples/grafana-13.2.2/README.md
+    Disposition: not-applicable
+  Security:
+    Reference: examples/grafana-13.2.2/README.md
+    Disposition: not-applicable
+  Migration:
+    Reference: examples/grafana-13.2.2/README.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: examples/grafana-13.2.2/README.md
+    Disposition: documented
+    Detail: "Provide independently authored synthetic Docker environment and provisioning YAML vectors for Grafana OSS 13.2.2. Record official functional sources and compare exact bytes and digests without claiming Grafana startup or target acceptance."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: examples/grafana-13.2.2/README.md
+    Disposition: documented
+    Detail: "Provide independently authored synthetic Docker environment and provisioning YAML vectors for Grafana OSS 13.2.2. Record official functional sources and compare exact bytes and digests without claiming Grafana startup or target acceptance."

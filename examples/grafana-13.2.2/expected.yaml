@@ -1,0 +1,7 @@
+"apiVersion": 1
+"datasources":
+  -
+    "access": "proxy"
+    "name": "Example metrics"
+    "type": "graphite"
+    "url": "http://metrics.example.invalid:8080"

@@ -21,5 +21,9 @@
     <EmbeddedResource Include="../../examples/islamu-event/public-definition.json" LogicalName="EventPublicDefinition" />
     <EmbeddedResource Include="../../examples/islamu-event/answers/*" LogicalName="EventAnswers.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../examples/islamu-event/expected/*" LogicalName="EventExpected.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../examples/grafana-13.2.2/setup-definition.json" LogicalName="GrafanaDefinition" />
+    <EmbeddedResource Include="../../examples/grafana-13.2.2/answers.json" LogicalName="GrafanaAnswers" />
+    <EmbeddedResource Include="../../examples/grafana-13.2.2/expected.env" LogicalName="GrafanaExpected.Environment" />
+    <EmbeddedResource Include="../../examples/grafana-13.2.2/expected.yaml" LogicalName="GrafanaExpected.Datasource" />
   </ItemGroup>
 </Project>

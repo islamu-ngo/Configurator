@@ -1,0 +1,6 @@
+{
+  "server.domain": "dashboard.example.invalid",
+  "signup.enabled": false,
+  "source.name": "Example metrics",
+  "source.url": "http://metrics.example.invalid:8080"
+}
