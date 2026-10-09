@@ -3,6 +3,7 @@ namespace Configurator.Desktop.Tests;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -593,6 +594,65 @@ public sealed class DesktopApplicationTests
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("configurator-desktop-bundle-").FullName;
         public void Dispose() => Directory.Delete(Path, recursive: true);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ObjectListControlsPreserveDeclaredPropertiesAndRemoveExactlyOneRow()
+    {
+        var result = await InWindow(window =>
+        {
+            using JsonDocument schema = JsonDocument.Parse("""
+            {"id":"rows","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"guided","maxItems":2,
+             "properties":[
+               {"id":"name","title":"Row name","type":"string","sensitivity":"public","disclosure":"guided","required":true},
+               {"id":"password","title":"Row password","type":"string","sensitivity":"secret","disclosure":"guided"},
+               {"id":"aliases","title":"Aliases","type":"list","itemType":"string","required":true,"sensitivity":"public","disclosure":"guided"},
+               {"id":"localizations","title":"Localizations","type":"list","itemType":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[
+                 {"id":"locale","title":"Locale","type":"string","sensitivity":"public","disclosure":"guided"}]},
+               {"id":"settings","title":"Settings","type":"object","sensitivity":"public","disclosure":"guided","required":true,"properties":[]}]}
+            """);
+            JsonObject source = JsonNode.Parse(Definition())!.AsObject();
+            source["fields"] = new JsonArray(JsonNode.Parse(schema.RootElement.GetRawText()));
+            source["artifacts"] = JsonNode.Parse("""
+            [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+              "projection":{"op":"object","members":{"rows":{"op":"copy","field":"rows"}}}}]
+            """);
+            SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+            var editor = new FieldEditor(definition.Fields.Single().Constraints, false, null);
+            window.Content = editor;
+            window.UpdateLayout();
+            Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Add item to Rows"));
+            Dispatcher.UIThread.RunJobs();
+            TextBox name = editor.GetLogicalDescendants().OfType<TextBox>().Single(input => AutomationProperties.GetName(input) == "Row name");
+            TextBox password = editor.GetLogicalDescendants().OfType<TextBox>().Single(input => AutomationProperties.GetName(input) == "Row password");
+            name.Text = "first";
+            password.Text = "synthetic-secret";
+            Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Add item to Aliases"));
+            Dispatcher.UIThread.RunJobs();
+            editor.GetLogicalDescendants().OfType<TextBox>().Single(input => AutomationProperties.GetName(input) == "Aliases item").Text = "alias";
+            Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Add item to Localizations"));
+            Dispatcher.UIThread.RunJobs();
+            editor.GetLogicalDescendants().OfType<TextBox>().Single(input => AutomationProperties.GetName(input) == "Locale").Text = "en";
+            Dispatcher.UIThread.RunJobs();
+            using JsonDocument before = JsonDocument.Parse(editor.AnswerText);
+            bool typed = before.RootElement[0].GetProperty("name").GetString() == "first" &&
+                before.RootElement[0].GetProperty("settings").ValueKind == JsonValueKind.Object &&
+                before.RootElement[0].GetProperty("aliases")[0].GetString() == "alias" &&
+                before.RootElement[0].GetProperty("localizations")[0].GetProperty("locale").GetString() == "en";
+            Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Remove item from Aliases"));
+            Dispatcher.UIThread.RunJobs();
+            using JsonDocument nestedRemoval = JsonDocument.Parse(editor.AnswerText);
+            typed &= nestedRemoval.RootElement[0].GetProperty("aliases").GetArrayLength() == 0 &&
+                nestedRemoval.RootElement[0].GetProperty("name").GetString() == "first";
+            bool masked = password.PasswordChar != '\0';
+            Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Remove item from Rows"));
+            Dispatcher.UIThread.RunJobs();
+            return (typed, masked, answer: editor.AnswerText);
+        });
+        await Assert.That(result.typed).IsTrue();
+        await Assert.That(result.masked).IsTrue();
+        await Assert.That(result.answer).IsEqualTo("[]");
     }
 
     private static T Input<T>(MainWindow window, string title) where T : Control =>

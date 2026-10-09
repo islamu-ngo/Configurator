@@ -7,8 +7,9 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Media;
+using Configurator.Presentation;
 
-/// <summary>Renders scalar controls, nested object fields, and editable scalar list rows.</summary>
+/// <summary>Renders scalar controls, nested object fields, and typed editable list rows.</summary>
 public sealed class FieldEditor : StackPanel
 {
     private static readonly string[] ConstraintNames = ["minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems"];
@@ -167,13 +168,17 @@ public sealed class FieldEditor : StackPanel
     }
     private FieldEditor AddItem(StackPanel rows, JsonElement? initial)
     {
+        string type = _schema.GetProperty("itemType").GetString()!;
         var schema = JsonSerializer.SerializeToElement(new
         {
             id = "item",
             title = $"{Title} item",
-            type = _schema.GetProperty("itemType").GetString(),
-            sensitivity = _masked ? "secret" : "public"
+            type,
+            sensitivity = _masked ? "secret" : "public",
+            properties = _schema.TryGetProperty("properties", out var properties) ? properties
+                : JsonSerializer.SerializeToElement(Array.Empty<object>())
         });
+        if (type == "object" && initial is null) initial = DefinitionCollectionItem.CreateObject(_schema);
         var editor = new FieldEditor(schema, _masked, initial);
         var row = new StackPanel { Spacing = 4 };
         row.Children.Add(editor);
