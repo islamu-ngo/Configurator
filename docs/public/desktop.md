@@ -13,8 +13,9 @@ export TMPDIR="$HOME/.cache/agent-tmp"
 dotnet run --project src/Configurator.Desktop/Configurator.Desktop.csproj --configuration Release -- /absolute/path/setup.json /absolute/path/output-directory
 ```
 
-Both arguments are optional. With no arguments, enter a local definition path
-and choose **Load definition**. With one argument, the definition loads on opening;
+Both arguments are optional. With no arguments, use **Choose definition…** to
+select and load a local file, or enter its path and choose **Load definition**.
+With one argument, the definition loads on opening;
 the initial output directory is the current directory. The second argument
 selects an existing output directory. Do not supply credentials as arguments.
 
@@ -49,7 +50,8 @@ metadata about the eventual consumer, not permission to modify a running system.
 Preparation shows only metadata and a digest, not a preview of protected bytes.
 
 To reuse supported values, select a declared JSON, YAML, or dotenv artifact,
-enter the path to an existing local file, then choose **Import existing file**.
+use **Choose import…** to select and import a local file, or enter its path and
+choose **Import existing file**.
 The file must match a simple declared field mapping and current answers; an
 unknown key, conflicting answer, invalid field, or edited form rejects the
 whole import. Markdown and complex projections cannot be imported. A successful
@@ -65,7 +67,10 @@ it. The capability notice shows whether this host can save protected files.
 
 ## Save safely
 
-Choose an existing output directory and a new file name. File names admit ASCII
+Use **Choose folder…** to select an existing output directory, or enter its path,
+then choose a new file name. Cancelling or an unavailable native picker preserves
+answers and prepared output. Remote locations are refused; typed local paths
+remain available. File names admit ASCII
 letters, digits, dots, underscores, and hyphens, up to 128 characters; path
 separators, parent-directory paths, and standard-output targets are rejected.
 Choose **Save new protected file**. Linux uses the shared create-only writer,
@@ -96,3 +101,6 @@ prepares the artifact, and Escape cancels/discards. Loading focuses the first
 visible field; validation focuses the first invalid one; adding a list item
 focuses its editor, and removing it returns focus to **Add item**.
 The right-to-left switch changes layout direction without changing answers.
+Native selection returns focus to its button on cancellation or failure;
+successful loading/import focuses the first visible field. Status includes a
+value-free next step. Closing discards preparation and fences pending work.

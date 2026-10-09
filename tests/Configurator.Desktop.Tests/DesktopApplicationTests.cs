@@ -100,7 +100,7 @@ public sealed class DesktopApplicationTests
             path.Focus();
             window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
             window.KeyRelease(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
-            bool tabMoved = window.GetControl<Button>("LoadDefinition").IsFocused;
+            bool tabMoved = window.GetControl<Button>("SelectDefinition").IsFocused;
             Input<TextBox>(window, "Service name").Text = " ";
             Dispatcher.UIThread.RunJobs();
             Click(window.GetControl<Button>("Validate"));

@@ -11,6 +11,7 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 
 public enum DesktopDisplayMode { Essential, Guided, Advanced }
+public enum DesktopPathSelectionKind { Definition, Import, OutputDirectory }
 
 /// <summary>Adapts a pinned local definition to native editing and protected output.</summary>
 public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
@@ -35,6 +36,7 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
     private DesktopDisplayMode _displayMode = DesktopDisplayMode.Guided;
     private long _generation;
     private bool _isSaving;
+    private bool _isSelecting;
     private bool _disposed;
 
     public SetupDesktopShellViewModel()
@@ -63,13 +65,82 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         ? "Protected create-only save is available on this host."
         : "Protected save is unavailable on this host; prepared output cannot be saved here.";
     public bool IsSaving { get => _isSaving; private set { SetProperty(ref _isSaving, value); NotifySave(); } }
+    public bool IsSelecting { get => _isSelecting; private set { SetProperty(ref _isSelecting, value); NotifySave(); } }
+    public bool CanSelectPath => !IsSaving && !IsSelecting;
     public bool CanPrepare => _form is not null && !IsSaving;
     public bool CanSave => ProtectedSaveAvailable && !IsSaving &&
         _workspace?.Result is DefinitionPreparationMetadata { Succeeded: true } &&
         !_workspace.Output.IsEmpty;
     public bool CanSaveBundle => ProtectedSaveAvailable && !IsSaving && _preparedBundleSelection is not null;
     public DefinitionPreparationMetadata? Preparation => _workspace?.Result as DefinitionPreparationMetadata;
-    public string Status { get => _status; private set => SetProperty(ref _status, value); }
+    public string Status
+    {
+        get => _status;
+        private set { if (SetProperty(ref _status, value)) OnPropertyChanged(nameof(StatusHelp)); }
+    }
+    public string StatusHelp => Status.Split(':')[0] switch
+    {
+        "definition-required" => "Choose a local JSON or YAML definition, then load it.",
+        "definition-invalid" or "definition-unreadable" => "Check the local definition and its supported format, size and permissions, then load it again.",
+        "validation-invalid" => "Correct the marked fields, then validate or prepare again.",
+        "bundle-invalid" or "preparation-invalid" => "Correct the answers or select active declared outputs, then prepare again.",
+        "selection-unavailable" => "Native selection is unavailable. Enter a local path and use the adjacent action.",
+        "selection-nonlocal" => "Choose a file or folder on this computer; remote locations are not accepted.",
+        "import-unreadable" => "Check the existing file and its permissions, then retry the import.",
+        "import-unsupported" or "inverse-unsupported" or "inverse-ambiguous" => "Select an artifact with a supported unambiguous inverse mapping, then retry the import.",
+        "answer-conflict" => "Resolve conflicting current answers before retrying the whole import.",
+        "input-invalid" or "input-ambiguous" or "import-field-invalid" => "Correct the existing file's format and declared field values, then retry the whole import.",
+        "save-failed" or "bundle-save-blocked" => "Check host protection, the existing destination and file conflicts; prepare again before retrying.",
+        "bundle-save-partial" => "Keep written files. Select only failed or unattempted outputs, resolve the problem and prepare again.",
+        "save-cancelled" or "bundle-save-cancelled" or "operation-cancelled" => "Preparation was discarded. Prepare current answers again when ready.",
+        "inputs-changed" => "Validate and prepare the current answers before saving.",
+        _ => "Local preparation does not apply configuration to the target application."
+    };
+
+    /// <summary>Accepts local selection only while the captured workspace generation is current.</summary>
+    public async Task<bool> SelectPathAsync(DesktopPathSelectionKind kind,
+        Func<DesktopPathSelectionKind, Task<Uri?>> select)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(select);
+        if (!CanSelectPath) return false;
+        long generation = _generation;
+        IsSelecting = true;
+        try
+        {
+            Uri? location = await select(kind);
+            if (_disposed || generation != _generation || location is null) return false;
+            if (!location.IsAbsoluteUri || !location.IsFile || location.IsUnc ||
+                location.Host.Length > 0 && !location.IsLoopback ||
+                location.UserInfo.Length > 0 || location.Query.Length > 0 || location.Fragment.Length > 0 ||
+                !Path.IsPathFullyQualified(location.LocalPath))
+            {
+                Status = "selection-nonlocal";
+                return false;
+            }
+            switch (kind)
+            {
+                case DesktopPathSelectionKind.Definition:
+                    DefinitionPath = location.LocalPath;
+                    return await LoadDefinitionAsync();
+                case DesktopPathSelectionKind.Import:
+                    ExistingFilePath = location.LocalPath;
+                    return await ImportFileAsync();
+                case DesktopPathSelectionKind.OutputDirectory:
+                    OutputDirectory = location.LocalPath;
+                    return true;
+                default: return false;
+            }
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception exception) when (exception is NotSupportedException or IOException or
+            UnauthorizedAccessException or ArgumentException or InvalidOperationException)
+        {
+            if (!_disposed && generation == _generation) Status = "selection-unavailable";
+            return false;
+        }
+        finally { IsSelecting = false; }
+    }
     public string DefinitionPin => _form is null ? "No definition loaded" :
         $"{_form.Definition.Title} | {_form.Definition.ApplicationId} | publisher: {_form.Definition.Publisher}\n" +
         $"Family: {_form.Definition.FamilyId:D} | revision: {_form.Definition.Revision} | SHA-256: {_form.Definition.Digest.Value}\n" +
@@ -459,6 +530,7 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanSave));
         OnPropertyChanged(nameof(CanSaveBundle));
         OnPropertyChanged(nameof(CanPrepare));
+        OnPropertyChanged(nameof(CanSelectPath));
         OnPropertyChanged(nameof(Preparation));
     }
     private void NotifyDefinition()

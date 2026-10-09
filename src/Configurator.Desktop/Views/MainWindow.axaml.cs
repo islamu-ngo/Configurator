@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels;
 using Configurator.Presentation;
@@ -16,14 +17,18 @@ public sealed partial class MainWindow : Window
     private SetupDesktopShellViewModel? _shell;
     private DefinitionFormModel? _form;
     private readonly List<(DefinitionFieldInput Input, FieldEditor Editor)> _editors = [];
+    private readonly Func<DesktopPathSelectionKind, Task<Uri?>> _selectPath;
 
-    public MainWindow()
+    public MainWindow() : this(null) { }
+
+    internal MainWindow(Func<DesktopPathSelectionKind, Task<Uri?>>? selectPath)
     {
+        _selectPath = selectPath ?? SelectLocalPathAsync;
         AvaloniaXamlLoader.Load(this);
         DataContextChanged += (_, _) => Attach();
         KeyDown += ShortcutPressed;
         Opened += (_, _) => this.GetControl<TextBox>("DefinitionPath").Focus();
-        Closed += (_, _) => Detach();
+        Closed += (_, _) => { _shell?.Cancel(); Detach(); };
     }
 
     private void Attach()
@@ -153,6 +158,52 @@ public sealed partial class MainWindow : Window
         if (_shell is null) return;
         if (await _shell.ImportFileAsync())
             _editors.FirstOrDefault(item => item.Editor.IsVisible).Editor?.FocusInput();
+    }
+    private async void SelectDefinitionClicked(object? sender, RoutedEventArgs args) =>
+        await SelectPathAsync(DesktopPathSelectionKind.Definition, sender);
+    private async void SelectImportClicked(object? sender, RoutedEventArgs args) =>
+        await SelectPathAsync(DesktopPathSelectionKind.Import, sender);
+    private async void SelectOutputClicked(object? sender, RoutedEventArgs args) =>
+        await SelectPathAsync(DesktopPathSelectionKind.OutputDirectory, sender);
+
+    private async Task SelectPathAsync(DesktopPathSelectionKind kind, object? sender)
+    {
+        SetupDesktopShellViewModel? shell = _shell;
+        if (shell is null) return;
+        bool accepted = await shell.SelectPathAsync(kind, _selectPath);
+        if (!ReferenceEquals(_shell, shell)) return;
+        if (accepted && kind != DesktopPathSelectionKind.OutputDirectory)
+            _editors.FirstOrDefault(item => item.Editor.IsVisible).Editor?.FocusInput();
+        else (sender as Control)?.Focus();
+    }
+
+    private async Task<Uri?> SelectLocalPathAsync(DesktopPathSelectionKind kind)
+    {
+        IStorageProvider storage = StorageProvider;
+        IReadOnlyList<IStorageItem> items;
+        if (kind == DesktopPathSelectionKind.OutputDirectory)
+        {
+            if (!storage.CanPickFolder) throw new NotSupportedException();
+            items = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Choose existing protected output directory",
+                AllowMultiple = false
+            });
+        }
+        else
+        {
+            if (!storage.CanOpen) throw new NotSupportedException();
+            items = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = kind == DesktopPathSelectionKind.Definition ? "Choose local definition" : "Choose existing configuration",
+                AllowMultiple = false,
+                FileTypeFilter = kind == DesktopPathSelectionKind.Definition
+                    ? [new FilePickerFileType("Setup definitions") { Patterns = ["*.json", "*.yaml", "*.yml"] }]
+                    : [FilePickerFileTypes.All]
+            });
+        }
+        try { return items.Count == 1 ? items[0].Path : null; }
+        finally { foreach (IStorageItem item in items) item.Dispose(); }
     }
     private void PrepareBundleClicked(object? sender, RoutedEventArgs args)
     {

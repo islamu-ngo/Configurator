@@ -10,13 +10,16 @@
   <Grid RowDefinitions="Auto,*,Auto" Margin="20">
     <StackPanel Grid.Row="0" Spacing="8">
       <TextBlock Text="Offline configuration preparation" FontSize="26" FontWeight="SemiBold" />
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="Local definition path (JSON or YAML)" />
           <TextBox Name="DefinitionPath" Text="{Binding DefinitionPath, Mode=TwoWay}"
                    AutomationProperties.Name="Local definition path" />
         </StackPanel>
-        <Button Grid.Column="1" Name="LoadDefinition" Content="_Load definition"
+        <Button Grid.Column="1" Name="SelectDefinition" Content="Choose definition…"
+                IsEnabled="{Binding CanSelectPath}" AutomationProperties.Name="Choose local definition"
+                VerticalAlignment="Bottom" Click="SelectDefinitionClicked" />
+        <Button Grid.Column="2" Name="LoadDefinition" Content="_Load definition"
                 VerticalAlignment="Bottom" Click="LoadClicked" />
       </Grid>
       <TextBlock Text="{Binding DefinitionPin}" TextWrapping="Wrap" />
@@ -53,20 +56,28 @@
       <TextBlock Text="Bundle outputs (select one or more declared files)" />
       <WrapPanel Name="ArtifactSelections" />
       <TextBlock Text="{Binding ArtifactConsequences}" TextWrapping="Wrap" />
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="Existing file to import for the selected artifact" />
           <TextBox Name="ExistingFilePath" Text="{Binding ExistingFilePath, Mode=TwoWay}"
                    AutomationProperties.Name="Existing configuration file path" />
         </StackPanel>
-        <Button Grid.Column="1" Name="Import" Content="_Import existing file"
+        <Button Grid.Column="1" Name="SelectImport" Content="Choose import…"
+                IsEnabled="{Binding CanSelectPath}" AutomationProperties.Name="Choose existing local configuration"
+                VerticalAlignment="Bottom" Click="SelectImportClicked" />
+        <Button Grid.Column="2" Name="Import" Content="_Import existing file"
                 VerticalAlignment="Bottom" Click="ImportClicked" />
       </Grid>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
       <StackPanel>
         <TextBlock Text="Existing output directory" />
         <TextBox Name="OutputDirectory" Text="{Binding OutputDirectory, Mode=TwoWay}"
                  AutomationProperties.Name="Existing protected output directory" />
       </StackPanel>
+        <Button Grid.Column="1" Name="SelectOutput" Content="Choose folder…"
+                IsEnabled="{Binding CanSelectPath}" AutomationProperties.Name="Choose existing output directory"
+                VerticalAlignment="Bottom" Click="SelectOutputClicked" />
+      </Grid>
       <WrapPanel>
         <Button Name="Validate" Content="_Validate" Margin="0,0,8,0" Click="ValidateClicked" />
         <Button Name="Prepare" Content="_Prepare artifact" Margin="0,0,8,0"
@@ -82,6 +93,8 @@
       <TextBlock Name="ProtectedCapability" Text="{Binding ProtectedCapability}" TextWrapping="Wrap" />
       <TextBlock Name="Status" Text="{Binding Status}" TextWrapping="Wrap"
                  AutomationProperties.Name="Operation status" />
+      <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Next step" />
     </StackPanel>
     </ScrollViewer>
   </Grid>

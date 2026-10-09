@@ -34,7 +34,15 @@ The shell exposes:
   and publish it through the shared protected bundle publisher. The selected
   single artifact remains a separate preparation action.
 - `DefinitionPath`, `OutputDirectory`, `FileName`: operator-selected local
-  inputs. `Status` contains value-free diagnostic codes and IDs.
+  inputs. `Status` contains value-free diagnostic codes and IDs; `StatusHelp`
+  provides correction/retry guidance without values, paths or raw exceptions.
+- `SelectPathAsync(kind, select)`: a Desktop-only native selection boundary.
+  `MainWindow` uses its `StorageProvider` for one local file or existing folder,
+  checks capability and disposes storage items. The shell accepts only local file
+  URIs while its captured generation remains current. Cancellation, unavailable
+  providers and nonlocal selections preserve answers/preparation. The accepted
+  definition/import path feeds the existing bounded reader; folder selection
+  sets the destination. No picker stream writes output. Typed paths remain.
 
 ## Editing and presentation flow
 
@@ -60,6 +68,9 @@ Tab order follows the logical form, access keys use native buttons, and keyboard
 shortcuts route through Window KeyDown. Validation focuses errors; list mutation
 preserves usable focus. The RTL switch sets FlowDirection. Headless control
 tests check actual focus and key routing, not just label/property presence.
+Selection buttons return focus after cancellation/failure; successful intake
+focuses the first visible field. Closing cancels the shell before detaching
+control subscriptions, fencing outstanding selection as well as private saves.
 
 ## Preparation and protected publication
 
