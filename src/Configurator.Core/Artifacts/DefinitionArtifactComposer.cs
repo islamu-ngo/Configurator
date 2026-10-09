@@ -1,6 +1,7 @@
 namespace Configurator.Core.Artifacts;
 
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -8,9 +9,11 @@ using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 using Configurator.Core.Environment;
 
-public sealed class DefinitionArtifact
+public sealed class DefinitionArtifact : IDisposable
 {
     private readonly byte[] _bytes;
+    private readonly object _sync = new();
+    private bool _disposed;
     internal DefinitionArtifact(SetupDefinition definition, SetupArtifactDefinition artifact,
         SetupAnswerSnapshot answers, byte[] bytes)
     {
@@ -31,7 +34,28 @@ public sealed class DefinitionArtifact
             _ => "text/plain"
         };
     }
-    public ReadOnlyMemory<byte> Bytes => new((byte[])_bytes.Clone());
+    public ReadOnlyMemory<byte> Bytes
+    {
+        get
+        {
+            lock (_sync)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                return new((byte[])_bytes.Clone());
+            }
+        }
+    }
+    public int ByteLength => _bytes.Length;
+    public void Dispose()
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            CryptographicOperations.ZeroMemory(_bytes);
+            _disposed = true;
+        }
+        GC.SuppressFinalize(this);
+    }
     public ArtifactDigest Digest { get; }
     public ArtifactDigest DefinitionDigest { get; }
     public long DefinitionRevision { get; }
@@ -78,17 +102,27 @@ public static class DefinitionArtifactComposer
             if (!include) return new(null, [new("artifact-omitted", "")]);
             using JsonDocument document = JsonDocument.Parse(output?.ToJsonString() ?? "null");
             byte[] canonical = DefinitionJson.Canonicalize(document.RootElement);
-            byte[] bytes = artifact.Format switch
+            byte[]? bytes = null;
+            try
             {
-                "json" => canonical,
-                "yaml" => WriteYaml(document.RootElement),
-                "dotenv" => WriteDotenv(document.RootElement),
-                "markdown" => WriteMarkdown(document.RootElement),
-                _ => throw new SetupDefinitionException("format-invalid")
-            };
-            if (bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
-                throw new SetupDefinitionException("artifact-limit");
-            return new(new(definition, artifact, answers, bytes), []);
+                bytes = artifact.Format switch
+                {
+                    "json" => canonical,
+                    "yaml" => WriteYaml(document.RootElement),
+                    "dotenv" => WriteDotenv(document.RootElement),
+                    "markdown" => WriteMarkdown(document.RootElement),
+                    _ => throw new SetupDefinitionException("format-invalid")
+                };
+                if (bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
+                    throw new SetupDefinitionException("artifact-limit");
+                return new(new(definition, artifact, answers, bytes), []);
+            }
+            finally
+            {
+                if (bytes is not null && !ReferenceEquals(bytes, canonical))
+                    CryptographicOperations.ZeroMemory(bytes);
+                CryptographicOperations.ZeroMemory(canonical);
+            }
 
             (bool Include, JsonNode? Node) Project(JsonElement projection, JsonElement? item, int? index, int depth)
             {

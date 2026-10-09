@@ -1,0 +1,28 @@
+Change-Id: CHG-01M4G97ENQW00FR9W0DWSMC7FQ
+Title: "publish declared configuration bundles safely"
+Type: feat
+Scope: artifacts
+Summary: "Prepare selected files from one answer revision in definition order and bound their aggregate size. Preflight every destination before create-only commits, report any written prefix, and clear owned restricted byte buffers after use."
+Group: bundle
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Prepare selected files from one answer revision in definition order and bound their aggregate size. Preflight every destination before create-only commits, report any written prefix, and clear owned restricted byte buffers after use."
+  Migration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Prepare selected files from one answer revision in definition order and bound their aggregate size. Preflight every destination before create-only commits, report any written prefix, and clear owned restricted byte buffers after use."

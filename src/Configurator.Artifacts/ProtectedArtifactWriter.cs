@@ -1,4 +1,7 @@
+using System.Runtime.CompilerServices;
 using Configurator.Core;
+
+[assembly: InternalsVisibleTo("Configurator.Artifacts.Tests")]
 
 namespace Configurator.Artifacts;
 
@@ -18,18 +21,23 @@ public sealed class ProtectedArtifactPreparation : IDisposable
 {
     private readonly Func<CancellationToken, Task<ProtectedArtifactStatus>> _commit;
     private readonly Action _cleanup;
+    private readonly ProtectedArtifactStatus? _rejectionStatus;
     private int _completed;
 
     internal ProtectedArtifactPreparation(
         Func<CancellationToken, Task<ProtectedArtifactStatus>> commit,
-        Action cleanup)
+        Action cleanup, ProtectedArtifactStatus? rejectionStatus = null)
     {
         _commit = commit;
         _cleanup = cleanup;
+        _rejectionStatus = rejectionStatus;
     }
 
     internal static ProtectedArtifactPreparation Rejected(ProtectedArtifactStatus status) =>
-        new(_ => Task.FromResult(status), static () => { });
+        new(_ => Task.FromResult(status), static () => { }, status);
+
+    /// <summary>A value-free preflight refusal; null means the preparation is ready to commit.</summary>
+    public ProtectedArtifactStatus? RejectionStatus => _rejectionStatus;
 
     public async Task<ProtectedArtifactStatus> CommitAsync(CancellationToken cancellationToken = default)
     {
