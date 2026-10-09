@@ -15,6 +15,7 @@
     <Project Path="tests/Configurator.Presentation.Tests/Configurator.Presentation.Tests.csproj" />
     <Project Path="tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj" />
     <Project Path="tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj" />
+    <Project Path="tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj" />
     <Project Path="tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj" />
     <Project Path="tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj" />
   </Folder>

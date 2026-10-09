@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "familyId": "8508c82b-2f4a-42b5-af54-0e48c8c89a6e",
+  "revision": 1,
+  "applicationId": "example.native-qualification",
+  "applicationVersions": ["1.0"],
+  "publisher": "example",
+  "title": "Native qualification fixture",
+  "entryPoints": ["setup"],
+  "locales": ["en"],
+  "fields": [
+    {"id":"name","type":"string","title":"Service name","required":true,"default":"Example service","sensitivity":"public","disclosure":"essential"},
+    {"id":"mode","type":"enum","title":"Mode","choices":["local","remote"],"default":"local","sensitivity":"public","disclosure":"guided","consequence":"Remote mode enables the port."},
+    {"id":"port","type":"integer","title":"Port","required":true,"minimum":1,"maximum":65535,"default":443,"sensitivity":"public","disclosure":"guided","activeWhen":{"op":"equals","field":"mode","value":"remote"}},
+    {"id":"owner","type":"object","title":"Owner","sensitivity":"public","disclosure":"guided","properties":[
+      {"id":"name","type":"string","title":"Owner name","sensitivity":"sensitive","disclosure":"guided"},
+      {"id":"age","type":"integer","title":"Owner age","sensitivity":"public","disclosure":"guided"}]},
+    {"id":"hosts","type":"list","itemType":"string","title":"Hosts","sensitivity":"public","disclosure":"guided","maxItems":3},
+    {"id":"note","type":"string","title":"Advanced note","sensitivity":"public","disclosure":"advanced","maxLength":8}
+  ],
+  "artifacts": [
+    {"id":"config","format":"json","fileName":"service.json","applySemantics":"create","restart":"process","projection":{"op":"object","members":{"name":{"op":"copy","field":"name"},"owner":{"op":"copy","field":"owner"},"hosts":{"op":"copy","field":"hosts"}}}},
+    {"id":"environment","format":"dotenv","fileName":"service.env","applySemantics":"create","restart":"process","projection":{"op":"object","members":{"NAME":{"op":"copy","field":"name"}}}},
+    {"id":"yaml","format":"yaml","fileName":"service.yaml","applySemantics":"replace","restart":"none","projection":{"op":"object","members":{"name":{"op":"copy","field":"name"}}}},
+    {"id":"remote","format":"json","fileName":"remote.json","applySemantics":"create","restart":"none","projection":{"op":"object","when":{"op":"equals","field":"mode","value":"remote"},"members":{"port":{"op":"copy","field":"port"}}}}
+  ]
+}

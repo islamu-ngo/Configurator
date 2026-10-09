@@ -11,3 +11,24 @@ Use [README.md](README.md), [FINDING_TEMPLATE.md](FINDING_TEMPLATE.md) and [PROM
 Append observed target findings chronologically using the template.
 
 - 2026-10-09 — [Browser cache capabilities and download filename custody](domains/presentation-and-clients.md).
+
+[2026-10-09 Europe/Brussels] — Deferred text events can invalidate imported Desktop state
+
+**Context**: During Desktop functional-readiness implementation, the isolated native X11 harness exercised supported inverse import through the actual controls after the headless baseline passed.
+
+**Symptom / Observation**: Import initially reported `import-ready`, but after the native dispatcher drained it reverted to `inputs-changed`. Native qualification rejected `D04-json-yaml-dotenv-import:import-status-invalidated`.
+
+**Root Cause**: `FieldEditor.Build` assigned initial TextBox text before subscribing to its deferred `TextChanged` event. That queued event arrived after construction and after `MainWindow.BuildFields` attached the editor's answer-change callback. Initializing an imported control therefore looked like a second operator edit and invalidated preparation/status.
+
+**Resolution**: Observe synchronous `TextBox.TextProperty` changes, retaining the existing build guard and shared form owner. Initial assignments occur before subscription; later operator changes still enter the same typed-answer path. The real native host command `dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 10` now passes all 13 named checks, and the Desktop suite passes 64 tests.
+
+**Why This Matters for Future Work**: A synchronous headless dispatcher drain can miss native deferred-event ordering. Control initialization is not an answer edit; native workflow proof must complement headless focus and state tests.
+
+**References**:
+- `src/Configurator.Desktop/Views/FieldEditor.cs`
+- `src/Configurator.Desktop/Views/MainWindow.axaml.cs`
+- `tests/Configurator.Desktop.NativeHost/Program.cs`
+- `docs/internal/DESKTOP_CLIENT.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only (native control event-ordering lesson).

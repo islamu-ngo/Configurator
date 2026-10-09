@@ -65,6 +65,7 @@ architecture suite, engineering tools, schema generators and dependency probes.
 | `tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj` | Command vocabulary, machine envelopes and artifact workflows | Affected CLI behavior |
 | `tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj` | Native terminal controls and transient input lifecycle | Affected headless/native surface |
 | `tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj` | Avalonia controls, selected state and protected-save workflow | Affected headless/native surface |
+| `tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj` | Real classic Desktop lifetime, X11 controls, imports, protected writes and Event conformance | Separate executable; Linux x64/X11 only, named nonempty guards |
 | `tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj` | Launch pinning, secret consent, transient custody, drafts, exports and offline policy | Affected bUnit/registry behavior; published-platform QA separately |
 | `tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj` | Product boundaries, actual published packages and policy gates | Workstream packaging/closure exit |
 
@@ -144,6 +145,18 @@ changes use link/anchor/format checks, not product builds. Tooling-only changes
 use their native engineering owner; no unrelated product or Event suites.
 
 ## Standalone packaging
+
+Desktop native qualification runs separately from MTP/headless tests:
+
+```bash
+dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet
+dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 10
+```
+
+Its thirteen required named scenarios reject missing/wrong native backend,
+failed checks and incomplete counts. It does not qualify manual native dialogs,
+assistive technology, a published payload or installers; those require separate
+evidence. See [Desktop qualification](docs/internal/DESKTOP_CLIENT.md#native-qualification).
 
 `eng/configurator/Configurator.Release.proj` owns `PublishConfigurator` and
 `PublishConfiguratorBrowser`. Native outputs live under

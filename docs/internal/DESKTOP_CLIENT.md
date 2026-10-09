@@ -136,3 +136,24 @@ and screenshots remain separate from this unit's headless verification.
 
 See the [public workflow](../public/desktop.md) and
 [Core definition contract](CORE_DEFINITION_CONTRACT.md).
+
+## Native qualification
+
+`tests/Configurator.Desktop.NativeHost` initializes the actual App/classic
+lifetime on the main thread, checks the X11 platform handle and Linux x64 RID,
+and requires all thirteen distinct named scenarios. Each async action subscribes
+before triggering and has a bounded timeout; startup/shutdown also has a
+watchdog. Its synthetic generic definition and actual Event definition exercise
+independent outputs, supported imports, invalid nested values, inactive bundle
+selection, create-only permissions/conflicts/recovery, private sinks and close.
+Event cases enter declared fields for one/two/three tenants and check required
+manifest identity and nested objects. They do not imply arbitrary document
+editing, a supported inverse for the manifest projection or target acceptance.
+
+The native command passed thirteen checks on Linux x64/X11 on 2026-10-09;
+Desktop MTP passed 64 and real Artifacts boundary classes passed 26. These are
+separate from published-payload and human/assistive-technology evidence. Missing
+human/AT or full isolated-payload coverage keeps packaging readiness unqualified.
+Exact commands, source/payload identities and omissions live in the task's
+scoped evidence; [OPERATIONS](OPERATIONS.md#desktop-readiness-evidence) records
+the verification boundary. No new release platform or installer is admitted.

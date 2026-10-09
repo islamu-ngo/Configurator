@@ -186,6 +186,30 @@ unclassified; three passing tabs are not scale certification.
 
 ## Full Project Test List
 
+### Desktop readiness evidence
+
+The 2026-10-09 readiness work recorded 64 Desktop MTP passes, 26 real native
+protected-artifact passes and thirteen named Linux x64/X11 NativeHost passes.
+The native executable has strict RID/backend/count/timeout guards; missing
+display or incomplete results reject qualification. Headless and native-host
+checks are distinct from actual published application proof.
+
+Published-app isolation uses Bubblewrap with a new network namespace, a clean
+operator home, no mounted source/NuGet tree and a masked `/usr/share/dotnet`.
+The single-file executable uses its embedded runtime, system native libraries,
+Xvfb's local X11 socket, distro font cache and software rendering. A first
+over-minimal graphics environment aborted; supplying its native font/graphics
+prerequisites allowed startup. This qualifies only that observed environment,
+not all Linux desktop backends. Synthetic operator output remains outside shared
+evidence; capture only value-free outcomes and public source/payload identities.
+
+The task evidence under `.omo/evidence/20261009-desktop-cross-platform-packaging/`
+contains exact commands/counts, inventories, reviews and unrun limits. Partial
+isolated-app checks and automated GTK interaction do not replace the complete
+published workflow, physical keyboard/scaling or assistive-technology proof.
+Readiness stays unqualified until all required evidence is present. No installer,
+Windows/macOS qualification, signing, promotion or publication was performed.
+
 The [project map](../../PROJECTS.md) owns project commands and package preconditions.
 [TESTING.md](TESTING.md#test-projects) maps all product and engineering suites.
 Use `dotnet test --project <affected-test-project.csproj> --configuration Release`

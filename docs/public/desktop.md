@@ -104,3 +104,11 @@ The right-to-left switch changes layout direction without changing answers.
 Native selection returns focus to its button on cancellation or failure;
 successful loading/import focuses the first visible field. Status includes a
 value-free next step. Closing discards preparation and fences pending work.
+
+## Current qualification limits
+
+Linux x64 has verified native control and protected-write checks. Windows and
+macOS protected saving and installers remain planned. Native harness checks do
+not establish screen-reader compliance, every desktop environment, installed
+packages or the complete published-app workflow. Those independent qualification
+gates must pass before packaging/support claims expand.

@@ -170,6 +170,22 @@ is not a Configurator command. Package prerequisites remain in `PROJECTS.md`.
 
 ## TDD Workflow
 
+### Native Desktop qualification
+
+`tests/Configurator.Desktop.NativeHost` is an isolated executable, not an MTP
+project. It initializes the real Desktop App and classic lifetime on the main
+thread and requires Linux x64/X11. Thirteen named scenarios exercise actual
+controls, JSON/YAML/dotenv import, preparation, native owner-only/create-only
+saves, bundle preflight/recovery, stale import, close and one/two/three-tenant
+Event manifests with independent expected fields. Missing display, wrong
+backend/RID, timeout, failure and incomplete counts reject the run.
+
+Run its commands from [PROJECTS](../../PROJECTS.md#standalone-packaging).
+Headless checks remain faster invariant/focus evidence. Neither harness replaces
+actual published binary, installed-package, physical keyboard or assistive
+technology verification. A dispatcher-flushed native import case guards against
+deferred TextChanged initialization invalidating imported form state.
+
 TDD is the default unless explicitly allowed to skip:
 
 1. Write a failing test defining expected behavior.
