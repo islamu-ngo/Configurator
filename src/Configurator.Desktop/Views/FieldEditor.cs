@@ -160,7 +160,11 @@ public sealed class FieldEditor : StackPanel
             };
             AutomationProperties.SetName(text, Title);
             AutomationProperties.SetHelpText(text, Help);
-            text.TextChanged += (_, _) => ChangedInput();
+            // TextChanged is deferred; property changes distinguish edits from queued initialization events.
+            text.PropertyChanged += (_, args) =>
+            {
+                if (args.Property == TextBox.TextProperty) ChangedInput();
+            };
             _input = text;
             _body.Children.Add(text);
         }

@@ -57,6 +57,9 @@ scalar invalidates the whole structured input rather than silently omitting it.
 
 `MainWindow` creates controls once per admitted form and updates visibility and
 errors without rebuilding on each keystroke. This preserves typing focus.
+`FieldEditor` observes synchronous text-property changes rather than deferred
+TextChanged events, so initializing imported controls cannot create a second
+answer revision or invalidate a successfully imported status afterward.
 Essential mode is a desktop narrowing of Guided: it retains required, invalid,
 protected, consequential, and essentially disclosed active fields. Advanced
 shows all active fields. Shared Core validation always sees all answers,
