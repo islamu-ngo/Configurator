@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Core;
+using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 
@@ -15,13 +16,20 @@ public enum DesktopDisplayMode { Essential, Guided, Advanced }
 public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
 {
     private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>> _save;
+    private readonly Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken,
+        Task<ProtectedArtifactBundleResult>> _publishBundle;
     private readonly SetupPresentationSession _session = new(new StrongReferenceMessenger());
     private SetupPresentationWorkspace? _workspace;
+    private string[]? _preparedBundleSelection;
+    private long _preparedBundleInputRevision;
+    private readonly HashSet<string> _selectedArtifactIds = new(StringComparer.Ordinal);
     private CancellationTokenSource? _saveCancellation;
+    private CancellationTokenSource? _importCancellation;
     private DefinitionFormModel? _form;
     private string _definitionPath = string.Empty;
     private string _outputDirectory;
     private string _fileName = string.Empty;
+    private string _existingFilePath = string.Empty;
     private string _status = "definition-required";
     private string? _artifactId;
     private DesktopDisplayMode _displayMode = DesktopDisplayMode.Guided;
@@ -34,21 +42,32 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
 
     internal SetupDesktopShellViewModel(
         Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>> save,
-        string outputDirectory, bool protectedOutputAvailable)
+        string outputDirectory, bool protectedOutputAvailable,
+        Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken,
+            Task<ProtectedArtifactBundleResult>>? publishBundle = null)
     {
         _save = save;
+        _publishBundle = publishBundle ?? ((artifacts, directory, cancellation) =>
+            ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(),
+                artifacts, directory, cancellation));
         _outputDirectory = outputDirectory;
         ProtectedSaveAvailable = protectedOutputAvailable;
     }
 
     public DefinitionFormModel? Form => _form;
     public IReadOnlyList<SetupArtifactDefinition> Artifacts => _form?.Definition.Artifacts ?? [];
+    public IReadOnlyList<string> SelectedArtifactIds => Artifacts.Where(item => _selectedArtifactIds.Contains(item.Id))
+        .Select(item => item.Id).ToArray();
     public bool ProtectedSaveAvailable { get; }
+    public string ProtectedCapability => ProtectedSaveAvailable
+        ? "Protected create-only save is available on this host."
+        : "Protected save is unavailable on this host; prepared output cannot be saved here.";
     public bool IsSaving { get => _isSaving; private set { SetProperty(ref _isSaving, value); NotifySave(); } }
     public bool CanPrepare => _form is not null && !IsSaving;
     public bool CanSave => ProtectedSaveAvailable && !IsSaving &&
         _workspace?.Result is DefinitionPreparationMetadata { Succeeded: true } &&
         !_workspace.Output.IsEmpty;
+    public bool CanSaveBundle => ProtectedSaveAvailable && !IsSaving && _preparedBundleSelection is not null;
     public DefinitionPreparationMetadata? Preparation => _workspace?.Result as DefinitionPreparationMetadata;
     public string Status { get => _status; private set => SetProperty(ref _status, value); }
     public string DefinitionPin => _form is null ? "No definition loaded" :
@@ -74,6 +93,11 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
     {
         get => _fileName;
         set { if (SetProperty(ref _fileName, value)) Invalidate(); }
+    }
+    public string ExistingFilePath
+    {
+        get => _existingFilePath;
+        set { if (SetProperty(ref _existingFilePath, value)) Invalidate(); }
     }
     public string? ArtifactId
     {
@@ -156,6 +180,7 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
             _form.InputChanged += InputChanged;
             _form.DisplayMode = DisplayMode == DesktopDisplayMode.Advanced ? SetupDisplayMode.Advanced : SetupDisplayMode.Guided;
             ArtifactId = definition.Artifacts.Count > 0 ? definition.Artifacts[0].Id : null;
+            if (ArtifactId is not null) _selectedArtifactIds.Add(ArtifactId);
             FileName = definition.Artifacts.Count > 0 ? definition.Artifacts[0].FileName : string.Empty;
             Status = "definition-loaded";
             NotifyDefinition();
@@ -204,6 +229,143 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
             : "preparation-invalid:" + string.Join(",", Preparation?.DiagnosticCodes ?? []);
         NotifySave();
         return Preparation?.Succeeded == true;
+    }
+
+    public void SelectArtifact(string artifactId, bool selected)
+    {
+        if (Artifacts.All(item => item.Id != artifactId)) return;
+        if (selected ? _selectedArtifactIds.Add(artifactId) : _selectedArtifactIds.Remove(artifactId))
+        {
+            Invalidate();
+            OnPropertyChanged(nameof(SelectedArtifactIds));
+        }
+    }
+
+    public bool PrepareBundle()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (IsSaving) return false;
+        Invalidate();
+        if (!Validate() || _form is null) return false;
+        string[] selection = SelectedArtifactIds.ToArray();
+        if (selection.Length == 0) { Status = "bundle-invalid:artifact-empty"; return false; }
+        _preparedBundleSelection = selection;
+        _preparedBundleInputRevision = _form.InputRevision;
+        Status = $"bundle-selected:{selection.Length}";
+        NotifySave();
+        return true;
+    }
+
+    public async Task<ProtectedArtifactBundleResult?> SaveBundleAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_preparedBundleSelection is null || _form is null || IsSaving) return null;
+        string[] selection = _preparedBundleSelection;
+        long inputRevision = _preparedBundleInputRevision;
+        _preparedBundleSelection = null;
+        IsSaving = true;
+        long generation = _generation;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _saveCancellation = cancellation;
+        try
+        {
+            if (cancellation.Token.IsCancellationRequested || _form.InputRevision != inputRevision)
+                return null;
+            using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
+                _form.Definition, selection, _form.Snapshot());
+            if (!bundle.Succeeded)
+            {
+                if (generation == _generation && !_disposed)
+                    Status = "bundle-invalid:" + string.Join(",", bundle.Diagnostics.Select(item => item.Code));
+                return null;
+            }
+            if (generation != _generation || cancellation.Token.IsCancellationRequested) return null;
+            ProtectedArtifactBundleResult result = await _publishBundle(bundle.Artifacts, OutputDirectory,
+                cancellation.Token);
+            if (generation == _generation && !_disposed)
+                Status = result.Succeeded ? "bundle-save-complete" :
+                    (result.Outcomes.Any(item => item.Status == ProtectedArtifactStatus.Written)
+                        ? "bundle-save-partial:" : "bundle-save-blocked:") +
+                    string.Join(",", result.Outcomes.Select(item => $"{item.ArtifactId}:{item.Status?.ToString() ?? "not-attempted"}"));
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            if (generation == _generation && !_disposed) Status = "bundle-save-cancelled";
+            return null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            if (generation == _generation && !_disposed) Status = "bundle-save-blocked:IoFailure";
+            return null;
+        }
+        finally
+        {
+            _saveCancellation = null;
+            IsSaving = false;
+            NotifySave();
+        }
+    }
+
+    public async Task<bool> ImportFileAsync(CancellationToken cancellationToken = default)
+    {
+        byte[] source = [];
+        try
+        {
+            return await ImportAsync(async token =>
+            {
+                await using var stream = new FileStream(ExistingFilePath, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, 4096, FileOptions.Asynchronous);
+                if (stream.Length > ProtectedArtifactWriter.MaximumBytes) throw new IOException("source-limit");
+                source = new byte[ProtectedArtifactWriter.MaximumBytes + 1];
+                int count = 0;
+                while (count < source.Length)
+                {
+                    int read = await stream.ReadAsync(source.AsMemory(count), token);
+                    if (read == 0) break;
+                    count += read;
+                }
+                if (count > ProtectedArtifactWriter.MaximumBytes) throw new IOException("source-limit");
+                return source.AsMemory(0, count);
+            }, cancellationToken);
+        }
+        finally { CryptographicOperations.ZeroMemory(source); }
+    }
+
+    public async Task<bool> ImportAsync(Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_form is null || ArtifactId is null || IsSaving) return false;
+        DefinitionFormModel form = _form;
+        string artifactId = ArtifactId;
+        long generation = _generation;
+        _importCancellation?.Cancel();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _importCancellation = cancellation;
+        try
+        {
+            DefinitionImportResult result = await form.ImportAsync(artifactId, read, cancellation.Token);
+            if (_disposed || !ReferenceEquals(_form, form)) return false;
+            if (result.Succeeded)
+            {
+                // Applying one imported form revision raises exactly one input invalidation.
+                if (_generation == generation + 1) Status = "import-ready";
+                OnPropertyChanged(nameof(Form));
+                return true;
+            }
+            if (generation == _generation) Status = result.Code;
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            if (generation == _generation && !_disposed) Status = "import-unreadable";
+            return false;
+        }
+        finally
+        {
+            if (ReferenceEquals(_importCancellation, cancellation)) _importCancellation = null;
+        }
     }
 
     public async Task<ProtectedArtifactStatus> SaveAsync(CancellationToken cancellationToken = default)
@@ -255,11 +417,13 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
     {
         checked { _generation++; }
         _saveCancellation?.Cancel();
+        _importCancellation?.Cancel();
         ClearPreparation();
         Status = _form is null ? "definition-required" : "inputs-changed";
     }
     private void ClearPreparation()
     {
+        _preparedBundleSelection = null;
         if (_workspace is not null)
         {
             if (MemoryMarshal.TryGetArray(_workspace.Output, out ArraySegment<byte> segment))
@@ -275,12 +439,14 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         if (_form is not null) { _form.InputChanged -= InputChanged; _form.Dispose(); }
         _form = null;
         _artifactId = null;
+        _selectedArtifactIds.Clear();
         _fileName = string.Empty;
         NotifyDefinition();
     }
     private void NotifySave()
     {
         OnPropertyChanged(nameof(CanSave));
+        OnPropertyChanged(nameof(CanSaveBundle));
         OnPropertyChanged(nameof(CanPrepare));
         OnPropertyChanged(nameof(Preparation));
     }
@@ -289,6 +455,7 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         foreach (string property in new[] { nameof(Form), nameof(Artifacts), nameof(DefinitionPin),
                      nameof(ArtifactId), nameof(FileName), nameof(ArtifactConsequences), nameof(CanPrepare) })
             OnPropertyChanged(property);
+        OnPropertyChanged(nameof(SelectedArtifactIds));
     }
     private static bool SafeFileName(string value) =>
         value.Length is > 0 and <= 128 && value is not "-" and not "." and not ".." &&

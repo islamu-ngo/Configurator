@@ -389,10 +389,211 @@ public sealed class DesktopApplicationTests
         await Assert.That(shell.CanSave).IsFalse();
     }
 
+    [Test]
+    public async Task PendingExistingFileImportCannotReplaceLaterEdit()
+    {
+        var pending = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var shell = Shell();
+        shell.LoadDefinition(Definition());
+        Task<bool> import = shell.ImportAsync(_ => pending.Task);
+        shell.Form!.Fields.Single(item => item.Definition.Id == "name").Text = "Later edit";
+        pending.SetResult(Encoding.UTF8.GetBytes("{\"name\":\"Example service\"}"));
+        await Assert.That(await import.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
+        await Assert.That(shell.Form.Fields.Single(item => item.Definition.Id == "name").Text).IsEqualTo("Later edit");
+        await Assert.That(shell.Status).DoesNotContain("Example service", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ChangingExistingFilePathDiscardsPendingImportWithoutChangingAnswers()
+    {
+        var pending = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var shell = Shell();
+        shell.LoadDefinition(Definition());
+        shell.ExistingFilePath = "first.json";
+        Task<bool> import = shell.ImportAsync(_ => pending.Task);
+        shell.ExistingFilePath = "second.json";
+        pending.SetResult(Encoding.UTF8.GetBytes("{\"owner\":{\"name\":\"Synthetic private\"}}"));
+        await Assert.That(await import.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
+        await Assert.That(shell.Status).IsEqualTo("inputs-changed");
+        await Assert.That(shell.Form!.Fields.Single(item => item.Definition.Id == "owner").Text).IsEmpty();
+    }
+
+    [Test]
+    public async Task SourceChangeAfterImportCommitDoesNotReportStaleReadyStatus()
+    {
+        using var shell = Shell();
+        shell.LoadDefinition(Definition());
+        shell.Form!.InputChanged += (_, _) => shell.ExistingFilePath = "next.json";
+        bool committed = await shell.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
+            Encoding.UTF8.GetBytes("{\"owner\":{\"name\":\"Synthetic private\"}}")));
+        await Assert.That(committed).IsTrue();
+        await Assert.That(shell.Status).IsEqualTo("inputs-changed");
+        await Assert.That(shell.Form.Fields.Single(item => item.Definition.Id == "owner").Text)
+            .Contains("Synthetic private");
+    }
+
+    [Test]
+    public async Task ExistingFileImportAppliesSupportedValuesWithoutShowingPrivateAnswer()
+    {
+        using var directory = new TemporaryDirectory();
+        string marker = "Synthetic-" + Guid.CreateVersion7().ToString("N");
+        string path = Path.Combine(directory.Path, "existing.json");
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new { owner = new { name = marker } }));
+        using var shell = Shell();
+        shell.LoadDefinition(Definition());
+        shell.ExistingFilePath = path;
+        await Assert.That(await shell.ImportFileAsync()).IsTrue();
+        await Assert.That(shell.Status).IsEqualTo("import-ready");
+        await Assert.That(shell.Status).DoesNotContain(marker, StringComparison.Ordinal);
+        await Assert.That(shell.Form!.Fields.Single(item => item.Definition.Id == "owner").Text).Contains(marker);
+    }
+
+    [Test]
+    public async Task DeclaredBundleSelectionAndCapabilityHaveValueFreeStatus()
+    {
+        using var shell = Shell();
+        shell.LoadDefinition(Definition());
+        shell.SelectArtifact("environment", true);
+        await Assert.That(shell.PrepareBundle()).IsTrue();
+        await Assert.That(shell.SelectedArtifactIds).Contains("environment");
+        await Assert.That(shell.CanSaveBundle).IsTrue();
+        await Assert.That(shell.Status).DoesNotContain("Example service", StringComparison.Ordinal);
+        shell.Form!.Fields.Single(item => item.Definition.Id == "name").Text = "Later edit";
+        await Assert.That(shell.CanSaveBundle).IsFalse();
+        using var blocked = new SetupDesktopShellViewModel((_, _, _) =>
+            Task.FromResult(ProtectedArtifactStatus.Written), Path.GetTempPath(), protectedOutputAvailable: false);
+        blocked.LoadDefinition(Definition());
+        await Assert.That(blocked.ProtectedSaveAvailable).IsFalse();
+        await Assert.That(blocked.CanSaveBundle).IsFalse();
+    }
+
+    [Test]
+    public async Task ExistingBundleDestinationBlocksAllFilesAndRecoveryCreatesSelectedOutputs()
+    {
+        using var directory = new TemporaryDirectory();
+        string existing = Path.Combine(directory.Path, "service.env");
+        await File.WriteAllTextAsync(existing, "EXISTING=unchanged\n");
+        using var shell = new SetupDesktopShellViewModel();
+        shell.LoadDefinition(Definition());
+        shell.OutputDirectory = directory.Path;
+        shell.SelectArtifact("environment", true);
+        await Assert.That(shell.PrepareBundle()).IsTrue();
+        var blocked = await shell.SaveBundleAsync();
+        await Assert.That(blocked!.Succeeded).IsFalse();
+        await Assert.That(shell.Status).StartsWith("bundle-save-blocked:");
+        await Assert.That(File.Exists(Path.Combine(directory.Path, "service.json"))).IsFalse();
+        await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("EXISTING=unchanged\n");
+        await Assert.That(shell.Status).DoesNotContain(directory.Path, StringComparison.Ordinal);
+        File.Delete(existing);
+        await Assert.That(shell.PrepareBundle()).IsTrue();
+        var saved = await shell.SaveBundleAsync();
+        await Assert.That(saved!.Succeeded).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(directory.Path, "service.json"))).IsTrue();
+        await Assert.That(File.Exists(existing)).IsTrue();
+        await Assert.That(shell.CanSaveBundle).IsFalse();
+    }
+
+    [Test]
+    public async Task EditingDuringBundlePublicationCancelsAndFencesItsResult()
+    {
+        using var directory = new TemporaryDirectory();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var shell = new SetupDesktopShellViewModel((_, _, _) =>
+            Task.FromResult(ProtectedArtifactStatus.Written), directory.Path, protectedOutputAvailable: true,
+            async (artifacts, output, cancellation) =>
+            {
+                started.SetResult();
+                await finish.Task;
+                return await ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(),
+                    artifacts, output, cancellation);
+            });
+        shell.LoadDefinition(Definition());
+        shell.SelectArtifact("environment", true);
+        await Assert.That(shell.PrepareBundle()).IsTrue();
+        Task<ProtectedArtifactBundleResult?> pending = shell.SaveBundleAsync();
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        shell.Form!.Fields.Single(item => item.Definition.Id == "name").Text = "Later edit";
+        finish.SetResult();
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(result!.Succeeded).IsFalse();
+        await Assert.That(shell.Status).IsEqualTo("inputs-changed");
+        await Assert.That(File.Exists(Path.Combine(directory.Path, "service.json"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(directory.Path, "service.env"))).IsFalse();
+        await Assert.That(shell.CanSaveBundle).IsFalse();
+    }
+
+    [Test]
+    public async Task PublisherIoFailureClearsBusyStateWithoutShowingPrivatePath()
+    {
+        string privatePath = "/synthetic/private/output";
+        using var shell = new SetupDesktopShellViewModel((_, _, _) =>
+            Task.FromResult(ProtectedArtifactStatus.Written), Path.GetTempPath(), protectedOutputAvailable: true,
+            (_, _, _) => throw new IOException(privatePath));
+        shell.LoadDefinition(Definition());
+        await Assert.That(shell.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.SaveBundleAsync()).IsNull();
+        await Assert.That(shell.Status).IsEqualTo("bundle-save-blocked:IoFailure");
+        await Assert.That(shell.Status).DoesNotContain(privatePath, StringComparison.Ordinal);
+        await Assert.That(shell.IsSaving).IsFalse();
+        await Assert.That(shell.CanSaveBundle).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task GuidedControlsExposeImportBundleAndProtectedCapability()
+    {
+        var result = await InWindow(window =>
+        {
+            var shell = (SetupDesktopShellViewModel)window.DataContext!;
+            return (import: window.GetControl<Button>("Import").IsVisible,
+                bundle: window.GetControl<Button>("PrepareBundle").IsVisible,
+                capability: window.GetControl<TextBlock>("ProtectedCapability").Text,
+                selections: window.GetControl<WrapPanel>("ArtifactSelections").Children.Count,
+                saveEnabled: window.GetControl<Button>("SaveBundle").IsEnabled,
+                available: shell.ProtectedSaveAvailable);
+        });
+        await Assert.That(result.import).IsTrue();
+        await Assert.That(result.bundle).IsTrue();
+        await Assert.That(result.capability).IsNotNull();
+        await Assert.That(result.selections).IsGreaterThan(0);
+        await Assert.That(result.saveEnabled).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task RenderedImportRefreshesMaskedFieldWithoutDisplayingPrivateAnswer()
+    {
+        string marker = "Synthetic-" + Guid.CreateVersion7().ToString("N");
+        byte[] content = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { owner = new { name = marker } }));
+        var result = await InWindow(window =>
+        {
+            var shell = (SetupDesktopShellViewModel)window.DataContext!;
+            bool imported = shell.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(content))
+                .GetAwaiter().GetResult();
+            Dispatcher.UIThread.RunJobs();
+            return (success: imported, masked: Input<TextBox>(window, "Owner name").PasswordChar != '\0',
+                displayed: Input<TextBox>(window, "Owner name").Text == marker,
+                status: window.GetControl<TextBlock>("Status").Text);
+        });
+        CryptographicOperations.ZeroMemory(content);
+        await Assert.That(result.status).IsEqualTo("import-ready");
+        await Assert.That(result.success).IsTrue();
+        await Assert.That(result.masked).IsTrue();
+        await Assert.That(result.displayed).IsTrue();
+        await Assert.That(result.status).DoesNotContain(marker, StringComparison.Ordinal);
+    }
+
     private static SetupDesktopShellViewModel Shell(
         Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>>? save = null) =>
         new(save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactStatus.Written)),
             Path.GetTempPath(), protectedOutputAvailable: true);
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public string Path { get; } = Directory.CreateTempSubdirectory("configurator-desktop-bundle-").FullName;
+        public void Dispose() => Directory.Delete(Path, recursive: true);
+    }
 
     private static T Input<T>(MainWindow window, string title) where T : Control =>
         window.GetLogicalDescendants().OfType<T>().Single(control => AutomationProperties.GetName(control) == title);

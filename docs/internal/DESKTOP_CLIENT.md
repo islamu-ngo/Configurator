@@ -19,12 +19,20 @@ The shell exposes:
 - `LoadDefinition(ReadOnlyMemory<byte>, bool yaml = false)`: admit a supplied
   local document through `SetupDefinitionCodec`; useful for host integration and
   tests without a filesystem read.
-- `Form`, `Artifacts`, `ArtifactId`, `DisplayMode`, `DefinitionPin`,
+- `Form`, `Artifacts`, `ArtifactId`, `SelectedArtifactIds`, `DisplayMode`, `DefinitionPin`,
   `ArtifactConsequences`: typed editing and byte-free metadata. `Form` is local
   editor state containing answers, not a public/remote projection.
 - `Validate()`, `PrepareAsync()`, `Preparation`, `CanPrepare`, `CanSave`,
   `SaveAsync(CancellationToken)`, `Cancel()`: validation, snapshot preparation,
   consumptive protected publication, and invalidation.
+- `ExistingFilePath`, `ImportFileAsync()`: read a bounded local existing file for
+  the selected declared JSON, YAML, or dotenv artifact. Shared
+  `DefinitionFormModel.ImportAsync` admits supported inverse projections and
+  commits imported answers only while the original revision is current.
+- `SelectArtifact(id, selected)`, `PrepareBundle()`, `CanSaveBundle`,
+  `SaveBundleAsync()`: select declared outputs, compose a deterministic bundle,
+  and publish it through the shared protected bundle publisher. The selected
+  single artifact remains a separate preparation action.
 - `DefinitionPath`, `OutputDirectory`, `FileName`: operator-selected local
   inputs. `Status` contains value-free diagnostic codes and IDs.
 
@@ -35,8 +43,9 @@ input revision, validation, and cloned snapshots. Desktop's `FieldEditor`
 renders native TextBox/ComboBox controls, recursively renders declared object
 properties, and maintains scalar list rows with add/remove buttons. Structured
 controls serialize their local values into the shared typed input; the operator
-does not edit JSON. An invalid child scalar invalidates the whole structured
-input rather than silently omitting it.
+does not edit JSON. An untouched blank nested control remains absent, so it
+cannot create a false conflict during existing-file import. An invalid child
+scalar invalidates the whole structured input rather than silently omitting it.
 
 `MainWindow` creates controls once per admitted form and updates visibility and
 errors without rebuilding on each keystroke. This preserves typing focus.
@@ -69,6 +78,19 @@ not a target-specific ID-to-kind mapping. Every declared artifact format uses
 the same boundary. `CommitAsync` enforces native create-only publication and
 Linux owner-only permissions; no definition value grants filesystem authority.
 Unsupported hosts fail closed.
+
+Bundle preparation retains only an answer revision and declared IDs, never
+composed bytes. Save composes against the current snapshot immediately before
+publication and disposes the Core bundle afterward to zero its private buffers.
+Each answer, definition, destination, or selection change discards it.
+Publication consumes the bundle and preflights every target before committing
+any file. Its ordered statuses distinguish files already written from a failed
+or unattempted remainder. A conflict leaves existing files untouched; after
+resolving it, the operator prepares again. After a partial commit, the operator
+leaves written outputs in place, selects only remaining outputs, and prepares
+again. There is no overwrite or rollback claim. The UI displays artifact IDs
+and status codes, never protected bytes or local paths. The capability notice
+reflects the native writer on the current host.
 
 Input, destination, definition, or artifact changes increment the adapter
 generation, cancel pending save work, dispose preparation, and zero owned output

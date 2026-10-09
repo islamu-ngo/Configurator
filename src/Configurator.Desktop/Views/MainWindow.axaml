@@ -37,7 +37,8 @@
     <ScrollViewer Grid.Row="1" Margin="0,12" ClipToBounds="True">
       <StackPanel Name="Fields" Spacing="14" />
     </ScrollViewer>
-    <StackPanel Grid.Row="2" Spacing="8">
+    <ScrollViewer Grid.Row="2" MaxHeight="240" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="8">
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
         <StackPanel>
           <TextBlock Text="Declared artifact" />
@@ -49,7 +50,18 @@
           <TextBox Name="FileName" Text="{Binding FileName, Mode=TwoWay}" AutomationProperties.Name="New output file name" />
         </StackPanel>
       </Grid>
+      <TextBlock Text="Bundle outputs (select one or more declared files)" />
+      <WrapPanel Name="ArtifactSelections" />
       <TextBlock Text="{Binding ArtifactConsequences}" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="Existing file to import for the selected artifact" />
+          <TextBox Name="ExistingFilePath" Text="{Binding ExistingFilePath, Mode=TwoWay}"
+                   AutomationProperties.Name="Existing configuration file path" />
+        </StackPanel>
+        <Button Grid.Column="1" Name="Import" Content="_Import existing file"
+                VerticalAlignment="Bottom" Click="ImportClicked" />
+      </Grid>
       <StackPanel>
         <TextBlock Text="Existing output directory" />
         <TextBox Name="OutputDirectory" Text="{Binding OutputDirectory, Mode=TwoWay}"
@@ -61,10 +73,16 @@
                 IsEnabled="{Binding CanPrepare}" Click="PrepareClicked" />
         <Button Name="Save" Content="_Save new protected file" Margin="0,0,8,0"
                 IsEnabled="{Binding CanSave}" Click="SaveClicked" />
+        <Button Name="PrepareBundle" Content="Prepare _bundle" Margin="0,0,8,0"
+                IsEnabled="{Binding CanPrepare}" Click="PrepareBundleClicked" />
+        <Button Name="SaveBundle" Content="Save protected bundle" Margin="0,0,8,0"
+                IsEnabled="{Binding CanSaveBundle}" Click="SaveBundleClicked" />
         <Button Name="Cancel" Content="_Cancel / discard preparation" Click="CancelClicked" />
       </WrapPanel>
+      <TextBlock Name="ProtectedCapability" Text="{Binding ProtectedCapability}" TextWrapping="Wrap" />
       <TextBlock Name="Status" Text="{Binding Status}" TextWrapping="Wrap"
                  AutomationProperties.Name="Operation status" />
     </StackPanel>
+    </ScrollViewer>
   </Grid>
 </Window>

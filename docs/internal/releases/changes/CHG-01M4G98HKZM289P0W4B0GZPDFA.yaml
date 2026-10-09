@@ -1,0 +1,28 @@
+Change-Id: CHG-01M4G98HKZM289P0W4B0GZPDFA
+Title: "guide existing-file import and bundle saving"
+Type: feat
+Scope: desktop
+Summary: "Expose declared output selection, bounded import and protected bundle publication with capability and recovery status. Fence stale imports and saves, keep untouched nested editors absent, and handle cancellation or I/O failures without value-bearing UI errors."
+Group: desktop
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Expose declared output selection, bounded import and protected bundle publication with capability and recovery status. Fence stale imports and saves, keep untouched nested editors absent, and handle cancellation or I/O failures without value-bearing UI errors."
+  Migration:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Expose declared output selection, bounded import and protected bundle publication with capability and recovery status. Fence stale imports and saves, keep untouched nested editors absent, and handle cancellation or I/O failures without value-bearing UI errors."

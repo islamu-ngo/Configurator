@@ -48,6 +48,19 @@ The artifact format, apply semantics, and restart consequence are shown; these a
 metadata about the eventual consumer, not permission to modify a running system.
 Preparation shows only metadata and a digest, not a preview of protected bytes.
 
+To reuse supported values, select a declared JSON, YAML, or dotenv artifact,
+enter the path to an existing local file, then choose **Import existing file**.
+The file must match a simple declared field mapping and current answers; an
+unknown key, conflicting answer, invalid field, or edited form rejects the
+whole import. Markdown and complex projections cannot be imported. A successful
+import refreshes the form and focuses the first visible field. Private values
+remain local and do not appear in operation status.
+
+For multiple outputs, check the declared files under **Bundle outputs**, choose
+**Prepare bundle**, then **Save protected bundle**. The selection and current
+answers produce one prepared bundle. Editing an answer or destination discards
+it. The capability notice shows whether this host can save protected files.
+
 ## Save safely
 
 Choose an existing output directory and a new file name. File names admit ASCII
@@ -65,6 +78,13 @@ answer, output destination, file name, definition path, or artifact selection,
 and the preparation is discarded. Prepare again before another save.
 **Cancel / discard preparation** cancels pending work and drops prepared output;
 a late completion cannot restore it.
+
+A bundle checks every destination before writing any file. If a destination
+already exists, nothing is overwritten: resolve the conflict and prepare again.
+If a later write fails, status lists the declared files already written and the
+failed or unattempted files. Keep written files; select only the remaining
+outputs and prepare again. Configurator does not roll back committed files or
+apply them to the target application.
 
 ## Keyboard
 

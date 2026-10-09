@@ -79,10 +79,17 @@ public sealed class FieldEditor : StackPanel
     }
     private void ChangedInput()
     {
-        if (_building) return;
+        if (_building || (!_provided && !HasInput())) return;
         _provided = true;
         Changed?.Invoke(this, EventArgs.Empty);
     }
+    private bool HasInput() => _schema.GetProperty("type").GetString() switch
+    {
+        "object" => _properties.Any(item => item.Editor.HasInput()),
+        "list" => _items.Count > 0,
+        _ => _input is TextBox { Text: { Length: > 0 } } ||
+            _input is ComboBox { SelectedItem: string { Length: > 0 } }
+    };
     private void Build(JsonElement? initial)
     {
         _building = true;

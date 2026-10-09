@@ -1,6 +1,7 @@
 namespace Configurator.Desktop.Views;
 
 using System.ComponentModel;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -79,6 +80,20 @@ public sealed partial class MainWindow : Window
         var artifacts = this.GetControl<ComboBox>("Artifact");
         artifacts.ItemsSource = _shell?.Artifacts;
         artifacts.SelectedItem = _shell?.Artifacts.FirstOrDefault(item => item.Id == _shell.ArtifactId);
+        var selections = this.GetControl<WrapPanel>("ArtifactSelections");
+        selections.Children.Clear();
+        if (_shell is not null)
+            foreach (SetupArtifactDefinition artifact in _shell.Artifacts)
+            {
+                var choice = new CheckBox
+                {
+                    Content = artifact.Id,
+                    IsChecked = _shell.SelectedArtifactIds.Contains(artifact.Id)
+                };
+                AutomationProperties.SetName(choice, $"Include {artifact.Id} in bundle");
+                choice.Click += (_, _) => _shell.SelectArtifact(artifact.Id, choice.IsChecked == true);
+                selections.Children.Add(choice);
+            }
         RefreshFields();
     }
     private void InputsChanged(object? sender, EventArgs args) => RefreshFields();
@@ -132,6 +147,20 @@ public sealed partial class MainWindow : Window
     private async void SaveClicked(object? sender, RoutedEventArgs args)
     {
         if (_shell is not null) await _shell.SaveAsync();
+    }
+    private async void ImportClicked(object? sender, RoutedEventArgs args)
+    {
+        if (_shell is null) return;
+        if (await _shell.ImportFileAsync())
+            _editors.FirstOrDefault(item => item.Editor.IsVisible).Editor?.FocusInput();
+    }
+    private void PrepareBundleClicked(object? sender, RoutedEventArgs args)
+    {
+        if (_shell is not null && !_shell.PrepareBundle()) FocusFirstError();
+    }
+    private async void SaveBundleClicked(object? sender, RoutedEventArgs args)
+    {
+        if (_shell is not null) await _shell.SaveBundleAsync();
     }
     private void CancelClicked(object? sender, RoutedEventArgs args) => _shell?.Cancel();
     private void ArtifactChanged(object? sender, SelectionChangedEventArgs args)
