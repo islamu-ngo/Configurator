@@ -33,8 +33,8 @@ internal sealed record SetupTerminalDefinitionSelection(
                 throw new InvalidOperationException("definition-changed");
             return System.IO.Path.GetExtension(path).ToLowerInvariant() switch
             {
-                ".json" => SetupDefinitionCodec.ParseJson(bytes),
-                ".yaml" or ".yml" => SetupDefinitionCodec.ParseYaml(bytes),
+                ".json" => SetupDefinitionSourceCodec.ParseJson(bytes),
+                ".yaml" or ".yml" => SetupDefinitionSourceCodec.ParseYaml(bytes),
                 _ => throw new InvalidOperationException("definition-format")
             };
         }

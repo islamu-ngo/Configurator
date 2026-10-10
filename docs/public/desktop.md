@@ -4,6 +4,13 @@ Configurator Desktop is an offline Avalonia application. It reads an explicitly
 selected local JSON or YAML setup definition and creates new protected files.
 There is no built-in target, network connection, plugin execution, or apply step.
 
+Local `.json`, `.yaml` and `.yml` files can contain either a compact maintainer
+source (`$schema: urn:islamu:configurator:authoring:v1`) or an expanded runtime
+definition. The extension selects syntax; the shared engine compiles and admits
+the source before creating the form. The canonical identity matches the CLI and
+Terminal without requiring a definition store.
+See the [definition guide](definitions.md) for source authoring.
+
 ## Start and load
 
 For x86_64 Arch Linux, use the native

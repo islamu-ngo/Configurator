@@ -9,7 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Configurator.Desktop/Configurator.Desktop.csproj" />
     <None Include="NativeDefinition.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../examples/islamu-event/setup-definition.json"
-          Link="Fixtures/Event/setup-definition.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../examples/islamu-event/definition.json"
+          Link="Fixtures/Event/definition.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

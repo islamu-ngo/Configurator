@@ -204,6 +204,86 @@ public sealed class DesktopLocalSelectionTests
         await Assert.That(shell.Status).IsEqualTo(status);
     }
 
+    [Test]
+    public async Task LocalCompactSourceLoadsBeforeAnswersAndInvalidReloadDropsPreparation()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = Path.Combine(directory.Path, "source.json");
+        await File.WriteAllTextAsync(path, """
+            {"$schema":"urn:islamu:configurator:authoring:v1",
+             "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
+             "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
+             "fields":{"HOST":{"type":"string","sensitivity":"public","default":"example.test"}},
+             "outputs":{"settings.json":{"format":"json"}}}
+            """);
+        using var shell = new SetupDesktopShellViewModel();
+        shell.DefinitionPath = path;
+        await Assert.That(await shell.LoadDefinitionAsync()).IsTrue();
+        await Assert.That(shell.Form!.Definition.ApplicationId).IsEqualTo("local.service");
+        var digest = shell.Form.Definition.Digest;
+        string yamlPath = Path.Combine(directory.Path, "source.yaml");
+        await File.WriteAllTextAsync(yamlPath, """
+            $schema: urn:islamu:configurator:authoring:v1
+            identity:
+              familyId: f93a6b9f-c210-47a9-b90b-434954040282
+              revision: 1
+            project:
+              id: local.service
+              name: Local Service
+            applicationVersions: ["1.0"]
+            fields:
+              HOST:
+                type: string
+                sensitivity: public
+                default: example.test
+            outputs:
+              settings.json:
+                format: json
+            """);
+        shell.DefinitionPath = yamlPath;
+        await Assert.That(await shell.LoadDefinitionAsync()).IsTrue();
+        await Assert.That(shell.Form!.Definition.Digest).IsEqualTo(digest);
+        await shell.PrepareAsync();
+        await Assert.That(shell.Preparation).IsNotNull();
+        await File.WriteAllTextAsync(yamlPath, "synthetic-private-invalid-source");
+        await Assert.That(await shell.LoadDefinitionAsync()).IsFalse();
+        await Assert.That(shell.Form).IsNull();
+        await Assert.That(shell.Preparation).IsNull();
+        await Assert.That(shell.Status).DoesNotContain("synthetic-private");
+    }
+
+    [Test]
+    public async Task UndeclaredLocalSyntaxCannotCreateWorkspace()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = Path.Combine(directory.Path, "source.txt");
+        await File.WriteAllBytesAsync(path, DesktopApplicationTests.Definition());
+        using var shell = new SetupDesktopShellViewModel();
+        shell.DefinitionPath = path;
+        await Assert.That(await shell.LoadDefinitionAsync()).IsFalse();
+        await Assert.That(shell.Form).IsNull();
+        await Assert.That(shell.Status).IsEqualTo("definition-invalid:source-format-invalid");
+    }
+
+    [Test]
+    public async Task LateDefinitionPickerCannotReplaceNewDefinition()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = Path.Combine(directory.Path, "late.json");
+        await File.WriteAllTextAsync(path, "synthetic-private-invalid-source");
+        using var shell = new SetupDesktopShellViewModel();
+        shell.LoadDefinition(DesktopApplicationTests.Definition());
+        var selected = new TaskCompletionSource<Uri?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<bool> pending = shell.SelectPathAsync(DesktopPathSelectionKind.Definition, _ => selected.Task);
+        shell.LoadDefinition(DesktopApplicationTests.Definition(2));
+        var replacement = shell.Form!.Definition.Digest;
+        string status = shell.Status;
+        selected.SetResult(new Uri(path));
+        await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
+        await Assert.That(shell.Form!.Definition.Digest).IsEqualTo(replacement);
+        await Assert.That(shell.Status).IsEqualTo(status);
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("configurator-desktop-selection-").FullName;

@@ -3,6 +3,13 @@
 The terminal uses an explicitly selected local JSON or YAML definition. It has
 no built-in Event target, network API, sign-in or remote apply operation.
 
+Local files may contain a compact maintainer source with
+`$schema: urn:islamu:configurator:authoring:v1` or an expanded runtime definition.
+The file extension selects JSON or YAML syntax. The shared engine compiles and
+admits compact sources before any answers are collected, producing the same
+canonical identity as the standalone CLI. No definition store is required.
+See the [definition guide](definitions.md) for source authoring.
+
 ```bash
 dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release -- --definition examples/minimal-self-hosted/setup-definition.json
 dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release -- --registry /path/to/definitions --family 69cdb122-41d2-4fab-9b82-7929a889c726 --app-version 1.0

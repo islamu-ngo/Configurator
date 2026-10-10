@@ -201,6 +201,12 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         byte[] source = [];
         try
         {
+            string extension = Path.GetExtension(path).ToLowerInvariant();
+            if (extension is not (".json" or ".yaml" or ".yml"))
+            {
+                Status = "definition-invalid:source-format-invalid";
+                return false;
+            }
             await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
                 4096, FileOptions.Asynchronous);
             if (stream.Length > ProtectedArtifactWriter.MaximumBytes)
@@ -223,9 +229,8 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
                 return false;
             }
             if (_disposed || generation != _generation) return false;
-            return LoadDefinition(source.AsMemory(0, count),
-                Path.GetExtension(path).Equals(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                Path.GetExtension(path).Equals(".yml", StringComparison.OrdinalIgnoreCase));
+            cancellationToken.ThrowIfCancellationRequested();
+            return LoadDefinition(source.AsMemory(0, count), extension is ".yaml" or ".yml");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
@@ -246,7 +251,7 @@ public sealed class SetupDesktopShellViewModel : ObservableObject, IDisposable
         Unload();
         try
         {
-            SetupDefinition definition = yaml ? SetupDefinitionCodec.ParseYaml(source) : SetupDefinitionCodec.ParseJson(source);
+            SetupDefinition definition = yaml ? SetupDefinitionSourceCodec.ParseYaml(source) : SetupDefinitionSourceCodec.ParseJson(source);
             _form = new DefinitionFormModel(definition);
             _form.InputChanged += InputChanged;
             _form.DisplayMode = DisplayMode == DesktopDisplayMode.Advanced ? SetupDisplayMode.Advanced : SetupDisplayMode.Guided;

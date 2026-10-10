@@ -285,13 +285,13 @@ internal static class Program
 
     private static async Task EventAsync(MainWindow window, SetupDesktopShellViewModel shell, string directory, int count)
     {
-        await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "setup-definition.json"), true);
+        await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json"), true);
         window.GetControl<ComboBox>("DisplayMode").SelectedIndex = (int)DesktopDisplayMode.Advanced;
         Input<ComboBox>(window, "Artifact to prepare").SelectedItem = "configuration-manifest";
         await FlushAsync();
-        FieldEditor name = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_f0000");
+        FieldEditor name = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_metadata_name");
         name.GetLogicalDescendants().OfType<TextBox>().Single().Text = "qa-config";
-        var settings = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_f0001");
+        var settings = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_spec_instance_settings");
         Named<ComboBox>(settings, "modules.tech_enabled").SelectedItem = "true";
         var tenants = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_tenants");
         for (int index = 0; index < count; index++)

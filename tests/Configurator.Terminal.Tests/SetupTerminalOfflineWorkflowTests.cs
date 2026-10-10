@@ -172,6 +172,63 @@ public sealed class SetupTerminalOfflineWorkflowTests
         await Assert.That(operation.IsPrepared).IsFalse();
     }
 
+    [Test]
+    public async Task CompactLocalSourceSelectsExplicitIdentityAndPreparesRestrictedOutput()
+    {
+        string directory = Directory.CreateTempSubdirectory("configurator-terminal-authoring-").FullName;
+        try
+        {
+            string path = Path.Combine(directory, "source.json");
+            await File.WriteAllTextAsync(path, """
+                {"$schema":"urn:islamu:configurator:authoring:v1",
+                 "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
+                 "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
+                 "fields":{"HOST":{"type":"string","sensitivity":"public","default":"example.test"}},
+                 "outputs":{"settings.json":{"format":"json"}}}
+                """);
+            var definition = new SetupTerminalDefinitionSelection(path).Load();
+            await Assert.That(definition.ApplicationId).IsEqualTo("local.service");
+            await Assert.That(definition.EntryPoints[0]).IsEqualTo("setup");
+            await Assert.That(definition.Locales[0]).IsEqualTo("en");
+            var selected = new SetupTerminalDefinitionSelection(directory, definition.FamilyId, "1.0").Load();
+            await Assert.That(selected.Digest).IsEqualTo(definition.Digest);
+            string yamlPath = Path.Combine(directory, "source.yaml");
+            await File.WriteAllTextAsync(yamlPath, """
+                $schema: urn:islamu:configurator:authoring:v1
+                identity:
+                  familyId: f93a6b9f-c210-47a9-b90b-434954040282
+                  revision: 1
+                project:
+                  id: local.service
+                  name: Local Service
+                applicationVersions: ["1.0"]
+                fields:
+                  HOST:
+                    type: string
+                    sensitivity: public
+                    default: example.test
+                outputs:
+                  settings.json:
+                    format: json
+                """);
+            await Assert.That(new SetupTerminalDefinitionSelection(yamlPath).Load().Digest).IsEqualTo(definition.Digest);
+            using var form = new DefinitionFormModel(definition);
+            using var artifact = Configurator.Core.Artifacts.DefinitionArtifactComposer.Compose(
+                definition, definition.Artifacts[0].Id, form.Snapshot()).Artifact;
+            await Assert.That(artifact).IsNotNull();
+            await Assert.That(System.Text.Encoding.UTF8.GetString(artifact!.Bytes.Span)).IsEqualTo("""{"HOST":"example.test"}""");
+            await Assert.That(artifact!.Sensitivity).IsEqualTo(Configurator.Core.SetupArtifactSensitivity.Restricted);
+            using var operation = new SetupTerminalArtifactOperation(form, new UnavailableWriter(), directory);
+            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.ProtectedOutputAvailable).IsFalse();
+            var outcome = await operation.ExecuteAsync(CancellationToken.None);
+            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Status)
+                .IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
+            await Assert.That(Directory.GetFiles(directory)).Count().IsEqualTo(2);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     private sealed class UnavailableWriter : IProtectedArtifactWriter
     {
         public bool IsAvailable => false;
