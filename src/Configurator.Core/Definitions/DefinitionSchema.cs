@@ -22,6 +22,42 @@ public static class DefinitionSchema
         properties["fields"]!["maxItems"] = 1024;
         properties["artifacts"]!["minItems"] = 1;
         properties["artifacts"]!["maxItems"] = 64;
+        AddVocabulary(schema);
         return schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
     }
+
+    private static void AddVocabulary(JsonNode node)
+    {
+        if (node is JsonObject map)
+        {
+            if (map["properties"] is JsonObject members)
+            {
+                if (members.ContainsKey("sensitivity"))
+                {
+                    Enum(members["type"]!, DefinitionVocabulary.FieldTypes);
+                    Enum(members["sensitivity"]!, DefinitionVocabulary.Sensitivities);
+                    Enum(members["disclosure"]!, DefinitionVocabulary.Disclosures);
+                    Enum(members["validator"]!, DefinitionVocabulary.Validators);
+                    Enum(members["itemType"]!, DefinitionVocabulary.ItemTypes);
+                }
+                if (members.ContainsKey("applySemantics"))
+                {
+                    Enum(members["format"]!, DefinitionVocabulary.Formats);
+                    Enum(members["applySemantics"]!, DefinitionVocabulary.ApplySemantics);
+                    Enum(members["restart"]!, DefinitionVocabulary.Restarts);
+                }
+                if (members.ContainsKey("op"))
+                    Enum(members["op"]!, members.ContainsKey("operands")
+                        ? DefinitionVocabulary.ConditionOperations : DefinitionVocabulary.ProjectionOperations);
+            }
+            foreach ((_, JsonNode? child) in map)
+                if (child is not null) AddVocabulary(child);
+        }
+        else if (node is JsonArray array)
+            foreach (JsonNode? child in array)
+                if (child is not null) AddVocabulary(child);
+    }
+
+    private static void Enum(JsonNode schema, params string[] values) =>
+        schema["enum"] = new JsonArray(values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray());
 }

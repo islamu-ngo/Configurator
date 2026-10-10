@@ -49,16 +49,35 @@
             "type": "string"
           },
           "type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "string",
+              "boolean",
+              "integer",
+              "number",
+              "enum",
+              "list",
+              "object"
+            ]
           },
           "title": {
             "type": "string"
           },
           "sensitivity": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "public",
+              "sensitive",
+              "secret"
+            ]
           },
           "disclosure": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "essential",
+              "guided",
+              "advanced"
+            ]
           },
           "required": {
             "type": "boolean"
@@ -91,6 +110,14 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "none",
+              "hostname",
+              "absolute-uri",
+              "email-address",
+              "port-number",
+              "positive-integer"
             ]
           },
           "default": true,
@@ -144,6 +171,13 @@
             "type": [
               "string",
               "null"
+            ],
+            "enum": [
+              "string",
+              "boolean",
+              "integer",
+              "number",
+              "object"
             ]
           },
           "uniqueBy": {
@@ -171,7 +205,16 @@
             ],
             "properties": {
               "op": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "present",
+                  "equals",
+                  "notEquals",
+                  "in",
+                  "all",
+                  "any",
+                  "not"
+                ]
               },
               "field": {
                 "type": [
@@ -189,7 +232,16 @@
                   "type": "object",
                   "properties": {
                     "op": {
-                      "type": "string"
+                      "type": "string",
+                      "enum": [
+                        "present",
+                        "equals",
+                        "notEquals",
+                        "in",
+                        "all",
+                        "any",
+                        "not"
+                      ]
                     },
                     "field": {
                       "type": [
@@ -221,7 +273,16 @@
             ],
             "properties": {
               "op": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "present",
+                  "equals",
+                  "notEquals",
+                  "in",
+                  "all",
+                  "any",
+                  "not"
+                ]
               },
               "field": {
                 "type": [
@@ -260,22 +321,50 @@
             "type": "string"
           },
           "format": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "dotenv",
+              "json",
+              "yaml",
+              "markdown"
+            ]
           },
           "fileName": {
             "type": "string"
           },
           "applySemantics": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "create",
+              "merge",
+              "replace",
+              "import",
+              "reconcile",
+              "generationOnly"
+            ]
           },
           "restart": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "none",
+              "process",
+              "deployment"
+            ]
           },
           "projection": {
             "type": "object",
             "properties": {
               "op": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "literal",
+                  "copy",
+                  "omit",
+                  "index",
+                  "object",
+                  "list",
+                  "repeat"
+                ]
               },
               "value": true,
               "field": {
@@ -293,7 +382,16 @@
                   "type": "object",
                   "properties": {
                     "op": {
-                      "type": "string"
+                      "type": "string",
+                      "enum": [
+                        "literal",
+                        "copy",
+                        "omit",
+                        "index",
+                        "object",
+                        "list",
+                        "repeat"
+                      ]
                     },
                     "value": true,
                     "field": {
@@ -321,7 +419,16 @@
                       ],
                       "properties": {
                         "op": {
-                          "type": "string"
+                          "type": "string",
+                          "enum": [
+                            "literal",
+                            "copy",
+                            "omit",
+                            "index",
+                            "object",
+                            "list",
+                            "repeat"
+                          ]
                         },
                         "value": true,
                         "field": {
@@ -346,7 +453,16 @@
                           ],
                           "properties": {
                             "op": {
-                              "type": "string"
+                              "type": "string",
+                              "enum": [
+                                "present",
+                                "equals",
+                                "notEquals",
+                                "in",
+                                "all",
+                                "any",
+                                "not"
+                              ]
                             },
                             "field": {
                               "type": [
