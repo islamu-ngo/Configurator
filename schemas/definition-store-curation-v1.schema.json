@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Definition store optional curation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion"
+  ],
+  "dependentRequired": {
+    "slug": [
+      "slugReason"
+    ],
+    "slugReason": [
+      "slug"
+    ]
+  },
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+    },
+    "slugReason": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 512,
+      "pattern": "^\\S(?:[^\\x00-\\x1f\\x7f]*\\S)?$"
+    },
+    "tags": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32,
+        "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+      }
+    }
+  }
+}

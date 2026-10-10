@@ -1,0 +1,83 @@
+name: Validate public definition store
+
+on:
+  pull_request:
+    paths:
+      - "store/**"
+      - "eng/configurator/BuildDefinitionStore.cs"
+      - "src/Configurator.Core/**"
+      - "schemas/definition-store-curation-v1.schema.json"
+      - "Directory.Build.*"
+      - "Directory.Packages.props"
+      - "global.json"
+      - "NuGet.Config"
+      - ".github/workflows/validate-definition-store.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "store/**"
+      - "eng/configurator/BuildDefinitionStore.cs"
+      - "src/Configurator.Core/**"
+      - "schemas/definition-store-curation-v1.schema.json"
+      - "Directory.Build.*"
+      - "Directory.Packages.props"
+      - "global.json"
+      - "NuGet.Config"
+      - ".github/workflows/validate-definition-store.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: definition-store-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  public-data:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout public inputs without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install repository-pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Checkout pinned target history without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || github.sha }}
+          path: .definition-store-base
+          persist-credentials: false
+      - name: Build baseline with its target-commit owner
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f .definition-store-base/eng/configurator/BuildDefinitionStore.cs ]]; then
+            (
+              cd .definition-store-base
+              dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output ../artifacts/definition-store-baseline --schema ../artifacts/definition-store-baseline-schema.json --write
+            )
+          elif [[ ! -d .definition-store-base/store ]]; then
+            mkdir -p artifacts/definition-store-baseline
+            printf '%s\n' '{"schemaVersion":1,"projects":[]}' > artifacts/definition-store-baseline/index.json
+          else
+            echo "store-baseline-owner-unavailable" >&2
+            exit 1
+          fi
+      - name: Exercise source compilation and immutable-history rejection
+        run: dotnet run eng/configurator/BuildDefinitionStore.cs -- --self-test
+      - name: Validate inputs and generated schema freshness
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output artifacts/definition-store --baseline artifacts/definition-store-baseline --require-baseline --write
+          git diff --exit-code -- schemas/definition-store-curation-v1.schema.json store
+          dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output artifacts/definition-store --baseline artifacts/definition-store-baseline --require-baseline --check

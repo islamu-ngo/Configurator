@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "tags": ["example", "self-hosted"],
+  "slug": "minimal-self-hosted",
+  "slugReason": "Retain the previously published neutral example store address."
+}
