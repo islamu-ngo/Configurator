@@ -1,12 +1,14 @@
 namespace Configurator.Core.Composition;
 
-using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
-internal static class SetupCompositionYamlParser
+internal static partial class SetupCompositionYamlParser
 {
+    [GeneratedRegex("^-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex JsonNumberPattern();
     internal static CompositionMap Parse(
         ReadOnlyMemory<byte> bytes, SetupCompositionLimits limits, CancellationToken cancellationToken,
         CompositionBudget? sharedBudget = null)
@@ -20,6 +22,7 @@ internal static class SetupCompositionYamlParser
         try
         {
             text = new UTF8Encoding(false, true).GetString(bytes.Span);
+            if (text.Length > 0 && text[0] == '\uFEFF') text = text[1..];
         }
         catch (DecoderFallbackException)
         {
@@ -105,11 +108,11 @@ internal static class SetupCompositionYamlParser
                     throw new SetupCompositionException(SetupCompositionFailureCode.InvalidKey);
                 RejectNodeAuthority(keyScalar);
                 string key = keyScalar.Value;
-                if (string.IsNullOrEmpty(key) || key == "null" || key == "<<")
+                if (string.IsNullOrEmpty(key) || key == "<<"
+                    || ConvertScalar(keyScalar, budget).Kind != CompositionScalarKind.String)
                     throw new SetupCompositionException(key == "<<"
                         ? SetupCompositionFailureCode.UnsupportedYamlGrammar
                         : SetupCompositionFailureCode.InvalidKey);
-                budget.Scalar(key);
                 reader.Advance();
                 CompositionNode value = ReadNode(reader, budget, limits, checked(depth + 1), cancellationToken);
                 SetupCompositionNormalizer.AddKey(entries, identities, key, value);
@@ -156,32 +159,18 @@ internal static class SetupCompositionYamlParser
         if (scalar.Style != ScalarStyle.Plain)
             return new CompositionScalar(CompositionScalarKind.String, value);
 
+        if (value.Length == 0)
+            throw new SetupCompositionException(SetupCompositionFailureCode.InvalidScalar);
+
         if (value == "true" || value == "false")
             return new CompositionScalar(CompositionScalarKind.Boolean, value);
         if (value == "null")
             return new CompositionScalar(CompositionScalarKind.Null, null);
-        if (IsPlainInteger(value))
-            return new CompositionScalar(CompositionScalarKind.Integer, value);
+        if (JsonNumberPattern().IsMatch(value))
+            return new CompositionScalar(CompositionScalarKind.JsonNumber, value);
         if (IsAmbiguousPlainScalar(value))
             throw new SetupCompositionException(SetupCompositionFailureCode.InvalidScalar);
         return new CompositionScalar(CompositionScalarKind.String, value);
-    }
-
-    private static bool IsPlainInteger(string value)
-    {
-        if (value == "0")
-            return true;
-        int index = value.Length > 0 && value[0] == '-' ? 1 : 0;
-        if (index == 1 && (value.Length == 1 || value[index] == '0'))
-            return false;
-        if (index >= value.Length || value[index] is < '1' or > '9')
-            return false;
-        for (; index < value.Length; index++)
-        {
-            if (value[index] is < '0' or > '9')
-                return false;
-        }
-        return true;
     }
 
     private static bool IsAmbiguousPlainScalar(string value)

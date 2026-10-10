@@ -16,6 +16,12 @@ versions and a digest computed from canonical definition bytes. GUID identity
 is not publisher authentication. A session pins the admitted revision and
 digest; it never silently upgrades when a catalog changes.
 
+For public discovery, contributors can propose a project folder and versioned
+JSON definitions in the optional [Definition Store](definition-store.md).
+The native builder derives canonical identity and compatibility metadata from
+admitted content. Store inclusion remains separate from publisher authenticity;
+local files and independent public publisher links remain usable without it.
+
 Field IDs are independent of output keys. Activation and required conditions
 refer to declared fields. Disclosure controls the view, never the validation:
 required or protected decisions cannot disappear from guided review.
@@ -53,6 +59,14 @@ The generated schema is `schemas/setup-definition-v1.schema.json`. See
 Configurator v1 canonicalization profile. It is not an RFC 8785 compatibility
 claim. Local YAML is normalized to the same definition model; distribution,
 integrity and digest pinning use the canonical JSON bytes.
+
+For compact maintainer sources, use the generated
+[`configurator-authoring-v1.schema.json`](../../schemas/configurator-authoring-v1.schema.json)
+and [integration guide](integrate-your-tool.md). Local YAML supports comments,
+multiline strings and precise JSON-shaped decimal/exponent numbers. Quote intended
+numeric, boolean or null keys and ambiguous strings. Empty plain values, typed keys,
+duplicate/colliding keys, merge keys, anchors, aliases, tags, directives and multiple
+documents reject. Use explicit `null` or `""` instead of a blank plain value.
 
 For a second independently authored format example, see
 [`examples/grafana-13.2.2`](../../examples/grafana-13.2.2/README.md). It shows

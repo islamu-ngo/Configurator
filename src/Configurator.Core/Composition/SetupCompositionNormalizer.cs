@@ -67,6 +67,9 @@ internal static class SetupCompositionNormalizer
         if (bytes.Length > limits.AggregateSourceBytes)
             throw new SetupCompositionException(SetupCompositionFailureCode.LimitExceeded);
 
+        if (bytes.Span.StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }))
+            bytes = bytes[3..];
+
         try
         {
             using JsonDocument document = JsonDocument.Parse(bytes, new JsonDocumentOptions

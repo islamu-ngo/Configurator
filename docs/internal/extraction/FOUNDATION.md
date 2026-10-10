@@ -4,6 +4,14 @@
 
 The MIT utility prepares bounded configuration artifacts offline. It does not
 host Event services, apply configuration remotely or authenticate operators.
+
+Event's maintained integration now supplies a neutral `configurator.json` and one
+compiled `definition.json`. The Event-owned profile is the sole family/revision
+source; semantic field paths replace traversal numbering. Its public `release.json`
+records the independently checked source/definition digests, compiler executable
+pin and command/authoring/runtime contract versions. These are reproduction facts,
+not transferred release authority. Configurator's checked snapshot and linked
+browser/test resources require no Event checkout during a normal build.
 `AGENTS.md`, `PROJECTS.md` and the adapted intent registry govern this checkout.
 The transferred knowledge library preserves generic engineering material;
 Event-specific examples remain reference-only and cannot introduce requirements
@@ -14,6 +22,14 @@ release instructions or documentation architecture. Absent Event-only policies
 are explicitly historical references, not disguised target requirements.
 
 ## Build and tooling
+
+Maintainer authoring uses one closed YAML/JSON source and a pure Core compiler,
+then existing canonical runtime admission. YAML's bounded dialect admits precise
+JSON-shaped numbers and resolved string keys; unsupported/empty scalars and all
+expansion authority reject. Native local loaders and Browser local selection share
+this compiler before answers; remote Browser distribution remains canonical runtime
+JSON. See [maintainer source ownership](../MAINTAINER_AUTHORING.md) and
+[runtime contract](../CORE_DEFINITION_CONTRACT.md).
 
 `global.json` pins SDK 10.0.302 and Microsoft.Testing.Platform.
 `Directory.Build.props` supplies deterministic builds, generated dependency
@@ -50,7 +66,10 @@ root contract. No local MCP configuration, session state or credentials transfer
 ## Browser preparation and custody
 
 The browser is a complete configuration-preparation adapter over browser-safe
-Presentation/Core. Its public definition distribution boundary is distinct
+Presentation/Core. Standalone WebAssembly interactivity deliberately keeps
+answer processing local and enables offline work; a larger initial download
+and client resource use are accepted instead of Server/Auto answer custody.
+Its public definition distribution boundary is distinct
 from transient private answers. Secret input is disabled for each new workspace
 until the operator explicitly consents. Revocation recursively clears secret
 leaves and prepared output; edits and replacement invalidate old operations.
@@ -69,6 +88,18 @@ See [browser custody ADR](../adr/ADR-browser-session-trust-and-export.md),
 [packaging](../PACKAGING.md) for the corresponding source and evidence anchors.
 
 ## Verification and provenance
+
+The browser's Event-style UI adaptation uses identified first-party originals
+and separately licensed MudBlazor assets; exact source paths, revision/blob and
+dispositions live in [Browser UI transfer](BROWSER_UI_TRANSFER.md). Optional
+[definition-store content](../DEFINITION_STORE.md) is generated public data,
+never an engine, native-client or independent-source dependency. Appearance
+preferences contain only bounded display settings; browser route discard uses
+editor-owned invalidation rather than hidden answer persistence.
+The [browser interface anchor](../BROWSER_UI.md#interface-refinement) owns the
+layered vendor import, shared control styling, responsive form composition and
+independent-design research record. These presentation refinements do not move
+configuration policy or answers into the shell.
 
 Desktop verifies bundle composition before enabling protected save, disposes
 the temporary restricted buffers, and recomposes the current revision at save.

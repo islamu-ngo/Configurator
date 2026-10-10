@@ -192,9 +192,12 @@ Source limits retain 4 MiB aggregate bytes, depth 32, 4,096 map/list entries,
 65,536 nodes, 65,536 scalar characters, and 1 MiB aggregate scalar characters.
 Definitions further cap fields at 1,024, artifacts at 64, and repeated items at
 4,096. YAML admits one document and rejects aliases, anchors, tags and directives.
-The inherited local YAML dialect accepts exact booleans, null and integers;
-ambiguous numeric scalars (including floating-point syntax) remain rejected.
-JSON supports the bounded decimal canonicalization profile.
+The local YAML dialect accepts lowercase booleans/null and JSON-shaped numeric
+tokens, including decimal/exponent forms, through the same exact bounded decimal
+canonicalization as JSON. Quoted/literal/folded scalars remain strings. Empty plain
+scalars and non-string resolved keys reject; quote intended numeric/boolean/null
+keys. Duplicate/NFC/case collisions and merge keys (including quoted `<<`) reject.
+Unsupported numeric forms never round or underflow into an admitted value.
 
 ## Event coverage handoff
 
