@@ -6,6 +6,12 @@ standalone publication and independent static browser publication. Its default
 native client. `PublishConfigurator` requires an explicit RID, embeds native
 dependencies, disables trimming, renames the apphost to the documented operator
 name and includes notices, schemas and generated contract data.
+For CLI packages, the release target copies the canonical portable integration
+skill and resources to `skills/configurator-integrate/`. The internal repository
+skill is only a router and is not a second distributed workflow.
+`ValidateConfiguratorSkill.cs --portable` validates the shipped flat-scalar
+Agent Skills metadata; `--self-test` exercises valid and rejected metadata.
+Nested portable metadata is outside this validator's current supported profile.
 `write-dependency-notices.cs` reads the actual restored assets closure and retains
 original nuspec metadata and every package license/notice file, including native
 dependency attribution. It also evaluates selected SDK framework references so
@@ -25,6 +31,35 @@ before restoring/publishing `Configurator.Browser`. Distribute its complete
 `wwwroot/`, not native apphost output. This separation avoids interpreting browser
 capability as native protected-save support. Supported native packaging RIDs and
 operator paths are listed in the [public guide](../public/packaging.md).
+
+Optional store inclusion is explicit through `DefinitionStoreSourceRoot` on
+`PublishConfiguratorBrowser`; the empty property never reads or requires `store/`.
+`PrepareDefinitionStoreAssets` in the Browser project invokes the native
+`BuildDefinitionStore.cs --source ... --output ... --write` before
+`ResolveProjectStaticWebAssets`. Generated index and canonical snapshots live
+under the configuration-specific intermediate directory, mapped to
+`wwwroot/definition-store/`, rather than being copied after publication. The SDK
+therefore inventories and hashes every generated public asset in
+`service-worker-assets.js`. Metadata schema generation remains owned by the
+builder and repository schema; it is not a second hand-maintained contract.
+
+The generation target clears its owned intermediate store output on each build.
+`ClearPublishedDefinitionStore` clears only the owned `definition-store/` subtree
+before publication, including when the property is empty. A store-enabled build
+followed by a store-free build in the same destination cannot retain catalogue
+files or manifest entries. No source directory mutation is required. Invalid
+explicit store content fails validation before assets are admitted.
+
+Store snapshots are bounded public app content. Packaging them does not grant
+consent to retain independently opened definitions, and never admits answers or
+prepared artifacts into public caches. Discovery remains lazy in the browser;
+store absence cannot become a startup, Core, CLI or native-client dependency.
+
+Local source loading in Terminal, Desktop and Browser uses Core's shared
+compact-source compiler independently of store assets. Browser local upload
+accepts JSON/YAML; public remote and retained definition assets remain canonical
+runtime JSON. Source comments, answers and prepared output never become public
+package or offline-cache assets.
 
 The published PWA includes `manifest.webmanifest`, `service-worker.js`, the
 SDK-generated `service-worker-assets.js`, `pwa-lifecycle.js` and original icons.
@@ -73,8 +108,24 @@ Artifacts, Event and test assemblies. Package tests also require PWA assets and
 check generated capability flags; they do not inspect source/CSS text.
 
 The current package tests require the three Linux x64 packages and Browser
-package from the public commands first. Set `CONFIGURATOR_PACKAGE_ROOT` for a
-nondefault output root:
+package from the public commands first, plus a second browser publication with
+explicit store inclusion. Set `CONFIGURATOR_PACKAGE_ROOT` for the store-free root
+and `CONFIGURATOR_STORE_PACKAGE_ROOT` for the store-enabled root; the latter
+defaults to `artifacts/configurator-with-store`. `BrowserStorePackageTests` runs
+independently of native package tests and compares each indexed revision's
+family, application, application versions and digest against Core readmission,
+then verifies the published bytes against their SDK worker asset hashes.
+The CI lane publishes store-enabled content first, then republishes that same
+destination without inclusion before validating the store-free package. This
+also exercises stale intermediate/output removal.
+
+For a browser-only verification with explicit roots:
+
+```bash
+CONFIGURATOR_PACKAGE_ROOT="$PWD/.tmp/browser-without-store" CONFIGURATOR_STORE_PACKAGE_ROOT="$PWD/.tmp/browser-with-store" dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release -- --treenode-filter '/*/*/*BrowserStorePackageTests/*' --minimum-expected-tests 2
+```
+
+Full package and engineering checks:
 
 ```bash
 dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release -- --minimum-expected-tests 1

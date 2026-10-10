@@ -46,6 +46,7 @@ var outputs = new Dictionary<string, JsonObject>(StringComparer.Ordinal)
     {
         ["schemaVersion"] = 1,
         ["definitionSchemaSha256"] = Hash(Encoding.UTF8.GetBytes(DefinitionSchema.Generate())),
+        ["authoringSchemaSha256"] = Hash(Encoding.UTF8.GetBytes(Configurator.Core.Definitions.Authoring.DefinitionAuthoringSchema.Generate())),
         ["commandSchemaSha256"] = Hash(SetupCliCommandSchemaMetadata.GenerateSchema()),
         ["commandFamilies"] = new JsonArray(SetupCliCommandSchemaMetadata.Families.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()),
         ["targetApply"] = false,

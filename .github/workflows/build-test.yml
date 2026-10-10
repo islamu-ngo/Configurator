@@ -62,7 +62,10 @@ jobs:
       - name: Validate dependency rights and compiled contracts
         run: |
           dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
-          dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator --configuration Release --no-build -- --check schemas/setup-definition-v1.schema.json
+          dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator --configuration Release --no-build -- --check
+          dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- .agents/skills/configurator-integrate/SKILL.md
+          dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- --portable skills/configurator-integrate/SKILL.md
+          dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- --self-test
           dotnet run --project eng/configurator/Configurator.CommandSchemaGenerator --configuration Release --no-build -- --check
           dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check
       - name: Audit restored dependency closure
@@ -80,6 +83,9 @@ jobs:
           for surface in cli terminal desktop; do
             dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface="$surface" -p:ConfiguratorRid=linux-x64 -verbosity:minimal
           done
+          dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:ConfiguratorOutputRoot="$PWD/artifacts/configurator-with-store" -p:DefinitionStoreSourceRoot="$PWD/store" -verbosity:minimal
+          # Reuse the default destination across variants to expose stale store assets.
+          dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:DefinitionStoreSourceRoot="$PWD/store" -verbosity:minimal
           dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -verbosity:minimal
       - name: Assert compiled boundaries and actual package closure
         run: |
@@ -90,11 +96,15 @@ jobs:
           dotnet test --project eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj --configuration Release -- --minimum-expected-tests 1
           dotnet test --project eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj --configuration Release -- --minimum-expected-tests 1
       - name: Write package checksums
-        run: dotnet run .ci/scripts/write-artifact-checksums.cs -- artifacts/configurator artifacts/configurator/checksums.sha256
+        run: |
+          dotnet run .ci/scripts/write-artifact-checksums.cs -- artifacts/configurator artifacts/configurator/checksums.sha256
+          dotnet run .ci/scripts/write-artifact-checksums.cs -- artifacts/configurator-with-store artifacts/configurator-with-store/checksums.sha256
       - name: Retain unsigned validation packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: configurator-linux-x64-and-static-browser
-          path: artifacts/configurator/
+          path: |
+            artifacts/configurator/
+            artifacts/configurator-with-store/
           if-no-files-found: error
           retention-days: 7

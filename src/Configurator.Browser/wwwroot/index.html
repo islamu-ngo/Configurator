@@ -4,11 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Prepare configuration locally, choose secret custody and export your files." />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <base href="/" />
-    <link rel="stylesheet" href="css/setup.css" />
+    <link rel="stylesheet" href="css/layers.css" />
     <link rel="stylesheet" href="Configurator.Browser.styles.css" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="icons/configurator-192.svg" />
     <meta name="theme-color" content="#143b2a" />
     <title>ISLAMU Configurator</title>
 </head>
@@ -21,6 +22,7 @@
         <a href="">Reload</a>
     </div>
     <script type="module" src="pwa-lifecycle.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>

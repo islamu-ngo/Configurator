@@ -3,13 +3,20 @@ importScripts('./service-worker-assets.js');
 const cacheName = `configurator-app-${self.assetsManifest.version}`;
 const scope = new URL(self.registration.scope);
 const publicAssets = new Set([
-    'index.html', 'css/setup.css', 'Configurator.Browser.styles.css', 'manifest.webmanifest',
+    'index.html', 'css/layers.css', 'css/reset.css', 'css/base.css', 'css/tokens.css',
+    'css/mudblazor-overrides.css', 'css/components.css', 'css/utilities.css',
+    'Configurator.Browser.styles.css', 'manifest.webmanifest',
     'pwa-lifecycle.js', 'browser-definition-source.js', 'browser-artifacts.js',
+    'browser-appearance.js', 'browser-store.js',
+    '_content/MudBlazor/MudBlazor.min.css', '_content/MudBlazor/MudBlazor.min.js',
     'icons/configurator-192.svg', 'icons/configurator-512.svg'
 ]);
 const assets = self.assetsManifest.assets.filter(asset =>
     asset.url.startsWith('_framework/') || publicAssets.has(asset.url));
-const appUrls = new Set(assets.map(asset => new URL(asset.url, scope).href));
+const requiredUrls = new Set(assets.map(asset => new URL(asset.url, scope).href));
+const storeAssets = new Map(self.assetsManifest.assets.filter(asset => asset.url.startsWith('definition-store/'))
+    .map(asset => [new URL(asset.url, scope).href, asset]));
+const appUrls = new Set([...requiredUrls, ...storeAssets.keys()]);
 const activeClients = new Set();
 const permittedSources = new Map();
 
@@ -50,7 +57,7 @@ self.addEventListener('message', event => event.waitUntil((async () => {
     }
     if (event.data?.type === 'status') {
         const cache = await caches.open(cacheName);
-        const complete = (await Promise.all([...appUrls].map(url => cache.match(url))))
+        const complete = (await Promise.all([...requiredUrls].map(url => cache.match(url))))
             .every(response => response !== undefined);
         event.ports[0]?.postMessage({ appPrepared: complete, offlineReady: complete, assets: [...appUrls] });
     }
@@ -64,7 +71,18 @@ self.addEventListener('fetch', event => {
         event.respondWith((async () => {
             const cache = await caches.open(cacheName);
             const key = request.mode === 'navigate' ? new URL('index.html', scope).href : url.href;
-            return await cache.match(key) ?? Response.error();
+            const cached = await cache.match(key);
+            if (cached) return cached;
+            // Optional discovery cannot hold core readiness hostage; cache only deliberate public asset reads.
+            const asset = storeAssets.get(key);
+            if (!asset || activeClients.has(event.clientId) || !self.navigator.onLine || request.credentials !== 'omit') return Response.error();
+            try {
+                const response = await fetch(new Request(key,
+                    { integrity: asset.hash, credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error', cache: 'no-store' }));
+                if (!response.ok) return Response.error();
+                await cache.put(key, response.clone());
+                return response;
+            } catch { return Response.error(); }
         })());
         return;
     }

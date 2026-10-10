@@ -8,6 +8,8 @@ internal static class ReleaseTestPaths
     internal static string Root { get; } = FindRoot();
     internal static string PackageRoot => Environment.GetEnvironmentVariable("CONFIGURATOR_PACKAGE_ROOT")
         ?? Path.Combine(Root, "artifacts/configurator");
+    internal static string StorePackageRoot => Environment.GetEnvironmentVariable("CONFIGURATOR_STORE_PACKAGE_ROOT")
+        ?? Path.Combine(Root, "artifacts/configurator-with-store");
     internal static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
     internal static async Task<(int ExitCode, string Output)> Run(string executable, params string[] arguments)

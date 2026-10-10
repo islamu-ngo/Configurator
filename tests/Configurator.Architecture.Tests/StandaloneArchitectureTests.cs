@@ -6,6 +6,7 @@ using Configurator.Cli;
 using Configurator.Core;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
+using Configurator.Core.Definitions.Authoring;
 using TUnit.Assertions;
 using TUnit.Assertions.Extensions;
 using TUnit.Core;
@@ -103,10 +104,14 @@ public sealed class StandaloneArchitectureTests
         using JsonDocument baseline = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, "eng/configurator/generated/frozen-contract-baseline.json")));
         await Assert.That(baseline.RootElement.GetProperty("definitionSchemaSha256").GetString())
             .IsEqualTo(ReleaseTestPaths.Hash(System.Text.Encoding.UTF8.GetBytes(DefinitionSchema.Generate())));
+        await Assert.That(baseline.RootElement.GetProperty("authoringSchemaSha256").GetString())
+            .IsEqualTo(ReleaseTestPaths.Hash(System.Text.Encoding.UTF8.GetBytes(DefinitionAuthoringSchema.Generate())));
         await Assert.That(baseline.RootElement.GetProperty("commandSchemaSha256").GetString())
             .IsEqualTo(ReleaseTestPaths.Hash(SetupCliCommandSchemaMetadata.GenerateSchema()));
         await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/setup-definition-v1.schema.json")))
             .IsEqualTo(DefinitionSchema.Generate());
+        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-authoring-v1.schema.json")))
+            .IsEqualTo(DefinitionAuthoringSchema.Generate());
         await Assert.That(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, SetupCliCommandSchemaMetadata.RelativePath)))
             .IsEquivalentTo(SetupCliCommandSchemaMetadata.GenerateSchema());
         await Assert.That(baseline.RootElement.GetProperty("signedPublicationEnabled").GetBoolean()).IsFalse();

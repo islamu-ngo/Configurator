@@ -14,7 +14,11 @@ export function canFetchDefinition() {
     return !abandoned && navigator.onLine && !workspaceActive;
 }
 
-window.configuratorPwa = Object.freeze({ canFetchDefinition, prepareDefinitionFetch, isAbandoned: () => abandoned });
+window.configuratorPwa = Object.freeze({
+    canFetchDefinition, prepareDefinitionFetch,
+    canReadPublicAssets: () => !abandoned && !workspaceActive,
+    isAbandoned: () => abandoned
+});
 
 window.addEventListener('pagehide', () => {
     abandoned = true;

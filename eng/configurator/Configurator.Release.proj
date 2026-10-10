@@ -27,6 +27,7 @@
     <ConfiguratorNotice Include="$(ConfiguratorRoot)/LICENSE;$(ConfiguratorRoot)/THIRD-PARTY-NOTICES.md" />
     <ConfiguratorCapability Include="$(MSBuildThisFileDirectory)generated/*.json" />
     <ConfiguratorSchema Include="$(ConfiguratorRoot)/schemas/*.schema.json" />
+    <ConfiguratorIntegrationSkill Include="$(ConfiguratorRoot)/skills/configurator-integrate/**/*" />
   </ItemGroup>
 
   <Target Name="ValidateConfiguratorRelease">
@@ -70,6 +71,8 @@
     <Copy SourceFiles="@(ConfiguratorNotice)" DestinationFolder="$(ConfiguratorPublishDirectory)" />
     <Copy SourceFiles="@(ConfiguratorCapability)" DestinationFolder="$(ConfiguratorPublishDirectory)contracts" />
     <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorPublishDirectory)schemas" />
+    <Copy Condition="'$(ConfiguratorSurface)' == 'cli'" SourceFiles="@(ConfiguratorIntegrationSkill)"
+      DestinationFiles="@(ConfiguratorIntegrationSkill->'$(ConfiguratorPublishDirectory)skills/configurator-integrate/%(RecursiveDir)%(Filename)%(Extension)')" />
     <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/$(ConfiguratorAssemblyName)/obj/project.assets.json&quot; &quot;$(ConfiguratorPublishDirectory)dependency-notices&quot; &quot;$(ConfiguratorProject)&quot; &quot;$(ConfiguratorRid)&quot;" />
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="WriteConfiguratorReleaseContract"
       Properties="ConfiguratorContractOutput=$(ConfiguratorPublishDirectory)contracts/package.json" />
@@ -79,7 +82,7 @@
     <!-- Native release properties must never leak into static WASM publication. -->
     <MSBuild Projects="$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj" Targets="Restore;Publish"
       RemoveProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;PublishTrimmed;UseAppHost;EnableCompressionInSingleFile;IncludeNativeLibrariesForSelfExtract;DebugSymbols;DebugType"
-      Properties="Configuration=$(Configuration);PublishDir=$(ConfiguratorOutputRoot)/browser/;RestoreLockedMode=true" />
+      Properties="Configuration=$(Configuration);PublishDir=$(ConfiguratorOutputRoot)/browser/;RestoreLockedMode=true;DefinitionStoreSourceRoot=$(DefinitionStoreSourceRoot)" />
     <Error Condition="!Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/index.html')" Text="Static browser index is missing." />
     <Error Condition="!Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/service-worker.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/service-worker-assets.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/pwa-lifecycle.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/manifest.webmanifest') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/icons/configurator-192.svg') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/icons/configurator-512.svg')" Text="Published offline browser assets are incomplete." />
     <Copy SourceFiles="@(ConfiguratorNotice)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot" />

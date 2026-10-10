@@ -34,6 +34,11 @@ Native package directories include `schemas/`, `contracts/`, `dependency-notices
 `LICENSE` and `THIRD-PARTY-NOTICES.md`. The dependency directory retains original
 package metadata and license/notice files; keep it with the executable.
 Browser has the same public metadata under `wwwroot/`.
+The CLI package also includes `skills/configurator-integrate/SKILL.md` and its
+routed resources. Copy that complete skill directory into an Agent Skills-aware
+tool's supported skill location; no agent framework or installer is required.
+The included authoring schema and native `definition` commands supply the actual
+contract. The workflow never needs private answer discovery or target startup.
 Serve the entire browser `wwwroot/` tree from a static server with appropriate
 WASM MIME types and route fallback to `index.html`; there is no application
 server, authentication, target apply or answer persistence. Browser private
@@ -49,6 +54,30 @@ Serving is an operator action, not performed by the build.
 a directory containing unrelated files. The CI artifact is unsigned validation
 output, not a promoted release. Signed publication remains disabled pending a
 separately established Configurator trust authority.
+
+The browser package is store-free by default and builds even when the `store/`
+source directory is absent. Home, Open and Help remain available; local files and
+public publisher links use the same configuration workflow. The Store page
+explains when no catalogue is packaged.
+
+To include the optional reviewed public catalogue, pass its source explicitly:
+
+```bash
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:ConfiguratorOutputRoot="$PWD/artifacts/configurator-with-store" -p:DefinitionStoreSourceRoot="$PWD/store"
+```
+
+The builder validates contributor metadata and canonical definition revisions
+before generating `wwwroot/definition-store/index.json` and public snapshots.
+These files join the SDK asset inventory before publication, so their exact
+bytes can be cached with the app for offline Store browsing. They contain no
+answers or prepared output. Deliberately retaining a separately opened public
+definition still requires its own user action. Store membership and publisher
+labels do not authenticate a publisher or grant target acceptance. See
+[definition store contributions](definition-store.md).
+
+Publishing again without `DefinitionStoreSourceRoot` removes previously packaged
+catalogue assets from that browser destination and its worker inventory. Keep
+different output roots when retaining both variants for distribution.
 
 The audited Terminal.Gui feed is repository-owned; do not replace it with an
 upstream package or change approved hashes. See the
