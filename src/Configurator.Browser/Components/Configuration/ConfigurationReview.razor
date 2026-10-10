@@ -1,0 +1,52 @@
+@using Configurator.Core.Definitions
+
+@if (Validation is not null || DiagnosticCodes.Count > 0 || InvalidFields.Count > 0)
+{
+    <section class="configuration-review" aria-labelledby="configuration-review-heading" role="@(DiagnosticCodes.Count > 0 ? "alert" : null)">
+        <h3 id="configuration-review-heading">Review preparation</h3>
+        @if (Validation?.IsReady == false || InvalidFields.Count > 0 || DiagnosticCodes.Count > 0)
+        {
+            <p>Check these settings. Values are omitted from diagnostics.</p>
+            <ul>
+                @foreach (var diagnostic in Validation?.Diagnostics ?? [])
+                {
+                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@diagnostic.FieldId" OnClick="() => CorrectField.InvokeAsync(diagnostic.FieldId)">@FieldTitle(diagnostic.FieldId)</AppButton>
+                        <span>@ConfigurationDiagnosticText.Describe(diagnostic.Code)</span></li>
+                }
+                @foreach (string field in InvalidFields)
+                {
+                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@field" OnClick="() => CorrectField.InvokeAsync(field)">@FieldTitle(field)</AppButton>
+                        <span>@ConfigurationDiagnosticText.Describe("input-type-invalid")</span></li>
+                }
+            </ul>
+            @if (DiagnosticCodes.Count > 0)
+            {
+                <details><summary>Preparation details</summary><ul>@foreach (string diagnosticCode in DiagnosticCodes.Distinct(StringComparer.Ordinal)) { <li>@diagnosticCode</li> }</ul></details>
+            }
+        }
+        @if (!SecretsEnabled && Validation?.Fields.Any(field => field.IsActive && field.HasError && field.Definition.Sensitivity == SetupFieldSensitivity.Secret) == true)
+        {
+            <p>Secret entry is disabled for these settings. A draft defers only missing secrets; correct ordinary errors first, or enable masked entry for this workspace.</p>
+            <div class="actions">
+                <AppButton Variant="Variant.Outlined" data-action="enable-secret-entry" OnClick="() => EnableSecrets.InvokeAsync()">Enable secret entry for this workspace</AppButton>
+                <AppButton Variant="Variant.Outlined" OnClick="() => PrepareDraft.InvokeAsync()">Prepare a draft instead</AppButton>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
+    [Parameter] public DefinitionValidationResult? Validation { get; set; }
+    [Parameter] public IReadOnlyList<string> DiagnosticCodes { get; set; } = [];
+    [Parameter] public IReadOnlyList<string> InvalidFields { get; set; } = [];
+    [Parameter] public bool SecretsEnabled { get; set; }
+    [Parameter] public EventCallback<string> CorrectField { get; set; }
+    [Parameter] public EventCallback EnableSecrets { get; set; }
+    [Parameter] public EventCallback PrepareDraft { get; set; }
+    private string FieldTitle(string path)
+    {
+        var field = Definition.Fields.FirstOrDefault(item => path == item.Id || path.StartsWith(item.Id + "/", StringComparison.Ordinal));
+        return field is null ? "Preparation" : ConfigurationDiagnosticText.Title(field);
+    }
+}

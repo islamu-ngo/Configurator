@@ -18,6 +18,7 @@
 | Avalonia.Angle.Windows.Natives | 2.1.27548.20260419 | Windows rendering assets in the restore graph | BSD-3-Clause |
 | Avalonia.Headless | 12.1.3 | Test-only real-control harness | MIT |
 | Avalonia.Fonts.Inter | 12.1.3 | Headless harness dependency; not shipped | MIT package metadata |
+| MudBlazor | 9.7.0 | Browser controls and local theme assets | MIT |
 
 The source review records permissive component terms applicable to the MIT utility. The transfer preserves those terms; it is not a new native-host support claim. They do not transfer
 third-party ownership to ISLAMU. Preserve every shipped component's copyright,
@@ -74,3 +75,26 @@ workspace state and the shared protected-output adapter.
 - [Avalonia headless metadata](https://api.nuget.org/v3-flatcontainer/avalonia.headless/12.1.3/avalonia.headless.nuspec)
 - [Headless font package metadata](https://api.nuget.org/v3-flatcontainer/avalonia.fonts.inter/12.1.3/avalonia.fonts.inter.nuspec)
 - [ANGLE package license](https://www.nuget.org/packages/Avalonia.Angle.Windows.Natives/2.1.27548.20260419/license)
+
+## Browser UI dependency decision
+
+MudBlazor `9.7.0` is pinned in central package versions and resolved by native
+NuGet restore. Package metadata declares MIT, upstream repository
+`https://github.com/MudBlazor/MudBlazor`, revision
+`eba929f63366edee9ff916fee748148bb7921a87`. Its .NET 10 dependency closure
+includes ASP.NET Core components and Microsoft.Extensions.Localization.
+Generated package locks record exact closure and content hashes.
+
+The local component CSS/JavaScript assets are shipped through static web assets;
+no CDN/font request is required. The dependency's MIT copyright and permission
+notice must remain in assembled distribution notices. This addition is
+compatible with the existing MIT utility distribution; it does not relicense
+the library or authorize copying its implementation source. The package LICENSE
+states `Copyright (c) 2021 MudBlazor`; package metadata identifies Copyright 2026
+MudBlazor. Preserve the package's own notice through the generated notice owner.
+
+Event first-party transfer rights are separately recorded in
+[Browser UI provenance](../../extraction/BROWSER_UI_TRANSFER.md). Official
+[installation documentation](https://mudblazor.com/getting-started/installation)
+supplies only public facts about AddMudServices, providers and local asset paths.
+No source snippets, remote fonts or logo assets are incorporated.

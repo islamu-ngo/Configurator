@@ -4,6 +4,17 @@
 
 Browser is static Blazor WebAssembly over browser-safe Presentation/Core.
 It has no native Artifacts, Event, target API, authentication or apply closure.
+
+`Configurator.Browser.csproj` selects the Blazor WebAssembly SDK and `Program.cs`
+boots `WebAssemblyHostBuilder`. Standalone WASM is already interactive; there is
+no per-component `InteractiveWebAssembly` directive or server-rendered workspace.
+This is deliberate: editing, validation and composition stay client-side, with
+no answer-bearing connection to a server. The larger initial download and
+client resource use are accepted for stable local custody and offline operation.
+Server/Auto hosting would change that boundary, even with secret consent or no
+durable server storage. See the [hosting decision and alternatives](adr/ADR-browser-session-trust-and-export.md#hosting-alternatives-and-trade-offs)
+and [public trust guidance](../public/browser.md#choose-a-client-and-trust-level).
+
 `BrowserDefinitionRegistry` admits embedded definitions with Core's codec and
 registry. Public distribution includes complete definition metadata, never
 answers or private defaults. The neutral definition is shared with native
@@ -20,6 +31,21 @@ changes cannot upgrade a running workspace.
 
 ## Definition source boundary
 
+Optional `DefinitionStoreCatalog` discovery is browser-owned public metadata,
+loaded only on Store pages without an active workspace. Packaged same-origin
+snapshots use a separate bounded asset reader; Core admission, exact indexed
+identity/digest checks and `BrowserDefinitionRegistry` history still gate entry.
+No store index is required by startup, independent sources, Core or native
+clients. Store metadata cannot authenticate publishers or infer application
+compatibility beyond declared versions. See [store ownership](DEFINITION_STORE.md).
+
+The worker inventories optional store URLs separately from required app assets.
+Only required assets determine installation and readiness. Explicit Store reads
+may cache the exact SDK-hashed public asset before answer custody; unavailable
+or corrupt store content cannot disable an otherwise ready local workspace.
+Offline uncached revisions fail as unavailable discovery, with local-file entry
+still usable. No private answers or output enter this optional read/cache path.
+
 Bundled query selectors are closed, unique and bounded. Remote `/open` metadata
 is fragment-only: `src` plus optional digest/version/entry/locale, never answers.
 Remote URLs admit public credential-free HTTPS without query, userinfo,
@@ -32,12 +58,26 @@ not source URLs, raw exceptions or values. Generation/cancellation fencing
 rejects late loads. No remote source fetch is allowed during live answers or
 offline operation.
 
-Local JSON upload uses the same Core codec/byte budget, owns and clears its
-input buffer, replaces the file control and restores focus. It is the fallback
+Local JSON/YAML upload selects syntax from the file extension and delegates to
+`SetupDefinitionSourceCodec` before opening an answer workspace. Closed content
+discriminators select compact authoring compilation or expanded runtime
+admission; remote retrieval continues to use `SetupDefinitionCodec.ParseJson`
+and rejects authoring sources. Local admission shares the 4 MiB byte budget,
+owns and clears its input buffer, replaces the file control and restores focus.
+No source comments are retained in canonical definitions, and local compilation
+introduces no includes, schema-reference resolver or network authority. It is the fallback
 for CORS/offline/source failures and starts a fresh no-secret workspace. There
 is no proxy, target login or executable definition loader.
 
 ## Transient answer and output boundary
+
+`BrowserNavigationState` retains only current-editor callbacks, never answers.
+`WorkspaceNavigationGuard` uses Blazor `NavigationLock` and a native browser
+confirmation. Cancel preserves the editor. Confirm invalidates pending work
+synchronously, awaits editor discard and releases custody before route loading.
+Generation checks reject late confirmations aimed at replacement editors;
+old-editor disposal cannot release a newer owner's lease. Group navigation
+stays within the same mounted editor and does not pass through this route guard.
 
 `ConfigurationEditor` uses `DefinitionFormModel` snapshots and Core validation
 rather than a second browser evaluator. New workspaces use

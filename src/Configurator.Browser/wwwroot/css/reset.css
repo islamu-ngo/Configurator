@@ -1,0 +1,4 @@
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select, textarea { font: inherit; }
+img, svg { max-inline-size: 100%; }

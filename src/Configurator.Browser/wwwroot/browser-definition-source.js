@@ -8,6 +8,11 @@ export function cancelFetch() {
 
 globalThis.addEventListener('configurator-custody-abandoned', cancelFetch);
 
+export async function copyDefinitionLink(link) {
+    try { await navigator.clipboard.writeText(link); return true; }
+    catch { return false; }
+}
+
 export async function fetchDefinition(source, maximumBytes) {
     const operation = ++generation;
     if (!globalThis.configuratorPwa?.canFetchDefinition()

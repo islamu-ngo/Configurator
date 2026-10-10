@@ -1,0 +1,34 @@
+@inject AppearanceThemeService Appearance
+@implements IDisposable
+
+<div class="theme-quick-switcher">
+    <div class="theme-quick-switcher__control">
+        <label for="appearance-mode">Appearance</label>
+        <select id="appearance-mode" value="@Appearance.Current.ThemeMode" @onchange="ModeChanged">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="lighthighcontrast">Light high contrast</option>
+            <option value="darkhighcontrast">Dark high contrast</option>
+        </select>
+    </div>
+    <div class="theme-quick-switcher__control">
+        <label for="appearance-direction">Direction</label>
+        <select id="appearance-direction" value="@Appearance.Current.Direction" @onchange="DirectionChanged">
+            <option value="auto">Automatic</option>
+            <option value="ltr">Left to right</option>
+            <option value="rtl">Right to left</option>
+        </select>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized() => Appearance.Changed += AppearanceChanged;
+
+    private void AppearanceChanged(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
+
+    private async Task ModeChanged(ChangeEventArgs args) => await Appearance.SetAsync(args.Value?.ToString() ?? "system", Appearance.Current.Direction);
+    private async Task DirectionChanged(ChangeEventArgs args) => await Appearance.SetAsync(Appearance.Current.ThemeMode, args.Value?.ToString() ?? "auto");
+
+    public void Dispose() => Appearance.Changed -= AppearanceChanged;
+}

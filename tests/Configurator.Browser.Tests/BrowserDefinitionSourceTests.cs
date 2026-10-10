@@ -10,6 +10,79 @@ using Microsoft.JSInterop;
 
 public sealed class BrowserDefinitionSourceTests
 {
+    internal const string AuthoringJson = """
+        {"$schema":"urn:islamu:configurator:authoring:v1",
+         "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
+         "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
+         "fields":{"HOST":{"type":"string","sensitivity":"public","required":true},
+           "settings":{"type":"object","properties":{"secret":{"type":"string","sensitivity":"secret"}}}},
+         "outputs":{"settings.json":{"format":"json"}}}
+        """;
+    internal const string AuthoringYaml = """
+        # synthetic-local-comment-not-retained
+        $schema: urn:islamu:configurator:authoring:v1
+        identity:
+          familyId: f93a6b9f-c210-47a9-b90b-434954040282
+          revision: 1
+        project:
+          id: local.service
+          name: Local Service
+        applicationVersions: ["1.0"]
+        fields:
+          HOST:
+            type: string
+            sensitivity: public
+            required: true
+          settings:
+            type: object
+            properties:
+              secret:
+                type: string
+                sensitivity: secret
+        outputs:
+          settings.json:
+            format: json
+        """;
+
+    [Test]
+    public async Task LocalAuthoringAdmissionIsPreAnswerAndNeverInvokesNetworkOrStorage()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(AuthoringJson));
+        SetupDefinition definition = await source.ReadLocalAsync(input);
+        await Assert.That(definition.FamilyId).IsEqualTo(Guid.Parse("f93a6b9f-c210-47a9-b90b-434954040282"));
+        await Assert.That(definition.Revision).IsEqualTo(1);
+        await Assert.That(definition.ApplicationVersions).IsEquivalentTo(["1.0"]);
+        await Assert.That(definition.EntryPoints[0]).IsEqualTo("setup");
+        await Assert.That(definition.Locales[0]).IsEqualTo("en");
+        using var yaml = new MemoryStream(Encoding.UTF8.GetBytes(AuthoringYaml));
+        SetupDefinition paired = await source.ReadLocalAsync(yaml, yaml: true);
+        await Assert.That(paired.Digest).IsEqualTo(definition.Digest);
+        await Assert.That(paired.CanonicalBytes.Span.SequenceEqual(definition.CanonicalBytes.Span)).IsTrue();
+        await Assert.That(context.JSInterop.Invocations).IsEmpty();
+    }
+
+    [Test]
+    public async Task RemoteAuthoringRejectsBeforeAdmissionAndClearsSourceBytes()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        byte[] bytes = Encoding.UTF8.GetBytes(AuthoringJson);
+        var module = context.JSInterop.SetupModule("./browser-definition-source.js");
+        module.Setup<byte[]>("fetchDefinition", _ => true).SetResult(bytes);
+        var request = BrowserDefinitionPointer.Parse("#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
+        await Assert.That(async () => { await source.FetchAsync(request); }).Throws<BrowserLaunchException>();
+        await Assert.That(registry.Current.Definitions).IsEmpty();
+        await Assert.That(bytes.All(value => value == 0)).IsTrue();
+    }
+
     [Test]
     public async Task PublicSourceAndSelectorsAreDecodedWithoutAnswerTransfer()
     {
@@ -133,7 +206,7 @@ public sealed class BrowserDefinitionSourceTests
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
-        using var input = new GatedDefinitionStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        using var input = new GatedDefinitionStream(Encoding.UTF8.GetBytes(AuthoringJson));
         Task<SetupDefinition> read = source.ReadLocalAsync(input);
         await input.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         source.Invalidate();
@@ -144,9 +217,30 @@ public sealed class BrowserDefinitionSourceTests
     }
 
     [Test]
+    public async Task WorkspaceStartingDuringLocalReadRejectsLateDefinitionAdmission()
+    {
+        using var context = BrowserFixture.Context();
+        var registry = new BrowserDefinitionRegistry([]);
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
+        lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
+        lifecycle.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        using var input = new GatedDefinitionStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        Task<SetupDefinition> pending = source.ReadLocalAsync(input);
+        await input.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try { await Assert.That(await policy.BeginWorkspaceAsync()).IsTrue(); }
+        finally { input.Release.TrySetResult(); }
+        await Assert.That(async () => { await pending; }).Throws<BrowserLaunchException>();
+        await Assert.That(registry.Current.Definitions).IsEmpty();
+        await Assert.That(input.Buffer!.All(value => value == 0)).IsTrue();
+    }
+
+    [Test]
     public async Task CleanRouteInvalidatesLateFetchAndRestoresLocalDefinitionPicker()
     {
-        using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
         var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
         lifecycle.Setup<string[]>("retainedDigests").SetResult([]);
@@ -169,7 +263,8 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task LateWorkspaceDiscardCannotEraseNewSourceSelection()
     {
-        using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        context.JSInterop.Setup<bool>("confirm", _ => true).SetResult(true);
         var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
         lifecycle.Setup<string[]>("retainedDigests").SetResult([]);

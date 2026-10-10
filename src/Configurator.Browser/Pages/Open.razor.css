@@ -1,0 +1,11 @@
+.open-page { min-inline-size: 0; }
+.open-page input { max-inline-size: 100%; }
+.open-page code { overflow-wrap: anywhere; }
+.open-page details { margin-block: var(--isl-space-4); }
+.open-page summary { cursor: pointer; }
+.open-page__sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--isl-space-6); }
+.open-page__source { display: grid; min-inline-size: 0; margin: 0; }
+.open-page__source h2 { font-size: var(--isl-typography-h4-size); }
+.open-page__selectors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--isl-space-4); }
+@media (max-width: 72rem) { .open-page__sources { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 36rem) { .open-page__selectors { grid-template-columns: minmax(0, 1fr); } }

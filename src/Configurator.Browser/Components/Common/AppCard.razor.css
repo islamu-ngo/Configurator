@@ -1,0 +1,2 @@
+.app-card { display: contents; }
+.app-card ::deep .mud-card { display: flex; flex-direction: column; min-inline-size: 0; border: var(--isl-card-border); border-radius: var(--isl-radius-card); padding: var(--isl-space-page); }

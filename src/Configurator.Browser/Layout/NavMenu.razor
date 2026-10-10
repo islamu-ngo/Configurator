@@ -1,0 +1,41 @@
+<header class="navbar">
+    <a class="navbar__brand" href="" aria-label="Configurator Home"><span aria-hidden="true">IC</span> ISLAMU Configurator</a>
+    <button @ref="_toggle" class="navbar__toggle" type="button" aria-label="Toggle navigation"
+            aria-controls="application-navigation" aria-expanded="@(_open ? "true" : "false")" @onclick="Toggle">Menu</button>
+    <ThemeQuickSwitcher />
+</header>
+<nav id="application-navigation" class="navbar__sidebar @(_open ? "navbar__sidebar--open" : "")"
+     aria-label="Application navigation" @onkeydown="HandleKey">
+    <p class="navbar__section">Workspace</p>
+    <NavLink href="" Match="NavLinkMatch.All" @onclick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.Home" Size="Size.Small" aria-hidden="true" />Home</NavLink>
+    <NavLink href="store" @onclick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.Inventory2" Size="Size.Small" aria-hidden="true" />Definition Store</NavLink>
+    <NavLink href="open" @onclick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.FolderOpen" Size="Size.Small" aria-hidden="true" />Open configuration</NavLink>
+    <NavLink href="help" @onclick="CloseAsync"><MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />Help</NavLink>
+    <div class="navbar__local">
+        <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" aria-hidden="true" />
+        <p><strong>Local workspace</strong><br />Your answers stay in this tab.</p>
+    </div>
+</nav>
+
+@code {
+    private bool _open;
+    private ElementReference _toggle;
+
+    private async Task Toggle()
+    {
+        if (_open) await CloseAsync();
+        else _open = true;
+    }
+
+    private async Task CloseAsync()
+    {
+        if (!_open) return;
+        _open = false;
+        await _toggle.FocusAsync();
+    }
+
+    private async Task HandleKey(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") await CloseAsync();
+    }
+}

@@ -1,0 +1,26 @@
+<nav class="configuration-navigation" aria-label="Configuration sections">
+    <ul>
+        @foreach (var section in Sections)
+        {
+            <li><AppButton Variant="Variant.Text" Color="Color.Default" FullWidth="true" data-section="@section.Name"
+                           aria-current="@(Selected == section.Name ? "true" : null)" OnClick="() => SelectedChanged.InvokeAsync(section.Name)">
+                <span class="configuration-navigation__entry">
+                    <span>@section.Name</span>
+                    <span class="configuration-navigation__count">
+                        <span>@section.ActiveFields fields</span>
+                        @if (section.Corrections > 0)
+                        {
+                            <span> · @section.Corrections corrections</span>
+                        }
+                    </span>
+                </span>
+            </AppButton></li>
+        }
+    </ul>
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ConfigurationSection> Sections { get; set; } = [];
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<string> SelectedChanged { get; set; }
+}

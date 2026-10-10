@@ -4,8 +4,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bunit;
+using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor.Services;
 
 internal static class BrowserFixture
 {
@@ -35,6 +37,15 @@ internal static class BrowserFixture
         var context = new BunitContext();
         context.JSInterop.Mode = JSRuntimeMode.Loose;
         context.Services.AddSingleton(registry ?? new BrowserDefinitionRegistry([Definition]));
+        context.Services.AddScoped<AppearanceThemeService>();
+        context.Services.AddScoped<BrowserNavigationState>();
+        context.Services.AddMudServices();
+        var appearance = context.JSInterop.SetupModule("./browser-appearance.js");
+        appearance.Setup<string?>("read", _ => true).SetResult(null);
+        appearance.SetupVoid("watch", _ => true).SetVoidResult();
+        appearance.SetupVoid("write", _ => true).SetVoidResult();
+        appearance.SetupVoid("apply", _ => true).SetVoidResult();
+        appearance.SetupVoid("unwatch", _ => true).SetVoidResult();
         return context;
     }
 

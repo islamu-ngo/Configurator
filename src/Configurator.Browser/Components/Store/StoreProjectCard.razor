@@ -1,0 +1,22 @@
+@using Configurator.Browser.Services
+
+<article class="store-project-card">
+    <AppCard>
+        <h2 class="store-project-card__title"><a href="@($"store/{Project.ProjectId}")">@Project.Name</a></h2>
+        <p class="store-project-card__description">@Project.Description</p>
+        <p class="store-project-card__metadata">@Project.Revisions.Count definition @(Project.Revisions.Count == 1 ? "revision" : "revisions") · @Project.License</p>
+        <ul class="store-project-card__tags" aria-label="Project tags">
+            @foreach (string tag in Project.Tags)
+            {
+                <li>@tag</li>
+            }
+        </ul>
+        <div class="store-project-card__action">
+            <AppButton Href="@($"store/{Project.ProjectId}")" Variant="MudBlazor.Variant.Outlined" EndIcon="@Icons.Material.Outlined.ArrowForward">View revisions</AppButton>
+        </div>
+    </AppCard>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public DefinitionStoreProject Project { get; set; } = default!;
+}

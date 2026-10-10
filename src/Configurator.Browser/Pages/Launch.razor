@@ -6,13 +6,15 @@
 <PageTitle>Configurator configuration workspace</PageTitle>
 @if (_selection is { } selected)
 {
-    <section class="hero" aria-labelledby="launch-heading">
-        <p class="eyebrow">Pinned local workspace</p>
+    <section class="launch-header" aria-labelledby="launch-heading">
         <h1 id="launch-heading">@selected.Definition.Title</h1>
-        <p>Revision <strong data-revision="@selected.Definition.Revision">@selected.Definition.Revision</strong>,
-            digest <code data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
-        <p>Entry: @selected.Entry. Locale: @selected.Locale (metadata selection, not a translation guarantee).</p>
-        <p>Publisher claim: @selected.Definition.Publisher. A family GUID does not authenticate a publisher.</p>
+        <p>Local workspace · definition revision <strong data-revision="@selected.Definition.Revision">@selected.Definition.Revision</strong></p>
+        <details>
+            <summary>Definition details and trust boundary</summary>
+            <p>Canonical digest <code data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
+            <p>Entry: @selected.Entry. Locale: @selected.Locale (metadata selection, not a translation guarantee).</p>
+            <p>Publisher claim: @selected.Definition.Publisher. A family GUID does not authenticate a publisher.</p>
+        </details>
     </section>
     <ConfigurationEditor @key="selected" @ref="_editor" Definition="@selected.Definition" />
 }

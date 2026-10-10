@@ -1,5 +1,0 @@
-.configuration-editor__consent { display: flex; align-items: center; gap: .75rem; margin-block: 1.5rem; }
-.configuration-editor__consent input { min-inline-size: 1.5rem; min-block-size: 1.5rem; }
-.configuration-editor__artifact { border-block-start: 1px solid var(--border); padding-block-start: 1rem; }
-.configuration-editor__controls { min-inline-size: 0; padding: 0; border: 0; }
-.configuration-editor__legend { font-weight: 700; }

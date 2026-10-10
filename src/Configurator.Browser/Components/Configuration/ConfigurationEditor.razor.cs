@@ -1,91 +1,36 @@
-@implements IAsyncDisposable
-@using System.Text.Json
-@using System.Security.Cryptography
-@using Configurator.Core.Definitions
-@using Configurator.Core.Artifacts
-@using Configurator.Presentation
-@using CommunityToolkit.Mvvm.Messaging
-@inject Microsoft.JSInterop.IJSRuntime Javascript
-@inject IServiceProvider Services
+namespace Configurator.Browser.Components.Configuration;
 
-<section class="workspace configuration-editor" aria-labelledby="configuration-heading">
-    <h2 id="configuration-heading">Prepare configuration in this tab</h2>
-    <p id="session-boundary">Answers stay in this tab's memory. Preparation does not apply configuration or establish target acceptance.
-        Secrets are optional: prepare a draft and fill deferred values locally, or explicitly enable masked secret entry.
-        Copy and download deliberately release private output. The browser cannot guarantee restricted file permissions.
-        Closing or reloading discards this workspace; clearing cannot erase files or clipboard contents already exported.</p>
-    @if (!_ready)
-    {
-        <button @ref="_startButton" class="button" type="button" @onclick="BeginAsync">Start local workspace</button>
-    }
-    <fieldset class="configuration-editor__controls" disabled="@(!_ready)">
-    <legend class="configuration-editor__legend">Local configuration answers</legend>
-    <label for="display-mode">Fields to show</label>
-    <select id="display-mode" value="@_form!.DisplayMode" @onchange="ChangeMode">
-        <option value="Guided">Guided</option><option value="Advanced">Advanced</option><option value="AllDeclared">All declared</option>
-    </select>
-    <div class="configuration-editor__consent">
-        <input id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-               aria-describedby="session-boundary" @onchange="ConsentAsync" />
-        <label for="secret-consent">Enable secret entry for this workspace</label>
-    </div>
-    @{ var fieldStates = _form.Validate().Fields; }
-    @foreach (var input in _form.VisibleFields)
-    {
-        <ConfigurationField @key="input" Form="_form" Schema="input.Definition.Constraints" Path="@(new[] { input.Definition.Id })" Validation="_validation" ValidationChanged="InputValidityChanged" RequiredOverride="@fieldStates.Single(state => state.Id == input.Definition.Id).IsRequired" />
-    }
-    <div class="actions">
-        <button id="prepare-draft" class="button" type="button" @onclick="() => PrepareAsync(true)">Prepare draft (defer missing secrets)</button>
-        <button id="prepare-complete" class="button" type="button" @onclick="() => PrepareAsync(false)">Prepare complete configuration</button>
-        <button id="clear-workspace" class="button button--secondary" type="button" @onclick="ClearAsync">Clear answers and output</button>
-    </div>
-    <p role="status" class="notice" data-code="@_statusCode">@_status</p>
-    @if (_diagnostics.Count > 0)
-    {
-        <div role="alert" class="notice notice--error">
-            <p>Preparation needs corrections. Values are omitted from these diagnostics.</p>
-            <ul>@foreach (string diagnostic in _diagnostics) { <li>@diagnostic</li> }</ul>
-        </div>
-    }
-    @foreach (var prepared in _prepared)
-    {
-        <section class="configuration-editor__artifact" aria-labelledby="@("artifact-" + prepared.Metadata.ArtifactId)">
-            <h3 id="@("artifact-" + prepared.Metadata.ArtifactId)">@prepared.Metadata.FileName</h3>
-            <p>@(prepared.Metadata.IsDraft ? "Draft — secrets still required." : "Complete preparation — target validation still required.") Output is private and hidden.</p>
-            @if (prepared.Metadata.Completions.Count > 0)
-            {
-                <ul>@foreach (var item in prepared.Metadata.Completions) { <li>@item.FieldPath → @item.OutputPath</li> }</ul>
-            }
-            <div class="actions">
-                <button class="button button--secondary" type="button" @onclick="() => CopyAsync(prepared)">Copy @prepared.Metadata.FileName</button>
-                <button class="button" type="button" @onclick="() => DownloadAsync(prepared)">Download @prepared.Metadata.FileName</button>
-                <button class="button button--secondary" type="button" aria-expanded="@prepared.Revealed.ToString().ToLowerInvariant()" @onclick="() => RevealAsync(prepared)">@(prepared.Revealed ? "Hide" : "Reveal") @prepared.Metadata.FileName</button>
-            </div>
-            <pre @ref="prepared.PreviewElement" hidden="@(!prepared.Revealed)" dir="ltr" tabindex="0" aria-label="@("Private preview of " + prepared.Metadata.FileName)"></pre>
-        </section>
-    }
-    @if (Definition.Artifacts.Count > 0)
-    {
-        <label class="file-label" for="artifact-import">Import an existing declared artifact (maximum 1 MiB)</label>
-        <select id="import-artifact" aria-label="Artifact format to import" value="@_importArtifact" @onchange="ChangeImportFormat">
-            @foreach (var artifact in Definition.Artifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
-        </select>
-        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync" aria-describedby="session-boundary" />
-    }
-    </fieldset>
-</section>
+using System.Security.Cryptography;
+using CommunityToolkit.Mvvm.Messaging;
+using Configurator.Browser.Services;
+using Configurator.Core.Artifacts;
+using Configurator.Core.Definitions;
+using Configurator.Presentation;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.JSInterop;
 
-@code {
+public partial class ConfigurationEditor
+{
+    [Inject] private IJSRuntime Javascript { get; set; } = null!;
+    [Inject] private IServiceProvider Services { get; set; } = null!;
     [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
     private SetupDefinition? _pinned;
     private DefinitionFormModel? _form;
     private readonly SetupPresentationSession _session = new(new WeakReferenceMessenger());
     private readonly List<PreparedArtifact> _prepared = [];
     private readonly List<string> _diagnostics = [];
-    private readonly HashSet<string> _invalidInputs = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _invalidInputs = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _mountedFields = new(StringComparer.Ordinal);
     private string _status = "Supply ordinary settings. Secret entry is disabled.";
     private string _statusCode = "workspace-ready";
     private string _importArtifact = string.Empty;
+    private string? _selectedSection;
+    private string? _focusField;
+    private int _focusRow = -1;
+    private long _focusGeneration;
+    private bool _focusConsent;
+    private ElementReference _consentControl;
     private long _generation;
     private long _fileKey;
     private CancellationTokenSource? _readCancellation;
@@ -100,6 +45,7 @@
     private BrowserOfflinePolicy? _offline;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
+    private BrowserNavigationState? _navigation;
 
     protected override void OnParametersSet()
     {
@@ -107,12 +53,45 @@
         Invalidate();
         _form?.Dispose();
         _invalidInputs.Clear();
+        _mountedFields.Clear();
+        _selectedSection = null;
+        _focusField = null;
         _pinned = Definition;
         _ready = false;
         _beginPending = true;
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
         _form.InputChanged += InputChanged;
-        _importArtifact = Definition.Artifacts.FirstOrDefault()?.Id ?? string.Empty;
+        _importArtifact = Definition.Artifacts.Count > 0 ? Definition.Artifacts[0].Id : string.Empty;
+        _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
+        _navigation?.Register(this, Invalidate, DiscardAsync);
+    }
+
+    private static string Group(SetupFieldDefinition field) => field.Group ?? "Other";
+    private string SectionId(string group) => "configuration-section-" + Array.FindIndex(Definition.Fields.Select(Group).Distinct(StringComparer.Ordinal).ToArray(), item => item == group);
+    private ConfigurationSection[] Sections(IReadOnlyList<SetupFieldState> fields) =>
+        fields.GroupBy(state => Group(state.Definition)).Where(group => group.Any(state => state.IsVisible(_form!.DisplayMode) || _invalidInputs.ContainsValue(state.Id)))
+            .Select(group => new ConfigurationSection(group.Key, group.Count(state => state.IsActive),
+                group.Count(state => state.HasError || _invalidInputs.ContainsValue(state.Id)))).ToArray();
+    private string? SelectedSection(IReadOnlyList<ConfigurationSection> sections) =>
+        sections.Any(item => item.Name == _selectedSection) ? _selectedSection : sections.Count > 0 ? sections[0].Name : null;
+    private void SelectSection(string section) { _selectedSection = section; _focusField = null; }
+    private void CorrectField(string fieldId)
+    {
+        SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId || fieldId.StartsWith(item.Id + "/", StringComparison.Ordinal));
+        if (field is null) return;
+        _selectedSection = Group(field);
+        _focusField = field.Id;
+        string suffix = fieldId.Length > field.Id.Length ? fieldId[(field.Id.Length + 1)..] : string.Empty;
+        _focusRow = int.TryParse(suffix, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int row) ? row : -1;
+        ++_focusGeneration;
+        _focusConsent = !_form!.CanEdit([field.Id]);
+    }
+    private async Task EnableSecretsAsync()
+    {
+        DefinitionFormModel form = _form!;
+        await ConsentAsync(new ChangeEventArgs { Value = true });
+        if (!_disposed && ReferenceEquals(form, _form) && form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)
+            _focusConsent = true;
     }
 
     private void InputChanged(object? sender, EventArgs args)
@@ -122,16 +101,14 @@
         _statusCode = "answers-changed";
         StateHasChanged();
     }
-
     private void ChangeMode(ChangeEventArgs args)
     {
-        if (!Enum.TryParse(args.Value?.ToString(), out SetupDisplayMode mode)) return;
+        if (!Enum.TryParse(args.Value?.ToString(), out SetupDisplayMode mode) || !Enum.IsDefined(mode)) return;
         Invalidate();
         _form!.DisplayMode = mode;
         _status = "Field view changed. Previous output has been discarded; validation still covers every active field.";
         _statusCode = "display-mode-changed";
     }
-
     private void ChangeImportFormat(ChangeEventArgs args)
     {
         string? artifactId = args.Value?.ToString();
@@ -141,7 +118,6 @@
         _status = "Import format changed. Previous output and pending import have been discarded.";
         _statusCode = "import-format-changed";
     }
-
     private async Task ConsentAsync(ChangeEventArgs args)
     {
         bool enabled = args.Value is true;
@@ -161,7 +137,7 @@
         await InvalidateOutputAsync();
         if (_disposed || generation != _generation || !ReferenceEquals(form, _form)) return;
         SetupAnswerSnapshot answers;
-        try { answers = _form!.Snapshot(); }
+        try { answers = form.Snapshot(); }
         catch (SetupDefinitionException)
         {
             _status = "Answers exceed the shared preparation limit. Reduce input sizes before preparing configuration.";
@@ -169,22 +145,22 @@
             _diagnostics.Add("answer-budget-exceeded");
             return;
         }
-        if (_form!.HasAnswerBudgetError)
+        if (form.HasAnswerBudgetError)
         {
             _status = "An input exceeded the shared preparation limit. Reduce or clear the rejected field before preparing configuration.";
             _statusCode = "answer-budget-exceeded";
             _diagnostics.Add("answer-budget-exceeded");
             return;
         }
-        if (_form.HasInputErrors || _invalidInputs.Count > 0)
+        _validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : form.Validate();
+        if (form.HasInputErrors || _invalidInputs.Count > 0)
         {
             _diagnostics.Add("input-type-invalid");
             _status = "Correct invalid field values before preparing configuration.";
             _statusCode = "input-type-invalid";
             return;
         }
-        _validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : _form.Validate();
-        IReadOnlySet<string> admittedArtifacts;
+        HashSet<string> admittedArtifacts;
         if (draft)
         {
             using DefinitionDraftBundleResult bundle = DefinitionDraftArtifactComposer.ComposeBundle(Definition, Definition.Artifacts.Select(item => item.Id), answers);
@@ -222,24 +198,20 @@
             if (workspace.Result is not DefinitionPreparationMetadata { Succeeded: true } metadata)
             {
                 if (workspace.Result is DefinitionPreparationMetadata failure) _diagnostics.AddRange(failure.DiagnosticCodes);
-                _diagnostics.AddRange(_form.Validate().Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
+                _diagnostics.AddRange(form.Validate().Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
                 workspace.Dispose();
                 continue;
             }
-            var export = new BrowserArtifactExport(Javascript);
-            export.SetOutput(workspace.Output);
-            _prepared.Add(new PreparedArtifact(metadata, workspace, export));
+            _prepared.Add(new PreparedArtifact(metadata, workspace, Javascript));
         }
         _status = _prepared.Count == 0 ? "No configuration prepared. Correct required settings." : $"Prepared {_prepared.Count} private artifact(s). Reveal, copy or download each explicitly.";
         _statusCode = _prepared.Count == 0 ? "preparation-rejected" : "preparation-ready";
     }
-
-    private void InputValidityChanged((string Id, bool Invalid) value)
+    private void InputValidityChanged((string Id, string FieldId, bool Invalid) value)
     {
-        if (value.Invalid) _invalidInputs.Add(value.Id);
+        if (value.Invalid) _invalidInputs[value.Id] = value.FieldId;
         else _invalidInputs.Remove(value.Id);
     }
-
     private async Task CopyAsync(PreparedArtifact artifact)
     {
         bool copied = await artifact.Export.CopyAsync();
@@ -271,7 +243,6 @@
         artifact.Revealed = revealed;
         _status = revealed ? "Private preview revealed. Hide or clear it when finished." : "Preview unavailable. Use Download instead.";
     }
-
     private async Task ImportAsync(InputFileChangeEventArgs args)
     {
         try
@@ -282,7 +253,6 @@
         catch (IOException) { _status = "Import rejected: file exceeds the limit or cannot be read."; _statusCode = "import-rejected"; }
         finally { ++_fileKey; _restoreFocus = true; }
     }
-
     public async Task LoadAsync(Stream stream)
     {
         DefinitionFormModel form = _form!;
@@ -328,29 +298,17 @@
             if (!_disposed) await InvokeAsync(StateHasChanged);
         }
     }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender || _beginPending)
-        {
-            _beginPending = false;
-            await BeginAsync();
-        }
-        if (_focusStart)
-        {
-            _focusStart = false;
-            await _startButton.FocusAsync(preventScroll: true);
-        }
-        if (_restoreFocus && _fileInput?.Element is { } element)
-        {
-            _restoreFocus = false;
-            await element.FocusAsync(preventScroll: true);
-        }
+        if (firstRender || _beginPending) { _beginPending = false; await BeginAsync(); }
+        if (_focusStart) { _focusStart = false; await _startButton.FocusAsync(preventScroll: true); }
+        if (_focusConsent) { _focusConsent = false; await _consentControl.FocusAsync(); }
+        if (_restoreFocus && _fileInput?.Element is { } element) { _restoreFocus = false; await element.FocusAsync(preventScroll: true); }
     }
-
     public async Task BeginAsync()
     {
         if (_disposed) return;
+        _navigation?.Register(this, Invalidate, DiscardAsync);
         long generation = _generation;
         DefinitionFormModel form = _form!;
         _offline ??= Services.GetService(typeof(BrowserOfflinePolicy)) as BrowserOfflinePolicy;
@@ -370,7 +328,6 @@
         if (!_ready) { _status = "Offline app preparation is incomplete. Finish loading public app assets before entering answers."; _statusCode = "app-preparation-incomplete"; }
         if (!_disposed) StateHasChanged();
     }
-
     public void Invalidate()
     {
         ++_generation;
@@ -381,11 +338,7 @@
         _prepared.Clear();
         _diagnostics.Clear();
         _validation = null;
-        foreach (var prepared in previous)
-        {
-            prepared.Workspace.Dispose();
-            _ = prepared.Export.DisposeAsync();
-        }
+        foreach (var prepared in previous) _ = prepared.DisposeAsync().AsTask();
     }
     private async Task InvalidateOutputAsync()
     {
@@ -396,7 +349,7 @@
         _prepared.Clear();
         _diagnostics.Clear();
         _validation = null;
-        foreach (var prepared in previous) { prepared.Workspace.Dispose(); await prepared.Export.DisposeAsync(); }
+        foreach (var prepared in previous) await prepared.DisposeAsync();
     }
     private async Task ClearAsync()
     {
@@ -416,11 +369,14 @@
         long lease = _offlineLease;
         _ready = false;
         form.Dispose();
+        _navigation?.Release(this);
         if (!_disposed && ReferenceEquals(form, _form))
         {
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
             _form.InputChanged += InputChanged;
             _invalidInputs.Clear();
+            _mountedFields.Clear();
+            _focusField = null;
         }
         await InvalidateOutputAsync();
         if (_offline is not null) await _offline.EndWorkspaceAsync(lease);
@@ -428,19 +384,30 @@
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        _mountedFields.Clear();
+        _navigation?.Release(this);
         _ready = false;
         long lease = _offlineLease;
         _form?.Dispose();
         _session.Dispose();
         await InvalidateOutputAsync();
         if (_offline is not null) await _offline.EndWorkspaceAsync(lease);
+        GC.SuppressFinalize(this);
     }
-    private sealed class PreparedArtifact(DefinitionPreparationMetadata metadata, SetupPresentationWorkspace workspace, BrowserArtifactExport export)
+    private sealed class PreparedArtifact : IAsyncDisposable
     {
-        public DefinitionPreparationMetadata Metadata { get; } = metadata;
-        public SetupPresentationWorkspace Workspace { get; } = workspace;
-        public BrowserArtifactExport Export { get; } = export;
+        public PreparedArtifact(DefinitionPreparationMetadata metadata, SetupPresentationWorkspace workspace, IJSRuntime javascript)
+        {
+            Metadata = metadata;
+            Workspace = workspace;
+            Export = new BrowserArtifactExport(javascript);
+            Export.SetOutput(workspace.Output);
+        }
+        public DefinitionPreparationMetadata Metadata { get; }
+        public SetupPresentationWorkspace Workspace { get; }
+        public BrowserArtifactExport Export { get; }
         public ElementReference PreviewElement;
         public bool Revealed { get; set; }
+        public async ValueTask DisposeAsync() { Workspace.Dispose(); await Export.DisposeAsync(); }
     }
 }

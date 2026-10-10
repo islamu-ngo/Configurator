@@ -1,0 +1,9 @@
+.catalogue__definitions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--isl-space-4); }
+.catalogue__hero { padding: var(--isl-space-8); }
+.catalogue__hero .actions { margin-block-end: 0; }
+.catalogue__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--isl-space-6); padding: 0; margin-block: var(--isl-space-8) var(--isl-space-10); list-style: none; }
+.catalogue__steps li { display: flex; align-items: flex-start; gap: var(--isl-space-3); }
+.catalogue__step-number { flex-shrink: 0; display: grid; place-items: center; inline-size: 2rem; block-size: 2rem; border: var(--isl-card-border); border-radius: var(--isl-radius-full); background: var(--isl-color-surface); color: var(--isl-color-primary); font-size: .875rem; font-weight: 600; }
+.catalogue__steps p { margin-block: var(--isl-space-1) 0; color: var(--isl-color-text-secondary); font-size: .875rem; }
+@media (max-width: 72rem) { .catalogue__steps { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 36rem) { .catalogue__hero { padding: var(--isl-space-5); } }

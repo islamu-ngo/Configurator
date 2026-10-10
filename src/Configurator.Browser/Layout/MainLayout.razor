@@ -1,0 +1,45 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject AppearanceThemeService Appearance
+
+<MudRTLProvider RightToLeft="@Appearance.IsRtl">
+    <MudThemeProvider Theme="@_theme" IsDarkMode="@Appearance.IsDark" ObserveSystemDarkModeChange="false" />
+    <MudPopoverProvider />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
+    <WorkspaceNavigationGuard />
+    <a class="skip-link" href="#main-content" @onclick="SkipToContentAsync" @onclick:preventDefault>Skip to main content</a>
+    <div class="main-layout" dir="@(Appearance.IsRtl ? "rtl" : "ltr")">
+        <NavMenu />
+        <div class="main-layout__workspace">
+            <main @ref="_mainContent" id="main-content" class="main-layout__main" tabindex="-1">@Body</main>
+            <Footer />
+        </div>
+    </div>
+</MudRTLProvider>
+
+@code {
+    private MudTheme _theme = new();
+    private ElementReference _mainContent;
+
+    private async Task SkipToContentAsync() => await _mainContent.FocusAsync();
+
+    protected override void OnInitialized()
+    {
+        _theme = Appearance.CreateTheme();
+        Appearance.Changed += AppearanceChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await Appearance.InitializeAsync();
+    }
+
+    private void AppearanceChanged(object? sender, EventArgs args)
+    {
+        _theme = Appearance.CreateTheme();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Appearance.Changed -= AppearanceChanged;
+}

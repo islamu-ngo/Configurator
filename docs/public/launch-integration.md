@@ -36,6 +36,14 @@ translated questions.
 
 ## Publisher source links
 
+Open configuration also accepts a public definition file URL directly. Optional
+advanced selectors supply the canonical digest, application version, entry and
+locale. After admission, review the exact revision and digest before opening
+the editor. The definition-only share action copies the public source and
+pinned metadata; it never includes workspace answers. Local upload remains
+available for private repositories, blocked cross-origin reading and offline
+work. Neither route requires [Store](definition-store.md) membership.
+
 Publish a public static HTTPS JSON definition that permits credential-free
 cross-origin reading by the Configurator origin, then link using `/open`:
 
@@ -73,7 +81,10 @@ retention are separate pre-answer actions; they do not enable secret consent.
 Without explicit retention, imported public metadata remains session-local.
 
 CORS, offline state or a failed source yields no partially admitted workspace.
-Offer the same public JSON file for deliberate local upload. The local path
+Offer the same public JSON file for deliberate local upload. Selected local
+`.json`, `.yaml` and `.yml` files also accept self-contained compact maintainer
+sources; public HTTPS links require compiled runtime JSON. Local compilation
+adds no include, filesystem-reference or network authority. The local path
 uses the same admission/byte limits, resets its file control after processing
 and begins a fresh no-secret workspace. It does not support arbitrary launch
 URLs, local native I/O, executable plugins or credentials from the definition.

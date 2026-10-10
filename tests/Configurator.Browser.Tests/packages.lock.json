@@ -244,6 +244,17 @@
         "resolved": "10.0.10",
         "contentHash": "jSOCVxEwCd4Aq925kJVz1kSO1EpX2OHYKL04qVREXkDU7Ce3pVDdHPYm+fEy8y/th2kJf/DAstRHpJAqoNWP8w=="
       },
+      "Microsoft.Extensions.Localization": {
+        "type": "Transitive",
+        "resolved": "10.0.1",
+        "contentHash": "yJBI3IRm9uTRu7cPc7i90/8+CuiiJJ5M4khj6iWQcYnq6VrG+H2U5GzpRLtkVCsgxc1LjtkNMEbSDatfBA+z5g==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.1",
+          "Microsoft.Extensions.Localization.Abstractions": "10.0.1",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.1",
+          "Microsoft.Extensions.Options": "10.0.1"
+        }
+      },
       "Microsoft.Extensions.Localization.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.10",
@@ -382,7 +393,8 @@
         "dependencies": {
           "Configurator.Core": "[1.0.0, )",
           "Configurator.Presentation": "[1.0.0, )",
-          "Microsoft.AspNetCore.Components.WebAssembly": "[10.0.10, )"
+          "Microsoft.AspNetCore.Components.WebAssembly": "[10.0.10, )",
+          "MudBlazor": "[9.7.0, )"
         }
       },
       "configurator.core": {
@@ -448,6 +460,17 @@
         "contentHash": "zkFxGYUvdxAvIKTyXHrmW+Sux53D4SezD9dMyZ6hrwwzPQJNuwCRy1f5W7AvYTqacEGhWF2XderRQG1OvbV8og==",
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.10"
+        }
+      },
+      "MudBlazor": {
+        "type": "CentralTransitive",
+        "requested": "[9.7.0, )",
+        "resolved": "9.7.0",
+        "contentHash": "uWOgNn9B556J/TL8KFoSqpA3YD2heqOpK5etcofwlj1RiEX1IDy0NmwYE9urlTUQ8zProEK5GqwTBnoObFPN3g==",
+        "dependencies": {
+          "Microsoft.AspNetCore.Components": "10.0.1",
+          "Microsoft.AspNetCore.Components.Web": "10.0.1",
+          "Microsoft.Extensions.Localization": "10.0.1"
         }
       },
       "YamlDotNet": {

@@ -15,7 +15,7 @@ public sealed class LaunchRouteTests
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
         SetupDefinition definition = registry.Current.Resolve(Guid.Parse("69cdb122-41d2-4fab-9b82-7929a889c726"));
-        using var context = BrowserFixture.Context(registry);
+        await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
         var component = context.Render<App>();
@@ -65,9 +65,9 @@ public sealed class LaunchRouteTests
         await Assert.That(Encoding.UTF8.GetString(publicBytes.ToArray())).DoesNotContain("private-canary");
         await Assert.That(Encoding.UTF8.GetString(publicBytes.ToArray())).DoesNotContain("synthetic-placeholder");
 
-        using var context = BrowserFixture.Context(BrowserDefinitionRegistry.LoadBundled());
+        await using var context = BrowserFixture.Context(BrowserDefinitionRegistry.LoadBundled());
         var catalogue = context.Render<Catalogue>();
-        await Assert.That(catalogue.Find(".definition-list a").GetAttribute("href"))
+        await Assert.That(catalogue.Find("a[href^='launch/']").GetAttribute("href"))
             .IsEqualTo($"launch/{native.FamilyId:D}?digest={native.Digest.Value}");
     }
 
@@ -76,7 +76,7 @@ public sealed class LaunchRouteTests
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
         var definition = registry.Current.Resolve(Guid.Parse("a4bcfaa6-9979-43e5-b1f5-00d552618cdf"));
-        using var context = BrowserFixture.Context(registry);
+        await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}&entry=environment");
         var component = context.Render<App>();
@@ -112,11 +112,11 @@ public sealed class LaunchRouteTests
     [Arguments(BrowserFixture.Family, "?appVersion=1.0#secret", "query-invalid")]
     public async Task RealRouterRendersValueFreeRejection(string family, string query, string code)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{family}{query}");
         var component = context.Render<App>();
         await Assert.That(component.Find("[role=alert]").GetAttribute("data-code")).IsEqualTo(code);
-        await Assert.That(component.FindAll("select")).IsEmpty();
+        await Assert.That(component.FindAll("main select")).IsEmpty();
         await Assert.That(component.FindAll("a[download]")).IsEmpty();
     }
 
@@ -157,7 +157,7 @@ public sealed class LaunchRouteTests
     [Test]
     public async Task UnversionedAmbiguousRegistryRendersRejection()
     {
-        using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([BrowserFixture.Definition, BrowserFixture.Revision(2)]));
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([BrowserFixture.Definition, BrowserFixture.Revision(2)]));
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{BrowserFixture.Family}");
         var component = context.Render<App>();
         await Assert.That(component.Find("[role=alert]").GetAttribute("data-code")).IsEqualTo("selection-ambiguous");
@@ -168,7 +168,7 @@ public sealed class LaunchRouteTests
     {
         SetupDefinition first = BrowserFixture.Definition;
         var registry = new BrowserDefinitionRegistry([first]);
-        using var context = BrowserFixture.Context(registry);
+        await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
         var component = context.Render<App>();
         registry.Replace([BrowserFixture.Revision(2)]);
@@ -185,7 +185,8 @@ public sealed class LaunchRouteTests
     public async Task QueryNavigationStartsNewWorkspaceAndClearsPriorDownload()
     {
         var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
-        using var context = BrowserFixture.Context(registry);
+        await using var context = BrowserFixture.Context(registry);
+        context.JSInterop.Setup<bool>("confirm", _ => true).SetResult(true);
         var navigation = context.Services.GetRequiredService<NavigationManager>();
         navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
         var component = context.Render<App>();
@@ -198,7 +199,7 @@ public sealed class LaunchRouteTests
         await Assert.That(component.FindAll("a[download]")).IsEmpty();
         await component.InvokeAsync(() => navigation.NavigateTo($"/launch/{BrowserFixture.Family}?entry=missing"));
         await Assert.That(component.Find("[role=alert]").GetAttribute("data-code")).IsEqualTo("entry-unknown");
-        await Assert.That(component.FindAll("select")).IsEmpty();
+        await Assert.That(component.FindAll("main select")).IsEmpty();
     }
 
     [Test]

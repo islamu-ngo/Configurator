@@ -2,19 +2,94 @@
 
 Use the static Blazor WebAssembly app to prepare configuration files locally.
 Choose a bundled definition, open a publisher's pinned definition link, or
-import a public JSON definition from your machine. The browser can collect
+import a local JSON or YAML definition from your machine. The browser can collect
 ordinary settings and tenant rows without installing a native client. It does
 not connect to the target application, authenticate you, deploy services or
 grant administration authority.
 
+## Choose a client and trust level
+
+For sensitive configuration, treat the hosted web app as the least safe option
+among Configurator's interfaces. Its convenience adds trust in the hosting
+origin, delivered code, browser and extensions, and its exports cannot enforce
+native file protection. Prefer a reviewed local [Desktop](desktop.md),
+[TUI](terminal.md) or [CLI](cli.md) build on a trusted machine for high-value
+secrets. Native clients still require trusted software and an operating system;
+protected saving is verified on Linux only and unsupported hosts refuse it.
+This is a recommendation about exposure, not a measured universal security
+ranking or a guarantee that any client is immune to compromise.
+
+In the browser, choose between leaving secrets disabled and completing a draft
+locally, or explicitly consenting to local secret entry for this workspace.
+Either choice can also be used offline after preparing the app and definition.
+Ordinary settings may disclose private deployment details even without secrets.
+The current browser app has no server-processing mode.
+
+Local processing reduces exposure to server-side collection and compromise; it
+does not prove that hosted code is trustworthy. A compromised origin, dependency
+or extension could observe input or change behavior. Physically disconnecting
+prevents live network transmission during work, but does not establish that the
+downloaded software is benign. Clearing work cannot retract exported data or
+guarantee forensic erasure. No official release or public hosted deployment is
+currently claimed.
+
+## Why WebAssembly interactivity
+
+ISLAMU Configurator deliberately uses standalone Blazor WebAssembly. Forms,
+validation and file preparation execute in your browser, keeping answers and
+generated files outside application network requests. Static hosting means the
+host distributes app files; it does not mean a noninteractive UI. MudBlazor
+supports WebAssembly interactivity and does not require Interactive Server.
+
+The trade-off is a larger initial app download and computation using your
+device's resources. Once loaded, local interactions need no server round trip,
+and a prepared app and retained definition can support offline editing and
+export. Interactive Server can start with a smaller download and use server
+resources, but bound form values are transmitted to a server-held workspace;
+editing depends on the connection, its latency and server availability.
+Interactive Auto may use Server initially and WebAssembly on subsequent visits.
+That variability does not fit Configurator's consistent local answer boundary.
+
+WebAssembly is therefore a data-custody and offline choice, not a claim that it
+always loads faster or is automatically secure. Trusting a provider to deliver
+software and trusting its infrastructure to receive secrets are different
+decisions. See [Microsoft's hosting comparison](https://learn.microsoft.com/en-us/aspnet/core/blazor/hosting-models?view=aspnetcore-10.0)
+and [MudBlazor's supported hosting setup](https://mudblazor.com/getting-started/installation).
+
 ## Use
+
+Home offers bundled examples and independent file or link entry. The optional
+[Store](definition-store.md) lets you search public projects and deliberately
+select a definition revision; application versions are separate declared
+compatibility metadata. Missing store content does not prevent opening files or
+publisher links. Reviewed inclusion does not authenticate a publisher.
+
+Open configuration separates local-file and public-URL entry and shows the
+supported format beside each control. In a workspace, choose the field view
+and secret-entry preference above the guided sections. **Prepare complete
+configuration** validates all required settings; **Prepare draft** defers
+missing secrets for local completion. Optional artifact import has a separate
+section below preparation. Help and source links remain available in the footer.
+
+The appearance controls offer system, light, dark and high-contrast palettes,
+and automatic, left-to-right or right-to-left direction. Only these bounded
+preferences are remembered locally. Answers, consent and generated files are
+never stored as appearance preferences.
 
 The workspace shows the admitted family, revision and SHA-256 definition digest.
 It retains that exact definition for the session. A different launch or definition
-starts a fresh workspace and clears prior answers and output; registry changes
-cannot silently upgrade your running workspace.
+starts a fresh workspace; registry changes cannot silently upgrade your running
+workspace. Leaving an editor through application navigation asks you to discard
+answers and output first. Cancelling keeps editing; confirming clears the old
+workspace before the destination can load. Closing or reloading uses the
+browser's native confirmation where supported.
 
 A publisher source or local-file launch first shows the admitted metadata.
+Local `.json`, `.yaml` and `.yml` files may contain compact maintainer sources
+or expanded runtime definitions, with a maximum size of 4 MiB. Compact sources
+are compiled locally before answers are collected. Source comments are not
+retained; deliberate offline retention stores only the admitted canonical
+public definition. Public links still require compiled runtime JSON.
 Review it, optionally confirm the definition is safe for public offline
 retention, then open the workspace. That confirmation concerns definition
 metadata only; it neither retains answers nor enables secret entry.
@@ -29,6 +104,13 @@ answers. Object lists use declared row properties and
 bounded add/remove controls; removed rows are excluded from the next output.
 For Event, tenant names must be unique and the definition permits at most 256
 tenants; Core's aggregate budgets still apply.
+
+Section buttons show field and correction counts. Switching sections keeps
+your answers and unfinished input. Review lists active corrections, including
+fields in other sections; selecting a correction opens that section and focuses
+the field or affected collection row. Review also offers secret-entry recovery
+when a required secret inside a supplied object needs consent. Authored labels
+remain unchanged, and field details expose the exact configuration key.
 
 Secret entry is **off for every new workspace**. You have two choices:
 

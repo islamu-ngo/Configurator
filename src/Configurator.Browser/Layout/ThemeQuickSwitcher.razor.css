@@ -1,0 +1,9 @@
+.theme-quick-switcher { display: flex; flex-wrap: wrap; gap: var(--isl-space-3); }
+.theme-quick-switcher__control { display: flex; flex-direction: column; gap: var(--isl-space-1); min-inline-size: 0; }
+.theme-quick-switcher__control label { font-size: .75rem; color: var(--isl-color-text-secondary); }
+.theme-quick-switcher__control select { min-block-size: var(--isl-target-min); inline-size: auto; max-inline-size: 100%; padding: var(--isl-space-1) var(--isl-space-2); font-size: .8125rem; }
+@media (max-width: 60rem) {
+    .theme-quick-switcher { inline-size: 100%; }
+    .theme-quick-switcher__control { flex: 1; }
+    .theme-quick-switcher__control select { min-block-size: var(--isl-target-min); }
+}

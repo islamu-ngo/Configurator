@@ -1,0 +1,9 @@
+.definition-store { display: grid; gap: var(--isl-space-4); min-inline-size: 0; }
+.definition-store .page-header { margin-block-end: var(--isl-space-2); }
+.definition-store__filters { display: flex; flex-wrap: wrap; gap: var(--isl-space-4); padding: var(--isl-space-5); border: var(--isl-card-border); border-radius: var(--isl-radius-card); background: var(--isl-color-surface); }
+.definition-store__filters > div { display: grid; gap: var(--isl-space-2); flex: 1 1 14rem; min-inline-size: 0; }
+.definition-store__filters input, .definition-store__filters select { inline-size: 100%; min-block-size: 2.75rem; }
+.definition-store__filters label { font-size: .875rem; font-weight: 600; }
+.definition-store__filters > div:first-child { flex-grow: 2; }
+.definition-store__count { margin: 0; font-size: .875rem; color: var(--isl-color-text-secondary); }
+.definition-store__projects { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: var(--isl-space-6); }

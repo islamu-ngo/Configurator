@@ -1,0 +1,8 @@
+.site-footer { padding: var(--isl-space-6) var(--isl-space-8); color: var(--isl-color-text-secondary); font-size: .8125rem; border-block-start: var(--isl-card-border); background: var(--isl-color-surface); }
+.site-footer__content { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--isl-space-4) var(--isl-space-8); max-inline-size: calc(var(--isl-content-width) - var(--isl-space-16)); margin-inline: auto; }
+.site-footer__about { flex: 1 1 20rem; }
+.site-footer__brand { color: var(--isl-color-text); font-weight: 600; }
+.site-footer p { margin-block: var(--isl-space-1) 0; max-inline-size: 55ch; }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: var(--isl-space-2) var(--isl-space-5); }
+.site-footer a { display: inline-flex; align-items: center; gap: var(--isl-space-1); min-block-size: var(--isl-target-min); color: var(--isl-color-text-secondary); }
+@media (max-width: 60rem) { .site-footer { padding-inline: var(--isl-space-4); } }

@@ -1,0 +1,9 @@
+@layer reset, base, tokens, mudblazor-overrides, components, utilities;
+/* Keep vendor normalization below the application defaults and native form styles. */
+@import url("../_content/MudBlazor/MudBlazor.min.css") layer(reset);
+@import url("reset.css") layer(reset);
+@import url("base.css") layer(base);
+@import url("tokens.css") layer(tokens);
+@import url("mudblazor-overrides.css") layer(mudblazor-overrides);
+@import url("components.css") layer(components);
+@import url("utilities.css") layer(utilities);

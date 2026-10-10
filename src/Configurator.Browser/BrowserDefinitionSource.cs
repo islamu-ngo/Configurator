@@ -55,7 +55,7 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
         }
     }
 
-    public async Task<SetupDefinition> ReadLocalAsync(Stream input, CancellationToken cancellationToken = default)
+    public async Task<SetupDefinition> ReadLocalAsync(Stream input, bool yaml = false, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         if (policy.IsWorkspaceActive) throw new BrowserLaunchException("source-active");
@@ -72,7 +72,8 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
                 length += read;
             }
             if (length is 0 or > MaximumDocumentBytes) throw new BrowserLaunchException("source-size-invalid");
-            SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes.AsMemory(0, length));
+            SetupDefinition definition = yaml ? SetupDefinitionSourceCodec.ParseYaml(bytes.AsMemory(0, length))
+                : SetupDefinitionSourceCodec.ParseJson(bytes.AsMemory(0, length));
             CheckCurrent(generation, cancellation.Token);
             registry.Admit(definition);
             return definition;
@@ -105,6 +106,7 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
     {
         token.ThrowIfCancellationRequested();
         if (_disposed || generation != _generation) throw new BrowserLaunchException("source-invalidated");
+        if (policy.IsWorkspaceActive) throw new BrowserLaunchException("source-active");
     }
 
     private void Finish(CancellationTokenSource cancellation)

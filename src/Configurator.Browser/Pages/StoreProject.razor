@@ -1,0 +1,146 @@
+@page "/store/{ProjectId}"
+@implements IDisposable
+@using Configurator.Browser.Services
+@using Configurator.Core.Definitions
+@inject DefinitionStoreCatalog Catalog
+@inject NavigationManager Navigation
+
+<PageTitle>@(_project?.Name ?? "Project") · Definition Store · Configurator</PageTitle>
+<section class="store-project" aria-labelledby="store-project-heading">
+    <a href="store">All Store projects</a>
+    <h1 id="store-project-heading">@(_project?.Name ?? "Store project")</h1>
+    @if (_loading)
+    {
+        <p role="status">Loading public project metadata…</p>
+    }
+    else if (_project is null)
+    {
+        <p role="status" data-code="@_error">This Store project is unavailable. <a href="open">Open a local file or public project link</a>.</p>
+    }
+    else
+    {
+        <p>@_project.Description</p>
+        <dl class="store-project__metadata">
+            <dt>Source repository</dt><dd><a href="@_project.SourceRepository" target="_blank" rel="noopener noreferrer">@_project.SourceRepository</a></dd>
+            <dt>Declared license</dt><dd>@_project.License</dd>
+            <dt>Application ID</dt><dd>@_project.ApplicationId</dd>
+        </dl>
+        <p>Publisher and license claims are contributor metadata. Store membership does not authenticate them or grant target administration permission.</p>
+        <h2>Available definition revisions</h2>
+        <ul>
+            @foreach (DefinitionStoreRevision revision in _project.Revisions)
+            {
+                <li>Definition revision @revision.Revision — declared application versions: @string.Join(", ", revision.ApplicationVersions)</li>
+            }
+        </ul>
+        <label for="store-revision">Choose a definition revision</label>
+        <select id="store-revision" value="@_revision" @onchange="SelectRevision" disabled="@_busy">
+            <option value="">Select a revision</option>
+            @foreach (DefinitionStoreRevision revision in _project.Revisions)
+            {
+                <option value="@revision.Revision">Definition revision @revision.Revision</option>
+            }
+        </select>
+        @if (Selected is { } selected)
+        {
+            <dl class="store-project__metadata">
+                <dt>Publisher claim</dt><dd>@selected.Publisher</dd>
+                <dt>Declared application versions</dt><dd>@string.Join(", ", selected.ApplicationVersions)</dd>
+                <dt>Entry points</dt><dd>@string.Join(", ", selected.EntryPoints)</dd>
+                <dt>Locales</dt><dd>@string.Join(", ", selected.Locales)</dd>
+                <dt>Output filenames</dt><dd>@string.Join(", ", selected.OutputNames)</dd>
+                <dt>Canonical digest</dt><dd><code>@selected.Digest</code></dd>
+            </dl>
+            <p>Application versions are declared compatibility labels, separate from definition revisions. The target application remains responsible for validation and acceptance.</p>
+            @if (_admitted is null)
+            {
+                <AppButton OnClick="ReviewAsync" Disabled="@_busy">@(_busy ? "Checking public snapshot…" : "Review this revision")</AppButton>
+            }
+        }
+        @if (_error is not null)
+        {
+            <p role="alert" data-code="@_error">This revision could not be admitted. Code: @_error.</p>
+        }
+        @if (_admitted is { } definition)
+        {
+            <AppCard>
+                <h2>Ready to open @definition.Title</h2>
+                <p>Admitted revision @definition.Revision; canonical digest <code>@definition.Digest.Value</code>.</p>
+                <p>This opens a fresh local workspace with secret entry disabled. An active workspace retains this exact definition.</p>
+                <AppButton OnClick="OpenWorkspace">Configure this revision</AppButton>
+            </AppCard>
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public string ProjectId { get; set; } = string.Empty;
+    private CancellationTokenSource? _lifetime;
+    private DefinitionStoreProject? _project;
+    private SetupDefinition? _admitted;
+    private string _revision = string.Empty;
+    private string? _error;
+    private bool _loading;
+    private bool _busy;
+    private bool _disposed;
+    private DefinitionStoreRevision? Selected => _project?.Revisions.SingleOrDefault(item => item.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture) == _revision);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _lifetime?.Cancel();
+        _lifetime?.Dispose();
+        var lifetime = new CancellationTokenSource();
+        _lifetime = lifetime;
+        _loading = true;
+        _busy = false;
+        _project = null;
+        _admitted = null;
+        _revision = string.Empty;
+        _error = null;
+        try
+        {
+            IReadOnlyList<DefinitionStoreProject> projects = await Catalog.LoadAsync(lifetime.Token);
+            if (_disposed || !ReferenceEquals(_lifetime, lifetime)) return;
+            _project = projects.SingleOrDefault(project => project.ProjectId == ProjectId);
+            if (_project is null) _error = "store-project-unavailable";
+        }
+        catch (BrowserLaunchException exception) { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _error = exception.Code; }
+        finally { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _loading = false; }
+    }
+
+    private void SelectRevision(ChangeEventArgs args)
+    {
+        _revision = args.Value?.ToString() ?? string.Empty;
+        _admitted = null;
+        _error = null;
+    }
+
+    private async Task ReviewAsync()
+    {
+        if (Selected is not { } selected || _lifetime is null) return;
+        CancellationTokenSource lifetime = _lifetime;
+        _busy = true;
+        _error = null;
+        try
+        {
+            SetupDefinition definition = await Catalog.OpenAsync(ProjectId, selected.Revision, lifetime.Token);
+            if (!_disposed && ReferenceEquals(_lifetime, lifetime) && Selected == selected) _admitted = definition;
+        }
+        catch (BrowserLaunchException exception) { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _error = exception.Code; }
+        finally { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _busy = false; }
+    }
+
+    private void OpenWorkspace()
+    {
+        if (_admitted is not { } definition) return;
+        Navigation.NavigateTo($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _lifetime?.Cancel();
+        _lifetime?.Dispose();
+        _admitted = null;
+    }
+}

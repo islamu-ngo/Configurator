@@ -1,0 +1,115 @@
+@implements IAsyncDisposable
+@using Configurator.Presentation
+
+<section class="workspace configuration-editor" aria-labelledby="configuration-heading">
+    <header class="configuration-editor__header">
+        <h2 id="configuration-heading">Prepare configuration in this tab</h2>
+        <p id="session-boundary">Answers stay in this tab's memory. Secrets start disabled. Prepare a draft to complete locally, or enable masked secret entry.</p>
+    </header>
+    <details class="configuration-editor__boundary">
+        <summary>Privacy and export limits</summary>
+        <p>Preparation does not apply configuration or establish target acceptance. Copy and download deliberately release private output.
+            The browser cannot guarantee restricted file permissions. Closing or reloading discards this workspace;
+            clearing cannot erase files or clipboard contents already exported.</p>
+    </details>
+    @if (!_ready)
+    {
+        <button @ref="_startButton" class="button" type="button" @onclick="BeginAsync">Start local workspace</button>
+    }
+    <fieldset class="configuration-editor__controls" disabled="@(!_ready)">
+        <legend class="sr-only">Local configuration answers</legend>
+        <div class="configuration-editor__toolbar">
+            <div class="configuration-editor__mode">
+                <label for="display-mode">Fields to show</label>
+                <select id="display-mode" value="@_form!.DisplayMode" aria-describedby="display-mode-help" @onchange="ChangeMode">
+                    <option value="Guided">Guided</option><option value="Advanced">Advanced</option><option value="AllDeclared">All declared</option>
+                </select>
+                <p id="display-mode-help" class="form-help">Start with Guided for essential settings.</p>
+            </div>
+            <div class="configuration-editor__consent">
+                <input @ref="_consentControl" id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                       aria-describedby="session-boundary secret-consent-help" @onchange="ConsentAsync" />
+                <div>
+                    <label for="secret-consent">Enable secret entry for this workspace</label>
+                    <p id="secret-consent-help" class="form-help">Optional. Values remain masked; turning this off clears secret answers and prepared files.</p>
+                </div>
+            </div>
+        </div>
+        @{ var fieldStates = _form.Validate().Fields; var sections = Sections(fieldStates); }
+        <div class="configuration-editor__guided">
+            <ConfigurationNavigation Sections="sections" Selected="@SelectedSection(sections)" SelectedChanged="SelectSection" />
+            <div class="configuration-editor__fields">
+                @foreach (var group in _form.Fields.GroupBy(input => Group(input.Definition)))
+                {
+                    <section @key="group.Key" data-section-panel="@group.Key" hidden="@(SelectedSection(sections) != group.Key)" aria-labelledby="@SectionId(group.Key)">
+                        <h3 id="@SectionId(group.Key)">@group.Key</h3>
+                        @foreach (var input in group)
+                        {
+                            var state = fieldStates.Single(item => item.Id == input.Definition.Id);
+                            bool visible = state.IsVisible(_form.DisplayMode) || input.InputDiagnosticCode is not null || _invalidInputs.ContainsValue(input.Definition.Id);
+                            if (visible) _mountedFields.Add(input.Definition.Id);
+                            @if (_mountedFields.Contains(input.Definition.Id))
+                            {
+                                <div @key="input" hidden="@(!visible)">
+                                    <ConfigurationField Form="_form" Schema="input.Definition.Constraints" Path="@(new[] { input.Definition.Id })"
+                                                        Validation="_validation" ValidationChanged="InputValidityChanged" RequiredOverride="state.IsRequired"
+                                                        FocusFirstControl="@(_focusField == input.Definition.Id)" FocusGeneration="_focusGeneration" FocusRow="_focusRow" />
+                                </div>
+                            }
+                        }
+                    </section>
+                }
+            </div>
+        </div>
+        <div class="configuration-editor__preparation">
+            <h3>Prepare your files</h3>
+            <p class="form-help">A draft defers missing secrets for local completion. Complete preparation checks all required settings.</p>
+            <div class="actions">
+                <AppButton id="prepare-complete" OnClick="() => PrepareAsync(false)">Prepare complete configuration</AppButton>
+                <AppButton id="prepare-draft" Variant="Variant.Outlined" OnClick="() => PrepareAsync(true)">Prepare draft (defer missing secrets)</AppButton>
+                <AppButton id="clear-workspace" Variant="Variant.Text" Color="Color.Default" OnClick="ClearAsync">Clear answers and output</AppButton>
+            </div>
+        </div>
+        <p role="status" class="notice" data-code="@_statusCode">@_status</p>
+        <ConfigurationReview Definition="Definition" Validation="_validation" DiagnosticCodes="_diagnostics"
+                             InvalidFields="@_invalidInputs.Values.Distinct(StringComparer.Ordinal).ToArray()"
+                             SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                             CorrectField="CorrectField" EnableSecrets="EnableSecretsAsync" PrepareDraft="() => PrepareAsync(true)" />
+        @foreach (var prepared in _prepared)
+        {
+            <section class="configuration-editor__artifact" aria-labelledby="@("artifact-" + prepared.Metadata.ArtifactId)" data-readiness="@(prepared.Metadata.IsDraft ? "draft" : "complete")">
+                <h3 id="@("artifact-" + prepared.Metadata.ArtifactId)">@prepared.Metadata.FileName</h3>
+                <p>@(prepared.Metadata.IsDraft ? "Draft — secrets still required." : "Complete preparation — target validation still required.") Output is private and hidden.</p>
+                @if (prepared.Metadata.Completions.Count > 0)
+                {
+                    <ul>@foreach (var item in prepared.Metadata.Completions) { <li>@item.FieldPath → @item.OutputPath</li> }</ul>
+                }
+                <div class="actions">
+                    <AppButton Variant="Variant.Outlined" OnClick="() => CopyAsync(prepared)">Copy @prepared.Metadata.FileName</AppButton>
+                    <AppButton OnClick="() => DownloadAsync(prepared)">Download @prepared.Metadata.FileName</AppButton>
+                    <AppButton Variant="Variant.Outlined" aria-expanded="@prepared.Revealed.ToString().ToLowerInvariant()" OnClick="() => RevealAsync(prepared)">@(prepared.Revealed ? "Hide" : "Reveal") @prepared.Metadata.FileName</AppButton>
+                </div>
+                <pre @ref="prepared.PreviewElement" hidden="@(!prepared.Revealed)" dir="ltr" tabindex="0" aria-label="@("Private preview of " + prepared.Metadata.FileName)"></pre>
+            </section>
+        }
+        @if (Definition.Artifacts.Count > 0)
+        {
+            <section class="configuration-editor__import" aria-labelledby="artifact-import-heading">
+                <h3 id="artifact-import-heading">Import an existing configuration <span class="configuration-editor__optional">Optional</span></h3>
+                <p class="form-help" id="artifact-import-help">Optional · maximum 1 MiB. Only the definition's declared import mappings are supported.</p>
+                <div class="configuration-editor__import-controls">
+                    <div class="form-group">
+                        <label for="import-artifact">Artifact format to import</label>
+                        <select id="import-artifact" value="@_importArtifact" @onchange="ChangeImportFormat">
+                            @foreach (var artifact in Definition.Artifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="artifact-import">Choose an existing declared artifact</label>
+                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync" aria-describedby="session-boundary artifact-import-help" />
+                    </div>
+                </div>
+            </section>
+        }
+    </fieldset>
+</section>

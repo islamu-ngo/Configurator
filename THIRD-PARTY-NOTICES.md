@@ -44,6 +44,13 @@ all declared packages ship in every client.
 
 ## Release renderer
 
+The static Browser additionally distributes MudBlazor `9.7.0` under its MIT
+terms, preserving `Copyright (c) 2021 MudBlazor` from the package license.
+Its identity, resolved closure and local asset usage are documented in the
+[UI dependency record](docs/internal/legal/dependencies/configurator-ui.md).
+Published dependency notices retain the package's own terms; no external fonts
+or logos are imported by the browser UI.
+
 git-cliff `2.13.1` is an operator-supplied build-time tool with the MIT option
 selected from `MIT OR Apache-2.0`. No renderer binary or Event production trust
 is transferred. If conveyed later, retain its copyright/permission notice and

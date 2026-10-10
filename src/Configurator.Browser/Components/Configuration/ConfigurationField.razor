@@ -1,0 +1,86 @@
+@implements IDisposable
+@using System.Globalization
+@using System.Text.Json
+
+<div class="configuration-field" data-field="@string.Join('.', Path)">
+    @if (Type is "object" or "list")
+    {
+        <fieldset @ref="_group" tabindex="-1" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
+                  aria-invalid="@((_invalid || Error.Length > 0).ToString().ToLowerInvariant())" disabled="@(!Form.CanEdit(Path))">
+            <legend>@Title @(Required ? "(required)" : "(optional)")</legend>
+            @if (Type == "object")
+            {
+                @if (Value is null)
+                {
+                    <button type="button" class="button button--secondary" @onclick="SupplyObject">Supply @Title object</button>
+                }
+                bool focusRemaining = FocusFirstControl || _focusObjectChildren;
+                @foreach (JsonElement child in Schema.GetProperty("properties").EnumerateArray())
+                {
+                    string childId = child.GetProperty("id").GetString()!;
+                    string[] childPath = Path.Append(childId).ToArray();
+                    bool focusChild = focusRemaining && CanFocus(child, childPath);
+                    if (focusChild) focusRemaining = false;
+                    <ConfigurationField @key="childId" Form="Form" Schema="child" Path="childPath" Validation="Validation" ValidationChanged="ValidationChanged"
+                                        InheritedSecret="IsSecret" InheritedSensitive="IsMasked" FocusFirstControl="focusChild" FocusGeneration="FocusGeneration" />
+                }
+            }
+            else
+            {
+                @if (Value is null)
+                {
+                    <button type="button" class="button button--secondary" data-action="supply-list" @onclick="SupplyList">Supply an empty @Title list</button>
+                }
+                @for (int index = 0; index < Count; index++)
+                {
+                    int row = index;
+                    <div class="configuration-field__row" @key="_rowKeys[row]">
+                        <ConfigurationField Form="Form" Schema="ItemSchema" Path="@Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray()" Validation="Validation" ValidationChanged="ValidationChanged"
+                                            InheritedSecret="IsSecret" InheritedSensitive="IsMasked" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && row == (FocusRow >= 0 ? FocusRow : 0))" FocusGeneration="FocusGeneration" />
+                        <button type="button" class="button button--secondary" aria-label="@($"Remove {Title} item {row + 1}")" @onclick="() => Remove(row)">Remove item @(row + 1)</button>
+                    </div>
+                }
+                <button @ref="_addButton" type="button" class="button button--secondary" data-action="add-item" disabled="@(Count >= MaximumItems)" @onclick="Add">Add @Title item</button>
+                <p>@Count / @MaximumItems items</p>
+            }
+        </fieldset>
+    }
+    else
+    {
+        <label for="@ControlId">@Title <span class="configuration-field__requirement">@(Required ? "Required" : "Optional")</span></label>
+        @if (Type is "boolean" or "enum" && !IsMasked)
+        {
+            <select @ref="_control" id="@ControlId" value="@Text" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
+                    aria-invalid="@((_invalid || Error.Length > 0).ToString().ToLowerInvariant())" aria-required="@Required.ToString().ToLowerInvariant()" disabled="@(!Form.CanEdit(Path))" @onchange="Edit">
+                <option value="">Not supplied</option>
+                @if (Type == "boolean")
+                {
+                    <option value="true">Yes</option><option value="false">No</option>
+                }
+                else
+                {
+                    @foreach (JsonElement choice in Schema.GetProperty("choices").EnumerateArray()) { <option value="@Display(choice)">@Display(choice)</option> }
+                }
+            </select>
+        }
+        else
+        {
+            <div class="configuration-field__input">
+                <MudInput T="string" @ref="_input" InputId="@ControlId" InputType="@(IsMasked ? InputType.Password : Type is "integer" or "number" ? InputType.Number : InputType.Text)"
+                          InputMode="@(Type == "integer" ? InputMode.numeric : Type == "number" ? InputMode.@decimal : InputMode.text)"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Value="@Text" ValueChanged="EditText" MaxLength="65536"
+                          Error="@(_invalid || Error.Length > 0)" HelperId="@(ControlId + "-help")" ErrorId="@(ControlId + "-error")"
+                          Disabled="@(!Form.CanEdit(Path))" UserAttributes="InputAttributes" />
+            </div>
+        }
+    }
+    <p id="@(ControlId + "-help")" class="configuration-field__help">@Help @Consequence @(IsSecret && !Form.CanEdit(Path) ? "Secret entry is disabled. You can prepare a draft and fill this value in the exported file." : "")
+        @if (IsMasked && Type == "boolean") { <span>Use true or false.</span> }
+        @if (IsMasked && Type == "enum") { <span>Declared choices: @string.Join(", ", Schema.GetProperty("choices").EnumerateArray().Select(Display)).</span> }
+    </p>
+    <p id="@(ControlId + "-error")" class="configuration-field__error">@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : Error)</p>
+    @if (Schema.TryGetProperty("id", out var identifier))
+    {
+        <details class="configuration-field__key"><summary>Definition key</summary><code>@identifier.GetString()</code></details>
+    }
+</div>

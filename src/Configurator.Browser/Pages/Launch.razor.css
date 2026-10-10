@@ -1,0 +1,4 @@
+.launch-header h1 { margin-block-end: var(--isl-space-3); }
+.launch-header > p { color: var(--isl-color-text-secondary); margin-block-end: var(--isl-space-2); }
+.launch-header details { color: var(--isl-color-text-secondary); font-size: .875rem; }
+.launch-header code { overflow-wrap: anywhere; }

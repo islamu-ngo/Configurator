@@ -1,28 +1,36 @@
 @page "/"
 @inject BrowserDefinitionRegistry Registry
 
-<PageTitle>Configurator public definitions</PageTitle>
-<section class="hero" aria-labelledby="catalogue-heading">
-    <p class="eyebrow">Local public workspace</p>
+<PageTitle>Home · Configurator</PageTitle>
+<header class="hero page-header catalogue__hero" aria-labelledby="catalogue-heading">
+    <p class="eyebrow">Local configuration workspace</p>
     <h1 id="catalogue-heading">Prepare your configuration</h1>
     <p class="lede">
-        Choose a bundled definition, supply local settings and export configuration files.
-        Secret entry is optional and stays in this tab. Target validation and application remain with your target.
-        Prepare the app for offline use while online before a disconnected relaunch.
+        Open a definition, answer the questions and prepare your files.
+        Your answers stay in this tab. Secret entry is optional.
     </p>
-</section>
-<p><NavLink href="open">Open a local file, a pinned publisher source, or a retained offline definition</NavLink></p>
+    <div class="actions">
+        <AppButton Href="open">Open configuration</AppButton>
+        <AppButton Href="store" Variant="Variant.Outlined">Browse Definition Store</AppButton>
+    </div>
+</header>
+<ol class="catalogue__steps" aria-label="Configuration workflow">
+    <li><span class="catalogue__step-number" aria-hidden="true">1</span><div><strong>Choose a definition</strong><p>Use a bundled project, a local file or a public link.</p></div></li>
+    <li><span class="catalogue__step-number" aria-hidden="true">2</span><div><strong>Configure locally</strong><p>Follow the guided sections and choose how to handle secrets.</p></div></li>
+    <li><span class="catalogue__step-number" aria-hidden="true">3</span><div><strong>Prepare your files</strong><p>Export a draft or complete configuration for target validation.</p></div></li>
+</ol>
 <section aria-labelledby="definitions-heading">
     <h2 id="definitions-heading">Bundled definitions</h2>
-    <ul class="definition-list">
+    <div class="catalogue__definitions">
         @foreach (var definition in Registry.Current.Definitions)
         {
-            <li>
-                <NavLink href="@($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}")">
-                    @definition.Title - revision @definition.Revision
-                </NavLink>
-                <p>Publisher claim: @definition.Publisher. Family identity does not establish trust.</p>
-            </li>
+            <AppCard>
+                <h3>@definition.Title</h3>
+                <p>Definition revision @definition.Revision · Publisher claim: @definition.Publisher</p>
+                <p>Family identity does not authenticate a publisher.</p>
+                <AppButton Href="@($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}")" Variant="Variant.Outlined">Configure @definition.Title</AppButton>
+            </AppCard>
         }
-    </ul>
+    </div>
 </section>
+<p>Prepare the app for offline use while online. <a href="help">Learn about offline use, privacy and target validation.</a></p>

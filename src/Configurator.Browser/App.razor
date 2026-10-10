@@ -1,10 +1,10 @@
 <Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Shared.MainLayout)" />
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
     <NotFound>
-        <LayoutView Layout="@typeof(Shared.MainLayout)">
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
             <PageTitle>Page not found</PageTitle>
             <h1>Page not found</h1>
             <p>The requested public setup page does not exist.</p>

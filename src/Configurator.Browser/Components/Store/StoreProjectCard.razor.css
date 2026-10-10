@@ -1,0 +1,9 @@
+.store-project-card { display: grid; min-inline-size: 0; }
+.store-project-card__title { font-size: var(--isl-typography-h4-size); margin-block-end: var(--isl-space-3); }
+.store-project-card__title a { color: var(--isl-color-text); text-decoration: none; }
+.store-project-card__title a:hover { text-decoration: underline; }
+.store-project-card__description { color: var(--isl-color-text-secondary); }
+.store-project-card__metadata { color: var(--isl-color-text-secondary); font-size: .8125rem; margin-block-end: var(--isl-space-3); }
+.store-project-card__tags { display: flex; flex-wrap: wrap; gap: var(--isl-space-2); padding: 0; list-style: none; }
+.store-project-card__tags li { border: var(--isl-card-border); border-radius: var(--isl-radius-full); padding: var(--isl-space-1) var(--isl-space-3); background: var(--isl-color-surface-muted); color: var(--isl-color-text-secondary); font-size: .75rem; }
+.store-project-card__action { margin-block-start: auto; padding-block-start: var(--isl-space-5); }

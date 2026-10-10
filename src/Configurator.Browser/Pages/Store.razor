@@ -1,0 +1,93 @@
+@page "/store"
+@implements IDisposable
+@using Configurator.Browser.Services
+@using Configurator.Browser.Components.Store
+@inject DefinitionStoreCatalog Catalog
+
+<PageTitle>Definition Store · Configurator</PageTitle>
+<section class="definition-store" aria-labelledby="store-heading">
+    <header class="page-header">
+        <p class="eyebrow">Public project definitions</p>
+        <h1 id="store-heading">Definition Store</h1>
+        <p class="lede">Find a project and choose the exact definition revision to configure.</p>
+        <a class="text-link" href="open">Already have a definition? Open a file or public link →</a>
+    </header>
+    @if (_loading)
+    {
+        <p role="status">Loading public project metadata…</p>
+    }
+    else if (_error is not null)
+    {
+        <p role="status" data-code="@_error">The Store is unavailable. You can still open a local file or public project link.</p>
+    }
+    else if (_projects.Count == 0)
+    {
+        <p role="status">This package has no Store projects. Open your own definition to continue.</p>
+    }
+    else
+    {
+        <div class="definition-store__filters">
+            <div>
+                <label for="store-search">Search project names or tags</label>
+                <input class="form-control" id="store-search" type="search" placeholder="Search projects…" @bind="_search" @bind:event="oninput" />
+            </div>
+            <div>
+                <label for="store-tag">Filter by tag</label>
+                <select id="store-tag" @bind="_tag">
+                    <option value="">All tags</option>
+                    @foreach (string tag in _projects.SelectMany(project => project.Tags).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+                    {
+                        <option value="@tag">@tag</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <p class="definition-store__count" role="status">@Visible.Count() projects shown</p>
+        <div class="definition-store__projects">
+            @foreach (DefinitionStoreProject project in Visible)
+            {
+                <StoreProjectCard @key="project.ProjectId" Project="project" />
+            }
+        </div>
+        @if (!Visible.Any())
+        {
+            <div class="notice">
+                <h2>No matching projects</h2>
+                <p>Try a different search or choose All tags to see more projects.</p>
+            </div>
+        }
+        <p class="form-help">Store inclusion does not authenticate a publisher or certify target compatibility.</p>
+    }
+</section>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<DefinitionStoreProject> _projects = [];
+    private string _search = string.Empty;
+    private string _tag = string.Empty;
+    private string? _error;
+    private bool _loading = true;
+    private bool _disposed;
+    private IEnumerable<DefinitionStoreProject> Visible => _projects.Where(project =>
+        (_tag.Length == 0 || project.Tags.Contains(_tag, StringComparer.Ordinal)) &&
+        (project.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase) ||
+         project.Tags.Any(tag => tag.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase))));
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IReadOnlyList<DefinitionStoreProject> projects = await Catalog.LoadAsync(_lifetime.Token);
+            if (!_disposed) _projects = projects;
+        }
+        catch (BrowserLaunchException exception) { if (!_disposed) _error = exception.Code; }
+        finally { if (!_disposed) _loading = false; }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

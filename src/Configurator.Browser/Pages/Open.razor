@@ -5,9 +5,15 @@
 @inject Microsoft.JSInterop.IJSRuntime Javascript
 @inject NavigationManager Navigation
 @using Configurator.Core.Definitions
+@using Microsoft.JSInterop
 
 <PageTitle>Open a configuration definition</PageTitle>
-<h1>Open a configuration definition</h1>
+<div class="open-page">
+<header class="page-header">
+    <p class="eyebrow">Choose your starting point</p>
+    <h1>Open a configuration definition</h1>
+    <p class="lede">Open a local JSON or YAML file or a public definition link. Review its identity before starting a local workspace.</p>
+</header>
 @if (_selection is { } selection)
 {
     <section aria-labelledby="source-heading">
@@ -19,21 +25,76 @@
     @if (_workspaceOpen)
     {
         <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" />
-        <button type="button" @onclick="DiscardAsync">Discard this workspace to choose another definition</button>
+        <AppButton Variant="Variant.Outlined" OnClick="ConfirmDiscardAsync">Discard this workspace to choose another definition</AppButton>
     }
     else
     {
         <p>This definition remains in memory unless you deliberately retain its public metadata. Never retain a definition containing private explanatory text or defaults.</p>
         <label><input type="checkbox" @bind="_publicSafeConfirmed" /> I confirm this definition is safe to retain as public metadata</label>
-        <button type="button" disabled="@(!_publicSafeConfirmed)" @onclick="RetainAsync">Retain definition for offline use</button>
-        <button type="button" @onclick="OpenWorkspace">Open configuration workspace</button>
+        <div class="actions">
+            <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">Retain definition for offline use</AppButton>
+            <AppButton OnClick="OpenWorkspace">Open configuration workspace</AppButton>
+        </div>
+        @if (_shareLink is { } shareLink)
+        {
+            <label for="definition-share-link">Definition-only link (no answers)</label>
+            <input class="form-control" id="definition-share-link" value="@shareLink" readonly dir="ltr" />
+            <AppButton Variant="Variant.Outlined" OnClick="CopyDefinitionLinkAsync">Copy definition link</AppButton>
+        }
     }
 }
 @if (!_workspaceOpen)
 {
-    <p>Use a local JSON definition when disconnected or when the publisher blocks cross-origin access. Files are admitted through the same bounded engine; they grant no publisher authenticity.</p>
-    <label for="definition-file">Choose a definition JSON file (maximum 4 MiB)</label>
-    <InputFile @key="_fileKey" id="definition-file" @ref="_fileInput" OnChange="LoadLocalAsync" disabled="@_loading" />
+    <div class="open-page__sources">
+    <section class="open-page__source" aria-labelledby="local-source-heading">
+    <AppCard>
+        <p class="eyebrow">From your device</p>
+        <h2 id="local-source-heading">Local definition file</h2>
+        <p>Use a JSON or YAML definition when disconnected or when a publisher blocks cross-origin access.</p>
+        <div class="form-group">
+            <label for="definition-file">Choose a definition JSON or YAML file</label>
+            <InputFile @key="_fileKey" id="definition-file" @ref="_fileInput" OnChange="LoadLocalAsync" disabled="@_loading" accept=".json,.yaml,.yml,application/json,application/yaml,text/yaml" aria-describedby="definition-file-help" />
+            <p id="definition-file-help" class="form-help">JSON or YAML · maximum 4 MiB. Compact maintainer sources are compiled locally before answers; files grant no publisher authenticity.</p>
+        </div>
+    </AppCard>
+    </section>
+    <section class="open-page__source" aria-labelledby="public-source-heading">
+    <AppCard>
+        <p class="eyebrow">From a public source</p>
+        <h2 id="public-source-heading">Public definition URL</h2>
+        <p>Use a direct HTTPS link to a public JSON definition.</p>
+        <div class="form-group">
+            <label for="source-url">Public definition file URL</label>
+            <input class="form-control" id="source-url" type="url" maxlength="2048" dir="ltr" placeholder="https://example.org/definition.json" aria-describedby="source-url-help" @bind="_sourceUrl" @bind:event="oninput" disabled="@_loading" />
+            <p id="source-url-help" class="form-help">The source must allow cross-origin reading. For private repositories or blocked access, use a local file.</p>
+        </div>
+        <details>
+            <summary>Optional digest and selectors</summary>
+            <div class="open-page__selectors">
+            <div class="form-group">
+            <label for="source-digest">Canonical SHA-256 digest</label>
+            <input class="form-control" id="source-digest" maxlength="64" dir="ltr" @bind="_digest" disabled="@_loading" />
+            </div>
+            <div class="form-group">
+            <label for="source-version">Declared application version</label>
+            <input class="form-control" id="source-version" maxlength="64" @bind="_appVersion" disabled="@_loading" />
+            </div>
+            <div class="form-group">
+            <label for="source-entry">Entry point</label>
+            <input class="form-control" id="source-entry" maxlength="128" @bind="_entry" disabled="@_loading" />
+            </div>
+            <div class="form-group">
+            <label for="source-locale">Locale</label>
+            <input class="form-control" id="source-locale" maxlength="35" @bind="_locale" disabled="@_loading" />
+            </div>
+            </div>
+        </details>
+        <div class="actions">
+            <AppButton id="load-public-source" Disabled="@_loading" OnClick="LoadPublicAsync">@(_loading ? "Reviewing definition…" : "Review public definition")</AppButton>
+        </div>
+    </AppCard>
+    </section>
+    </div>
     @if (_retained.Count > 0)
     {
         <h2>Retained public definitions</h2>
@@ -43,8 +104,9 @@
         }</ul>
     }
 }
-<p role="status" data-code="@_statusCode">@_status</p>
-<NavLink href="">Return to bundled definitions</NavLink>
+<p class="notice" role="status" data-code="@_statusCode">@_status</p>
+<NavLink class="text-link" href="">Return to bundled definitions</NavLink>
+</div>
 
 @code {
     private BrowserDefinitionSource? _source;
@@ -60,6 +122,13 @@
     private bool _disposed;
     private bool _restoreFileFocus;
     private InputFile? _fileInput;
+    private string _sourceUrl = string.Empty;
+    private string _digest = string.Empty;
+    private string _appVersion = string.Empty;
+    private string _entry = string.Empty;
+    private string _locale = string.Empty;
+    private string? _shareLink;
+    private IJSObjectReference? _linkModule;
     private string _statusCode = "source-ready";
     private string _status = "Choose a public publisher link or a local definition. Answers are never carried by this route.";
 
@@ -83,6 +152,7 @@
         if (_disposed || generation != _generation) return;
         _editor = null;
         _selection = null;
+        _shareLink = null;
         _workspaceOpen = false;
         _loading = false;
         _publicSafeConfirmed = false;
@@ -93,9 +163,11 @@
         _statusCode = "source-loading";
         try
         {
-            BrowserLaunchSelection selection = await _source.FetchAsync(BrowserDefinitionPointer.Parse(uri.Fragment, uri.Query));
+            BrowserDefinitionPointer pointer = BrowserDefinitionPointer.Parse(uri.Fragment, uri.Query);
+            BrowserLaunchSelection selection = await _source.FetchAsync(pointer);
             if (_disposed || generation != _generation) return;
             _selection = selection;
+            _shareLink = ShareLink(pointer, selection);
             _status = "Definition admitted and pinned. Open this workspace, or deliberately retain public metadata first.";
             _statusCode = "source-admitted";
         }
@@ -103,7 +175,7 @@
         {
             if (_disposed || generation != _generation) return;
             _statusCode = exception.Code;
-            _status = "Source selection rejected. Choose a local definition JSON file instead. Code: " + exception.Code + ".";
+            _status = "Source selection rejected. Choose a local definition JSON or YAML file instead. Code: " + exception.Code + ".";
         }
         finally { if (generation == _generation) _loading = false; }
     }
@@ -113,12 +185,15 @@
         long generation = ++_generation;
         _source!.Invalidate();
         _selection = null;
+        _shareLink = null;
         _publicSafeConfirmed = false;
         _loading = true;
         try
         {
+            string extension = Path.GetExtension(args.File.Name).ToLowerInvariant();
+            if (extension is not (".json" or ".yaml" or ".yml")) throw new BrowserLaunchException("source-format-invalid");
             using Stream stream = args.File.OpenReadStream(BrowserDefinitionSource.MaximumDocumentBytes);
-            SetupDefinition definition = await _source.ReadLocalAsync(stream);
+            SetupDefinition definition = await _source.ReadLocalAsync(stream, yaml: extension is ".yaml" or ".yml");
             if (_disposed || generation != _generation) return;
             _selection = new(definition, definition.EntryPoints[0], definition.Locales[0]);
             _statusCode = "source-admitted";
@@ -135,6 +210,7 @@
     private void Reject(string code)
     {
         _selection = null;
+        _shareLink = null;
         _statusCode = code;
         _status = "Definition rejected; no workspace was created. Code: " + code + ".";
     }
@@ -143,6 +219,7 @@
     {
         _generation++;
         _source!.Invalidate();
+        _shareLink = null;
         _loading = false;
         _fileKey++;
         try { Registry.Admit(definition); _selection = new(definition, definition.EntryPoints[0], definition.Locales[0]); }
@@ -151,6 +228,83 @@
     }
 
     private void OpenWorkspace() { _workspaceOpen = true; _publicSafeConfirmed = false; }
+
+    private async Task LoadPublicAsync()
+    {
+        if (_loading || _workspaceOpen || _disposed) return;
+        long generation = ++_generation;
+        _source!.Invalidate();
+        _selection = null;
+        _shareLink = null;
+        _publicSafeConfirmed = false;
+        _loading = true;
+        _statusCode = "source-loading";
+        _status = "Reading public definition metadata before answers…";
+        try
+        {
+            string fragment = "#src=" + Uri.EscapeDataString(_sourceUrl.Trim());
+            var selectors = new[] { ("digest", _digest), ("appVersion", _appVersion), ("entry", _entry), ("locale", _locale) };
+            foreach ((string name, string value) in selectors)
+                if (!string.IsNullOrWhiteSpace(value)) fragment += "&" + name + "=" + Uri.EscapeDataString(value.Trim());
+            BrowserDefinitionPointer pointer = BrowserDefinitionPointer.Parse(fragment);
+            BrowserLaunchSelection selection = await _source.FetchAsync(pointer);
+            if (_disposed || generation != _generation) return;
+            _selection = selection;
+            _shareLink = ShareLink(pointer, selection);
+            _statusCode = "source-admitted";
+            _status = "Definition admitted and pinned. Review its identity before opening the workspace.";
+        }
+        catch (BrowserLaunchException exception) { if (!_disposed && generation == _generation) Reject(exception.Code); }
+        finally { if (!_disposed && generation == _generation) _loading = false; }
+    }
+
+    private string ShareLink(BrowserDefinitionPointer pointer, BrowserLaunchSelection selection)
+    {
+        string fragment = "#src=" + Uri.EscapeDataString(pointer.Source.AbsoluteUri)
+            + "&digest=" + selection.Definition.Digest.Value
+            + "&entry=" + Uri.EscapeDataString(selection.Entry)
+            + "&locale=" + Uri.EscapeDataString(selection.Locale);
+        if (pointer.AppVersion is { } version) fragment += "&appVersion=" + Uri.EscapeDataString(version);
+        _ = BrowserDefinitionPointer.Parse(fragment);
+        return new Uri(new Uri(Navigation.BaseUri), "open").AbsoluteUri + fragment;
+    }
+
+    private async Task CopyDefinitionLinkAsync()
+    {
+        if (_shareLink is not { } link || _workspaceOpen || _disposed) return;
+        long generation = _generation;
+        try
+        {
+            if (_linkModule is null)
+            {
+                IJSObjectReference module = await Javascript.InvokeAsync<IJSObjectReference>("import", "./browser-definition-source.js");
+                if (_disposed || generation != _generation) { await module.DisposeAsync(); return; }
+                _linkModule = module;
+            }
+            if (_disposed || generation != _generation) return;
+            bool copied = await _linkModule.InvokeAsync<bool>("copyDefinitionLink", link);
+            if (_disposed || generation != _generation) return;
+            _statusCode = copied ? "definition-link-copied" : "definition-link-copy-unavailable";
+            _status = copied ? "Definition-only link copied. It contains no answers." : "Copy is unavailable. Select the definition-only link and copy it manually.";
+        }
+        catch (JSException)
+        {
+            if (_disposed || generation != _generation) return;
+            _statusCode = "definition-link-copy-unavailable";
+            _status = "Copy is unavailable. Select the definition-only link and copy it manually.";
+        }
+    }
+
+    private async Task ConfirmDiscardAsync()
+    {
+        long generation = _generation;
+        try
+        {
+            bool confirmed = await Javascript.InvokeAsync<bool>("confirm", "Discard this workspace's answers and output? Choose Cancel to keep editing.");
+            if (confirmed && !_disposed && generation == _generation) await DiscardAsync();
+        }
+        catch (JSException) { }
+    }
 
     private async Task RetainAsync()
     {
@@ -170,6 +324,7 @@
         _editor = null;
         _workspaceOpen = false;
         _selection = null;
+        _shareLink = null;
         _loading = false;
         _fileKey++;
         _restoreFileFocus = true;
@@ -201,6 +356,7 @@
         Navigation.LocationChanged -= LocationChanged;
         _editor?.Invalidate();
         if (_source is not null) await _source.DisposeAsync();
+        if (_linkModule is not null) await _linkModule.DisposeAsync();
         _selection = null;
     }
 }

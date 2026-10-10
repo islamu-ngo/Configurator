@@ -1,0 +1,2 @@
+.app-button { display: contents; }
+.app-button ::deep .mud-button-root { min-block-size: var(--isl-target-min); border-radius: var(--isl-radius-sm); padding: var(--isl-button-padding); text-decoration: none; }
