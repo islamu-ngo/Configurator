@@ -22,6 +22,20 @@ internal static class ReleaseTestPaths
             RedirectStandardError = true
         };
         foreach (string argument in arguments) start.ArgumentList.Add(argument);
+        foreach (string key in start.Environment.Keys.ToArray())
+        {
+            string normalized = key.Replace('_', '-');
+            if (normalized.Contains("secret", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("password", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("token", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("credential", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("private-key", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("api-key", StringComparison.OrdinalIgnoreCase)
+                || normalized.Contains("connection-string", StringComparison.OrdinalIgnoreCase))
+            {
+                start.Environment.Remove(key);
+            }
+        }
         using var process = new Process { StartInfo = start };
         process.Start();
         Task<string> output = process.StandardOutput.ReadToEndAsync();

@@ -60,6 +60,10 @@ source directory is absent. Home, Open and Help remain available; local files an
 public publisher links use the same configuration workflow. The Store page
 explains when no catalogue is packaged.
 
+Each publication replaces the generated `<ConfiguratorOutputRoot>/browser/`
+directory, so keep your own files outside that package destination. Distribute
+the complete output, including its SDK-generated compressed asset sidecars.
+
 To include the optional reviewed public catalogue, pass its source explicitly:
 
 ```bash

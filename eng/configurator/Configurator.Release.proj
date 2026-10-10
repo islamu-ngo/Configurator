@@ -80,6 +80,7 @@
 
   <Target Name="PublishConfiguratorBrowser" DependsOnTargets="CheckConfiguratorRatchets">
     <!-- Native release properties must never leak into static WASM publication. -->
+    <RemoveDir Directories="$(ConfiguratorOutputRoot)/browser" />
     <MSBuild Projects="$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj" Targets="Restore;Publish"
       RemoveProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;PublishTrimmed;UseAppHost;EnableCompressionInSingleFile;IncludeNativeLibrariesForSelfExtract;DebugSymbols;DebugType"
       Properties="Configuration=$(Configuration);PublishDir=$(ConfiguratorOutputRoot)/browser/;RestoreLockedMode=true;DefinitionStoreSourceRoot=$(DefinitionStoreSourceRoot)" />

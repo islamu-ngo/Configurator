@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text.Json;
 using Configurator.Core.Definitions;
 using TUnit.Assertions;
@@ -81,8 +82,28 @@ public sealed class BrowserStorePackageTests
         }
         string[] published = Directory.GetFiles(Path.Combine(directory, "definition-store"), "*", SearchOption.AllDirectories)
             .Select(path => Path.GetRelativePath(Path.Combine(directory, "definition-store"), path).Replace('\\', '/')).ToArray();
+        foreach (string canonical in expectedFiles.ToArray())
+        {
+            byte[] canonicalBytes = await File.ReadAllBytesAsync(Path.Combine(directory, "definition-store", canonical));
+            foreach (string encoding in new[] { ".br", ".gz" })
+            {
+                string relative = canonical + encoding;
+                string compressedPath = Path.Combine(directory, "definition-store", relative);
+                if (!File.Exists(compressedPath)) continue;
+                await using FileStream compressed = File.OpenRead(compressedPath);
+                await using Stream decoded = encoding == ".br"
+                    ? new BrotliStream(compressed, CompressionMode.Decompress)
+                    : new GZipStream(compressed, CompressionMode.Decompress);
+                byte[] expanded = new byte[canonicalBytes.Length];
+                await decoded.ReadExactlyAsync(expanded);
+                await Assert.That(expanded.AsSpan().SequenceEqual(canonicalBytes)).IsTrue()
+                    .Because(relative + " must encode its admitted canonical asset exactly.");
+                await Assert.That(decoded.ReadByte()).IsEqualTo(-1);
+                expectedFiles.Add(relative);
+            }
+        }
         await Assert.That(expectedFiles.SetEquals(published)).IsTrue()
-            .Because("Published store contains only admitted canonical snapshots and their generated index.");
+            .Because("Published store contains only admitted canonical assets and their verified transport encodings.");
 
         async Task AssertAssetHash(string relative)
         {

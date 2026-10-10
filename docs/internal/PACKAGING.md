@@ -32,6 +32,12 @@ before restoring/publishing `Configurator.Browser`. Distribute its complete
 capability as native protected-save support. Supported native packaging RIDs and
 operator paths are listed in the [public guide](../public/packaging.md).
 
+Publication replaces the generated `<ConfiguratorOutputRoot>/browser/` directory
+before publishing, preventing retired assets from surviving a repeated package
+build. SDK-generated Brotli/gzip sidecars are transport encodings of public assets;
+the store package test requires each sidecar to decode to its exact canonical
+JSON bytes and rejects any other store file.
+
 Optional store inclusion is explicit through `DefinitionStoreSourceRoot` on
 `PublishConfiguratorBrowser`; the empty property never reads or requires `store/`.
 `PrepareDefinitionStoreAssets` in the Browser project invokes the native
