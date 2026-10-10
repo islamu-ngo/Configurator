@@ -31,7 +31,7 @@ public sealed class BrowserOfflineWorkflowTests
         using var context = BrowserFixture.Context();
         var component = context.Render<Catalogue>();
         await Assert.That(component.FindAll("h1")).Count().IsEqualTo(1);
-        await Assert.That(component.Find(".definition-list a").GetAttribute("href"))
+        await Assert.That(component.Find("a[href^='launch/']").GetAttribute("href"))
             .IsEqualTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
         await Assert.That(BrowserFixture.Definition.Fields.Any(field => field.Sensitivity == SetupFieldSensitivity.Secret)).IsTrue();
     }

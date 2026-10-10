@@ -38,13 +38,13 @@ public sealed class ExternalDefinitionConformanceTests
     }
 
     [Test]
-    public async Task NativeAndBrowserMetadataResolveToOneImmutableDefinition()
+    public async Task RepeatedCanonicalDeliveryResolvesToOneImmutableDefinition()
     {
         SetupDefinition native = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
-        SetupDefinition browser = SetupDefinitionCodec.ParseJson(Resource("EventPublicDefinition"));
-        var registry = new SetupDefinitionRegistry([native, browser]);
+        SetupDefinition redelivered = SetupDefinitionCodec.ParseJson(native.CanonicalBytes);
+        var registry = new SetupDefinitionRegistry([native, redelivered]);
 
-        await Assert.That(native.Digest).IsEqualTo(browser.Digest);
+        await Assert.That(native.Digest).IsEqualTo(redelivered.Digest);
         await Assert.That(registry.Definitions.Count).IsEqualTo(1);
         await Assert.That(registry.Resolve(native.FamilyId).Digest).IsEqualTo(native.Digest);
     }

@@ -2,9 +2,11 @@ namespace Configurator.Browser.Tests;
 
 using System.Text;
 using Bunit;
+using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 
 public sealed class BrowserTemplateReadLifecycleTests
 {
@@ -20,6 +22,30 @@ public sealed class BrowserTemplateReadLifecycleTests
         await component.InvokeAsync(() => input.UploadFiles(InputFileContent.CreateFromBinary("invalid"u8.ToArray(), "invalid.json", contentType: "application/json")));
         await Assert.That(ReferenceEquals(selected, component.FindComponent<InputFile>().Instance)).IsFalse();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+    }
+
+    [Test]
+    public async Task RevocationFencesPendingImportIntoLocallyCompiledDefinition()
+    {
+        using var context = BrowserFixture.Context();
+        var javascript = context.Services.GetRequiredService<IJSRuntime>();
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(new BrowserDefinitionRegistry([]), javascript, policy);
+        using var input = new MemoryStream(Encoding.UTF8.GetBytes(BrowserDefinitionSourceTests.AuthoringJson));
+        SetupDefinition definition = await source.ReadLocalAsync(input);
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        component.Find("#secret-consent").Change(true);
+        using var older = new GatedReadStream("""{"HOST":"example.test","settings":{"secret":"synthetic-local-import-secret"}}"""u8.ToArray());
+        Task pending = component.InvokeAsync(() => component.Instance.LoadAsync(older));
+        await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try { component.Find("#secret-consent").Change(false); }
+        finally { older.Release.TrySetResult(); }
+        await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.Snapshot().Values).IsEmpty();
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+        await Assert.That(component.Markup).DoesNotContain("synthetic-local-import-secret");
+        await Assert.That(older.CapturedBuffer.ToArray().All(value => value == 0)).IsTrue();
     }
 
     [Test]
@@ -50,7 +76,7 @@ public sealed class BrowserTemplateReadLifecycleTests
     [Test]
     public async Task NavigationFencesPendingRead()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var navigation = context.Services.GetRequiredService<NavigationManager>();
         navigation.NavigateTo($"/launch/{BrowserFixture.Family}");
         var app = context.Render<App>();

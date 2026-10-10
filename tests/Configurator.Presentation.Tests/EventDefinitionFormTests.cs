@@ -11,8 +11,8 @@ public sealed class EventDefinitionFormTests
     {
         using var form = new DefinitionFormModel(await Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
         form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"));
-        form.SetValue(["configuration-manifest.f0000"], JsonSerializer.SerializeToElement("qa-config"));
-        form.SetValue(["configuration-manifest.f0001", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
+        form.SetValue(["configuration-manifest.metadata.name"], JsonSerializer.SerializeToElement("qa-config"));
+        form.SetValue(["configuration-manifest.spec.instance.settings", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
         await Assert.That(form.AddListItem(["configuration-manifest.tenants"])).IsTrue();
         form.SetValue(["configuration-manifest.tenants", "0", "metadata", "name"], JsonSerializer.SerializeToElement("tenant-one"));
         form.SetValue(["configuration-manifest.tenants", "0", "spec", "displayName"], JsonSerializer.SerializeToElement("Tenant One"));
@@ -49,17 +49,17 @@ public sealed class EventDefinitionFormTests
     {
         using var form = new DefinitionFormModel(await Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
         form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"));
-        await Assert.That(form.SupplyObject(["configuration-manifest.f0001"])).IsTrue();
-        await Assert.That(form.Snapshot().Values["configuration-manifest.f0001"].EnumerateObject().Count()).IsEqualTo(0);
+        await Assert.That(form.SupplyObject(["configuration-manifest.spec.instance.settings"])).IsTrue();
+        await Assert.That(form.Snapshot().Values["configuration-manifest.spec.instance.settings"].EnumerateObject().Count()).IsEqualTo(0);
         await Assert.That(form.Validate().IsReady).IsFalse();
-        await Assert.That(form.Validate().Diagnostics.Any(diagnostic => diagnostic.FieldId == "configuration-manifest.f0000" && diagnostic.Code == "value-required")).IsTrue();
-        form.SetValue(["configuration-manifest.f0001", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
-        await Assert.That(form.SupplyObject(["configuration-manifest.f0001"])).IsTrue();
-        await Assert.That(form.Snapshot().Values["configuration-manifest.f0001"].GetProperty("modules.tech_enabled").GetBoolean()).IsTrue();
+        await Assert.That(form.Validate().Diagnostics.Any(diagnostic => diagnostic.FieldId == "configuration-manifest.metadata.name" && diagnostic.Code == "value-required")).IsTrue();
+        form.SetValue(["configuration-manifest.spec.instance.settings", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
+        await Assert.That(form.SupplyObject(["configuration-manifest.spec.instance.settings"])).IsTrue();
+        await Assert.That(form.Snapshot().Values["configuration-manifest.spec.instance.settings"].GetProperty("modules.tech_enabled").GetBoolean()).IsTrue();
     }
 
     private static async Task<SetupDefinition> Definition() => SetupDefinitionCodec.ParseJson(
-        await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "setup-definition.json")));
+        await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json")));
 
     private static async Task<ReadOnlyMemory<byte>> ReadArtifact(CancellationToken token) =>
         await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "configuration-manifest-1-tenants.json"), token);

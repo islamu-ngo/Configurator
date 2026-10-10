@@ -311,7 +311,8 @@ internal static class SetupCoreAssemblyVerifier
     internal static string[] VerifyOfflinePortabilityClosure(Assembly assembly)
     {
         Type[] types = assembly.GetExportedTypes().Where(type =>
-            type.Namespace is "Configurator.Core.Definitions" or "Configurator.Core.Artifacts").ToArray();
+            type.Namespace is "Configurator.Core.Definitions" or "Configurator.Core.Definitions.Authoring"
+                or "Configurator.Core.Artifacts").ToArray();
         string[] forbiddenCapabilities =
         [
             "EnvironmentValue", "Credential", "DeploymentCoordinate", "LiveAuthority",
@@ -365,7 +366,8 @@ internal static class SetupCoreAssemblyVerifier
                 && type.Namespace != "Configurator.Core"
                 && !isEnvironmentContract
                 && !isCompositionContract
-                && type.Namespace is not "Configurator.Core.Definitions" and not "Configurator.Core.Artifacts")
+                && type.Namespace is not "Configurator.Core.Definitions" and not "Configurator.Core.Definitions.Authoring"
+                    and not "Configurator.Core.Artifacts")
                 failures.Add($"forbidden public namespace {type.FullName}");
 
             foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
@@ -382,7 +384,8 @@ internal static class SetupCoreAssemblyVerifier
 
             foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                if (type == typeof(Configurator.Core.Definitions.SetupDefinitionException)
+                if ((type == typeof(Configurator.Core.Definitions.SetupDefinitionException)
+                        || type == typeof(Configurator.Core.Definitions.Authoring.DefinitionSchemaImportException))
                     && property.DeclaringType == typeof(Exception)) continue;
                 if (isPublicContract && IsMutableCollection(property.PropertyType))
                     failures.Add($"mutable collection {type.FullName}.{property.Name}");
@@ -623,6 +626,10 @@ internal static class SetupCoreAssemblyVerifier
 
     private static bool IsApprovedAmbientCall(Type caller, MethodBase called, Assembly reviewedAssembly)
     {
+        if (IsReviewedAssembly(caller.Assembly, reviewedAssembly)
+            && caller == typeof(Configurator.Core.Definitions.Authoring.DefinitionAuthoringIdentityEditor)
+            && called.DeclaringType == typeof(StringReader))
+            return true;
         string calledNamespace = called.DeclaringType?.Namespace ?? string.Empty;
         if (IsReviewedAssembly(caller.Assembly, reviewedAssembly)
             && caller.Namespace == CompositionNamespace

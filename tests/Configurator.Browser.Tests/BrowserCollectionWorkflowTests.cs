@@ -13,7 +13,7 @@ public sealed class BrowserCollectionWorkflowTests
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         definition["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"tenants","type":"list","title":"Tenants","sensitivity":"public","disclosure":"guided","itemType":"object","maxItems":3,
+            {"id":"tenants","type":"list","title":"Tenants","group":"Rows","sensitivity":"public","disclosure":"guided","itemType":"object","maxItems":3,
              "uniqueBy":["name"],"properties":[
               {"id":"name","type":"string","title":"Tenant name","sensitivity":"public","disclosure":"guided","required":true}]}
             """));
@@ -21,6 +21,7 @@ public sealed class BrowserCollectionWorkflowTests
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         component.Find("#choice-hostname").Input("example.test");
+        component.Find("[data-section='Rows']").Click();
         string[] names = ["alpha", "beta", "alpha"];
         for (int index = 0; index < names.Length; index++)
         {
@@ -38,7 +39,7 @@ public sealed class BrowserCollectionWorkflowTests
         {
             var control = component.Find(selector);
             await Assert.That(control.GetAttribute("aria-invalid")).IsEqualTo("true");
-            string errorId = control.GetAttribute("aria-describedby")!.Split(' ')[^1];
+            string errorId = control.GetAttribute("aria-describedby")!.Split(' ').Single(id => id.EndsWith("-error", StringComparison.Ordinal));
             await Assert.That(component.Find("#" + errorId).TextContent).Contains("value-duplicate");
         }
         for (int index = 0; index < 2; index++)
@@ -47,6 +48,11 @@ public sealed class BrowserCollectionWorkflowTests
             await Assert.That(component.Find($"[data-field='tenants.{index}.name'] input").GetAttribute("aria-invalid")).IsEqualTo("false");
         }
         await Assert.That(component.FindAll(".configuration-output")).IsEmpty();
+        component.Find("[data-section='Other']").Click();
+        await Assert.That(component.Find("[data-section-panel='Rows']").HasAttribute("hidden")).IsTrue();
+        component.Find("[data-correction='tenants/2']").Click();
+        await Assert.That(component.Find("[data-section-panel='Rows']").HasAttribute("hidden")).IsFalse();
+        await Assert.That(component.Find("[data-field='tenants.2.name'] input").GetAttribute("value")).IsEqualTo("alpha");
     }
 
     [Test]
@@ -103,7 +109,8 @@ public sealed class BrowserCollectionWorkflowTests
         component.Find("#choice-rate").Input("1.25");
         component.Find("[data-field='tags'] > fieldset > button[data-action='add-item']").Click();
         component.Find("[data-field='tags.0'] input").Input("blue");
-        component.Find("[data-field='settings.enabled'] select").Change("false");
+        await Assert.That(component.Find("[data-field='settings.enabled'] input").GetAttribute("type")).IsEqualTo("password");
+        component.Find("[data-field='settings.enabled'] input").Input("false");
         var values = component.FindComponents<ConfigurationField>()[0].Instance.Form.Snapshot().Values;
         await Assert.That(values["count"].GetInt64()).IsEqualTo(7);
         await Assert.That(values["rate"].GetDecimal()).IsEqualTo(1.25m);

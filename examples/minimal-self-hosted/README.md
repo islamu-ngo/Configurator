@@ -10,6 +10,13 @@ The [offline quickstart](../../docs/public/getting-started.md) runs this
 definition through the CLI and saves a `.env` file plus JSON and YAML manifests
 on a protected Linux path. No target service is included or started.
 
+[`configurator.yaml`](configurator.yaml) is the compact maintainer source for the
+next sample revision. It preserves the same target keys and output formats while
+the compiler derives runtime field metadata and projections. Build it through
+`definition check` and `definition build`; revision 3 is distinct from the checked
+expanded revision 2 because generated array ordering participates in canonical
+identity. See the [integration guide](../../docs/public/integrate-your-tool.md).
+
 | Input or expected output | Path |
 | --- | --- |
 | Definition | [`setup-definition.json`](setup-definition.json) |

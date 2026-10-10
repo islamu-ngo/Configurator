@@ -104,9 +104,9 @@ public static class SetupDefinitionCodec
         {
             if (!artifactIds.Add(Identifier(artifact.GetProperty("id"))))
                 throw new SetupDefinitionException("artifact-duplicate");
-            Choice(artifact, "format", "dotenv", "json", "yaml", "markdown");
-            Choice(artifact, "applySemantics", "create", "merge", "replace", "import", "reconcile", "generationOnly");
-            Choice(artifact, "restart", "none", "process", "deployment");
+            Choice(artifact, "format", DefinitionVocabulary.Formats);
+            Choice(artifact, "applySemantics", DefinitionVocabulary.ApplySemantics);
+            Choice(artifact, "restart", DefinitionVocabulary.Restarts);
             string fileName = Text(artifact.GetProperty("fileName"), 128);
             string stem = fileName.Split('.')[0];
             if (fileName is "." or ".." || fileName[^1] is '.' or ' '
@@ -120,17 +120,18 @@ public static class SetupDefinitionCodec
         }
     }
 
-    private static void ValidateField(JsonElement field, bool nested)
+    private static void ValidateField(JsonElement field, bool nested, bool publicAncestors = true)
     {
         Identifier(field.GetProperty("id"));
         Text(field.GetProperty("title"), 256);
-        Choice(field, "type", "string", "boolean", "integer", "number", "enum", "list", "object");
-        Choice(field, "sensitivity", "public", "sensitive", "secret");
-        Choice(field, "disclosure", "essential", "guided", "advanced");
+        Choice(field, "type", DefinitionVocabulary.FieldTypes);
+        Choice(field, "sensitivity", DefinitionVocabulary.Sensitivities);
+        bool publicContext = publicAncestors && field.GetProperty("sensitivity").GetString() == "public";
+        Choice(field, "disclosure", DefinitionVocabulary.Disclosures);
         foreach (string name in new[] { "help", "group", "format", "consequence" })
             if (field.TryGetProperty(name, out var text)) Text(text, name == "help" ? 4096 : 256);
         if (field.TryGetProperty("validator", out _))
-            Choice(field, "validator", "none", "hostname", "absolute-uri", "email-address", "port-number", "positive-integer");
+            Choice(field, "validator", DefinitionVocabulary.Validators);
         foreach ((string low, string high) in new[]
             { ("minLength", "maxLength"), ("minItems", "maxItems"), ("minimum", "maximum") })
         {
@@ -158,7 +159,7 @@ public static class SetupDefinitionCodec
                 throw new SetupDefinitionException("choices-invalid");
         }
         else if (field.TryGetProperty("choices", out _)) throw new SetupDefinitionException("constraint-invalid");
-        if (type == "list") Choice(field, "itemType", "string", "boolean", "integer", "number", "object");
+        if (type == "list") Choice(field, "itemType", DefinitionVocabulary.ItemTypes);
         else if (field.TryGetProperty("itemType", out _)) throw new SetupDefinitionException("constraint-invalid");
         bool objectList = type == "list" && field.GetProperty("itemType").GetString() == "object";
         if (type == "object" || objectList)
@@ -170,7 +171,7 @@ public static class SetupDefinitionCodec
             {
                 if (!ids.Add(Identifier(property.GetProperty("id"))))
                     throw new SetupDefinitionException("field-duplicate");
-                ValidateField(property, nested: true);
+                ValidateField(property, nested: true, publicAncestors: publicContext);
             }
         }
         else if (field.TryGetProperty("properties", out _)) throw new SetupDefinitionException("constraint-invalid");
@@ -200,7 +201,7 @@ public static class SetupDefinitionCodec
         foreach (string name in new[] { "default", "recommended" })
         {
             if (!field.TryGetProperty(name, out var value)) continue;
-            if (field.GetProperty("sensitivity").GetString() != "public"
+            if (!publicContext
                 || !DefinitionValidator.ValueValid(field, value)
                 || HasProtectedProperty(field))
                 throw new SetupDefinitionException("default-invalid");

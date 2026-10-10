@@ -19,9 +19,10 @@ public sealed class BrowserEventManifestWorkflowTests
         module.Setup<bool>("copy", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("#choice-operation").Change("configuration-manifest");
-        component.Find("#choice-configuration-manifest\\.f0000").Input("qa-config");
-        component.Find("[data-field='configuration-manifest.f0001'] > fieldset > button").Click();
-        component.Find("[data-field='configuration-manifest.f0001.modules.tech_enabled'] select").Change("true");
+        component.Find("[data-field='configuration-manifest.metadata.name'] input").Input("qa-config");
+        component.Find("[data-field='configuration-manifest.spec.instance.settings'] > fieldset > button").Click();
+        await Assert.That(component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").GetAttribute("type")).IsEqualTo("password");
+        component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").Input("true");
         var tenants = new JsonArray();
         if (count == 0) component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='supply-list']").Click();
         for (int index = 0; index < count; index++)
