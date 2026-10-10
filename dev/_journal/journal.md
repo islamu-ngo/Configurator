@@ -10,7 +10,7 @@ Use [README.md](README.md), [FINDING_TEMPLATE.md](FINDING_TEMPLATE.md) and [PROM
 
 Append observed target findings chronologically using the template.
 
-- 2026-10-10 — [Inherited privacy, expansion budgets and schema reference scope](domains/definition-authoring.md).
+- 2026-10-10 — [Inherited privacy, expansion budgets, schema reference scope, lineage and published closure](domains/definition-authoring.md).
 
 - 2026-10-09 — [Browser cache capabilities and download filename custody](domains/presentation-and-clients.md).
 

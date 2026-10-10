@@ -82,3 +82,24 @@ Last Updated: 2026-10-10 Europe/Brussels
 - `tests/Configurator.Cli.Tests/SetupCliDefinitionTests.cs`
 
 **Promotion Consideration**: Keep as lineage regression rationale; canonical family/revision identity is already a critical invariant.
+
+[2026-10-10 Europe/Brussels] — Published inventories distinguish stale files from transport encodings
+
+**Context**: The maintainer workstream verified actual Browser packages with and without the optional store.
+
+**Symptom / Observation**: The first package suite found a removed stylesheet outside the worker inventory and rejected Brotli/gzip store sidecars. Thirty-nine cases passed and two failed; the final corrected suite passed all forty-one.
+
+**Root Cause**: Publishing into an existing destination preserved retired files. Separately, the store test treated SDK transport encodings as additional logical snapshots rather than encoded representations of canonical JSON.
+
+**Resolution**: Replace the generated Browser destination before publication. Keep the store's closed-file inventory, admitting only canonical files and recognized sidecars that independently decode to exactly those bytes with no trailing data. Both clean Browser publications and the final package owner passed; Operations records exact commands and evidence.
+
+**Why This Matters for Future Work**: A successful incremental publish does not prove package closure. Unknown stale files must fail; legitimate transport representations must prove equivalence rather than being silently excluded from inspection.
+
+**References**:
+
+- `eng/configurator/Configurator.Release.proj`
+- `tests/Configurator.Architecture.Tests/BrowserStorePackageTests.cs`
+- `docs/internal/PACKAGING.md`
+- `docs/internal/OPERATIONS.md`
+
+**Promotion Consideration**: The package destination and sidecar policy are documented in Packaging; retain this entry as the failure mechanism and regression rationale.

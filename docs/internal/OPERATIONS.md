@@ -357,7 +357,11 @@ describes the delivered source/compiler/CLI flow; the
 | Event ordinary source/host owner |16 passed,0 failed,0 skipped with compiler environment variables absent; exporter build zero warnings/errors | Event technical export anchor |
 | Event explicit pinned compiler owner |11 passed,0 failed,0 skipped; final CLI write/check and source-only check exit0;361 environment definitions current | Event technical export anchor |
 | Final Terminal Linux-x64 publication | Exit0; retained notices for26 dependency packages | `.tmp/maintainer-terminal-final-publish.log` |
+| Final Desktop Linux-x64 publication | Exit0; retained notices for29 dependency packages | `.tmp/maintainer-desktop-final-publish.log` |
 | Published Browser custody and updates | Actual Chromium153 Linux scenarios passed with the bounded export recovery described below | `.tmp/maintainer-platform/qa-evidence.md` |
+| Clean Browser republications | Both exit0; retired stylesheet/sidecars removed; four retained store revisions and36 dependency notices | `.tmp/maintainer-browser-clean-publish.log`, `.tmp/maintainer-browser-store-clean-publish.log` |
+| Final architecture/package owner |41 passed,0 failed,0 skipped,6.689s; actual CLI/Terminal/Desktop Linux packages and both Browser variants | `.tmp/maintainer-architecture-package-closure.log` |
+| Package regression owner build and format | Normal Release build zero warnings/errors; exact-path whitespace verification exit0 | `.tmp/maintainer-package-fix-build.log`, `.tmp/maintainer-package-fix-format.log` |
 
 The accepted owner commands were physically run against the normal solution
 build, without analyzer suppression:
@@ -385,8 +389,9 @@ with schema resource keywords. Native store history retains neutral2 and Event5
 bytes; current sources compile into neutral3 and Event6 instead of reusing their
 identities.
 
-Desktop publication and the final architecture/package suite remain in progress.
-Unit tests and publication alone do not prove browser platform scenarios.
+Source and package owners total497 passing Configurator cases, with no failed or
+skipped cases in their accepted runs. Unit tests and publication alone do not
+prove browser platform scenarios.
 Tavily and Context7 were unavailable; official-source
 Firecrawl research was the disclosed fallback. No remote CI, other-host,
 stakeholder, future-agent, legal or scholarly certification is implied.
@@ -436,6 +441,48 @@ proves export without reaching its host; it does not prove physical disconnectio
 of every network. Offline boot/edit/draft/copy were separately observed under
 simulated disconnection. Other engines, assistive technology and native browser
 zoom remain unqualified; browser exports carry no native protected-save promise.
+
+The first full architecture/package run executed41 cases:39 passed,2 failed,
+none skipped. A removed stylesheet remained in a reused Browser publish directory;
+`PublishConfiguratorBrowser` now replaces its generated destination before
+publication. The store inventory test also rejected standard SDK Brotli/gzip
+sidecars; its closed-file assertion now verifies that each transport encoding
+decodes to exactly its admitted canonical bytes, including end-of-stream.
+The normal Architecture owner rebuild passed with zero warnings/errors (2.67s),
+and the exact store transport case passed1/1 before republishing the Browser
+variants. The final full package run passed41/41, zero failures/skips; the initial
+failure is retained in `.tmp/maintainer-architecture-final-tests.log`.
+
+The final package command was:
+
+```bash
+dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --no-build --no-restore --verbosity quiet -- --minimum-expected-tests 41 --no-progress
+```
+
+All three native Linux payloads were physically published with
+`dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator
+-p:ConfiguratorSurface=<cli|terminal|desktop> -p:ConfiguratorRid=linux-x64
+-p:UseSharedCompilation=false`, one surface per command. Both Browser variants
+were republished through `PublishConfiguratorBrowser`, passing an empty
+`DefinitionStoreSourceRoot` for the store-free package and the explicit local
+`store/` root plus `ConfiguratorOutputRoot=artifacts/configurator-with-store` for
+the store-enabled package. Final worker-manifest SHA-256 values are
+`63dfce4aa1a2e7bd18eb545c7594a6b11bc6443a8d4529fca7ca38388f4daf51`
+and `3896d753e850330f44495cf4f331c12a078e7ba64074f6f0acb49bcfb3bfb3dd`,
+respectively. Earlier platform evidence retains its original package identities;
+fresh package confirmation is appended to that evidence rather than relabeling it.
+
+The final clean-package confirmation passed against both manifest identities:
+fresh local YAML admission and exact204-byte complete clipboard output, default
+consent off, three masked secret inputs, and complete revocation clearing.
+Active/final scans of82/83 cache responses found no answer sentinels; storage and
+IndexedDB remained empty. Two active old tabs retained separate values and Core
+assets while the new worker waited. A cleared tab booted/reopened offline with
+empty answers while the other tab kept the update waiting; after both closed,
+the new Store activated, discarded the old app cache and booted offline.
+Earlier download, keyboard, invalid-source, navigation and connection-guard
+observations retain their original package hashes and were not redundantly rerun.
+Owned host/tabs were closed, online mode restored and synthetic clipboard cleared.
 
 ## Full Project Test List
 
