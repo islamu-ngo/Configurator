@@ -13,6 +13,17 @@ internal sealed record SetupCliCommand(
     internal string? RevisionField { get; init; }
     internal string? Answers { get; init; }
     internal string? Artifacts { get; init; }
+    internal string? Source { get; init; }
+    internal string? Root { get; init; }
+    internal string? Against { get; init; }
+    internal string? IdMap { get; init; }
+    internal string? ProjectId { get; init; }
+    internal string? ProjectName { get; init; }
+    internal string? ApplicationVersion { get; init; }
+    internal string? ForkFrom { get; init; }
+    internal string? FromEnvExample { get; init; }
+    internal string? FromSchema { get; init; }
+    internal bool AcceptBoundedSemantics { get; init; }
 }
 
 internal sealed record SetupCliCommandResult(

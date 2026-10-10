@@ -11,7 +11,8 @@ internal static class SetupCliContractSpecification
                 ["catalogue"] = new HashSet<string>(["list", "show", "describe"], StringComparer.Ordinal),
                 ["artifact"] = new HashSet<string>(["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "prefill", "bundle-check", "bundle-create", "preview"], StringComparer.Ordinal),
                 ["env"] = new HashSet<string>(["render", "validate"], StringComparer.Ordinal),
-                ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal)
+                ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal),
+                ["definition"] = new HashSet<string>(["init", "check", "build", "revise"], StringComparer.Ordinal)
             });
 
     internal static readonly IReadOnlyDictionary<string, int> ExitCodes =

@@ -18,7 +18,9 @@ internal static partial class SetupCliMachineContractVerifier
         ["$.readiness"] = ["state", "missingKeys", "blockedKeys"]
     };
 
-    private static readonly Dictionary<string, string[]> Allowed = Required;
+    private static readonly Dictionary<string, string[]> Allowed = Required.ToDictionary(
+        item => item.Key, item => item.Key == "$" ? [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion"] : item.Value,
+        StringComparer.Ordinal);
     private static readonly string[] ForbiddenPublicNames =
     [
         "secret", "value", "message", "body", "content", "token", "password", "credential",
@@ -97,6 +99,12 @@ internal static partial class SetupCliMachineContractVerifier
         ValidateObject(root, "$", errors);
         ValidateInvocation(root["invocation"] as JsonObject, errors);
         ValidateStatus(root, errors);
+        bool compilerHandshake = root["invocation"]?["commandFamily"]?.GetValue<string>() == "definition"
+            && root["invocation"]?["operation"]?.GetValue<string>() is "check" or "build"
+            && root["exitCode"]?.GetValue<int>() == 0;
+        if (compilerHandshake ? root["authoringContractVersion"]?.GetValue<int>() != 1 || root["runtimeSchemaVersion"]?.GetValue<int>() != 1
+            : root.ContainsKey("authoringContractVersion") || root.ContainsKey("runtimeSchemaVersion"))
+            errors.Add("machine-compiler-handshake");
         ValidateDiagnostics(root["diagnostics"] as JsonArray, errors);
         ValidateArtifacts(root["artifacts"] as JsonArray, errors);
         ValidateCoverage(root["coverage"] as JsonObject, "$.coverage", errors);

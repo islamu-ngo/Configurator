@@ -13,11 +13,13 @@ public sealed class SetupCliContractTests
         JsonObject schema = SetupCliMachineContractVerifier.ParseSchema(first);
         await Assert.That(SetupCliMachineContractVerifier.InspectSchema(schema)).IsEmpty();
         await Assert.That(schema["_metadata"]!["commands"]!.AsArray().Select(node => node!["name"]!.GetValue<string>()))
-            .IsEquivalentTo(["catalogue", "env", "artifact", "doctor"]);
+            .IsEquivalentTo(["catalogue", "env", "artifact", "doctor", "definition"]);
         await Assert.That(schema["_metadata"]!["commandOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--help", "--machine", "--text", "--dry-run", "--input", "--baseline",
                 "--output", "--key", "--definition", "--artifact", "--format", "--expected-revision",
-                "--revision-field", "--input-revision", "--answers", "--artifacts"]);
+                "--revision-field", "--input-revision", "--answers", "--artifacts", "--source", "--root", "--against",
+                "--id-map", "--project-id", "--name", "--application-version", "--fork-from", "--from-env-example",
+                "--from-schema", "--accept-bounded-semantics"]);
         await Assert.That(schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()))
             .IsEquivalentTo([0, 2, 3, 4, 64, 65, 70, 74]);
     }

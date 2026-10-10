@@ -11,8 +11,9 @@ dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \
   --input answers.json --output service.json --machine
 ```
 
-Definitions use the flat `schemaVersion: 1` contract. `.yaml` and `.yml` definition
-files use the bounded YAML admission path; other extensions use JSON.
+Definitions accept the compact [maintainer source](integrate-your-tool.md) with
+`$schema: urn:islamu:configurator:authoring:v1` or compiled `schemaVersion: 1`
+runtime data. `.yaml` and `.yml` files use bounded YAML; other extensions use JSON.
 Answers are a JSON object whose property names are definition field IDs, for
 example `{"service.name":"my-service"}`. Answers are never command-line values.
 For ordinary artifact operations, the input is an answer workspace. Generic
@@ -62,6 +63,11 @@ exclusive. Every value option occurs at most once. Commands are case sensitive.
 | `artifact bundle-create` | `--definition PATH`, `--artifacts IDS`, `--input PATH`, `--output DIRECTORY` | `--input-revision NUMBER`, `--dry-run` |
 | `artifact preview` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `doctor` | none | none |
+| `definition init` | `--project-id ID`, `--name NAME`, `--application-version VERSION` | `--root DIRECTORY`, `--output PATH`, `--format yaml\|json`, `--from-env-example PATH`, `--from-schema PATH`, `--accept-bounded-semantics` |
+| `definition init` (fork) | `--fork-from PATH`, `--output PATH` | `--format yaml\|json` (must match source) |
+| `definition check` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH` |
+| `definition build` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH`, `--output PATH`, `--id-map PATH` |
+| `definition revise` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH` |
 
 `--dry-run` replaces the output requirement. It validates and composes but
 publishes no file. `--input-revision` is a nonnegative Int64 workspace revision
@@ -70,6 +76,52 @@ publishes no file. `--input-revision` is a nonnegative Int64 workspace revision
 `yaml`, `dotenv`, `markdown`; it cannot override a projection's format.
 Select another declared artifact ID for another format. `env` requires an
 artifact declared as `dotenv`.
+
+### Maintainer definitions
+
+`definition init` creates a public YAML source by default, generates its family
+identity once and starts revision 1. JSON offers the same capabilities. The exact
+target application version is mandatory; it is independent of the definition
+revision. An empty source is a starting point: add the application's real fields
+and outputs before distributing it. `--from-env-example` reads only declared keys
+into string fields, with conservative sensitivity and no copied defaults or values.
+Review types, privacy and output behavior. `--from-schema` uses the
+[bounded schema importer](integrate-your-tool.md#reuse-a-public-json-schema).
+
+Without `--source`, check/build/revise discover exactly one `configurator.yaml`,
+`configurator.yml` or `configurator.json` in `--root` (default current directory).
+Multiple candidates reject. Explicit `--source` selects that file alone. Check is
+read-only and compilation does not allocate identities. Build creates canonical
+public JSON at `dist/configurator/revisions/<revision>.json` relative to the source
+directory, or `--output`; identical existing bytes are accepted, conflicting bytes
+reject. Generated output cannot replace a source or use a discovery filename.
+`--id-map` optionally creates a public logical-field-key to runtime-ID map.
+
+```bash
+islamu-configurator definition init --project-id example.service \
+  --name "Example Service" --application-version 1.0.0 --machine
+islamu-configurator definition check --machine
+islamu-configurator definition build --machine
+```
+
+Once a canonical revision exists at the default anchor, check and build reject
+changed content under that revision. After editing the source, `definition revise`
+compares with that anchor or `--against` and increments once only if canonical
+content changed. The anchor must have the same family and current revision;
+missing/mismatched anchors and overflow reject. Revision changes preserve source
+comments, Unicode, BOM and line endings. Build remains a separate operation.
+For a separately located release, use `check --against PATH` or `build --against PATH`
+to bind that explicit anchor; an explicitly named missing anchor rejects.
+An explicit anchor cannot replace conflicting history already present at the
+default recorded revision path, including during `revise`.
+`init --fork-from source.yaml --output fork/configurator.yaml` explicitly creates
+a new family at revision 1 and leaves the original unchanged.
+
+Source edits use a create-only sibling `.configurator.lock`, a same-directory
+temporary file and an immediate original-digest check before replacement. Existing
+locks, symlinks and changed originals reject; stale locks are never automatically
+removed. External editors can still race the final replacement window. These are
+public source operations, separate from the protected answer writer below.
 
 `open` admits an answer workspace and prepares its selected projection without
 publishing. `validate` checks field rules and whether the projection can be
@@ -143,7 +195,7 @@ or a host application.
 `--definition` must be a local file, never stdin or a URL fetch. `--input -`,
 `--baseline -` and `--answers -` explicitly read stdin; only one may consume stdin
 in an invocation.
-Output is create-only. On Linux, native publication proves owner-only file
+Answer output is create-only. On Linux, native publication proves owner-only file
 protection; unsupported platforms or unsafe targets fail closed. There is no
 plain file fallback. An existing output remains unchanged.
 
@@ -169,7 +221,13 @@ operation, mode), `status`, `exitCategory`, `exitCode`, `dryRun`, `diagnostics`,
 `artifacts`, `coverage`, `readiness`. Diagnostic objects contain code/path/severity.
 Artifact objects contain kind/mediaType/digest/sensitivity/coverage/readiness/
 pathIntent/writeStatus. No artifact body is included. Kinds are `catalogue`,
-`definition-artifact`, `answer-snapshot`, `doctor-report`; sensitivities are `public`, `restricted`.
+`definition-artifact`, `answer-snapshot`, `doctor-report`, `authoring-source`,
+`compiled-definition`, `logical-id-map`; sensitivities are `public`, `restricted`.
+Successful `definition check` and `definition build` additionally report
+`authoringContractVersion: 1` and `runtimeSchemaVersion: 1`. A downstream compiler
+handoff must verify those versions, the envelope version, successful exit and the
+compiled file's digest before installation. The chosen output path is supplied by
+the caller and is not echoed in the machine envelope.
 Bundle results use one `definition-artifact` entry per selected output, each
 with a value-free `writeStatus`. A successful local check does not claim the
 target application accepted the configuration.

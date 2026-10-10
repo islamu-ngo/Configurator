@@ -143,6 +143,10 @@ public sealed record SetupCliMachineEnvelope
     public IReadOnlyList<SetupCliMachineArtifact> Artifacts => Array.AsReadOnly((SetupCliMachineArtifact[])_artifacts.Clone());
     public SetupCliMachineCoverage Coverage { get; }
     public SetupCliMachineReadiness Readiness { get; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? AuthoringContractVersion { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RuntimeSchemaVersion { get; init; }
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

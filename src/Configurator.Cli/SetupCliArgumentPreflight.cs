@@ -58,7 +58,7 @@ internal static class SetupCliArgumentPreflight
         var values = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         bool help = false;
         string? error = ParseTokens(args, optionStart, options, spectreArguments, values, ref help);
-        error ??= ValidateConstraints(options, values, help, ref machine);
+        error ??= ValidateConstraints(options, values, help, ref machine, family == "definition");
 
         bool dryRun = values.ContainsKey("--dry-run");
         var command = new SetupCliCommand(
@@ -148,13 +148,15 @@ internal static class SetupCliArgumentPreflight
     }
 
     private static bool IsPathOption(string token) =>
-        token is InputOption or BaselineOption or OutputOption or "--definition" or "--answers";
+        token is InputOption or BaselineOption or OutputOption or "--definition" or "--answers"
+            or "--source" or "--root" or "--against" or "--id-map" or "--fork-from" or "--from-schema" or "--from-env-example";
 
     private static string? ValidateConstraints(
         Dictionary<string, SetupCliOptionDescriptor> options,
         Dictionary<string, List<string>> values,
         bool help,
-        ref bool machine)
+        ref bool machine,
+        bool definition)
     {
         bool dryRun = values.ContainsKey("--dry-run");
         machine |= values.ContainsKey(MachineOption);
@@ -162,7 +164,7 @@ internal static class SetupCliArgumentPreflight
         if (machine && text)
             return "mode-conflict";
 
-        string? requiredError = CheckRequired(options, values, help, dryRun);
+        string? requiredError = definition ? null : CheckRequired(options, values, help, dryRun);
         if (requiredError is not null)
             return requiredError;
 

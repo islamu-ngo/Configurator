@@ -29,7 +29,11 @@ internal static class SetupCliMachineOutput
         string category = SetupCliResults.Lower(result.Exit);
         var envelope = new SetupCliMachineEnvelope("islamu-configurator-command/v1",
             new SetupCliMachineInvocation(family, operation, "machine"), category, category, (int)result.Exit,
-            command.DryRun, result.Diagnostics, result.Artifacts, result.Coverage, result.Readiness);
+            command.DryRun, result.Diagnostics, result.Artifacts, result.Coverage, result.Readiness)
+        {
+            AuthoringContractVersion = family == "definition" && (operation is "check" or "build") && result.Exit == SetupCliExitCode.Success ? 1 : null,
+            RuntimeSchemaVersion = family == "definition" && (operation is "check" or "build") && result.Exit == SetupCliExitCode.Success ? 1 : null
+        };
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(envelope, SetupCliJsonContext.Default.SetupCliMachineEnvelope);
         if (body.Length + 1 > maximumCharacters) throw new IOException("output-bound");
         byte[] framed = new byte[body.Length + 1];

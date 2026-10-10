@@ -345,7 +345,7 @@ internal static class SetupCliIoOperations
         try
         {
             return Path.GetExtension(path).ToLowerInvariant() is ".yaml" or ".yml"
-                ? SetupDefinitionCodec.ParseYaml(bytes) : SetupDefinitionCodec.ParseJson(bytes);
+                ? SetupDefinitionSourceCodec.ParseYaml(bytes) : SetupDefinitionSourceCodec.ParseJson(bytes);
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }

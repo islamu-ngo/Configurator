@@ -82,6 +82,7 @@ public sealed class SetupCliApplication
         {
             "catalogue" => SetupCliCatalogueEnvironmentHandlers.Catalogue(command, invocation),
             "artifact" or "env" => SetupCliArtifactHandlers.Execute(command, invocation),
+            "definition" => SetupCliDefinitionHandlers.Execute(command),
             "doctor" => SetupCliArtifactHandlers.Doctor(),
             _ => SetupCliResults.Failure(SetupCliExitCode.Usage, "command-unknown")
         };
