@@ -48,6 +48,7 @@ This guide explains **what kind of contributions are likely to be accepted** and
   - [3. Documentation & Translation Contributions](#3-documentation--translation-contributions)
   - [4. Code Contributions](#4-code-contributions)
 - [Required Testing Before Submitting](#required-testing-before-submitting)
+- [Public Definition Store Contributions](#public-definition-store-contributions)
 - [Submitting a Pull Request](#submitting-a-pull-request)
 - [FAQ](#faq)
 - [Development Guides & Resources](#development-guides--resources)
@@ -284,6 +285,30 @@ PR titles follow the identical conventional format:
 - `feat(artifacts): validate restricted output before native export`
 
 ---
+
+## Public Definition Store Contributions
+
+Anyone can propose an ordinary project folder in the optional
+[public definition store](store/README.md) through a pull request. No account,
+rating or install hook is required. Include bounded `project.json` metadata,
+the applicable definition license and versioned public JSON definitions. Keep
+the project slug equal to its folder name; the native builder derives family,
+revision, digest and application-version metadata from Core admission.
+
+Submit only public data you have permission to distribute. Do not include saved
+answers, real credentials, private defaults or private explanatory text. Review
+checks public suitability and distribution rights; store inclusion does not
+authenticate a publisher, certify application compatibility or confer host
+apply authority. Local files and independent public HTTPS definitions continue
+to work without store membership or availability.
+
+Before submitting, run the builder self-test, generate into `.tmp/definition-store`
+and check freshness using the commands in the [store guide](docs/public/definition-store.md).
+The schema is generated; never hand-edit it or generated index/snapshot output.
+If you change admitted content, update its owning source and definition revision
+rather than relabeling existing family/revision content. Maintainers review
+contributions under the same [licensing guidance](#contributor-legal-status--licensing)
+as other repository material.
 
 ## Required Testing Before Submitting
 

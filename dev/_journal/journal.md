@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-09 Europe/Brussels
+Last Updated: 2026-10-10 Europe/Brussels
 
 ## Index & Recent
 
@@ -9,6 +9,8 @@ Use [README.md](README.md), [FINDING_TEMPLATE.md](FINDING_TEMPLATE.md) and [PROM
 ## Durable Findings
 
 Append observed target findings chronologically using the template.
+
+- 2026-10-10 — [Inherited privacy, expansion budgets and schema reference scope](domains/definition-authoring.md).
 
 - 2026-10-09 — [Browser cache capabilities and download filename custody](domains/presentation-and-clients.md).
 
@@ -32,3 +34,24 @@ Append observed target findings chronologically using the template.
 
 **Promotion Consideration**:
 - [x] Stays in journal only (native control event-ordering lesson).
+
+[2026-10-10 Europe/Brussels] — Optional worker assets must not gate core readiness
+
+**Context**: While implementing the optional browser definition store, real published-browser verification used an Apache virtual host that denied every `definition-store/` path.
+
+**Symptom / Observation**: The complete published interface rendered, but every configuration control stayed disabled with `Offline app preparation is incomplete.` The same application worked when discovery files were available.
+
+**Root Cause**: Adding every store manifest entry to the worker's mandatory `cache.addAll` inventory coupled install success and workspace readiness to optional discovery. Browser component tests and package inventory checks verified separate owners but could not expose worker installation behavior.
+
+**Resolution**: `service-worker.published.js` gates installation/status on required UI/runtime URLs only. Exact manifest-listed store URLs are read deliberately before custody, checked against SDK integrity hashes and cached as public content. Reloading the denying host activated the worker, enabled the workspace and prepared three draft artifacts without a store request. Store discovery and the selected canonical revision also reopened through the cache with Playwright offline emulation.
+
+**Why This Matters for Future Work**: A file appearing in the SDK static-assets manifest does not make it a prerequisite for private work. Keep optional discovery failure out of core readiness, and test worker installation against actual unavailable assets in addition to component and package inventories.
+
+**References**:
+- `src/Configurator.Browser/wwwroot/service-worker.published.js:14`
+- `src/Configurator.Browser/wwwroot/pwa-lifecycle.js:131`
+- `docs/internal/adr/ADR-optional-definition-store.md`
+- `docs/internal/OPERATIONS.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only (optional asset installation lesson; boundary already documented in the ADR).

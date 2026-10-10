@@ -20,7 +20,7 @@ No Event hosted portal or publication activation is implied.
 | I am a... | Goal | Go To |
 |---|---|---|
 | Adopter | Prepare configuration offline | [Getting started](public/getting-started.md), then [CLI](public/cli.md), [Terminal](public/terminal.md), [Desktop](public/desktop.md) or [Browser](public/browser.md) |
-| Definition author | Supply bounded declarative input | [Definitions](public/definitions.md) |
+| Definition author | Author one YAML/JSON source and compile a public definition | [Integrate your tool](public/integrate-your-tool.md), [Definitions](public/definitions.md) |
 | Integrator | Hand prepared configuration to a target without granting apply authority | [Launch integration](public/launch-integration.md) |
 | Developer contributor | Change C# owners or client interaction | [PROJECTS.md](../PROJECTS.md), [Governance](internal/GOVERNANCE.md), [Testing](internal/TESTING.md) |
 | AI coding agent | Plan, implement and verify invariants | [AGENTS.md](../AGENTS.md), [Quick Reference](internal/QUICK_REFERENCE.md) |
@@ -35,7 +35,8 @@ exposing internal framework mechanics:
 - [CLI](public/cli.md): machine command usage and results.
 - [Terminal](public/terminal.md): Terminal.Gui interaction.
 - [Desktop](public/desktop.md): Avalonia workflow.
-- [Browser](public/browser.md): transient complete/draft preparation, deliberate export and public-cache offline hosting.
+- [Browser](public/browser.md): client/trust choices, WebAssembly rationale, transient complete/draft preparation and offline limits.
+- [Safety and trust FAQ](../README.md#faq): choosing web or native clients, secret handling, offline trust and exported-file protection.
 - [Definitions](public/definitions.md): bounded data-only input.
 - [Native output](public/native-output.md): protected save procedures.
 - [Launch integration](public/launch-integration.md): target handoff and authority limits.
@@ -63,6 +64,12 @@ constraints:
 - [Transfer provenance](internal/extraction/PROVENANCE.md): authorized first-party transfer and exclusions.
 
 ## Dual-Documentation Parity & Separation Protocol
+
+The optional [Definition Store guide](public/definition-store.md) explains
+discovery and contribution. Its [technical owner](internal/DEFINITION_STORE.md)
+defines bounded generation, canonical snapshot selection and package optionality.
+[Browser UI ownership](internal/BROWSER_UI.md) records layout, local appearance
+and configuration component conventions.
 
 To prevent public guidance and technical truth from drifting:
 

@@ -32,9 +32,29 @@ While we appreciate all efforts to assist in improving our security, please note
 
 ## Public Browser Privacy Invariants
 
-- Browser answer controls accept active public enum and boolean choices only. Private answers, secrets, arbitrary free text, tokens and target administration do not belong in browser input or launch URLs.
-- Public templates are partial choices, not full native configuration or a claim of readiness. Import validates the exact family, revision and digest and rejects unknown, duplicate, inactive or private members.
-- Navigation, edits, rejected imports, replacement and disposal invalidate old output. Uploaded byte buffers are cleared, but managed strings and user-controlled downloads do not provide a forensic-erasure guarantee.
+- Standalone Blazor WebAssembly deliberately executes editing, validation and preparation in the browser. Interactive Server would transmit bound answers to a server-held workspace; Interactive Auto would make processing location dependent on render-mode selection. Neither is part of the browser contract.
+- Browser controls follow the admitted typed definition. Secret entry is disabled for every new workspace and requires explicit per-workspace consent. Revocation recursively clears secret leaves and invalidates prepared output; imports cannot bypass that policy.
+- Complete preparation requires valid required answers. Secret-deferred drafts identify local completion locations and remain incomplete; ordinary invalid values and unresolved secret-dependent conditions still fail. Neither mode grants target authority.
+- Answers and artifacts remain transient and excluded from application network requests, persistent storage, public caches and worker messages. Public definitions are admitted and pinned before answer collection; launch URLs contain selection metadata only, never answers or credentials.
+- Navigation, edits, rejected imports, replacement and disposal invalidate old output. Browser exports require deliberate action, but cannot guarantee owner-only permissions, create-only writes or removal of clipboard/download history. Managed memory and exported data do not provide a forensic-erasure guarantee.
+
+## Choosing A Client For Sensitive Configuration
+
+For high-value secrets, treat the hosted web app as the least safe choice among
+Configurator's interfaces and prefer a reviewed local Desktop, TUI or CLI build
+on a trusted machine. The web app adds trust in its hosting origin, delivered
+code, browser and extensions, and lacks native protected-save guarantees. This
+is an exposure-based recommendation, not an audited universal ranking. Native
+clients still require trusted software and an operating system; protected native
+saving is verified on Linux only and unsupported hosts refuse it.
+
+WebAssembly keeps normal answer processing local, but a compromised origin or
+browser environment can observe secrets. Offline operation requires prepared
+public assets and a retained definition; physical disconnection prevents live
+network transmission without proving the downloaded code is benign. Deferring
+secrets avoids entering them in the web app, while ordinary configuration may
+still be confidential. See the [README FAQ](README.md#faq) and
+[browser guide](docs/public/browser.md#choose-a-client-and-trust-level).
 
 ## Protected Native Artifact Invariants
 

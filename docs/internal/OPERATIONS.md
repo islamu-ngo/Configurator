@@ -86,6 +86,148 @@ does not control all worker/browser traffic. Physical disconnection is stronger.
 Managed-memory clearing, clipboard and downloads are not forensic-erasure claims. Cross-published native
 RIDs and package tests remain separate from actual-host protected-save evidence.
 
+### Browser UI refinement evidence
+
+The screenshot-driven interface refinement on 2026-10-10 corrected the vendor
+cascade, added explicit shared native-control styling, refined shell/footer
+composition, separated definition entry sources and grouped workspace controls.
+The [interface anchor](BROWSER_UI.md#interface-refinement) records ownership,
+independent design and official standards/API sources.
+
+| Check | Executed result | Local evidence |
+| --- | --- | --- |
+| Shell baseline before edits | 5 passed, zero failures/skips; 1.339 s | Session command output |
+| Final Browser owner semantics | 125 passed, zero failures/skips; 6.772 s | `.tmp/browser-ui-refinement-tests.log` |
+| Browser Release build | Exit 0; zero warnings/errors; 2.91 s | `.tmp/browser-ui-refinement-build.log` |
+| Changed C# format verification | Exit 0 | `.tmp/browser-ui-refinement-format.log` |
+| Fresh Store-enabled and Store-free publication | Both exit 0 | `.tmp/browser-ui-refinement-publish.log`, `.tmp/browser-ui-refinement-without-store-publish.log` |
+| Published asset/snapshot inventory | 4 passed, zero failures/skips | `.tmp/browser-ui-refinement-packages.log` |
+| Local preview routing/assets | Nine HTTP 200 checks; missing framework asset HTTP 404 | Session `curl` checks, isolated port 5084 |
+
+Executed commands used SDK 10.0.302 and
+`TMPDIR="$HOME/.cache/agent-tmp"`:
+
+```bash
+dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/BrowserShellTests/*" --minimum-expected-tests 5 --no-progress
+dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 125 --no-progress
+dotnet build src/Configurator.Browser/Configurator.Browser.csproj --configuration Release --verbosity quiet
+dotnet format Configurator.slnx --verify-no-changes --no-restore --verbosity quiet --include src/Configurator.Browser/Services/AppearanceThemeService.cs tests/Configurator.Browser.Tests/BrowserSourceEntryTests.cs tests/Configurator.Browser.Tests/BrowserStoreIndependenceTests.cs
+dotnet msbuild eng/configurator/Configurator.Release.proj -target:PublishConfiguratorBrowser -property:Configuration=Release -property:ConfiguratorOutputRoot="$PWD/.tmp/browser-ui-refinement" -property:DefinitionStoreSourceRoot="$PWD/store" -verbosity:quiet
+dotnet msbuild eng/configurator/Configurator.Release.proj -target:PublishConfiguratorBrowser -property:Configuration=Release -property:ConfiguratorOutputRoot="$PWD/.tmp/browser-ui-refinement-without-store" -verbosity:quiet
+```
+
+Package tests set `CONFIGURATOR_PACKAGE_ROOT` to
+`.tmp/browser-ui-refinement-without-store` and
+`CONFIGURATOR_STORE_PACKAGE_ROOT` to `.tmp/browser-ui-refinement`, then executed:
+
+```bash
+dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --no-build --no-restore --verbosity quiet -- --treenode-filter "/*/*/BrowserStorePackageTests/*" --minimum-expected-tests 4 --no-progress
+```
+
+The isolated Apache preview uses port 5084 and leaves the existing port 5081
+preview intact. Syntax checking initially preceded publication and rejected the
+missing document root; after publication it passed and the server started.
+No browser was exposed by the automation inventory, and opening the in-app
+browser returned unavailable. Visual, keyboard, screen-reader, zoom, RTL and
+theme contrast verification for these refinements remain unexecuted. Earlier
+browser screenshots and manual results below describe earlier assets and do
+not qualify this refinement. No product references, dependencies, custody
+policy or native owners changed, so unrelated owner suites were not rerun.
+
+### Browser interface and optional store evidence
+
+The authorized `browser-ui-and-definition-store` implementation was verified
+directly in the checkout on 2026-10-10 with SDK 10.0.302. No history or remote
+publication was recorded. The existing evidence below remains historical;
+these results describe the new interface and optional-store integration.
+
+| Gate | Executed result | Local evidence |
+| --- | --- | --- |
+| Locked solution restore and Release build | Exit 0; zero warnings/errors; build 10.74 s | `.tmp/browser-ui-and-definition-store/final-restore.log`, `final-build.log` |
+| Full solution format verification | Exit 0 after targeted owned formatting; final router slice also exit 0 | `.tmp/browser-ui-and-definition-store/final-format-green.log`, `final-router-format.log` |
+| Browser owner suite after visible-focus correction | 124 passed, zero failures/skips; 6.176 s | `.tmp/browser-ui-and-definition-store/final-browser-visible-green.log` |
+| Presentation owner suite | 36 passed, zero failures/skips; 1.575 s | `.tmp/browser-ui-and-definition-store/final-presentation-tests.log` |
+| Native store self-check and freshness | 26 passed, zero failures; two revisions generated and checked | `.tmp/browser-ui-and-definition-store/store-self-test-green.log`, `store-write.log`, `store-check.log` |
+| Final secret-recovery focus slice | 3/3 privacy tests; affected format exit 0; actual focus moved to visible consent after recovery | `.tmp/browser-ui-and-definition-store/final-visible-focus-tests.log`, `final-visible-focus-format.log`, `delivery-recovery-focus-green.png` |
+| Actual store-enabled and store-free publication | Both exit 0; source-absent publication also exit 0 and source restored | `.tmp/browser-with-store-visible-final-publish.log`, `.tmp/browser-without-store-visible-final-publish.log`, `.tmp/browser-without-store-final-absent-source-publish.log` |
+| Actual package store/UI inventories and Browser closures | 4/4 and 2/2 passed against final outputs | `.tmp/browser-store-visible-final-package-tests.log`, `.tmp/browser-standalone-visible-final-package-tests.log` |
+| Compiled product dependency closure | 7/7 passed | `.tmp/browser-ui-and-definition-store/final-compiled-closure.log` |
+| MIT dependency policy and generated ratchets | Exit 0; 86 package/version pairs; ratchets current 3/3 | `.tmp/browser-ui-and-definition-store/final-license-policy.log`, `final-ratchets.log` |
+
+Executed owner commands used `TMPDIR="$HOME/.cache/agent-tmp"` and MTP:
+
+```bash
+dotnet restore Configurator.slnx --locked-mode --verbosity quiet
+dotnet build Configurator.slnx --configuration Release --verbosity quiet
+dotnet format Configurator.slnx --verify-no-changes --no-restore --verbosity quiet
+dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --no-build --no-restore --verbosity quiet -- --minimum-expected-tests 1 --no-progress
+dotnet test --project tests/Configurator.Presentation.Tests/Configurator.Presentation.Tests.csproj --configuration Release --no-build --no-restore --verbosity quiet -- --minimum-expected-tests 1 --no-progress
+dotnet run eng/configurator/BuildDefinitionStore.cs -- --self-test
+dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output .tmp/definition-store --write
+dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output .tmp/definition-store --check
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:ConfiguratorOutputRoot="$PWD/.tmp/browser-with-store" -p:DefinitionStoreSourceRoot="$PWD/store"
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:ConfiguratorOutputRoot="$PWD/.tmp/browser-without-store"
+dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
+dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check
+```
+
+Package checks bound `CONFIGURATOR_PACKAGE_ROOT` to `.tmp/browser-without-store`
+and `CONFIGURATOR_STORE_PACKAGE_ROOT` to `.tmp/browser-with-store`. They executed
+`BrowserStorePackageTests` (minimum 4), `StandalonePackageTests/BrowserPackage*`
+(minimum 2), and `StandaloneArchitectureTests/CompiledProductClosureHasNoEventOrTestDependency`
+(minimum 7) through the Architecture test project with the same Release,
+`--no-build --no-restore`, nonempty-count and `--no-progress` options.
+
+Published acceptance used Apache 2.4.68 on three isolated localhost origins and
+Google Chrome 153.0.8010.52 through Playwright. DevTools, Tavily and Context7 MCP
+were unavailable; official API documentation supplied research facts. Package
+worker identities are `RHpkSzhl` (store) and `A/UkP6ID` (store-free).
+Screenshots live under `.tmp/browser-ui-and-definition-store/delivery-*.png`.
+Observed outcomes:
+
+- Home, Open, Help, Store and project details reflowed at 1440 and 390 pixels;
+  320, 360 and 768 pixel RTL checks had no horizontal page overflow. The 360
+  pixel viewport supplies 400%-equivalent reflow for a 1440 pixel window.
+- System appearance followed emulated light/dark changes. All four explicit
+  palettes rendered, with body contrast ratios 16.27, 16.67, 21 and 20.12;
+  primary-button contrast exceeded 10 after transitions. Forced colors and
+  reduced motion were inspected. These measurements do not certify every
+  element or assistive technology.
+- Escape within the inline navigation collapsed it and returned focus to Menu.
+  Skip focused main without changing the route, answers or prepared artifacts.
+  Cancelled departure preserved synthetic answers/output and trigger focus;
+  confirmed departure removed the workspace before opening another route.
+- A host returning 403 for every optional store file still installed the core
+  worker, enabled controls and prepared three drafts without a store request.
+  A reviewed store revision reopened offline. A store-free package admitted a
+  local file, deliberately retained public metadata, reopened it offline and
+  prepared a draft. A real independent public HTTPS file was admitted; a
+  mismatched digest rejected with local upload still available. Copied source
+  links contained pinned definition identity and selectors only.
+- Secret controls were masked; complete preview and deliberate clipboard copy
+  worked with synthetic values. Revocation cleared secret leaves and output,
+  preserving ordinary answers. Synthetic sentinels were absent from local and
+  session storage, public cache keys/text payloads and resource URLs; editing,
+  preparation and revocation emitted no answer-bearing worker messages.
+  Recovery originally removed its focused button and left focus on body;
+  the final current-form consent action now restores focus to the existing
+  consent control and scrolls it into view, verified in the published package.
+- Event tenant insertion focused the new identifier. Duplicate-row review
+  focused the second row; correction produced one manifest with exactly two
+  distinct tenant names and no inactive artifacts. Narrow nested controls had
+  no horizontal page overflow. Late operation rejection is separately covered
+  by controlled owner tests; browser-managed updates left the existing realm
+  on its old worker until clean reload.
+- The clean final origin reported zero console errors or CSP diagnostics.
+
+Download dispatch reported the intended `service.json` filename. Saved-file
+completion is **unverified**: this isolated Chrome harness closed on product
+downloads and on an independent standalone synthetic Blob download. No native
+zoom control, physical network disconnection, screen-reader audit or additional
+browser engine was available; offline media/network behavior used Playwright
+emulation. These limits are distinct from green owner/package checks. No native
+client, target apply, hosting, signer or remote publication claim is made.
+
 Implementation evidence from the authorized `browser-complete-configuration`
 workstream on 2026-10-09 currently establishes these separate owner checks:
 
@@ -183,6 +325,117 @@ distinct values and prepared/revealed an exact draft; no crash, page-error or
 request-failure events occurred. Earlier spare-third-tab failures under
 concurrent load did not reproduce in this idle check. Their cause remains
 unclassified; three passing tabs are not scale certification.
+
+## Maintainer authoring verification
+
+The authorized maintainer-authoring implementation was executed directly in the
+Configurator checkout on 2026-10-10 with SDK10.0.302 and
+`TMPDIR="$HOME/.cache/agent-tmp"`. Existing browser/store work and user strategy
+documents were preserved. No branch, worktree, staging, commit or remote
+publication was created. The [maintainer contract](MAINTAINER_AUTHORING.md)
+describes the delivered source/compiler/CLI flow; the
+[public integration guide](../public/integrate-your-tool.md) describes adoption.
+
+| Executed gate | Result | Evidence |
+| --- | --- | --- |
+| Locked solution restore | Exit0 | `.tmp/maintainer-restore.log` |
+| Post-format normal solution Release build | Exit0, zero warnings/errors,111.08s | `.tmp/maintainer-solution-build.log` |
+| Full solution format verification | Exit0 after formatting only five attributable source/test files and ordering their imports | `.tmp/maintainer-format-final.log` |
+| Core owner |122 passed,0 failed,0 skipped | `.tmp/maintainer-core-final-tests.log` |
+| CLI owner |58 passed,0 failed,0 skipped | `.tmp/maintainer-cli-final-tests.log` |
+| Terminal owner |38 passed,0 failed,0 skipped | `.tmp/maintainer-terminal-final-tests.log` |
+| Desktop headless owner |67 passed,0 failed,0 skipped | `.tmp/maintainer-desktop-final-tests.log` |
+| Browser owner |135 passed,0 failed,0 skipped, including regenerated Event6 resources | `.tmp/maintainer-browser-final-tests.log` |
+| Presentation owner |36 passed,0 failed,0 skipped | `.tmp/maintainer-presentation-final-tests.log` |
+| Linux X11 native host |13 checks passed; no broader host/accessibility claim | `.tmp/maintainer-native-host.log` |
+| Generated runtime/authoring and command schemas | Native `--check` exits0 for both schema owners | Task-owned execution context |
+| Native store integrity |46 self-tests passed; baseline-required write/check passed for four revisions and generated curation schema | Task-owned execution context |
+| Actual store-free and store-enabled browser publication | Both exit0, each retaining original notices for36 dependency packages | `.tmp/maintainer-browser-no-store-publish.log`, `.tmp/maintainer-browser-with-store-publish.log` |
+| Candidate standalone skill adoption | Actual tool-managed identity, paired YAML/JSON bytes, nested literal outputs, protected mode600, strict/acknowledged/refused imports, comment/no-op/revision, retained history and source-only contribution | `.tmp/maintainer-adoption/REVIEW.md` |
+| Final standalone CLI publication | Exit0; packaged schema and portable skill; executable SHA-256 `5031706878d98386f78f69f07845b680d107c183993ee8aab07587c827e59f97` | `.tmp/maintainer-cli-final-publish.log` |
+| Final compiler adoption confirmation | Reserved `$defs` entry named `$id`: init/check/build all exit0; existing nested revision2 check exit0 with unchanged canonical digest | `.tmp/maintainer-adoption/evidence/final-reserved-*.json`, `final-nested-check.json` |
+| Event ordinary source/host owner |16 passed,0 failed,0 skipped with compiler environment variables absent; exporter build zero warnings/errors | Event technical export anchor |
+| Event explicit pinned compiler owner |11 passed,0 failed,0 skipped; final CLI write/check and source-only check exit0;361 environment definitions current | Event technical export anchor |
+| Final Terminal Linux-x64 publication | Exit0; retained notices for26 dependency packages | `.tmp/maintainer-terminal-final-publish.log` |
+| Published Browser custody and updates | Actual Chromium153 Linux scenarios passed with the bounded export recovery described below | `.tmp/maintainer-platform/qa-evidence.md` |
+
+The accepted owner commands were physically run against the normal solution
+build, without analyzer suppression:
+
+```bash
+dotnet restore Configurator.slnx --locked-mode --verbosity quiet
+dotnet build Configurator.slnx --configuration Release --no-restore --verbosity quiet -p:UseSharedCompilation=false
+dotnet format Configurator.slnx --verify-no-changes --no-restore --verbosity quiet
+dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --configuration Release --no-build --no-restore --verbosity quiet -- --minimum-expected-tests 1 --no-progress
+```
+
+The same test command was executed for CLI, Terminal, Desktop, Browser and
+Presentation, with the exact counts above. The native host command was:
+
+```bash
+xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 13
+```
+
+Independent review exposed inherited-private-default, expansion-budget,
+schema-resource and recorded-anchor failures before their fixes. Final review
+found no remaining issue in those bounded changes. Early zero-test diagnostic
+runs and builds with `RunAnalyzers=false` are excluded from acceptance evidence.
+The final Core suite also covers reserved `$defs` names without confusing them
+with schema resource keywords. Native store history retains neutral2 and Event5
+bytes; current sources compile into neutral3 and Event6 instead of reusing their
+identities.
+
+Desktop publication and the final architecture/package suite remain in progress.
+Unit tests and publication alone do not prove browser platform scenarios.
+Tavily and Context7 were unavailable; official-source
+Firecrawl research was the disclosed fallback. No remote CI, other-host,
+stakeholder, future-agent, legal or scholarly certification is implied.
+
+Event commands were executed in the sibling Event checkout with the same SDK and
+temporary-directory configuration. The two actual test selections were:
+
+```bash
+env -u CONFIGURATOR_COMPILER -u CONFIGURATOR_COMPILER_SHA256 dotnet test --project tests/Event.Wire.Contracts.UnitTests/Event.Wire.Contracts.UnitTests.csproj --no-restore --configuration Release --verbosity quiet -p:BuildProjectReferences=false -p:UseSharedCompilation=false -- --treenode-filter "/*/*/*ConfiguratorDefinitionArtifactTests/*" --minimum-expected-tests 16 --no-progress --maximum-parallel-tests 1
+CONFIGURATOR_COMPILER=/home/amir/ISLAMU/Github/Configurator/artifacts/configurator/cli/linux-x64/islamu-configurator CONFIGURATOR_COMPILER_SHA256=5031706878d98386f78f69f07845b680d107c183993ee8aab07587c827e59f97 dotnet test --project tests/Event.Wire.Contracts.UnitTests/Event.Wire.Contracts.UnitTests.csproj --no-restore --configuration Release --verbosity quiet -p:BuildProjectReferences=false -p:UseSharedCompilation=false -- --treenode-filter "/*/*/*ConfiguratorCompilerHandoffTests/*" --minimum-expected-tests 11 --no-progress --maximum-parallel-tests 1
+```
+
+The final Event release receipt has SHA-256
+`8a5e5e57c2501903efb20d49c3d5b4e1d79fb39228353f282f2f0cb42ba5867b`.
+The source copies have digest
+`106504676e3087b35eef0761702dc88714d8f2ab9a4da823d7356f348ee39304`;
+canonical Event/example/store revision6 copies have digest
+`b50171ca0a52aa48c3099088db925e440791aff3a450e03e1caca97cf3e4066e`.
+All copies compare byte-identical. Generated provenance describes the compiler
+used; it grants no publication, trust promotion or target apply authority.
+
+Published Browser inspection used Chromium153.0.8010.52 on Linux with an isolated
+Apache host and synthetic fixtures. Local compact YAML was admitted before
+answers; explicit public retention stored canonical runtime JSON, and simulated
+offline reload/reopening started a fresh workspace. Independent draft145-byte
+and complete204-byte vectors matched actual clipboard and download output.
+Revoking consent cleared three top-level/nested/list secret inputs and removed
+prepared output while preserving public values. Clear and navigation reset the
+workspace. Scans of82 active and83 final cached responses found no answer
+sentinels; local/session storage and IndexedDB were empty. Deliberate application
+connection attempts were blocked; observed answer-time traffic carried only a
+public asset GET with no body.
+
+Two independent active tabs retained their original workspace and cached Core
+asset when the actual store-enabled package installed a waiting worker. After
+closing both tabs, the new package activated and its Store booted offline.
+Invalid authoring rejected without displaying the invalid scalar and restored
+file-picker focus. Keyboard focus and375px reflow were inspected; CSS200% zoom
+kept content within the viewport. The exact observations, package manifest
+hashes, synthetic vectors and native host commands are in the task evidence.
+Only owned tabs/host were closed and the synthetic clipboard was cleared.
+
+Chromium's simulated offline mode crashed a generic Blob download control as
+well as actual download clicks. Recovery verified both exports with simulated
+offline disabled and Apache physically stopped, confirmed by failed curl. This
+proves export without reaching its host; it does not prove physical disconnection
+of every network. Offline boot/edit/draft/copy were separately observed under
+simulated disconnection. Other engines, assistive technology and native browser
+zoom remain unqualified; browser exports carry no native protected-save promise.
 
 ## Full Project Test List
 

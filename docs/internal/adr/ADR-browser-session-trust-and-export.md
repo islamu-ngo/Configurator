@@ -54,6 +54,42 @@ establish native owner-only modes, create-only publication or forensic erase.
 The native protected writer remains unchanged and the target retains final
 semantic validation, authentication and apply authorization.
 
+## Hosting alternatives and trade-offs
+
+Standalone WebAssembly is the chosen interactive hosting model, selected by
+`Configurator.Browser.csproj` and `WebAssemblyHostBuilder` in `Program.cs`.
+It needs no `@rendermode InteractiveWebAssembly` directive. Static distribution
+does not disable interactivity: Browser and browser-safe Presentation/Core
+execute editing, validation and composition on the client.
+
+| Alternative | Benefit | Custody and availability consequence | Decision |
+| --- | --- | --- | --- |
+| Standalone WebAssembly | Local event handling and offline operation after asset/definition preparation; static hosting | Larger initial runtime/app download and client CPU/memory use; delivered code and browser still require trust | Chosen for consistent client-side answers and output |
+| Interactive Server | Smaller initial download, server compute and direct server-side .NET execution | Bound input values reach server memory; component interactions need a live connection; latency, circuit retention and server failures affect work | Excluded from this browser contract |
+| Interactive Auto | Server interactivity initially, with WebAssembly available on subsequent visits | Processing location can vary by visit; an active component does not switch runtime when its download completes | Excluded to keep custody predictable |
+
+MudBlazor supports WebAssembly as well as Server; component-library choice does
+not require server custody. Configurator currently uses its own browser controls;
+this decision does not add MudBlazor or a new host. Server interactivity can be
+pleasant on a stable nearby connection, but it is not universally faster: local
+WASM interactions avoid network round trips. No comparative performance claim
+is made without measurement.
+
+Per-workspace secret consent authorizes local secret entry, not transmission to
+a server. A future hosted-processing interface would need its own explicitly
+documented custody contract, consent, circuit/workspace isolation, bounded state
+lifetime and diagnostic/persistence controls. TLS would protect transport while
+still exposing usable answers to the processing server. Secret-free server
+processing would also receive potentially confidential ordinary settings.
+
+For high-value secrets, operator guidance recommends reviewed native clients
+on a trusted machine and treats the hosted web app as the least safe interface
+choice due to origin/browser trust and weaker export protection. This is an
+exposure-based recommendation, not a universal ranking: native software and the
+operating system still require trust, and protected save is verified on Linux
+only. Offline browser work reduces live network exposure but does not establish
+that previously delivered code or the browser environment is benign.
+
 ## Consequences and limits
 
 The browser becomes sufficient for preparation while native clients remain
@@ -79,6 +115,9 @@ external implementation or assets:
 
 | Source | Functional fact used | Design consequence |
 | --- | --- | --- |
+| [Microsoft: Blazor hosting models](https://learn.microsoft.com/en-us/aspnet/core/blazor/hosting-models?view=aspnetcore-10.0) | Server interactivity trades a smaller download and server execution for connection dependence; standalone WASM executes locally and can support offline work. | Prefer local custody and offline operation over initial payload size. |
+| [Microsoft: Render modes](https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes?view=aspnetcore-10.0) | Auto can choose Server initially and WASM on subsequent visits; it does not migrate an active component after download. | Exclude visit-dependent custody from the editor. |
+| [MudBlazor: Installation](https://mudblazor.com/getting-started/installation) | Both Server and WebAssembly support interactive components. | Do not infer a server requirement from component-library choice. |
 | [Microsoft: Blazor PWA](https://learn.microsoft.com/en-us/aspnet/core/blazor/progressive-web-app/?view=aspnetcore-10.0) | Published offline behavior and worker updates are separate from development hosting. | Verify the actual published package; do not count dev/bUnit behavior as offline proof. |
 | [MDN: Using Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) | A replacement worker waits while the previous worker controls clients. | Keep clean-lifecycle update admission across tabs; do not force replacement over answers. |
 | [MDN: Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) | Resource-loading restrictions are distinct from application trust and authorization. | Review hosting CSP against WASM/worker/source requirements without claiming target authority. |

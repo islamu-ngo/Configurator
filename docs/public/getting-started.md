@@ -12,6 +12,14 @@ catalogue or running target is needed. Run the commands from the repository root
 with .NET SDK 10.0.302 on Linux. See [packaging](packaging.md) to build a
 standalone executable instead.
 
+For sensitive configuration, prefer a reviewed local Desktop, TUI or CLI build
+on a trusted machine. The hosted browser is the least safe interface choice for
+high-value secrets because it adds origin/browser trust and lacks native
+protected-save guarantees. Its WebAssembly processing keeps answers local;
+you can also defer secrets and finish a draft locally. Review the
+[browser trust choices and limits](browser.md#choose-a-client-and-trust-level)
+before choosing that path. Native protected saving is verified on Linux only.
+
 ## 1. Review the definition and answers
 
 Open the [definition](../../examples/minimal-self-hosted/setup-definition.json)

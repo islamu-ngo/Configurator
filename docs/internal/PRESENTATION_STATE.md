@@ -1,6 +1,11 @@
 # Definition presentation state
 
 Native clients and Browser use the same admitted definition and answer snapshots.
+Local compact YAML/JSON sources pass through `SetupDefinitionSourceCodec` before
+the client constructs `DefinitionFormModel`. Syntax is explicit and canonical
+identity is shared with expanded runtime input. Source bytes and comments do
+not become answer snapshots or prepared output; existing load generations fence
+replacement/cancellation. Browser remote retrieval remains runtime JSON only.
 `DefinitionFormModel` owns typed editing and disclosure; guided/advanced views
 do not change validation. `DefinitionPresentationOperation` captures the
 definition, artifact ID and input revision for a workspace execution.
@@ -56,3 +61,11 @@ inverse inputs, `DefinitionBundleTests` covers aggregate composition, and
 ownership.
 Terminal, desktop and browser verification is separate; these tests are not
 visual QA.
+
+Browser route custody remains in the browser adapter. `BrowserNavigationState`
+registers the current editor's invalidation and discard callbacks. Confirmed
+navigation invalidates output/import generations and disposes answer state
+before allowing a different route to load public data. Cancellation preserves
+the editor and stale confirmations cannot discard a newer owner. Section and
+appearance changes remain presentation operations inside the pinned workspace;
+they do not introduce shared answer caches or target authority.

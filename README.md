@@ -32,6 +32,8 @@ ISLAMU Configurator is an **offline configuration preparation utility** for self
 
 The software is **purpose-agnostic**: Event is one external definition target, not a compiled dependency of the engine. A family GUID identifies a definition family; it is not authentication, publisher verification or host authority.
 
+Choosing a client for sensitive configuration? Start with the [safety and trust FAQ](#faq).
+
 ## ✨ Who It Serves
 
 ### Application Operators
@@ -44,6 +46,7 @@ The software is **purpose-agnostic**: Event is one external definition target, n
 
 ### Application Authors
 
+- **One maintainer source:** Author YAML or JSON once, then check and compile it with `definition init/check/build/revise`. See [Integrate your tool](docs/public/integrate-your-tool.md) and the [portable agent workflow](skills/configurator-integrate/SKILL.md).
 - **🧩 Declarative Definitions:** Describe fields, activation, validation and output using bounded data rather than executable plugins — see [Definitions](docs/public/definitions.md).
 - **🔗 Pinned Public Launch:** Link to a registered family with bounded version, entry, locale and digest selectors; the session retains its admitted revision and digest — see [Launch Integration](docs/public/launch-integration.md).
 - **🌐 Complete Browser Preparation:** The static Blazor app collects ordinary settings and bounded tenant rows, with voluntary workspace-local secret entry or explicit secret-deferred drafts. Copy/download transfers restricted files deliberately — see [Browser Configuration](docs/public/browser.md).
@@ -55,7 +58,7 @@ The software is **purpose-agnostic**: Event is one external definition target, n
 - **🛡️ Local Preparation:** Preparation has no Event API, domain, wire or database dependency. The browser has no target authentication, telemetry or answer persistence; bounded public HTTPS definitions are admitted and pinned before answers.
 - **🧰 Independent Clients:** Choose the machine CLI, Terminal.Gui TUI, Avalonia Desktop or static Blazor WebAssembly browser without installing Event services.
 - **📚 Dual Documentation Tracks:** Public guides explain operator workflows; internal contracts explain architecture, privacy and verification.
-- **📜 Real Reference Target:** Event owns its exporter and host validators. All five current reference artifacts are prepared through the generic runtime — see [Event example](examples/islamu-event/README.md).
+- **📜 Real Reference Target:** Event exports one neutral source and retains its host validators. An explicitly pinned standalone compiler creates the canonical definition; five independent target payload families verify the generic runtime. See [Event example](examples/islamu-event/README.md).
 
 ---
 
@@ -95,6 +98,42 @@ Security and privacy fail closed at every layer:
 - **🗝️ Target Authority:** The target performs semantic validation and authorization; Configurator does not authenticate or apply remotely.
 
 See [SECURITY.md](SECURITY.md), [Core Contract](docs/internal/CORE_DEFINITION_CONTRACT.md) and [Protected Artifacts](docs/internal/PROTECTED_ARTIFACTS.md).
+
+---
+
+## FAQ
+
+### Is it safe to enter my configuration and secrets?
+
+Choose the interface according to your security needs. **For sensitive configuration, treat the hosted web app as the least safe option among Configurator's interfaces.** You must trust its origin, the code it delivers, your browser and extensions; browser downloads also lack native protected-save guarantees. Prefer a reviewed local [Desktop](docs/public/desktop.md), [TUI](docs/public/terminal.md) (terminal interface) or [CLI](docs/public/cli.md) build on a trusted machine when handling high-value secrets. Native clients still require trust in the software and operating system. Protected native saving is currently verified on Linux only; unsupported hosts refuse it.
+
+The web app offers a lower-exposure path: leave secret entry disabled, prepare an incomplete **secret-deferred draft**, and fill in the documented secret locations locally. Ordinary settings can also be confidential, so review what you enter even when no passwords are involved. There is no official release or public hosted deployment yet; this is a design choice, not a security certification. See [Browser Configuration](docs/public/browser.md#choose-a-client-and-trust-level).
+
+### Why did ISLAMU Configurator choose WebAssembly interactivity?
+
+**To keep configuration processing in your browser and support offline work.** The static Blazor WebAssembly app runs its interactive forms, validation and file preparation locally. Answers and generated files are excluded from application network requests, persistent storage and public caches. Static hosting describes how the app is delivered; the UI is still interactive.
+
+Interactive Server could provide a smaller initial download and move computation off your device, but bound form values would reach the server and editing would depend on a live connection. Interactive Auto can use the server on initial visits and WebAssembly on later visits, making the processing location less predictable. Configurator chooses a consistent local boundary. WebAssembly costs a larger initial download and uses your device's resources, then avoids server round trips for local interactions. MudBlazor supports WebAssembly; it does not require server interactivity. Read the [hosting rationale and trade-offs](docs/public/browser.md#why-webassembly-interactivity).
+
+### Can I use the web app without entering secrets?
+
+Yes. Secret entry starts disabled in every new workspace. Complete the ordinary required settings and prepare a secret-deferred draft, then finish the indicated secret locations locally. Missing ordinary required values, invalid answers and unresolved secret-dependent conditions still block preparation. A draft is incomplete and may be rejected by the target until completed.
+
+### What changes if I enable secret entry?
+
+You explicitly trust the hosted code and your browser environment with secrets for that workspace. **This enables local processing; it does not switch to server processing.** Revoking consent clears secret fields, including nested values, and invalidates prepared output while retaining ordinary settings. Consent is not remembered for another workspace. Masked controls hide values on screen; they do not protect against compromised code or extensions.
+
+### Does offline browser use remove the need for trust?
+
+No. Prepare the public app assets and retain the public definition before entering answers, then physically disconnect for stronger protection against live network transmission. You still need to trust the downloaded code, browser and device. An installed PWA shortcut alone does not prove offline readiness. Answers are not saved between workspaces, and browser-managed update checks can generate public-asset traffic while connected. See [offline work](docs/public/browser.md#offline-work).
+
+### Are downloaded files and copied secrets protected?
+
+Browser copy/download is an explicit action, but Configurator cannot enforce owner-only permissions, prevent overwriting or control clipboard and download history. Check the saved filename and protect the destination yourself. Clearing the workspace cannot retract files or clipboard content already exported. Native clients offer the [protected save contract](docs/public/native-output.md) on verified Linux hosts; clearing application state is not a forensic-erasure guarantee in either environment.
+
+### Does successful preparation mean my application will accept the files?
+
+No. Configurator validates the admitted definition and prepares its declared files. The target application still owns semantic validation, authentication, authorization and applying the configuration. Definition identifiers, publisher labels and digests are not publisher authentication or administrative permission. Review the target's requirements before using the output.
 
 ---
 
@@ -254,58 +293,13 @@ I am deeply grateful to all our amazing contributors.
 
 Support ISLAMU Configurator's ongoing development, infrastructure, and open-source mission by becoming a financial sponsor.
 
-> ℹ️ **Recognition Policy:** Active tiers display ongoing monthly recurring sponsors. One-time contributions and sponsors who have stopped their monthly support are recognized under **Old Sponsors**.
-
-### 🥇 Gold Sponsors
-
-*No active Gold sponsors yet.*
-
-* **Monthly Support (€250+/mo):** [👉 Support Monthly via Stripe][stripe-monthly-link]
-
-#### Old Sponsors
-
-* **One-Time Contribution:** [👉 Donate Once via Stripe][stripe-oneoff-link]
-
-### 🥈 Silver Sponsors
-
-*No active Silver sponsors yet.*
-
-* **Monthly Support (€100+/mo):** [👉 Support Monthly via Stripe][stripe-monthly-link]
-
-#### Old Sponsors
-
-* **One-Time Contribution:** [👉 Donate Once via Stripe][stripe-oneoff-link]
-
-### 🥉 Bronze Sponsors
-
-*No active Bronze sponsors yet.*
-
-* **Monthly Support (€25+/mo):** [👉 Support Monthly via Stripe][stripe-monthly-link]
-
-#### Old Sponsors
-
-* **One-Time Contribution:** [👉 Donate Once via Stripe][stripe-oneoff-link]
-
-### ☕ Community Sponsors
-
-*No active Community sponsors yet.*
-
-* **Monthly Support (€5+/mo):** [👉 Support Monthly via Stripe][stripe-monthly-link]
-
-#### Old Sponsors
+* **Monthly Support :** [👉 Support Monthly via Stripe][stripe-monthly-link]
 
 * **One-Time Contribution:** [👉 Donate Once via Stripe][stripe-oneoff-link]
 
 > 💼 To discuss corporate sponsorship, custom invoicing, or enterprise partnerships, email us at [contact@openislamu.org][contact-email].
 
 ## 🤝 In-Kind Supporters
-
-Special thanks to the organizations providing free tooling, infrastructure, and licenses to support ISLAMU’s open-source development. These source-project acknowledgements do not imply a Configurator-specific service or sponsorship is activated:
-
-| Organization | Contribution & Usage |
-|:---:|---|
-| [![GitBook logo](https://api.iconify.design/simple-icons:gitbook.svg?color=%233884FF)](https://www.gitbook.com) [**GitBook**](https://www.gitbook.com) | Generously provides their **Community Plan** to host and power our [Official Public Documentation](https://islamu.gitbook.io/islamu-event). |
-| [![Gitar logo](https://assets-eu-01.kc-usercontent.com/ef593040-b591-0198-9506-ed88b30bc023/22779193-4b6d-4bdf-a860-37007a6d2315/gitar-wordmark.svg?w=128&h=32&fit=clip&q=80&auto=format)](https://gitar.ai) [**Sonar Gitar**](https://gitar.ai) | Generously provides their **Gitar Open Source Program** to empower our development with AI code review |
 
 > If your organization would like to support ISLAMU Configurator with in-kind tooling, infrastructure, or software licenses, please reach out to us at [contact@openislamu.org][contact-email].
 
@@ -445,6 +439,7 @@ The audited `ISLAMU.Terminal.Gui` package identity, approval, patch, hashes, SBO
 [penpot-link]: https://penpot.app/
 [plane-link]: https://plane.so/
 [coolify-link]: https://coolify.io/
+[infisical-link]: https://infisical.com/
 [kener-link]: https://kener.ing/
 [gitbook-link]: https://www.gitbook.com/
 [sonar-gitar-link]: https://gitar.ai/
