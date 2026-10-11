@@ -25,6 +25,10 @@ public sealed partial class App : Application
             services.AddSingleton<IMessenger, WeakReferenceMessenger>();
             services.AddSingleton<IStorageDialogService>(provider =>
                 new AvaloniaStorageDialogService(() => provider.GetRequiredService<MainWindow>().StorageProvider));
+            services.AddSingleton<DefinitionLoaderViewModel>();
+            services.AddSingleton<FormWorkspaceViewModel>();
+            services.AddSingleton<ArtifactPublisherViewModel>();
+            services.AddSingleton<DesktopShellViewModel>();
             services.AddSingleton<SetupDesktopShellViewModel>();
             services.AddSingleton(provider => new MainWindow
             {
