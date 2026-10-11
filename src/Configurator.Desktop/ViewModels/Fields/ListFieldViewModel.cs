@@ -38,8 +38,11 @@ public sealed class ListFieldViewModel : FieldViewModel
         string type = Schema.GetProperty("itemType").GetString()!;
         var metadata = new JsonObject
         {
-            ["id"] = "item", ["title"] = $"{Title} item", ["type"] = type,
-            ["sensitivity"] = RequiresMasking ? "secret" : "public", ["disclosure"] = "guided"
+            ["id"] = "item",
+            ["title"] = $"{Title} item",
+            ["type"] = type,
+            ["sensitivity"] = RequiresMasking ? "secret" : "public",
+            ["disclosure"] = "guided"
         };
         if (type == "object") metadata["properties"] = JsonNode.Parse(Schema.GetProperty("properties").GetRawText());
         var item = FormFieldFactory.Project(JsonSerializer.SerializeToElement(metadata), this, true);

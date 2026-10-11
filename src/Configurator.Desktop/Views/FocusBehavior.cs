@@ -19,10 +19,17 @@ public sealed class FocusBehavior : AvaloniaObject
     public static readonly AttachedProperty<string?> TargetProperty =
         AvaloniaProperty.RegisterAttached<FocusBehavior, Control, string?>("Target");
 
+    private static readonly AttachedProperty<Action?> CancelPendingProperty =
+        AvaloniaProperty.RegisterAttached<FocusBehavior, Control, Action?>("CancelPending");
+
     public static ICommand FocusCommand { get; } = new RelayCommand<Control>(control => control?.Focus());
 
     static FocusBehavior()
     {
+        TargetProperty.Changed.AddClassHandler<Control>((control, _) =>
+        {
+            if (GetRequest(control) > 0) Focus(control);
+        });
         RequestProperty.Changed.AddClassHandler<Control>((control, args) =>
         {
             if (args.NewValue is int request && request > 0)
@@ -52,13 +59,35 @@ public sealed class FocusBehavior : AvaloniaObject
 
     private static void Focus(Control control)
     {
-        Control target = control is Window window && GetTarget(control) is { } name
-            ? window.FindControl<Control>(name) ?? control : control;
-        if (target.IsEffectivelyVisible && target.Focus()) return;
+        control.GetValue(CancelPendingProperty)?.Invoke();
+        static Control Resolve(Control owner) => owner is Window window && GetTarget(owner) is { } name
+            ? window.FindControl<Control>(name) ?? owner : owner;
+        Control target = Resolve(control);
+        if (target.IsEffectivelyVisible && target.IsEffectivelyEnabled && target.Focus()) return;
+
+        void Cancel()
+        {
+            target.PropertyChanged -= Ready;
+            target.AttachedToVisualTree -= Attached;
+            control.DetachedFromVisualTree -= Detached;
+            control.ClearValue(CancelPendingProperty);
+        }
+        void TryFocus()
+        {
+            if (target.IsAttachedToVisualTree() && target.IsEffectivelyVisible &&
+                target.IsEffectivelyEnabled && target.Focus()) Cancel();
+        }
+        void Ready(object? sender, AvaloniaPropertyChangedEventArgs args) => TryFocus();
+        void Attached(object? sender, VisualTreeAttachmentEventArgs args) => TryFocus();
+        void Detached(object? sender, VisualTreeAttachmentEventArgs args) => Cancel();
+        target.PropertyChanged += Ready;
+        target.AttachedToVisualTree += Attached;
+        control.DetachedFromVisualTree += Detached;
+        Action cancel = Cancel;
+        control.SetValue(CancelPendingProperty, cancel);
         Dispatcher.UIThread.Post(() =>
         {
-            if (target.IsAttachedToVisualTree() && target.IsEffectivelyVisible)
-                target.Focus();
+            if (ReferenceEquals(control.GetValue(CancelPendingProperty), cancel)) TryFocus();
         }, DispatcherPriority.Loaded);
     }
 }

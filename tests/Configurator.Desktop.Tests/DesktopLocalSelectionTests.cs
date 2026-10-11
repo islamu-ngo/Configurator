@@ -25,7 +25,7 @@ public sealed class DesktopLocalSelectionTests
     public async Task RealSelectionControlsReturnFocusAndRejectLateWindowResults(string outcome)
     {
         var session = HeadlessUnitTestSession.StartNew(typeof(DesktopLocalSelectionTests));
-        SetupDesktopShellViewModel? shell = null;
+        DesktopShellViewModel? shell = null;
         MainWindow? window = null;
         var selected = new TaskCompletionSource<Uri?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -33,15 +33,14 @@ public sealed class DesktopLocalSelectionTests
         {
             var observed = await session.Dispatch(async () =>
             {
-                shell = new SetupDesktopShellViewModel();
-                shell.LoadDefinition(DesktopApplicationTests.Definition());
-                window = new MainWindow(_ => outcome switch
+                shell = DesktopTestContext.Root(select: (_, _) => outcome switch
                 {
                     "cancel" => Task.FromResult<Uri?>(null),
                     "unavailable" => Task.FromException<Uri?>(new NotSupportedException("synthetic-private-path")),
                     _ => selected.Task
-                })
-                { DataContext = shell };
+                });
+                shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+                window = new MainWindow { DataContext = shell };
                 window.Show();
                 window.UpdateLayout();
                 shell.PropertyChanged += (_, args) =>
@@ -49,16 +48,21 @@ public sealed class DesktopLocalSelectionTests
                     if (args.PropertyName == nameof(shell.IsSelecting) && !shell.IsSelecting)
                         settled.TrySetResult();
                 };
-                window.GetControl<Button>("SelectOutput").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var button = window.GetControl<Button>("SelectOutput");
+                button.Focus();
+                button.Command!.Execute(button.CommandParameter);
                 if (outcome == "close") window.Close();
-                if (outcome == "replacement") shell.LoadDefinition(DesktopApplicationTests.Definition(2));
-                string directory = shell.OutputDirectory;
+                if (outcome == "replacement") shell.Loader.LoadDefinition(DesktopApplicationTests.Definition(2));
+                string directory = shell.Publisher.OutputDirectory;
                 if (outcome is "close" or "replacement") selected.SetResult(new Uri(Path.GetTempPath()));
                 await settled.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 Dispatcher.UIThread.RunJobs();
                 MainWindow current = window!;
-                return (focused: current.GetControl<Button>("SelectOutput").IsFocused,
-                    directoryUnchanged: shell.OutputDirectory == directory,
+                return (focused: outcome == "replacement"
+                        ? current.GetLogicalDescendants().OfType<TextBox>().Any(control =>
+                            AutomationProperties.GetName(control) == "Service name" && control.IsFocused)
+                        : current.GetControl<Button>("SelectOutput").IsFocused,
+                    directoryUnchanged: shell.Publisher.OutputDirectory == directory,
                     safe: current.GetLogicalDescendants().OfType<Control>().All(control =>
                         !(AutomationProperties.GetName(control)?.Contains("synthetic-private", StringComparison.Ordinal) ?? false) &&
                         !(AutomationProperties.GetHelpText(control)?.Contains("synthetic-private", StringComparison.Ordinal) ?? false)) &&
@@ -90,7 +94,7 @@ public sealed class DesktopLocalSelectionTests
             {
                 var staged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                using var shell = new SetupDesktopShellViewModel(async (path, bytes, cancellation) =>
+                using var shell = DesktopTestContext.Root(async (path, bytes, cancellation) =>
                 {
                     using var output = await new ProtectedArtifactWriter().PrepareAsync(
                         SetupArtifactKind.Unknown, path, bytes, cancellation);
@@ -98,20 +102,20 @@ public sealed class DesktopLocalSelectionTests
                     await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
                     return await output.CommitAsync(cancellation);
                 }, directory.Path, protectedOutputAvailable: true);
-                shell.LoadDefinition(DesktopApplicationTests.Definition());
+                shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
                 var window = new MainWindow { DataContext = shell };
                 try
                 {
                     window.Show();
-                    await shell.PrepareAsync();
-                    Task<ProtectedArtifactStatus> saving = shell.SaveAsync();
+                    await shell.Publisher.PrepareAsync();
+                    Task<ProtectedArtifactStatus> saving = shell.Publisher.SaveAsync();
                     await staged.Task.WaitAsync(TimeSpan.FromSeconds(10));
                     window.Close();
                     string status = shell.Status;
                     release.SetResult();
                     await saving.WaitAsync(TimeSpan.FromSeconds(10));
                     return (noFiles: Directory.GetFiles(directory.Path).Length == 0,
-                        currentStatus: shell.Status == status, noPreparation: !shell.CanSave && !shell.IsSaving);
+                        currentStatus: shell.Status == status, noPreparation: !shell.Publisher.CanSave && !shell.Publisher.IsSaving);
                 }
                 finally { release.TrySetResult(); window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
@@ -130,19 +134,21 @@ public sealed class DesktopLocalSelectionTests
         string existing = Path.Combine(directory.Path, "existing.json");
         await File.WriteAllBytesAsync(definition, DesktopApplicationTests.Definition());
         await File.WriteAllTextAsync(existing, """{"owner":{"name":"synthetic-private-answer"}}""");
-        using var shell = new SetupDesktopShellViewModel();
-        await Assert.That(await shell.SelectPathAsync(DesktopPathSelectionKind.Definition,
-            _ => Task.FromResult<Uri?>(new Uri(definition)))).IsTrue();
-        await Assert.That(shell.Form is not null).IsTrue();
-        await Assert.That(await shell.SelectPathAsync(DesktopPathSelectionKind.Import,
-            _ => Task.FromResult<Uri?>(new Uri(existing)))).IsTrue();
-        await Assert.That(shell.Form!.Fields.Single(input => input.Definition.Id == "owner").Text)
+        using var shell = DesktopTestContext.Root(select: (kind, _) => Task.FromResult<Uri?>(new Uri(kind switch
+        {
+            DesktopPathSelectionKind.Definition => definition,
+            DesktopPathSelectionKind.Import => existing,
+            _ => directory.Path
+        })));
+        await Assert.That(await shell.Loader.SelectDefinitionAsync()).IsTrue();
+        await Assert.That(shell.Workspace.Form is not null).IsTrue();
+        await Assert.That(await shell.Publisher.SelectImportAsync()).IsTrue();
+        await Assert.That(shell.Workspace.Form!.Fields.Single(input => input.Definition.Id == "owner").Text)
             .Contains("synthetic-private-answer");
-        await shell.PrepareAsync();
-        await Assert.That(await shell.SelectPathAsync(DesktopPathSelectionKind.OutputDirectory,
-            _ => Task.FromResult<Uri?>(new Uri(directory.Path)))).IsTrue();
-        await Assert.That(shell.OutputDirectory).IsEqualTo(directory.Path);
-        await Assert.That(shell.CanSave).IsFalse();
+        await shell.Publisher.PrepareAsync();
+        await Assert.That(await shell.Publisher.SelectOutputDirectoryAsync()).IsTrue();
+        await Assert.That(shell.Publisher.OutputDirectory).IsEqualTo(directory.Path);
+        await Assert.That(shell.Publisher.CanSave).IsFalse();
         await Assert.That(shell.Status.Contains("synthetic-private", StringComparison.Ordinal)).IsFalse();
     }
 
@@ -154,23 +160,23 @@ public sealed class DesktopLocalSelectionTests
     [Arguments("error")]
     public async Task CancelledUnavailableAndNonlocalSelectionsPreserveAnswersAndPreparation(string result)
     {
-        using var shell = new SetupDesktopShellViewModel();
-        shell.LoadDefinition(DesktopApplicationTests.Definition());
-        await shell.PrepareAsync();
-        var form = shell.Form;
-        var preparation = shell.Preparation;
-        string path = shell.OutputDirectory;
-        await Assert.That(await shell.SelectPathAsync(DesktopPathSelectionKind.OutputDirectory, _ => result switch
+        using var shell = DesktopTestContext.Root(select: (_, _) => result switch
         {
             "cancel" => Task.FromResult<Uri?>(null),
             "unavailable" => Task.FromException<Uri?>(new NotSupportedException("synthetic-private-path")),
             "remote" => Task.FromResult<Uri?>(new Uri("https://example.invalid/synthetic-private-path")),
             "remote-file" => Task.FromResult<Uri?>(new Uri("file://example.invalid/synthetic-private-path")),
             _ => Task.FromException<Uri?>(new IOException("synthetic-private-path"))
-        })).IsFalse();
-        await Assert.That(ReferenceEquals(shell.Form, form)).IsTrue();
-        await Assert.That(ReferenceEquals(shell.Preparation, preparation)).IsTrue();
-        await Assert.That(shell.OutputDirectory).IsEqualTo(path);
+        });
+        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        await shell.Publisher.PrepareAsync();
+        var form = shell.Workspace.Form;
+        var preparation = shell.Publisher.Preparation;
+        string path = shell.Publisher.OutputDirectory;
+        await Assert.That(await shell.Publisher.SelectOutputDirectoryAsync()).IsFalse();
+        await Assert.That(ReferenceEquals(shell.Workspace.Form, form)).IsTrue();
+        await Assert.That(ReferenceEquals(shell.Publisher.Preparation, preparation)).IsTrue();
+        await Assert.That(shell.Publisher.OutputDirectory).IsEqualTo(path);
         await Assert.That(shell.Status.Contains("synthetic-private", StringComparison.Ordinal)).IsFalse();
         if (result != "cancel") await Assert.That(shell.Status.StartsWith("selection-", StringComparison.Ordinal)).IsTrue();
     }
@@ -184,23 +190,23 @@ public sealed class DesktopLocalSelectionTests
     public async Task LatePickerAcceptanceCannotChangeNewState(string change)
     {
         using var directory = new TemporaryDirectory();
-        using var shell = new SetupDesktopShellViewModel();
-        shell.LoadDefinition(DesktopApplicationTests.Definition());
         var selected = new TaskCompletionSource<Uri?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task<bool> pending = shell.SelectPathAsync(DesktopPathSelectionKind.OutputDirectory, _ => selected.Task);
+        using var shell = DesktopTestContext.Root(select: (_, _) => selected.Task);
+        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        Task<bool> pending = shell.Publisher.SelectOutputDirectoryAsync();
         switch (change)
         {
-            case "edit": shell.Form!.Fields[0].Text = "corrected"; break;
-            case "replacement": shell.LoadDefinition(DesktopApplicationTests.Definition(2)); break;
-            case "destination": shell.OutputDirectory = directory.Path; break;
+            case "edit": shell.Workspace.Form!.Fields[0].Text = "corrected"; break;
+            case "replacement": shell.Loader.LoadDefinition(DesktopApplicationTests.Definition(2)); break;
+            case "destination": shell.Publisher.OutputDirectory = directory.Path; break;
             case "cancel": shell.Cancel(); break;
             case "dispose": shell.Dispose(); break;
         }
-        string path = shell.OutputDirectory;
+        string path = shell.Publisher.OutputDirectory;
         string status = shell.Status;
         selected.SetResult(new Uri(Path.Combine(directory.Path, "late-selection")));
         await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(10))).IsFalse();
-        await Assert.That(shell.OutputDirectory).IsEqualTo(path);
+        await Assert.That(shell.Publisher.OutputDirectory).IsEqualTo(path);
         await Assert.That(shell.Status).IsEqualTo(status);
     }
 
@@ -216,11 +222,11 @@ public sealed class DesktopLocalSelectionTests
              "fields":{"HOST":{"type":"string","sensitivity":"public","default":"example.test"}},
              "outputs":{"settings.json":{"format":"json"}}}
             """);
-        using var shell = new SetupDesktopShellViewModel();
-        shell.DefinitionPath = path;
-        await Assert.That(await shell.LoadDefinitionAsync()).IsTrue();
-        await Assert.That(shell.Form!.Definition.ApplicationId).IsEqualTo("local.service");
-        var digest = shell.Form.Definition.Digest;
+        using var shell = DesktopTestContext.Root();
+        shell.Loader.DefinitionPath = path;
+        await Assert.That(await shell.Loader.LoadDefinitionAsync()).IsTrue();
+        await Assert.That(shell.Workspace.Form!.Definition.ApplicationId).IsEqualTo("local.service");
+        var digest = shell.Workspace.Form.Definition.Digest;
         string yamlPath = Path.Combine(directory.Path, "source.yaml");
         await File.WriteAllTextAsync(yamlPath, """
             $schema: urn:islamu:configurator:authoring:v1
@@ -240,15 +246,15 @@ public sealed class DesktopLocalSelectionTests
               settings.json:
                 format: json
             """);
-        shell.DefinitionPath = yamlPath;
-        await Assert.That(await shell.LoadDefinitionAsync()).IsTrue();
-        await Assert.That(shell.Form!.Definition.Digest).IsEqualTo(digest);
-        await shell.PrepareAsync();
-        await Assert.That(shell.Preparation).IsNotNull();
+        shell.Loader.DefinitionPath = yamlPath;
+        await Assert.That(await shell.Loader.LoadDefinitionAsync()).IsTrue();
+        await Assert.That(shell.Workspace.Form!.Definition.Digest).IsEqualTo(digest);
+        await shell.Publisher.PrepareAsync();
+        await Assert.That(shell.Publisher.Preparation).IsNotNull();
         await File.WriteAllTextAsync(yamlPath, "synthetic-private-invalid-source");
-        await Assert.That(await shell.LoadDefinitionAsync()).IsFalse();
-        await Assert.That(shell.Form).IsNull();
-        await Assert.That(shell.Preparation).IsNull();
+        await Assert.That(await shell.Loader.LoadDefinitionAsync()).IsFalse();
+        await Assert.That(shell.Workspace.Form).IsNull();
+        await Assert.That(shell.Publisher.Preparation).IsNull();
         await Assert.That(shell.Status).DoesNotContain("synthetic-private");
     }
 
@@ -258,10 +264,10 @@ public sealed class DesktopLocalSelectionTests
         using var directory = new TemporaryDirectory();
         string path = Path.Combine(directory.Path, "source.txt");
         await File.WriteAllBytesAsync(path, DesktopApplicationTests.Definition());
-        using var shell = new SetupDesktopShellViewModel();
-        shell.DefinitionPath = path;
-        await Assert.That(await shell.LoadDefinitionAsync()).IsFalse();
-        await Assert.That(shell.Form).IsNull();
+        using var shell = DesktopTestContext.Root();
+        shell.Loader.DefinitionPath = path;
+        await Assert.That(await shell.Loader.LoadDefinitionAsync()).IsFalse();
+        await Assert.That(shell.Workspace.Form).IsNull();
         await Assert.That(shell.Status).IsEqualTo("definition-invalid:source-format-invalid");
     }
 
@@ -271,16 +277,16 @@ public sealed class DesktopLocalSelectionTests
         using var directory = new TemporaryDirectory();
         string path = Path.Combine(directory.Path, "late.json");
         await File.WriteAllTextAsync(path, "synthetic-private-invalid-source");
-        using var shell = new SetupDesktopShellViewModel();
-        shell.LoadDefinition(DesktopApplicationTests.Definition());
         var selected = new TaskCompletionSource<Uri?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task<bool> pending = shell.SelectPathAsync(DesktopPathSelectionKind.Definition, _ => selected.Task);
-        shell.LoadDefinition(DesktopApplicationTests.Definition(2));
-        var replacement = shell.Form!.Definition.Digest;
+        using var shell = DesktopTestContext.Root(select: (_, _) => selected.Task);
+        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        Task<bool> pending = shell.Loader.SelectDefinitionAsync();
+        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition(2));
+        var replacement = shell.Workspace.Form!.Definition.Digest;
         string status = shell.Status;
         selected.SetResult(new Uri(path));
         await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
-        await Assert.That(shell.Form!.Definition.Digest).IsEqualTo(replacement);
+        await Assert.That(shell.Workspace.Form!.Definition.Digest).IsEqualTo(replacement);
         await Assert.That(shell.Status).IsEqualTo(status);
     }
 

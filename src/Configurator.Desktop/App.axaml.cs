@@ -29,10 +29,9 @@ public sealed partial class App : Application
             services.AddSingleton<FormWorkspaceViewModel>();
             services.AddSingleton<ArtifactPublisherViewModel>();
             services.AddSingleton<DesktopShellViewModel>();
-            services.AddSingleton<SetupDesktopShellViewModel>();
             services.AddSingleton(provider => new MainWindow
             {
-                DataContext = provider.GetRequiredService<SetupDesktopShellViewModel>()
+                DataContext = provider.GetRequiredService<DesktopShellViewModel>()
             });
             _services = services.BuildServiceProvider(new ServiceProviderOptions
             {
@@ -40,13 +39,13 @@ public sealed partial class App : Application
                 ValidateScopes = true
             });
             desktop.MainWindow = _services.GetRequiredService<MainWindow>();
-            var shell = _services.GetRequiredService<SetupDesktopShellViewModel>();
+            var shell = _services.GetRequiredService<DesktopShellViewModel>();
             string[] args = desktop.Args ?? [];
             if (args.Length is 1 or 2)
             {
-                shell.DefinitionPath = args[0];
-                if (args.Length == 2) shell.OutputDirectory = args[1];
-                desktop.MainWindow.Opened += async (_, _) => await shell.LoadDefinitionAsync();
+                shell.Loader.DefinitionPath = args[0];
+                if (args.Length == 2) shell.Publisher.OutputDirectory = args[1];
+                desktop.MainWindow.Opened += async (_, _) => await shell.Loader.LoadDefinitionAsync();
             }
             desktop.Exit += (_, _) =>
             {

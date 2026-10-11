@@ -3,99 +3,131 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:Configurator.Desktop.ViewModels"
-    x:DataType="vm:SetupDesktopShellViewModel"
+    xmlns:local="using:Configurator.Desktop.Views"
+    xmlns:definitions="using:Configurator.Core.Definitions"
+    x:DataType="vm:DesktopShellViewModel"
+    x:CompileBindings="True"
+    local:FocusBehavior.Target="{Binding FocusTarget}"
+    local:FocusBehavior.Request="{Binding FocusRequestGeneration}"
+    local:FocusBehavior.OnOpened="True"
+    FlowDirection="{Binding Workspace.FlowDirection}"
     Title="Configurator — offline preparation"
     Width="960" Height="800" MinWidth="600" MinHeight="540"
     AutomationProperties.Name="Configurator offline definition editor">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="20">
-    <StackPanel Grid.Row="0" Spacing="8">
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding FocusDefinitionPathCommand}" />
+    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding Publisher.PrepareCommand}" />
+    <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
+  </Window.KeyBindings>
+  <ScrollViewer Name="WorkspaceScroll" Margin="20" HorizontalScrollBarVisibility="Disabled">
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="8">
       <TextBlock Text="Offline configuration preparation" FontSize="26" FontWeight="SemiBold" />
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="Local definition path (JSON or YAML)" />
-          <TextBox Name="DefinitionPath" Text="{Binding DefinitionPath, Mode=TwoWay}"
+          <TextBox Name="DefinitionPath" Text="{Binding Loader.DefinitionPath, Mode=TwoWay}"
                    AutomationProperties.Name="Local definition path" />
         </StackPanel>
         <Button Grid.Column="1" Name="SelectDefinition" Content="Choose definition…"
-                IsEnabled="{Binding CanSelectPath}" AutomationProperties.Name="Choose local definition"
-                VerticalAlignment="Bottom" Click="SelectDefinitionClicked" />
+                Command="{Binding Loader.SelectDefinitionCommand}" AutomationProperties.Name="Choose local definition"
+                VerticalAlignment="Bottom" />
         <Button Grid.Column="2" Name="LoadDefinition" Content="_Load definition"
-                VerticalAlignment="Bottom" Click="LoadClicked" />
+                Command="{Binding Loader.LoadDefinitionCommand}" VerticalAlignment="Bottom" />
       </Grid>
-      <TextBlock Text="{Binding DefinitionPin}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Loader.DefinitionPin}" TextWrapping="Wrap" />
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
         <StackPanel>
           <TextBlock Text="Display mode (validation is unchanged)" />
           <ComboBox Name="DisplayMode" HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="Field display mode" SelectionChanged="DisplayModeChanged">
-            <ComboBoxItem Content="Essential" />
-            <ComboBoxItem Content="Guided" IsSelected="True" />
-            <ComboBoxItem Content="Advanced" />
-          </ComboBox>
+                    AutomationProperties.Name="Field display mode"
+                    ItemsSource="{Binding Workspace.DisplayModes}"
+                    SelectedItem="{Binding Workspace.DisplayMode, Mode=TwoWay}" />
         </StackPanel>
         <CheckBox Grid.Column="1" Content="_Right-to-left layout" VerticalAlignment="Bottom"
-                  AutomationProperties.Name="Use right-to-left layout" Click="DirectionClicked" />
+                  AutomationProperties.Name="Use right-to-left layout"
+                  IsChecked="{Binding Workspace.IsRightToLeft, Mode=TwoWay}" />
       </Grid>
     </StackPanel>
-    <ScrollViewer Grid.Row="1" Margin="0,12" ClipToBounds="True">
-      <StackPanel Name="Fields" Spacing="14" />
-    </ScrollViewer>
-    <ScrollViewer Grid.Row="2" MaxHeight="240" VerticalScrollBarVisibility="Auto">
+      <ItemsControl Name="Fields" ItemsSource="{Binding Workspace.Fields}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><StackPanel Spacing="14" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
     <StackPanel Spacing="8">
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
         <StackPanel>
           <TextBlock Text="Declared artifact" />
           <ComboBox Name="Artifact" HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="Declared artifact" SelectionChanged="ArtifactChanged" />
+                    AutomationProperties.Name="Declared artifact"
+                    ItemsSource="{Binding Publisher.Artifacts}"
+                    SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="definitions:SetupArtifactDefinition">
+                <TextBlock Text="{Binding Id}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
         </StackPanel>
         <StackPanel Grid.Column="1">
           <TextBlock Text="New file name" />
-          <TextBox Name="FileName" Text="{Binding FileName, Mode=TwoWay}" AutomationProperties.Name="New output file name" />
+          <TextBox Name="FileName" Text="{Binding Publisher.FileName, Mode=TwoWay}" AutomationProperties.Name="New output file name" />
         </StackPanel>
       </Grid>
       <TextBlock Text="Bundle outputs (select one or more declared files)" />
-      <WrapPanel Name="ArtifactSelections" />
-      <TextBlock Text="{Binding ArtifactConsequences}" TextWrapping="Wrap" />
+      <ItemsControl Name="ArtifactSelections" ItemsSource="{Binding Publisher.ArtifactSelections}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ArtifactSelectionViewModel">
+            <CheckBox Content="{Binding Id}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0"
+                      AutomationProperties.Name="{Binding Id, StringFormat='Include {0} in bundle'}"
+                      AutomationProperties.HelpText="{Binding Title}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding Publisher.ArtifactConsequences}" TextWrapping="Wrap" />
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
-          <TextBlock Text="Existing file to import for the selected artifact" />
-          <TextBox Name="ExistingFilePath" Text="{Binding ExistingFilePath, Mode=TwoWay}"
+          <TextBlock Text="Existing file to import for the selected artifact" TextWrapping="Wrap" />
+          <TextBox Name="ExistingFilePath" Text="{Binding Publisher.ExistingFilePath, Mode=TwoWay}"
                    AutomationProperties.Name="Existing configuration file path" />
         </StackPanel>
         <Button Grid.Column="1" Name="SelectImport" Content="Choose import…"
-                IsEnabled="{Binding CanSelectPath}" AutomationProperties.Name="Choose existing local configuration"
-                VerticalAlignment="Bottom" Click="SelectImportClicked" />
+                Command="{Binding Publisher.SelectImportCommand}" AutomationProperties.Name="Choose existing local configuration"
+                VerticalAlignment="Bottom" />
         <Button Grid.Column="2" Name="Import" Content="_Import existing file"
-                VerticalAlignment="Bottom" Click="ImportClicked" />
+                Command="{Binding Publisher.ImportFileCommand}" VerticalAlignment="Bottom" />
       </Grid>
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
       <StackPanel>
         <TextBlock Text="Existing output directory" />
-        <TextBox Name="OutputDirectory" Text="{Binding OutputDirectory, Mode=TwoWay}"
+        <TextBox Name="OutputDirectory" Text="{Binding Publisher.OutputDirectory, Mode=TwoWay}"
                  AutomationProperties.Name="Existing protected output directory" />
       </StackPanel>
         <Button Grid.Column="1" Name="SelectOutput" Content="Choose folder…"
-                IsEnabled="{Binding CanSelectPath}" AutomationProperties.Name="Choose existing output directory"
-                VerticalAlignment="Bottom" Click="SelectOutputClicked" />
+                Command="{Binding Publisher.SelectOutputDirectoryCommand}" AutomationProperties.Name="Choose existing output directory"
+                VerticalAlignment="Bottom" />
       </Grid>
       <WrapPanel>
-        <Button Name="Validate" Content="_Validate" Margin="0,0,8,0" Click="ValidateClicked" />
+        <Button Name="Validate" Content="_Validate" Margin="0,0,8,0" Command="{Binding Workspace.ValidateCommand}" />
         <Button Name="Prepare" Content="_Prepare artifact" Margin="0,0,8,0"
-                IsEnabled="{Binding CanPrepare}" Click="PrepareClicked" />
+                Command="{Binding Publisher.PrepareCommand}" />
         <Button Name="Save" Content="_Save new protected file" Margin="0,0,8,0"
-                IsEnabled="{Binding CanSave}" Click="SaveClicked" />
+                Command="{Binding Publisher.SaveCommand}" />
         <Button Name="PrepareBundle" Content="Prepare _bundle" Margin="0,0,8,0"
-                IsEnabled="{Binding CanPrepare}" Click="PrepareBundleClicked" />
+                Command="{Binding Publisher.PrepareBundleCommand}" />
         <Button Name="SaveBundle" Content="Save protected bundle" Margin="0,0,8,0"
-                IsEnabled="{Binding CanSaveBundle}" Click="SaveBundleClicked" />
-        <Button Name="Cancel" Content="_Cancel / discard preparation" Click="CancelClicked" />
+                Command="{Binding Publisher.SaveBundleCommand}" />
+        <Button Name="Cancel" Content="_Cancel / discard preparation" Command="{Binding CancelCommand}" />
       </WrapPanel>
-      <TextBlock Name="ProtectedCapability" Text="{Binding ProtectedCapability}" TextWrapping="Wrap" />
+      <TextBlock Name="ProtectedCapability" Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap" />
       <TextBlock Name="Status" Text="{Binding Status}" TextWrapping="Wrap"
                  AutomationProperties.Name="Operation status" />
       <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
                  AutomationProperties.Name="Next step" />
     </StackPanel>
-    </ScrollViewer>
-  </Grid>
+  </StackPanel>
+  </ScrollViewer>
 </Window>

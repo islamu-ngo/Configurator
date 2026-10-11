@@ -1,7 +1,7 @@
 namespace Configurator.Desktop.Tests.Services;
 
-using Avalonia.Platform.Storage;
 using System.Reflection;
+using Avalonia.Platform.Storage;
 using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
 

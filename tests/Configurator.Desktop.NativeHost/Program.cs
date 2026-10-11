@@ -10,9 +10,12 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
+using Avalonia.Media.Imaging;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels;
+using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
 
 internal static class Program
@@ -28,15 +31,23 @@ internal static class Program
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
+    private static string? _captureDirectory;
 
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length != 4 || args[0] != "--expected-rid" || args[1] != "linux-x64" ||
+        if (args.Length is not (4 or 6) || args[0] != "--expected-rid" || args[1] != "linux-x64" ||
             args[2] != "--minimum-expected-checks" ||
             !int.TryParse(args[3], NumberStyles.None, CultureInfo.InvariantCulture, out int minimum) ||
             minimum < 10 || minimum > RequiredChecks.Length)
             return Reject("arguments-invalid");
+        if (args.Length == 6)
+        {
+            if (args[4] != "--capture-directory" || !Path.IsPathFullyQualified(args[5]))
+                return Reject("arguments-invalid");
+            _captureDirectory = args[5];
+            Directory.CreateDirectory(_captureDirectory);
+        }
         if (!OperatingSystem.IsLinux() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
             return Reject("expected-rid-mismatch");
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY")))
@@ -53,7 +64,7 @@ internal static class Program
             using var lifetime = new ClassicDesktopStyleApplicationLifetime { Args = [], ShutdownMode = ShutdownMode.OnExplicitShutdown };
             AppBuilder builder = AppBuilder.Configure<App>().UsePlatformDetect();
             builder.SetupWithLifetime(lifetime);
-            if (lifetime.MainWindow is not MainWindow window || window.DataContext is not SetupDesktopShellViewModel shell)
+            if (lifetime.MainWindow is not MainWindow window || window.DataContext is not DesktopShellViewModel shell)
                 return Reject("native-application-missing");
             if (window.TryGetPlatformHandle()?.HandleDescriptor != "XID")
                 return Reject("native-backend-mismatch");
@@ -99,20 +110,25 @@ internal static class Program
         }
     }
 
-    private static async Task RunAsync(MainWindow window, SetupDesktopShellViewModel shell)
+    private static async Task RunAsync(MainWindow window, DesktopShellViewModel shell)
     {
+        FormWorkspaceViewModel workspace = shell.Workspace;
+        ArtifactPublisherViewModel publisher = shell.Publisher;
         string directory = Directory.CreateTempSubdirectory("configurator-native-").FullName;
         try
         {
             _currentCheck = "D01-offline-intake";
-            Require(shell.Form is null && !shell.CanPrepare && !shell.CanSave, "default-target");
+            Require(workspace.Form is null && !publisher.CanPrepare && !publisher.CanSave, "default-target");
             string invalid = Path.Combine(directory, "invalid.json");
             await File.WriteAllTextAsync(invalid, "{}");
             await LoadAsync(window, shell, invalid, false);
             _ = SetupDefinitionCodec.ParseJson(await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")));
             await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json"), true);
-            Require(shell.DefinitionPin.Contains(shell.Form!.Definition.Digest.Value, StringComparison.Ordinal), "pin-missing");
+            Require(shell.Loader.DefinitionPin.Contains(workspace.Form!.Definition.Digest.Value, StringComparison.Ordinal), "pin-missing");
             window.GetControl<TextBox>("OutputDirectory").Text = directory;
+            Require(window.GetControl<ComboBox>("Artifact").SelectedIndex >= 0 &&
+                window.GetControl<ComboBox>("Artifact").SelectionBoxItem is not null, "artifact-label-missing");
+            await CaptureAsync(window, "loaded");
             Pass();
 
             _currentCheck = "D02-typed-controls";
@@ -123,13 +139,13 @@ internal static class Program
             await FlushAsync();
             Input<TextBox>(window, "Hosts item").Text = "native.example";
             await FlushAsync();
-            var values = shell.Form!.Snapshot().Values;
+            var values = workspace.Form!.Snapshot().Values;
             Require(values["owner"].GetProperty("age").GetInt32() == 23 &&
                 values["hosts"][0].GetString() == "native.example" &&
                 Input<TextBox>(window, "Owner name").PasswordChar != '\0', "typed-answer");
             Click(Named<Button>(window, "Remove item from Hosts"));
             await FlushAsync();
-            Require(shell.Form.Snapshot().Values["hosts"].GetArrayLength() == 0, "list-removal");
+            Require(workspace.Form.Snapshot().Values["hosts"].GetArrayLength() == 0, "list-removal");
             Click(Named<Button>(window, "Add item to Hosts"));
             await FlushAsync();
             Input<TextBox>(window, "Hosts item").Text = "native.example";
@@ -151,6 +167,7 @@ internal static class Program
             Input<TextBox>(window, "Advanced note").Text = "";
             Input<ComboBox>(window, "Mode").SelectedItem = "local";
             await FlushAsync();
+            await CaptureAsync(window, "edited");
             Pass();
 
             _currentCheck = "D04-json-yaml-dotenv-import";
@@ -177,7 +194,7 @@ internal static class Program
                     "validation-invalid" => "import-invalidated-validation",
                     _ => "inverse-import-rejected"
                 });
-                Require(shell.Form!.Snapshot().Values["name"].GetString() == (id switch
+                Require(workspace.Form!.Snapshot().Values["name"].GetString() == (id switch
                 { "config" => "JSON imported", "yaml" => "YAML imported", _ => "dotenv-imported" }), "inverse-import");
             }
             Select(window, shell, "config");
@@ -187,19 +204,19 @@ internal static class Program
             Input<TextBox>(window, "Owner age").Text = "invalid-integer";
             await FlushAsync();
             await ActionAsync(window, shell, "Prepare", () => shell.Status.StartsWith("validation-invalid", StringComparison.Ordinal));
-            Require(!shell.CanSave && shell.Form!.HasInputErrors, "nested-invalid-omitted");
+            Require(!publisher.CanSave && workspace.Form!.HasInputErrors, "nested-invalid-omitted");
             Input<TextBox>(window, "Owner age").Text = "23";
             await FlushAsync();
-            foreach (string id in shell.SelectedArtifactIds.ToArray()) Include(window, id, false);
+            foreach (string id in publisher.SelectedArtifactIds.ToArray()) Include(window, id, false);
             Click(window.GetControl<Button>("PrepareBundle"));
-            Require(!shell.CanSaveBundle, "empty-selection-ready");
+            Require(!publisher.CanSaveBundle, "empty-selection-ready");
             Include(window, "remote", true);
             Click(window.GetControl<Button>("PrepareBundle"));
-            Require(!shell.CanSaveBundle, "inactive-selection-ready");
+            Require(!publisher.CanSaveBundle, "inactive-selection-ready");
             Include(window, "remote", false);
             Include(window, "config", true);
             await PrepareAsync(window, shell);
-            Require(shell.Preparation!.DefinitionDigest == shell.Form!.Definition.Digest, "preparation-pin");
+            Require(publisher.Preparation!.DefinitionDigest == workspace.Form!.Definition.Digest, "preparation-pin");
             Pass();
 
             _currentCheck = "D06-protected-single-conflict";
@@ -210,13 +227,13 @@ internal static class Program
             byte[] original = await File.ReadAllBytesAsync(target);
             await PrepareAsync(window, shell);
             await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
-            Require((await File.ReadAllBytesAsync(target)).AsSpan().SequenceEqual(original) && !shell.CanSave, "overwrite-or-retained-save");
+            Require((await File.ReadAllBytesAsync(target)).AsSpan().SequenceEqual(original) && !publisher.CanSave, "overwrite-or-retained-save");
             Pass();
 
             _currentCheck = "D07-bundle-preflight-recovery";
             Include(window, "environment", true);
             Click(window.GetControl<Button>("PrepareBundle"));
-            Require(shell.CanSaveBundle, "bundle-not-ready");
+            Require(publisher.CanSaveBundle, "bundle-not-ready");
             await ActionAsync(window, shell, "SaveBundle", () => !shell.IsSaving && shell.Status.StartsWith("bundle-save-", StringComparison.Ordinal));
             Require(!File.Exists(Path.Combine(directory, "service.env")) && (await File.ReadAllBytesAsync(target)).AsSpan().SequenceEqual(original), "bundle-partial-preflight");
             File.Delete(target);
@@ -224,30 +241,30 @@ internal static class Program
             await ActionAsync(window, shell, "SaveBundle", () => !shell.IsSaving && shell.Status.StartsWith("bundle-save-", StringComparison.Ordinal));
             await VerifyJsonAsync(target, """{"name":"dotenv-imported","owner":{"name":"Synthetic private owner","age":23},"hosts":["native.example"]}""");
             Require(await File.ReadAllTextAsync(Path.Combine(directory, "service.env")) == "NAME=dotenv-imported\n", "bundle-environment-bytes");
-            Require(OperatingSystem.IsLinux() && File.GetUnixFileMode(Path.Combine(directory, "service.env")) == (UnixFileMode.UserRead | UnixFileMode.UserWrite) && !shell.CanSaveBundle, "bundle-permissions");
+            Require(OperatingSystem.IsLinux() && File.GetUnixFileMode(Path.Combine(directory, "service.env")) == (UnixFileMode.UserRead | UnixFileMode.UserWrite) && !publisher.CanSaveBundle, "bundle-permissions");
             Pass();
 
             _currentCheck = "D09-edit-cancel-stale-import";
             await PrepareAsync(window, shell);
             Input<TextBox>(window, "Service name").Text = "Current edit";
             await FlushAsync();
-            Require(!shell.CanSave && !shell.CanSaveBundle, "edit-stale-preparation");
+            Require(!publisher.CanSave && !publisher.CanSaveBundle, "edit-stale-preparation");
             var delayed = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<bool> pending = shell.ImportAsync(_ => delayed.Task);
+            Task<bool> pending = publisher.ImportAsync(_ => delayed.Task);
             Input<TextBox>(window, "Service name").Text = "Later edit";
             await FlushAsync();
             delayed.SetResult("{\"name\":\"Stale import\"}"u8.ToArray());
-            Require(!await pending.WaitAsync(TimeSpan.FromSeconds(10)) && shell.Form!.Snapshot().Values["name"].GetString() == "Later edit", "stale-import");
+            Require(!await pending.WaitAsync(TimeSpan.FromSeconds(10)) && workspace.Form!.Snapshot().Values["name"].GetString() == "Later edit", "stale-import");
             await PrepareAsync(window, shell);
             Click(window.GetControl<Button>("Cancel"));
-            Require(!shell.CanSave && !shell.CanSaveBundle && !shell.IsSaving, "cancel-stale-preparation");
+            Require(!publisher.CanSave && !publisher.CanSaveBundle && !shell.IsSaving, "cancel-stale-preparation");
             Pass();
 
             _currentCheck = "D10-value-free-feedback-retry";
             window.GetControl<TextBox>("FileName").Text = "../unsafe.json";
             await PrepareAsync(window, shell);
             await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
-            Require(!shell.CanSave && !shell.IsSaving, "failure-not-consumed");
+            Require(!publisher.CanSave && !shell.IsSaving, "failure-not-consumed");
             foreach (Control control in window.GetLogicalDescendants().OfType<Control>())
             {
                 RequireSafe(AutomationProperties.GetName(control), directory);
@@ -257,7 +274,7 @@ internal static class Program
             RequireSafe(window.GetControl<TextBlock>("StatusHelp").Text, directory);
             window.GetControl<TextBox>("FileName").Text = "retry.json";
             await PrepareAsync(window, shell);
-            Require(shell.CanSave, "retry-unavailable");
+            Require(publisher.CanSave, "retry-unavailable");
             Click(window.GetControl<Button>("Cancel"));
             Pass();
 
@@ -274,7 +291,7 @@ internal static class Program
             window.Closed += (_, _) => closed.TrySetResult();
             window.Close();
             await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            Require(!shell.CanSave && !shell.CanSaveBundle, "close-retains-preparation");
+            Require(!publisher.CanSave && !publisher.CanSaveBundle, "close-retains-preparation");
             Pass();
         }
         finally
@@ -283,17 +300,17 @@ internal static class Program
         }
     }
 
-    private static async Task EventAsync(MainWindow window, SetupDesktopShellViewModel shell, string directory, int count)
+    private static async Task EventAsync(MainWindow window, DesktopShellViewModel shell, string directory, int count)
     {
         await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json"), true);
         window.GetControl<ComboBox>("DisplayMode").SelectedIndex = (int)DesktopDisplayMode.Advanced;
         Input<ComboBox>(window, "Artifact to prepare").SelectedItem = "configuration-manifest";
         await FlushAsync();
-        FieldEditor name = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_metadata_name");
+        var name = Field(window, "configuration-manifest.metadata.name");
         name.GetLogicalDescendants().OfType<TextBox>().Single().Text = "qa-config";
-        var settings = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_spec_instance_settings");
-        Named<ComboBox>(settings, "modules.tech_enabled").SelectedItem = "true";
-        var tenants = window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Name == "Field_configuration-manifest_tenants");
+        var settings = Field(window, "configuration-manifest.spec.instance.settings");
+        SetBoolean(settings, "modules.tech_enabled", true);
+        var tenants = Field(window, "configuration-manifest.tenants");
         for (int index = 0; index < count; index++)
         {
             Click(Named<Button>(tenants, "Add item to Tenants"));
@@ -303,7 +320,7 @@ internal static class Program
         }
         await FlushAsync();
         Select(window, shell, "configuration-manifest");
-        foreach (string id in shell.SelectedArtifactIds.ToArray()) Include(window, id, false);
+        foreach (string id in shell.Publisher.SelectedArtifactIds.ToArray()) Include(window, id, false);
         Include(window, "configuration-manifest", true);
         window.GetControl<TextBox>("OutputDirectory").Text = directory;
         window.GetControl<TextBox>("FileName").Text = "event-" + count.ToString(CultureInfo.InvariantCulture) + ".json";
@@ -329,27 +346,27 @@ internal static class Program
             rowIndex++;
         }
         Click(window.GetControl<Button>("PrepareBundle"));
-        Require(shell.CanSaveBundle && shell.SelectedArtifactIds.SequenceEqual(["configuration-manifest"]), "event-active-outputs");
+        Require(shell.Publisher.CanSaveBundle && shell.Publisher.SelectedArtifactIds.SequenceEqual(["configuration-manifest"]), "event-active-outputs");
         Click(window.GetControl<Button>("Cancel"));
     }
 
-    private static async Task LoadAsync(MainWindow window, SetupDesktopShellViewModel shell, string path, bool success)
+    private static async Task LoadAsync(MainWindow window, DesktopShellViewModel shell, string path, bool success)
     {
         window.GetControl<TextBox>("DefinitionPath").Text = path;
         await ActionAsync(window, shell, "LoadDefinition", () => success ? shell.Status == "definition-loaded" :
             shell.Status.StartsWith("definition-invalid", StringComparison.Ordinal) || shell.Status == "definition-unreadable");
-        Require((shell.Form is not null) == success && !shell.CanSave, "definition-admission");
+        Require((shell.Workspace.Form is not null) == success && !shell.Publisher.CanSave, "definition-admission");
         await FlushAsync();
     }
 
-    private static async Task PrepareAsync(MainWindow window, SetupDesktopShellViewModel shell)
+    private static async Task PrepareAsync(MainWindow window, DesktopShellViewModel shell)
     {
-        await ActionAsync(window, shell, "Prepare", () => (shell.CanSave && shell.Status.StartsWith("artifact-ready:", StringComparison.Ordinal)) ||
+        await ActionAsync(window, shell, "Prepare", () => (shell.Publisher.CanSave && shell.Status.StartsWith("artifact-ready:", StringComparison.Ordinal)) ||
             shell.Status.StartsWith("validation-invalid", StringComparison.Ordinal));
-        Require(shell.CanSave, "prepare-failed");
+        Require(shell.Publisher.CanSave, "prepare-failed:" + shell.Status);
     }
 
-    private static async Task ActionAsync(MainWindow window, SetupDesktopShellViewModel shell, string button, Func<bool> finished)
+    private static async Task ActionAsync(MainWindow window, DesktopShellViewModel shell, string button, Func<bool> finished)
     {
         await FlushAsync();
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -358,18 +375,24 @@ internal static class Program
             if (finished()) completion.TrySetResult();
         }
         shell.PropertyChanged += Changed;
+        shell.Publisher.PropertyChanged += Changed;
         try
         {
             Click(window.GetControl<Button>(button));
             if (finished()) completion.TrySetResult();
-            await completion.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            try { await completion.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
+            catch (TimeoutException) { throw new QualificationException("action-timeout:" + button); }
             await FlushAsync();
         }
-        finally { shell.PropertyChanged -= Changed; }
+        finally
+        {
+            shell.PropertyChanged -= Changed;
+            shell.Publisher.PropertyChanged -= Changed;
+        }
     }
 
-    private static void Select(MainWindow window, SetupDesktopShellViewModel shell, string id) =>
-        window.GetControl<ComboBox>("Artifact").SelectedItem = shell.Artifacts.Single(item => item.Id == id);
+    private static void Select(MainWindow window, DesktopShellViewModel shell, string id) =>
+        window.GetControl<ComboBox>("Artifact").SelectedItem = shell.Publisher.Artifacts.Single(item => item.Id == id);
 
     private static void Include(MainWindow window, string id, bool selected)
     {
@@ -385,12 +408,86 @@ internal static class Program
         Require(JsonElement.DeepEquals(actual.RootElement, specification.RootElement), "output-bytes");
     }
 
+    /// <summary>Captures only synthetic fixture workspaces, never operator inputs or picker contents.</summary>
+    private static async Task CaptureAsync(MainWindow window, string state)
+    {
+        if (_captureDirectory is null) return;
+        double originalWidth = window.Width;
+        double originalHeight = window.Height;
+        ThemeVariant? originalTheme = window.RequestedThemeVariant;
+        var scroll = window.GetControl<ScrollViewer>("WorkspaceScroll");
+        Vector originalOffset = scroll.Offset;
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            window.RequestedThemeVariant = theme;
+            foreach (var (width, height, name) in new[] { (960, 800, "desktop"), (600, 540, "minimum") })
+            {
+                var resized = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void SizeChanged(object? sender, WindowResizedEventArgs args)
+                {
+                    if (args.ClientSize.Width == width && args.ClientSize.Height == height)
+                        resized.TrySetResult();
+                }
+                window.Resized += SizeChanged;
+                try
+                {
+                    window.Width = width;
+                    window.Height = height;
+                    if (window.ClientSize.Width == width && window.ClientSize.Height == height)
+                        resized.TrySetResult();
+                    try { await resized.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
+                    catch (TimeoutException) { throw new QualificationException("capture-resize-timeout"); }
+                    window.UpdateLayout();
+                    await FlushAsync();
+                    foreach (bool end in new[] { false, true })
+                    {
+                        scroll.Offset = end ? new Vector(0, scroll.Extent.Height - scroll.Viewport.Height) : default;
+                        var rendered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                        window.RequestAnimationFrame(_ => rendered.TrySetResult());
+                        await rendered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                        using var bitmap = new RenderTargetBitmap(new PixelSize(width, height));
+                        bitmap.Render(window);
+                        bitmap.Save(Path.Combine(_captureDirectory, $"{state}-{name}-{theme.Key}{(end ? "-end" : "")}.png"),
+                            PngBitmapEncoderOptions.Default);
+                    }
+                }
+                finally { window.Resized -= SizeChanged; }
+            }
+        }
+        window.RequestedThemeVariant = originalTheme;
+        window.Width = originalWidth;
+        window.Height = originalHeight;
+        scroll.Offset = originalOffset;
+        window.UpdateLayout();
+        await FlushAsync();
+    }
+
     private static void RequireSafe(string? value, string privatePath) => Require(value is null ||
         (!value.Contains(privatePath, StringComparison.Ordinal) && !value.Contains("Synthetic private owner", StringComparison.Ordinal)), "sensitive-feedback");
-    private static FieldEditor Editor(MainWindow window, string title) => window.GetLogicalDescendants().OfType<FieldEditor>().Single(item => item.Title == title);
+    private static StackPanel Editor(MainWindow window, string title) =>
+        window.GetLogicalDescendants().OfType<StackPanel>()
+            .First(item => item.DataContext is FieldViewModel model && model.Title == title);
+    private static StackPanel Field(MainWindow window, string id) =>
+        window.GetLogicalDescendants().OfType<StackPanel>()
+            .First(item => item.DataContext is FieldViewModel model && model.Id == id);
     private static T Input<T>(MainWindow window, string title) where T : Control => Named<T>(window, title);
+    private static void SetBoolean(Control owner, string title, bool value)
+    {
+        if (owner.GetLogicalDescendants().OfType<CheckBox>().SingleOrDefault(control =>
+            AutomationProperties.GetName(control) == title && control.IsVisible) is { } choice)
+            choice.IsChecked = value;
+        else
+            Named<TextBox>(owner, title).Text = value ? "true" : "false";
+    }
     private static T Named<T>(Control owner, string name) where T : Control => owner.GetLogicalDescendants().OfType<T>().Single(control => AutomationProperties.GetName(control) == name);
-    private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    private static void Click(Button button)
+    {
+        Require(button.IsEffectivelyEnabled, "action-unavailable");
+        var command = button.Command ?? throw new QualificationException("action-unbound");
+        Require(command.CanExecute(button.CommandParameter), "action-disabled");
+        button.Focus();
+        command.Execute(button.CommandParameter);
+    }
     private static async Task FlushAsync() => await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
     private static void Require(bool condition, string code)
     {

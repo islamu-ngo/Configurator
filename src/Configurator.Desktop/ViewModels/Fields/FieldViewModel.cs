@@ -57,6 +57,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public string ClearName => $"Clear {Title}";
     public string RecommendedName => $"Use recommended value for {Title}";
     public string RemoveItemName => $"Remove item from {Parent?.Title ?? Title}";
+    public string Help => ReadMetadata("help");
     public string HelpText => ReadMetadata("help") is { Length: > 0 } help ? help : Title;
     public string Group => ReadMetadata("group");
     public string Consequence => ReadMetadata("consequence");

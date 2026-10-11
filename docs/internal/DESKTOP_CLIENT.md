@@ -6,39 +6,45 @@ It has no target-specific DTO, catalogue, manifest, or identity workflow.
 
 ## Entry and adapter API
 
-`App.OnFrameworkInitializationCompleted` creates a
-`SetupDesktopShellViewModel` and `MainWindow`. The desktop lifetime accepts zero,
+`App.OnFrameworkInitializationCompleted` resolves `DesktopShellViewModel` and
+`MainWindow` from an application-owned dependency injection container. The
+container supplies an isolated `IMessenger`, the native protected writer and
+`IStorageDialogService`; its disposal closes the workspace and releases child
+subscriptions. Storage provider lookup is deferred until a picker is requested,
+avoiding a dependency cycle between the window and its viewmodel. The desktop lifetime accepts zero,
 one, or two positional arguments: explicit local definition path and optional
 existing output directory. No definition is selected by default.
 
-The shell exposes:
+The root coordinates generations, busy state, cancellation and value-free
+status. It exposes three focused child viewmodels rather than forwarding their
+operations:
 
-- `LoadDefinitionAsync(CancellationToken)`: read the explicit local path within
+- `Loader.LoadDefinitionAsync(CancellationToken)`: read the explicit local path within
   the 4 MiB source ceiling, admit JSON or YAML, and clear obsolete state. The read
   accepts at most one extra byte to detect a file growing past the ceiling.
-- `LoadDefinition(ReadOnlyMemory<byte>, bool yaml = false)`: admit a supplied
+- `Loader.LoadDefinition(ReadOnlyMemory<byte>, bool yaml = false)`: admit a supplied
   local document through `SetupDefinitionCodec`; useful for host integration and
   tests without a filesystem read.
-- `Form`, `Artifacts`, `ArtifactId`, `SelectedArtifactIds`, `DisplayMode`, `DefinitionPin`,
-  `ArtifactConsequences`: typed editing and byte-free metadata. `Form` is local
+- `Workspace.Form`, `Workspace.Fields`, `Workspace.DisplayMode`,
+  `Loader.DefinitionPin` and `Publisher` artifact properties: typed editing and
+  byte-free metadata. `Form` is local
   editor state containing answers, not a public/remote projection.
-- `Validate()`, `PrepareAsync()`, `Preparation`, `CanPrepare`, `CanSave`,
-  `SaveAsync(CancellationToken)`, `Cancel()`: validation, snapshot preparation,
+- `Workspace.Validate()`, publisher preparation/save operations and root
+  `Cancel()`: validation, snapshot preparation,
   consumptive protected publication, and invalidation.
-- `ExistingFilePath`, `ImportFileAsync()`: read a bounded local existing file for
+- `Publisher.ExistingFilePath`, `Publisher.ImportFileAsync()`: read a bounded local existing file for
   the selected declared JSON, YAML, or dotenv artifact. Shared
   `DefinitionFormModel.ImportAsync` admits supported inverse projections and
   commits imported answers only while the original revision is current.
-- `SelectArtifact(id, selected)`, `PrepareBundle()`, `CanSaveBundle`,
-  `SaveBundleAsync()`: select declared outputs, compose a deterministic bundle,
+- Publisher artifact selection, bundle preparation and saving: select declared outputs, compose a deterministic bundle,
   and publish it through the shared protected bundle publisher. The selected
   single artifact remains a separate preparation action.
-- `DefinitionPath`, `OutputDirectory`, `FileName`: operator-selected local
+- Loader definition path and publisher output directory/file name: operator-selected local
   inputs. `Status` contains value-free diagnostic codes and IDs; `StatusHelp`
   provides correction/retry guidance without values, paths or raw exceptions.
-- `SelectPathAsync(kind, select)`: a Desktop-only native selection boundary.
-  `MainWindow` uses its `StorageProvider` for one local file or existing folder,
-  checks capability and disposes storage items. The shell accepts only local file
+- `IStorageDialogService.SelectAsync(kind, token)`: a Desktop-only native selection boundary.
+  `AvaloniaStorageDialogService` uses the window's `StorageProvider` for one local
+  file or existing folder, checks capability and disposes storage items. It accepts only host-free local file
   URIs while its captured generation remains current. Cancellation, unavailable
   providers and nonlocal selections preserve answers/preparation. The accepted
   definition/import path feeds the existing bounded reader; folder selection
@@ -47,33 +53,36 @@ The shell exposes:
 ## Editing and presentation flow
 
 `DefinitionFormModel` owns a frozen admitted definition, typed field input text,
-input revision, validation, and cloned snapshots. Desktop's `FieldEditor`
-renders native TextBox/ComboBox controls, recursively renders declared object
-properties, and maintains scalar list rows with add/remove buttons. Structured
-controls serialize their local values into the shared typed input; the operator
+input revision, validation, and cloned snapshots. Desktop's `FormFieldFactory`
+projects inputs into string, enum, numeric, boolean, object and list viewmodels.
+Compiled `DataTemplate` bindings render native inputs and recursive collections
+from that tree. Structured viewmodels serialize their local values into the shared typed input; the operator
 does not edit JSON. An untouched blank nested control remains absent, so it
 cannot create a false conflict during existing-file import. An invalid child
 scalar invalidates the whole structured input rather than silently omitting it.
 
-`MainWindow` creates controls once per admitted form and updates visibility and
-errors without rebuilding on each keystroke. This preserves typing focus.
-`FieldEditor` observes synchronous text-property changes rather than deferred
-TextChanged events, so initializing imported controls cannot create a second
-answer revision or invalidate a successfully imported status afterward.
+`MainWindow` declaratively hosts fields in an `ItemsControl`. Bindings update
+visibility, errors and values without rebuilding the form on each keystroke.
+Field synchronization distinguishes model refresh from operator edits so that
+imported controls cannot create a second answer revision or invalidate a
+successfully imported status afterward.
 Essential mode is a desktop narrowing of Guided: it retains required, invalid,
 protected, consequential, and essentially disclosed active fields. Advanced
 shows all active fields. Shared Core validation always sees all answers,
 independent of disclosure. Effective parent sensitivity masks all child controls;
-selected protected enum/boolean values use a masked selection display.
+protected scalar values use masked input rather than exposing choices through
+an unmasked selection popup.
 
 Native control names and help are set through Avalonia AutomationProperties.
 Tab order follows the logical form, access keys use native buttons, and keyboard
-shortcuts route through Window KeyDown. Validation focuses errors; list mutation
-preserves usable focus. The RTL switch sets FlowDirection. Headless control
+shortcuts bind to commands through native key bindings. Validation focuses errors;
+list mutation preserves usable focus through declarative focus requests and a
+view-owned focus behavior. The RTL switch binds FlowDirection. Headless control
 tests check actual focus and key routing, not just label/property presence.
 Selection buttons return focus after cancellation/failure; successful intake
-focuses the first visible field. Closing cancels the shell before detaching
-control subscriptions, fencing outstanding selection as well as private saves.
+focuses the first visible field. Closing disposes the shell, fencing outstanding
+selection as well as private saves. Code-behind contains initialization and
+window lifecycle disposal only; it does not assemble fields or handle actions.
 
 ## Preparation and protected publication
 
@@ -150,10 +159,23 @@ Event cases enter declared fields for one/two/three tenants and check required
 manifest identity and nested objects. They do not imply arbitrary document
 editing, a supported inverse for the manifest projection or target acceptance.
 
-The native command passed thirteen checks on Linux x64/X11 on 2026-10-09;
-Desktop MTP passed 64 and real Artifacts boundary classes passed 26. These are
+The MVVM refactor qualification passed thirteen checks on Linux x64/X11 and
+173 Desktop MTP cases on 2026-10-11. Earlier direct Artifacts boundary
+qualification passed 26 cases on 2026-10-09. These are
 separate from published-payload and human/assistive-technology evidence. Missing
 human/AT or full isolated-payload coverage keeps packaging readiness unqualified.
 Exact commands, source/payload identities and omissions live in the task's
 scoped evidence; [OPERATIONS](OPERATIONS.md#desktop-readiness-evidence) records
 the verification boundary. No new release platform or installer is admitted.
+
+Synthetic visual evidence can be captured with:
+
+```bash
+xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 13 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
+```
+
+The harness captures loaded/edited workspaces at 960x800 and the 600x540 minimum,
+in light/dark themes, at the top and footer. It subscribes to native resize and
+animation-frame signals before rendering PNGs; captures contain synthetic
+fixture values only. The workspace has one vertical scroll owner so a shorter
+window cannot collapse the editable region behind fixed header/footer panes.

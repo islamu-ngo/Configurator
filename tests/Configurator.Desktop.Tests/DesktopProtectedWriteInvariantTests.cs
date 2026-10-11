@@ -15,18 +15,18 @@ public sealed class DesktopProtectedWriteInvariantTests
         Directory.CreateDirectory(directory);
         try
         {
-            using var shell = new SetupDesktopShellViewModel { OutputDirectory = directory };
-            await Assert.That(shell.LoadDefinition(DesktopApplicationTests.Definition())).IsTrue();
-            await Assert.That(await shell.PrepareAsync()).IsTrue();
-            await Assert.That(await shell.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.Written);
-            string target = Path.Combine(directory, shell.FileName);
+            using var shell = DesktopTestContext.Root(outputDirectory: directory);
+            await Assert.That(shell.Loader.LoadDefinition(DesktopApplicationTests.Definition())).IsTrue();
+            await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+            await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.Written);
+            string target = Path.Combine(directory, shell.Publisher.FileName);
             byte[] original = await File.ReadAllBytesAsync(target);
             await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            shell.Form!.Fields.Single(field => field.Definition.Id == "name").Text = "Replacement";
-            await shell.PrepareAsync();
-            await Assert.That(await shell.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+            shell.Workspace.Form!.Fields.Single(field => field.Definition.Id == "name").Text = "Replacement";
+            await shell.Publisher.PrepareAsync();
+            await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.TargetExists);
             await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(original);
-            await Assert.That(shell.CanSave).IsFalse();
+            await Assert.That(shell.Publisher.CanSave).IsFalse();
             await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([target]);
         }
         finally { Directory.Delete(directory, recursive: true); }

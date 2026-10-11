@@ -144,6 +144,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         NotifyCommands();
     }
 
+    /// <summary>Replaces choices before selecting their default, so two-way picker reset cannot erase the new selection.</summary>
     private void ReplaceForm(DefinitionFormModel? form)
     {
         ClearPreparation();
@@ -152,6 +153,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         _replacingForm = true;
         try
         {
+            OnPropertyChanged(nameof(Artifacts));
             ArtifactId = Artifacts.Count > 0 ? Artifacts[0].Id : null;
             FileName = Artifacts.Count > 0 ? Artifacts[0].FileName : string.Empty;
         }
@@ -159,7 +161,6 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (ArtifactId is not null) _selectedArtifactIds.Add(ArtifactId);
         _artifactSelections = Artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.FileName,
             _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected))).ToArray();
-        OnPropertyChanged(nameof(Artifacts));
         OnPropertyChanged(nameof(ArtifactSelections));
         OnPropertyChanged(nameof(SelectedArtifactIds));
         OnPropertyChanged(nameof(ArtifactId));

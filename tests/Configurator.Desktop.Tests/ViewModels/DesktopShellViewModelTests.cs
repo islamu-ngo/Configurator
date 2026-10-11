@@ -1,9 +1,9 @@
 namespace Configurator.Desktop.Tests.ViewModels;
 
-using CommunityToolkit.Mvvm.Messaging;
-using CommunityToolkit.Mvvm.Input;
 using System.Text;
 using System.Text.Json.Nodes;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Core;
 using Configurator.Core.Artifacts;

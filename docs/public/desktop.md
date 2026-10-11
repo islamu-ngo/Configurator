@@ -46,7 +46,11 @@ unset option. Object fields expose their named child controls, and scalar lists
 have **Add item** and **Remove item** actions. You do not need to edit JSON.
 Declared defaults are loaded, and public recommendations can be selected
 explicitly. Protected inputs are masked, including descendants of an object
-whose nested fields raise its sensitivity.
+whose nested fields raise its sensitivity. Protected boolean and enum values
+use masked entry instead of a popup that could disclose their choices.
+Protected booleans accept `true` or `false`; protected enums accept their
+declared value. A blank entry is unset. The workspace scrolls vertically so
+fields, artifact actions and status remain reachable in a shorter window.
 
 **Essential** shows active required, invalid, protected, consequential, and
 essentially disclosed fields. **Guided** adds ordinarily disclosed fields.
