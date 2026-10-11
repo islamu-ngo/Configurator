@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-10 Europe/Brussels
+Last Updated: 2026-10-11 Europe/Brussels
 
 ## Index & Recent
 
@@ -55,3 +55,42 @@ Append observed target findings chronologically using the template.
 
 **Promotion Consideration**:
 - [x] Stays in journal only (optional asset installation lesson; boundary already documented in the ADR).
+
+[2026-10-11 Europe/Brussels] - MVVM picker replacement and focus require actual rendered-control signals
+
+**Context**: The Desktop MVVM cutover replaced procedural fields and click handlers
+with compiled templates, injected child viewmodels and command bindings.
+
+**Symptom / Observation**: Headless tests that admitted a definition before
+materializing the window passed, while native captures showed a blank default
+artifact selector. Picker cancellation also failed to return focus despite a
+valid viewmodel focus request.
+
+**Root Cause**: Publishing the default selection before replacing ItemsSource
+let a two-way selector reset erase that default. Focus arrived while the async
+command still disabled the picker button; one dispatcher post was not a reliable
+signal that the button had become focusable. Raising routed ClickEvent directly
+does not invoke a command-bound button's action.
+
+**Resolution**: `ArtifactPublisherViewModel.ReplaceForm` publishes the choices
+inside its replacement guard before assigning their default. The regression
+materializes the empty window before admission and checks its selection box and
+rendered identifier. `FocusBehavior` subscribes to attachment and effective
+enablement, cancels superseded requests and removes pending handlers on detach.
+Control tests invoke the command resolved from the rendered button with its
+CanExecute gate. Native captures await an actual resize and animation frame,
+not sleeps, and inspect both top and footer at normal/minimum sizes in both themes.
+
+**Why This Matters for Future Work**: Viewmodel state alone does not prove
+two-way control initialization or command-completion focus. Exercise the real
+admission order and subscribe to the precise UI readiness signal.
+
+**References**:
+- `src/Configurator.Desktop/ViewModels/ArtifactPublisherViewModel.cs`
+- `src/Configurator.Desktop/Views/FocusBehavior.cs`
+- `tests/Configurator.Desktop.Tests/Views/MainWindowBindingTests.cs`
+- `tests/Configurator.Desktop.Tests/DesktopLocalSelectionTests.cs`
+- `tests/Configurator.Desktop.NativeHost/Program.cs`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; existing desktop custody/operation boundaries remain authoritative.

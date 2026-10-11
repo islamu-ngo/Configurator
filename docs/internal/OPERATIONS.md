@@ -494,6 +494,22 @@ The native executable has strict RID/backend/count/timeout guards; missing
 display or incomplete results reject qualification. Headless and native-host
 checks are distinct from actual published application proof.
 
+The 2026-10-11 MVVM refactor retained all original 67 desktop cases and expanded
+the owner suite to 173 passes. Native qualification again passed all thirteen
+checks, including Event one/two/three-tenant projections, real create-only writes,
+conflicts, recovery and close-time disposal. Forty-one architecture cases,
+solution Release compilation, locked restore and non-mutating solution
+formatting also passed. Shared-output Avalonia builds ran serially after a
+parallel build exposed PDB file contention.
+
+Synthetic visual inspection covered sixteen loaded/edited top/footer captures:
+960x800 and 600x540, light/dark themes. The native harness subscribes to resize
+and animation-frame signals rather than sleeps. Inspection fixed collapsed
+minimum-size form space and default artifact selection lost during two-way
+choice replacement. These source-harness captures do not establish manual
+dialog, assistive-technology, additional-platform or newly published-payload
+qualification. See [desktop verification](DESKTOP_CLIENT.md#native-qualification).
+
 Published-app isolation uses Bubblewrap with a new network namespace, a clean
 operator home, no mounted source/NuGet tree and a masked `/usr/share/dotnet`.
 The single-file executable uses its embedded runtime, system native libraries,
