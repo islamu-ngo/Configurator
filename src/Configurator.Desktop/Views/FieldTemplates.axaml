@@ -1,0 +1,98 @@
+<ResourceDictionary
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:fields="using:Configurator.Desktop.ViewModels.Fields"
+    xmlns:local="using:Configurator.Desktop.Views"
+    x:CompileBindings="True">
+  <DataTemplate x:Key="FieldHeader" x:DataType="fields:FieldViewModel">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Group}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding HelpText}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Consequence}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Format}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding ConstraintsSummary}" TextWrapping="Wrap" />
+      <TextBlock Text="Protected input — values are masked." IsVisible="{Binding RequiresMasking}" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="FieldActions" x:DataType="fields:FieldViewModel">
+    <StackPanel Spacing="4">
+      <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Button Content="_Clear" Command="{Binding ClearCommand}"
+                AutomationProperties.Name="{Binding ClearName}" AutomationProperties.HelpText="Clear this field" />
+        <Button Content="_Use recommended value" Command="{Binding UseRecommendedCommand}" IsVisible="{Binding HasRecommended}"
+                AutomationProperties.Name="{Binding RecommendedName}" AutomationProperties.HelpText="Use the declared recommended value" />
+      </StackPanel>
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="StringFieldTemplate" DataType="fields:StringFieldViewModel" x:DataType="fields:StringFieldViewModel">
+    <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" MaxLength="{Binding MaxLength}"
+               AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+               local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="EnumFieldTemplate" DataType="fields:EnumFieldViewModel" x:DataType="fields:EnumFieldViewModel">
+    <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice, Mode=TwoWay}" IsVisible="{Binding IsPublic}"
+                HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+                local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding RequiresMasking}" MaxLength="65536"
+               AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+               local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="NumericFieldTemplate" DataType="fields:NumericFieldViewModel" x:DataType="fields:NumericFieldViewModel">
+    <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" MaxLength="65536"
+               AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+               local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="BooleanFieldTemplate" DataType="fields:BooleanFieldViewModel" x:DataType="fields:BooleanFieldViewModel">
+    <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <CheckBox IsChecked="{Binding Value, Mode=TwoWay}" IsThreeState="True" IsVisible="{Binding IsPublic}"
+                AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+                local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding RequiresMasking}" MaxLength="65536"
+               AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+               local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="ObjectFieldTemplate" DataType="fields:ObjectFieldViewModel" x:DataType="fields:ObjectFieldViewModel">
+    <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <ItemsControl ItemsSource="{Binding Children}" Margin="16,0,0,0" />
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate x:Key="ListFieldTemplate" DataType="fields:ListFieldViewModel" x:DataType="fields:ListFieldViewModel">
+    <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <ItemsControl ItemsSource="{Binding Items}" Margin="16,0,0,0">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="fields:FieldViewModel">
+            <StackPanel Spacing="4">
+              <ContentControl Content="{Binding}" />
+              <Button Content="_Remove item" Command="{Binding RemoveCommand}"
+                      AutomationProperties.Name="{Binding RemoveItemName}" AutomationProperties.HelpText="Remove this list item" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Button Content="_Add item" Command="{Binding AddItemCommand}"
+              AutomationProperties.Name="{Binding AddItemName}" AutomationProperties.HelpText="Add an item to this list"
+              local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
+    </StackPanel>
+  </DataTemplate>
+</ResourceDictionary>
