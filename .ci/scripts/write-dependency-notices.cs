@@ -8,6 +8,10 @@ using System.Diagnostics;
 if (args is not [var assetsPath, var outputPath, var projectPath, var runtime]) return 64;
 using JsonDocument assets = JsonDocument.Parse(File.ReadAllBytes(assetsPath));
 string[] caches = assets.RootElement.GetProperty("packageFolders").EnumerateObject().Select(item => item.Name).ToArray();
+DirectoryInfo? root = new(Path.GetDirectoryName(Path.GetFullPath(projectPath))!);
+while (root is not null && !File.Exists(Path.Combine(root.FullName, "Configurator.slnx"))) root = root.Parent;
+if (root is null) throw new InvalidDataException("Configurator repository root is missing.");
+string supplementalRoot = Path.Combine(root.FullName, "eng/configurator/dependency-notices");
 int count = 0;
 var packages = new List<string>();
 foreach (JsonProperty library in assets.RootElement.GetProperty("libraries").EnumerateObject())
@@ -18,6 +22,10 @@ foreach (JsonProperty library in assets.RootElement.GetProperty("libraries").Enu
     string? package = caches.Select(cache => Path.Combine(cache, relative)).FirstOrDefault(Directory.Exists);
     if (package is null) throw new InvalidDataException("Restored package metadata is missing.");
     string destination = Path.Combine(outputPath, relative);
+    string contentHash = library.Value.GetProperty("sha512").GetString()
+        ?? throw new InvalidDataException("Restored package content identity is missing.");
+    if (!WriteSupplementalNotices(supplementalRoot, library.Name, package, destination, contentHash))
+        return RejectSupplementalReview(library.Name);
     Directory.CreateDirectory(destination);
     foreach (string nuspec in Directory.EnumerateFiles(package, "*.nuspec"))
         File.Copy(nuspec, Path.Combine(destination, Path.GetFileName(nuspec)), overwrite: true);
@@ -68,6 +76,8 @@ using (Process process = Process.Start(start)!)
         string? package = caches.Select(cache => Path.Combine(cache, relative)).FirstOrDefault(Directory.Exists);
         if (package is null) throw new InvalidDataException("Selected SDK runtime-pack notices are missing.");
         string destination = Path.Combine(outputPath, relative);
+        if (!WriteSupplementalNotices(supplementalRoot, id + "/" + version, package, destination, assetsHash: null))
+            return RejectSupplementalReview(id + "/" + version);
         Directory.CreateDirectory(destination);
         foreach (string file in Directory.EnumerateFiles(package, "*", SearchOption.AllDirectories))
         {
@@ -95,3 +105,45 @@ using (var stream = File.Create(Path.Combine(outputPath, "packages.json")))
 }
 Console.WriteLine($"Retained original metadata and license/notice files for {count} dependency packages.");
 return 0;
+
+static bool WriteSupplementalNotices(string supplementalRoot, string packageIdentity, string package, string destination, string? assetsHash)
+{
+    string[] identity = packageIdentity.Split('/');
+    string id = identity[0].ToLowerInvariant();
+    string version = identity[1].ToLowerInvariant();
+    string reviewRoot = Path.Combine(supplementalRoot, id);
+    if (!Directory.Exists(reviewRoot)) return true;
+    string review = Path.Combine(reviewRoot, version);
+    string manifestPath = Path.Combine(review, "manifest.json");
+    if (!File.Exists(manifestPath)) return false;
+    using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(manifestPath));
+    string? reviewedHash = manifest.RootElement.GetProperty("contentHash").GetString();
+    string metadataPath = Path.Combine(package, ".nupkg.metadata");
+    if (!File.Exists(metadataPath)) return false;
+    using JsonDocument metadata = JsonDocument.Parse(File.ReadAllBytes(metadataPath));
+    string? restoredHash = metadata.RootElement.GetProperty("contentHash").GetString();
+    if (reviewedHash is null || restoredHash != reviewedHash || (assetsHash is not null && assetsHash != reviewedHash)
+        || Convert.FromBase64String(reviewedHash).Length != 64)
+        return false;
+    string[] notices = Directory.EnumerateFiles(review)
+        .Where(path => Path.GetFileName(path) is "LICENSE" or "NOTICE" or "THIRD-PARTY-NOTICES.txt").ToArray();
+    if (notices.Length == 0) return false;
+    foreach (string notice in notices)
+    {
+        if ((File.GetAttributes(notice) & FileAttributes.ReparsePoint) != 0
+            || (!OperatingSystem.IsWindows() && (File.GetUnixFileMode(notice)
+                & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute)) != 0))
+            return false;
+    }
+    string supplementalDestination = Path.Combine(destination, "supplemental");
+    Directory.CreateDirectory(supplementalDestination);
+    foreach (string notice in notices)
+        File.Copy(notice, Path.Combine(supplementalDestination, Path.GetFileName(notice)), overwrite: true);
+    return true;
+}
+
+static int RejectSupplementalReview(string package)
+{
+    Console.Error.WriteLine($"Supplemental dependency review is missing or does not match {package}.");
+    return 65;
+}
