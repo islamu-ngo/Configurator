@@ -27,6 +27,12 @@ index routes to Configurator-owned example guidance instead.
 
 ## Approved dependency transfer
 
+This section records the original extraction, not the current dependency graph.
+The temporary fork and its active tooling were retired on 2026-10-13 in favor of
+official pinned Terminal.Gui with retained asset notices. The historical
+transfer manifest remains unchanged; see the
+[decision and history](../TERMINAL_GUI_DEPENDENCY.md).
+
 The exact approved Terminal.Gui archive was transferred with the native
 filesystem `install -D -m 0644` utility, not a source-copy script or cp command.
 SHA-256 matches the unchanged approval ratchet:

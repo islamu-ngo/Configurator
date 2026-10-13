@@ -54,6 +54,7 @@ constraints:
 - [CLI contract](internal/CLI_CONTRACT.md): machine interface.
 - [Presentation state](internal/PRESENTATION_STATE.md): immutable workspace and operation generations.
 - [Terminal client](internal/TERMINAL_CLIENT.md) and [Desktop client](internal/DESKTOP_CLIENT.md): surface adapters.
+- [Terminal.Gui dependency decision](internal/TERMINAL_GUI_DEPENDENCY.md): official pin, asset notices and retirement of the temporary fork.
 - [Protected artifacts](internal/PROTECTED_ARTIFACTS.md): create-only native protection.
 - [Launch contract](internal/LAUNCH_CONTRACT.md): preparation versus apply boundary.
 - [Packaging](internal/PACKAGING.md): evaluated release contracts and package closure.

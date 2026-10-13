@@ -255,10 +255,9 @@ Source-derived tests that require absent Event CI/workflow files remain referenc
 until rebased by their owner; an ordinary suite must not be claimed green without
 execution. See [TESTING.md](../../docs/internal/TESTING.md).
 
-## Audited Terminal.Gui dependency
+## Official Terminal.Gui dependency
 
-The feed retains the exact approved `ISLAMU.Terminal.Gui` 2.4.17-islamu.1 archive,
-patch, assembly/closure hashes, SBOM and notices. The native rebuild script
-references Configurator Terminal and its renamed probe. NuGet pack is not byte
-reproducible; do not overwrite the approved archive or relax ratchets to accept
-a new ZIP. See [dependency review](dependencies/terminal-gui/dependency-review.md).
+Terminal.Gui is restored from NuGet.org with an exact central version and
+generated locks. Normal package publication retains reviewed supplemental
+notices for embedded third-party assets; no patched archive or upstream rebuild
+is maintained. See [the dependency decision and history](../../docs/internal/TERMINAL_GUI_DEPENDENCY.md).

@@ -33,6 +33,7 @@ public sealed class StandalonePackageTests
                 || name.StartsWith("Avalonia.Fonts.Inter/", StringComparison.OrdinalIgnoreCase)
                 || name.StartsWith("TUnit", StringComparison.OrdinalIgnoreCase)
                 || name.StartsWith("Event.", StringComparison.Ordinal))).IsEmpty();
+        await AssertTerminalDependencyNotices(directory, surface == "terminal");
         foreach (string notice in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md" })
             await Assert.That(ReleaseTestPaths.Hash(File.ReadAllBytes(Path.Combine(directory, notice))))
                 .IsEqualTo(ReleaseTestPaths.Hash(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, notice))));
@@ -82,12 +83,12 @@ public sealed class StandalonePackageTests
         using JsonDocument dependencies = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "dependency-notices/packages.json")));
         await Assert.That(dependencies.RootElement.EnumerateArray().Any(item =>
             item.GetString()!.StartsWith("Microsoft.NETCore.App.Runtime.Mono.browser-wasm/", StringComparison.Ordinal))).IsTrue();
+        await AssertTerminalDependencyNotices(directory, expected: false);
         await Assert.That(frameworkFiles.Where(path => Path.GetFileName(path).StartsWith("Configurator.Artifacts", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Configurator.Cli", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Configurator.Terminal", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Configurator.Desktop", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Avalonia", StringComparison.Ordinal)
-            || Path.GetFileName(path).StartsWith("ISLAMU.Terminal.Gui", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Terminal.Gui", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Spectre.Console", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Event.", StringComparison.Ordinal)
@@ -101,5 +102,38 @@ public sealed class StandalonePackageTests
             await Assert.That(capabilities.GetProperty(enabled).GetBoolean()).IsTrue().Because(enabled);
         foreach (string disabled in new[] { "persistence", "answerPersistence", "nativeProtectedSave", "targetAuthentication", "targetApply", "telemetry" })
             await Assert.That(capabilities.GetProperty(disabled).GetBoolean()).IsFalse().Because(disabled);
+    }
+
+    private static async Task AssertTerminalDependencyNotices(string directory, bool expected)
+    {
+        string notices = Path.Combine(directory, "dependency-notices");
+        using JsonDocument inventory = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(notices, "packages.json")));
+        string[] packages = inventory.RootElement.EnumerateArray().Select(item => item.GetString()!).ToArray();
+        await Assert.That(packages.Where(item => item.StartsWith("ISLAMU.Terminal.Gui/", StringComparison.OrdinalIgnoreCase))).IsEmpty();
+        await Assert.That(Directory.Exists(Path.Combine(notices, "islamu.terminal.gui"))).IsFalse();
+        foreach (string id in new[] { "Terminal.Gui", "TextMateSharp", "TextMateSharp.Grammars", "Onigwrap" })
+        {
+            string? package = packages.SingleOrDefault(item => item.StartsWith(id + "/", StringComparison.OrdinalIgnoreCase));
+            await Assert.That(package is not null).IsEqualTo(expected).Because(id);
+            string packageDirectory = Path.Combine(notices, id.ToLowerInvariant());
+            await Assert.That(Directory.Exists(packageDirectory)).IsEqualTo(expected).Because(id);
+            if (package is null) continue;
+            string[] identity = package.Split('/');
+            string versionDirectory = Path.Combine(packageDirectory, identity[1].ToLowerInvariant());
+            await Assert.That(Directory.GetFiles(versionDirectory, "*.nuspec")).IsNotEmpty().Because(id);
+            if (id != "Onigwrap")
+            {
+                string filename = id == "TextMateSharp.Grammars" ? "THIRD-PARTY-NOTICES.txt" : "LICENSE";
+                string supplemental = Path.Combine(identity[0].ToLowerInvariant(), identity[1].ToLowerInvariant());
+                await Assert.That(ReleaseTestPaths.Hash(File.ReadAllBytes(Path.Combine(notices, supplemental,
+                    "supplemental", filename))))
+                    .IsEqualTo(ReleaseTestPaths.Hash(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root,
+                        "eng/configurator/dependency-notices", supplemental, filename))));
+            }
+            if (id == "Onigwrap")
+                await Assert.That(Directory.GetFiles(versionDirectory, "*", SearchOption.AllDirectories).Any(path =>
+                    Path.GetFileName(path).Contains("license", StringComparison.OrdinalIgnoreCase)
+                    || Path.GetFileName(path).Contains("notice", StringComparison.OrdinalIgnoreCase))).IsTrue();
+        }
     }
 }

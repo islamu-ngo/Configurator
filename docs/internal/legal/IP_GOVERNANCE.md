@@ -229,12 +229,13 @@ packages; `Directory.Build.props` supplies generated locks and locked CI restore
 Regenerate lockfiles through normal restore, never by hand. Generator privacy,
 generated-output obligations and notices remain separate review duties.
 
-The audited `ISLAMU.Terminal.Gui` downstream identity, version
-`2.4.17-islamu.1`, patch, approval, assembly/closure ratchets, SBOM and notices
-remain intact. Its approved archive is authoritative; NuGet pack's random OPC
-metadata prevents identical ZIP rebuilds. Do not relax ratchets to accept a
-reconstructed archive. See the
-[dependency review](../../../eng/release/dependencies/terminal-gui/dependency-review.md).
+Terminal.Gui uses its official NuGet package with an exact central pin and
+generated locks. Embedded grammar/theme assets retain their own terms and
+reviewed supplemental notices, tied to the restored package version and content
+hash. A package's MIT metadata does not relicense those assets. The temporary
+downstream archive, patch and rebuild machinery were retired by explicit
+Steward direction on 2026-10-13; see the
+[decision and history](../TERMINAL_GUI_DEPENDENCY.md).
 
 git-cliff is an operator-supplied build-time renderer with a frozen toolchain
 identity, not installed by this transfer. Retain its notices. Configurator-owned

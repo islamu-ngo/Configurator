@@ -66,7 +66,7 @@ public sealed class StandaloneArchitectureTests
             await Assert.That(references.Where(name => name.StartsWith("Configurator.", StringComparison.Ordinal)))
                 .IsEquivalentTo(["Configurator.Core", "Configurator.Presentation"]);
             await Assert.That(references.Any(name => name.StartsWith("Avalonia", StringComparison.Ordinal)
-                || name is "Terminal.Gui" or "ISLAMU.Terminal.Gui" or "Spectre.Console")).IsFalse();
+                || name is "Terminal.Gui" or "Spectre.Console")).IsFalse();
         }
         if (owner == "Presentation")
             await Assert.That(references.Where(name => name.StartsWith("Configurator.", StringComparison.Ordinal)))

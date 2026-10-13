@@ -246,7 +246,7 @@ For developers contributing code, architecture reviewers, and AI agents, use the
 | Runtime | .NET 10, SDK 10.0.302 |
 | Architecture | Independent Core, Artifacts and Presentation with four adapters |
 | Machine CLI | Spectre.Console / Spectre.Console.Cli |
-| Terminal | Audited ISLAMU.Terminal.Gui downstream package |
+| Terminal | Official Terminal.Gui, centrally pinned with retained component notices |
 | Desktop | Avalonia 12.1.3, CommunityToolkit.Mvvm |
 | Public browser | Static Blazor WebAssembly |
 | Definition data | Bounded JSON/YAML, canonical SHA-256 identity |
@@ -319,6 +319,7 @@ We appreciate these generally available public-repository tools. They are not pr
 - [ISLAMU Event][event-repo-link]: Event Platform & Management System.
 - [ISLAMU Configurator][github-repo-link]: Offline Configuration Preparation Utility.
 - [I-VSD][ivsd-github-repo-link]: Islamic Value Sensitive Design: A Framework for Provider-Mediated Software Solutions
+- [SecretKit][secretkit-repo-link]: Unified secret management SDK for .NET
 
 ## 🙏 Acknowledgement
 
@@ -340,7 +341,7 @@ Our codebase is enriched by dozens of community-crafted .NET libraries. For the 
 - [.NET][dotnet-link]: The application runtime.
 - [ASP.NET Core][aspnet-core-link]: The web and API framework.
 - [Avalonia][avalonia-link]: Native desktop UI.
-- [Terminal.Gui][terminal-gui-link]: Audited downstream terminal UI.
+- [Terminal.Gui][terminal-gui-link]: Official pinned terminal UI.
 - [CommunityToolkit.Mvvm][communitytoolkit-link]: Desktop model/viewmodel support.
 - [Spectre.Console][spectre-link]: CLI command and presentation support.
 - [YamlDotNet][yamldotnet-link]: Bounded YAML data processing.
@@ -388,7 +389,7 @@ The Steward's transfer authority covers ISLAMU-owned material only. Third-party 
 
 Core admits bounded definitions without Event backend/domain/wire assemblies. Artifacts owns protected native writes, Presentation owns shared immutable workspace generations, and CLI, Terminal.Gui, Avalonia Desktop and Blazor WebAssembly adapt those boundaries independently.
 
-The audited `ISLAMU.Terminal.Gui` package identity, approval, patch, hashes, SBOM and notices are preserved. Do not substitute upstream Terminal.Gui. Signed publication remains fail-closed until Configurator establishes its own trust authority; unsigned local/CI validation packages do not activate publication.
+Terminal.Gui uses its official NuGet package with an exact central pin, generated locks and retained notices for embedded third-party assets. The [dependency decision and history](docs/internal/TERMINAL_GUI_DEPENDENCY.md) explain retirement of the temporary downstream build. Signed publication remains fail-closed until Configurator establishes its own trust authority; unsigned local/CI validation packages do not activate publication.
 
 <div align="right">
 
@@ -465,8 +466,9 @@ The audited `ISLAMU.Terminal.Gui` package identity, approval, patch, hashes, SBO
 [stripe-donation-link]: https://donate.stripe.com/bJeeVeesc9kIdpCbMPaR201
 
 [ivsd-github-repo-link]: https://github.com/islamu-ngo/Islamic-Value-Sensitive-Design
-
 [event-repo-link]: https://github.com/islamu-ngo/Event
+[secretkit-repo-link]: https://github.com/islamu-ngo/SecretKit
+
 [avalonia-link]: https://avaloniaui.net/
 [terminal-gui-link]: https://github.com/gui-cs/Terminal.Gui
 [communitytoolkit-link]: https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/

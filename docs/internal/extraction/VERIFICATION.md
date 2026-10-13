@@ -1,5 +1,9 @@
 # Repository Foundation Verification
 
+This is historical extraction evidence. Its Terminal.Gui fork commands and
+archive checks describe the original transfer; that dependency was retired on
+2026-10-13. See [the current dependency decision](../TERMINAL_GUI_DEPENDENCY.md).
+
 All commands ran from Configurator with `TMPDIR="$HOME/.cache/agent-tmp"`.
 No product suite, Event edit, worktree, branch creation or repository commit was
 performed. This report covers foundation ownership, not completed extraction.

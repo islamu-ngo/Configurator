@@ -98,7 +98,7 @@ owners. Harness pointer files must not introduce a second policy.
 
 1. **Independent Runtime:** All authored projects, assemblies and namespaces use
    `Configurator.*`. Core has no Event backend, domain, wire or database
-   dependency. Preserve third-party identities such as `ISLAMU.Terminal.Gui`.
+   dependency. Preserve third-party identities such as `Terminal.Gui`.
 2. **Data-Only Definitions:** Admit bounded fields, activation, validation and
    output vocabulary before use. No executable definition plugins. Browser
    definition retrieval admits only bounded, credential-free public HTTPS

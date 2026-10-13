@@ -38,6 +38,12 @@ warning suppressions. `Directory.Packages.props` carries only the product and
 engineering dependency closure. Restore remains locked in CI; version changes
 must regenerate locks with native dotnet restore.
 
+Terminal.Gui now uses the official pinned NuGet package with reviewed embedded-
+asset notices. The temporary downstream archive/feed, patch, probe and rebuild
+lane transferred during extraction were retired on 2026-10-13. See the
+[dependency decision and history](../TERMINAL_GUI_DEPENDENCY.md); historical
+transfer manifests and verification entries describe the earlier state.
+
 Root configuration applies before solution registration. AgentWorkflow validates
 single-document intent YAML and literal commit paths. ReleaseEngineering owns
 Conventional Commit syntax, scope/trailer validation, bounded release inputs,

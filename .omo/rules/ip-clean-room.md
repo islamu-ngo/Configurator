@@ -52,7 +52,7 @@ The Steward permits copying original ISLAMU-owned scaffold text into this MIT re
 - Removing attribution/provenance instead of removing restricted expression.
 - Continuing after contamination: discard only owned unmerged contaminated output, preserve others' work and restart from a sanitized handoff.
 - Transferring Event credentials, signers, trust activation or publication history.
-- Relaxing ISLAMU.Terminal.Gui identity, approved patches, hashes or closure ratchets.
+- Substituting reviewed dependency versions or bypassing required bundled-asset notices.
 
 ## Verification
 - Complete the retained [SSO checklist](../../.agents/skills/ip-clean-room/resources/sso-and-provenance-review.md) for externally informed work.

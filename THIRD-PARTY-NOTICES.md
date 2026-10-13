@@ -5,24 +5,25 @@ Steward's explicit transfer direction. It does not replace component licenses,
 copyright notices or disclaimers. Preserve the original license material from
 each conveyed NuGet/native artifact with distributions.
 
-## Audited ISLAMU.Terminal.Gui downstream package
+## Official Terminal.Gui and embedded assets
 
-- Identity: `ISLAMU.Terminal.Gui` `2.4.17-islamu.1`; upstream Terminal.Gui
-  contributors retain their identity and MIT terms.
-- Upstream commit: `d0a0ed9b150d3fc8aacf4ab07b7f7d91264fe6d6`.
-- The archive retains upstream LICENSE, authorship, README, repository identity
-  and the ISLAMU downstream modification notice.
-- Authorized modification removes TextMateSharp and grammar/theme dependencies,
-  keeps the syntax-highlighter extension interface and selects plain built-in
-  rendering. No upstream source is vendored here.
-- Exact approved archive SHA-256:
-  `d61e31f90f58875bc8e8632a96b1882eb718b265f66da0309c816ca9510049ec`.
-- Patch, assembly and transitive closure are separately frozen in
-  `eng/release/dependencies/terminal-gui/approval.json`. That approval is not
-  broadened by regenerating evidence.
-- Complete 21-component dependency evidence is retained in
-  `eng/release/dependencies/terminal-gui/generated/terminal-gui.cdx.json` and
-  `package-evidence.json`. Retain each component's own terms.
+Terminal packages use official `Terminal.Gui` `2.5.0` under MIT, retaining
+Copyright 2007-2011 Novell Inc and Copyright 2017 Microsoft Corp.
+Its transitive `TextMateSharp` and `TextMateSharp.Grammars` `2.0.4` retain
+Daniel Peñalba's MIT terms. Embedded grammars, snippets and themes also retain
+their original MIT, Apache, BSD and permissive TextMate Bundle terms; the NuGet
+MIT label does not replace those component licenses.
+
+The published `dependency-notices/` tree retains upstream package metadata,
+Terminal.Gui and TextMateSharp licenses, and the reviewed grammar/theme notice
+supplement. `Onigwrap` `1.0.11` already supplies its own
+`THIRD-PARTY-NOTICES.TXT`, including the native Oniguruma BSD notice; that file
+is retained unchanged. Keep the complete notice tree with distributions.
+
+Reviewed supplemental text lives in `eng/configurator/dependency-notices/` and
+is matched to exact restored package versions and canonical NuGet content
+hashes. It contains license material only, not vendored implementation or asset
+source. See the [decision, source register and history](docs/internal/TERMINAL_GUI_DEPENDENCY.md).
 
 ## Native and client framework closure
 

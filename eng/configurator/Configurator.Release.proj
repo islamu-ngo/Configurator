@@ -73,6 +73,8 @@
     <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorPublishDirectory)schemas" />
     <Copy Condition="'$(ConfiguratorSurface)' == 'cli'" SourceFiles="@(ConfiguratorIntegrationSkill)"
       DestinationFiles="@(ConfiguratorIntegrationSkill->'$(ConfiguratorPublishDirectory)skills/configurator-integrate/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <!-- Replace the generated inventory so retired dependency notices cannot survive a republish. -->
+    <RemoveDir Directories="$(ConfiguratorPublishDirectory)dependency-notices" />
     <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/$(ConfiguratorAssemblyName)/obj/project.assets.json&quot; &quot;$(ConfiguratorPublishDirectory)dependency-notices&quot; &quot;$(ConfiguratorProject)&quot; &quot;$(ConfiguratorRid)&quot;" />
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="WriteConfiguratorReleaseContract"
       Properties="ConfiguratorContractOutput=$(ConfiguratorPublishDirectory)contracts/package.json" />

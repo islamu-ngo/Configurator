@@ -33,6 +33,11 @@ unverified hosts. GUI packages still need the host's display and platform librar
 Native package directories include `schemas/`, `contracts/`, `dependency-notices/`,
 `LICENSE` and `THIRD-PARTY-NOTICES.md`. The dependency directory retains original
 package metadata and license/notice files; keep it with the executable.
+Terminal packages also retain reviewed supplemental notices for the syntax
+grammars and themes embedded in their dependencies. Those assets keep their
+own terms even though the Configurator utility is MIT licensed.
+Native publication replaces the generated notice tree, removing notices for
+retired dependencies when publishing again into the same package destination.
 Browser has the same public metadata under `wwwroot/`.
 The CLI package also includes `skills/configurator-integrate/SKILL.md` and its
 routed resources. Copy that complete skill directory into an Agent Skills-aware
@@ -83,9 +88,10 @@ Publishing again without `DefinitionStoreSourceRoot` removes previously packaged
 catalogue assets from that browser destination and its worker inventory. Keep
 different output roots when retaining both variants for distribution.
 
-The audited Terminal.Gui feed is repository-owned; do not replace it with an
-upstream package or change approved hashes. See the
-[internal packaging anchor](../internal/PACKAGING.md) for verification.
+Terminal.Gui is restored from NuGet.org using an exact centrally managed
+version and generated dependency locks. No custom feed or upstream rebuild is
+required. See the [dependency decision and history](../internal/TERMINAL_GUI_DEPENDENCY.md)
+and [internal packaging anchor](../internal/PACKAGING.md) for verification.
 
 ## Arch Linux development package
 

@@ -1,7 +1,9 @@
 # Definition-driven Terminal.Gui adapter
 
-The client retains the approved `ISLAMU.Terminal.Gui` dependency identity and
-archive closure. It references Core, Artifacts and Presentation; no Event wire
+The client uses official Terminal.Gui with an exact central package pin and
+generated locks. Its published package retains reviewed embedded-asset notices;
+see [the dependency decision and history](TERMINAL_GUI_DEPENDENCY.md).
+It references Core, Artifacts and Presentation; no Event wire
 DTOs, built-in catalogue, HTTP client or implicit application selection remain.
 
 ## Data and control flow

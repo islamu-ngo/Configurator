@@ -23,8 +23,15 @@ RID-specific restore uses separate `obj/configurator-release/<rid>/packages.lock
 files so native publication never rewrites framework-only development locks.
 Those ephemeral locks are generated from pinned dependencies for packaging;
 publish then uses the evaluated RID closure without another restore. CI's normal
-owner/probe restores are locked. The downstream Terminal.Gui verifier independently
-checks the approved package, assembly, patch and dependency hashes.
+owner/probe restores are locked. Terminal.Gui is the official pinned package;
+its embedded grammar/theme notices supplement ordinary NuGet metadata through
+`eng/configurator/dependency-notices/`. A supplement matches an exact package
+version and content hash; missing or mismatched review data rejects publication.
+Unrelated surfaces do not acquire these notices. See the
+[dependency decision](TERMINAL_GUI_DEPENDENCY.md).
+Native publication replaces its generated `dependency-notices/` tree before
+writing the current closure, so retired dependencies cannot survive a republish
+into the same package destination.
 
 `PublishConfiguratorBrowser` removes every inherited native publication flag
 before restoring/publishing `Configurator.Browser`. Distribute its complete

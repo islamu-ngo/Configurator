@@ -51,7 +51,6 @@ architecture suite, engineering tools, schema generators and dependency probes.
 | `eng/configurator/probes/communitytoolkit/Configurator.DependencyProbes.CommunityToolkit.csproj` | Approved MVVM dependency closure. |
 | `eng/configurator/probes/dependency-injection/Configurator.DependencyProbes.DependencyInjection.csproj` | Approved DI dependency closure. |
 | `eng/configurator/probes/yamldotnet/Configurator.DependencyProbes.YamlDotNet.csproj` | Approved YAML dependency closure. |
-| `eng/release/dependencies/terminal-gui/probe/Configurator.DependencyProbes.TerminalGui.csproj` | Separate audited terminal archive/assembly closure probe. |
 
 ---
 
@@ -85,7 +84,7 @@ existing task authorization does not require a second routine approval.
 |---|---|---|
 | `schemas/`, `eng/configurator/generated/` | Generated schemas and contract ratchets | Fix the owning model/generator, regenerate natively and run its freshness check. Do not hand-edit the output. |
 | `**/packages.lock.json` | Generated dependency closure | Change central versions/actual references, regenerate with native restore and verify the resolved closure. |
-| `eng/release/dependencies/terminal-gui/` | Audited archive, patch, approval, hashes and notices | Preserve approved identity and archive; follow recorded dependency review. Never replace upstream or relax ratchets to accept a different archive. |
+| `eng/configurator/dependency-notices/` | Reviewed supplemental notices for embedded dependency assets | Review exact package content and terms before updating a supplement; publish only with its matching restored package. |
 | `.ci/**`, `.github/workflows/**`, `eng/release/**` | CI/release automation and provenance | Use assigned engineering scope, preserve read-only fork execution and fail-closed publication. No credential/trust transfer. |
 | `LICENSE`, `THIRD-PARTY-NOTICES.md`, `docs/internal/legal/**` | Licensing and third-party obligations | Preserve Steward MIT authority boundaries and every component's own terms/provenance. |
 | `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md` | User-owned design/strategy documents | Preserve unmodified unless the user explicitly assigns their editing. |
@@ -110,10 +109,10 @@ Release, then run that owner's suite with MTP's `--project`. Do not run all
 product suites for tooling-only changes. Protected-save, definition admission
 and launch changes require invariant tests as well as their client surface.
 
-The approved Terminal.Gui archive is preserved with its native verification
-and rebuild tooling, not replaced with upstream Terminal.Gui. A rebuild is not
-automatically byte-identical because package ZIP metadata may differ. See
-`eng/release/dependencies/terminal-gui/dependency-review.md`.
+Terminal.Gui uses the official NuGet package, an exact central version and
+generated dependency locks. Packaging retains reviewed notices for its embedded
+grammar/theme assets. No downstream archive, patch or upstream rebuild is owned
+here. See `docs/internal/TERMINAL_GUI_DEPENDENCY.md` for the decision and history.
 
 ### Inner Loop - Fast Subtask Slicing
 

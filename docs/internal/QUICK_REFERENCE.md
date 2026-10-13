@@ -76,8 +76,8 @@ Use the existing surface contracts and [test-layer guide](TESTING.md#choosing-th
 - Generated schemas/locks are regenerated through native owners, never hand-edited.
 - User strategy files `docs/internal/universal-configurator.md` and
   `docs/internal/go-to-market.md` remain user-owned.
-- Preserve the approved `ISLAMU.Terminal.Gui` identity and authoritative archive,
-  patch, notices, hashes and ratchets.
+- Use official pinned Terminal.Gui and retain reviewed embedded-asset notices;
+  see [the dependency decision](TERMINAL_GUI_DEPENDENCY.md).
 - No `.env`, credentials, machine MCP settings, Event signer list or publication
   history transfers.
 - Definition sensitivity, protected create-only output and generation fencing
@@ -93,7 +93,7 @@ Use the existing surface contracts and [test-layer guide](TESTING.md#choosing-th
 | Treating preparation as apply/admin authority | Keep launch/runtime authority separate |
 | Claiming passing tests establish coverage | Inspect measured report and commit identity |
 | Treating synthetic signer fixtures as activation | Require independent Configurator authority |
-| Rebuilding approved feed ZIP and relaxing hashes | Preserve original approved archive and ratchets |
+| Upgrading dependencies without embedded-asset review | Review the exact package, regenerate locks and retain component notices |
 | Redirecting every named policy to FOUNDATION | Link the actual governance/testing/release anchor |
 
 ## Related Documentation
