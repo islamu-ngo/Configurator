@@ -6,8 +6,9 @@ internal sealed class SetupTerminalSignalScope : IDisposable
 {
     private readonly List<PosixSignalRegistration> _registrations = [];
     private readonly SetupTerminalSecretBuffer _secret;
-    private readonly Action _stop;
-    private bool _disposed;
+    private Action? _stop;
+    private int _disposed;
+    private int _requested;
 
     internal SetupTerminalSignalScope(SetupTerminalSecretBuffer secret, Action stop)
     {
@@ -50,9 +51,10 @@ internal sealed class SetupTerminalSignalScope : IDisposable
     internal void RequestStop()
     {
         _secret.Clear();
+        if (Volatile.Read(ref _disposed) != 0 || Interlocked.Exchange(ref _requested, 1) != 0) return;
         try
         {
-            _stop();
+            Volatile.Read(ref _stop)?.Invoke();
         }
         catch (Exception exception) when (exception is InvalidOperationException or ObjectDisposedException)
         {
@@ -61,9 +63,8 @@ internal sealed class SetupTerminalSignalScope : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
-            return;
-        _disposed = true;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        Interlocked.Exchange(ref _stop, null);
         Console.CancelKeyPress -= OnCancelKeyPress;
         foreach (PosixSignalRegistration registration in _registrations)
             registration.Dispose();

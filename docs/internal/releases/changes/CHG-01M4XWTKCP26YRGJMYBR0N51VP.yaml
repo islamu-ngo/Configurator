@@ -1,0 +1,28 @@
+Change-Id: CHG-01M4XWTKCP26YRGJMYBR0N51VP
+Title: "keep local imports responsive and cancellable"
+Type: fix
+Scope: terminal
+Summary: "Read local artifacts without blocking terminal callbacks, reject late imports after edits or cancellation, and marshal form/control cleanup to the UI owner. Close waits up to two seconds for physical settlement and reports unresolved work as unknown."
+Group: terminal
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "Read buffers and cancellation sources retain explicit cleanup ownership. Revision/generation checks reject stale imports, signal callbacks immediately clear locked secret storage, and detached weak UI callbacks cannot update disposed controls. Diagnostics contain no private values or paths."
+  Migration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Editing or changing the import target cancels the pending read. Conflicting commands wait for physical cleanup. Close allows two seconds for settlement, then reports unresolved work as unknown; cancellation never promises rollback of created files. Actual OS-signal and terminal-restoration qualification remains pending."

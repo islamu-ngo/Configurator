@@ -47,8 +47,12 @@ Arabic resources follow the process UI culture.
    the path to an existing local file in Import file, and press Import selected
    artifact. Directly copied JSON, YAML and dotenv object fields are supported;
    transformed or ambiguous mappings and conflicting existing answers are
-   rejected without changing the form. The path field clears after the attempt.
-   Review imported answers in the masked editor before continuing.
+   rejected without changing the form. The path field clears when reading starts.
+   Reading leaves the terminal responsive. Editing an answer, changing the import
+   path or artifact target, or clearing private state cancels that import; late
+   results cannot replace your newer work. A second import, preparation or save
+   waits until the existing read finishes cleanup. Review imported answers in the
+   masked editor before continuing.
 4. Validate fields reports value-free codes and field identifiers. Cycle artifact
    shows its declared filename, format, apply semantics and restart guidance.
    The first output starts selected. Toggle output selects or deselects the
@@ -69,9 +73,14 @@ Editing a field or changing output selection invalidates readiness immediately.
 Field navigation clears
 the transient editor buffer; protected answers remain in the masked form so
 multiple fields can be completed. Clear private state removes all protected
-answers and readiness while keeping public fields. Close, disposal and
-handled termination signals clear private state and cancel pending saves before
-commit. After a save, prepare again to save another bundle.
+answers and readiness while keeping public fields. Close and handled termination
+signals cancel pending work and clear private state. Closing waits up to two
+seconds for cleanup while the terminal continues processing events, then exits.
+If work remains unresolved, the closing status says its outcome is unknown;
+created files may remain and must be reviewed before retrying. Cancellation does
+not undo a file already created. Disposal detaches UI callbacks; read cleanup can
+finish while the process remains alive. After a save, prepare again to save
+another bundle.
 
 Private fields block clipboard, context-menu and undo/redo operations. No answers
 are accepted on the command line, printed to stdout or repeated in diagnostics.

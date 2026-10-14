@@ -283,13 +283,14 @@ public sealed class SetupTerminalGuiAdapterTests
         {
             string source = Path.Combine(directory, "existing.json");
             await File.WriteAllTextAsync(source, """{"name":"sample","token":"privateValue"}""");
-            using var harness = new Harness(initialize: true, empty: true, directory: directory);
+            using var harness = new Harness(initialize: true, empty: true, directory: directory, manualDispatch: true);
             TextField importPath = harness.Window.SubViews.OfType<TextField>()
                 .Single(field => field.Y == 14);
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
                 .Single(button => button.Text == SetupTerminalText.Get("ImportSelected"));
             await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
+            await harness.CompleteImport();
             await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
             Button cycle = harness.Window.SubViews.OfType<Button>()
                 .Single(button => button.Text == SetupTerminalText.Get("Artifact"));
@@ -318,13 +319,14 @@ public sealed class SetupTerminalGuiAdapterTests
         {
             string source = Path.Combine(directory, "existing.json");
             await File.WriteAllTextAsync(source, """{"name":"sample","token":"differentPrivateValue"}""");
-            using var harness = new Harness(initialize: true, directory: directory);
+            using var harness = new Harness(initialize: true, directory: directory, manualDispatch: true);
             TextField importPath = harness.Window.SubViews.OfType<TextField>()
                 .Single(field => field.Y == 14);
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
                 .Single(button => button.Text == SetupTerminalText.Get("ImportSelected"));
             await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
+            await harness.CompleteImport();
             await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
             await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
             await Assert.That(harness.Window.StatusText).DoesNotContain("differentPrivateValue");
@@ -375,11 +377,22 @@ public sealed class SetupTerminalGuiAdapterTests
         try
         {
             using var harness = new Harness(initialize: true, directory: directory,
-                beforePublication: async token => { reached.TrySetResult(); await resume.Task.WaitAsync(token); });
+                beforePublication: async token => { reached.TrySetResult(); await resume.Task.WaitAsync(token); },
+                manualDispatch: true);
             await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
             Task execution = harness.Workspace.ExecuteAsync(Guid.NewGuid());
             await reached.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            if (signal) harness.Window.RequestStopFromSignal();
+            if (signal)
+            {
+                var cleared = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                harness.Form.InputChanged += (_, _) =>
+                {
+                    if (harness.Form.Fields.Single(input => input.Definition.Id == "token").Text.Length == 0)
+                        cleared.TrySetResult();
+                };
+                harness.Window.RequestStopFromSignal();
+                await harness.PumpUntil(cleared.Task);
+            }
             else harness.Window.ClearPrivateState();
             await execution.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(harness.Workspace.IsBusy).IsFalse();
@@ -492,8 +505,10 @@ public sealed class SetupTerminalGuiAdapterTests
     {
         private readonly IApplication _application;
         private readonly SetupPresentationSession _session;
+        private readonly System.Threading.Channels.Channel<Action> _dispatch = System.Threading.Channels.Channel.CreateUnbounded<Action>();
         internal Harness(bool initialize = false, bool empty = false, string? directory = null,
-            Func<CancellationToken, Task>? beforePublication = null, DefinitionFormModel? form = null)
+            Func<CancellationToken, Task>? beforePublication = null, DefinitionFormModel? form = null,
+            bool manualDispatch = false)
         {
             _application = Application.Create();
             if (initialize) _application.Init("dotnet");
@@ -504,7 +519,8 @@ public sealed class SetupTerminalGuiAdapterTests
             SetupWorkspaceId.TryCreate("definition", out var id);
             Workspace = _session.CreateWorkspace(id, Operation);
             Workspace.Activate();
-            Window = new SetupTerminalWindow(_application, Workspace, Operation, Secret);
+            Window = new SetupTerminalWindow(_application, Workspace, Operation, Secret,
+                dispatch: manualDispatch ? callback => _dispatch.Writer.TryWrite(callback) : null);
             Window.Frame = new Rectangle(0, 0, 100, 30);
             Window.ApplyViewportPolicy(Window.Frame.Size);
         }
@@ -513,6 +529,25 @@ public sealed class SetupTerminalGuiAdapterTests
         internal SetupTerminalArtifactOperation Operation { get; }
         internal SetupPresentationWorkspace Workspace { get; }
         internal SetupTerminalWindow Window { get; }
+        internal async Task CompleteImport()
+        {
+            while (Window.IsImportBusy)
+            {
+                Action callback = await _dispatch.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+                callback();
+            }
+            await Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            while (_dispatch.Reader.TryRead(out Action? callback)) callback();
+        }
+        internal async Task PumpUntil(Task completed)
+        {
+            while (!completed.IsCompleted)
+            {
+                Action callback = await _dispatch.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+                callback();
+            }
+            await completed;
+        }
         public void Dispose()
         {
             Window.Dispose();

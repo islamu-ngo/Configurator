@@ -31,6 +31,10 @@
   <data name="NotSelected" xml:space="preserve"><value>not selected</value></data>
   <data name="ImportSelected" xml:space="preserve"><value>_Import selected artifact</value></data>
   <data name="ImportReady" xml:space="preserve"><value>Supported fields imported. Review the masked answers and validate.</value></data>
+  <data name="ImportReading" xml:space="preserve"><value>Reading local artifact. Editing or clearing cancels this import.</value></data>
+  <data name="ImportCancelled" xml:space="preserve"><value>Import cancelled. Waiting for the existing read to finish cleanup.</value></data>
+  <data name="ShutdownWaiting" xml:space="preserve"><value>Closing; cancelling pending work and waiting up to two seconds for cleanup.</value></data>
+  <data name="ShutdownUnknown" xml:space="preserve"><value>Closing with work still unresolved. Created files may remain; review them before retrying.</value></data>
   <data name="ImportFailed" xml:space="preserve"><value>Import rejected; answers were not changed.</value></data>
   <data name="NextOutcome" xml:space="preserve"><value>Next output _result</value></data>
   <data name="NotAttempted" xml:space="preserve"><value>not attempted</value></data>

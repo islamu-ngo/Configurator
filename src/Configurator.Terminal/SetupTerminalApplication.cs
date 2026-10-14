@@ -19,12 +19,7 @@ internal sealed class SetupTerminalApplication(SetupPresentationSession session,
         using IApplication app = Application.Create();
         app.Init();
         using var window = new SetupTerminalWindow(app, workspace, operation, secret);
-        using var signals = new SetupTerminalSignalScope(secret, () =>
-        {
-            workspace.Deactivate();
-            operation.ClearPrivateState();
-            app.Invoke(_ => window.RequestStopFromSignal());
-        });
+        using var signals = new SetupTerminalSignalScope(secret, window.RequestStopFromSignal);
         app.Run(window);
         return window.ExitCode;
     }

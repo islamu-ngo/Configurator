@@ -5,7 +5,6 @@ using System.Drawing;
 using System.Security.Cryptography;
 using System.Text;
 using Configurator.Artifacts;
-using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
@@ -23,6 +22,10 @@ internal sealed class SetupTerminalWindow : Window
     private readonly SetupTerminalArtifactOperation _operation;
     private readonly SetupTerminalSecretBuffer _secret;
     private readonly SetupTerminalFieldEditor _editor;
+    private readonly SetupTerminalImportOperation _importOperation;
+    private readonly Action<Action> _dispatch;
+    private readonly TimeProvider _timeProvider;
+    private readonly WeakReference<SetupTerminalWindow> _owner;
     private readonly Label _fieldLabel;
     private readonly Label _help;
     private readonly Label _artifactLabel;
@@ -51,14 +54,27 @@ internal sealed class SetupTerminalWindow : Window
     private bool _disposed;
     private bool _tooSmall;
     private bool _confirmRemove;
+    private int _closeRequested;
+    private int _callbackGeneration;
+    private bool _observersDetached;
+    private bool _allowStop;
+    private Task _shutdown = Task.CompletedTask;
+    private Task _saveObservation = Task.CompletedTask;
 
     internal SetupTerminalWindow(IApplication application, SetupPresentationWorkspace workspace,
-        SetupTerminalArtifactOperation operation, SetupTerminalSecretBuffer secret)
+        SetupTerminalArtifactOperation operation, SetupTerminalSecretBuffer secret,
+        Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>>? readImport = null,
+        Action<Action>? dispatch = null, TimeProvider? timeProvider = null)
     {
         _application = application;
         _workspace = workspace;
         _operation = operation;
         _secret = secret;
+        _dispatch = dispatch ?? application.Invoke;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _owner = new(this);
+        _importOperation = new(operation.Form, _dispatch, readImport);
+        _importOperation.Settled += ImportSettled;
         _editor = new(operation.Form);
         Title = SetupTerminalText.Get("WindowTitle");
         Width = Dim.Fill();
@@ -121,7 +137,11 @@ internal sealed class SetupTerminalWindow : Window
         _masked.ValueChanged += (_, _) => EditorChanged();
         _masked.InputRejected += (_, _) => Status("InvalidSecret");
         _masked.SensitiveCommandBlocked += (_, _) => Status("SecretCommandsDisabled");
-        _importPath.ValueChanged += (_, _) => RefreshCommands();
+        _importPath.ValueChanged += (_, _) =>
+        {
+            if (!_loading) CancelImport();
+            RefreshCommands();
+        };
         _operation.Invalidated += OperationInvalidated;
         _workspace.PropertyChanged += WorkspaceChanged;
         ViewportChanged += ViewportUpdated;
@@ -133,6 +153,10 @@ internal sealed class SetupTerminalWindow : Window
     internal string StatusText => _status.Text;
     internal SetupSecretTextField MaskedInput => _masked;
     internal TextField PublicInput => _value;
+    internal Task ImportCompletion => _importOperation.Completion;
+    internal bool IsImportBusy => _importOperation.IsBusy;
+    internal Task ShutdownCompletion => _shutdown;
+    internal Task SaveCompletion => _saveObservation;
 
     private Button Button(string key, int x, int y, Action action)
     {
@@ -148,6 +172,7 @@ internal sealed class SetupTerminalWindow : Window
         button.Accepting += (_, args) =>
         {
             args.Handled = true;
+            if (Volatile.Read(ref _closeRequested) != 0) return;
             if (key != "RemoveItem") _confirmRemove = false;
             action();
         };
@@ -161,6 +186,7 @@ internal sealed class SetupTerminalWindow : Window
     {
         if (_loading) return;
         _confirmRemove = false;
+        _importOperation.RequestCancellationAsync();
         _operation.Invalidate();
         Status("InputChanged");
         RefreshCommands();
@@ -168,6 +194,7 @@ internal sealed class SetupTerminalWindow : Window
 
     internal bool CommitField()
     {
+        if (Volatile.Read(ref _closeRequested) != 0) return false;
         if (_slot is null) return true;
         byte[] bytes = [];
         try
@@ -350,6 +377,7 @@ internal sealed class SetupTerminalWindow : Window
     private void CycleArtifact()
     {
         if (!CommitField()) return;
+        CancelImport();
         var artifacts = _operation.Form.Definition.Artifacts;
         int index = artifacts.ToList().FindIndex(item => item.Id == _operation.ArtifactId);
         _operation.ArtifactId = artifacts[(index + 1) % artifacts.Count].Id;
@@ -360,6 +388,7 @@ internal sealed class SetupTerminalWindow : Window
     private void ToggleOutput()
     {
         if (!CommitField()) return;
+        CancelImport();
         _operation.ToggleCurrentArtifact();
         ShowArtifact();
         Status("InputChanged");
@@ -377,36 +406,37 @@ internal sealed class SetupTerminalWindow : Window
 
     private void ImportSelected()
     {
-        if (!CommitField()) return;
-        byte[] bytes = [];
-        try
+        if (_importOperation.IsBusy || _workspace.IsBusy || !CommitField()) return;
+        string path = _importPath.Text;
+        _loading = true;
+        _importPath.Text = string.Empty;
+        _loading = false;
+        if (!_importOperation.Start(path, _operation.ArtifactId)) return;
+        Status("ImportReading");
+        RefreshCommands();
+    }
+
+    private void CancelImport()
+    {
+        bool pending = _importOperation.IsBusy;
+        _importOperation.RequestCancellationAsync();
+        if (pending) Status("ImportCancelled");
+    }
+
+    private void ImportSettled(object? sender, SetupTerminalImportResult result)
+    {
+        if (_disposed || Volatile.Read(ref _closeRequested) != 0) return;
+        if (result.IsCurrent)
         {
-            string path = _importPath.Text;
-            DefinitionImportResult result = _operation.Form.ImportAsync(_operation.ArtifactId, async token =>
+            if (result.Succeeded)
             {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                if (stream.Length is < 1 or > SetupCompositionLimits.DefaultAggregateSourceBytes)
-                    throw new InvalidDataException();
-                bytes = new byte[(int)stream.Length];
-                await stream.ReadExactlyAsync(bytes, token);
-                if (stream.ReadByte() != -1) throw new InvalidDataException();
-                return bytes;
-            }).GetAwaiter().GetResult();
-            if (!result.Succeeded) { _status.Text = SetupTerminalText.Get("ImportFailed") + " " + result.Code; return; }
-            ShowField();
-            FocusInput();
-            Status("ImportReady");
+                ShowField();
+                FocusInput();
+                Status("ImportReady");
+            }
+            else _status.Text = SetupTerminalText.Get("ImportFailed") + " " + result.Code;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-            or ArgumentException or NotSupportedException)
-        {
-            Status("ImportFailed");
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(bytes);
-            _importPath.Text = string.Empty;
-        }
+        RefreshCommands();
     }
 
     private void Validate()
@@ -425,6 +455,7 @@ internal sealed class SetupTerminalWindow : Window
 
     internal void Prepare()
     {
+        if (_importOperation.IsBusy || Volatile.Read(ref _closeRequested) != 0) return;
         if (!CommitField()) return;
         try
         {
@@ -439,13 +470,33 @@ internal sealed class SetupTerminalWindow : Window
 
     internal void Save()
     {
+        if (_importOperation.IsBusy || Volatile.Read(ref _closeRequested) != 0) return;
         if (!_operation.IsPrepared) { Status("InvalidOutput"); return; }
         Status("Writing");
-        _workspace.ExecuteCommand.Execute(Guid.CreateVersion7());
+        Task execution = _workspace.ExecuteAsync(Guid.CreateVersion7());
+        _saveObservation = ObserveSaveAsync(execution, _dispatch, _owner, _callbackGeneration);
+        Observe(_saveObservation);
+    }
+
+    private static async Task ObserveSaveAsync(Task execution, Action<Action> dispatch,
+        WeakReference<SetupTerminalWindow> owner, int generation)
+    {
+        try { await execution.ConfigureAwait(false); }
+        catch (Exception) when (execution.IsFaulted || execution.IsCanceled)
+        {
+            TryDispatch(dispatch, () =>
+            {
+                if (!owner.TryGetTarget(out SetupTerminalWindow? window) || window._disposed
+                    || window._callbackGeneration != generation || Volatile.Read(ref window._closeRequested) != 0) return;
+                window._status.Text = SetupTerminalText.Get("InvalidOutput") + " terminal-operation-failed";
+                window.RefreshCommands();
+            });
+        }
     }
 
     internal void ClearPrivateState()
     {
+        _importOperation.RequestCancellationAsync();
         _loading = true;
         _masked.ClearSensitiveState();
         _importPath.Text = string.Empty;
@@ -457,16 +508,91 @@ internal sealed class SetupTerminalWindow : Window
 
     private void CloseOrCancel()
     {
-        bool wasBusy = _workspace.IsBusy;
-        ClearPrivateState();
-        if (wasBusy) { Status("Cancelled"); return; }
-        _application.RequestStop(this);
+        RequestStopFromSignal();
     }
 
     internal void RequestStopFromSignal()
     {
+        _secret.Clear();
+        if (Volatile.Read(ref _disposed) || Interlocked.Exchange(ref _closeRequested, 1) != 0) return;
+        Observe(_importOperation.RequestCancellationAsync());
+        Observe(_workspace.RequestCancellationAsync());
+        DispatchToOwner(static window => window.BeginClose());
+    }
+
+    private void BeginClose()
+    {
         ClearPrivateState();
-        _application.RequestStop(this);
+        foreach (View view in _normal) view.Enabled = false;
+        Status("ShutdownWaiting");
+        Task pending = Task.WhenAll(_importOperation.Completion, _workspace.WaitForPendingOperationsAsync());
+        Observe(pending);
+        _shutdown = FinishCloseAsync(pending, _timeProvider, _dispatch, _owner, _callbackGeneration);
+        Observe(_shutdown);
+    }
+
+    private static async Task FinishCloseAsync(Task pending, TimeProvider timeProvider, Action<Action> dispatch,
+        WeakReference<SetupTerminalWindow> owner, int generation)
+    {
+        bool unknown = false;
+        try { await pending.WaitAsync(TimeSpan.FromSeconds(2), timeProvider).ConfigureAwait(false); }
+        catch (TimeoutException) { unknown = true; }
+        catch (Exception) when (pending.IsFaulted || pending.IsCanceled) { unknown = true; }
+        TryDispatch(dispatch, () =>
+        {
+            if (!owner.TryGetTarget(out SetupTerminalWindow? window) || window._disposed
+                || window._callbackGeneration != generation) return;
+            if (unknown)
+            {
+                window.Status("ShutdownUnknown");
+            }
+            window.DetachObservers();
+            window._allowStop = true;
+            window._application.RequestStop(window);
+        });
+    }
+
+    private void DispatchToOwner(Action<SetupTerminalWindow> callback)
+    {
+        WeakReference<SetupTerminalWindow> owner = _owner;
+        int generation = Volatile.Read(ref _callbackGeneration);
+        TryDispatch(_dispatch, () =>
+        {
+            if (owner.TryGetTarget(out SetupTerminalWindow? window) && !window._disposed
+                && window._callbackGeneration == generation) callback(window);
+        });
+    }
+
+    protected override bool OnIsRunningChanging(bool oldIsRunning, bool newIsRunning)
+    {
+        if (!newIsRunning && !_allowStop && !_disposed)
+        {
+            RequestStopFromSignal();
+            return !_allowStop;
+        }
+        return base.OnIsRunningChanging(oldIsRunning, newIsRunning);
+    }
+
+    private static void TryDispatch(Action<Action> dispatch, Action callback)
+    {
+        try { dispatch(callback); }
+        catch (Exception exception) when (exception is NotInitializedException or ObjectDisposedException) { }
+    }
+
+    private static void Observe(Task task) => _ = task.ContinueWith(completed => _ = completed.Exception,
+        CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+        TaskScheduler.Default);
+
+    private void DetachObservers()
+    {
+        if (_observersDetached) return;
+        _observersDetached = true;
+        Interlocked.Increment(ref _callbackGeneration);
+        _importOperation.Settled -= ImportSettled;
+        _importOperation.Dispose();
+        _workspace.PropertyChanged -= WorkspaceChanged;
+        _operation.Invalidated -= OperationInvalidated;
+        ViewportChanged -= ViewportUpdated;
     }
 
     private void OperationInvalidated(object? sender, EventArgs args)
@@ -478,7 +604,10 @@ internal sealed class SetupTerminalWindow : Window
     private void WorkspaceChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(SetupPresentationWorkspace.IsBusy))
-            _application.Invoke(_ => UpdateResult());
+            DispatchToOwner(static window =>
+            {
+                if (Volatile.Read(ref window._closeRequested) == 0) window.UpdateResult();
+            });
     }
 
     private void UpdateResult()
@@ -523,10 +652,12 @@ internal sealed class SetupTerminalWindow : Window
 
     private void RefreshCommands()
     {
-        _save.Enabled = !_tooSmall && !_workspace.IsBusy && _operation.ProtectedOutputAvailable
+        bool available = !_tooSmall && !_workspace.IsBusy && !_importOperation.IsBusy
+            && Volatile.Read(ref _closeRequested) == 0;
+        _save.Enabled = available && _operation.ProtectedOutputAvailable
             && _operation.IsPrepared;
-        _prepare.Enabled = !_tooSmall && !_workspace.IsBusy;
-        _import.Enabled = !_tooSmall && !_workspace.IsBusy && !string.IsNullOrWhiteSpace(_importPath.Text);
+        _prepare.Enabled = available;
+        _import.Enabled = available && !string.IsNullOrWhiteSpace(_importPath.Text);
     }
 
     private void ViewportUpdated(object? sender, DrawEventArgs args) => ApplyViewportPolicy(args.NewViewport.Size);
@@ -545,9 +676,7 @@ internal sealed class SetupTerminalWindow : Window
         if (disposing && !_disposed)
         {
             _disposed = true;
-            _workspace.PropertyChanged -= WorkspaceChanged;
-            _operation.Invalidated -= OperationInvalidated;
-            ViewportChanged -= ViewportUpdated;
+            DetachObservers();
             _masked.ClearSensitiveState();
             _importPath.Text = string.Empty;
             _workspace.Deactivate();

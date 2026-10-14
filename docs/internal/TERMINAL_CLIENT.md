@@ -61,14 +61,27 @@ generation. Declared filenames stay inside the selected working directory; the
 definition's filename is never treated as an arbitrary path authority.
 
 The import field accepts a local file for the artifact at the cursor, whether or
-not that artifact is selected for output. A bounded read goes through
-`DefinitionFormModel.ImportAsync`; its Core mapping admits only supported direct
-copies and rejects conflicting, transformed or inactive inputs without changing
-answers. The temporary adapter-owned read buffer is zeroed, and the path field
-is cleared after the attempt. Successful import refreshes the current editor and
-focuses it. Status contains bounded result codes, never file contents or paths.
+not that artifact is selected for output. `SetupTerminalImportOperation` starts
+one observed read and returns from the Import callback immediately. Synchronous
+file open/stat runs at the owned background boundary; the bounded file body uses
+asynchronous reads. Its captured definition digest, artifact ID, form revision
+and editor generation fence admission. Uncommitted edits, import-path or target
+changes, clear and disposal invalidate the read; a replacement import, preparation
+or save remains disabled until that physical read and cancellation callbacks drain.
+The path field clears when the attempt starts.
 
-Saving executes through `SetupPresentationWorkspace.ExecuteCommand`, which
+Completion dispatch uses pinned `IApplication.Invoke`, with a second lifetime
+and generation check inside the callback. Only then does
+`DefinitionFormModel.ImportAsync` receive the already-read bytes on the UI owner;
+its Core mapping admits supported direct copies and rejects conflicting,
+transformed or inactive inputs. Form admission has no pending I/O at that point.
+The read owner zeroes buffers on every exit, including canceled and rejected late
+reads, and retires cancellation sources after their callbacks complete. Successful
+import refreshes and focuses the editor. Failures expose stable codes, never file
+contents, exception messages or paths. The adapter does not rely on a terminal
+synchronization context being installed.
+
+Saving executes through `SetupPresentationWorkspace.ExecuteAsync`, which
 owns operation generations and cancellation. The bundle publisher prepares all
 destinations through `IProtectedArtifactWriter` before committing any file; each
 commit is create-only and protected. Existing targets and unsupported platforms
@@ -81,6 +94,18 @@ The UI retains public fields but clears protected model inputs after settlement,
 explicit clearing, close, disposal and handled termination signals. Navigating
 between fields clears the transient editor, not the masked multi-field answer
 set. Immutable Core snapshots/.NET strings are not claimed to be zeroizable.
+
+Save tasks have an explicit completion observer; propagated workspace faults
+produce a value-free failure status. Close, framework quit and signal requests immediately cancel
+through the thread-safe request-only workspace/import seams and clear the locked
+secret buffer. Form/control cleanup runs on the UI owner. Closing stops accepting
+commands while the event loop remains available for at most two seconds of
+physical settlement. At the deadline, unresolved publication is marked unknown,
+UI subscriptions detach and normal application teardown resumes. Static completion
+observers and queued callbacks use guarded weak window references; late reads
+retain their own cleanup responsibility without retaining Views. Managed cleanup
+after process termination is not guaranteed. These deterministic lifetime checks
+do not certify actual OS-signal delivery or terminal restoration.
 
 ## Event oracle disposition
 

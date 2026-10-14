@@ -31,6 +31,10 @@
   <data name="NotSelected" xml:space="preserve"><value>غير محدد</value></data>
   <data name="ImportSelected" xml:space="preserve"><value>ا_ستيراد الملف المحدد</value></data>
   <data name="ImportReady" xml:space="preserve"><value>تم استيراد الحقول المدعومة. راجع الإجابات المحجوبة وتحقق منها.</value></data>
+  <data name="ImportReading" xml:space="preserve"><value>جارٍ قراءة الملف المحلي. يؤدي التعديل أو المسح إلى إلغاء الاستيراد.</value></data>
+  <data name="ImportCancelled" xml:space="preserve"><value>أُلغي الاستيراد. في انتظار انتهاء تنظيف القراءة الحالية.</value></data>
+  <data name="ShutdownWaiting" xml:space="preserve"><value>جارٍ الإغلاق وإلغاء العمل المعلق وانتظار التنظيف لمدة ثانيتين كحد أقصى.</value></data>
+  <data name="ShutdownUnknown" xml:space="preserve"><value>إغلاق مع عمل لم تُحسم نتيجته. قد تبقى ملفات منشأة؛ راجعها قبل إعادة المحاولة.</value></data>
   <data name="ImportFailed" xml:space="preserve"><value>رُفض الاستيراد ولم تتغير الإجابات.</value></data>
   <data name="NextOutcome" xml:space="preserve"><value>نتيجة الإخراج ال_تالية</value></data>
   <data name="NotAttempted" xml:space="preserve"><value>لم يُحاول</value></data>
