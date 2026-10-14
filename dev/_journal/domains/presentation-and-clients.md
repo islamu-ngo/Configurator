@@ -1,6 +1,6 @@
 # Presentation & Clients Findings
 
-Last Updated: 2026-10-09 Europe/Brussels
+Last Updated: 2026-10-15 Europe/Brussels
 
 Use [journal guidance](../README.md), [the finding template](../FINDING_TEMPLATE.md)
 and [promotion rules](../PROMOTION_RULES.md) for recording and promotion.
@@ -93,3 +93,48 @@ file. Real-browser QA must inspect both content and saved filename.
 **Promotion Consideration**: Already recorded in public/operator and technical
 browser guidance; retain as observed platform evidence, not a guarantee of
 identical normalization in every browser.
+
+[2026-10-15 Europe/Brussels] — Cancellation separates private readiness from physical completion
+
+**Context**: Terminal hardening introduced asynchronous local import and truthful
+protected-publication recovery using the existing shared workspace and writer.
+
+**Symptom / Observation**: Faulting completion observers could leave accepted
+private bytes live. Cancelling a workspace could finish its visible operation
+while a writer had already created files. Cleanup failure could hide a Written
+status, and an already-empty private clear could admit a pending secret import.
+
+**Root Cause**: One visible operation state cannot represent accepted-outcome
+ownership, cancellation callback retirement, owner-side import admission and
+irreversible native publication. Cancellation also does not undo earlier effects.
+
+**Resolution**: Match active and accepted outcome identities atomically; preserve
+worker/callback ownership until retirement and deliver notifications outside
+gates. Clear private roots in one revision even when empty to fence pending
+imports. Record native status before observers, cancellation checks and cleanup.
+Keep bounded value-free publication receipts independent of current private
+readiness, and serialize physical imports/publications until their owned work
+finishes. Deterministic barriers reproduced the faults; supported-host tests
+verify every committed prefix against actual files and modes.
+
+**Why This Matters for Future Work**: UI cancellation can release the visible
+workspace without ending physical work. Never use a stale-result fence as proof
+of rollback, buffer retirement or filesystem state. Fault cleanup must target
+its accepted result without clearing a reentrant replacement. Recovery status
+must retain known success even when subsequent observation or cleanup fails.
+
+**References**:
+
+- `src/Configurator.Presentation/Presentation/SetupPresentationWorkspace.cs`
+- `src/Configurator.Terminal/SetupTerminalImportOperation.cs`
+- `src/Configurator.Terminal/SetupTerminalArtifactOperation.cs`
+- `src/Configurator.Artifacts/ProtectedArtifactBundlePublisher.cs`
+- `tests/Configurator.Presentation.Tests/SetupPresentationModelTests.cs`
+- `tests/Configurator.Terminal.Tests/SetupTerminalPublicationReceiptTests.cs`
+- [Terminal lifetime ADR](../../../docs/internal/adr/ADR-terminal-editing-and-publication-lifetimes.md)
+
+**Promotion Consideration**: The ADR and existing Presentation/Terminal/protected
+output anchors contain the maintained contracts. Retain this entry as the
+observed root-cause record. Official API facts and independent implementation
+provenance are recorded in the ADR; native terminal qualification remains a
+separate release-support gate.
