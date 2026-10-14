@@ -15,6 +15,132 @@ using global::Terminal.Gui.Views;
 public sealed class SetupTerminalGuiAdapterTests
 {
     [Test]
+    [Arguments("boolean")]
+    [Arguments("integer")]
+    [Arguments("number")]
+    public async Task UntouchedTypedAppendCanBeAbandoned(string type)
+    {
+        using var form = new DefinitionFormModel(EditingDefinition($$"""
+            {"id":"items","title":"Items","type":"list","itemType":"{{type}}","sensitivity":"public","disclosure":"guided"}
+            """));
+        var slot = new SetupTerminalFieldEditor(form).Slots.Single();
+        await Assert.That(SetupTerminalFieldEditor.Write(slot, string.Empty)).IsTrue();
+        await Assert.That(form.Snapshot().Values.ContainsKey("items")).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(0);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ChoiceCyclingStartsFromVisibleDraftAndRetainsRejectedInput()
+    {
+        using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
+            {"id":"choice","title":"Choice","type":"enum","choices":["one","two","three"],"sensitivity":"public","disclosure":"guided"}
+            """)));
+        Button choice = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("Choose"));
+        harness.Window.PublicInput.Text = "two";
+        choice.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("three");
+        harness.Window.PublicInput.Text = "invalid-visible-draft";
+        choice.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("invalid-visible-draft");
+        await Assert.That(harness.Form.Snapshot().Values["choice"].GetString()).IsEqualTo("three");
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(0)]
+    [Arguments(1)]
+    public async Task FullListNavigationNeverEntersAnUncommittableAppend(int maximum)
+    {
+        using var form = new DefinitionFormModel(EditingDefinition($$"""
+            {"id":"items","title":"Items","type":"list","itemType":"integer","maxItems":{{maximum}},"sensitivity":"public","disclosure":"guided"},
+            {"id":"after","title":"After","type":"string","sensitivity":"public","disclosure":"guided"}
+            """));
+        using var items = System.Text.Json.JsonDocument.Parse(maximum == 0 ? "[]" : "[7]");
+        form.SetValue(["items"], items.RootElement);
+        using var harness = new Harness(initialize: true, form: form);
+        Button nextItem = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("NextItem"));
+        nextItem.InvokeCommand(Command.Accept);
+        harness.Window.MoveField(1);
+        harness.Window.PublicInput.Text = "reachable";
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.Snapshot().Values["after"].GetString()).IsEqualTo("reachable");
+    }
+
+    private static SetupDefinition EditingDefinition(string fields) => SetupDefinitionCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes($$$$"""
+        {"schemaVersion":1,"familyId":"9282a2b1-84a0-436d-8c4d-1c75b81d314c","revision":1,
+         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example","entryPoints":["setup"],"locales":["en"],
+         "fields":[{{{{fields}}}}],"artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+         "projection":{"op":"object","members":{}}}]}
+        """));
+
+    [Test]
+    [NotInParallel]
+    public async Task ContainerControlsSupplyAndClearEmptyValuesWithoutImplicitPresence()
+    {
+        using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
+            {"id":"object","title":"Object","type":"object","properties":[],"required":true,"sensitivity":"public","disclosure":"guided"},
+            {"id":"list","title":"List","type":"list","itemType":"integer","maxItems":0,"required":true,"sensitivity":"public","disclosure":"guided"}
+            """)));
+        Button supply = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("SupplyContainer"));
+        Button clear = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("ClearContainer"));
+        await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
+        await Assert.That(supply.Visible).IsTrue();
+        supply.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Form.Snapshot().Values["object"].GetRawText()).IsEqualTo("{}");
+        clear.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Form.Snapshot().Values.ContainsKey("object")).IsFalse();
+        harness.Window.MoveField(1);
+        await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
+        supply.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Form.Snapshot().Values["list"].GetRawText()).IsEqualTo("[]");
+        clear.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Form.Snapshot().Values.ContainsKey("list")).IsFalse();
+    }
+
+    [Test]
+    public async Task BrowsingBlankObjectChildPreservesAbsenceAndRevision()
+    {
+        using var harness = new Harness(form: new DefinitionFormModel(EditingDefinition("""
+            {"id":"object","title":"Object","type":"object","sensitivity":"public","disclosure":"guided","properties":[
+                {"id":"child","title":"Child","type":"string","required":true,"sensitivity":"public","disclosure":"guided"}]},
+            {"id":"after","title":"After","type":"string","sensitivity":"public","disclosure":"guided"}
+            """)));
+        harness.Window.MoveField(1);
+        harness.Window.MoveField(1);
+        await Assert.That(harness.Form.Snapshot().Values.ContainsKey("object")).IsFalse();
+        await Assert.That(harness.Form.InputRevision).IsEqualTo(0);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task SupplyListPreservesRejectedDraftAndCommitsValidVisibleDraft()
+    {
+        using var form = new DefinitionFormModel(EditingDefinition("""
+            {"id":"items","title":"Items","type":"list","itemType":"integer","sensitivity":"public","disclosure":"guided"}
+            """));
+        using var items = System.Text.Json.JsonDocument.Parse("[7]");
+        form.SetValue(["items"], items.RootElement);
+        using var harness = new Harness(initialize: true, form: form);
+        Button supply = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("SupplyContainer"));
+        harness.Window.PublicInput.Text = "invalid";
+        supply.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("invalid");
+        await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[7]");
+        harness.Window.PublicInput.Text = "8";
+        supply.InvokeCommand(Command.Accept);
+        await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[8]");
+        Button remove = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("RemoveItem"));
+        Button artifact = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("Artifact"));
+        remove.InvokeCommand(Command.Accept);
+        artifact.InvokeCommand(Command.Accept);
+        remove.InvokeCommand(Command.Accept);
+        await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[8]");
+        remove.InvokeCommand(Command.Accept);
+        await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[]");
+    }
+
+    [Test]
     [NotInParallel]
     public async Task EnglishAndArabicResourcesResolveAllCurrentControls()
     {
@@ -333,9 +459,12 @@ public sealed class SetupTerminalGuiAdapterTests
         await Assert.That(add.InvokeCommand(Command.Accept)).IsTrue();
         await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("second")).IsTrue();
         await Assert.That(harness.Window.CommitField()).IsTrue();
-        // Pass the second row's password, aliases and localizations to return to the outer collection.
-        for (int navigation = 0; navigation < 4; navigation++) harness.Window.MoveField(1);
+        // Pass the second row's remaining leaves and containers to return to the outer collection.
+        for (int navigation = 0; navigation < 5; navigation++) harness.Window.MoveField(1);
         await Assert.That(add.Visible).IsTrue();
+        await Assert.That(remove.InvokeCommand(Command.Accept)).IsTrue();
+        await Assert.That(harness.Form.Snapshot().Values["rows"].GetArrayLength()).IsEqualTo(2);
+        await Assert.That(harness.Window.StatusText).DoesNotContain("first");
         await Assert.That(remove.InvokeCommand(Command.Accept)).IsTrue();
         await Assert.That(add.HasFocus).IsTrue();
         var rows = harness.Form.Snapshot().Values["rows"];

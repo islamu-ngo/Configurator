@@ -73,8 +73,10 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             if (path.Count == 0 || !TryMetadata(path, out _, out _) || value is not null && !CanEdit(path)) return false;
             DefinitionFieldInput field = Fields.Single(item => item.Definition.Id == path[0]);
             if (path.Count == 1) return field.TrySetValue(value);
-            JsonNode root = field.TryValue(out JsonElement? existing) && existing is not null
-                ? JsonNode.Parse(existing.Value.GetRawText())! : field.Definition.Type == "list" ? new JsonArray() : new JsonObject();
+            bool hasValue = field.TryValue(out JsonElement? existing) && existing is not null;
+            if (!hasValue && value is null) return true;
+            JsonNode root = hasValue
+                ? JsonNode.Parse(existing!.Value.GetRawText())! : field.Definition.Type == "list" ? new JsonArray() : new JsonObject();
             JsonNode parent = root;
             for (int index = 1; index < path.Count - 1; index++)
             {
@@ -86,7 +88,11 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
                 }
                 else if (parent is JsonObject mapping)
                 {
-                    if (mapping[segment] is null) mapping[segment] = new JsonObject();
+                    if (mapping[segment] is null)
+                    {
+                        if (value is null) return true;
+                        mapping[segment] = new JsonObject();
+                    }
                     parent = mapping[segment]!;
                 }
                 else return false;
@@ -112,6 +118,17 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             if (!TryMetadata(path, out JsonElement metadata, out _) || metadata.GetProperty("type").GetString() != "object") return false;
             if (ReadNode(path) is JsonObject) return true;
             return SetValue(path, DefinitionCollectionItem.CreateObject(metadata));
+        }
+    }
+
+    public bool SupplyList(IReadOnlyList<string> path)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadata(path, out JsonElement metadata, out _) || metadata.GetProperty("type").GetString() != "list") return false;
+            if (ReadNode(path) is JsonArray) return true;
+            return SetValue(path, JsonSerializer.SerializeToElement(Array.Empty<object>()));
         }
     }
 

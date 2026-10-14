@@ -15,17 +15,35 @@ cleared after admission. Registry ambiguity is Core's decision, not a newest-
 revision heuristic in the terminal.
 
 `SetupTerminalApplication` owns one `DefinitionFormModel` and one presentation
-workspace. `SetupTerminalFieldEditor` expands object properties into scalar
-leaves and edits lists one scalar item at a time. It serializes only the edited
+workspace. `SetupTerminalFieldEditor` exposes object/list container slots,
+expands object properties into scalar leaves and edits lists one scalar item
+at a time. It serializes only the edited
 object/list answer back to the parent-owned typed field input. It is not a raw
 definition or whole-answer JSON editor. Visibility, effective sensitivity,
 snapshots, input revisions, activation and validation remain parent-owned.
 Nested leaves use the strongest parent sensitivity to prevent disclosure.
 
+Container Supply/Clear actions call the shared form's `SupplyObject`,
+`SupplyList` and `SetValue` gates. Browsing a blank child leaves an absent
+object absent; deliberate empty containers retain `{}` or `[]` until cleared.
+Requiredness, answer budgets and secret consent remain shared responsibilities.
+`DefinitionScalarEditing` handles scalar conversion. An untouched empty append
+draft is abandoned without adding a value, including boolean/numeric lists;
+an existing empty string item remains a value. Item navigation cannot enter an
+append position at the list limit, including a zero-capacity list. Bound feedback
+does not prevent field navigation or editing existing items.
+
 `SetupTerminalWindow` uses native focusable controls with keyboard buttons,
 bounded layout and English/Arabic resource parity. Small terminals hide editing
 controls rather than overlapping them. The current editor is committed before
 validation, import, preparation or navigation; type errors prevent that transition.
+Choice cycling first commits the visible draft, so invalid input remains visible
+and valid pending input becomes the starting choice. Removing an existing list
+item requires pressing Remove item twice; navigation or editing cancels the
+confirmation. After deletion, selection moves to the next surviving item, the
+previous item at the end, or the empty container. Field selection is retained by
+its root/path identity when the available slots change, with a bounded fallback
+when that location disappears. Confirmation/status text contains no answer value.
 Private editors hold bullets only in `TextField.Text`; clearable character
 buffers hold the input. Clipboard/context/history commands are blocked.
 

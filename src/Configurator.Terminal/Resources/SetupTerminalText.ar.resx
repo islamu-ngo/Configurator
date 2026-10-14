@@ -48,4 +48,8 @@
   <data name="InputChanged" xml:space="preserve"><value>تغير الإدخال؛ أعد الملف قبل الحفظ.</value></data>
   <data name="NoFields" xml:space="preserve"><value>لا توجد حقول نشطة في وضع العرض هذا.</value></data>
   <data name="AddItem" xml:space="preserve"><value>إ_ضافة عنصر</value></data>
+  <data name="SupplyContainer" xml:space="preserve"><value>توفير الحاوية</value></data>
+  <data name="ClearContainer" xml:space="preserve"><value>مسح الحاوية</value></data>
+  <data name="ListBound" xml:space="preserve"><value>بلغت القائمة الحد المسموح؛ يمكن تعديل العناصر الموجودة.</value></data>
+  <data name="ConfirmRemove" xml:space="preserve"><value>اضغط إزالة العنصر مرة أخرى لحذف الصف. التنقل يلغي التأكيد.</value></data>
 </root>

@@ -1,0 +1,29 @@
+Change-Id: CHG-01M4XWSRD3ZSS918YXFWCRMJ30
+Title: "preserve container presence and pending choices"
+Type: fix
+Scope: terminal
+Summary: "Browse optional objects without supplying them, deliberately supply or clear empty containers, abandon empty list append drafts and cycle choices from visible input. Keep list navigation within declared bounds and confirm existing-row removal."
+Group: terminal
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Shared editing retains answer budgets, strongest-root masking and browser secret consent; no-op nested clears do not materialize absent ancestors. Confirmation and status messages contain no answer values."
+  Migration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Absent objects and lists remain distinct from deliberately supplied empty containers. Clearing a supplied container restores absence and reevaluates requiredness; an abandoned typed append does not add an answer."
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Use Supply container or Clear container explicitly, leave empty append drafts without adding items, and correct visible invalid choices before cycling. List bounds remain navigable. Existing-row deletion requires a second Remove item press; navigation or editing cancels confirmation."

@@ -14,6 +14,8 @@ internal sealed class SetupTerminalFieldEditor
         internal string Title => Metadata.GetProperty("title").GetString()!;
         internal string Type => Metadata.GetProperty("type").GetString()!;
         internal bool IsList => Type == "list";
+        internal bool IsObject => Type == "object";
+        internal bool IsContainer => IsList || IsObject;
         internal bool IsObjectList => IsList && ScalarType == "object";
         internal string ScalarType => IsList ? Metadata.GetProperty("itemType").GetString()! : Type;
         internal bool RequiresMasking => Input.RequiresMasking;
@@ -32,6 +34,7 @@ internal sealed class SetupTerminalFieldEditor
         string type = metadata.GetProperty("type").GetString()!;
         if (type == "object")
         {
+            yield return new Slot(_form, input, path, metadata);
             foreach (JsonElement property in metadata.GetProperty("properties").EnumerateArray())
                 foreach (Slot slot in Expand(input, property, [.. path, property.GetProperty("id").GetString()!]))
                     yield return slot;
@@ -50,7 +53,7 @@ internal sealed class SetupTerminalFieldEditor
 
     internal static string Read(Slot slot, int listIndex = 0)
     {
-        if (slot.IsObjectList) return string.Empty;
+        if (slot.IsObject || slot.IsObjectList) return string.Empty;
         JsonNode? value = Node(slot);
         if (slot.IsList)
             value = value is JsonArray array && listIndex >= 0 && listIndex < array.Count ? array[listIndex] : null;
@@ -59,6 +62,17 @@ internal sealed class SetupTerminalFieldEditor
     }
 
     internal static int ItemCount(Slot slot) => Node(slot) is JsonArray array ? array.Count : 0;
+    internal static int MaximumItems(Slot slot) => slot.Metadata.TryGetProperty("maxItems", out JsonElement bound)
+        ? bound.GetInt32() : 4096;
+    internal static int LastItemPosition(Slot slot)
+    {
+        int count = ItemCount(slot);
+        return slot.IsObjectList || count >= MaximumItems(slot) ? Math.Max(0, count - 1) : count;
+    }
+    internal static bool Supply(Slot slot) => slot.IsObject ? slot.Form.SupplyObject(slot.FullPath)
+        : slot.IsList && slot.Form.SupplyList(slot.FullPath);
+    internal static bool Clear(Slot slot) => slot.Form.SetValue(slot.FullPath, null);
+    internal static bool HasItem(Slot slot, int index) => Node(slot) is JsonArray items && index >= 0 && index < items.Count;
     internal static bool AddObjectItem(Slot slot) => slot.IsObjectList && slot.Form.AddListItem(slot.FullPath);
 
     internal static IReadOnlyList<string> Choices(Slot slot)
@@ -71,53 +85,33 @@ internal sealed class SetupTerminalFieldEditor
 
     internal static bool Write(Slot slot, string text, int listIndex = 0)
     {
-        if (slot.IsObjectList) return text.Length == 0;
-        if (text.Length > 65_536 || !TryScalar(slot, text, out JsonNode? value)) return false;
+        if (slot.IsObject || slot.IsObjectList) return text.Length == 0;
+        if (text.Length > 65_536) return false;
         if (slot.IsList)
         {
             JsonArray array = Node(slot) as JsonArray ?? [];
-            int maximum = slot.Metadata.TryGetProperty("maxItems", out JsonElement bound) ? bound.GetInt32() : 4096;
-            if (listIndex < 0 || listIndex > array.Count || array.Count >= maximum && listIndex == array.Count) return false;
+            if (listIndex < 0 || listIndex > array.Count) return false;
             if (listIndex == array.Count && text.Length == 0) return true;
+            if (array.Count >= MaximumItems(slot) && listIndex == array.Count) return false;
+            JsonNode? value;
+            if (text.Length == 0 && slot.ScalarType == "string") value = JsonValue.Create(string.Empty);
+            else
+            {
+                if (text.Length == 0 || !DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Metadata, out JsonElement? scalar)) return false;
+                value = scalar is { } item ? JsonNode.Parse(item.GetRawText()) : null;
+            }
             if (listIndex == array.Count) array.Add(value);
             else array[listIndex] = value;
             return slot.Form.SetValue(slot.FullPath, JsonSerializer.SerializeToElement(array));
         }
-        return slot.Form.SetValue(slot.FullPath, value is null ? null : JsonSerializer.SerializeToElement(value));
+        return DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Metadata, out JsonElement? parsed)
+            && slot.Form.SetValue(slot.FullPath, parsed);
     }
 
     internal static void Remove(Slot slot, int listIndex)
     {
         if (slot.IsList) slot.Form.RemoveListItem(slot.FullPath, listIndex);
         else slot.Form.SetValue(slot.FullPath, null);
-    }
-
-    private static bool TryScalar(Slot slot, string text, out JsonNode? value)
-    {
-        value = null;
-        if (!slot.IsList && text.Length == 0) return true;
-        switch (slot.ScalarType)
-        {
-            case "string": value = JsonValue.Create(text); return true;
-            case "boolean":
-                if (!bool.TryParse(text, out bool boolean)) return false;
-                value = JsonValue.Create(boolean); return true;
-            case "integer":
-                if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long integer)) return false;
-                value = JsonValue.Create(integer); return true;
-            case "number":
-                if (!decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number)) return false;
-                value = JsonValue.Create(number); return true;
-            case "enum":
-                foreach (JsonElement choice in slot.Metadata.GetProperty("choices").EnumerateArray())
-                    if ((choice.ValueKind == JsonValueKind.String ? choice.GetString() : choice.GetRawText()) == text)
-                    {
-                        value = JsonNode.Parse(choice.GetRawText());
-                        return true;
-                    }
-                return false;
-            default: return false;
-        }
     }
 
     private static JsonNode? Node(Slot slot)

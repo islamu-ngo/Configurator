@@ -27,9 +27,20 @@ Arabic resources follow the process UI culture.
 
 1. Navigate fields with Previous/Next; use Apply field to commit the current
    input. Strings, booleans, integers, decimal numbers and declared enum choices
-   retain their types. Cycle choice selects a boolean or enum choice.
-   Object properties are separate fields. Lists use Previous item, Next/add item
-   and Remove item; the position after the last item is the new-item position.
+   retain their types. Cycle choice advances from the value currently visible;
+   correct an invalid draft before cycling. Object and list containers have
+   Supply container and Clear container actions. Supply deliberately includes
+   the container, including an empty object or list; Clear omits it and checks
+   requiredness again. Browsing blank object properties leaves an omitted object
+   omitted. Object properties remain separate editable fields.
+   Lists use Previous item, Next/add item, Add item and Remove item. When capacity
+   remains, the position after the last item is the new-item position. Leave an
+   empty new-item draft to skip adding it, including for boolean and numeric
+   lists. At the item limit, a notice explains the bound and existing items stay
+   editable; field navigation remains available even when no items are allowed.
+   To delete an existing item, press Remove item twice. Navigating or editing
+   cancels the confirmation. Selection then moves to the next item, the previous
+   item when deleting the last row, or the empty container.
 2. Disclosure cycles Guided, Advanced and All declared. Activation and validation
    stay governed by Core; hiding a field never relaxes readiness.
 3. To prefill supported answers, cycle to the matching declared artifact, enter

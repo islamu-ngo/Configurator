@@ -48,4 +48,8 @@
   <data name="InputChanged" xml:space="preserve"><value>Input changed; prepare again before saving.</value></data>
   <data name="NoFields" xml:space="preserve"><value>No active fields in this disclosure mode.</value></data>
   <data name="AddItem" xml:space="preserve"><value>_Add item</value></data>
+  <data name="SupplyContainer" xml:space="preserve"><value>Supply container</value></data>
+  <data name="ClearContainer" xml:space="preserve"><value>Clear container</value></data>
+  <data name="ListBound" xml:space="preserve"><value>List limit reached; existing items remain editable.</value></data>
+  <data name="ConfirmRemove" xml:space="preserve"><value>Press Remove item again to delete this row. Navigation cancels.</value></data>
 </root>

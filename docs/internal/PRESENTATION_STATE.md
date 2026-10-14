@@ -16,9 +16,15 @@ still matches and cancellation/disposal have not invalidated the operation.
 Manual edits use the same form gate, so a late read cannot overwrite them.
 Guided disclosure includes active invalid fields even when their ordinary
 disclosure is Advanced, keeping correction controls reachable. `SupplyObject`
-expresses explicit empty-object presence through the same bounded snapshot
-gate; absent objects and supplied `{}` remain distinct. It does not infer
-values, bypass secret consent or duplicate target semantics in an adapter.
+and `SupplyList` express deliberate container presence through the same bounded
+snapshot and secret-consent gates. An empty object `{}` or list `[]` is distinct
+from an absent answer; supplying an existing container preserves its contents.
+Clearing an absent nested child does not materialize its ancestors or advance
+the input revision. Clearing a supplied container removes it and reevaluates
+requiredness. `DefinitionScalarEditing` converts scalar drafts without target
+semantics: empty text means absence, whitespace in strings remains literal,
+and rejected conversions produce no replacement value. List editors distinguish
+an abandoned empty append draft from an existing empty string item.
 Native bundle clients compose a selected set from one captured snapshot through
 `DefinitionBundleComposer` and hand the immutable result to the protected
 bundle publisher; per-file publication can have a written prefix after a later
