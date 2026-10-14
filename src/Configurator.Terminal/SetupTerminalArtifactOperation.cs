@@ -4,9 +4,20 @@ using Configurator.Artifacts;
 using Configurator.Core.Artifacts;
 using Configurator.Presentation;
 
-internal sealed record SetupTerminalArtifactResult(IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes)
+internal sealed record SetupTerminalArtifactResult
 {
-    internal bool Succeeded => Outcomes.Count > 0
+    internal SetupTerminalArtifactResult(IEnumerable<ProtectedArtifactBundleOutcome> outcomes,
+        ProtectedArtifactBundleCompletionCode completionCode = ProtectedArtifactBundleCompletionCode.Completed,
+        bool cleanupFailed = false)
+    {
+        Outcomes = Array.AsReadOnly(outcomes.ToArray());
+        CompletionCode = completionCode;
+        CleanupFailed = cleanupFailed;
+    }
+    internal IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes { get; }
+    internal ProtectedArtifactBundleCompletionCode CompletionCode { get; }
+    internal bool CleanupFailed { get; }
+    internal bool Succeeded => CompletionCode == ProtectedArtifactBundleCompletionCode.Completed && !CleanupFailed && Outcomes.Count > 0
         && Outcomes.All(item => item.Status == ProtectedArtifactStatus.Written);
     public override string ToString() => $"{nameof(SetupTerminalArtifactResult)}:Succeeded={Succeeded}:Count={Outcomes.Count}";
 }
@@ -22,27 +33,45 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
     private readonly IProtectedArtifactWriter _writer;
     private readonly string _baseDirectory;
     private readonly Func<CancellationToken, Task>? _beforePublication;
+    private readonly Action<ProtectedArtifactBundleOutcome>? _outcomeObserver;
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
+    private readonly object _receiptGate = new();
+    private readonly Queue<SetupTerminalPublicationReceipt> _history = new();
+    private SetupTerminalPublicationReceipt? _currentPublication;
+    private bool _publishing;
     private string _artifactId;
     private bool _disposed;
 
     internal SetupTerminalArtifactOperation(
         DefinitionFormModel form, IProtectedArtifactWriter writer, string baseDirectory,
-        Func<CancellationToken, Task>? beforePublication = null)
+        Func<CancellationToken, Task>? beforePublication = null,
+        Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null)
     {
         Form = form;
         _writer = writer;
         _baseDirectory = baseDirectory;
         _beforePublication = beforePublication;
+        _outcomeObserver = outcomeObserver;
         _artifactId = form.Definition.Artifacts[0].Id;
         _selected.Add(_artifactId);
         Form.InputChanged += InputChanged;
     }
 
     internal DefinitionFormModel Form { get; }
+    internal IReadOnlyList<SetupTerminalPublicationReceipt> PublicationHistory
+    {
+        get { lock (_receiptGate) return Array.AsReadOnly(_history.ToArray()); }
+    }
+    internal SetupTerminalPublicationReceipt? CurrentPublication { get { lock (_receiptGate) return _currentPublication; } }
+    internal SetupTerminalPublicationReceipt? LatestPublication
+    {
+        get { lock (_receiptGate) return _currentPublication ?? _history.LastOrDefault(); }
+    }
+    internal bool IsPublishing { get { lock (_receiptGate) return _publishing; } }
+    internal event EventHandler? PublicationChanged;
     internal event EventHandler? Invalidated;
     internal SetupTerminalPreparation? Preparation { get; private set; }
-    internal bool IsPrepared => Preparation?.InputRevision == Form.InputRevision;
+    internal bool IsPrepared => !IsPublishing && Preparation?.InputRevision == Form.InputRevision;
     internal bool ProtectedOutputAvailable => _writer.IsAvailable;
     internal IReadOnlyList<string> SelectedArtifactIds => Form.Definition.Artifacts
         .Where(item => _selected.Contains(item.Id)).Select(item => item.Id).ToArray();
@@ -53,7 +82,6 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         {
             if (_artifactId == value) return;
             _ = Form.Definition.Artifacts.Single(item => item.Id == value);
-            Invalidate();
             _artifactId = value;
         }
     }
@@ -70,6 +98,7 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
     internal Task<bool> PrepareAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (IsPublishing) return Task.FromResult(false);
         Invalidate();
         cancellationToken.ThrowIfCancellationRequested();
         if (Form.HasInputErrors) return Task.FromResult(false);
@@ -83,8 +112,37 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
 
     public async Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
     {
-        SetupTerminalPreparation? prepared = Preparation;
         string[] selected = SelectedArtifactIds.ToArray();
+        Guid attemptId = Guid.CreateVersion7();
+        lock (_receiptGate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_publishing) throw new InvalidOperationException("publication-still-running");
+            _publishing = true;
+            _currentPublication = new(attemptId, selected.Select(id => new ProtectedArtifactBundleOutcome(id, null)), false);
+        }
+        try
+        {
+            SetupTerminalArtifactResult result = await PublishAsync(selected, cancellationToken).ConfigureAwait(false);
+            SetupTerminalPublicationReceipt receipt = SettlePublication(attemptId, result.Outcomes, result.CompletionCode, result.CleanupFailed);
+            return new(new SetupTerminalArtifactResult(receipt.Outcomes, receipt.CompletionCode ?? result.CompletionCode,
+                receipt.CleanupFailed), ReadOnlyMemory<byte>.Empty);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            SettlePublication(attemptId, null, ProtectedArtifactBundleCompletionCode.Cancelled);
+            throw;
+        }
+        catch
+        {
+            SettlePublication(attemptId, null, null, failed: true);
+            throw;
+        }
+    }
+
+    private async Task<SetupTerminalArtifactResult> PublishAsync(string[] selected, CancellationToken cancellationToken)
+    {
+        SetupTerminalPreparation? prepared = Preparation;
         Preparation = null;
         cancellationToken.ThrowIfCancellationRequested();
         if (prepared?.InputRevision != Form.InputRevision || selected.Length == 0)
@@ -101,13 +159,61 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         if (_beforePublication is not null) await _beforePublication(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
-            _writer, bundle.Artifacts, _baseDirectory, cancellationToken);
-        return new(new SetupTerminalArtifactResult(result.Outcomes), ReadOnlyMemory<byte>.Empty);
+            _writer, bundle.Artifacts, _baseDirectory, RecordOutcome, cancellationToken).ConfigureAwait(false);
+        return new(result.Outcomes, result.CompletionCode, result.CleanupFailed);
     }
 
-    private static SetupPresentationOutcome Outcome(IEnumerable<string> selected, ProtectedArtifactStatus status) =>
-        new(new SetupTerminalArtifactResult(selected.Select(id =>
-            new ProtectedArtifactBundleOutcome(id, status)).ToArray()), ReadOnlyMemory<byte>.Empty);
+    private static SetupTerminalArtifactResult Outcome(IEnumerable<string> selected, ProtectedArtifactStatus status) =>
+        new(selected.Select(id => new ProtectedArtifactBundleOutcome(id, status)));
+
+    private void RecordOutcome(ProtectedArtifactBundleOutcome outcome)
+    {
+        lock (_receiptGate)
+        {
+            if (!_disposed && _currentPublication is { } current)
+                _currentPublication = new(current.AttemptId, current.Outcomes.Select(item =>
+                    item.ArtifactId == outcome.ArtifactId ? outcome : item), false, isUnknown: current.IsUnknown);
+        }
+        PublicationChanged?.Invoke(this, EventArgs.Empty);
+        _outcomeObserver?.Invoke(outcome);
+    }
+
+    private SetupTerminalPublicationReceipt SettlePublication(Guid attemptId,
+        IReadOnlyList<ProtectedArtifactBundleOutcome>? outcomes, ProtectedArtifactBundleCompletionCode? completionCode,
+        bool cleanupFailed = false, bool failed = false)
+    {
+        SetupTerminalPublicationReceipt receipt;
+        lock (_receiptGate)
+        {
+            receipt = new(attemptId, outcomes ?? _currentPublication?.Outcomes ?? [], true, completionCode, cleanupFailed,
+                isUnknown: failed, failed: failed);
+            _publishing = false;
+            _currentPublication = null;
+            if (_disposed) return receipt;
+            _history.Enqueue(receipt);
+            if (_history.Count > 16) _history.Dequeue();
+        }
+        try { PublicationChanged?.Invoke(this, EventArgs.Empty); }
+        catch (Exception)
+        {
+            receipt = new(attemptId, receipt.Outcomes, true, ProtectedArtifactBundleCompletionCode.ObserverFailed, cleanupFailed,
+                isUnknown: failed, failed: failed);
+            lock (_receiptGate)
+            {
+                SetupTerminalPublicationReceipt[] retained = _history.Select(item => item.AttemptId == attemptId ? receipt : item).ToArray();
+                _history.Clear();
+                foreach (SetupTerminalPublicationReceipt item in retained) _history.Enqueue(item);
+            }
+        }
+        return receipt;
+    }
+
+    internal void MarkPublicationUnknown()
+    {
+        lock (_receiptGate)
+            if (_currentPublication is { } current)
+                _currentPublication = new(current.AttemptId, current.Outcomes, false, isUnknown: true);
+    }
 
     private void InputChanged(object? sender, EventArgs args) => Invalidate();
 
@@ -124,10 +230,16 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        lock (_receiptGate)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _history.Clear();
+            _currentPublication = null;
+            PublicationChanged = null;
+        }
         Form.InputChanged -= InputChanged;
-        ClearPrivateState();
-        Invalidated = null;
+        try { ClearPrivateState(); }
+        finally { Invalidated = null; }
     }
 }

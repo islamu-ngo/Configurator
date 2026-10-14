@@ -23,8 +23,29 @@ written stay written, and later files are left unwritten. Per-file results
 identify that committed prefix without exposing values or private paths.
 Cancellation after a file is written has the same partial-result behavior. A
 bundle is not an atomic transaction and Configurator never deletes a written
-file as a rollback. Native client controls for selecting and retrying bundles
-are still in development; current save commands handle one artifact at a time.
+file as a rollback.
+
+The [terminal client](terminal.md) keeps a history of the newest 16 completed
+save attempts, plus the attempt still running. Each attempt identifies declared
+artifacts and their established outcomes without retaining file content or
+private paths. Clearing answers, changing inputs or cancelling a save does not
+erase this history. It also does not make an old save ready to run again. The
+history is cleared when the session is disposed.
+
+An interrupted save can leave some files written and others unattempted. While
+publication is still running, an outcome that has not arrived remains unknown;
+it does not prove that no file was created. Closing the terminal allows up to
+two seconds for the operation to settle and reports remaining uncertainty if
+that budget expires. A second save stays disabled while the first is draining.
+An observation or cleanup failure is reported separately from established file
+outcomes: a file already marked `Written` stays written, but the overall save
+does not claim success. Check the destination before retrying an uncertain
+attempt; existing files will be refused, never overwritten automatically.
+
+Inspecting another artifact's metadata in the terminal preserves readiness when
+answers and the selected output set are unchanged. Changing the selected set or
+answers requires fresh preparation and cancels stale publication. Destination
+changes, where the client exposes them, likewise require fresh preparation.
 
 Choose a new destination, review the definition's apply/restart consequences,
 and use the target's own validated import or startup process. Local preparation

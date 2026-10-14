@@ -181,13 +181,15 @@ public sealed class SetupTerminalImportOperationTests
         internal Harness(ControlledTerminalSynchronizationContext owner,
             Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>> reader,
             TimeProvider? timeProvider = null, Action<Action>? dispatch = null,
-            Func<CancellationToken, Task>? beforePublication = null, bool nativeDispatch = false)
+            Func<CancellationToken, Task>? beforePublication = null, bool nativeDispatch = false,
+            string? outputDirectory = null, Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null)
         {
             _application = Application.Create();
             _application.Init("dotnet");
             Form = new DefinitionFormModel(TerminalDefinitionFixture.Definition());
             Secret = new SetupTerminalSecretBuffer(262144, urlSafeOnly: false);
-            Operation = new SetupTerminalArtifactOperation(Form, new ProtectedArtifactWriter(), Path.GetTempPath(), beforePublication);
+            Operation = new SetupTerminalArtifactOperation(Form, new ProtectedArtifactWriter(), outputDirectory ?? Path.GetTempPath(),
+                beforePublication, outcomeObserver);
             _session = new SetupPresentationSession(new StrongReferenceMessenger());
             SetupWorkspaceId.TryCreate("import", out var id);
             Workspace = _session.CreateWorkspace(id, Operation);
@@ -301,14 +303,19 @@ public sealed class SetupTerminalImportOperationTests
     }
 
     [Test]
-    public async Task CloseDeadlineDetachesUiWhileOwnedReadEventuallyClearsBytes()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task CloseDeadlineDetachesUiWhileOwnedReadEventuallyClearsBytes(bool previousSave)
     {
+        if (previousSave && !OperatingSystem.IsLinux()) return;
+        string directory = Directory.CreateTempSubdirectory("terminal-close-import-").FullName;
         using var owner = new ControlledTerminalSynchronizationContext();
         var clock = new CloseClock();
         var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         byte[] bytes = Encoding.UTF8.GetBytes("""{"name":"late-answer","token":"synthetic-late-private"}""");
         Harness? harness = null;
+        Task publication = Task.CompletedTask;
         try
         {
             await owner.InvokeAsync(() =>
@@ -318,7 +325,19 @@ public sealed class SetupTerminalImportOperationTests
                     reached.TrySetResult();
                     await release.Task.ConfigureAwait(false);
                     return bytes;
-                }, clock);
+                }, clock, outputDirectory: directory);
+                if (previousSave)
+                {
+                    harness.Form.Fields.Single(field => field.Definition.Id == "name").Text = "sample";
+                    harness.Form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-private";
+                    harness.Operation.PrepareAsync().GetAwaiter().GetResult();
+                    publication = harness.Operation.ExecuteAsync(CancellationToken.None);
+                }
+            });
+            await publication.WaitAsync(TimeSpan.FromSeconds(5));
+            await owner.InvokeAsync(() =>
+            {
+                harness!.Window.PublicInput.Text = "sample";
                 harness.Begin();
                 harness.Import();
             });
@@ -338,7 +357,12 @@ public sealed class SetupTerminalImportOperationTests
                 harness.Window.Dispose();
             });
             await Assert.That(stopped).IsTrue();
-            await Assert.That(status).IsEqualTo(SetupTerminalText.Get("ShutdownUnknown"));
+            if (previousSave)
+            {
+                await Assert.That(status).Contains(SetupTerminalText.Get("ShutdownUnknown"));
+                await Assert.That(status).Contains("config: Written");
+            }
+            else await Assert.That(status).IsEqualTo(SetupTerminalText.Get("ShutdownUnknown"));
             release.TrySetResult();
             await harness.Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(bytes.All(value => value == 0)).IsTrue();
@@ -348,6 +372,65 @@ public sealed class SetupTerminalImportOperationTests
             release.TrySetResult();
             if (harness is not null) await harness.Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             await owner.InvokeAsync(() => harness?.Dispose());
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Test]
+    public async Task CloseDeadlineRetainsAttemptAndKnownWrittenPrefixBesideUnresolvedOutput()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string directory = Directory.CreateTempSubdirectory("terminal-close-receipt-").FullName;
+        using var owner = new ControlledTerminalSynchronizationContext();
+        var clock = new CloseClock();
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Harness? harness = null;
+        Task? publication = null;
+        try
+        {
+            await owner.InvokeAsync(() =>
+            {
+                harness = new Harness(owner, (_, _) => Task.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty),
+                    clock, outputDirectory: directory, outcomeObserver: outcome =>
+                    {
+                        if (outcome.Status != ProtectedArtifactStatus.Written) return;
+                        reached.TrySetResult();
+                        release.Task.GetAwaiter().GetResult();
+                    });
+                harness.Window.PublicInput.Text = "sample";
+                harness.Form.Fields.Single(input => input.Definition.Id == "token").Text = "synthetic-private";
+                harness.Operation.ArtifactId = "environment";
+                harness.Operation.ToggleCurrentArtifact();
+                harness.Window.Prepare();
+                harness.Begin();
+            });
+            publication = Task.Run(() => harness!.Workspace.ExecuteAsync(Guid.CreateVersion7()));
+            await reached.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Guid attempt = harness!.Operation.CurrentPublication!.AttemptId;
+            await Assert.That(Directory.GetFiles(directory)).Count().IsEqualTo(1);
+            await owner.InvokeAsync(() => harness.Button("Close").InvokeCommand(Command.Accept));
+            clock.Advance(TimeSpan.FromSeconds(2));
+            await harness.Window.ShutdownCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            string status = string.Empty;
+            await owner.InvokeAsync(() => status = harness.Window.StatusText);
+            await Assert.That(harness.Operation.IsPublishing).IsTrue();
+            await Assert.That(harness.Operation.CurrentPublication!.IsUnknown).IsTrue();
+            await Assert.That(status).Contains(attempt.ToString("N"));
+            await Assert.That(status).Contains("config");
+            await Assert.That(status).Contains(nameof(ProtectedArtifactStatus.Written));
+            await Assert.That(status).Contains("environment");
+            await Assert.That(status).Contains(SetupTerminalText.Get("PublicationUnknown"));
+            await Assert.That(status).DoesNotContain(directory);
+            await Assert.That(status).DoesNotContain("synthetic-private");
+        }
+        finally
+        {
+            release.TrySetResult();
+            if (publication is not null) await publication.WaitAsync(TimeSpan.FromSeconds(5));
+            if (harness is not null) await harness.Workspace.WaitForPendingOperationsAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            await owner.InvokeAsync(() => harness?.Dispose());
+            Directory.Delete(directory, true);
         }
     }
 

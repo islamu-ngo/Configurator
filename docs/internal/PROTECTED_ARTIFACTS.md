@@ -33,13 +33,50 @@ exposes a value-free `RejectionStatus`; null means only that preflight succeeded
 not that a future commit is guaranteed. On preflight failure, all preparations
 are disposed and no file is published. Commits then run in selection order and
 stop at the first failure or cancellation. Each outcome contains only an
-artifact ID and status. A null status means no commit was attempted. A
+artifact ID and status. A null status means no outcome has been established;
+an active or faulted commit must not be presented as certainly unattempted. A
 `Written` prefix remains on disk after a later race, I/O failure or
 cancellation; there is no whole-bundle transaction or automatic rollback.
 Native callers must surface that prefix for manual recovery without printing
 private paths or values in machine output.
 
+`PublishAsync(writer, artifacts, directory, outcomeObserver, cancellationToken)`
+accepts an optional synchronous observer before the optional final cancellation
+token. Existing positional-token callers must use `cancellationToken: token`
+or pass the observer argument first. There is no compatibility overload. The
+observer receives each established outcome before the next cancellation check;
+it receives no artifact bytes, answers or destination path. Observers must keep
+work bounded and marshal UI refresh to the owning loop.
+
+The publisher records the outcome before invoking the observer. An observer
+exception stops later commits and returns `CompletionCode.ObserverFailed`.
+`ProtectedArtifactPreparation` records an established commit status before
+cleanup, so a cleanup exception cannot erase `Written`. `CleanupFailed` is
+independent of the completion code; both observer and cleanup failures can be
+reported together. The immutable result copies its outcomes, and `Succeeded`
+requires normal completion, no cleanup failure and every outcome `Written`.
+Every acquired preparation is disposed and every cloned payload is zeroed even
+when observation or cleanup fails. Unexpected programming exceptions propagate
+after cleanup, preserving the original exception and any already observed
+outcomes. Native clients must observe that task; they must not infer rollback.
+
+Terminal keeps one physical publication active until it settles, independently
+of workspace cancellation and private readiness. Its copied receipts retain the
+newest 16 settled attempts plus the active attempt, with at most 64 declared
+artifact outcomes each. Answer clear, edit and cancellation retain that history;
+final session disposal clears it. A receipt never restores answers or prepared
+output and cannot enable Save. The two-second graceful-close budget marks
+unfinished publication as unknown rather than promising that it was cancelled
+without writing. Forced process termination cannot guarantee managed cleanup.
+See [Terminal ownership](TERMINAL_CLIENT.md) for the lifecycle and rendering.
+
+Desktop's bundle completion uses the full result's `Succeeded` flag. CLI's
+status-only bundle adapter raises a stable I/O failure on `CleanupFailed` before
+projecting per-file statuses, so an all-`Written` cleanup failure cannot become
+a successful command. The public CLI response schema is unchanged.
+
 The Linux writer and bundle publication suites exercise create-only output,
-preflight rejection, partial commits and cancellation. These Linux checks do
-not certify protected saving on other hosts.
-See `docs/public/native-output.md` for operator behavior and host limitations.
+preflight rejection, every committed prefix, observer/cleanup failures, original
+exception preservation and defensive copies. These Linux checks do not certify
+protected saving on other hosts.
+See [native output](../public/native-output.md) for operator behavior and host limitations.

@@ -56,4 +56,10 @@
   <data name="ClearContainer" xml:space="preserve"><value>مسح الحاوية</value></data>
   <data name="ListBound" xml:space="preserve"><value>بلغت القائمة الحد المسموح؛ يمكن تعديل العناصر الموجودة.</value></data>
   <data name="ConfirmRemove" xml:space="preserve"><value>اضغط إزالة العنصر مرة أخرى لحذف الصف. التنقل يلغي التأكيد.</value></data>
+  <data name="PublicationAttempt" xml:space="preserve"><value>محاولة الحفظ</value></data>
+  <data name="PublicationUnknown" xml:space="preserve"><value>النتيجة غير معروفة</value></data>
+  <data name="PublicationInProgress" xml:space="preserve"><value>الحفظ جارٍ</value></data>
+  <data name="PublicationFailed" xml:space="preserve"><value>فشل الحفظ</value></data>
+  <data name="PublicationCleanupFailed" xml:space="preserve"><value>فشل التنظيف؛ راجع الملفات المنشأة قبل إعادة المحاولة.</value></data>
+  <data name="NextAttempt" xml:space="preserve"><value>سجل الحفظ</value></data>
 </root>

@@ -1,6 +1,5 @@
 namespace Configurator.Artifacts;
 
-using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Configurator.Core;
@@ -8,20 +7,34 @@ using Configurator.Core.Artifacts;
 
 public sealed record ProtectedArtifactBundleOutcome(string ArtifactId, ProtectedArtifactStatus? Status);
 
+public enum ProtectedArtifactBundleCompletionCode { Completed, Cancelled, ObserverFailed }
+
 public sealed class ProtectedArtifactBundleResult
 {
-    internal ProtectedArtifactBundleResult(IReadOnlyList<ProtectedArtifactBundleOutcome> outcomes) =>
+    internal ProtectedArtifactBundleResult(IReadOnlyList<ProtectedArtifactBundleOutcome> outcomes,
+        ProtectedArtifactBundleCompletionCode completionCode = ProtectedArtifactBundleCompletionCode.Completed,
+        bool cleanupFailed = false)
+    {
         Outcomes = Array.AsReadOnly(outcomes.ToArray());
+        CompletionCode = completionCode;
+        CleanupFailed = cleanupFailed;
+    }
     public IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes { get; }
-    public bool Succeeded => Outcomes.Count > 0 && Outcomes.All(outcome => outcome.Status == ProtectedArtifactStatus.Written);
-    public override string ToString() => $"{nameof(ProtectedArtifactBundleResult)}:Succeeded={Succeeded}:Count={Outcomes.Count}";
+    public ProtectedArtifactBundleCompletionCode CompletionCode { get; }
+    /// <summary>Cleanup failed independently of the established file outcomes and completion reason.</summary>
+    public bool CleanupFailed { get; }
+    public bool Succeeded => CompletionCode == ProtectedArtifactBundleCompletionCode.Completed && !CleanupFailed
+        && Outcomes.Count > 0 && Outcomes.All(outcome => outcome.Status == ProtectedArtifactStatus.Written);
+    public override string ToString() =>
+        $"{nameof(ProtectedArtifactBundleResult)}:Completion={CompletionCode}:CleanupFailed={CleanupFailed}:Succeeded={Succeeded}:Count={Outcomes.Count}";
 }
 
 public static class ProtectedArtifactBundlePublisher
 {
-    /// <summary>Prepares every destination before create-only commits; a later failure preserves the committed prefix.</summary>
+    /// <summary>Prepares every destination before create-only commits; observes established outcomes before cancellation and retains them across observer or cleanup failure.</summary>
     public static async Task<ProtectedArtifactBundleResult> PublishAsync(IProtectedArtifactWriter writer,
-        IReadOnlyList<DefinitionArtifact> artifacts, string directory, CancellationToken cancellationToken = default)
+        IReadOnlyList<DefinitionArtifact> artifacts, string directory,
+        Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(artifacts);
@@ -32,11 +45,20 @@ public static class ProtectedArtifactBundlePublisher
 
         ProtectedArtifactBundleOutcome[] outcomes = selected
             .Select(item => new ProtectedArtifactBundleOutcome(item.ArtifactId, null)).ToArray();
-        ProtectedArtifactBundleResult Result() => new(outcomes);
+        ProtectedArtifactBundleCompletionCode completionCode = ProtectedArtifactBundleCompletionCode.Completed;
+        bool cleanupFailed = false;
+        ProtectedArtifactBundleResult Result() => new(outcomes, completionCode, cleanupFailed);
+        void RecordOutcome(int index, ProtectedArtifactStatus status)
+        {
+            outcomes[index] = outcomes[index] with { Status = status };
+            if (completionCode == ProtectedArtifactBundleCompletionCode.ObserverFailed) return;
+            try { outcomeObserver?.Invoke(outcomes[index]); }
+            catch (Exception) { completionCode = ProtectedArtifactBundleCompletionCode.ObserverFailed; }
+        }
         void FailAll(ProtectedArtifactStatus status)
         {
             for (int index = 0; index < outcomes.Length; index++)
-                outcomes[index] = outcomes[index] with { Status = status };
+                RecordOutcome(index, status);
         }
 
         DefinitionArtifact first = selected[0];
@@ -61,16 +83,35 @@ public static class ProtectedArtifactBundlePublisher
         var payloads = new List<byte[]>(selected.Length);
         try
         {
+            await PublishPreparedAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            try
+            {
+                foreach (ProtectedArtifactPreparation preparation in prepared)
+                    try { preparation.Dispose(); }
+                    catch (Exception) { cleanupFailed = true; }
+            }
+            finally
+            {
+                foreach (byte[] payload in payloads) CryptographicOperations.ZeroMemory(payload);
+            }
+        }
+        return Result();
+
+        async Task PublishPreparedAsync()
+        {
             for (int index = 0; index < selected.Length; index++)
             {
-                if (cancellationToken.IsCancellationRequested) return Result();
+                if (Cancelled()) return;
                 DefinitionArtifact artifact = selected[index];
                 string target;
                 try { target = Path.Combine(directory, artifact.FileName); }
                 catch (ArgumentException)
                 {
-                    outcomes[index] = outcomes[index] with { Status = ProtectedArtifactStatus.InvalidRequest };
-                    return Result();
+                    RecordOutcome(index, ProtectedArtifactStatus.InvalidRequest);
+                    return;
                 }
                 ProtectedArtifactPreparation preparation;
                 try
@@ -82,68 +123,73 @@ public static class ProtectedArtifactBundlePublisher
                     preparation = await writer.PrepareAsync(SetupArtifactKind.Configuration,
                         target, payload, cancellationToken).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return Result(); }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    completionCode = ProtectedArtifactBundleCompletionCode.Cancelled;
+                    return;
+                }
                 catch (ObjectDisposedException)
                 {
-                    outcomes[index] = outcomes[index] with { Status = ProtectedArtifactStatus.InvalidRequest };
-                    return Result();
+                    RecordOutcome(index, ProtectedArtifactStatus.InvalidRequest);
+                    return;
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    outcomes[index] = outcomes[index] with { Status = ProtectedArtifactStatus.PermissionDenied };
-                    return Result();
+                    RecordOutcome(index, ProtectedArtifactStatus.PermissionDenied);
+                    return;
                 }
                 catch (IOException)
                 {
-                    outcomes[index] = outcomes[index] with { Status = ProtectedArtifactStatus.IoFailure };
-                    return Result();
+                    RecordOutcome(index, ProtectedArtifactStatus.IoFailure);
+                    return;
                 }
                 prepared.Add(preparation);
                 if (preparation.RejectionStatus is { } rejection)
                 {
-                    outcomes[index] = outcomes[index] with { Status = rejection };
-                    return Result();
+                    RecordOutcome(index, rejection);
+                    return;
                 }
             }
 
             for (int index = 0; index < prepared.Count; index++)
             {
-                if (cancellationToken.IsCancellationRequested) break;
+                if (Cancelled()) return;
+                ProtectedArtifactPreparation preparation = prepared[index];
+                ProtectedArtifactStatus status;
                 try
                 {
-                    ProtectedArtifactStatus status = await prepared[index].CommitAsync(cancellationToken)
+                    status = await preparation.CommitAsync(cancellationToken)
                         .ConfigureAwait(false);
-                    outcomes[index] = outcomes[index] with { Status = status };
-                    if (status != ProtectedArtifactStatus.Written) break;
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { break; }
+                catch (Exception) when (preparation.EstablishedStatus.HasValue && preparation.CleanupFailed)
+                {
+                    status = preparation.EstablishedStatus.Value;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    completionCode = ProtectedArtifactBundleCompletionCode.Cancelled;
+                    return;
+                }
                 catch (UnauthorizedAccessException)
                 {
-                    outcomes[index] = outcomes[index] with { Status = ProtectedArtifactStatus.PermissionDenied };
-                    break;
+                    status = ProtectedArtifactStatus.PermissionDenied;
                 }
                 catch (IOException)
                 {
-                    outcomes[index] = outcomes[index] with { Status = ProtectedArtifactStatus.IoFailure };
-                    break;
+                    status = ProtectedArtifactStatus.IoFailure;
                 }
+                finally { cleanupFailed |= preparation.CleanupFailed; }
+                RecordOutcome(index, status);
+                if (status != ProtectedArtifactStatus.Written || cleanupFailed
+                    || completionCode == ProtectedArtifactBundleCompletionCode.ObserverFailed) return;
             }
-            return Result();
         }
-        finally
+
+        bool Cancelled()
         {
-            Exception? cleanupFailure = null;
-            try
-            {
-                foreach (ProtectedArtifactPreparation preparation in prepared)
-                    try { preparation.Dispose(); }
-                    catch (Exception exception) { cleanupFailure ??= exception; }
-            }
-            finally
-            {
-                foreach (byte[] payload in payloads) CryptographicOperations.ZeroMemory(payload);
-            }
-            if (cleanupFailure is not null) ExceptionDispatchInfo.Capture(cleanupFailure).Throw();
+            if (!cancellationToken.IsCancellationRequested) return false;
+            completionCode = ProtectedArtifactBundleCompletionCode.Cancelled;
+            return true;
         }
     }
 }

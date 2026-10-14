@@ -114,6 +114,7 @@ internal static class SetupCliProgram
                 throw new IOException("output-bound");
             ProtectedArtifactBundleResult result = ProtectedArtifactBundlePublisher.PublishAsync(
                 new ProtectedArtifactWriter(), artifacts, directory).GetAwaiter().GetResult();
+            if (result.CleanupFailed) throw new IOException("protected-output-cleanup-failed");
             return result.Outcomes.Select(item => item.Status).ToArray();
         }
     }

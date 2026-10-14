@@ -120,7 +120,7 @@ public sealed class DesktopWorkflowReadinessTests
                 started.SetResult();
                 await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
                 return await ProtectedArtifactBundlePublisher.PublishAsync(
-                    new ProtectedArtifactWriter(), artifacts, destination, cancellation);
+                    new ProtectedArtifactWriter(), artifacts, destination, cancellationToken: cancellation);
             });
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.SelectArtifact("environment", true);

@@ -68,7 +68,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             return await preparation.CommitAsync(token);
         }, Directory.GetCurrentDirectory(), writer.IsAvailable,
             (artifacts, directory, token) => ProtectedArtifactBundlePublisher.PublishAsync(
-                writer, artifacts, directory, token))
+                writer, artifacts, directory, cancellationToken: token))
     {
     }
 
@@ -82,7 +82,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         _dialogs = dialogs;
         _save = save;
         _publishBundle = publishBundle ?? ((artifacts, directory, token) =>
-            ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(), artifacts, directory, token));
+            ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(), artifacts, directory, cancellationToken: token));
         _outputDirectory = outputDirectory;
         ProtectedSaveAvailable = protectedOutputAvailable;
         _session = new SetupPresentationSession(messenger);

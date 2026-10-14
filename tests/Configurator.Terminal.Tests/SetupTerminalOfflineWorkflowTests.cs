@@ -54,7 +54,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
     }
 
     [Test]
-    public async Task EditingAnswersOrArtifactInvalidatesPreparation()
+    public async Task AnswerAndSelectionChangesInvalidatePreparationWhileInspectionPreservesIt()
     {
         using var form = TerminalDefinitionFixture.Form();
         using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath());
@@ -66,9 +66,11 @@ public sealed class SetupTerminalOfflineWorkflowTests
             .IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
         await Assert.That(await operation.PrepareAsync()).IsTrue();
         operation.ArtifactId = "legal";
-        await Assert.That(operation.IsPrepared).IsFalse();
+        await Assert.That(operation.IsPrepared).IsTrue();
         await Assert.That(form.Definition.Artifacts.Single(item => item.Id == operation.ArtifactId).FileName)
             .IsEqualTo("legal.md");
+        operation.ToggleCurrentArtifact();
+        await Assert.That(operation.IsPrepared).IsFalse();
     }
 
     [Test]

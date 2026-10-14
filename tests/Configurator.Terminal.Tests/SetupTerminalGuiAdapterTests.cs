@@ -157,7 +157,8 @@ public sealed class SetupTerminalGuiAdapterTests
                 "ImportFailed", "NextOutcome", "NotAttempted", "PartialBundle", "ManualRecovery",
                 "PreparePreview", "SaveProtected", "PreviewReady", "DraftInvalid",
                 "ProtectedDraftSaved", "ProtectedDraftFailed", "ValidateDraft", "ClearPrivate",
-                "PrivateCleared", "InputChanged", "NoFields"
+                "PrivateCleared", "InputChanged", "NoFields", "NextAttempt", "PublicationAttempt",
+                "PublicationUnknown", "PublicationInProgress", "PublicationFailed", "PublicationCleanupFailed"
             ];
             foreach (string culture in new[] { "en", "ar" })
             {
@@ -341,13 +342,13 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task PartialSaveStatusIdentifiesEachCommittedOutputAndManualRecovery()
     {
         using var harness = new Harness(initialize: true);
-        var result = new SetupTerminalArtifactResult(
+        var receipt = new SetupTerminalPublicationReceipt(Guid.NewGuid(),
         [
             new("config", ProtectedArtifactStatus.Written),
             new("environment", ProtectedArtifactStatus.TargetExists),
             new("yaml", null)
-        ]);
-        harness.Window.PresentResult(result);
+        ], true);
+        harness.Window.PresentReceipt(receipt);
         Button next = harness.Window.SubViews.OfType<Button>()
             .Single(button => button.Text == SetupTerminalText.Get("NextOutcome"));
         await Assert.That(next.Visible).IsTrue();
@@ -361,6 +362,72 @@ public sealed class SetupTerminalGuiAdapterTests
         await Assert.That(third).Contains("yaml: " + SetupTerminalText.Get("NotAttempted"));
         await Assert.That(first).Contains(SetupTerminalText.Get("ManualRecovery"));
         await Assert.That(first).DoesNotContain("privateValue");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task UnexpectedPublicationFaultAfterSuccessResetsExitCode()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string directory = Directory.CreateTempSubdirectory("terminal-fault-").FullName;
+        int attempt = 0;
+        try
+        {
+            using var harness = new Harness(initialize: true, directory: directory, manualDispatch: true,
+                beforePublication: _ => ++attempt == 1 ? Task.CompletedTask
+                    : throw new InvalidOperationException("synthetic-private-fault"));
+            harness.Window.Prepare();
+            harness.Window.Save();
+            await harness.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            harness.DrainCallbacks();
+            await Assert.That(harness.Window.ExitCode).IsEqualTo(0);
+            harness.Form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-retry";
+            harness.Window.Prepare();
+            harness.Window.Save();
+            await harness.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            harness.DrainCallbacks();
+            await Assert.That(harness.Operation.PublicationHistory[^1].Failed).IsTrue();
+            await Assert.That(harness.Window.StatusText).DoesNotContain("synthetic-private-fault");
+            await Assert.That(harness.Window.ExitCode).IsEqualTo(4);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task SaveHistorySurvivesPrivateClearWithoutRestoringReadiness()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string directory = Directory.CreateTempSubdirectory("terminal-history-").FullName;
+        try
+        {
+            using var harness = new Harness(initialize: true, directory: directory, manualDispatch: true);
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
+                await harness.Operation.ExecuteAsync(CancellationToken.None);
+                harness.DrainCallbacks();
+            }
+            harness.Window.ClearPrivateState();
+            Button history = harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("NextAttempt"));
+            await Assert.That(history.Visible).IsTrue();
+            await Assert.That(history.InvokeCommand(Command.Accept)).IsTrue();
+            string first = harness.Window.StatusText;
+            await Assert.That(history.InvokeCommand(Command.Accept)).IsTrue();
+            string second = harness.Window.StatusText;
+            await Assert.That(first + second).Contains("config: Written");
+            await Assert.That(first + second).Contains("config: TargetExists");
+            await Assert.That(first + second).DoesNotContain("privateValue");
+            await Assert.That(first + second).DoesNotContain(directory);
+            await Assert.That(harness.Operation.IsPrepared).IsFalse();
+            await Assert.That(harness.Workspace.Result).IsNull();
+            await Assert.That(harness.Window.ExitCode).IsEqualTo(4);
+            await Assert.That(harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("SaveProtected")).Enabled).IsFalse();
+            await Assert.That(Directory.GetFiles(directory)).Count().IsEqualTo(1);
+        }
+        finally { Directory.Delete(directory, true); }
     }
 
     [Test]
@@ -529,6 +596,10 @@ public sealed class SetupTerminalGuiAdapterTests
         internal SetupTerminalArtifactOperation Operation { get; }
         internal SetupPresentationWorkspace Workspace { get; }
         internal SetupTerminalWindow Window { get; }
+        internal void DrainCallbacks()
+        {
+            while (_dispatch.Reader.TryRead(out Action? callback)) callback();
+        }
         internal async Task CompleteImport()
         {
             while (Window.IsImportBusy)

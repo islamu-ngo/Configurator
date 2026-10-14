@@ -36,6 +36,7 @@ internal sealed class SetupTerminalWindow : Window
     private readonly TextField _importPath;
     private readonly Button _import;
     private readonly Button _nextOutcome;
+    private readonly Button _nextAttempt;
     private readonly Button _save;
     private readonly Button _prepare;
     private readonly Button _mode;
@@ -49,7 +50,8 @@ internal sealed class SetupTerminalWindow : Window
     private int _fieldIndex;
     private int _itemIndex;
     private int _outcomeIndex;
-    private SetupTerminalArtifactResult? _lastResult;
+    private SetupTerminalPublicationReceipt? _receipt;
+    private int _publicationRefreshQueued;
     private bool _loading;
     private bool _disposed;
     private bool _tooSmall;
@@ -114,6 +116,8 @@ internal sealed class SetupTerminalWindow : Window
         _save = Button("SaveProtected", 51, 16, Save);
         _nextOutcome = Button("NextOutcome", 1, 17, NextOutcome);
         _nextOutcome.Visible = false;
+        _nextAttempt = Button("NextAttempt", 34, 17, NextAttempt);
+        _nextAttempt.Visible = false;
         _status = new Label { X = 1, Y = 18, Width = Dim.Fill(2), Height = 3, Text = SetupTerminalText.Get("Ready") };
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
@@ -129,7 +133,7 @@ internal sealed class SetupTerminalWindow : Window
         };
         Add(heading, _mode, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
             _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import,
-            validate, _prepare, _save, _nextOutcome, _status,
+            validate, _prepare, _save, _nextOutcome, _nextAttempt, _status,
             clear, close, limitations, previousItem, nextItem, removeItem, _addItem);
         _normal = SubViews.ToArray();
         Add(_smallNotice);
@@ -143,6 +147,7 @@ internal sealed class SetupTerminalWindow : Window
             RefreshCommands();
         };
         _operation.Invalidated += OperationInvalidated;
+        _operation.PublicationChanged += PublicationChanged;
         _workspace.PropertyChanged += WorkspaceChanged;
         ViewportChanged += ViewportUpdated;
         ShowArtifact();
@@ -406,7 +411,7 @@ internal sealed class SetupTerminalWindow : Window
 
     private void ImportSelected()
     {
-        if (_importOperation.IsBusy || _workspace.IsBusy || !CommitField()) return;
+        if (_importOperation.IsBusy || _workspace.IsBusy || _operation.IsPublishing || !CommitField()) return;
         string path = _importPath.Text;
         _loading = true;
         _importPath.Text = string.Empty;
@@ -455,7 +460,7 @@ internal sealed class SetupTerminalWindow : Window
 
     internal void Prepare()
     {
-        if (_importOperation.IsBusy || Volatile.Read(ref _closeRequested) != 0) return;
+        if (_importOperation.IsBusy || _operation.IsPublishing || Volatile.Read(ref _closeRequested) != 0) return;
         if (!CommitField()) return;
         try
         {
@@ -470,12 +475,16 @@ internal sealed class SetupTerminalWindow : Window
 
     internal void Save()
     {
-        if (_importOperation.IsBusy || Volatile.Read(ref _closeRequested) != 0) return;
+        if (_importOperation.IsBusy || _operation.IsPublishing || Volatile.Read(ref _closeRequested) != 0) return;
         if (!_operation.IsPrepared) { Status("InvalidOutput"); return; }
+        ExitCode = 4;
+        _receipt = null;
         Status("Writing");
         Task execution = _workspace.ExecuteAsync(Guid.CreateVersion7());
         _saveObservation = ObserveSaveAsync(execution, _dispatch, _owner, _callbackGeneration);
         Observe(_saveObservation);
+        UpdatePublication();
+        RefreshCommands();
     }
 
     private static async Task ObserveSaveAsync(Task execution, Action<Action> dispatch,
@@ -488,7 +497,9 @@ internal sealed class SetupTerminalWindow : Window
             {
                 if (!owner.TryGetTarget(out SetupTerminalWindow? window) || window._disposed
                     || window._callbackGeneration != generation || Volatile.Read(ref window._closeRequested) != 0) return;
-                window._status.Text = SetupTerminalText.Get("InvalidOutput") + " terminal-operation-failed";
+                window.UpdatePublication();
+                if (window._receipt is null)
+                    window._status.Text = SetupTerminalText.Get("InvalidOutput") + " terminal-operation-failed";
                 window.RefreshCommands();
             });
         }
@@ -544,8 +555,13 @@ internal sealed class SetupTerminalWindow : Window
                 || window._callbackGeneration != generation) return;
             if (unknown)
             {
+                window._operation.MarkPublicationUnknown();
                 window.Status("ShutdownUnknown");
             }
+            SetupTerminalPublicationReceipt? receipt = window._operation.LatestPublication;
+            if (receipt is not null)
+                window._status.Text = (unknown ? SetupTerminalText.Get("ShutdownUnknown") + " " : string.Empty)
+                    + SetupTerminalText.FormatClosingReceipt(receipt);
             window.DetachObservers();
             window._allowStop = true;
             window._application.RequestStop(window);
@@ -592,6 +608,7 @@ internal sealed class SetupTerminalWindow : Window
         _importOperation.Dispose();
         _workspace.PropertyChanged -= WorkspaceChanged;
         _operation.Invalidated -= OperationInvalidated;
+        _operation.PublicationChanged -= PublicationChanged;
         ViewportChanged -= ViewportUpdated;
     }
 
@@ -610,12 +627,41 @@ internal sealed class SetupTerminalWindow : Window
             });
     }
 
+    private void PublicationChanged(object? sender, EventArgs args)
+    {
+        if (Interlocked.Exchange(ref _publicationRefreshQueued, 1) != 0) return;
+        DispatchToOwner(static window =>
+        {
+            Interlocked.Exchange(ref window._publicationRefreshQueued, 0);
+            if (Volatile.Read(ref window._closeRequested) != 0) return;
+            window.UpdatePublication();
+            window.RefreshCommands();
+        });
+    }
+
+    private IReadOnlyList<SetupTerminalPublicationReceipt> PublicationReceipts()
+    {
+        IReadOnlyList<SetupTerminalPublicationReceipt> history = _operation.PublicationHistory;
+        return _operation.CurrentPublication is { } current ? [.. history, current] : history;
+    }
+
+    private void UpdatePublication()
+    {
+        IReadOnlyList<SetupTerminalPublicationReceipt> receipts = PublicationReceipts();
+        SetupTerminalPublicationReceipt? receipt = receipts.FirstOrDefault(item => item.AttemptId == _receipt?.AttemptId)
+            ?? (receipts.Count == 0 ? null : receipts[^1]);
+        if (receipt is null) return;
+        if (_receipt?.AttemptId != receipt.AttemptId) _outcomeIndex = 0;
+        _receipt = receipt;
+        ShowOutcome();
+    }
+
     private void UpdateResult()
     {
         if (_workspace.Result is SetupTerminalArtifactResult result)
         {
             ExitCode = result.Succeeded ? 0 : 4;
-            PresentResult(result);
+            UpdatePublication();
             _loading = true;
             _masked.ClearSensitiveState();
             _importPath.Text = string.Empty;
@@ -626,25 +672,34 @@ internal sealed class SetupTerminalWindow : Window
         RefreshCommands();
     }
 
-    internal void PresentResult(SetupTerminalArtifactResult result)
+    internal void PresentReceipt(SetupTerminalPublicationReceipt receipt)
     {
-        _lastResult = result;
+        _receipt = receipt;
         _outcomeIndex = 0;
         ShowOutcome();
     }
 
+    private void NextAttempt()
+    {
+        IReadOnlyList<SetupTerminalPublicationReceipt> receipts = PublicationReceipts();
+        if (receipts.Count == 0) return;
+        int index = receipts.ToList().FindIndex(item => item.AttemptId == _receipt?.AttemptId);
+        PresentReceipt(receipts[(index + receipts.Count - 1) % receipts.Count]);
+    }
+
     private void NextOutcome()
     {
-        if (_lastResult is null || _lastResult.Outcomes.Count == 0) return;
-        _outcomeIndex = (_outcomeIndex + 1) % _lastResult.Outcomes.Count;
+        if (_receipt is null || _receipt.Outcomes.Count == 0) return;
+        _outcomeIndex = (_outcomeIndex + 1) % _receipt.Outcomes.Count;
         ShowOutcome();
     }
 
     private void ShowOutcome()
     {
-        if (_lastResult is null) return;
-        _status.Text = SetupTerminalText.FormatResult(_lastResult, _outcomeIndex);
-        _nextOutcome.Visible = !_tooSmall && _lastResult.Outcomes.Count > 1;
+        if (_receipt is null) return;
+        _status.Text = SetupTerminalText.FormatReceipt(_receipt, _outcomeIndex);
+        _nextOutcome.Visible = !_tooSmall && _receipt.Outcomes.Count > 1;
+        _nextAttempt.Visible = !_tooSmall;
         _status.SetNeedsDraw();
     }
 
@@ -653,7 +708,7 @@ internal sealed class SetupTerminalWindow : Window
     private void RefreshCommands()
     {
         bool available = !_tooSmall && !_workspace.IsBusy && !_importOperation.IsBusy
-            && Volatile.Read(ref _closeRequested) == 0;
+            && !_operation.IsPublishing && Volatile.Read(ref _closeRequested) == 0;
         _save.Enabled = available && _operation.ProtectedOutputAvailable
             && _operation.IsPrepared;
         _prepare.Enabled = available;
@@ -665,7 +720,8 @@ internal sealed class SetupTerminalWindow : Window
     {
         _tooSmall = size.Width < MinimumTerminalWidth || size.Height < MinimumTerminalHeight;
         foreach (View view in _normal) view.Visible = !_tooSmall;
-        _nextOutcome.Visible = !_tooSmall && _lastResult is { Outcomes.Count: > 1 };
+        _nextOutcome.Visible = !_tooSmall && _receipt is { Outcomes.Count: > 1 };
+        _nextAttempt.Visible = !_tooSmall && _receipt is not null;
         _smallNotice.Visible = _tooSmall;
         SetEditorVisibility();
         RefreshCommands();

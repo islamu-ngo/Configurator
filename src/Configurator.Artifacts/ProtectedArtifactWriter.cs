@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using Configurator.Core;
 
 [assembly: InternalsVisibleTo("Configurator.Artifacts.Tests")]
@@ -39,19 +40,31 @@ public sealed class ProtectedArtifactPreparation : IDisposable
     /// <summary>A value-free preflight refusal; null means the preparation is ready to commit.</summary>
     public ProtectedArtifactStatus? RejectionStatus => _rejectionStatus;
 
+    internal ProtectedArtifactStatus? EstablishedStatus { get; private set; }
+    internal bool CleanupFailed { get; private set; }
+
     public async Task<ProtectedArtifactStatus> CommitAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _completed, 1) != 0)
             return ProtectedArtifactStatus.InvalidRequest;
+        ExceptionDispatchInfo? commitFailure = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await _commit(cancellationToken).ConfigureAwait(false);
+            EstablishedStatus = await _commit(cancellationToken).ConfigureAwait(false);
         }
-        finally
+        catch (Exception exception)
         {
-            _cleanup();
+            commitFailure = ExceptionDispatchInfo.Capture(exception);
         }
+        try { _cleanup(); }
+        catch
+        {
+            CleanupFailed = true;
+            if (commitFailure is null) throw;
+        }
+        commitFailure?.Throw();
+        return EstablishedStatus!.Value;
     }
 
     public void Dispose()

@@ -56,4 +56,10 @@
   <data name="ClearContainer" xml:space="preserve"><value>Clear container</value></data>
   <data name="ListBound" xml:space="preserve"><value>List limit reached; existing items remain editable.</value></data>
   <data name="ConfirmRemove" xml:space="preserve"><value>Press Remove item again to delete this row. Navigation cancels.</value></data>
+  <data name="PublicationAttempt" xml:space="preserve"><value>Save attempt</value></data>
+  <data name="PublicationUnknown" xml:space="preserve"><value>Outcome unknown</value></data>
+  <data name="PublicationInProgress" xml:space="preserve"><value>Save in progress</value></data>
+  <data name="PublicationFailed" xml:space="preserve"><value>Save failed</value></data>
+  <data name="PublicationCleanupFailed" xml:space="preserve"><value>Cleanup failed; review created files before retrying.</value></data>
+  <data name="NextAttempt" xml:space="preserve"><value>Save history</value></data>
 </root>

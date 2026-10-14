@@ -509,7 +509,7 @@ public sealed class DesktopApplicationTests
                 started.SetResult();
                 await finish.Task;
                 return await ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(),
-                    artifacts, output, cancellation);
+                    artifacts, output, cancellationToken: cancellation);
             });
         shell.Loader.LoadDefinition(Definition());
         shell.Publisher.SelectArtifact("environment", true);

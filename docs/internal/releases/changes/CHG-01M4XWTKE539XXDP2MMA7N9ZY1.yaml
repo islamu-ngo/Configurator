@@ -1,0 +1,30 @@
+Change-Id: CHG-01M4XWTKE539XXDP2MMA7N9ZY1
+Title: "retain protected publication outcomes after cancellation"
+Type: fix
+Scope: output
+Summary: "Retain bounded terminal save receipts after cancellation or answer changes, preserve established file outcomes across observer and cleanup failures, and keep unchanged artifact inspection ready to save."
+Group: output
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "ProtectedArtifactBundlePublisher.PublishAsync inserts an optional outcomeObserver before the final cancellationToken. Existing four-argument positional-token calls must name cancellationToken or supply the observer first. No compatibility overload is retained. Cleanup failure now returns CleanupFailed with established outcomes; callers must inspect Succeeded or CleanupFailed rather than infer success from Written statuses alone."
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Receipts contain bounded artifact identities and status facts only. Cancellation cannot restore stale private workspace output; every preparation is disposed and cloned payloads are zeroed even when observation or cleanup fails. Linux create-only protection and unsupported-host refusal remain enforced."
+  Migration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/native-output.md
+    Disposition: documented
+    Detail: "Changing answers or selected outputs invalidates preparation, while inspecting unchanged artifact metadata preserves readiness. Historical save facts do not authorize apply, retry, overwrite or rollback."
+  OpenAPI:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/native-output.md
+    Disposition: documented
+    Detail: "Terminal retains the newest 16 settled save attempts plus one active attempt, each bounded to 64 outcomes. Clear or cancellation keeps historical Written facts; final session disposal clears history. Interrupted or cleanup-failed saves require reviewing established outcomes and uncertain destinations before another deliberate create-only save."

@@ -55,6 +55,8 @@ Arabic resources follow the process UI culture.
    masked editor before continuing.
 4. Validate fields reports value-free codes and field identifiers. Cycle artifact
    shows its declared filename, format, apply semantics and restart guidance.
+   Inspecting another artifact preserves preparation; changing the selected
+   output set requires preparing again.
    The first output starts selected. Toggle output selects or deselects the
    current artifact; the label shows how many declared outputs are selected.
    At least one output must be selected. Prepare artifact validates the current
@@ -68,6 +70,13 @@ Arabic resources follow the process UI culture.
    output result to review each artifact ID and status. If a later file fails,
    earlier created files remain: review them in the working directory and decide
    how to clean up or retry. Configurator does not delete or overwrite them.
+   Save history cycles through the newest 16 attempts, including cancelled or
+   failed saves. Each attempt shows its own artifact outcomes. Editing or Clear
+   private state keeps this history for the session without restoring answers or
+   readiness; closing the session discards it. A result still marked unknown
+   must not be treated as proof that no file was created. Cleanup or observation
+   failure is reported alongside known file outcomes. While a save is still
+   finishing, another import, preparation or save waits for its cleanup.
 
 Editing a field or changing output selection invalidates readiness immediately.
 Field navigation clears

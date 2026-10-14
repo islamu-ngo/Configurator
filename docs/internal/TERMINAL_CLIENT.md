@@ -52,10 +52,11 @@ each output in the selected set. At least one must be selected. `PrepareAsync`
 checks `DefinitionBundleComposer` over one immutable answer snapshot, then keeps
 only its input revision and selected count. Private composed bytes are not kept
 between UI actions. The scoped Core bundle is disposed after preparation and
-after publication, clearing its restricted byte storage. Input, selection or
-cursor changes invalidate readiness and
+after publication, clearing its restricted byte storage. Input or selection
+changes invalidate readiness and
 deactivate/reactivate the workspace to cancel in-flight saves and discard old
-results. On save, the operation recomposes the selected bundle from the current
+results. Cursor-only artifact inspection preserves readiness; changing the import
+target still cancels a pending import. On save, the operation recomposes the selected bundle from the current
 revision and passes it to `ProtectedArtifactBundlePublisher` in the workspace
 generation. Declared filenames stay inside the selected working directory; the
 definition's filename is never treated as an arbitrary path authority.
@@ -90,6 +91,22 @@ shows a partial-save notice, counts and each artifact ID/status through a
 keyboard-operated Next output result button. The operator reviews created files
 before retrying; no automatic deletion or overwrite occurs. No private output
 is placed in the workspace's public output.
+
+Publication has a physical lifetime independent of workspace readiness.
+`SetupTerminalArtifactOperation` rejects overlapping publication and retains one
+current receipt plus the newest 16 settled attempts, each bounded to 64 declared
+outcomes. `SetupTerminalPublicationReceipt` copies its collection and contains
+only attempt/artifact identifiers, statuses and safe completion flags. Established
+statuses are recorded before workspace delivery. Cancellation, edits and private
+clear retain history without restoring answers, bytes or preparation; final
+operation disposal clears history. Unknown pending outcomes differ from settled
+unattempted ones. Observer and cleanup failures remain visible alongside known
+Written statuses. The window coalesces receipt refresh through its weak owner
+dispatcher and checks lifetime again inside the callback. Save history cycles
+attempts; outcome navigation only inspects that receipt and cannot change exit
+status or re-enable Save. Imports, preparation and another save remain disabled
+while physical publication drains, even after the workspace is no longer busy.
+
 The UI retains public fields but clears protected model inputs after settlement,
 explicit clearing, close, disposal and handled termination signals. Navigating
 between fields clears the transient editor, not the masked multi-field answer
