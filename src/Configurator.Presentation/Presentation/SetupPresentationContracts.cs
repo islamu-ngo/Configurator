@@ -15,7 +15,8 @@ public enum SetupOperationInvalidationReason
     Cancelled,
     Deactivated,
     Disposed,
-    SessionTerminated
+    SessionTerminated,
+    Faulted
 }
 
 public enum SetupAccessibilityStatus

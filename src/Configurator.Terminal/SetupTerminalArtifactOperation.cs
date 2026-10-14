@@ -119,9 +119,7 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
 
     internal void ClearPrivateState()
     {
-        Invalidate();
-        foreach (var input in Form.Fields.Where(field => field.RequiresMasking))
-            input.Text = string.Empty;
+        if (!Form.ClearPrivateState()) Invalidate();
     }
 
     public void Dispose()

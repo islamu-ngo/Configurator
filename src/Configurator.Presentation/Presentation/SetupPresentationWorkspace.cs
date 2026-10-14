@@ -1,60 +1,33 @@
 namespace Configurator.Presentation;
 
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 
-public sealed partial class SetupPresentationWorkspace :
-    ObservableRecipient,
-    IRecipient<SetupOperationSettledMessage>,
-    IDisposable
+public sealed partial class SetupPresentationWorkspace : ObservableRecipient,
+    IRecipient<SetupOperationSettledMessage>, IDisposable
 {
     private readonly object _gate = new();
     private readonly HashSet<SettlementIdentity> _received = [];
+    private readonly HashSet<OperationLifetime> _pending = [];
     private readonly ISetupPresentationOperation _operation;
     private readonly SetupPresentationSession _session;
     private readonly IMessenger _sessionMessenger;
-    private CancellationTokenSource? _activeCancellation;
+    private OperationLifetime? _active;
     private SetupPresentationOutcome? _ownedOutcome;
-    private SetupOperationGeneration _activeGeneration;
-    private Guid _activeOperationId;
-    private bool _disposed;
-    private bool _hasActiveOperation;
-
-    [ObservableProperty]
-    private SetupAccessibilityStatus _accessibilityStatus = SetupAccessibilityStatus.NotEvaluated;
-
-    [ObservableProperty]
+    private OperationLifetime? _ownedOperation;
     private SetupOperationGeneration _generation;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExecuteCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
-    private bool _isBusy;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ExecuteCommand))]
-    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
+    private bool _disposed;
     private bool _isTerminated;
-
-    [ObservableProperty]
+    private bool _isBusy;
     private ReadOnlyMemory<byte> _output;
-
-    [ObservableProperty]
+    private object? _result;
     private string _publicInput = string.Empty;
-
-    [ObservableProperty]
     private int _receivedCompletionCount;
 
-    [ObservableProperty]
-    private object? _result;
-
-    internal SetupPresentationWorkspace(
-        SetupPresentationSession session,
-        IMessenger messenger,
-        SetupWorkspaceId workspaceId,
-        ISetupPresentationOperation operation)
-        : base(messenger)
+    internal SetupPresentationWorkspace(SetupPresentationSession session, IMessenger messenger,
+        SetupWorkspaceId workspaceId, ISetupPresentationOperation operation) : base(messenger)
     {
         _session = session;
         _sessionMessenger = messenger;
@@ -63,292 +36,398 @@ public sealed partial class SetupPresentationWorkspace :
     }
 
     public event EventHandler<SetupCompletionDiscardedEventArgs>? CompletionDiscarded;
-
     public event EventHandler<SetupOperationInvalidatedEventArgs>? Invalidated;
-
     public int MaxPublicInputLength => 4096;
-
     public SetupWorkspaceId WorkspaceId { get; }
+    public SetupAccessibilityStatus AccessibilityStatus => SetupAccessibilityStatus.NotEvaluated;
+    public SetupOperationGeneration Generation { get { lock (_gate) return _generation; } }
+    public bool IsBusy { get { lock (_gate) return _isBusy; } }
+    public bool IsTerminated { get { lock (_gate) return _isTerminated; } }
+    public ReadOnlyMemory<byte> Output { get { lock (_gate) return _output; } }
+    public object? Result { get { lock (_gate) return _result; } }
+    public string PublicInput { get { lock (_gate) return _publicInput; } }
+    public int ReceivedCompletionCount { get { lock (_gate) return _receivedCompletionCount; } }
 
     public void Activate()
     {
         lock (_gate)
         {
-            if (_disposed || IsTerminated)
-                return;
+            if (_disposed || _isTerminated || IsActive) return;
             IsActive = true;
         }
+        NotifyState(Notifications.IsActive);
     }
 
-    public void Deactivate()
-    {
-        Invalidate(SetupOperationInvalidationReason.Deactivated, preserveResult: false);
-        lock (_gate)
-            IsActive = false;
-    }
+    public void Deactivate() => Invalidate(SetupOperationInvalidationReason.Deactivated, preserveResult: false);
 
     public bool SetPublicInput(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (value.Length > MaxPublicInputLength)
-            return false;
-
+        if (value.Length > MaxPublicInputLength) return false;
         lock (_gate)
         {
-            if (_disposed || IsTerminated)
-                return false;
-            PublicInput = value;
-            return true;
+            if (_disposed || _isTerminated) return false;
+            if (_publicInput == value) return true;
+            _publicInput = value;
         }
+        OnPropertyChanged(nameof(PublicInput));
+        return true;
     }
 
     [RelayCommand(CanExecute = nameof(CanExecuteOperation))]
     public async Task ExecuteAsync(Guid operationId)
     {
-        if (operationId == Guid.Empty || !_session.TryAllocate(out SetupOperationGeneration next))
-            return;
-
-        CancellationTokenSource? previous;
-        SetupOperationGeneration previousGeneration;
-        CancellationTokenSource current;
+        if (operationId == Guid.Empty || !_session.TryAllocate(out SetupOperationGeneration next)) return;
+        OperationLifetime? previous;
+        OperationLifetime current;
+        Notifications notifications;
         lock (_gate)
         {
-            if (_disposed || IsTerminated)
-                return;
-
-            previous = _activeCancellation;
-            previousGeneration = _activeGeneration;
-            current = new CancellationTokenSource();
-            _activeCancellation = current;
-            _activeGeneration = next;
-            _activeOperationId = operationId;
-            _hasActiveOperation = true;
-            Generation = next;
-            IsBusy = true;
+            if (_disposed || _isTerminated) return;
+            State before = CaptureState();
+            previous = _active;
+            current = new OperationLifetime(operationId, next);
+            _pending.Add(current);
+            _active = current;
+            _generation = next;
+            _isBusy = true;
+            notifications = ChangesSince(before);
         }
-
-        if (previous is not null)
-        {
-            RaiseInvalidated(previousGeneration, SetupOperationInvalidationReason.Replaced);
-            previous.Cancel();
-            previous.Dispose();
-        }
-
-        Task<SetupPresentationOutcome> pending;
+        Task<SetupPresentationOutcome>? pending = null;
+        bool observeLate = false;
+        Exception? failure = null;
         try
         {
+            try
+            {
+                if (previous is not null)
+                    RaiseInvalidated(previous.Generation, SetupOperationInvalidationReason.Replaced);
+            }
+            finally
+            {
+                if (previous is not null) Observe(previous.RequestCancellationAsync());
+            }
+            OnPropertyChanged(nameof(Generation));
+            NotifyState(notifications);
+            current.Token.ThrowIfCancellationRequested();
             pending = _operation.ExecuteAsync(current.Token);
-        }
-        catch
-        {
-            InvalidateCurrent(operationId, next, SetupOperationInvalidationReason.Cancelled);
-            throw;
-        }
-
-        try
-        {
             SetupPresentationOutcome outcome = await pending.WaitAsync(current.Token);
-            Commit(operationId, next, outcome);
+            Commit(current, outcome);
         }
-        catch (OperationCanceledException) when (current.IsCancellationRequested)
+        catch (OperationCanceledException) when (current.Token.IsCancellationRequested)
         {
-            _ = ObserveDiscardedAsync(pending, operationId, next);
+            observeLate = pending is not null;
+            try { Invalidate(SetupOperationInvalidationReason.Cancelled, preserveResult: true, current); }
+            catch (Exception notificationFailure) { failure = notificationFailure; }
         }
+        catch (Exception operationFailure)
+        {
+            failure = operationFailure;
+            try { Invalidate(SetupOperationInvalidationReason.Faulted, preserveResult: false, current); }
+            catch (Exception notificationFailure) { failure = new AggregateException(operationFailure, notificationFailure); }
+        }
+        finally
+        {
+            if (observeLate) Observe(ObserveDiscardedAsync(pending!, current));
+            else
+            {
+                try { await RetireAsync(current); }
+                catch (Exception retirementFailure)
+                {
+                    failure = failure is null ? retirementFailure : new AggregateException(failure, retirementFailure);
+                }
+            }
+        }
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failure);
     }
 
     [RelayCommand(CanExecute = nameof(CanCancel))]
-    public void Cancel() =>
-        Invalidate(SetupOperationInvalidationReason.Cancelled, preserveResult: true);
+    public void Cancel() => Invalidate(SetupOperationInvalidationReason.Cancelled, preserveResult: true);
+
+    /// <summary>Requests cancellation without publishing model changes or running callbacks on the caller.</summary>
+    public Task RequestCancellationAsync()
+    {
+        OperationLifetime? operation;
+        lock (_gate) operation = _active;
+        return operation?.RequestCancellationAsync() ?? Task.CompletedTask;
+    }
+
+    /// <summary>Waits for currently owned workers and cancellation callbacks, including discarded operations.</summary>
+    public Task WaitForPendingOperationsAsync()
+    {
+        lock (_gate) return Task.WhenAll(_pending.Select(operation => operation.Completion));
+    }
 
     public void Receive(SetupOperationSettledMessage message)
     {
-        if (message.SessionId != _session.SessionId || message.WorkspaceId == WorkspaceId)
-            return;
-
+        if (message.SessionId != _session.SessionId || message.WorkspaceId == WorkspaceId) return;
         lock (_gate)
         {
-            if (_disposed || IsTerminated)
-                return;
-            var identity = new SettlementIdentity(message.OperationId, message.Generation);
-            if (_received.Add(identity))
-                ReceivedCompletionCount++;
+            if (_disposed || _isTerminated || !_received.Add(new(message.OperationId, message.Generation))) return;
+            _receivedCompletionCount++;
         }
+        OnPropertyChanged(nameof(ReceivedCompletionCount));
     }
 
-    internal void TerminateFromSession()
-    {
-        CancellationTokenSource? cancellation;
-        SetupPresentationOutcome? outcome;
-        SetupOperationGeneration invalidatedGeneration;
-        bool hadActive;
-        lock (_gate)
-        {
-            if (IsTerminated)
-                return;
-
-            IsTerminated = true;
-            hadActive = _hasActiveOperation;
-            invalidatedGeneration = _activeGeneration;
-            cancellation = _activeCancellation;
-            outcome = _ownedOutcome;
-            _ownedOutcome = null;
-            _hasActiveOperation = false;
-            _activeCancellation = null;
-            Result = null;
-            Output = ReadOnlyMemory<byte>.Empty;
-            IsBusy = false;
-        }
-
-        outcome?.Dispose();
-        if (hadActive)
-            RaiseInvalidated(invalidatedGeneration, SetupOperationInvalidationReason.SessionTerminated);
-        cancellation?.Cancel();
-        cancellation?.Dispose();
-        IsActive = false;
-    }
+    internal void TerminateFromSession() =>
+        Invalidate(SetupOperationInvalidationReason.SessionTerminated, preserveResult: false, terminate: true);
 
     public void Dispose()
     {
         lock (_gate)
         {
-            if (_disposed)
-                return;
+            if (_disposed) return;
             _disposed = true;
         }
-
-        Invalidate(SetupOperationInvalidationReason.Disposed, preserveResult: false);
-        IsActive = false;
-        _session.Release(this);
+        try { Invalidate(SetupOperationInvalidationReason.Disposed, preserveResult: false); }
+        finally { _session.Release(this); }
     }
 
     public override string ToString() => nameof(SetupPresentationWorkspace);
 
-    private bool CanExecuteOperation(Guid operationId) =>
-        operationId != Guid.Empty && !_disposed && !IsTerminated && !IsBusy;
+    private bool CanExecuteOperation(Guid operationId)
+    {
+        lock (_gate) return operationId != Guid.Empty && !_disposed && !_isTerminated && !_isBusy;
+    }
 
-    private bool CanCancel() => !_disposed && !IsTerminated && IsBusy;
+    private bool CanCancel()
+    {
+        lock (_gate) return !_disposed && !_isTerminated && _isBusy;
+    }
 
-    private void Commit(
-        Guid operationId,
-        SetupOperationGeneration generation,
-        SetupPresentationOutcome outcome)
+    private void Commit(OperationLifetime operation, SetupPresentationOutcome outcome)
     {
         bool accepted;
         SetupPresentationOutcome? previous = null;
+        Notifications notifications;
         lock (_gate)
         {
-            accepted = !_disposed
-                && !IsTerminated
-                && _hasActiveOperation
-                && _activeOperationId == operationId
-                && _activeGeneration == generation
-                && _activeCancellation is { IsCancellationRequested: false };
+            State before = CaptureState();
+            accepted = !_disposed && !_isTerminated && Matches(operation) && !operation.Token.IsCancellationRequested;
             if (accepted)
             {
                 previous = _ownedOutcome;
                 _ownedOutcome = outcome;
-                _hasActiveOperation = false;
-                _activeCancellation?.Dispose();
-                _activeCancellation = null;
-                Result = outcome.CoreResult;
-                Output = outcome.Output;
-                IsBusy = false;
+                _ownedOperation = operation;
+                _active = null;
+                _result = outcome.CoreResult;
+                _output = outcome.Output;
+                _isBusy = false;
             }
+            notifications = ChangesSince(before);
         }
-
         if (!accepted)
         {
             outcome.Dispose();
-            RaiseDiscarded(operationId, generation);
+            RaiseDiscarded(operation);
             return;
         }
         if (!ReferenceEquals(previous, outcome)) previous?.Dispose();
-
-        _sessionMessenger.Send(new SetupOperationSettledMessage(
-            _session.SessionId,
-            WorkspaceId,
-            operationId,
-            generation,
-            SetupOperationStatus.Succeeded));
+        NotifyState(notifications);
+        _sessionMessenger.Send(new SetupOperationSettledMessage(_session.SessionId, WorkspaceId,
+            operation.OperationId, operation.Generation, SetupOperationStatus.Succeeded));
     }
 
-    private void Invalidate(
-        SetupOperationInvalidationReason reason,
-        bool preserveResult)
+    private bool Matches(OperationLifetime operation) =>
+        _active?.OperationId == operation.OperationId && _active.Generation == operation.Generation;
+
+    private void Invalidate(SetupOperationInvalidationReason reason, bool preserveResult,
+        OperationLifetime? matching = null, bool terminate = false)
     {
-        CancellationTokenSource? cancellation;
+        OperationLifetime? operation;
         SetupPresentationOutcome? outcome = null;
-        SetupOperationGeneration invalidatedGeneration;
-        bool hadActive;
+        SetupOperationGeneration generation;
+        Notifications notifications;
         lock (_gate)
         {
-            hadActive = _hasActiveOperation;
-            invalidatedGeneration = _activeGeneration;
-            cancellation = _activeCancellation;
-            _hasActiveOperation = false;
-            _activeCancellation = null;
-            IsBusy = false;
+            bool matchesActive = matching is null || Matches(matching);
+            if (!matchesActive && !ReferenceEquals(_ownedOperation, matching)) return;
+            if (terminate && _isTerminated) return;
+            State before = CaptureState();
+            if (terminate) _isTerminated = true;
+            if (reason is SetupOperationInvalidationReason.Deactivated or SetupOperationInvalidationReason.Disposed
+                or SetupOperationInvalidationReason.SessionTerminated) IsActive = false;
+            operation = matchesActive ? _active : null;
+            generation = matching?.Generation ?? operation?.Generation ?? _generation;
+            if (matchesActive)
+            {
+                _active = null;
+                _isBusy = false;
+            }
             if (!preserveResult)
             {
                 outcome = _ownedOutcome;
                 _ownedOutcome = null;
-                Result = null;
-                Output = ReadOnlyMemory<byte>.Empty;
+                _ownedOperation = null;
+                _result = null;
+                _output = ReadOnlyMemory<byte>.Empty;
             }
+            notifications = ChangesSince(before);
         }
-
         outcome?.Dispose();
-        RaiseInvalidated(invalidatedGeneration, reason);
-        if (hadActive)
-            cancellation?.Cancel();
-        cancellation?.Dispose();
-    }
-
-    private void InvalidateCurrent(
-        Guid operationId,
-        SetupOperationGeneration generation,
-        SetupOperationInvalidationReason reason)
-    {
-        lock (_gate)
+        try
         {
-            if (!_hasActiveOperation
-                || _activeOperationId != operationId
-                || _activeGeneration != generation)
-                return;
+            NotifyAll([() => RaiseInvalidated(generation, reason), () => NotifyState(notifications)]);
         }
-
-        Invalidate(reason, preserveResult: false);
+        finally
+        {
+            if (operation is not null) Observe(operation.RequestCancellationAsync());
+        }
     }
 
-    private async Task ObserveDiscardedAsync(
-        Task<SetupPresentationOutcome> pending,
-        Guid operationId,
-        SetupOperationGeneration generation)
+    private async Task ObserveDiscardedAsync(Task<SetupPresentationOutcome> pending, OperationLifetime operation)
     {
         try
         {
-            (await pending).Dispose();
+            try { (await pending).Dispose(); }
+            catch (Exception) when (pending.IsFaulted || pending.IsCanceled)
+            {
+                // The cancelled caller no longer owns a result; observing the worker still retires its resources.
+            }
         }
-        catch
-        {
-        }
-
-        RaiseDiscarded(operationId, generation);
+        finally { await RetireAsync(operation); }
+        RaiseDiscarded(operation);
     }
 
-    private void RaiseInvalidated(
-        SetupOperationGeneration generation,
-        SetupOperationInvalidationReason reason) =>
-        Invalidated?.Invoke(this, new SetupOperationInvalidatedEventArgs(generation, reason));
+    private async Task RetireAsync(OperationLifetime operation)
+    {
+        try { await operation.DisposeAsync(); }
+        finally { lock (_gate) _pending.Remove(operation); }
+    }
 
-    private void RaiseDiscarded(
-        Guid operationId,
-        SetupOperationGeneration generation) =>
-        CompletionDiscarded?.Invoke(
-            this,
-            new SetupCompletionDiscardedEventArgs(operationId, generation));
+    private State CaptureState() => new(_result, _output, _isBusy, _isTerminated, IsActive);
 
-    private readonly record struct SettlementIdentity(
-        Guid OperationId,
-        SetupOperationGeneration Generation);
+    private Notifications ChangesSince(State previous) =>
+        (ReferenceEquals(previous.Result, _result) ? Notifications.None : Notifications.Result) |
+        (previous.Output.Equals(_output) ? Notifications.None : Notifications.Output) |
+        (previous.IsBusy == _isBusy ? Notifications.None : Notifications.IsBusy) |
+        (previous.IsTerminated == _isTerminated ? Notifications.None : Notifications.IsTerminated) |
+        (previous.IsActive == IsActive ? Notifications.None : Notifications.IsActive);
+
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    {
+        // ObservableRecipient changes registration atomically; its notifications join the post-lock batch.
+        if (!Monitor.IsEntered(_gate)) base.OnPropertyChanged(e);
+    }
+
+    protected override void OnPropertyChanging(PropertyChangingEventArgs e)
+    {
+        if (!Monitor.IsEntered(_gate)) base.OnPropertyChanging(e);
+    }
+
+    private void NotifyState(Notifications notifications)
+    {
+        List<Action> callbacks = [];
+        if (notifications.HasFlag(Notifications.Result)) callbacks.Add(() => OnPropertyChanged(nameof(Result)));
+        if (notifications.HasFlag(Notifications.Output)) callbacks.Add(() => OnPropertyChanged(nameof(Output)));
+        if (notifications.HasFlag(Notifications.IsBusy)) callbacks.Add(() => OnPropertyChanged(nameof(IsBusy)));
+        if (notifications.HasFlag(Notifications.IsTerminated)) callbacks.Add(() => OnPropertyChanged(nameof(IsTerminated)));
+        if (notifications.HasFlag(Notifications.IsActive))
+        {
+            callbacks.Add(() => OnPropertyChanging(nameof(IsActive)));
+            callbacks.Add(() => OnPropertyChanged(nameof(IsActive)));
+        }
+        if ((notifications & (Notifications.IsBusy | Notifications.IsTerminated)) != 0)
+        {
+            callbacks.Add(ExecuteCommand.NotifyCanExecuteChanged);
+            callbacks.Add(CancelCommand.NotifyCanExecuteChanged);
+        }
+        NotifyAll(callbacks);
+    }
+
+    private void RaiseInvalidated(SetupOperationGeneration generation, SetupOperationInvalidationReason reason) =>
+        NotifyAll((Invalidated?.GetInvocationList() ?? []).Cast<EventHandler<SetupOperationInvalidatedEventArgs>>()
+            .Select<EventHandler<SetupOperationInvalidatedEventArgs>, Action>(subscriber =>
+                () => subscriber(this, new SetupOperationInvalidatedEventArgs(generation, reason))));
+
+    private static void NotifyAll(IEnumerable<Action> notifications)
+    {
+        List<Exception>? failures = null;
+        foreach (Action notification in notifications)
+        {
+            try { notification(); }
+            catch (Exception exception) { (failures ??= []).Add(exception); }
+        }
+        if (failures is { Count: 1 }) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(failures[0]);
+        if (failures is not null) throw new AggregateException(failures);
+    }
+
+    private void RaiseDiscarded(OperationLifetime operation) => CompletionDiscarded?.Invoke(this,
+        new SetupCompletionDiscardedEventArgs(operation.OperationId, operation.Generation));
+
+    private static void Observe(Task task) => _ = task.ContinueWith(completed => _ = completed.Exception,
+        CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+        TaskScheduler.Default);
+
+    private sealed class OperationLifetime : IAsyncDisposable
+    {
+        private readonly object _gate = new();
+        private readonly CancellationTokenSource _source = new();
+        private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private Task _cancellation = Task.CompletedTask;
+        private bool _retired;
+
+        internal OperationLifetime(Guid operationId, SetupOperationGeneration generation)
+        {
+            OperationId = operationId;
+            Generation = generation;
+            Token = _source.Token;
+            Observe(_completion.Task);
+        }
+
+        internal Guid OperationId { get; }
+        internal SetupOperationGeneration Generation { get; }
+        internal CancellationToken Token { get; }
+        internal Task Completion => _completion.Task;
+
+        internal Task RequestCancellationAsync()
+        {
+            lock (_gate)
+            {
+                if (!_retired && !_source.IsCancellationRequested)
+                {
+                    _cancellation = _source.CancelAsync();
+                    Observe(_cancellation);
+                }
+                return _cancellation;
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            Task cancellation;
+            lock (_gate)
+            {
+                if (_retired) return;
+                _retired = true;
+                cancellation = _cancellation;
+            }
+            try
+            {
+                await cancellation;
+                _source.Dispose();
+                _completion.TrySetResult();
+            }
+            catch (Exception exception)
+            {
+                _source.Dispose();
+                _completion.TrySetException(exception);
+                throw;
+            }
+        }
+    }
+
+    private readonly record struct SettlementIdentity(Guid OperationId, SetupOperationGeneration Generation);
+    private readonly record struct State(object? Result, ReadOnlyMemory<byte> Output, bool IsBusy, bool IsTerminated, bool IsActive);
+
+    [Flags]
+    private enum Notifications
+    {
+        None = 0,
+        Result = 1,
+        Output = 2,
+        IsBusy = 4,
+        IsTerminated = 8,
+        IsActive = 16
+    }
 }

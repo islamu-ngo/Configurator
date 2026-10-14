@@ -3,11 +3,391 @@ namespace Configurator.Presentation.Tests;
 using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Core;
 
 public sealed class SetupPresentationModelTests
 {
     private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(5);
+
+    [Test]
+    [Arguments(true, false)]
+    [Arguments(false, false)]
+    [Arguments(false, true)]
+    public async Task FaultSettlesPrivateOutputAndAllowsRetry(bool synchronous, bool unrequestedCancellation)
+    {
+        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception failure = unrequestedCancellation ? new OperationCanceledException() : new InvalidOperationException("synthetic-failure");
+        int calls = 0;
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, token => ++calls switch
+        {
+            1 => Task.FromResult(new SetupPresentationOutcome(new object(), new byte[] { 17 })),
+            2 => synchronous ? throw failure : pending.Task,
+            _ => Task.FromResult(new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty))
+        });
+        await workspace.ExecuteAsync(Guid.NewGuid());
+        ReadOnlyMemory<byte> oldOutput = workspace.Output;
+        Task execution = workspace.ExecuteAsync(Guid.NewGuid());
+        if (!synchronous) pending.SetException(failure);
+        Exception? observed = null;
+        try { await execution.WaitAsync(SignalTimeout); }
+        catch (Exception exception) { observed = exception; }
+        await Assert.That(ReferenceEquals(observed, failure)).IsTrue();
+        await Assert.That(workspace.IsBusy).IsFalse();
+        await Assert.That(workspace.Result).IsNull();
+        await Assert.That(workspace.Output.IsEmpty).IsTrue();
+        await Assert.That(oldOutput.Span[0]).IsEqualTo((byte)0);
+        await workspace.ExecuteAsync(Guid.NewGuid());
+        await Assert.That(calls).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task OldFaultCannotInvalidateNewGenerationAfterPrivateClear()
+    {
+        var first = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => ++calls == 1 ? first.Task : second.Task);
+        var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
+        Task old = workspace.ExecuteAsync(Guid.NewGuid());
+        workspace.Deactivate();
+        Task current = workspace.ExecuteAsync(Guid.NewGuid());
+        await old.WaitAsync(SignalTimeout);
+        first.SetException(new InvalidOperationException("synthetic-private-canary"));
+        await discarded.Task.WaitAsync(SignalTimeout);
+        await Assert.That(workspace.IsBusy).IsTrue();
+        await Assert.That(workspace.Output.IsEmpty).IsTrue();
+        var result = new object();
+        using var outcome = new SetupPresentationOutcome(result, ReadOnlyMemory<byte>.Empty);
+        second.SetResult(outcome);
+        await current.WaitAsync(SignalTimeout);
+        await Assert.That(ReferenceEquals(workspace.Result, result)).IsTrue();
+    }
+
+    [Test]
+    public async Task PropertyNotificationsAllowCrossThreadReentryAndObserveCoherentState()
+    {
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => Task.FromResult(new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty)));
+        bool observed = false;
+        workspace.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(workspace.Generation)) return;
+            if (!workspace.IsBusy) throw new InvalidOperationException("incoherent-operation-state");
+            Task.Run(() => workspace.SetPublicInput("reentrant")).WaitAsync(SignalTimeout).GetAwaiter().GetResult();
+            observed = true;
+        };
+        await workspace.ExecuteAsync(Guid.NewGuid());
+        await Assert.That(observed).IsTrue();
+        await Assert.That(workspace.PublicInput).IsEqualTo("reentrant");
+    }
+
+    [Test]
+    public async Task CancellationRetainsSourceUntilLateWorkerCompletes()
+    {
+        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken retained = default;
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, token => { retained = token; return pending.Task; });
+        var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
+        Task execution = workspace.ExecuteAsync(Guid.NewGuid());
+        workspace.Cancel();
+        await execution.WaitAsync(SignalTimeout);
+        Task retirement = workspace.WaitForPendingOperationsAsync();
+        await Assert.That(retirement.IsCompleted).IsFalse();
+        Exception? sourceFailure = null;
+        try { _ = retained.WaitHandle; }
+        catch (ObjectDisposedException exception) { sourceFailure = exception; }
+        using var late = new SetupPresentationOutcome(new object(), new byte[] { 83 });
+        ReadOnlyMemory<byte> output = late.Output;
+        pending.SetResult(late);
+        await discarded.Task.WaitAsync(SignalTimeout);
+        await retirement.WaitAsync(SignalTimeout);
+        await Assert.That(sourceFailure).IsNull();
+        await Assert.That(output.Span[0]).IsEqualTo((byte)0);
+    }
+
+    private static SetupPresentationWorkspace CreateWorkspace(SetupPresentationSession session,
+        Func<CancellationToken, Task<SetupPresentationOutcome>> execute)
+    {
+        if (!SetupWorkspaceId.TryCreate("lifetime", out SetupWorkspaceId id)) throw new InvalidOperationException();
+        return session.CreateWorkspace(id, new DelegateOperation(execute));
+    }
+
+    [Test]
+    public async Task RequestOnlyCancellationRetiresAfterBlockedCallbackAndWorker()
+    {
+        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callbackStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseCallback = new ManualResetEventSlim();
+        CancellationToken retained = default;
+        CancellationTokenRegistration registration = default;
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, token =>
+        {
+            retained = token;
+            registration = token.Register(() =>
+            {
+                callbackStarted.TrySetResult();
+                if (!releaseCallback.Wait(SignalTimeout)) throw new TimeoutException("callback-release");
+            });
+            return pending.Task;
+        });
+        workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
+        Task execution = workspace.ExecuteAsync(Guid.NewGuid());
+        Task cancellation = workspace.RequestCancellationAsync();
+        try
+        {
+            await callbackStarted.Task.WaitAsync(SignalTimeout);
+            await Assert.That(cancellation.IsCompleted).IsFalse();
+            using var late = new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty);
+            pending.SetResult(late);
+            _ = retained.WaitHandle;
+        }
+        finally { releaseCallback.Set(); }
+        await cancellation.WaitAsync(SignalTimeout);
+        await execution.WaitAsync(SignalTimeout);
+        await discarded.Task.WaitAsync(SignalTimeout);
+        registration.Dispose();
+        Exception? retired = null;
+        try { _ = retained.WaitHandle; }
+        catch (ObjectDisposedException exception) { retired = exception; }
+        await Assert.That(retired).IsNotNull();
+    }
+
+    [Test]
+    public async Task ThrowingInvalidationSubscriberCannotPreventCancellationOrLateOutputCleanup()
+    {
+        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken retained = default;
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, token => { retained = token; return pending.Task; });
+        workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
+        EventHandler<SetupOperationInvalidatedEventArgs> subscriber = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
+        workspace.Invalidated += subscriber;
+        Task execution = workspace.ExecuteAsync(Guid.NewGuid());
+        Exception? observed = null;
+        try { workspace.Cancel(); }
+        catch (InvalidOperationException exception) { observed = exception; }
+        finally { workspace.Invalidated -= subscriber; }
+        await Assert.That(observed).IsNotNull();
+        await Assert.That(retained.IsCancellationRequested).IsTrue();
+        await execution.WaitAsync(SignalTimeout);
+        using var late = new SetupPresentationOutcome(new object(), new byte[] { 91 });
+        ReadOnlyMemory<byte> bytes = late.Output;
+        pending.SetResult(late);
+        await discarded.Task.WaitAsync(SignalTimeout);
+        await Assert.That(bytes.Span[0]).IsEqualTo((byte)0);
+    }
+
+    private sealed class DelegateOperation(Func<CancellationToken, Task<SetupPresentationOutcome>> execute) : ISetupPresentationOperation
+    {
+        public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken) => execute(cancellationToken);
+    }
+
+    [Test]
+    public async Task WorkerFaultRemainsOwnedWhenItsInvalidationSubscriberAlsoFails()
+    {
+        var workerFailure = new InvalidOperationException("synthetic-worker");
+        var subscriberFailure = new InvalidOperationException("synthetic-subscriber");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => Task.FromException<SetupPresentationOutcome>(workerFailure));
+        EventHandler<SetupOperationInvalidatedEventArgs> subscriber = (_, _) => throw subscriberFailure;
+        workspace.Invalidated += subscriber;
+        AggregateException? observed = null;
+        try { await workspace.ExecuteAsync(Guid.NewGuid()); }
+        catch (AggregateException exception) { observed = exception; }
+        finally { workspace.Invalidated -= subscriber; }
+        await Assert.That(observed).IsNotNull();
+        await Assert.That(observed!.Flatten().InnerExceptions.Contains(workerFailure)).IsTrue();
+        await Assert.That(observed.Flatten().InnerExceptions.Contains(subscriberFailure)).IsTrue();
+        await Assert.That(workspace.IsBusy).IsFalse();
+        await workspace.WaitForPendingOperationsAsync().WaitAsync(SignalTimeout);
+    }
+
+    [Test]
+    public async Task RequestOnlyCancellationQueuesObservableSettlementToCapturedOwner()
+    {
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationTokenRegistration registration = default;
+        using var workspace = CreateWorkspace(session, token =>
+        {
+            registration = token.Register(() => pending.TrySetCanceled(token));
+            return pending.Task;
+        });
+        var owner = new QueuedOwnerContext();
+        SynchronizationContext? original = SynchronizationContext.Current;
+        Task execution;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(owner);
+            execution = workspace.ExecuteAsync(Guid.NewGuid());
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(original); }
+        int notifications = 0;
+        workspace.PropertyChanged += (_, _) => notifications++;
+        await Task.Run(workspace.RequestCancellationAsync).WaitAsync(SignalTimeout);
+        await owner.Posted.Task.WaitAsync(SignalTimeout);
+        await Assert.That(notifications).IsEqualTo(0);
+        await Assert.That(workspace.IsBusy).IsTrue();
+        owner.Deliver();
+        await execution.WaitAsync(SignalTimeout);
+        await workspace.WaitForPendingOperationsAsync().WaitAsync(SignalTimeout);
+        registration.Dispose();
+        await Assert.That(workspace.IsBusy).IsFalse();
+        await Assert.That(notifications > 0).IsTrue();
+    }
+
+    private sealed class QueuedOwnerContext : SynchronizationContext
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _callbacks = new();
+        internal TaskCompletionSource Posted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            _callbacks.Enqueue((callback, state));
+            Posted.TrySetResult();
+        }
+
+        internal void Deliver()
+        {
+            while (_callbacks.TryDequeue(out var item)) item.Callback(item.State);
+        }
+    }
+
+    [Test]
+    public async Task ReentrantActivationAfterDeactivationKeepsNewRecipientAndGeneration()
+    {
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => Task.FromResult(new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty)));
+        workspace.Activate();
+        Task? replacement = null;
+        EventHandler<SetupOperationInvalidatedEventArgs> subscriber = (_, _) =>
+        {
+            workspace.Activate();
+            replacement = workspace.ExecuteAsync(Guid.NewGuid());
+        };
+        workspace.Invalidated += subscriber;
+        try { workspace.Deactivate(); }
+        finally { workspace.Invalidated -= subscriber; }
+        await replacement!.WaitAsync(SignalTimeout);
+        await Assert.That(workspace.IsActive).IsTrue();
+        await Assert.That(workspace.Result).IsNotNull();
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, false)]
+    [Arguments(false, true)]
+    public async Task AcceptedOutcomeNotificationFaultClearsOnlyItsOwnPrivateResult(bool replaceDuringNotification, bool failMessenger)
+    {
+        var firstResult = new object();
+        var replacementResult = new object();
+        using var firstOutcome = new SetupPresentationOutcome(firstResult, new byte[] { 73 });
+        using var replacementOutcome = new SetupPresentationOutcome(replacementResult, new byte[] { 19 });
+        ReadOnlyMemory<byte> firstBytes = firstOutcome.Output;
+        int calls = 0;
+        var messenger = new WeakReferenceMessenger();
+        using var session = new SetupPresentationSession(messenger);
+        using var workspace = CreateWorkspace(session, _ => Task.FromResult(++calls == 1 ? firstOutcome : replacementOutcome));
+        var notificationFailure = new InvalidOperationException("synthetic-notification");
+        if (failMessenger)
+            messenger.Register<SetupOperationSettledMessage>(this, (_, _) => throw notificationFailure);
+        Task? replacement = null;
+        workspace.PropertyChanged += (_, args) =>
+        {
+            if (failMessenger || args.PropertyName != nameof(workspace.Result) || !ReferenceEquals(workspace.Result, firstResult)) return;
+            if (replaceDuringNotification) replacement = workspace.ExecuteAsync(Guid.NewGuid());
+            throw notificationFailure;
+        };
+        Exception? observed = null;
+        try { await workspace.ExecuteAsync(Guid.NewGuid()); }
+        catch (Exception exception) { observed = exception; }
+        if (replacement is not null) await replacement;
+        await Assert.That(ReferenceEquals(observed, notificationFailure)).IsTrue();
+        await Assert.That(workspace.IsBusy).IsFalse();
+        await Assert.That(firstBytes.Span[0]).IsEqualTo((byte)0);
+        if (replaceDuringNotification)
+        {
+            await Assert.That(ReferenceEquals(workspace.Result, replacementResult)).IsTrue();
+            await Assert.That(workspace.Output.Span[0]).IsEqualTo((byte)19);
+        }
+        else
+        {
+            await Assert.That(workspace.Result).IsNull();
+            await Assert.That(workspace.Output.IsEmpty).IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task ThrowingInvalidationSubscriberCannotSkipStateAndCommandNotifications()
+    {
+        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => pending.Task);
+        Task execution = workspace.ExecuteAsync(Guid.NewGuid());
+        bool invalidationObserved = false;
+        bool busyObserved = false;
+        bool eligibilityObserved = false;
+        EventHandler<SetupOperationInvalidatedEventArgs> failing = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
+        workspace.Invalidated += failing;
+        workspace.Invalidated += (_, _) => invalidationObserved = true;
+        workspace.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(workspace.IsBusy)) busyObserved = !workspace.IsBusy;
+        };
+        workspace.ExecuteCommand.CanExecuteChanged += (_, _) => eligibilityObserved = workspace.ExecuteCommand.CanExecute(Guid.NewGuid());
+        Exception? observed = null;
+        try { workspace.Cancel(); }
+        catch (Exception exception) { observed = exception; }
+        finally { workspace.Invalidated -= failing; }
+        await execution.WaitAsync(SignalTimeout);
+        Task retirement = workspace.WaitForPendingOperationsAsync();
+        using var late = new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty);
+        pending.SetResult(late);
+        await retirement.WaitAsync(SignalTimeout);
+        await Assert.That(observed).IsNotNull();
+        await Assert.That(invalidationObserved).IsTrue();
+        await Assert.That(busyObserved).IsTrue();
+        await Assert.That(eligibilityObserved).IsTrue();
+    }
+
+    [Test]
+    public async Task AcceptedOutcomeFaultCannotDetachReentrantPendingReplacement()
+    {
+        using var firstOutcome = new SetupPresentationOutcome(new object(), new byte[] { 29 });
+        ReadOnlyMemory<byte> firstBytes = firstOutcome.Output;
+        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int calls = 0;
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => ++calls == 1 ? Task.FromResult(firstOutcome) : pending.Task);
+        Task? replacement = null;
+        workspace.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(workspace.Result) || !ReferenceEquals(workspace.Result, firstOutcome.CoreResult)) return;
+            replacement = workspace.ExecuteAsync(Guid.NewGuid());
+            throw new InvalidOperationException("synthetic-notification");
+        };
+        Exception? observed = null;
+        try { await workspace.ExecuteAsync(Guid.NewGuid()); }
+        catch (InvalidOperationException exception) { observed = exception; }
+        await Assert.That(observed).IsNotNull();
+        await Assert.That(workspace.IsBusy).IsTrue();
+        await Assert.That(workspace.Result).IsNull();
+        await Assert.That(firstBytes.Span[0]).IsEqualTo((byte)0);
+        using var replacementOutcome = new SetupPresentationOutcome(new object(), new byte[] { 31 });
+        pending.SetResult(replacementOutcome);
+        await replacement!.WaitAsync(SignalTimeout);
+        await Assert.That(ReferenceEquals(workspace.Result, replacementOutcome.CoreResult)).IsTrue();
+        await Assert.That(workspace.Output.Span[0]).IsEqualTo((byte)31);
+    }
 
     [Test]
     public async Task WorkspaceOwnsAndClearsAcceptedReplacedAndDiscardedOutput()

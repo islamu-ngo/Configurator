@@ -1,0 +1,29 @@
+Change-Id: CHG-01M4XWTKDW3ERBBZQ8XR901GC5
+Title: "settle operation faults and clear private roots coherently"
+Type: fix
+Scope: privacy
+Summary: "Failed operations release busy state and clear private output without invalidating newer work. Private clearing removes protected roots in one revision, fences pending imports, and preserves public roots. Notifications follow coherent state transitions outside ownership gates."
+Group: terminal-hardening
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Workspace-owned operation, result and public-input properties are now read-only. Callers must use SetPublicInput and workspace lifecycle methods instead of assigning generated property setters."
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Atomic matching settlement rejects old faults; batch clearing and import revision fences prevent private-state resurrection. Cancellation source retirement waits for workers and callbacks."
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Failed work can be retried and Clear Private clears protected roots as one coherent operation while preserving public roots."

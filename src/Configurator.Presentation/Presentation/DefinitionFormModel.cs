@@ -1,5 +1,6 @@
 namespace Configurator.Presentation;
 
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -13,6 +14,8 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionFormModel : ObservableObject, IDisposable
 {
     private readonly object _gate = new();
+    private List<Action> _notifications = [];
+    private int _mutationDepth;
     private long _inputRevision;
     private SetupDisplayMode _displayMode = SetupDisplayMode.Guided;
     private bool _disposed;
@@ -25,14 +28,32 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         SessionPrivacy = sessionPrivacy;
         Definition = definition;
         Fields = Array.AsReadOnly(definition.Fields.Select(field =>
-            new DefinitionFieldInput(field, Edit, text => AllowsText(field, text))).ToArray());
+            new DefinitionFieldInput(field, Edit, text => AllowsText(field, text), Notify)).ToArray());
     }
 
     public SetupDefinition Definition { get; }
+
+    /// <summary>Clears protected roots and returns whether one invalidating revision was published, even if already empty.</summary>
+    public bool ClearPrivateState()
+    {
+        using (BeginMutation())
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            bool hasProtectedRoots = false;
+            foreach (DefinitionFieldInput field in Fields.Where(field => field.RequiresMasking))
+            {
+                hasProtectedRoots = true;
+                field.Clear();
+            }
+            if (hasProtectedRoots) OnInputChanged();
+            return hasProtectedRoots;
+        }
+    }
+
     public DefinitionSessionPrivacy SessionPrivacy { get; private set; }
     public void SetSecretEntryEnabled(bool enabled)
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (SessionPrivacy == DefinitionSessionPrivacy.NativeComplete) return;
@@ -67,7 +88,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool SetValue(IReadOnlyList<string> path, JsonElement? value)
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (path.Count == 0 || !TryMetadata(path, out _, out _) || value is not null && !CanEdit(path)) return false;
@@ -112,7 +133,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool SupplyObject(IReadOnlyList<string> path)
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out JsonElement metadata, out _) || metadata.GetProperty("type").GetString() != "object") return false;
@@ -123,7 +144,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool SupplyList(IReadOnlyList<string> path)
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out JsonElement metadata, out _) || metadata.GetProperty("type").GetString() != "list") return false;
@@ -134,7 +155,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool AddListItem(IReadOnlyList<string> path)
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out JsonElement metadata, out _) || metadata.GetProperty("type").GetString() != "list") return false;
@@ -154,7 +175,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool RemoveListItem(IReadOnlyList<string> path, int index)
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (ReadNode(path) is not JsonArray items || index < 0 || index >= items.Count) return false;
@@ -244,6 +265,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         get => _displayMode;
         set
         {
+            using var mutation = BeginMutation();
             if (SetProperty(ref _displayMode, value))
                 OnPropertyChanged(nameof(VisibleFields));
         }
@@ -312,7 +334,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             if (cancellationToken.IsCancellationRequested) return new(false, null, "import-cancelled");
             DefinitionImportResult result = DefinitionImport.Assess(Definition, artifactId, bytes, original);
             if (!result.Succeeded) return result;
-            lock (_gate)
+            using (BeginMutation())
             {
                 if (_disposed || cancellationToken.IsCancellationRequested || _inputRevision != original.InputRevision)
                     return new(false, null, "import-stale");
@@ -336,7 +358,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     private void Edit(Func<bool> edit)
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             if (_disposed) return;
             bool hadAdmissionError = Fields.Any(input => input.InputDiagnosticCode is not null);
@@ -351,12 +373,23 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasInputErrors));
         OnPropertyChanged(nameof(HasAnswerBudgetError));
         OnPropertyChanged(nameof(VisibleFields));
-        InputChanged?.Invoke(this, EventArgs.Empty);
+        Notify(RaiseInputChanged);
+    }
+
+    private void RaiseInputChanged()
+    {
+        List<Exception>? failures = null;
+        foreach (EventHandler subscriber in InputChanged?.GetInvocationList() ?? [])
+        {
+            try { subscriber(this, EventArgs.Empty); }
+            catch (Exception exception) { (failures ??= []).Add(exception); }
+        }
+        if (failures is not null) throw new AggregateException(failures);
     }
 
     public void Dispose()
     {
-        lock (_gate)
+        using (BeginMutation())
         {
             if (_disposed) return;
             _disposed = true;
@@ -364,19 +397,68 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             InputChanged = null;
         }
     }
+
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e) =>
+        Notify(() => base.OnPropertyChanged(e));
+
+    protected override void OnPropertyChanging(PropertyChangingEventArgs e) =>
+        Notify(() => base.OnPropertyChanging(e));
+
+    private void Notify(Action notification)
+    {
+        if (Monitor.IsEntered(_gate)) _notifications.Add(notification);
+        else notification();
+    }
+
+    private Mutation BeginMutation()
+    {
+        Monitor.Enter(_gate);
+        _mutationDepth++;
+        return new Mutation(this);
+    }
+
+    private void EndMutation()
+    {
+        List<Action>? notifications = null;
+        try
+        {
+            if (--_mutationDepth == 0)
+            {
+                notifications = _notifications;
+                _notifications = [];
+            }
+        }
+        finally { Monitor.Exit(_gate); }
+        if (notifications is null) return;
+        List<Exception>? failures = null;
+        foreach (Action notification in notifications)
+        {
+            try { notification(); }
+            catch (Exception exception) { (failures ??= []).Add(exception); }
+        }
+        if (failures is not null) throw new AggregateException(failures);
+    }
+
+    private readonly struct Mutation(DefinitionFormModel form) : IDisposable
+    {
+        public void Dispose() => form.EndMutation();
+    }
 }
 
 public sealed class DefinitionFieldInput : ObservableObject
 {
     private readonly Action<Func<bool>> _changed;
     private readonly Func<string, bool> _allowsText;
+    private readonly Action<Action> _notify;
     private string _text;
 
-    internal DefinitionFieldInput(SetupFieldDefinition definition, Action<Func<bool>> changed, Func<string, bool> allowsText)
+    internal DefinitionFieldInput(SetupFieldDefinition definition, Action<Func<bool>> changed,
+        Func<string, bool> allowsText, Action<Action> notify)
     {
         Definition = definition;
         _changed = changed;
         _allowsText = allowsText;
+        _notify = notify;
         _text = definition.Default is { } value ? Display(value) : string.Empty;
     }
 
@@ -417,10 +499,15 @@ public sealed class DefinitionFieldInput : ObservableObject
 
     internal void Clear()
     {
-        _text = string.Empty;
+        SetProperty(ref _text, string.Empty, nameof(Text));
         SetInputDiagnostic(null);
-        OnPropertyChanged(nameof(Text));
     }
+
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e) =>
+        _notify(() => base.OnPropertyChanged(e));
+
+    protected override void OnPropertyChanging(PropertyChangingEventArgs e) =>
+        _notify(() => base.OnPropertyChanging(e));
 
     public bool TryValue(out JsonElement? value)
         => TryValue(_text, out value);
