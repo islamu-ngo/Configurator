@@ -40,8 +40,10 @@ public sealed class ProtectedArtifactPreparation : IDisposable
     /// <summary>A value-free preflight refusal; null means the preparation is ready to commit.</summary>
     public ProtectedArtifactStatus? RejectionStatus => _rejectionStatus;
 
-    internal ProtectedArtifactStatus? EstablishedStatus { get; private set; }
-    internal bool CleanupFailed { get; private set; }
+    /// <summary>The established commit result, retained even when subsequent cleanup throws.</summary>
+    public ProtectedArtifactStatus? EstablishedStatus { get; private set; }
+    /// <summary>Cleanup failed independently of any established commit result.</summary>
+    public bool CleanupFailed { get; private set; }
 
     public async Task<ProtectedArtifactStatus> CommitAsync(CancellationToken cancellationToken = default)
     {

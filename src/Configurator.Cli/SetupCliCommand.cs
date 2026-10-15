@@ -12,7 +12,11 @@ internal sealed record SetupCliCommand(
     internal string? ExpectedRevision { get; init; }
     internal string? RevisionField { get; init; }
     internal string? Answers { get; init; }
-    internal string? Artifacts { get; init; }
+    internal string[]? Artifacts { get; init; }
+    internal string? Detail { get; init; }
+    internal int Offset { get; init; }
+    internal int Limit { get; init; } = 16;
+    internal string? ExpectedDetailDigest { get; init; }
     internal string? Source { get; init; }
     internal string? Root { get; init; }
     internal string? Against { get; init; }
@@ -29,7 +33,13 @@ internal sealed record SetupCliCommand(
 internal sealed record SetupCliCommandResult(
     SetupCliExitCode Exit, IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics,
     IReadOnlyList<SetupCliMachineArtifact> Artifacts, SetupCliMachineCoverage Coverage,
-    SetupCliMachineReadiness Readiness);
+    SetupCliMachineReadiness Readiness)
+{
+    internal string? DefinitionDigest { get; init; }
+    internal string Completion { get; init; } = "completed";
+    internal string? Preparation { get; init; }
+    internal string Cleanup { get; init; } = "not-required";
+}
 
 internal static class SetupCliResults
 {

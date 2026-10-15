@@ -31,7 +31,8 @@ internal static class SetupCliArgumentPreflight
         if (args.Length == 0 || args is [HelpOption])
             return Help(DoctorCommand, DoctorCommand, invocationMachine, [HelpOption]);
 
-        if (args.Length > 128 || args.Any(argument => argument.Length > 4096))
+        if (args.Length > 256 || args.Any(argument => argument.Length > 4096)
+            || args.Sum(argument => System.Text.Encoding.UTF8.GetByteCount(argument) + 1) > 32_768)
             return Failure(invocationMachine, "argument-shape-invalid");
 
         string family = args[0];
@@ -78,7 +79,7 @@ internal static class SetupCliArgumentPreflight
             ExpectedRevision = GetFirst(values, ExpectedRevisionOption),
             RevisionField = GetFirst(values, "--revision-field"),
             Answers = GetFirst(values, "--answers"),
-            Artifacts = GetFirst(values, "--artifacts"),
+            Artifacts = values.TryGetValue("--artifact", out List<string>? selected) && options["--artifact"].Repeatable ? selected.ToArray() : null,
             InputRevision = GetFirst(values, "--input-revision") ?? "0"
         };
         return new(command, spectreArguments, error is null && (!help || !machine), error);
@@ -180,10 +181,14 @@ internal static class SetupCliArgumentPreflight
                 return "identifier-invalid";
         }
 
-        if (GetFirst(values, "--artifacts") is { } artifacts
-            && (artifacts.Split(',').Length is < 1 or > 64
-                || artifacts.Split(',').Any(value => !IsIdentifier(value))))
+        if (values.TryGetValue("--artifact", out List<string>? artifacts)
+            && (artifacts.Count > 64 || artifacts.Distinct(StringComparer.Ordinal).Count() != artifacts.Count))
             return "artifact-selection-invalid";
+
+        if (GetFirst(values, "--detail") is { } detail
+            && (detail is not ("diagnostics" or "coverage") || !values.ContainsKey(MachineOption))) return "detail-invalid";
+        if (GetFirst(values, "--offset") is { } offset && (!int.TryParse(offset, out int start) || start is < 0 or > 2048)) return "detail-offset-invalid";
+        if (GetFirst(values, "--limit") is { } limit && (!int.TryParse(limit, out int count) || count is < 1 or > 32)) return "detail-limit-invalid";
 
         if (GetFirst(values, "--format") is { } format && format is not ("json" or "yaml" or "dotenv" or "markdown"))
             return "format-not-supported";
@@ -214,7 +219,7 @@ internal static class SetupCliArgumentPreflight
         bool dryRun)
     {
         if (help) return null;
-        foreach (string option in new[] { "--definition", "--artifact", "--artifacts", "--revision-field" })
+        foreach (string option in new[] { "--definition", "--artifact", "--revision-field" })
             if (options.ContainsKey(option) && !values.ContainsKey(option))
                 return option[2..] + "-required";
         if (options.ContainsKey(InputOption) && !values.ContainsKey(InputOption))

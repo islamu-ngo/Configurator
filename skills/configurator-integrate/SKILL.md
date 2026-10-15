@@ -17,7 +17,7 @@ compatibility: Requires the standalone islamu-configurator CLI supporting defini
 
 ## Workflow
 
-1. Run `islamu-configurator --help` and inspect `islamu-configurator definition --help`. Confirm the installed machine command contract and authoring schema are v1 before authoring. Use the installed tool's declared options; a missing command is a prerequisite failure.
+1. Run `islamu-configurator --help` and inspect `islamu-configurator definition --help`. Confirm command contract `islamu-configurator-command/v2` and authoring schema v1 before authoring. Use the installed tool's declared options; a missing command is a prerequisite failure.
 2. Read [authoring](resources/authoring.md) for ordinary field/output decisions. Read [schema import](resources/schema-import.md) only when scaffolding from a public schema, or [store contribution](resources/store-contribution.md) only when preparing that optional contribution.
 3. Use `definition init` to create the source, then supply the target's meaningful facts. Express advanced mappings through the existing closed projection vocabulary. Keep output format independent from source syntax.
 4. Run `definition check` on the selected source. Resolve every admission error. Do not bypass unsupported schema constraints or classify private values public to obtain green output.

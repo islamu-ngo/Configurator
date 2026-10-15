@@ -1,0 +1,31 @@
+Change-Id: CHG-01M4ZEDZJVD0Z0PWYAA6XRAJ04
+Title: "preserve publication facts in bounded machine results"
+Type: fix
+Scope: cli
+Summary: "Reserve bounded command receipts before publication, retain established and uncertain output outcomes independently of cleanup, and attempt machine delivery only once."
+Group: cli
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Command v2 replaces v1. Coverage and readiness use counts with digest-guarded read-only detail pages, artifact summaries no longer repeat key arrays, and repeated --artifact replaces CSV --artifacts. Native writers return typed publication outcomes and cleanup facts."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Mandatory publication facts are sized before effects. Unknown results never imply not-written, and delivery failure never appends replacement JSON. Restricted output remains create-only on verified Linux hosts without ordinary-file fallback."
+  Migration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Consumers must accept command/v2, migrate CSV artifact selection to repeated --artifact, inspect each writeStatus and cleanup separately, and use the external process exit as delivery evidence."
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Read-only detail supports diagnostics or coverage, offset, limit and expected-detail-digest. Noninitial pages require the matching sanitized-view digest."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "A failed or undelivered receipt is not proof that no file was created. Review known and uncertain output outcomes before deliberate retry. Preparation does not establish target acceptance or apply authority."

@@ -43,7 +43,7 @@ public sealed class MaintainerPackageTests
             await Assert.That(check.ExitCode).IsEqualTo(0).Because(check.Output);
             using (JsonDocument result = JsonDocument.Parse(check.Output))
                 await Assert.That(result.RootElement.GetProperty("schemaVersion").GetString())
-                    .IsEqualTo("islamu-configurator-command/v1");
+                    .IsEqualTo("islamu-configurator-command/v2");
             await Assert.That(ReleaseTestPaths.Hash(await File.ReadAllBytesAsync(source)))
                 .IsEqualTo(ReleaseTestPaths.Hash(original));
 

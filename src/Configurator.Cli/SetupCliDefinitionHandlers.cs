@@ -11,11 +11,11 @@ internal static class SetupCliDefinitionHandlers
 {
     private static readonly string[] SourceNames = ["configurator.yaml", "configurator.yml", "configurator.json"];
     private static readonly string[] SecretTerms = ["TOKEN", "PASSWORD", "SECRET", "CREDENTIAL", "PRIVATE_KEY", "API_KEY", "CONNECTION_STRING"];
-    internal static SetupCliCommandResult Execute(SetupCliCommand command)
+    internal static SetupCliCommandResult Execute(SetupCliCommand command, SetupCliInvocation invocation, SetupCliOutcomeLedger ledger)
     {
         try
         {
-            if (command.Operation == "init") return Initialize(command);
+            if (command.Operation == "init") return Initialize(command, invocation, ledger);
             string source = DefinitionSourceFiles.Discover(command.Root ?? ".", command.Source);
             byte[] bytes = DefinitionSourceFiles.Read(source);
             bool yaml = IsYaml(source);
@@ -30,17 +30,19 @@ internal static class SetupCliDefinitionHandlers
                 if (prior.FamilyId != definition.FamilyId || prior.Revision != definition.Revision)
                     throw new DefinitionFileException("definition-anchor-identity");
                 VerifyAnchor(anchor, prior, false);
-                if (prior.Digest == definition.Digest) return Receipt("authoring-source", yaml, bytes, "none");
+                if (prior.Digest == definition.Digest) return Receipt("authoring-source", yaml, bytes, "none", definition.Digest.Value);
                 if (definition.Revision == long.MaxValue) throw new DefinitionFileException("definition-revision-overflow");
                 byte[] revised = DefinitionAuthoringIdentityEditor.UpdateRevision(bytes, yaml, definition.Revision + 1);
-                _ = DefinitionAuthoringCompiler.Compile(Parse(revised, yaml));
-                DefinitionSourceFiles.Replace(source, bytes, revised);
-                return Receipt("authoring-source", yaml, revised, "written");
+                SetupDefinition revisedDefinition = DefinitionAuthoringCompiler.Compile(Parse(revised, yaml));
+                SetupCliCommandResult revisedResult = Receipt("authoring-source", yaml, revised, "not-attempted", revisedDefinition.Digest.Value);
+                ledger.Plan(invocation, command, revisedResult);
+                using DefinitionSourceFiles.PreparedArtifact replacement = DefinitionSourceFiles.PrepareReplace(source, bytes, revised);
+                return Publish([replacement], revisedResult, ledger);
             }
             VerifyAnchor(anchor, definition, false);
             if (command.Against is not null) VerifyAnchor(command.Against, definition, true);
             if (command.Operation == "check")
-                return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", "input");
+                return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input");
             string destination = command.Output ?? anchor;
             RejectSourceDestination(source, destination);
             if (command.IdMap is not null)
@@ -49,24 +51,27 @@ internal static class SetupCliDefinitionHandlers
                 if (Path.GetFullPath(command.IdMap) == Path.GetFullPath(destination))
                     throw new DefinitionFileException("definition-output-conflict");
             }
-            bool created = DefinitionSourceFiles.Create(destination, definition.CanonicalBytes, true);
             var artifacts = new List<SetupCliMachineArtifact>
             {
                 SetupCliResults.Artifact("compiled-definition", "application/json", definition.CanonicalBytes.Span,
-                    "public", "output", created ? "written" : "none")
+                    "public", "output", "not-attempted")
             };
+            byte[]? map = null;
             if (command.IdMap is not null)
             {
                 JsonObject mapping = new();
                 foreach (JsonProperty field in document.Root.GetProperty("fields").EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
                     mapping[field.Name] = DefinitionAuthoringCompiler.FieldId(field.Name);
-                byte[] map = Encoding.UTF8.GetBytes(mapping.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
-                bool mapCreated = DefinitionSourceFiles.Create(command.IdMap, map, true);
-                artifacts.Add(SetupCliResults.Artifact("logical-id-map", "application/json", map, "public", "output", mapCreated ? "written" : "none"));
+                map = Encoding.UTF8.GetBytes(mapping.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+                artifacts.Add(SetupCliResults.Artifact("logical-id-map", "application/json", map, "public", "output", "not-attempted"));
             }
-            return SetupCliResults.Success(artifacts);
+            SetupCliCommandResult result = SetupCliResults.Success(artifacts) with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
+            ledger.Plan(invocation, command, result);
+            using DefinitionSourceFiles.PreparedArtifact canonical = DefinitionSourceFiles.PrepareCreate(destination, definition.CanonicalBytes, true);
+            using DefinitionSourceFiles.PreparedArtifact? idMap = command.IdMap is null ? null : DefinitionSourceFiles.PrepareCreate(command.IdMap, map!, true);
+            return Publish(idMap is null ? [canonical] : [canonical, idMap], result, ledger);
         }
-        catch (DefinitionFileException exception) { return SetupCliResults.Failure(SetupCliExitCode.Data, exception.Code, "$.source"); }
+        catch (DefinitionFileException exception) { return ledger.Preserve(SetupCliResults.Failure(SetupCliExitCode.Data, exception.Code, "$.source")); }
         catch (DefinitionSchemaImportException exception)
         {
             var diagnostics = new[] { new SetupCliMachineDiagnostic(exception.Code, "$.schema", "error") }
@@ -77,7 +82,7 @@ internal static class SetupCliDefinitionHandlers
         catch (DecoderFallbackException) { return SetupCliResults.Failure(SetupCliExitCode.Data, "definition-source-invalid", "$.source"); }
     }
 
-    private static SetupCliCommandResult Initialize(SetupCliCommand command)
+    private static SetupCliCommandResult Initialize(SetupCliCommand command, SetupCliInvocation invocation, SetupCliOutcomeLedger ledger)
     {
         string root = command.Root ?? ".";
         if (command.ForkFrom is not null)
@@ -90,9 +95,11 @@ internal static class SetupCliDefinitionHandlers
                 return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-source-format");
             RejectSourceDestination(command.ForkFrom, command.Output, false);
             byte[] fork = DefinitionAuthoringIdentityEditor.Fork(original, yaml, Guid.NewGuid());
-            _ = DefinitionAuthoringCompiler.Compile(Parse(fork, yaml));
-            DefinitionSourceFiles.Create(command.Output, fork, false);
-            return Receipt("authoring-source", yaml, fork, "written");
+            SetupDefinition definition = DefinitionAuthoringCompiler.Compile(Parse(fork, yaml));
+            SetupCliCommandResult forkResult = Receipt("authoring-source", yaml, fork, "not-attempted", definition.Digest.Value);
+            ledger.Plan(invocation, command, forkResult);
+            using DefinitionSourceFiles.PreparedArtifact preparedFork = DefinitionSourceFiles.PrepareCreate(command.Output, fork, false);
+            return Publish([preparedFork], forkResult, ledger);
         }
         if (command.ProjectId is null || command.ProjectName is null || command.ApplicationVersion is null)
             return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-project-metadata-required");
@@ -129,10 +136,42 @@ internal static class SetupCliDefinitionHandlers
             }
         };
         byte[] bytes = Serialize(source, format == "yaml");
-        _ = DefinitionAuthoringCompiler.Compile(Parse(bytes, format == "yaml"));
-        DefinitionSourceFiles.Create(output, bytes, false);
-        SetupCliCommandResult result = Receipt("authoring-source", format == "yaml", bytes, "written");
-        return result with { Diagnostics = differences.Select(code => new SetupCliMachineDiagnostic(code, "$.schema", "warning")).ToArray() };
+        SetupDefinition compiled = DefinitionAuthoringCompiler.Compile(Parse(bytes, format == "yaml"));
+        SetupCliCommandResult result = Receipt("authoring-source", format == "yaml", bytes, "not-attempted", compiled.Digest.Value) with
+        { Diagnostics = differences.Select(code => new SetupCliMachineDiagnostic(code, "$.schema", "warning")).ToArray() };
+        ledger.Plan(invocation, command, result);
+        using DefinitionSourceFiles.PreparedArtifact preparedSource = DefinitionSourceFiles.PrepareCreate(output, bytes, false);
+        return Publish([preparedSource], result, ledger);
+    }
+
+    private static SetupCliCommandResult Publish(DefinitionSourceFiles.PreparedArtifact[] prepared,
+        SetupCliCommandResult result, SetupCliOutcomeLedger ledger)
+    {
+        bool cleanupFailed = false;
+        try
+        {
+            foreach (DefinitionSourceFiles.PreparedArtifact artifact in prepared) artifact.Stage();
+            for (int index = 0; index < prepared.Length; index++)
+            {
+                ledger.Record(index, "unknown");
+                try { ledger.Record(index, prepared[index].Commit() ? "written" : "none"); }
+                catch (DefinitionFileException exception)
+                {
+                    ledger.Record(index, exception.Code is "definition-output-conflict" or "definition-source-changed" ? "conflict" : "blocked");
+                    throw;
+                }
+            }
+        }
+        finally
+        {
+            foreach (DefinitionSourceFiles.PreparedArtifact artifact in prepared)
+            {
+                try { artifact.Dispose(); }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { cleanupFailed = true; }
+            }
+            ledger.Cleanup(cleanupFailed ? "failed" : "completed");
+        }
+        return ledger.Preserve(cleanupFailed ? SetupCliResults.Failure(SetupCliExitCode.Io, "definition-cleanup-failed", "$.source") : result);
     }
 
     private static JsonObject EnvironmentKeys(byte[] bytes)
@@ -205,6 +244,7 @@ internal static class SetupCliDefinitionHandlers
     private static DefinitionAuthoringDocument Parse(ReadOnlyMemory<byte> bytes, bool yaml) =>
         yaml ? DefinitionAuthoringCodec.ParseYaml(bytes) : DefinitionAuthoringCodec.ParseJson(bytes);
     private static bool IsYaml(string path) => Path.GetExtension(path).ToLowerInvariant() is ".yaml" or ".yml";
-    private static SetupCliCommandResult Receipt(string kind, bool yaml, ReadOnlyMemory<byte> bytes, string status, string intent = "output") =>
-        SetupCliResults.Success([SetupCliResults.Artifact(kind, yaml ? "application/yaml" : "application/json", bytes.Span, "public", intent, status)]);
+    private static SetupCliCommandResult Receipt(string kind, bool yaml, ReadOnlyMemory<byte> bytes, string status, string digest, string intent = "output") =>
+        SetupCliResults.Success([SetupCliResults.Artifact(kind, yaml ? "application/yaml" : "application/json", bytes.Span, "public", intent, status)])
+            with { DefinitionDigest = digest, Preparation = "ready" };
 }

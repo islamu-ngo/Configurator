@@ -33,6 +33,17 @@ Native publication replaces its generated `dependency-notices/` tree before
 writing the current closure, so retired dependencies cannot survive a republish
 into the same package destination.
 
+Native `PublishConfigurator` invokes `RefreshConfiguratorSchemas` at the schema
+copy stage. This target validates the native surface and requires a RID, removes
+only `$(ConfiguratorPublishDirectory)schemas`, then copies the current public
+`schemas/*.schema.json`. Retired versions cannot survive republishing; unrelated
+package content outside the owned schema directory is retained. The stage can run
+independently without restoring, building or publishing executables.
+`ReleaseContractTests` seeds command v1 and a retired schema in a temporary package,
+executes this actual MSBuild target for each native surface, and checks exact
+current-schema names/bytes plus preservation of unrelated package files. It uses
+the repository's current schema set, so retiring command v1 requires no test alias.
+
 `PublishConfiguratorBrowser` removes every inherited native publication flag
 before restoring/publishing `Configurator.Browser`. Distribute its complete
 `wwwroot/`, not native apphost output. This separation avoids interpreting browser

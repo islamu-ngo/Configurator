@@ -42,59 +42,114 @@ internal static class DefinitionSourceFiles
 
     internal static bool Create(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical)
     {
-        path = SafePath(path);
-        CheckBytes(bytes);
-        if (File.Exists(path))
-        {
-            if (acceptIdentical && Read(path).AsSpan().SequenceEqual(bytes.Span)) return false;
-            throw new DefinitionFileException("definition-output-conflict");
-        }
-        string directory = Path.GetDirectoryName(path)!;
-        Directory.CreateDirectory(directory);
-        SafePath(directory);
-        string temporary = Path.Combine(directory, ".configurator-" + Guid.NewGuid().ToString("N") + ".tmp");
-        try
-        {
-            WriteTemporary(temporary, bytes);
-            SafePath(path);
-            File.Move(temporary, path, false);
-            return true;
-        }
-        catch (IOException) when (File.Exists(path))
-        {
-            throw new DefinitionFileException("definition-output-conflict");
-        }
-        finally
-        {
-            if (File.Exists(temporary)) File.Delete(temporary);
-        }
+        using PreparedArtifact prepared = PrepareCreate(path, bytes, acceptIdentical);
+        prepared.Stage();
+        return prepared.Commit();
     }
 
     internal static void Replace(string path, ReadOnlyMemory<byte> original, ReadOnlyMemory<byte> replacement)
     {
-        path = SafePath(path);
-        CheckBytes(replacement);
-        string lockPath = path + ".configurator.lock";
-        string temporary = Path.Combine(Path.GetDirectoryName(path)!, ".configurator-" + Guid.NewGuid().ToString("N") + ".tmp");
-        FileStream mutationLock;
-        try { mutationLock = new FileStream(SafePath(lockPath), FileMode.CreateNew, FileAccess.Write, FileShare.None); }
-        catch (IOException) { throw new DefinitionFileException("definition-source-locked"); }
-        try
+        using PreparedArtifact prepared = PrepareReplace(path, original, replacement);
+        prepared.Stage();
+        prepared.Commit();
+    }
+
+    internal static PreparedArtifact PrepareCreate(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical) =>
+        new(path, bytes, acceptIdentical, null);
+
+    internal static PreparedArtifact PrepareReplace(string path, ReadOnlyMemory<byte> original, ReadOnlyMemory<byte> replacement) =>
+        new(path, replacement, false, original);
+
+    /// <summary>Separates staging, publication and cleanup so established writes can be recorded before cleanup.</summary>
+    internal sealed class PreparedArtifact : IDisposable
+    {
+        private readonly string _path;
+        private readonly string _temporary;
+        private readonly ReadOnlyMemory<byte> _bytes;
+        private readonly ReadOnlyMemory<byte>? _original;
+        private readonly bool _acceptIdentical;
+        private FileStream? _mutationLock;
+        private bool _staged;
+        private bool _acceptedIdentical;
+        private bool _disposed;
+
+        internal PreparedArtifact(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical, ReadOnlyMemory<byte>? original)
         {
-            using (mutationLock)
+            _path = SafePath(path);
+            CheckBytes(bytes);
+            _bytes = bytes;
+            _original = original;
+            _acceptIdentical = acceptIdentical;
+            _temporary = Path.Combine(Path.GetDirectoryName(_path)!, ".configurator-" + Guid.NewGuid().ToString("N") + ".tmp");
+        }
+
+        internal void Stage()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_staged) throw new InvalidOperationException("definition-already-staged");
+            if (_original is null && _acceptIdentical && File.Exists(_path) && Read(_path).AsSpan().SequenceEqual(_bytes.Span))
             {
-                WriteTemporary(temporary, replacement);
-                byte[] current = Read(path);
+                _acceptedIdentical = true;
+                _staged = true;
+                return;
+            }
+            if (_original is not null)
+            {
+                try { _mutationLock = new FileStream(SafePath(_path + ".configurator.lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None); }
+                catch (IOException) { throw new DefinitionFileException("definition-source-locked"); }
+            }
+            else
+            {
+                string directory = Path.GetDirectoryName(_path)!;
+                Directory.CreateDirectory(directory);
+                SafePath(directory);
+            }
+            WriteTemporary(_temporary, _bytes);
+            _staged = true;
+        }
+
+        internal bool Commit()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_staged) throw new InvalidOperationException("definition-not-staged");
+            if (_acceptedIdentical && !File.Exists(_path)) throw new DefinitionFileException("definition-output-conflict");
+            if (_original is { } original)
+            {
+                byte[] current = Read(_path);
                 if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(current), SHA256.HashData(original.Span)))
                     throw new DefinitionFileException("definition-source-changed");
-                SafePath(path);
-                File.Move(temporary, path, true);
             }
+            else if (File.Exists(_path))
+            {
+                if (_acceptIdentical && Read(_path).AsSpan().SequenceEqual(_bytes.Span)) return false;
+                throw new DefinitionFileException("definition-output-conflict");
+            }
+            SafePath(_path);
+            try { File.Move(_temporary, _path, _original is not null); }
+            catch (IOException) when (_original is null && File.Exists(_path))
+            {
+                throw new DefinitionFileException("definition-output-conflict");
+            }
+            return true;
         }
-        finally
+
+        public void Dispose()
         {
-            if (File.Exists(temporary)) File.Delete(temporary);
-            File.Delete(lockPath);
+            if (_disposed) return;
+            _disposed = true;
+            try
+            {
+                if (File.Exists(_temporary)) File.Delete(_temporary);
+            }
+            finally
+            {
+                if (_mutationLock is not null)
+                {
+                    _mutationLock.Dispose();
+                    _mutationLock = null;
+                    File.Delete(_path + ".configurator.lock");
+                }
+            }
         }
     }
 

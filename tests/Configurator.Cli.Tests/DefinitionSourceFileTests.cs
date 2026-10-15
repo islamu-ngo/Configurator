@@ -21,10 +21,42 @@ public sealed class DefinitionSourceFileTests
         using var files = new DefinitionTestDirectory();
         string destination = files.Path("releases/1.json");
         await Assert.That(DefinitionSourceFiles.Create(destination, "original"u8.ToArray(), true)).IsTrue();
+        using (DefinitionSourceFiles.PreparedArtifact identical = DefinitionSourceFiles.PrepareCreate(destination, "original"u8.ToArray(), true))
+        {
+            identical.Stage();
+            await Assert.That(Directory.GetFiles(files.Path("releases")).Length).IsEqualTo(1);
+            await Assert.That(identical.Commit()).IsFalse();
+        }
         await Assert.That(DefinitionSourceFiles.Create(destination, "original"u8.ToArray(), true)).IsFalse();
         await Assert.That(() => DefinitionSourceFiles.Create(destination, "replacement"u8.ToArray(), true))
             .Throws<DefinitionFileException>();
         await Assert.That(File.ReadAllText(destination)).IsEqualTo("original");
+    }
+
+    [Test]
+    public async Task StagingDoesNotPublishAndLateConflictDoesNotOverwrite()
+    {
+        using var files = new DefinitionTestDirectory();
+        string destination = files.Path("releases/1.json");
+        using DefinitionSourceFiles.PreparedArtifact prepared = DefinitionSourceFiles.PrepareCreate(destination, "candidate"u8.ToArray(), true);
+        prepared.Stage();
+        await Assert.That(File.Exists(destination)).IsFalse();
+        File.WriteAllText(destination, "editor-owned");
+        await Assert.That(() => prepared.Commit()).Throws<DefinitionFileException>();
+        await Assert.That(File.ReadAllText(destination)).IsEqualTo("editor-owned");
+    }
+
+    [Test]
+    public async Task AbandonedStagingRemovesTemporaryFilesWithoutPublishing()
+    {
+        using var files = new DefinitionTestDirectory();
+        string destination = files.Path("releases/1.json");
+        using (DefinitionSourceFiles.PreparedArtifact prepared = DefinitionSourceFiles.PrepareCreate(destination, "candidate"u8.ToArray(), true))
+        {
+            prepared.Stage();
+            await Assert.That(File.Exists(destination)).IsFalse();
+        }
+        await Assert.That(Directory.GetFiles(files.Path("releases"))).IsEmpty();
     }
 
     [Test]

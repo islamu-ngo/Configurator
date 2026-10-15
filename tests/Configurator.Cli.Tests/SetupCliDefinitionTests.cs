@@ -195,6 +195,107 @@ public sealed class SetupCliDefinitionTests
         await Assert.That(File.ReadAllBytes(source)).IsEquivalentTo(changed);
     }
 
+    [Test]
+    public async Task CheckBindsSanitizedDetailViewToCompiledDefinitionAndReportsPreparationOnlyAfterCompilation()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture();
+        await Assert.That(Initialize(io, files, "--format", "json")).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(io.Run("definition", "check", "--root", files.Root, "--machine")).IsEqualTo(SetupCliExitCode.Success);
+        using JsonDocument original = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(original.RootElement.GetProperty("preparation").GetString()).IsEqualTo("ready");
+        string source = files.Path("configurator.json");
+        JsonObject changed = JsonNode.Parse(File.ReadAllBytes(source))!.AsObject();
+        changed["project"]!["name"] = "Changed Service";
+        File.WriteAllText(source, changed.ToJsonString());
+        await Assert.That(io.Run("definition", "check", "--root", files.Root, "--machine")).IsEqualTo(SetupCliExitCode.Success);
+        using JsonDocument revised = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(revised.RootElement.GetProperty("detailDigest").GetString())
+            .IsNotEqualTo(original.RootElement.GetProperty("detailDigest").GetString());
+        File.WriteAllText(source, "invalid");
+        await Assert.That(io.Run("definition", "check", "--root", files.Root, "--machine")).IsEqualTo(SetupCliExitCode.Data);
+        using JsonDocument invalid = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(invalid.RootElement.GetProperty("preparation").ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(File.Exists(files.Path("dist/configurator/revisions/1.json"))).IsFalse();
+    }
+
+    [Test]
+    public async Task IdMapPreparationFailurePublishesNeitherOutput()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture();
+        await Assert.That(Initialize(io, files)).IsEqualTo(SetupCliExitCode.Success);
+        File.WriteAllText(files.Path("not-a-directory"), "occupied");
+        string definition = files.Path("canonical.json");
+        string map = files.Path("not-a-directory/id-map.json");
+        await Assert.That(io.Run("definition", "build", "--root", files.Root, "--output", definition,
+            "--id-map", map, "--machine")).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(File.Exists(definition)).IsFalse();
+        await Assert.That(File.Exists(map)).IsFalse();
+        using JsonDocument receipt = JsonDocument.Parse(io.StandardOutput);
+        JsonElement artifacts = receipt.RootElement.GetProperty("artifacts");
+        await Assert.That(artifacts.GetArrayLength()).IsEqualTo(2);
+        await Assert.That(artifacts[0].GetProperty("writeStatus").GetString()).IsEqualTo("not-attempted");
+        await Assert.That(artifacts[1].GetProperty("writeStatus").GetString()).IsEqualTo("not-attempted");
+    }
+
+    [Test]
+    public async Task IdMapCommitConflictPreservesWrittenDefinitionAndConflictReceipt()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture();
+        await Assert.That(Initialize(io, files)).IsEqualTo(SetupCliExitCode.Success);
+        string definition = files.Path("canonical.json");
+        string map = files.Path("id-map.json");
+        File.WriteAllText(map, "editor-owned");
+        await Assert.That(io.Run("definition", "build", "--root", files.Root, "--output", definition,
+            "--id-map", map, "--machine")).IsEqualTo(SetupCliExitCode.Data);
+        await Assert.That(SetupDefinitionCodec.ParseJson(File.ReadAllBytes(definition)).Revision).IsEqualTo(1);
+        await Assert.That(File.ReadAllText(map)).IsEqualTo("editor-owned");
+        using JsonDocument receipt = JsonDocument.Parse(io.StandardOutput);
+        JsonElement artifacts = receipt.RootElement.GetProperty("artifacts");
+        await Assert.That(artifacts.GetArrayLength()).IsEqualTo(2);
+        await Assert.That(artifacts[0].GetProperty("writeStatus").GetString()).IsEqualTo("written");
+        await Assert.That(artifacts[1].GetProperty("writeStatus").GetString()).IsEqualTo("conflict");
+    }
+
+    [Test]
+    public async Task UntypedCommitFailurePreservesWrittenPrefixAndUncertainAttempt()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture();
+        await Assert.That(Initialize(io, files)).IsEqualTo(SetupCliExitCode.Success);
+        string definition = files.Path("canonical.json");
+        string map = files.Path("id-map.json");
+        Directory.CreateDirectory(map);
+        await Assert.That(io.Run("definition", "build", "--root", files.Root, "--output", definition,
+            "--id-map", map, "--machine")).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(SetupDefinitionCodec.ParseJson(File.ReadAllBytes(definition)).Revision).IsEqualTo(1);
+        await Assert.That(Directory.Exists(map)).IsTrue();
+        using JsonDocument receipt = JsonDocument.Parse(io.StandardOutput);
+        JsonElement artifacts = receipt.RootElement.GetProperty("artifacts");
+        await Assert.That(artifacts.GetArrayLength()).IsEqualTo(2);
+        await Assert.That(artifacts[0].GetProperty("writeStatus").GetString()).IsEqualTo("written");
+        await Assert.That(artifacts[1].GetProperty("writeStatus").GetString()).IsEqualTo("unknown");
+    }
+
+    [Test]
+    public async Task ImpossibleReceiptBudgetRejectsBeforePublicOutput()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture();
+        await Assert.That(Initialize(io, files)).IsEqualTo(SetupCliExitCode.Success);
+        string definition = files.Path("canonical.json");
+        string map = files.Path("id-map.json");
+        string[] arguments = ["definition", "build", "--root", files.Root, "--output", definition,
+            "--id-map", map, "--machine"];
+        SetupCliExitCode exit = new SetupCliApplication().Run(new(arguments, SetupCliMode.Machine,
+            new(io, io, io, 1, 4 * 1024 * 1024), new([])));
+        await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(File.Exists(definition)).IsFalse();
+        await Assert.That(File.Exists(map)).IsFalse();
+    }
+
     private static SetupCliExitCode Initialize(CliFixture io, DefinitionTestDirectory files, params string[] extra) =>
         io.Run(["definition", "init", "--root", files.Root, "--project-id", "example.service", "--name", "Example Service",
             "--application-version", "1.0.0", "--machine", .. extra]);

@@ -14,10 +14,11 @@
       "--answers",
       "--application-version",
       "--artifact",
-      "--artifacts",
       "--baseline",
       "--definition",
+      "--detail",
       "--dry-run",
+      "--expected-detail-digest",
       "--expected-revision",
       "--fork-from",
       "--format",
@@ -28,8 +29,10 @@
       "--input",
       "--input-revision",
       "--key",
+      "--limit",
       "--machine",
       "--name",
+      "--offset",
       "--output",
       "--project-id",
       "--revision-field",
@@ -37,7 +40,12 @@
       "--source",
       "--text"
     ],
-    "repeatableOptions": [],
+    "repeatableOptions": [
+      "--artifact"
+    ],
+    "maximumArtifactSelections": 64,
+    "maximumOutputBytes": 65536,
+    "maximumDetailBytes": 8192,
     "commands": [
       {
         "name": "catalogue",
@@ -46,9 +54,13 @@
             "name": "list",
             "options": [
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--help",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -57,10 +69,14 @@
             "name": "show",
             "options": [
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--help",
               "--key",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -69,10 +85,14 @@
             "name": "describe",
             "options": [
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--help",
               "--key",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -80,10 +100,14 @@
         ],
         "options": [
           "--definition",
+          "--detail",
           "--dry-run",
+          "--expected-detail-digest",
           "--help",
           "--key",
+          "--limit",
           "--machine",
+          "--offset",
           "--output",
           "--text"
         ]
@@ -97,12 +121,16 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--format",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -113,10 +141,14 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--text"
             ]
           },
@@ -126,10 +158,14 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--text"
             ]
           },
@@ -139,12 +175,16 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--format",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -156,10 +196,14 @@
               "--artifact",
               "--baseline",
               "--definition",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--text"
             ]
           },
@@ -169,10 +213,14 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--text"
             ]
           },
@@ -182,12 +230,16 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--format",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -198,13 +250,17 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--expected-revision",
               "--format",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--revision-field",
               "--text"
@@ -216,10 +272,14 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--text"
             ]
           },
@@ -229,12 +289,16 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--format",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -242,25 +306,33 @@
           {
             "name": "bundle-check",
             "options": [
-              "--artifacts",
+              "--artifact",
               "--definition",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--text"
             ]
           },
           {
             "name": "bundle-create",
             "options": [
-              "--artifacts",
+              "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -271,12 +343,16 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--format",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -285,16 +361,19 @@
         "options": [
           "--answers",
           "--artifact",
-          "--artifacts",
           "--baseline",
           "--definition",
+          "--detail",
           "--dry-run",
+          "--expected-detail-digest",
           "--expected-revision",
           "--format",
           "--help",
           "--input",
           "--input-revision",
+          "--limit",
           "--machine",
+          "--offset",
           "--output",
           "--revision-field",
           "--text"
@@ -309,12 +388,16 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
               "--dry-run",
+              "--expected-detail-digest",
               "--format",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--text"
             ]
@@ -325,10 +408,14 @@
               "--answers",
               "--artifact",
               "--definition",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--input",
               "--input-revision",
+              "--limit",
               "--machine",
+              "--offset",
               "--text"
             ]
           }
@@ -337,12 +424,16 @@
           "--answers",
           "--artifact",
           "--definition",
+          "--detail",
           "--dry-run",
+          "--expected-detail-digest",
           "--format",
           "--help",
           "--input",
           "--input-revision",
+          "--limit",
           "--machine",
+          "--offset",
           "--output",
           "--text"
         ]
@@ -372,8 +463,12 @@
             "name": "check",
             "options": [
               "--against",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
+              "--limit",
               "--machine",
+              "--offset",
               "--root",
               "--source",
               "--text"
@@ -383,9 +478,13 @@
             "name": "build",
             "options": [
               "--against",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
               "--id-map",
+              "--limit",
               "--machine",
+              "--offset",
               "--output",
               "--root",
               "--source",
@@ -396,8 +495,12 @@
             "name": "revise",
             "options": [
               "--against",
+              "--detail",
+              "--expected-detail-digest",
               "--help",
+              "--limit",
               "--machine",
+              "--offset",
               "--root",
               "--source",
               "--text"
@@ -408,14 +511,18 @@
           "--accept-bounded-semantics",
           "--against",
           "--application-version",
+          "--detail",
+          "--expected-detail-digest",
           "--fork-from",
           "--format",
           "--from-env-example",
           "--from-schema",
           "--help",
           "--id-map",
+          "--limit",
           "--machine",
           "--name",
+          "--offset",
           "--output",
           "--project-id",
           "--root",
@@ -444,7 +551,7 @@
     ]
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.islamu.org/configurator/command/v1/schema.json",
+  "$id": "https://schemas.islamu.org/configurator/command/v2/schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -454,6 +561,14 @@
     "exitCategory",
     "exitCode",
     "dryRun",
+    "completion",
+    "preparation",
+    "targetAcceptance",
+    "cleanup",
+    "delivery",
+    "diagnosticsTotal",
+    "diagnosticsOmitted",
+    "detailDigest",
     "diagnostics",
     "artifacts",
     "coverage",
@@ -461,7 +576,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": "islamu-configurator-command/v1"
+      "const": "islamu-configurator-command/v2"
     },
     "invocation": {
       "$ref": "#/$defs/invocation"
@@ -475,7 +590,8 @@
         "usage",
         "data",
         "internal",
-        "io"
+        "io",
+        "cancelled"
       ]
     },
     "exitCategory": {
@@ -487,7 +603,8 @@
         "usage",
         "data",
         "internal",
-        "io"
+        "io",
+        "cancelled"
       ]
     },
     "exitCode": {
@@ -499,15 +616,62 @@
         64,
         65,
         70,
-        74
+        74,
+        130
       ]
     },
     "dryRun": {
       "type": "boolean"
     },
+    "completion": {
+      "enum": [
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "preparation": {
+      "enum": [
+        null,
+        "ready",
+        "incomplete",
+        "blocked"
+      ]
+    },
+    "targetAcceptance": {
+      "const": "unassessed"
+    },
+    "cleanup": {
+      "enum": [
+        "not-required",
+        "completed",
+        "failed",
+        "unknown"
+      ]
+    },
+    "delivery": {
+      "const": "attempt"
+    },
+    "diagnosticsTotal": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4096
+    },
+    "diagnosticsOmitted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4096
+    },
+    "detailDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "detail": {
+      "$ref": "#/$defs/detail"
+    },
     "diagnostics": {
       "type": "array",
-      "maxItems": 128,
+      "maxItems": 16,
       "items": {
         "$ref": "#/$defs/diagnostic"
       }
@@ -601,9 +765,9 @@
         },
         "path": {
           "type": "string",
-          "minLength": 1,
+          "minLength": 0,
           "maxLength": 256,
-          "pattern": "^\\$(?:\\.[a-z][A-Za-z0-9-]*)*$"
+          "pattern": "^(?:/(?:[^~/\\x00-\\x1F\\x7F]|~[01])*)*$"
         },
         "severity": {
           "enum": [
@@ -611,6 +775,21 @@
             "warning",
             "error"
           ]
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "byteOffset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
         }
       }
     },
@@ -618,16 +797,21 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "id",
         "kind",
         "mediaType",
         "digest",
         "sensitivity",
-        "coverage",
-        "readiness",
         "pathIntent",
         "writeStatus"
       ],
       "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+        },
         "kind": {
           "enum": [
             "catalogue",
@@ -655,12 +839,6 @@
             "restricted"
           ]
         },
-        "coverage": {
-          "$ref": "#/$defs/coverage"
-        },
-        "readiness": {
-          "$ref": "#/$defs/readiness"
-        },
         "pathIntent": {
           "enum": [
             "none",
@@ -677,7 +855,8 @@
             "not-attempted",
             "conflict",
             "blocked",
-            "failed"
+            "failed",
+            "unknown"
           ]
         }
       }
@@ -686,15 +865,24 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "coveredKeys",
-        "missingKeys"
+        "coveredCount",
+        "missingCount",
+        "detailDigest"
       ],
       "properties": {
-        "coveredKeys": {
-          "$ref": "#/$defs/keyList"
+        "coveredCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
         },
-        "missingKeys": {
-          "$ref": "#/$defs/keyList"
+        "missingCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "detailDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     },
@@ -703,33 +891,104 @@
       "additionalProperties": false,
       "required": [
         "state",
-        "missingKeys",
-        "blockedKeys"
+        "missingCount",
+        "blockedCount"
       ],
       "properties": {
         "state": {
           "enum": [
             "ready",
             "incomplete",
-            "blocked"
+            "blocked",
+            "unassessed"
           ]
         },
-        "missingKeys": {
-          "$ref": "#/$defs/keyList"
+        "missingCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
         },
-        "blockedKeys": {
-          "$ref": "#/$defs/keyList"
+        "blockedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
         }
       }
     },
-    "keyList": {
-      "type": "array",
-      "maxItems": 1024,
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 128,
-        "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+    "coverageEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "state"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+        },
+        "state": {
+          "enum": [
+            "covered",
+            "missing"
+          ]
+        }
+      }
+    },
+    "detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "offset",
+        "limit",
+        "total",
+        "digest",
+        "diagnostics",
+        "coverage"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "diagnostics",
+            "coverage"
+          ]
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2048
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "diagnostics": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/coverageEntry"
+          }
+        }
       }
     }
   }

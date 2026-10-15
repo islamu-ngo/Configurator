@@ -68,7 +68,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         StandardOutput = bytes.ToArray();
     }
 
-    public void WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes)
+    public SetupCliPublicationResult WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes)
     {
         if (bytes.Length > maximumBytes) throw new IOException();
         if (path == "-")
@@ -76,28 +76,29 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             if (!SetupArtifactPolicy.TryProjectPublic(kind, bytes, out _)) throw new IOException();
             Write(path, bytes, maximumBytes);
         }
-        else if (!Files.TryAdd(path, bytes.ToArray())) throw new IOException();
+        else if (!Files.TryAdd(path, bytes.ToArray())) return new([new(ProtectedArtifactStatus.TargetExists)]);
+        return new([new(ProtectedArtifactStatus.Written)]);
     }
 
-    public IReadOnlyList<ProtectedArtifactStatus?> WriteBundle(
+    public SetupCliPublicationResult WriteBundle(
         IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes)
     {
         var statuses = new ProtectedArtifactStatus?[artifacts.Count];
         if (BundleBlocked)
         {
             Array.Fill(statuses, ProtectedArtifactStatus.UnsupportedPlatform);
-            return statuses;
+            return Result();
         }
         if (artifacts.Any(item => item.ByteLength > maximumBytes))
         {
             Array.Fill(statuses, ProtectedArtifactStatus.InvalidRequest);
-            return statuses;
+            return Result();
         }
         for (int index = 0; index < artifacts.Count; index++)
         {
             if (!Files.ContainsKey(Path.Combine(directory, artifacts[index].FileName))) continue;
             statuses[index] = ProtectedArtifactStatus.TargetExists;
-            return statuses;
+            return Result();
         }
         for (int index = 0; index < artifacts.Count; index++)
         {
@@ -119,16 +120,17 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
                 CryptographicOperations.ZeroMemory(written.AsSpan());
             statuses[index] = ProtectedArtifactStatus.Written;
         }
-        return statuses;
+        return Result();
+        SetupCliPublicationResult Result() => new(statuses.Select(status => new SetupCliPublicationOutcome(status)).ToArray());
     }
 
     private sealed class ErrorWriter(CliFixture owner) : ISetupCliWriter
     {
         public void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes) =>
             owner.StandardError = bytes.ToArray();
-        public void WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes) =>
+        public SetupCliPublicationResult WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes) =>
             throw new IOException();
-        public IReadOnlyList<ProtectedArtifactStatus?> WriteBundle(
+        public SetupCliPublicationResult WriteBundle(
             IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes) =>
             throw new IOException();
     }

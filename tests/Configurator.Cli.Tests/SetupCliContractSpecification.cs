@@ -25,6 +25,7 @@ internal static class SetupCliContractSpecification
             ["usage"] = 64,
             ["data"] = 65,
             ["internal"] = 70,
-            ["io"] = 74
+            ["io"] = 74,
+            ["cancelled"] = 130
         });
 }

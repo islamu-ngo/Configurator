@@ -40,7 +40,11 @@ islamu-configurator artifact open --definition definition.json --artifact config
 ## Complete usage
 
 All commands accept `--machine`, `--text` or `--help`. Machine and text are mutually
-exclusive. Every value option occurs at most once. Commands are case sensitive.
+exclusive. Value options occur at most once except the bundle selection's repeated
+`--artifact`. Commands are case sensitive. An invocation admits at most 256 argument
+tokens and 32,768 aggregate UTF-8 bytes, counting one separator byte per token;
+each argument is at most 4,096 characters. Artifact IDs retain their stricter
+128-character bound.
 
 | Command | Required options | Optional options |
 | --- | --- | --- |
@@ -59,8 +63,8 @@ exclusive. Every value option occurs at most once. Commands are case sensitive.
 | `artifact import` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH`, `--expected-revision REVISION`, `--revision-field ID` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `artifact check-existing` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--answers PATH`, `--input-revision NUMBER` |
 | `artifact prefill` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--answers PATH`, `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `artifact bundle-check` | `--definition PATH`, `--artifacts IDS`, `--input PATH` | `--input-revision NUMBER` |
-| `artifact bundle-create` | `--definition PATH`, `--artifacts IDS`, `--input PATH`, `--output DIRECTORY` | `--input-revision NUMBER`, `--dry-run` |
+| `artifact bundle-check` | `--definition PATH`, repeated `--artifact ID`, `--input PATH` | `--input-revision NUMBER` |
+| `artifact bundle-create` | `--definition PATH`, repeated `--artifact ID`, `--input PATH`, `--output DIRECTORY` | `--input-revision NUMBER`, `--dry-run` |
 | `artifact preview` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
 | `doctor` | none | none |
 | `definition init` | `--project-id ID`, `--name NAME`, `--application-version VERSION` | `--root DIRECTORY`, `--output PATH`, `--format yaml\|json`, `--from-env-example PATH`, `--from-schema PATH`, `--accept-bounded-semantics` |
@@ -96,6 +100,9 @@ public JSON at `dist/configurator/revisions/<revision>.json` relative to the sou
 directory, or `--output`; identical existing bytes are accepted, conflicting bytes
 reject. Generated output cannot replace a source or use a discovery filename.
 `--id-map` optionally creates a public logical-field-key to runtime-ID map.
+Build prepares the canonical definition and optional ID map before committing
+them in order. This is not a transaction: an ID-map failure does not undo an
+already published canonical definition. Inspect each output's machine write status.
 
 ```bash
 islamu-configurator definition init --project-id example.service \
@@ -127,8 +134,8 @@ public source operations, separate from the protected answer writer below.
 publishing. `validate` checks field rules and whether the projection can be
 rendered. `coverage` reports active provided fields and missing required fields.
 `diff` composes candidate and baseline answer workspaces and compares canonical
-artifact bytes: the selected artifact ID appears in `coveredKeys` when identical
-or `missingKeys` when different. Difference is not a validation failure.
+artifact bytes: the selected artifact contributes one covered count when identical
+or one missing count when different. Difference is not a validation failure.
 `create`, `format` and `export` publish the definition's canonical rendering.
 `preview` uses exactly that rendering and protected output, not terminal display.
 These are preparation operations, not target commands.
@@ -167,20 +174,22 @@ islamu-configurator artifact prefill --definition definition.json \
 `bundle-check` composes multiple declared artifacts from one answer workspace
 without writing them. `bundle-create` prepares all selected destinations in the
 output directory before writing any, then creates them in definition order.
-Pass artifact IDs as a comma-separated `--artifacts` value, for example
-`config,environment`. Existing files and unsupported protected-save hosts block
-the write. A later race or I/O failure may leave an earlier file written; the
+Pass each artifact ID with its own `--artifact`, at most 64 IDs. The former CSV
+`--artifacts` option is removed, with no alias. Existing files and unsupported
+protected-save hosts block the write. A later race or I/O failure may leave an earlier file written; the
 machine result reports each artifact as `written`, `conflict`, `blocked`,
-`failed` or `not-attempted` and exits unsuccessfully. Inspect those statuses
-before retrying. Neither command accepts an artifact with import semantics;
+`failed`, `not-attempted` or `unknown` and exits unsuccessfully. `unknown` means
+publication could not be established, not that nothing was written. An earlier
+`written` result survives a later publication or cleanup failure. Inspect those
+statuses before retrying. Neither command accepts an artifact with import semantics;
 use revision-bound `artifact import` for that artifact. `--dry-run` checks
 composition only and does not reserve or inspect destinations.
 
 ```bash
 islamu-configurator artifact bundle-check --definition definition.json \
-  --artifacts config,environment --input answers.json --machine
+  --artifact config --artifact environment --input answers.json --machine
 islamu-configurator artifact bundle-create --definition definition.json \
-  --artifacts config,environment --input answers.json --output ./prepared --machine
+  --artifact config --artifact environment --input answers.json --output ./prepared --machine
 ```
 
 Catalogue output is structural metadata only: ID, type, sensitivity, required
@@ -210,17 +219,27 @@ File inputs retain the 4 MiB byte limit and depth 32.
 
 ## Machine contract and exit codes
 
-`--machine` emits exactly one UTF-8 JSON object, one trailing LF, no BOM or ANSI,
-and no additional framework diagnostics. `schemaVersion` is
-`islamu-configurator-command/v1`. The authoritative schema is generated from the
-compiled registry by `Configurator.CommandSchemaGenerator`; it is available at
-`schemas/islamu-configurator-command-v1.schema.json`.
+With a healthy output channel, `--machine` emits exactly one UTF-8 JSON object,
+one trailing LF, no BOM or ANSI, and no additional framework diagnostics. The
+entire receipt, including LF, is at most 65,536 UTF-8 bytes. `schemaVersion` is
+`islamu-configurator-command/v2`, replacing v1 without a compatibility envelope.
+The authoritative schema is generated from the compiled registry by
+`Configurator.CommandSchemaGenerator` at
+`schemas/islamu-configurator-command-v2.schema.json`. Definition authoring and
+runtime schemas remain v1.
 
-The closed envelope contains `schemaVersion`, `invocation` (commandFamily,
-operation, mode), `status`, `exitCategory`, `exitCode`, `dryRun`, `diagnostics`,
-`artifacts`, `coverage`, `readiness`. Diagnostic objects contain code/path/severity.
-Artifact objects contain kind/mediaType/digest/sensitivity/coverage/readiness/
-pathIntent/writeStatus. No artifact body is included. Kinds are `catalogue`,
+The closed envelope identifies the invocation (commandFamily, operation, mode),
+status, exit category/code and dry-run intent. It separates these outcome facts:
+
+- `completion`: whether the local operation completed or failed.
+- `preparation`: local preparation state, or `null` when unassessed.
+- `targetAcceptance`: always `unassessed`; no target was contacted.
+- `cleanup`: independent of established writes; cleanup can fail after publication.
+- `delivery`: `attempt`, not an acknowledgment that the recipient received these bytes.
+
+`artifacts` retains every selected output's full `id`, kind, mediaType, established
+digest, sensitivity, pathIntent and writeStatus. No output repeats coverage or
+readiness lists, and no artifact body is included. Kinds are `catalogue`,
 `definition-artifact`, `answer-snapshot`, `doctor-report`, `authoring-source`,
 `compiled-definition`, `logical-id-map`; sensitivities are `public`, `restricted`.
 Successful `definition check` and `definition build` additionally report
@@ -228,11 +247,50 @@ Successful `definition check` and `definition build` additionally report
 handoff must verify those versions, the envelope version, successful exit and the
 compiled file's digest before installation. The chosen output path is supplied by
 the caller and is not echoed in the machine envelope.
-Bundle results use one `definition-artifact` entry per selected output, each
-with a value-free `writeStatus`. A successful local check does not claim the
-target application accepted the configuration.
-Coverage lists are unique and ordinally sorted. Successful local preparation
-reports `host-validation-required` readiness, not host acceptance.
+Root `coverage` contains exact `coveredCount`, `missingCount` and `detailDigest`;
+`readiness` reports state and missing/blocked counts, not full key arrays.
+Successful local preparation reports `host-validation-required`, not host acceptance.
+Diagnostics contain fixed code/severity and an RFC 6901 structural `path`, not a
+filesystem path. Optional numeric `line` and Unicode-scalar `column` are one-based;
+`byteOffset` is zero-based in the original UTF-8 source. These slots do not promise
+complete source-location reporting or automatic authoring repair.
+
+At most 16 diagnostic examples are inline, sharing an 8,192-byte optional-detail
+budget with any requested page. `diagnosticsTotal` and `diagnosticsOmitted` are
+exact; omitted examples do not turn a failed operation into success. To inspect
+more, use the read-only detail interface below, not a repeated write command.
+
+The CLI sizes the mandatory receipt before publication. A broken stdout can still
+leave no JSON or a partial line after files were written. There is only one delivery
+attempt: no appended fallback envelope. Exit 74 and a best-effort fixed stderr code
+signal transport failure, not rollback. Check destinations before any retry.
+
+### Read-only detail pages
+
+Only `definition check`, `artifact validate`, `artifact check-existing` and
+`artifact bundle-check` accept `--detail diagnostics|coverage`, `--offset NUMBER`,
+`--limit NUMBER` and `--expected-detail-digest DIGEST`. Offset is 0–2,048 (default
+0); limit is 1–32 (default 16). These queries retain ordinary validation exit
+semantics and never publish files.
+
+Start at offset 0 and read `detail.digest`, `detail.total` and the returned
+`detail.diagnostics` or `detail.coverage` entries. Advance by the number actually
+returned, not the requested limit: the byte budget may shorten a page. Every
+noninitial page requires `--expected-detail-digest` from the preceding view;
+a changed view rejects with `detail-digest-mismatch`.
+
+```bash
+islamu-configurator artifact validate --definition definition.json --artifact config \
+  --input answers.json --detail coverage --offset 0 --limit 16 --machine
+# If 16 entries were returned and more remain, substitute the returned digest:
+islamu-configurator artifact validate --definition definition.json --artifact config \
+  --input answers.json --detail coverage --offset 16 --limit 16 \
+  --expected-detail-digest '<returned-digest>' --machine
+```
+
+The SHA-256 digest binds the sanitized structural view to its public definition,
+operation, artifact selection and status facts. It is not a hash of private answers.
+Value changes that leave that view unchanged need not invalidate continuation.
 
 | Exit | Category | Meaning |
 | --- | --- | --- |
@@ -248,3 +306,8 @@ reports `host-validation-required` readiness, not host acceptance.
 Old `manifest`, `tenant-package`, `portability`, `legal`, `catalog` and `tui`
 families are not aliases. Event workflows use Event-owned definitions and
 artifact IDs; Event's backend still owns acceptance and authorization.
+
+Public authoring custody hardening, richer installed discovery/repair and portable
+skill lifecycle remain deferred. Restricted-save qualification is Linux-only;
+four-host qualification and installed adoption evidence remain open. The bounded
+receipt contract is not enterprise certification or proof of complete adoption.

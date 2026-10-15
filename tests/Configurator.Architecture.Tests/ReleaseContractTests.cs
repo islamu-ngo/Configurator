@@ -35,6 +35,45 @@ public sealed class ReleaseContractTests
     }
 
     [Test]
+    [Arguments("cli")]
+    [Arguments("terminal")]
+    [Arguments("desktop")]
+    public async Task SchemaRefreshRemovesRetiredSchemasAndPreservesUnrelatedPackageContent(string surface)
+    {
+        string outputRoot = Path.Combine(Path.GetTempPath(), $"configurator-schema-refresh-{Guid.NewGuid():N}");
+        string package = Path.Combine(outputRoot, surface, "linux-x64");
+        string schemas = Path.Combine(package, "schemas");
+        string[] currentSchemas = Directory.GetFiles(Path.Combine(ReleaseTestPaths.Root, "schemas"), "*.schema.json");
+        try
+        {
+            Directory.CreateDirectory(schemas);
+            Directory.CreateDirectory(Path.Combine(package, "contracts"));
+            File.WriteAllText(Path.Combine(schemas, "islamu-configurator-command-v1.schema.json"), "stale command v1");
+            File.WriteAllText(Path.Combine(schemas, "retired.schema.json"), "retired schema");
+            File.WriteAllText(Path.Combine(package, "keep.txt"), "unrelated package content");
+            File.WriteAllText(Path.Combine(package, "contracts", "keep.json"), "{}");
+
+            var result = await ReleaseTestPaths.Run("dotnet", "msbuild", "eng/configurator/Configurator.Release.proj",
+                "-nologo", "-verbosity:quiet", "-t:RefreshConfiguratorSchemas",
+                $"-p:ConfiguratorSurface={surface}", "-p:ConfiguratorRid=linux-x64", $"-p:ConfiguratorOutputRoot={outputRoot}");
+
+            await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.Output);
+            await Assert.That(currentSchemas).IsNotEmpty();
+            await Assert.That(Directory.GetFiles(schemas, "*", SearchOption.AllDirectories).Select(path => Path.GetRelativePath(schemas, path)))
+                .IsEquivalentTo(currentSchemas.Select(Path.GetFileName));
+            foreach (string source in currentSchemas)
+            {
+                await Assert.That(ReleaseTestPaths.Hash(File.ReadAllBytes(Path.Combine(schemas, Path.GetFileName(source)))))
+                    .IsEqualTo(ReleaseTestPaths.Hash(File.ReadAllBytes(source)));
+            }
+            await Assert.That(File.Exists(Path.Combine(schemas, "retired.schema.json"))).IsFalse();
+            await Assert.That(File.ReadAllText(Path.Combine(package, "keep.txt"))).IsEqualTo("unrelated package content");
+            await Assert.That(File.ReadAllText(Path.Combine(package, "contracts", "keep.json"))).IsEqualTo("{}");
+        }
+        finally { Directory.Delete(outputRoot, recursive: true); }
+    }
+
+    [Test]
     [Arguments("-p:ConfiguratorSurface=unknown")]
     [Arguments("-p:ConfiguratorRid=linux-musl-x64")]
     [Arguments("-p:ConfiguratorRid=osx-x64")]

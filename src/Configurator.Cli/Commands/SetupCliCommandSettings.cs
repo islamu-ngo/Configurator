@@ -28,8 +28,18 @@ internal class DefinitionSettings : SetupCliCommandSettings
     [CommandOption("--definition <PATH>")]
     public string? Definition { get; set; }
 
+    [CommandOption("--detail <KIND>")]
+    public string? Detail { get; set; }
+    [CommandOption("--offset <NUMBER>")]
+    public int Offset { get; set; }
+    [CommandOption("--limit <NUMBER>")]
+    public int Limit { get; set; } = 16;
+    [CommandOption("--expected-detail-digest <DIGEST>")]
+    public string? ExpectedDetailDigest { get; set; }
+
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
-        base.Bind(family, operation, invocationMode) with { Definition = Path(Definition) };
+        base.Bind(family, operation, invocationMode) with { Definition = Path(Definition), Detail = Detail,
+            Offset = Offset, Limit = Limit, ExpectedDetailDigest = ExpectedDetailDigest };
 }
 
 internal class CatalogueListSettings : DefinitionSettings
@@ -112,8 +122,8 @@ internal sealed class ArtifactImportSettings : ArtifactOutputSettings
 
 internal class BundleInputSettings : DefinitionSettings
 {
-    [CommandOption("--artifacts <IDS>")]
-    public string? Artifacts { get; set; }
+    [CommandOption("--artifact <ID>")]
+    public string[] Artifacts { get; set; } = [];
 
     [CommandOption("--input <PATH>")]
     public string? Input { get; set; }

@@ -58,6 +58,12 @@
     <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check" />
   </Target>
 
+  <Target Name="RefreshConfiguratorSchemas" DependsOnTargets="ValidateConfiguratorRelease">
+    <Error Condition="'$(ConfiguratorRid)' == ''" Text="ConfiguratorRid is required for native schema refresh." />
+    <RemoveDir Directories="$(ConfiguratorPublishDirectory)schemas" />
+    <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorPublishDirectory)schemas" />
+  </Target>
+
   <Target Name="PublishConfigurator" DependsOnTargets="ValidateConfiguratorRelease;CheckConfiguratorRatchets">
     <Error Condition="'$(ConfiguratorRid)' == ''" Text="ConfiguratorRid is required for native publication." />
     <!-- RID restore locks are separate from the framework-only development locks. -->
@@ -70,7 +76,7 @@
     <Move SourceFiles="$(ConfiguratorPublishDirectory)$(ConfiguratorAssemblyName)$(_ExecutableExtension)" DestinationFiles="$(ConfiguratorPublishDirectory)$(ConfiguratorExecutableName)$(_ExecutableExtension)" />
     <Copy SourceFiles="@(ConfiguratorNotice)" DestinationFolder="$(ConfiguratorPublishDirectory)" />
     <Copy SourceFiles="@(ConfiguratorCapability)" DestinationFolder="$(ConfiguratorPublishDirectory)contracts" />
-    <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorPublishDirectory)schemas" />
+    <CallTarget Targets="RefreshConfiguratorSchemas" />
     <Copy Condition="'$(ConfiguratorSurface)' == 'cli'" SourceFiles="@(ConfiguratorIntegrationSkill)"
       DestinationFiles="@(ConfiguratorIntegrationSkill->'$(ConfiguratorPublishDirectory)skills/configurator-integrate/%(RecursiveDir)%(Filename)%(Extension)')" />
     <!-- Replace the generated inventory so retired dependency notices cannot survive a republish. -->

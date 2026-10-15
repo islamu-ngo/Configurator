@@ -17,31 +17,35 @@ public interface ISetupCliWriter
 {
     void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes);
 
-    void WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes);
+    SetupCliPublicationResult WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes);
 
-    IReadOnlyList<ProtectedArtifactStatus?> WriteBundle(
+    SetupCliPublicationResult WriteBundle(
         IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes);
 }
+
+public sealed record SetupCliPublicationOutcome(ProtectedArtifactStatus? Status, bool Unknown = false);
+public sealed record SetupCliPublicationResult(IReadOnlyList<SetupCliPublicationOutcome> Outcomes,
+    bool CleanupFailed = false, bool Cancelled = false);
 
 public sealed record SetupCliIo
 {
     public SetupCliIo(ISetupCliInput input, ISetupCliWriter output, ISetupCliWriter error,
-        int maximumCharacters, int maximumBytes)
+        int maximumOutputBytes, int maximumBytes)
     {
         Input = input ?? throw new ArgumentNullException(nameof(input));
         Output = output ?? throw new ArgumentNullException(nameof(output));
         Error = error ?? throw new ArgumentNullException(nameof(error));
-        if (maximumCharacters is < 1 or > 65_536 || maximumBytes is < 1 or > 4 * 1024 * 1024)
+        if (maximumOutputBytes is < 1 or > 65_536 || maximumBytes is < 1 or > 4 * 1024 * 1024)
             throw new ArgumentOutOfRangeException(nameof(maximumBytes));
-        MaximumCharacters = maximumCharacters;
+        MaximumOutputBytes = maximumOutputBytes;
         MaximumBytes = maximumBytes;
     }
     public ISetupCliInput Input { get; }
     public ISetupCliWriter Output { get; }
     public ISetupCliWriter Error { get; }
-    public int MaximumCharacters { get; }
+    public int MaximumOutputBytes { get; }
     public int MaximumBytes { get; }
-    public override string ToString() => $"{nameof(SetupCliIo)}:Characters={MaximumCharacters}:Bytes={MaximumBytes}";
+    public override string ToString() => $"{nameof(SetupCliIo)}:OutputBytes={MaximumOutputBytes}:Bytes={MaximumBytes}";
 }
 
 public sealed record SetupCliEnvironmentPresence
@@ -66,7 +70,8 @@ public sealed record SetupCliInvocation
     {
         ArgumentNullException.ThrowIfNull(arguments);
         _arguments = arguments.ToArray();
-        if (_arguments.Any(argument => argument is null || argument.Length > 4096) || _arguments.Length > 128)
+        if (_arguments.Any(argument => argument is null || argument.Length > 4096) || _arguments.Length > 256
+            || _arguments.Sum(argument => System.Text.Encoding.UTF8.GetByteCount(argument) + 1) > 32_768)
             throw new ArgumentException("argument-bound-exceeded", nameof(arguments));
         Mode = mode;
         Io = io ?? throw new ArgumentNullException(nameof(io));
@@ -80,7 +85,12 @@ public sealed record SetupCliInvocation
 }
 
 public sealed record SetupCliMachineInvocation(string CommandFamily, string Operation, string Mode);
-public sealed record SetupCliMachineDiagnostic(string Code, string Path, string Severity);
+public sealed record SetupCliMachineDiagnostic(string Code, string Path, string Severity)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Line { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Column { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public long? ByteOffset { get; init; }
+}
 public sealed record SetupCliMachineCoverage
 {
     private readonly string[] _coveredKeys;
@@ -90,8 +100,11 @@ public sealed record SetupCliMachineCoverage
         _coveredKeys = Snapshot(coveredKeys);
         _missingKeys = Snapshot(missingKeys);
     }
-    public IReadOnlyList<string> CoveredKeys => Array.AsReadOnly((string[])_coveredKeys.Clone());
-    public IReadOnlyList<string> MissingKeys => Array.AsReadOnly((string[])_missingKeys.Clone());
+    [JsonIgnore] public IReadOnlyList<string> CoveredKeys => Array.AsReadOnly((string[])_coveredKeys.Clone());
+    [JsonIgnore] public IReadOnlyList<string> MissingKeys => Array.AsReadOnly((string[])_missingKeys.Clone());
+    public int CoveredCount => _coveredKeys.Length;
+    public int MissingCount => _missingKeys.Length;
+    public string DetailDigest { get; init; } = "";
     private static string[] Snapshot(IEnumerable<string> values) =>
         values.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
 }
@@ -106,13 +119,23 @@ public sealed record SetupCliMachineReadiness
         _blockedKeys = Snapshot(blockedKeys);
     }
     public string State { get; }
-    public IReadOnlyList<string> MissingKeys => Array.AsReadOnly((string[])_missingKeys.Clone());
-    public IReadOnlyList<string> BlockedKeys => Array.AsReadOnly((string[])_blockedKeys.Clone());
+    [JsonIgnore] public IReadOnlyList<string> MissingKeys => Array.AsReadOnly((string[])_missingKeys.Clone());
+    [JsonIgnore] public IReadOnlyList<string> BlockedKeys => Array.AsReadOnly((string[])_blockedKeys.Clone());
+    public int MissingCount => _missingKeys.Length;
+    public int BlockedCount => _blockedKeys.Length;
     private static string[] Snapshot(IEnumerable<string> values) =>
         values.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
 }
 public sealed record SetupCliMachineArtifact(string Kind, string MediaType, string Digest, string Sensitivity,
-    SetupCliMachineCoverage Coverage, SetupCliMachineReadiness Readiness, string PathIntent, string WriteStatus);
+    [property: JsonIgnore] SetupCliMachineCoverage Coverage,
+    [property: JsonIgnore] SetupCliMachineReadiness Readiness, string PathIntent, string WriteStatus)
+{
+    public string Id { get; init; } = Kind;
+}
+
+public sealed record SetupCliMachineCoverageEntry(string Id, string State);
+public sealed record SetupCliMachineDetail(string Kind, int Offset, int Limit, int Total, string Digest,
+    IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics, IReadOnlyList<SetupCliMachineCoverageEntry> Coverage);
 public sealed record SetupCliMachineEnvelope
 {
     private readonly SetupCliMachineDiagnostic[] _diagnostics;
@@ -139,6 +162,16 @@ public sealed record SetupCliMachineEnvelope
     public string ExitCategory { get; }
     public int ExitCode { get; }
     public bool DryRun { get; }
+    public string Completion { get; init; } = "completed";
+    public string? Preparation { get; init; }
+    public string TargetAcceptance { get; init; } = "unassessed";
+    public string Cleanup { get; init; } = "not-required";
+    public string Delivery { get; init; } = "attempt";
+    public int DiagnosticsTotal { get; init; }
+    public int DiagnosticsOmitted { get; init; }
+    public string DetailDigest { get; init; } = "";
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SetupCliMachineDetail? Detail { get; init; }
     public IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics => Array.AsReadOnly((SetupCliMachineDiagnostic[])_diagnostics.Clone());
     public IReadOnlyList<SetupCliMachineArtifact> Artifacts => Array.AsReadOnly((SetupCliMachineArtifact[])_artifacts.Clone());
     public SetupCliMachineCoverage Coverage { get; }

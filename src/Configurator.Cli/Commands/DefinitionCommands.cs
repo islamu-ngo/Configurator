@@ -20,8 +20,17 @@ internal class DefinitionSourceSettings : SetupCliCommandSettings
     public string? Root { get; set; }
     [CommandOption("--against <PATH>")]
     public string? Against { get; set; }
+    [CommandOption("--detail <KIND>")]
+    public string? Detail { get; set; }
+    [CommandOption("--offset <NUMBER>")]
+    public int Offset { get; set; }
+    [CommandOption("--limit <NUMBER>")]
+    public int Limit { get; set; } = 16;
+    [CommandOption("--expected-detail-digest <DIGEST>")]
+    public string? ExpectedDetailDigest { get; set; }
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
-        base.Bind(family, operation, invocationMode) with { Source = Path(Source), Root = Path(Root), Against = Path(Against) };
+        base.Bind(family, operation, invocationMode) with { Source = Path(Source), Root = Path(Root), Against = Path(Against),
+            Detail = Detail, Offset = Offset, Limit = Limit, ExpectedDetailDigest = ExpectedDetailDigest };
 }
 
 internal sealed class DefinitionBuildSettings : DefinitionSourceSettings

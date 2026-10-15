@@ -17,7 +17,7 @@ public sealed class SetupCliApplicationTests
         var ids = new List<string>();
         for (int index = 0; index < 64; index++)
         {
-            string id = "a" + index.ToString("D2", CultureInfo.InvariantCulture) + new string('a', 59);
+            string id = "a" + index.ToString("D2", CultureInfo.InvariantCulture) + new string('a', 125);
             JsonObject artifact = (JsonObject)template.DeepClone();
             artifact["id"] = id;
             artifact["fileName"] = $"file{index:D2}.json";
@@ -27,8 +27,8 @@ public sealed class SetupCliApplicationTests
         definition["artifacts"] = artifacts;
         io.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
 
-        await Assert.That(io.Run("artifact", "bundle-check", "--definition", "definition.json",
-            "--artifacts", string.Join(',', ids), "--input", "answers.json", "--machine"))
+        await Assert.That(io.Run(["artifact", "bundle-check", "--definition", "definition.json",
+            .. ids.SelectMany(id => new[] { "--artifact", id }), "--input", "answers.json", "--machine"]))
             .IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
         await Assert.That(io.StandardOutput.Length).IsLessThanOrEqualTo(65_536);
@@ -38,7 +38,7 @@ public sealed class SetupCliApplicationTests
     [Test]
     public async Task BundleCommandReportsCompleteConflictBlockedAndPartialOutcomesWithoutPrivateBytes()
     {
-        string[] args = ["--definition", "definition.json", "--artifacts", "config,yaml",
+        string[] args = ["--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
             "--input", "answers.json", "--output", "bundle", "--machine"];
         var complete = new CliFixture();
         await Assert.That(complete.Run(["artifact", "bundle-check", .. args.Where(item => item != "--output" && item != "bundle")]))
@@ -73,7 +73,7 @@ public sealed class SetupCliApplicationTests
 
         var revisionBound = new CliFixture();
         await Assert.That(revisionBound.Run("artifact", "bundle-create", "--definition", "definition.json",
-            "--artifacts", "config,request", "--input", "answers.json", "--output", "bundle",
+            "--artifact", "config", "--artifact", "request", "--input", "answers.json", "--output", "bundle",
             "--machine")).IsEqualTo(SetupCliExitCode.Blocked);
         await Assert.That(revisionBound.Files.ContainsKey("bundle/service.json")).IsFalse();
     }
@@ -131,11 +131,11 @@ public sealed class SetupCliApplicationTests
         var io = new CliFixture();
         await Assert.That(io.Artifact("diff", options: ["--baseline", "baseline.json"])).IsEqualTo(SetupCliExitCode.Success);
         using JsonDocument same = JsonDocument.Parse(io.StandardOutput);
-        await Assert.That(same.RootElement.GetProperty("coverage").GetProperty("coveredKeys")[0].GetString()).IsEqualTo("config");
+        await Assert.That(same.RootElement.GetProperty("coverage").GetProperty("coveredCount").GetInt32()).IsEqualTo(1);
         io.Files["baseline.json"] = """{"service.name":"different-marker"}"""u8.ToArray();
         await Assert.That(io.Artifact("diff", options: ["--baseline", "baseline.json"])).IsEqualTo(SetupCliExitCode.Success);
         using JsonDocument changed = JsonDocument.Parse(io.StandardOutput);
-        await Assert.That(changed.RootElement.GetProperty("coverage").GetProperty("missingKeys")[0].GetString()).IsEqualTo("config");
+        await Assert.That(changed.RootElement.GetProperty("coverage").GetProperty("missingCount").GetInt32()).IsEqualTo(1);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("different-marker");
     }
 
@@ -196,7 +196,7 @@ public sealed class SetupCliApplicationTests
         io.Files["answers.json"] = "{}"u8.ToArray();
         await Assert.That(io.Artifact("coverage")).IsEqualTo(SetupCliExitCode.Incomplete);
         using JsonDocument missing = JsonDocument.Parse(io.StandardOutput);
-        await Assert.That(missing.RootElement.GetProperty("coverage").GetProperty("missingKeys")[0].GetString()).IsEqualTo("service.name");
+        await Assert.That(missing.RootElement.GetProperty("coverage").GetProperty("missingCount").GetInt32()).IsEqualTo(1);
         io.Files["answers.json"] = """{"service.name":42}"""u8.ToArray();
         await Assert.That(io.Artifact("validate")).IsEqualTo(SetupCliExitCode.Validation);
         io.Files["answers.json"] = """{"unknown":"hidden-marker"}"""u8.ToArray();

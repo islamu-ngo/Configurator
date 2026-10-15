@@ -13,11 +13,11 @@ namespace Configurator.Cli;
 
 internal static class SetupCliArtifactHandlers
 {
-    internal static SetupCliCommandResult Execute(SetupCliCommand command, SetupCliInvocation invocation)
+    internal static SetupCliCommandResult Execute(SetupCliCommand command, SetupCliInvocation invocation, SetupCliOutcomeLedger ledger)
     {
         SetupDefinition definition = SetupCliIoOperations.Definition(invocation, command.Definition!);
         if (command.Operation is "bundle-check" or "bundle-create")
-            return Bundle(command, invocation, definition);
+            return Bundle(command, invocation, definition, ledger);
         SetupArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == command.Artifact);
         if (artifact is null)
             return SetupCliResults.Failure(SetupCliExitCode.Validation, "artifact-unknown", "$.artifact");
@@ -29,7 +29,7 @@ internal static class SetupCliArtifactHandlers
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "import-command-required", "$.artifact");
 
         if (command.Operation is "check-existing" or "prefill")
-            return AssessExisting(command, invocation, definition, artifact);
+            return AssessExisting(command, invocation, definition, artifact, ledger);
 
         SetupAnswerSnapshot answers = SetupCliIoOperations.Answers(invocation, command.Answers ?? command.Input!, command.InputRevision);
         if (command.Operation == "import")
@@ -59,8 +59,8 @@ internal static class SetupCliArtifactHandlers
             var readiness = new SetupCliMachineReadiness("incomplete",
                 coverage.MissingKeys.Count > 0 ? coverage.MissingKeys : ["input-invalid"], []);
             return new(missingOnly ? SetupCliExitCode.Incomplete : SetupCliExitCode.Validation,
-                validation.Diagnostics.Take(128).Select(item => new SetupCliMachineDiagnostic(item.Code, "$.input", "error")).ToArray(),
-                [], coverage, readiness);
+                validation.Diagnostics.Select(item => new SetupCliMachineDiagnostic(item.Code, "/input", "error")).ToArray(),
+                [], coverage, readiness) { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
         }
         DefinitionArtifactResult composed = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers);
         if (!composed.Succeeded)
@@ -98,18 +98,19 @@ internal static class SetupCliArtifactHandlers
                 return SetupCliResults.Success(coverage: coverage);
 
             bool write = command.Operation is "create" or "format" or "export" or "import" or "preview" or "render";
-            if (write)
-            {
-                if (command.Output == "-")
-                    return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "$.output");
-                SetupCliIoOperations.Write(invocation, command,
-                    artifact.Format == "dotenv" ? SetupArtifactKind.Environment : SetupArtifactKind.Configuration, outputBytes);
-            }
             var hostReadiness = new SetupCliMachineReadiness("incomplete", ["host-validation-required"], []);
-            return SetupCliResults.Success([new SetupCliMachineArtifact("definition-artifact", output.MediaType,
+            SetupCliCommandResult result = SetupCliResults.Success([new SetupCliMachineArtifact("definition-artifact", output.MediaType,
                 output.Digest.Value, "restricted", coverage, hostReadiness,
                 write ? SetupCliResults.PathIntent(command.Output) : "input",
-                write ? command.DryRun ? "planned" : "written" : "none")], coverage, hostReadiness);
+                write ? command.DryRun ? "planned" : "not-attempted" : "none") { Id = artifact.Id }], coverage, hostReadiness)
+                with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
+            if (command.Output == "-") return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "/output");
+            if (!write || command.DryRun) return result;
+            ledger.Plan(invocation, command, result);
+            ledger.BeginPublication();
+            SetupCliPublicationResult publication = invocation.Io.Output.WriteArtifact(command.Output!,
+                artifact.Format == "dotenv" ? SetupArtifactKind.Environment : SetupArtifactKind.Configuration, outputBytes, invocation.Io.MaximumBytes);
+            return ledger.Apply(publication, result);
         }
         finally { Clear(outputBytes); }
     }
@@ -124,7 +125,7 @@ internal static class SetupCliArtifactHandlers
     }
 
     private static SetupCliCommandResult AssessExisting(SetupCliCommand command, SetupCliInvocation invocation,
-        SetupDefinition definition, SetupArtifactDefinition artifact)
+        SetupDefinition definition, SetupArtifactDefinition artifact, SetupCliOutcomeLedger ledger)
     {
         SetupAnswerSnapshot current = command.Answers is null
             ? new(long.Parse(command.InputRevision, CultureInfo.InvariantCulture),
@@ -148,97 +149,54 @@ internal static class SetupCliArtifactHandlers
         var readiness = validation.IsReady ? SetupCliResults.Ready()
             : new SetupCliMachineReadiness("incomplete", coverage.MissingKeys, []);
         if (command.Operation == "check-existing")
-            return SetupCliResults.Success(coverage: coverage, readiness: readiness);
+            return SetupCliResults.Success(coverage: coverage, readiness: readiness) with { DefinitionDigest = definition.Digest.Value,
+                Preparation = validation.IsReady ? "ready" : "incomplete" };
 
         if (command.Output == "-")
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "$.output");
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(result.Answers!.Values);
         try
         {
-            SetupCliIoOperations.Write(invocation, command, SetupArtifactKind.Configuration, bytes);
-            return SetupCliResults.Success([SetupCliResults.Artifact("answer-snapshot", "application/json", bytes,
+            SetupCliCommandResult receipt = SetupCliResults.Success([SetupCliResults.Artifact("answer-snapshot", "application/json", bytes,
                 "restricted", SetupCliResults.PathIntent(command.Output),
-                command.DryRun ? "planned" : "written", coverage, readiness)], coverage, readiness);
+                command.DryRun ? "planned" : "not-attempted", coverage, readiness)], coverage, readiness)
+                with { DefinitionDigest = definition.Digest.Value, Preparation = validation.IsReady ? "ready" : "incomplete" };
+            if (command.DryRun) return receipt;
+            ledger.Plan(invocation, command, receipt);
+            ledger.BeginPublication();
+            return ledger.Apply(invocation.Io.Output.WriteArtifact(command.Output!, SetupArtifactKind.Configuration, bytes,
+                invocation.Io.MaximumBytes), receipt);
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
     private static SetupCliCommandResult Bundle(SetupCliCommand command, SetupCliInvocation invocation,
-        SetupDefinition definition)
+        SetupDefinition definition, SetupCliOutcomeLedger ledger)
     {
-        string[] ids = command.Artifacts!.Split(',');
+        string[] ids = command.Artifacts!;
         if (definition.Artifacts.Any(item => ids.Contains(item.Id, StringComparer.Ordinal)
             && item.ApplySemantics == "import"))
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "import-command-required", "$.artifacts");
         SetupAnswerSnapshot answers = SetupCliIoOperations.Answers(invocation, command.Input!, command.InputRevision);
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers);
         if (!bundle.Succeeded)
-            return SetupCliResults.Failure(SetupCliExitCode.Validation,
-                bundle.Diagnostics[0].Code, "$.input");
+            return new(SetupCliExitCode.Validation,
+                bundle.Diagnostics.Select(item => new SetupCliMachineDiagnostic(item.Code, "/input", "error")).ToArray(),
+                [], SetupCliResults.EmptyCoverage(), new("incomplete", ["input-invalid"], []))
+                { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
 
-        IReadOnlyList<ProtectedArtifactStatus?> statuses = command.Operation == "bundle-check" || command.DryRun
-            ? Enumerable.Repeat<ProtectedArtifactStatus?>(null, bundle.Artifacts.Count).ToArray()
-            : invocation.Io.Output.WriteBundle(bundle.Artifacts, command.Output!, invocation.Io.MaximumBytes);
-        if (statuses.Count != bundle.Artifacts.Count)
-            return SetupCliResults.Failure(SetupCliExitCode.Internal, "bundle-status-invalid");
-        ProtectedArtifactStatus? failure = statuses.FirstOrDefault(status =>
-            status is not null and not ProtectedArtifactStatus.Written);
-        if (failure is null && command.Operation == "bundle-create" && !command.DryRun
-            && statuses.Any(status => status is null))
-            failure = ProtectedArtifactStatus.IoFailure;
-        SetupCliExitCode exit = failure switch
-        {
-            null => SetupCliExitCode.Success,
-            ProtectedArtifactStatus.IoFailure => SetupCliExitCode.Io,
-            _ => SetupCliExitCode.Blocked
-        };
         bool inspectedOnly = command.Operation == "bundle-check" || command.DryRun;
-        var coverage = new SetupCliMachineCoverage(bundle.Artifacts.Where((_, index) =>
-            inspectedOnly || statuses[index] == ProtectedArtifactStatus.Written).Select(item => item.ArtifactId),
-            bundle.Artifacts.Where((_, index) => !inspectedOnly
-                && statuses[index] != ProtectedArtifactStatus.Written).Select(item => item.ArtifactId));
-        var hostReadiness = exit == SetupCliExitCode.Success
-            ? new SetupCliMachineReadiness("incomplete", ["host-validation-required"], [])
-            : new SetupCliMachineReadiness("blocked", [], coverage.MissingKeys);
-        SetupCliMachineArtifact[] metadata = bundle.Artifacts.Select((artifact, index) =>
-            new SetupCliMachineArtifact("definition-artifact", artifact.MediaType,
-                artifact.Digest.Value, "restricted",
-                new SetupCliMachineCoverage(
-                    inspectedOnly || statuses[index] == ProtectedArtifactStatus.Written
-                        ? [artifact.ArtifactId] : [],
-                    !inspectedOnly && statuses[index] != ProtectedArtifactStatus.Written
-                        ? [artifact.ArtifactId] : []),
-                exit == SetupCliExitCode.Success ? hostReadiness
-                    : new SetupCliMachineReadiness("blocked", [],
-                        statuses[index] == ProtectedArtifactStatus.Written ? [] : [artifact.ArtifactId]),
-                SetupCliResults.PathIntent(command.Output),
-                command.Operation == "bundle-check" ? "none" : command.DryRun ? "planned"
-                    : BundleWriteStatus(statuses[index]))).ToArray();
-        return new(exit,
-            failure is null ? [] : [new SetupCliMachineDiagnostic(
-                BundleFailureCode(failure.Value), "$.output", "error")],
-            metadata, coverage, hostReadiness);
+        var planned = SetupCliResults.Success(bundle.Artifacts.Select(artifact =>
+            new SetupCliMachineArtifact("definition-artifact", artifact.MediaType, artifact.Digest.Value, "restricted",
+                SetupCliResults.EmptyCoverage(), SetupCliResults.Ready(), SetupCliResults.PathIntent(command.Output),
+                command.Operation == "bundle-check" ? "none" : command.DryRun ? "planned" : "not-attempted") { Id = artifact.ArtifactId }).ToArray(),
+            new(bundle.Artifacts.Select(item => item.ArtifactId), []),
+            new("incomplete", ["host-validation-required"], [])) with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
+        if (inspectedOnly) return planned;
+        ledger.Plan(invocation, command, planned);
+        ledger.BeginPublication();
+        return ledger.Apply(invocation.Io.Output.WriteBundle(bundle.Artifacts, command.Output!, invocation.Io.MaximumBytes), planned, blockedRejections: true);
     }
-
-    private static string BundleFailureCode(ProtectedArtifactStatus status) => status switch
-    {
-        ProtectedArtifactStatus.TargetExists => "bundle-target-exists",
-        ProtectedArtifactStatus.TargetChanged => "bundle-target-changed",
-        ProtectedArtifactStatus.UnsafeTarget => "bundle-unsafe-target",
-        ProtectedArtifactStatus.UnsupportedPlatform => "bundle-host-unsupported",
-        ProtectedArtifactStatus.PermissionDenied => "bundle-permission-denied",
-        ProtectedArtifactStatus.InvalidRequest => "bundle-invalid-request",
-        _ => "bundle-io-failed"
-    };
-
-    private static string BundleWriteStatus(ProtectedArtifactStatus? status) => status switch
-    {
-        ProtectedArtifactStatus.Written => "written",
-        ProtectedArtifactStatus.TargetExists or ProtectedArtifactStatus.TargetChanged => "conflict",
-        ProtectedArtifactStatus.IoFailure => "failed",
-        null => "not-attempted",
-        _ => "blocked"
-    };
 
     private static bool EquivalentInput(SetupCliInvocation invocation, string path,
         string format, ReadOnlyMemory<byte> expected)

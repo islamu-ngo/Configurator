@@ -6,7 +6,7 @@ namespace Configurator.Cli;
 
 internal static class SetupCliCatalogueEnvironmentHandlers
 {
-    internal static SetupCliCommandResult Catalogue(SetupCliCommand command, SetupCliInvocation invocation)
+    internal static SetupCliCommandResult Catalogue(SetupCliCommand command, SetupCliInvocation invocation, SetupCliOutcomeLedger ledger)
     {
         SetupDefinition definition = SetupCliIoOperations.Definition(invocation, command.Definition!);
         SetupFieldDefinition[] fields = command.Operation == "list"
@@ -41,8 +41,12 @@ internal static class SetupCliCatalogueEnvironmentHandlers
             if (command.Operation == "list") writer.WriteEndArray();
         }
         byte[] bytes = stream.ToArray();
-        SetupCliIoOperations.Write(invocation, command, SetupArtifactKind.PublicCatalogue, bytes);
-        return SetupCliResults.Success([SetupCliResults.Artifact("catalogue", "application/json", bytes, "public",
-            SetupCliResults.PathIntent(command.Output), command.DryRun ? "planned" : "written")]);
+        SetupCliCommandResult result = SetupCliResults.Success([SetupCliResults.Artifact("catalogue", "application/json", bytes, "public",
+            SetupCliResults.PathIntent(command.Output), command.DryRun ? "planned" : "not-attempted")]);
+        if (command.DryRun) return result;
+        ledger.Plan(invocation, command, result);
+        ledger.BeginPublication();
+        return ledger.Apply(invocation.Io.Output.WriteArtifact(command.Output!, SetupArtifactKind.PublicCatalogue,
+            bytes, invocation.Io.MaximumBytes), result);
     }
 }

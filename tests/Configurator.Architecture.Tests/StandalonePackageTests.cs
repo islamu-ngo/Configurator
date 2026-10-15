@@ -17,7 +17,7 @@ public sealed class StandalonePackageTests
         string directory = Path.Combine(ReleaseTestPaths.PackageRoot, surface, "linux-x64");
         await Assert.That(File.Exists(Path.Combine(directory, executable))).IsTrue();
         foreach (string path in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md",
-            "schemas/setup-definition-v1.schema.json", "schemas/islamu-configurator-command-v1.schema.json",
+            "schemas/setup-definition-v1.schema.json", "schemas/islamu-configurator-command-v2.schema.json",
             "contracts/package.json", "contracts/native-release-capabilities.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
         using JsonDocument contract = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "contracts/package.json")));

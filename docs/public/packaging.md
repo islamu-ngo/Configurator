@@ -38,6 +38,9 @@ grammars and themes embedded in their dependencies. Those assets keep their
 own terms even though the Configurator utility is MIT licensed.
 Native publication replaces the generated notice tree, removing notices for
 retired dependencies when publishing again into the same package destination.
+It also replaces only the package's owned `schemas/` directory with the current
+public schemas, removing retired schema versions while preserving unrelated
+package files outside that directory. Do not store your own files in `schemas/`.
 Browser has the same public metadata under `wwwroot/`.
 The CLI package also includes `skills/configurator-integrate/SKILL.md` and its
 routed resources. Copy that complete skill directory into an Agent Skills-aware

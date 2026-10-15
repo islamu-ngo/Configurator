@@ -31,6 +31,16 @@ this compiler before answers; remote Browser distribution remains canonical runt
 JSON. See [maintainer source ownership](../MAINTAINER_AUTHORING.md) and
 [runtime contract](../CORE_DEFINITION_CONTRACT.md).
 
+The CLI's [command v2 contract](../CLI_CONTRACT.md) replaces command v1 only;
+authoring/runtime v1 remain unchanged. Repeated bundle `--artifact` selection and
+count/digest summaries keep the full output ledger within a 65,536-byte UTF-8
+receipt. The CLI plans receipt capacity before publication and preserves written,
+not-attempted and unknown outcomes through later failures. One application emitter
+attempts delivery without Program fallback; cleanup and target acceptance remain
+independent. See the [runtime decision](../adr/ADR-cli-command-runtime.md).
+Public authoring custody, discovery/repair, portable skill lifecycle, four-host
+qualification and installed adoption remain open, not enterprise certification.
+
 `global.json` pins SDK 10.0.302 and Microsoft.Testing.Platform.
 `Directory.Build.props` supplies deterministic builds, generated dependency
 locks, strict warnings, .NET analyzers and MIT metadata. There are no inherited
