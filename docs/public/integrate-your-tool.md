@@ -9,6 +9,25 @@ Configurator compiles that declaration into an admitted, immutable runtime JSON
 definition. Your application remains responsible for target validation, acceptance
 and administration. No store, running service or target credentials are needed.
 
+## Integrate with your coding agent
+
+Use the portable [configurator-integrate skill](../../skills/configurator-integrate/SKILL.md)
+with an agent that can read your repository. The agent researches public
+configuration declarations, schemas, validators and synthetic examples, then
+authors the integration file using the supported vocabulary. It records the
+source of consequential facts and asks about missing behavior rather than
+guessing. Private configuration and real answers are not research inputs.
+
+The standalone CLI provides the native feedback loop: initialize, check, revise,
+build, and exercise synthetic answer workspaces against independently specified
+target output. The contributor reviews the source and the executed evidence.
+The skill guides this work; the CLI enforces its machine contracts.
+
+An adopter should need one maintained integration file, not a target-specific
+exporter project, compiler wrapper, downloader or copied Configurator runtime.
+Keep the integration beside the target code so maintainers can review it when
+configuration changes. Application startup and deployment are separate.
+
 ## Create and review the source
 
 ```bash

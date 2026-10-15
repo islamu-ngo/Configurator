@@ -1,0 +1,27 @@
+Change-Id: CHG-01M4ZDWRTK65369BM46TGEBXEQ
+Title: "Integrate through the portable skill and native CLI"
+Type: docs
+Scope: documentation
+Summary: "Guide adopters through repository-aware authoring and native validation without requiring a custom exporter or compiler wrapper."
+Group: integration-guidance
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "Use the portable configurator-integrate skill to author one maintained integration source, then check and build it with the native CLI using synthetic inputs. Target acceptance and deployment remain separate responsibilities."

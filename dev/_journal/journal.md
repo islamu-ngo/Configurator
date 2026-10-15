@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-11 Europe/Brussels
+Last Updated: 2026-10-14 Europe/Brussels
 
 ## Index & Recent
 
@@ -94,3 +94,46 @@ admission order and subscribe to the precise UI readiness signal.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; existing desktop custody/operation boundaries remain authoritative.
+
+[2026-10-14 Europe/Brussels] — Native adoption uses the portable skill and CLI
+
+**Context**: While reviewing Event's integration with Configurator, the user
+rejected the Event-specific exporter and requested its removal. This records
+Configurator's adoption contract rather than importing Event's implementation
+history.
+
+**Symptom / Observation**: A contributor needed a separate engineering project,
+fixture-driven generator and compiler wrapper to maintain the integration.
+The user stated: "we need a native supported way, to help maintainers produce
+their correct file" and identified the Agentic Skill as that path.
+
+**Root Cause**: The integration treated target-specific generation as a required
+authoring authority instead of using the supported portable skill and native CLI.
+This made adopting Configurator feel like maintaining another toolchain.
+
+**Resolution**: The supported workflow is `configurator-integrate` with an agent
+that researches the target's public declarations, schemas, validators and
+synthetic examples, authors one maintained compact source, and uses native
+`definition init/check/revise/build` plus synthetic preparation checks. The
+contributor reviews the source, evidence and missing facts. A custom exporter,
+compiler wrapper, downloader or target runtime dependency is not required.
+Direct native checking exposed ambiguous `Off` and empty null scalars in the
+previous serializer output. Quoting the string and writing explicit `null` made
+`definition check` and `definition build --against` pass while preserving the
+existing canonical digest. A general YAML serializer round trip had not proved
+admission through Configurator's bounded YAML grammar.
+
+**Why This Matters for Future Work**: The skill supplies repository-aware
+guidance; the CLI supplies machine-enforced admission and preparation. A
+successful compiler check does not establish target compatibility, acceptance
+or apply authority. Unsupported target facts must be surfaced rather than
+invented. Good adoption UX keeps those responsibilities explicit without adding
+bespoke target tooling.
+
+**References**:
+- `skills/configurator-integrate/SKILL.md`
+- `skills/configurator-integrate/resources/authoring.md`
+- `docs/public/integrate-your-tool.md`
+
+**Promotion Consideration**:
+- [x] Documented in the public integration guide; preserve as an adoption decision.
