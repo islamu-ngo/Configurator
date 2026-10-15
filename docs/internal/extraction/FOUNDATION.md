@@ -95,6 +95,11 @@ See [browser custody ADR](../adr/ADR-browser-session-trust-and-export.md),
 
 ## Verification and provenance
 
+The [Terminal CTO review](../TERMINAL_CTO_REVIEW.md) records the point-in-time
+2026-10-14 assessment of terminal interaction, security, maintainability and
+qualification, with executed checks and reproduced failures. It is an
+assessment, not a replacement for the client or shared-state contracts.
+
 The browser's Event-style UI adaptation uses identified first-party originals
 and separately licensed MudBlazor assets; exact source paths, revision/blob and
 dispositions live in [Browser UI transfer](BROWSER_UI_TRANSFER.md). Optional
