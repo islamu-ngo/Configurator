@@ -316,6 +316,159 @@ public sealed class SetupCliContractTests
     }
 
     [Test]
+    public async Task MachineHelpVerifierRejectsOpenUntypedOversizedAndMisidentifiedPayloads()
+    {
+        byte[] rootHelp = SetupCliMachineContractVerifier.Mutate(AddRootHelp);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(rootHelp)).IsEmpty();
+        Action<JsonObject>[] mutations =
+        [
+            root => root.Remove("help"),
+            root => root["help"] = null,
+            root => root["help"]!["body"] = "human help",
+            root => root["help"]!["scope"] = "unknown",
+            root => root["help"]!["commandPath"] = new JsonArray("artifact"),
+            root => root["help"]!["commands"] = new JsonArray(),
+            root => root["help"]!["commands"]!.AsArray().Add("cli"),
+            root => root["help"]!["commands"]!.AsArray().Add("doctor"),
+            root => root["help"]!["commands"] = new JsonArray(Enumerable.Range(0, 33).Select(_ => (JsonNode?)JsonValue.Create("doctor")).ToArray()),
+            root => root["help"]!["options"] = new JsonArray(new JsonObject
+                { ["name"] = "--machine", ["requiresValue"] = false, ["repeatable"] = false }),
+            root => root["invocation"]!["commandFamily"] = "doctor"
+        ];
+        foreach (Action<JsonObject> mutation in mutations)
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                AddRootHelp(root);
+                mutation(root);
+            })).Count).IsGreaterThan(0);
+
+        Action<JsonObject>[] optionMutations =
+        [
+            option => option.Remove("requiresValue"),
+            option => option["requiresValue"] = "false",
+            option => option["repeatable"] = 0,
+            option => option["name"] = "--" + new string('x', 63),
+            option => option["name"] = "--help\n",
+            option => option["value"] = "private-answer-marker"
+        ];
+        foreach (Action<JsonObject> mutation in optionMutations)
+        {
+            byte[] malformed = SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                AddRootHelp(root);
+                root["invocation"]!["commandFamily"] = "doctor";
+                root["invocation"]!["operation"] = "doctor";
+                root["help"]!["scope"] = "leaf";
+                root["help"]!["commandPath"] = new JsonArray("doctor");
+                root["help"]!["commands"] = new JsonArray();
+                var option = new JsonObject { ["name"] = "--help", ["requiresValue"] = false, ["repeatable"] = false };
+                mutation(option);
+                root["help"]!["options"] = new JsonArray(option);
+            });
+            await Assert.That(SetupCliMachineContractVerifier.Validate(malformed).Count).IsGreaterThan(0);
+        }
+    }
+
+    [Test]
+    public async Task SchemaHelpContractRejectsUntypedOptionsAndUnboundedPayloads()
+    {
+        JsonObject untyped = SetupCliMachineContractVerifier.ParseSchema(SetupCliCommandSchemaMetadata.GenerateSchema());
+        untyped["$defs"]!["helpOption"]!["properties"]!["requiresValue"]!["type"] = "string";
+        await Assert.That(SetupCliMachineContractVerifier.InspectSchema(untyped)).Contains("schema-help-contract");
+        JsonObject unbounded = SetupCliMachineContractVerifier.ParseSchema(SetupCliCommandSchemaMetadata.GenerateSchema());
+        unbounded["$defs"]!["help"]!["properties"]!["options"]!["maxItems"] = 65;
+        await Assert.That(SetupCliMachineContractVerifier.InspectSchema(unbounded)).Contains("schema-help-contract");
+        JsonObject open = SetupCliMachineContractVerifier.ParseSchema(SetupCliCommandSchemaMetadata.GenerateSchema());
+        open["$defs"]!["help"]!["additionalProperties"] = true;
+        await Assert.That(SetupCliMachineContractVerifier.InspectSchema(open).Count).IsGreaterThan(0);
+    }
+
+    private static void AddRootHelp(JsonObject root)
+    {
+        root["invocation"] = new JsonObject { ["commandFamily"] = "cli", ["operation"] = "help", ["mode"] = "machine" };
+        root["preparation"] = null;
+        root["artifacts"] = new JsonArray();
+        root["coverage"]!["coveredCount"] = 0;
+        root["help"] = new JsonObject
+        {
+            ["scope"] = "root", ["commandPath"] = new JsonArray(),
+            ["commands"] = new JsonArray("catalogue", "artifact", "env", "definition", "doctor"),
+            ["options"] = new JsonArray()
+        };
+    }
+
+    [Test]
+    public async Task MachineHelpDescribesRootBranchAndLeafWithoutReadingOrPublishingInputs()
+    {
+        (string[] Arguments, string Family, string Operation, string Scope, string[] Path, string[] Commands)[] cases =
+        [
+            (["--help", "--machine"], "cli", "help", "root", [], ["catalogue", "artifact", "env", "definition", "doctor"]),
+            (["artifact", "--help", "--machine"], "artifact", "help", "branch", ["artifact"],
+                ["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "prefill", "bundle-check", "bundle-create", "preview"]),
+            (["artifact", "bundle-create", "--help", "--machine"], "artifact", "bundle-create", "leaf", ["artifact", "bundle-create"], [])
+        ];
+        foreach (var item in cases)
+        {
+            var io = new CliFixture();
+            string[] originalFiles = io.Files.Keys.ToArray();
+            await Assert.That(await io.RunAsync(item.Arguments)).IsEqualTo(SetupCliExitCode.Success);
+            using JsonDocument response = JsonDocument.Parse(io.StandardOutput);
+            JsonElement root = response.RootElement;
+            await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo(item.Family);
+            await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo(item.Operation);
+            JsonElement help = root.GetProperty("help");
+            await Assert.That(help.GetProperty("scope").GetString()).IsEqualTo(item.Scope);
+            await Assert.That(help.GetProperty("commandPath").EnumerateArray().Select(value => value.GetString()!))
+                .IsEquivalentTo(item.Path);
+            await Assert.That(help.GetProperty("commands").EnumerateArray().Select(value => value.GetString()!))
+                .IsEquivalentTo(item.Commands);
+            if (item.Scope == "leaf")
+            {
+                JsonElement artifact = help.GetProperty("options").EnumerateArray()
+                    .Single(option => option.GetProperty("name").GetString() == "--artifact");
+                await Assert.That(artifact.GetProperty("requiresValue").GetBoolean()).IsTrue();
+                await Assert.That(artifact.GetProperty("repeatable").GetBoolean()).IsTrue();
+                JsonElement machine = help.GetProperty("options").EnumerateArray()
+                    .Single(option => option.GetProperty("name").GetString() == "--machine");
+                await Assert.That(machine.GetProperty("requiresValue").GetBoolean()).IsFalse();
+                await Assert.That(machine.GetProperty("repeatable").GetBoolean()).IsFalse();
+            }
+            await Assert.That(root.GetProperty("artifacts").GetArrayLength()).IsEqualTo(0);
+            await Assert.That(io.MaximumRead).IsEqualTo(0);
+            await Assert.That(io.Files.Keys).IsEquivalentTo(originalFiles);
+            await Assert.That(io.StandardError).IsEmpty();
+            await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        }
+    }
+
+    [Test]
+    public async Task EveryPublicLeafHasBoundedTypedMachineHelpWithItsActualRoute()
+    {
+        foreach (var family in SetupCliContractSpecification.Operations)
+            foreach (string operation in family.Value)
+            {
+                var io = new CliFixture();
+                string[] path = family.Key == "doctor" ? ["doctor"] : [family.Key, operation];
+                await Assert.That(await io.RunAsync([.. path, "--help", "--machine"]))
+                    .IsEqualTo(SetupCliExitCode.Success);
+                using JsonDocument response = JsonDocument.Parse(io.StandardOutput);
+                JsonElement root = response.RootElement;
+                await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo(family.Key);
+                await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo(operation);
+                JsonElement help = root.GetProperty("help");
+                await Assert.That(help.GetProperty("scope").GetString()).IsEqualTo("leaf");
+                await Assert.That(help.GetProperty("commandPath").EnumerateArray().Select(value => value.GetString()!))
+                    .IsEquivalentTo(path);
+                await Assert.That(help.GetProperty("options").GetArrayLength()).IsGreaterThan(0);
+                await Assert.That(help.GetProperty("options").GetArrayLength()).IsLessThanOrEqualTo(64);
+                await Assert.That(help.GetProperty("commands").GetArrayLength()).IsEqualTo(0);
+                await Assert.That(io.StandardOutput.Length).IsLessThanOrEqualTo(65_536);
+                await Assert.That(io.MaximumRead).IsEqualTo(0);
+                await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+            }
+    }
+
+    [Test]
     public async Task HelpBypassesInputsButStillHasOneMachineEnvelope()
     {
         foreach (var family in SetupCliCommandSchemaMetadata.Commands)

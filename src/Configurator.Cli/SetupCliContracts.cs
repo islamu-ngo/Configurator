@@ -49,25 +49,10 @@ public sealed record SetupCliIo
     public override string ToString() => $"{nameof(SetupCliIo)}:OutputBytes={MaximumOutputBytes}:Bytes={MaximumBytes}";
 }
 
-public sealed record SetupCliEnvironmentPresence
-{
-    private readonly string[] _names;
-    public SetupCliEnvironmentPresence(IEnumerable<string> names)
-    {
-        ArgumentNullException.ThrowIfNull(names);
-        _names = names.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        if (_names.Any(name => name is null || name.Length is < 1 or > 128))
-            throw new ArgumentException("environment-name-invalid", nameof(names));
-    }
-    public IReadOnlyList<string> Names => Array.AsReadOnly((string[])_names.Clone());
-    public override string ToString() => $"{nameof(SetupCliEnvironmentPresence)}:Count={_names.Length}";
-}
-
 public sealed record SetupCliInvocation
 {
     private readonly string[] _arguments;
-    public SetupCliInvocation(IEnumerable<string> arguments, SetupCliMode mode, SetupCliIo io,
-        SetupCliEnvironmentPresence environment)
+    public SetupCliInvocation(IEnumerable<string> arguments, SetupCliMode mode, SetupCliIo io)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         _arguments = arguments.ToArray();
@@ -76,12 +61,10 @@ public sealed record SetupCliInvocation
             throw new ArgumentException("argument-bound-exceeded", nameof(arguments));
         Mode = mode;
         Io = io ?? throw new ArgumentNullException(nameof(io));
-        Environment = environment ?? throw new ArgumentNullException(nameof(environment));
     }
     public IReadOnlyList<string> Arguments => Array.AsReadOnly((string[])_arguments.Clone());
     public SetupCliMode Mode { get; }
     public SetupCliIo Io { get; }
-    public SetupCliEnvironmentPresence Environment { get; }
     public override string ToString() => $"{nameof(SetupCliInvocation)}:Mode={Mode}:Count={_arguments.Length}";
 }
 
@@ -173,6 +156,8 @@ public sealed record SetupCliMachineEnvelope
     public string DetailDigest { get; init; } = "";
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SetupCliMachineDetail? Detail { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SetupCliHelpView? Help { get; init; }
     public IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics => Array.AsReadOnly((SetupCliMachineDiagnostic[])_diagnostics.Clone());
     public IReadOnlyList<SetupCliMachineArtifact> Artifacts => Array.AsReadOnly((SetupCliMachineArtifact[])_artifacts.Clone());
     public SetupCliMachineCoverage Coverage { get; }

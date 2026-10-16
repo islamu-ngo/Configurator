@@ -36,6 +36,7 @@ internal sealed record SetupCliCommandResult(
     SetupCliMachineReadiness Readiness)
 {
     internal string? DefinitionDigest { get; init; }
+    internal SetupCliHelpView? Help { get; init; }
     internal string Completion { get; init; } = "completed";
     internal string? Preparation { get; init; }
     internal string Cleanup { get; init; } = "not-required";

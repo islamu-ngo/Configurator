@@ -16,7 +16,7 @@ public sealed class SetupCliProgramTests
             "artifact", "validate", "--definition", files.Definition,
             "--artifact", "config", "--input", "-", "--machine"];
         ProcessResult result = await ExecuteHostAsync("/usr/bin/script",
-            ["-q", "-e", "-c", string.Join(' ', command.Select(ShellQuote)), "/dev/null"]);
+            ["-q", "-e", "-c", "TERM=xterm-256color exec " + string.Join(' ', command.Select(ShellQuote)), "/dev/null"]);
 
         await Assert.That(result.ExitCode).IsEqualTo(74);
         await Assert.That(result.StandardError).IsEmpty();
@@ -69,9 +69,6 @@ public sealed class SetupCliProgramTests
             RedirectStandardError = true,
             UseShellExecute = false
         };
-        string[] hostVariables = ["PATH", "DOTNET_ROOT", "DOTNET_ROOT_X64", "DOTNET_ROOT_ARM64", "TMPDIR"];
-        foreach (string name in info.Environment.Keys.Where(key => !hostVariables.Contains(key, StringComparer.Ordinal)).ToArray())
-            info.Environment.Remove(name);
         foreach (string argument in new[] { "artifact", "validate", "--definition", files.Definition,
             "--artifact", "config", "--input", "-", "--machine" })
             info.ArgumentList.Add(argument);
@@ -265,8 +262,8 @@ public sealed class SetupCliProgramTests
         {
             ProcessResult text = await ExecuteAsync(arguments);
             await Assert.That(text.ExitCode).IsEqualTo(64);
-            await Assert.That(text.StandardError).IsEmpty();
-            string guidance = Encoding.UTF8.GetString(text.StandardOutput);
+            await Assert.That(text.StandardOutput).IsEmpty();
+            string guidance = Encoding.UTF8.GetString(text.StandardError);
             await Assert.That(guidance).Contains(code);
 
             ProcessResult machine = await ExecuteAsync([.. arguments, "--machine"]);
@@ -279,7 +276,7 @@ public sealed class SetupCliProgramTests
         }
 
         ProcessResult rejected = await ExecuteAsync(["catalogue", "show", "--key", "person@example.invalid"]);
-        await Assert.That(Encoding.UTF8.GetString(rejected.StandardOutput))
+        await Assert.That(Encoding.UTF8.GetString(rejected.StandardError))
             .DoesNotContain("person@example.invalid");
     }
 
@@ -318,17 +315,18 @@ public sealed class SetupCliProgramTests
     }
 
     [Test]
-    public async Task ExecutableChecksEnvironmentNamesWithoutReadingTheirValues()
+    public async Task ExecutableIgnoresUnrelatedAmbientCredentials()
     {
         string suffix = Guid.NewGuid().ToString("N");
         string name = "SERVICE_TOKEN_" + suffix;
         string value = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         ProcessResult result = await ExecuteAsync(["doctor", "--machine"], new Dictionary<string, string>
         {
-            [name] = value
+            [name] = value,
+            ["GITHUB_TOKEN"] = "synthetic-unrelated-token"
         });
 
-        await Assert.That(result.ExitCode).IsEqualTo(4);
+        await Assert.That(result.ExitCode).IsEqualTo(OperatingSystem.IsLinux() ? 0 : 4);
         await Assert.That(result.StandardError).IsEmpty();
         await Assert.That(SetupCliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
         string output = Encoding.UTF8.GetString(result.StandardOutput);
@@ -367,9 +365,6 @@ public sealed class SetupCliProgramTests
             RedirectStandardError = true,
             UseShellExecute = false
         };
-        string[] hostVariables = ["PATH", "DOTNET_ROOT", "DOTNET_ROOT_X64", "DOTNET_ROOT_ARM64", "TMPDIR"];
-        foreach (string name in info.Environment.Keys.Where(key => !hostVariables.Contains(key, StringComparer.Ordinal)).ToArray())
-            info.Environment.Remove(name);
         foreach (string argument in arguments) info.ArgumentList.Add(argument);
         using var process = new Process { StartInfo = info, EnableRaisingEvents = true };
         var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -405,12 +400,6 @@ public sealed class SetupCliProgramTests
             RedirectStandardError = true,
             UseShellExecute = false
         };
-        string[] hostVariables = ["PATH", "SystemRoot", "DOTNET_ROOT", "DOTNET_ROOT_X64",
-            "DOTNET_ROOT_ARM64", "TEMP", "TMP", "TMPDIR"];
-        foreach (string name in info.Environment.Keys.Where(key => !hostVariables.Contains(key, StringComparer.OrdinalIgnoreCase)).ToArray())
-        {
-            info.Environment.Remove(name);
-        }
         foreach (string argument in arguments) info.ArgumentList.Add(argument);
         if (environment is not null)
         {
@@ -424,8 +413,19 @@ public sealed class SetupCliProgramTests
         Task<byte[]> output = ReadAllAsync(process.StandardOutput.BaseStream);
         Task<byte[]> error = ReadAllAsync(process.StandardError.BaseStream);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        await exited.Task.WaitAsync(timeout.Token);
-        return new ProcessResult(process.ExitCode, await output.WaitAsync(timeout.Token), await error.WaitAsync(timeout.Token));
+        try
+        {
+            await exited.Task.WaitAsync(timeout.Token);
+            return new ProcessResult(process.ExitCode, await output.WaitAsync(timeout.Token), await error.WaitAsync(timeout.Token));
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+        }
     }
 
     private static async Task<byte[]> ReadAllAsync(Stream stream)

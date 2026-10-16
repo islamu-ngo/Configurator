@@ -44,12 +44,8 @@ public sealed class SetupCliMachineBoundaryTests
             string target = Path.Combine(directory, "0.json");
             await File.WriteAllTextAsync(source, definition.ToJsonString());
             await File.WriteAllTextAsync(input, answers.ToJsonString());
-            var info = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "Configurator.Cli"))
+            var info = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "Configurator.Cli.exe" : "Configurator.Cli"))
             { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-            // Ambient names are irrelevant to this invariant; explicit-input admission is a later slice.
-            foreach (string name in info.Environment.Keys.Where(name => name.Contains("TOKEN", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("PASSWORD", StringComparison.OrdinalIgnoreCase) || name.Contains("SECRET", StringComparison.OrdinalIgnoreCase)).ToArray())
-                info.Environment.Remove(name);
             foreach (string argument in new[] { "artifact", "bundle-create", "--definition", source,
                 "--input", input, "--output", directory, "--machine" }) info.ArgumentList.Add(argument);
             foreach (string id in ids) { info.ArgumentList.Add("--artifact"); info.ArgumentList.Add(id); }
@@ -57,21 +53,34 @@ public sealed class SetupCliMachineBoundaryTests
             Task<string> output = process.StandardOutput.ReadToEndAsync();
             Task<string> error = process.StandardError.ReadToEndAsync();
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            await process.WaitForExitAsync(timeout.Token);
-            await Assert.That(File.Exists(target)).IsTrue();
-            using JsonDocument payload = JsonDocument.Parse(await File.ReadAllBytesAsync(target, timeout.Token));
-            await Assert.That(payload.RootElement.GetProperty("ok").GetBoolean()).IsTrue();
+            try { await process.WaitForExitAsync(timeout.Token); }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await process.WaitForExitAsync(cleanupTimeout.Token);
+                }
+            }
             if (OperatingSystem.IsLinux())
+            {
+                await Assert.That(File.Exists(target)).IsTrue();
+                using JsonDocument payload = JsonDocument.Parse(await File.ReadAllBytesAsync(target, timeout.Token));
+                await Assert.That(payload.RootElement.GetProperty("ok").GetBoolean()).IsTrue();
                 await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            else foreach (string file in Enumerable.Range(0, 64).Select(index => Path.Combine(directory, index + ".json")))
+                await Assert.That(File.Exists(file)).IsFalse();
             string receipt = await output;
             await Assert.That(await error).IsEmpty();
             await Assert.That(Encoding.UTF8.GetByteCount(receipt)).IsLessThanOrEqualTo(65_536);
             using JsonDocument result = JsonDocument.Parse(receipt);
             await Assert.That(result.RootElement.GetProperty("artifacts").GetArrayLength()).IsEqualTo(64);
             foreach (JsonElement artifact in result.RootElement.GetProperty("artifacts").EnumerateArray())
-                await Assert.That(artifact.GetProperty("writeStatus").GetString()).IsEqualTo("written");
+                await Assert.That(artifact.GetProperty("writeStatus").GetString()).IsEqualTo(OperatingSystem.IsLinux() ? "written" : "blocked");
             await Assert.That(result.RootElement.GetProperty("coverage").GetProperty("coveredCount").GetInt32()).IsEqualTo(64);
-            await Assert.That(process.ExitCode).IsEqualTo(0);
+            await Assert.That(process.ExitCode).IsEqualTo(OperatingSystem.IsLinux() ? 0 : 4);
         }
         finally { Directory.Delete(directory, recursive: true); }
     }
@@ -84,7 +93,7 @@ public sealed class SetupCliMachineBoundaryTests
         var writer = new FailingWriter(prefix);
         var error = new FailingWriter(0);
         SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(["doctor", "--machine"], SetupCliMode.Machine,
-            new(new CliFixture(), writer, error, 65_536, 4 * 1024 * 1024), new([])));
+            new(new CliFixture(), writer, error, 65_536, 4 * 1024 * 1024)));
         await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
         await Assert.That(writer.Attempts).IsEqualTo(1);
         await Assert.That(error.Attempts).IsEqualTo(1);
@@ -199,7 +208,7 @@ public sealed class SetupCliMachineBoundaryTests
     private static Task<SetupCliExitCode> RunArtifactAsync(CliFixture fixture, PublicationWriter writer, int budget = 65_536) =>
         new SetupCliApplication().RunAsync(new(["artifact", "create", "--definition", "definition.json", "--artifact", "config",
             "--input", "answers.json", "--output", "prepared.json", "--machine"], SetupCliMode.Machine,
-            new(fixture, writer, writer, budget, 4 * 1024 * 1024), new([])));
+            new(fixture, writer, writer, budget, 4 * 1024 * 1024)));
 
     private sealed class PublicationWriter(CliFixture fixture, SetupCliPublicationResult? result) : ISetupCliWriter
     {

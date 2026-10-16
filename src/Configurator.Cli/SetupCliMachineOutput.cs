@@ -8,9 +8,10 @@ internal static class SetupCliMachineOutput
 {
     internal static byte[] Serialize(SetupCliCommand command, SetupCliCommandResult result, int maximumOutputBytes)
     {
-        string family = SetupCliCommandRegistry.Families.Any(item => item.Name == command.Family) ? command.Family : "doctor";
+        string family = SetupCliCommandRegistry.Families.Any(item => item.Name == command.Family) ? command.Family : "cli";
+        if (family == "doctor" && command.Operation != "doctor") family = "cli";
         string operation = SetupCliCommandRegistry.TryResolve(family, command.Operation, out _) ? command.Operation
-            : SetupCliCommandRegistry.Families.First(item => item.Name == family).Operations[0].Name;
+            : "help";
         SetupCliMachineDiagnostic[] diagnostics = result.Diagnostics.Select(Sanitize).ToArray();
         string digest = DetailDigest(command, result, diagnostics);
         SetupCliMachineDetail? detail = Detail(command, result, diagnostics, digest);
@@ -37,8 +38,9 @@ internal static class SetupCliMachineOutput
             DiagnosticsOmitted = diagnostics.Length - inline.Length,
             DetailDigest = digest,
             Detail = detail,
-            AuthoringContractVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success ? 1 : null,
-            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success ? 1 : null
+            Help = result.Help,
+            AuthoringContractVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 1 : null,
+            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 1 : null
         };
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(envelope, SetupCliJsonContext.Default.SetupCliMachineEnvelope);
         if (body.Length + 1 > maximumOutputBytes) throw new IOException("output-bound");

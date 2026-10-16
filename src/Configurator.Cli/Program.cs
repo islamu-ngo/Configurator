@@ -19,34 +19,42 @@ internal static class SetupCliProgram
             context.Cancel = true;
             cancellation.Cancel();
         };
-        Console.CancelKeyPress += cancel;
+        // Unix Console signal registration initializes the terminal and emits keypad controls.
+        if (OperatingSystem.IsWindows()) Console.CancelKeyPress += cancel;
         try
         {
+            using PosixSignalRegistration? interrupt = OperatingSystem.IsWindows() ? null
+                : PosixSignalRegistration.Create(PosixSignal.SIGINT, context =>
+                {
+                    context.Cancel = true;
+                    cancellation.Cancel();
+                });
             using PosixSignalRegistration? termination = OperatingSystem.IsWindows() ? null
                 : PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
                 {
                     context.Cancel = true;
                     cancellation.Cancel();
                 });
-            SetupCliMode mode = args.Contains("--machine", StringComparer.Ordinal) ? SetupCliMode.Machine : SetupCliMode.Text;
+            SetupCliMode mode = SetupCliArgumentPreflight.Mode(args);
             // Non-owning handles can hang async pipe disposal after cancellation.
             using SafePipeHandle? inputHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)0, ownsHandle: true);
             using SafePipeHandle? outputHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)1, ownsHandle: true);
             using SafePipeHandle? errorHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)2, ownsHandle: true);
-            using Stream standardOutput = OpenStandardStream(1, outputHandle);
-            using Stream standardError = OpenStandardStream(2, errorHandle);
+            using SafeFileHandle? outputFileHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)1, ownsHandle: false);
+            using SafeFileHandle? errorFileHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)2, ownsHandle: false);
+            using Stream standardOutput = OpenStandardStream(1, outputHandle, outputFileHandle);
+            using Stream standardError = OpenStandardStream(2, errorHandle, errorFileHandle);
             var writer = new SystemWriter(standardOutput);
             var error = new SystemWriter(standardError);
             var io = new SetupCliIo(new SystemInput(inputHandle), writer, error, 65_536, 4 * 1024 * 1024);
             SetupCliInvocation invocation;
             try
             {
-                invocation = new(args, mode, io, new SetupCliEnvironmentPresence(
-                    Environment.GetEnvironmentVariables().Keys.Cast<object>().Select(name => name.ToString()!).Where(name => name.Length > 0)));
+                invocation = new(args, mode, io);
             }
             catch (ArgumentException)
             {
-                invocation = new(["doctor", mode == SetupCliMode.Machine ? "--machine" : "--text", "--invalid-arguments"], mode, io, new([]));
+                invocation = new(["doctor", mode == SetupCliMode.Machine ? "--machine" : "--text", "--invalid-arguments"], mode, io);
             }
             return (int)await new SetupCliApplication().RunAsync(invocation, cancellation.Token);
         }
@@ -62,16 +70,21 @@ internal static class SetupCliProgram
         {
             return (int)SetupCliExitCode.Internal;
         }
-        finally { Console.CancelKeyPress -= cancel; }
+        finally { if (OperatingSystem.IsWindows()) Console.CancelKeyPress -= cancel; }
     }
 
-    private static Stream OpenStandardStream(int descriptor, SafePipeHandle? handle)
+    private static Stream OpenStandardStream(int descriptor, SafePipeHandle? handle, SafeFileHandle? fileHandle = null)
     {
         if (handle is not null)
         {
             try { return new NamedPipeClientStream(descriptor == 0 ? PipeDirection.In : PipeDirection.Out,
                 isAsync: true, isConnected: true, handle); }
-            catch (IOException) { }
+            catch (IOException)
+            {
+                // Console output streams also initialize the terminal driver on their first write.
+                if (fileHandle is not null) return new FileStream(fileHandle, FileAccess.Write,
+                    bufferSize: 1, isAsync: false);
+            }
         }
         return descriptor switch
         {

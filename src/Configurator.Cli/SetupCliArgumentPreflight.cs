@@ -8,275 +8,118 @@ internal sealed record SetupCliPreflight(
 
 internal static class SetupCliArgumentPreflight
 {
-    internal const string StandardIoSentinel = "__CONFIGURATOR_STANDARD_IO__";
+    private static readonly Dictionary<string, bool> ValueOptions = SetupCliCommandRegistry.Families
+        .SelectMany(family => family.Operations).SelectMany(operation => operation.Options)
+        .GroupBy(option => option.Name, StringComparer.Ordinal)
+        .ToDictionary(group => group.Key, group => group.First().RequiresValue, StringComparer.Ordinal);
 
-    private const string MachineOption = "--machine";
-    private const string TextOption = "--text";
-    private const string HelpOption = "--help";
-    private const string InputOption = "--input";
-    private const string BaselineOption = "--baseline";
-    private const string OutputOption = "--output";
-    private const string KeyOption = "--key";
-    private const string ExpectedRevisionOption = "--expected-revision";
-    private const string DoctorCommand = "doctor";
-
-    private static readonly string[] Forbidden =
-        ["secret", "password", "token", "credential", "private-key", "api-key", "connection-string"];
+    internal static SetupCliMode Mode(IReadOnlyList<string> arguments) =>
+        OptionTokens(arguments).Contains("--machine", StringComparer.Ordinal) ? SetupCliMode.Machine : SetupCliMode.Text;
 
     internal static SetupCliPreflight Inspect(SetupCliInvocation invocation)
     {
-        string[] args = invocation.Arguments.ToArray();
-        string[] spectreArguments = (string[])args.Clone();
-        bool invocationMachine = invocation.Mode == SetupCliMode.Machine;
-        if (args.Length == 0 || args is [HelpOption])
-            return Help(DoctorCommand, DoctorCommand, invocationMachine, [HelpOption]);
+        string[] arguments = invocation.Arguments.ToArray();
+        string[] tokens = OptionTokens(arguments).ToArray();
+        bool machine = invocation.Mode == SetupCliMode.Machine || tokens.Contains("--machine", StringComparer.Ordinal);
+        bool text = tokens.Contains("--text", StringComparer.Ordinal);
+        if (arguments.Length > 256 || arguments.Any(argument => argument.Length > 4096)
+            || arguments.Sum(argument => System.Text.Encoding.UTF8.GetByteCount(argument) + 1) > 32_768)
+            return Failure(machine, "argument-shape-invalid");
+        if (arguments.Any(argument => argument.Any(char.IsControl)))
+            return Failure(machine, "argument-shape-invalid");
 
-        if (args.Length > 256 || args.Any(argument => argument.Length > 4096)
-            || args.Sum(argument => System.Text.Encoding.UTF8.GetByteCount(argument) + 1) > 32_768)
-            return Failure(invocationMachine, "argument-shape-invalid");
-
-        string family = args[0];
-        SetupCliFamilyDescriptor? familyDescriptor = SetupCliCommandRegistry.Families
-            .FirstOrDefault(item => item.Name == family);
-        if (familyDescriptor is null || IsHostile(family))
-            return Failure(invocationMachine || args.Contains(MachineOption, StringComparer.Ordinal), "command-unknown");
-
-        bool doctor = family == DoctorCommand;
-        int optionStart = doctor ? 1 : 2;
-        string operation = ResolveOperation(doctor, args);
-        bool machine = invocationMachine || args.Contains(MachineOption, StringComparer.Ordinal);
-        if (!doctor && operation == HelpOption
-            && args.Skip(2).All(argument => argument is MachineOption or TextOption))
+        string family = "cli";
+        string operation = "help";
+        bool help = arguments.Length == 0 || tokens.Any(token => token is "--help" or "-h");
+        IReadOnlyList<SetupCliOptionDescriptor>? options = null;
+        int optionStart = 0;
+        if (arguments.Length > 0 && !arguments[0].StartsWith('-'))
         {
-            if (machine && args.Contains(TextOption, StringComparer.Ordinal))
-                return Failure(machine, "mode-conflict", family, familyDescriptor.Operations[0].Name);
-            return Help(family, familyDescriptor.Operations[0].Name, machine, args);
-        }
-        if (!SetupCliCommandRegistry.TryResolve(family, operation, out SetupCliOperationDescriptor? descriptor))
-            return Failure(machine, "operation-unknown", family, familyDescriptor.Operations[0].Name);
+            family = arguments[0];
+            SetupCliFamilyDescriptor? branch = SetupCliCommandRegistry.Families.FirstOrDefault(item => item.Name == family);
+            if (branch is null)
+                return Failure(machine, "command-unknown");
 
-        var options = descriptor!.Options.ToDictionary(item => item.Name, StringComparer.Ordinal);
-        var values = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        bool help = false;
-        string? error = ParseTokens(args, optionStart, options, spectreArguments, values, ref help);
-        error ??= ValidateConstraints(options, values, help, ref machine, family == "definition");
-
-        bool dryRun = values.ContainsKey("--dry-run");
-        var command = new SetupCliCommand(
-            family,
-            operation,
-            machine,
-            dryRun,
-            help,
-            GetFirst(values, "--definition"),
-            GetFirst(values, "--artifact"),
-            GetFirst(values, InputOption),
-            GetFirst(values, BaselineOption),
-            GetFirst(values, OutputOption),
-            GetFirst(values, KeyOption))
-        {
-            Format = GetFirst(values, "--format"),
-            ExpectedRevision = GetFirst(values, ExpectedRevisionOption),
-            RevisionField = GetFirst(values, "--revision-field"),
-            Answers = GetFirst(values, "--answers"),
-            Artifacts = values.TryGetValue("--artifact", out List<string>? selected) && options["--artifact"].Repeatable ? selected.ToArray() : null,
-            InputRevision = GetFirst(values, "--input-revision") ?? "0"
-        };
-        return new(command, spectreArguments, error is null && (!help || !machine), error);
-    }
-
-    private static string ResolveOperation(bool doctor, string[] args)
-    {
-        if (doctor) return DoctorCommand;
-        return args.Length > 1 ? args[1] : string.Empty;
-    }
-
-    private static string? ParseTokens(
-        string[] args,
-        int optionStart,
-        Dictionary<string, SetupCliOptionDescriptor> options,
-        string[] spectreArguments,
-        Dictionary<string, List<string>> values,
-        ref bool help)
-    {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        int index = optionStart;
-        while (index < args.Length)
-        {
-            string token = args[index];
-            if (IsHostile(token) || HasControl(token))
-                return "secret-surface";
-
-            if (token == HelpOption)
+            optionStart = 1;
+            if (family == "doctor")
             {
+                operation = "doctor";
+                options = branch.Operations[0].Options;
+            }
+            else if (arguments.Length > 1 && !arguments[1].StartsWith('-'))
+            {
+                operation = arguments[1];
+                if (!SetupCliCommandRegistry.TryResolve(family, operation, out SetupCliOperationDescriptor? descriptor))
+                    return Failure(machine, "operation-unknown", family);
+                options = descriptor!.Options;
+                optionStart = 2;
+            }
+            else
                 help = true;
-                index++;
-                continue;
-            }
-
-            if (!options.TryGetValue(token, out SetupCliOptionDescriptor? option))
-                return token.StartsWith('-') ? "option-unknown" : "argument-tail";
-
-            if (!option.Repeatable && !seen.Add(token))
-                return "option-duplicate";
-
-            if (!option.RequiresValue)
-            {
-                values[token] = [];
-                index++;
-                continue;
-            }
-
-            index++;
-            if (index >= args.Length || args[index].StartsWith("--", StringComparison.Ordinal))
-                return "option-value-missing";
-
-            string value = args[index];
-            if (value.Length > 4096 || IsHostile(value) || HasControl(value))
-                return IsPathOption(token) ? "path-rejected" : "option-value-rejected";
-
-            if (!values.TryGetValue(token, out List<string>? list))
-                values[token] = list = [];
-            list.Add(value);
-
-            if (value == "-" && IsPathOption(token))
-                spectreArguments[index] = StandardIoSentinel;
-
-            index++;
         }
 
-        return null;
-    }
-
-    private static bool IsPathOption(string token) =>
-        token is InputOption or BaselineOption or OutputOption or "--definition" or "--answers"
-            or "--source" or "--root" or "--against" or "--id-map" or "--fork-from" or "--from-schema" or "--from-env-example";
-
-    private static string? ValidateConstraints(
-        Dictionary<string, SetupCliOptionDescriptor> options,
-        Dictionary<string, List<string>> values,
-        bool help,
-        ref bool machine,
-        bool definition)
-    {
-        bool dryRun = values.ContainsKey("--dry-run");
-        machine |= values.ContainsKey(MachineOption);
-        bool text = values.ContainsKey(TextOption);
-        if (machine && text)
-            return "mode-conflict";
-
-        string? requiredError = definition ? null : CheckRequired(options, values, help, dryRun);
-        if (requiredError is not null)
-            return requiredError;
-
-        if (machine && GetFirst(values, OutputOption) == "-")
-            return "machine-artifact-stdout";
-
-        if (GetFirst(values, KeyOption) is { } key && !IsCatalogueKey(key))
-            return "catalogue-key-invalid";
-
-        foreach (string name in new[] { "--artifact", "--revision-field" })
+        if (options is null)
         {
-            if (values.TryGetValue(name, out List<string>? identifiers) && identifiers.Any(value => !IsIdentifier(value)))
-                return "identifier-invalid";
+            // Root and branch admission must not expose framework-owned diagnostic/export routes.
+            if (arguments.Skip(optionStart).Any(argument => argument is not ("--help" or "-h" or "--machine" or "--text")))
+                return Failure(machine, "command-unknown", family);
+            help = true;
         }
 
-        if (values.TryGetValue("--artifact", out List<string>? artifacts)
-            && (artifacts.Count > 64 || artifacts.Distinct(StringComparer.Ordinal).Count() != artifacts.Count))
-            return "artifact-selection-invalid";
+        if (machine && text)
+            return Failure(machine, "mode-conflict", family, operation);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string token in tokens)
+        {
+            string name = token.Split('=', 2)[0];
+            if (name == "-h") name = "--help";
+            bool singleton = name is "--machine" or "--text" or "--help"
+                || options?.Any(option => option.Name == name && !option.Repeatable) == true;
+            if (singleton && !seen.Add(name))
+                return Failure(machine, "option-duplicate", family, operation);
+        }
 
-        if (GetFirst(values, "--detail") is { } detail
-            && (detail is not ("diagnostics" or "coverage") || !values.ContainsKey(MachineOption))) return "detail-invalid";
-        if (GetFirst(values, "--offset") is { } offset && (!int.TryParse(offset, out int start) || start is < 0 or > 2048)) return "detail-offset-invalid";
-        if (GetFirst(values, "--limit") is { } limit && (!int.TryParse(limit, out int count) || count is < 1 or > 32)) return "detail-limit-invalid";
-
-        if (GetFirst(values, "--format") is { } format && format is not ("json" or "yaml" or "dotenv" or "markdown"))
-            return "format-not-supported";
-
-        if (GetFirst(values, ExpectedRevisionOption) is { } revision && !IsRevision(revision))
-            return "revision-required";
-
-        if (GetFirst(values, "--input-revision") is { } inputRevision
-            && (!long.TryParse(inputRevision, System.Globalization.NumberStyles.None,
-                System.Globalization.CultureInfo.InvariantCulture, out long number) || number < 0))
-            return "input-revision-invalid";
-
-        if (GetFirst(values, "--definition") == "-")
-            return "definition-local-file-required";
-        if (GetFirst(values, InputOption) == "-" && GetFirst(values, BaselineOption) == "-")
-            return "stdin-conflict";
-        if (GetFirst(values, "--answers") == "-" && (GetFirst(values, InputOption) == "-"
-            || GetFirst(values, BaselineOption) == "-"))
-            return "stdin-conflict";
-
-        return null;
+        var command = new SetupCliCommand(family, operation, machine, false, help, null, null, null, null, null, null);
+        return new(command, NormalizeStandardIo(arguments, options), true, null);
     }
 
-    private static string? CheckRequired(
-        Dictionary<string, SetupCliOptionDescriptor> options,
-        Dictionary<string, List<string>> values,
-        bool help,
-        bool dryRun)
+    private static IEnumerable<string> OptionTokens(IReadOnlyList<string> arguments)
     {
-        if (help) return null;
-        foreach (string option in new[] { "--definition", "--artifact", "--revision-field" })
-            if (options.ContainsKey(option) && !values.ContainsKey(option))
-                return option[2..] + "-required";
-        if (options.ContainsKey(InputOption) && !values.ContainsKey(InputOption))
-            return "input-required";
-        if (options.ContainsKey(BaselineOption) && !values.ContainsKey(BaselineOption))
-            return "baseline-required";
-        if (options.ContainsKey(KeyOption) && !values.ContainsKey(KeyOption))
-            return "key-required";
-        if (options.ContainsKey(ExpectedRevisionOption) && !values.ContainsKey(ExpectedRevisionOption))
-            return "revision-required";
-        if (options.ContainsKey(OutputOption) && !values.ContainsKey(OutputOption) && !dryRun)
-            return "output-required";
-        return null;
+        for (int index = 0; index < arguments.Count; index++)
+        {
+            string token = arguments[index];
+            if (token == "--") yield break;
+            if (!token.StartsWith('-')) continue;
+            yield return token;
+            if (!token.Contains('=') && ValueOptions.TryGetValue(token, out bool requiresValue) && requiresValue
+                && index + 1 < arguments.Count && !arguments[index + 1].StartsWith("--", StringComparison.Ordinal))
+                index++;
+        }
     }
 
-    private static string? GetFirst(Dictionary<string, List<string>> values, string option) =>
-        values.TryGetValue(option, out List<string>? found) && found.Count > 0 ? found[0] : null;
-
-    internal static bool IsForbiddenName(string value) => IsHostile(value);
-
-    private static SetupCliPreflight Help(string family, string operation, bool machine, string[] arguments) =>
-        new(
-            new SetupCliCommand(family, operation, machine, false, true, null, null, null, null, null, null),
-            arguments,
-            !machine,
-            null);
-
-    private static SetupCliPreflight Failure(
-        bool machine,
-        string error,
-        string family = "doctor",
-        string operation = "doctor") =>
-        new(
-            new SetupCliCommand(family, operation, machine, false, false, null, null, null, null, null, null),
-            [],
-            false,
-            error);
-
-    private static bool IsHostile(string value)
+    private static string[] NormalizeStandardIo(string[] arguments, IReadOnlyList<SetupCliOptionDescriptor>? options)
     {
-        string normalized = value.Replace('_', '-');
-        return Forbidden.Any(term => normalized.Contains(term, StringComparison.OrdinalIgnoreCase));
+        var normalized = new List<string>(arguments.Length);
+        for (int index = 0; index < arguments.Length; index++)
+        {
+            string argument = arguments[index];
+            if (argument == "--")
+            {
+                normalized.AddRange(arguments.Skip(index));
+                break;
+            }
+            // Spectre strict parsing accepts a lone dash as an equals value, not a separate token.
+            if (index + 1 < arguments.Length && arguments[index + 1] == "-"
+                && options?.Any(option => option.Name == argument && option.RequiresValue) == true)
+            {
+                normalized.Add(argument + "=-");
+                index++;
+            }
+            else normalized.Add(argument);
+        }
+        return normalized.ToArray();
     }
 
-    private static bool HasControl(string value) =>
-        value.Any(character => character < ' ' || character == 0x7f);
-
-    private static bool IsIdentifier(string value) =>
-        value.Length is > 0 and <= 128
-        && value[0] is >= 'a' and <= 'z'
-        && value.All(character => character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '-' or '.' or '_');
-
-    private static bool IsCatalogueKey(string value) =>
-        IsIdentifier(value);
-
-    private static bool IsRevision(string value) =>
-        value == "absent"
-        || value.Length == 64
-        && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
+    private static SetupCliPreflight Failure(bool machine, string error, string family = "cli", string operation = "help") =>
+        new(new SetupCliCommand(family, operation, machine, false, false, null, null, null, null, null, null), [], false, error);
 }

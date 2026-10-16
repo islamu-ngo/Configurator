@@ -1,7 +1,7 @@
 # CLI results preserve publication facts independently of delivery
 
-Status: accepted for the authorized bounded machine-outcome and cooperative lifetime implementation.
-Date: 2026-10-15. Owners: CLI and native packaging.
+Status: accepted; explicit-input/help implementation underway, post-change verification pending.
+Date: 2026-10-16. Owners: CLI and native packaging.
 Implementation anchor: [CLI contract](../CLI_CONTRACT.md).
 Operator guidance: [command-line configurator](../../public/cli.md).
 
@@ -12,6 +12,12 @@ Reporting only command failure hides established effects and can invite an unsaf
 retry. Repeated field coverage/readiness arrays also make receipt size grow with
 both definition size and selected output count. Public definition/ID-map output
 has the same written-prefix problem: ordered commits are not a transaction.
+
+Ambient environment-name checks and secret-word substring bans reject ordinary
+filenames and IDs without establishing whether private input was supplied. A
+parallel argument parser also diverges from Spectre on equals-form options, stdin
+`-` and `--`. Help needs a structural machine view without reading operational
+inputs or accidentally advertising framework-only commands.
 
 ## Decision
 
@@ -81,11 +87,44 @@ outcome observation fails. Established writes survive cancellation and cleanup;
 unknown outcomes cannot be recast as not-written. No cancellation path grants
 rollback, automatic replay or target acceptance.
 
+### Explicit input and one grammar
+
+Remove ambient environment enumeration, `SetupCliEnvironmentPresence` and the
+embedded invocation's environment parameter. Admit answers only through explicitly
+selected bounded file/stdin input. Remove secret-word filename/ID bans without
+removing bounded ID grammar, control/path checks, definition validation or restricted
+publication. Neither ambient names nor substring matches are input authorities;
+actual private values must still stay out of arguments and identifiers.
+
+Strict Spectre binding owns command grammar, including equals-form options,
+ordinary stdin `-`, the `--` terminator, case sensitivity and repeated bundle
+`--artifact`. Preflight only bounds arguments, rejects controls, selects/adjudicates
+modes, admits public routes and closes duplicate-singleton gaps. Typed settings'
+`ValidateInput` rejects invalid operation inputs before I/O. Do not expose hidden
+framework `cli`/`export` routes or retain a second operational parser.
+
+### Structural help and output channels
+
+Use Spectre's command model for machine help at root, branch and leaf scope. The
+typed `help` object carries `scope`, `commandPath`, public child `commands`, and
+`options` with `name`, `requiresValue` and `repeatable`. Root envelopes identify
+`cli`/`help`, branch envelopes family/`help`, and leaves their actual route; none
+of this makes `cli` an invocable command. Help requires no operational inputs,
+performs no reads and emits no successful compiler handshake.
+
+Keep standard human Spectre help on the injected stdout console, human failures
+on stderr, and human status off public-artifact stdout. Render result text with
+safe `Text`, not markup. Machine help remains one typed result, not parsed human
+output or additional framework diagnostics.
+
 ## Consequences and limits
 
 Automation must migrate envelope consumers and CSV bundle arguments together.
 Embedded callers must also await the new execution/I/O APIs, forward their work
 token and dispose returned input buffers; no synchronous compatibility API remains.
+Embedded invocation callers also remove the environment argument. This active
+pre-release contract needs no backward-compatibility layer for ambient-name or
+substring filtering; existing explicit file/stdin workflows remain the input path.
 Validation exits still describe the underlying read-only operation during detail
 retrieval. Consumers advance by actual returned entries and guard noninitial pages
 with the sanitized-view digest; unchanged structural views may survive value changes.
@@ -96,11 +135,17 @@ established destinations before retrying; no in-band protocol can guarantee
 delivery acknowledgment, rollback or recovery after process loss.
 
 Cooperative cancellation cannot guarantee cleanup or a final receipt after forced
-kill, OS crash or a blocked non-cancellable native primitive. This decision does
-not claim parser/environment rework, hardened public authoring custody, installed
-discovery/repair, portable skill lifecycle, four-host qualification or complete
-installed adoption. Those remain separate work; these runtime improvements are
-not enterprise certification.
+kill, OS crash or a blocked non-cancellable native primitive. Explicit-input/help
+work has pre-production Red evidence only here: 119 total, 108 passed, 11 failed;
+post-change green is not claimed. Hardened public authoring custody, installed
+discovery/repair, portable skill lifecycle and complete installed adoption remain
+deferred.
+
+The expanded requested .NET 10 platform matrix covers Linux glibc/musl x64/arm64,
+macOS x64/arm64 and Windows 10/11 x64, not Windows 7. It is not yet implemented or
+qualified. Current restricted-save qualification remains Linux-only; this decision
+does not establish non-Linux protected writers or actual-host equivalence. These
+runtime improvements are not enterprise certification.
 
 ## Functional provenance and independent design
 

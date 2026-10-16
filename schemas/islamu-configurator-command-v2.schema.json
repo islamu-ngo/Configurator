@@ -669,6 +669,9 @@
     "detail": {
       "$ref": "#/$defs/detail"
     },
+    "help": {
+      "$ref": "#/$defs/help"
+    },
     "diagnostics": {
       "type": "array",
       "maxItems": 16,
@@ -712,7 +715,8 @@
             "artifact",
             "env",
             "definition",
-            "doctor"
+            "doctor",
+            "cli"
           ]
         },
         "operation": {
@@ -738,13 +742,84 @@
             "render",
             "revise",
             "show",
-            "validate"
+            "validate",
+            "help"
           ]
         },
         "mode": {
           "enum": [
             "machine"
           ]
+        }
+      }
+    },
+    "help": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "commandPath",
+        "commands",
+        "options"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "root",
+            "branch",
+            "leaf"
+          ]
+        },
+        "commandPath": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]\u002B)*$"
+          }
+        },
+        "commands": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]\u002B)*$"
+          }
+        },
+        "options": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/helpOption"
+          }
+        }
+      }
+    },
+    "helpOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "requiresValue",
+        "repeatable"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^--[a-z][a-z0-9]*(?:-[a-z0-9]\u002B)*$"
+        },
+        "requiresValue": {
+          "type": "boolean"
+        },
+        "repeatable": {
+          "type": "boolean"
         }
       }
     },

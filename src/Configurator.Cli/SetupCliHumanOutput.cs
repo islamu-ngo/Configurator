@@ -12,14 +12,14 @@ internal static class SetupCliHumanOutput
         var grid = new Grid();
         grid.AddColumn();
         grid.AddColumn();
-        grid.AddRow("Status", SetupCliResults.Lower(result.Exit));
-        grid.AddRow("Scope", "Local draft or export; no platform changes were applied.");
+        grid.AddRow(new Text("Status"), new Text(SetupCliResults.Lower(result.Exit)));
+        grid.AddRow(new Text("Scope"), new Text("Local draft or export; no platform changes were applied."));
         if (result.Artifacts.Count > 0)
-            grid.AddRow("Artifacts", string.Join(", ", result.Artifacts.Select(artifact => artifact.Kind)));
+            grid.AddRow(new Text("Artifacts"), new Text(string.Join(", ", result.Artifacts.Select(artifact => artifact.Kind))));
         if (result.Diagnostics.Count > 0)
-            grid.AddRow("Diagnostics", string.Join(", ", result.Diagnostics.Select(diagnostic => diagnostic.Code)));
+            grid.AddRow(new Text("Diagnostics"), new Text(string.Join(", ", result.Diagnostics.Select(diagnostic => diagnostic.Code))));
         if (result.Readiness.State != "ready")
-            grid.AddRow("Readiness", result.Readiness.State);
+            grid.AddRow(new Text("Readiness"), new Text(result.Readiness.State));
         console.Write(new Panel(grid).Header("islamu-configurator"));
     }
 }

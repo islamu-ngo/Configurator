@@ -49,7 +49,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         StandardOutput = [];
         StandardError = [];
         return await new SetupCliApplication().RunAsync(new(arguments, SetupCliMode.Text,
-            new(this, this, new ErrorWriter(this), 65_536, 4 * 1024 * 1024), new([])));
+            new(this, this, new ErrorWriter(this), 65_536, 4 * 1024 * 1024)));
     }
 
     internal Task<SetupCliExitCode> ArtifactAsync(string operation, string artifact = "config", params string[] options) =>

@@ -40,9 +40,14 @@ islamu-configurator artifact open --definition definition.json --artifact config
 ## Complete usage
 
 All commands accept `--machine`, `--text` or `--help`. Machine and text are mutually
-exclusive. Value options occur at most once except the bundle selection's repeated
-`--artifact`. Commands are case sensitive. An invocation admits at most 256 argument
-tokens and 32,768 aggregate UTF-8 bytes, counting one separator byte per token;
+exclusive. Spectre is the sole command grammar: value options accept both
+`--option value` and `--option=value`, and `-` is an ordinary value for admitted
+stdin/stdout options. `--` ends option parsing; it does not turn later tokens into
+options or admit positional operands where none are declared. Commands and option
+names are strictly case sensitive. Singleton options cannot repeat; bundle selection
+uses repeated `--artifact`. There are no framework-owned `cli` or `export` routes.
+An invocation admits at most 256 argument tokens and 32,768 aggregate UTF-8 bytes,
+counting one separator byte per token;
 each argument is at most 4,096 characters. Artifact IDs retain their stricter
 128-character bound.
 
@@ -80,6 +85,27 @@ publishes no file. `--input-revision` is a nonnegative Int64 workspace revision
 `yaml`, `dotenv`, `markdown`; it cannot override a projection's format.
 Select another declared artifact ID for another format. `env` requires an
 artifact declared as `dotenv`.
+
+### Help without operational inputs
+
+Root, family and leaf `--help` require no definition, answers or output destination
+and perform no input reads. Human help uses Spectre's standard layout on stdout.
+Human failures go to stderr; text is rendered literally, not interpreted as markup.
+
+```bash
+islamu-configurator --machine --help
+islamu-configurator artifact --machine --help
+islamu-configurator artifact create --machine --help
+```
+
+Machine help uses the same single result envelope with a typed `help` object:
+`scope` is `root`, `branch` or `leaf`; `commandPath` lists the selected command
+segments; `commands` lists public child commands; and `options` lists objects with
+`name`, `requiresValue` and `repeatable`. The view comes from Spectre's command
+model, not parsed human help. The envelope route is `cli`/`help` at the root,
+the selected family/`help` at a branch, and the actual family/operation at a leaf.
+Root `cli` is a result identifier, not an invocable command. Help does not emit a
+successful compiler handshake or prove a definition was checked or built.
 
 ### Maintainer definitions
 
@@ -214,10 +240,16 @@ All answer-derived bytes are **restricted**, even when every field is declared
 public. They never reach stdout. `--output -` is allowed only for public catalogue
 metadata in text mode; human status goes to stderr in that case. In machine mode
 stdout is reserved for one result envelope. Dry runs cannot authorize restricted
-stdout. Diagnostics contain fixed codes and safe paths, not input values, raw
-exceptions or filesystem paths. Arguments and ambient environment names that
-look like secret-bearing process surfaces are rejected without reading their values.
-File inputs retain the 4 MiB byte limit and depth 32.
+stdout. Diagnostics contain fixed codes and structural paths, not input values, raw
+exceptions or filesystem paths. Answers enter only through explicit bounded files
+or redirected stdin, never arguments or ambient environment variables. The CLI
+does not enumerate ambient environment names or values. Filenames and declared
+IDs are not rejected merely for containing words such as `secret`, `token` or
+`password`; bounded grammar, definition admission and protected-output rules still
+apply. Do not put actual private values in filenames or identifiers. File inputs
+retain the 4 MiB byte limit and depth 32. This pre-release contract intentionally
+replaces ambient-name and substring filtering without backward-compatibility
+adapters.
 
 ### Cooperative cancellation
 
@@ -337,6 +369,11 @@ families are not aliases. Event workflows use Event-owned definitions and
 artifact IDs; Event's backend still owns acceptance and authorization.
 
 Public authoring custody hardening, richer installed discovery/repair and portable
-skill lifecycle remain deferred. Restricted-save qualification is Linux-only;
-four-host qualification and installed adoption evidence remain open. The bounded
-receipt contract is not enterprise certification or proof of complete adoption.
+skill lifecycle remain deferred. The requested modern-platform target is .NET 10
+on Linux glibc/musl x64/arm64, macOS x64/arm64 and Windows 10/11 x64; Windows 7 is
+explicitly unsupported. [Package admission](packaging.md) and actual-host
+qualification are distinct; the full expanded host matrix is not qualified.
+Restricted-save qualification remains Linux-only: this request does not add
+non-Linux protected writers. Actual-host qualification and installed adoption
+evidence remain open. The bounded receipt contract is not enterprise certification
+or proof of complete adoption.

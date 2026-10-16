@@ -25,20 +25,24 @@ public sealed class SetupCliApplication
             command = preflight.Command;
             cancellationToken.ThrowIfCancellationRequested();
             if (preflight.Error is not null) result = SetupCliResults.Failure(SetupCliExitCode.Usage, preflight.Error);
-            else if (invocation.Environment.Names.Any(SetupCliArgumentPreflight.IsForbiddenName))
-                result = SetupCliResults.Failure(SetupCliExitCode.Blocked, "environment-name-blocked");
-            else if (command.Help && command.Machine) result = SetupCliResults.Success();
             else
             {
                 var runtime = new SetupCliCommandRuntime(this, invocation, ledger);
-                int exit = await SetupCliCommandRegistry.Create(runtime, console).RunAsync(preflight.Arguments, cancellationToken);
+                SetupCliHelpProvider? helpProvider = command.Machine ? new() : null;
+                int exit = await SetupCliCommandRegistry.Create(runtime, console, helpProvider).RunAsync(preflight.Arguments, cancellationToken);
                 command = runtime.Command ?? command;
-                result = runtime.Result ?? (exit == (int)SetupCliExitCode.Cancelled
-                    ? Cancelled() : SetupCliResults.Success() with { Exit = (SetupCliExitCode)exit });
+                result = helpProvider?.View is { } help ? SetupCliResults.Success() with { Help = help }
+                    : command.Help && command.Machine ? SetupCliResults.Failure(SetupCliExitCode.Internal, "help-unavailable")
+                    : runtime.Result ?? (exit == (int)SetupCliExitCode.Cancelled
+                        ? Cancelled() : SetupCliResults.Success() with { Exit = (SetupCliExitCode)exit });
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { result = Cancelled(); }
-        catch (Exception exception) { result = MapFailure(exception); }
+        catch (Exception exception)
+        {
+            text.GetStringBuilder().Clear();
+            result = MapFailure(exception);
+        }
         if (result.Exit == SetupCliExitCode.Success && cancellationToken.IsCancellationRequested) result = Cancelled();
         result = ledger.Preserve(result);
         if (result.Exit is not (SetupCliExitCode.Cancelled or SetupCliExitCode.Io or SetupCliExitCode.Internal))
@@ -54,7 +58,8 @@ public sealed class SetupCliApplication
             {
                 if (text.GetStringBuilder().Length == 0) SetupCliHumanOutput.Render(console, result);
                 byte[] bytes = Encoding.UTF8.GetBytes(text.ToString());
-                ISetupCliWriter writer = command.Output == "-" ? invocation.Io.Error : invocation.Io.Output;
+                ISetupCliWriter writer = command.Output == "-" || result.Exit != SetupCliExitCode.Success
+                    ? invocation.Io.Error : invocation.Io.Output;
                 if (bytes.Length > 0) await writer.WriteAsync("-", bytes, invocation.Io.MaximumOutputBytes, delivery.Token);
             }
         }
@@ -109,10 +114,17 @@ internal sealed class SetupCliCommandRuntime(SetupCliApplication application, Se
     internal SetupCliCommandResult? Result { get; private set; }
     internal SetupCliCommand? Command { get; private set; }
     internal async Task<int> ExecuteAsync(string family, string operation, ISetupCliCommandSettings settings,
-        CancellationToken cancellationToken)
+        IRemainingArguments remaining, CancellationToken cancellationToken)
     {
-        Command = settings.Bind(family, operation, invocation.Mode);
-        Result = await application.ExecuteAsync(Command, invocation, ledger, cancellationToken);
+        if (settings is SetupCliCommandSettings typed && invocation.Mode == SetupCliMode.Machine)
+            typed.Machine = true;
+        SetupCliCommand bound = settings.Bind(family, operation, invocation.Mode);
+        string? error = remaining.Raw.Count > 0 || remaining.Parsed.Count > 0 ? "arguments-invalid" : settings.ValidateInput();
+        Command = error is null ? bound
+            : new SetupCliCommand(family, operation, bound.Machine,
+                false, false, null, null, null, null, null, null);
+        Result = error is not null ? SetupCliResults.Failure(SetupCliExitCode.Usage, error)
+            : await application.ExecuteAsync(Command, invocation, ledger, cancellationToken);
         return (int)Result.Exit;
     }
 }

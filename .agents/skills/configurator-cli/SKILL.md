@@ -21,9 +21,12 @@ Commands prepare local data. They never contact, authorize or apply to a target.
 1. Identify the operator-selected local definition and declared artifact ID.
    Do not select an application implicitly or fetch a definition URL.
 2. Inspect `--help` and the generated command registry before choosing options.
-   Use the `catalogue`, `env`, `artifact` or `doctor` families; no legacy aliases.
+   Use public `catalogue`, `env`, `artifact`, `definition` or `doctor` routes;
+   no legacy aliases or framework `cli`/`export` routes.
 3. Keep answer values in bounded input files or explicit stdin. Never put them
-   in command arguments, ambient environment variables, logs or chat output.
+   in command arguments, logs or chat output. Ambient environment names/values
+   are not enumerated or accepted as answer inputs. Ordinary filenames and IDs
+   are not banned for secret-word substrings; never use actual private values.
 4. Use `--machine` for one JSON result envelope. Check both the process exit
    code and completion, preparation, targetAcceptance, cleanup, diagnostics,
    coverage/readiness counts and every artifact's writeStatus. `delivery: attempt`
@@ -48,6 +51,14 @@ These names illustrate operator-owned local files and a definition-owned
 artifact ID; substitute actual declared selections. `--dry-run` validates and
 composes without publication. `--format` asserts the declared format and cannot
 change the projection.
+
+Strict Spectre grammar accepts `--option value` and `--option=value`, ordinary
+stdin `-` and the `--` terminator. Command/option case is strict; singleton options
+cannot repeat. Root, family and leaf `--machine --help` need no operational inputs
+and perform no reads. Their typed `help` has `scope`, `commandPath`, `commands`
+and `options` (`name`, `requiresValue`, `repeatable`), not human-help text.
+Root results identify `cli`/`help`, branches family/`help`, and leaves their actual
+route. Help is not a compiler handshake or evidence of successful check/build.
 
 For bundles repeat `--artifact config --artifact environment` (at most 64 IDs,
 each at most 128 characters); CSV `--artifacts` is removed without an alias.
@@ -81,6 +92,14 @@ an authenticated target request.
 invocation. Restricted artifact bytes never go to stdout, including dry runs.
 Machine stdout remains reserved for the result envelope. Public catalogue
 metadata may use `--output -` only in text mode.
+
+Human help goes to stdout; failures and status accompanying public-artifact stdout
+go to stderr. No backward-compatibility adapter is required for the removed
+ambient/substring filtering. Public authoring custody, discovery/repair, skill
+lifecycle and installed adoption evidence remain deferred. The requested .NET 10
+Linux glibc/musl x64/arm64, macOS x64/arm64 and Windows 10/11 x64 expansion is not
+yet implemented or qualified; Windows 7 is unsupported. Protected saves remain
+Linux-only, with no claim of non-Linux writers.
 
 ## Validation
 

@@ -168,7 +168,7 @@ public sealed class SetupCliCancellationTests
             : ["artifact", "create", "--definition", "definition.json", "--artifact", "config", "--input", inputPath,
                 "--output", "prepared.json", "--machine"];
         return new SetupCliApplication().RunAsync(new(arguments, SetupCliMode.Machine,
-            new(input, output, error ?? new ErrorWriter(false), 65_536, 4 * 1024 * 1024), new([])), cancellationToken);
+            new(input, output, error ?? new ErrorWriter(false), 65_536, 4 * 1024 * 1024)), cancellationToken);
     }
 
     private static async Task AssertCancellationReceiptAsync(ControlledWriter output)

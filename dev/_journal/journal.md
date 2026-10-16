@@ -137,3 +137,24 @@ bespoke target tooling.
 
 **Promotion Consideration**:
 - [x] Documented in the public integration guide; preserve as an adoption decision.
+
+[2026-10-16 Europe/Brussels] — Cancelled pipe reads can hang during non-owning disposal
+
+**Context**: Native CLI lifetime work replaced synchronous execution with token-aware asynchronous I/O. A real child process consumed more than a pipe's capacity while stdin remained open, then received SIGTERM or Ctrl+C.
+
+**Symptom / Observation**: The work token cancelled and the pending read threw, but the child never delivered its final receipt or exited. In-memory cancellation tests passed; all four native signal variants timed out.
+
+**Root Cause**: The Unix standard-stream adapter wrapped inherited descriptors with non-owning `SafePipeHandle` objects. Cancellation reached `ReadAsync`, but disposing that asynchronous pipe wrapper stalled. The hang occurred during cleanup, not cancellation registration. Console fallback also cannot interrupt a pending terminal read.
+
+**Resolution**: The invocation owns each inherited Unix handle through the same safe-handle object shared with its stream. Redirected pipes use asynchronous pipe I/O; ordinary files retain the console fallback. Terminal-backed `--input -` rejects before reading. The exact command `dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release -- --minimum-expected-tests 1 --no-progress` passed all 105 tests, including the native signal and terminal cases. Commit: `d6ba9739ee3868e124b99c8c1c5f00e75fc29f15`.
+
+**Why This Matters for Future Work**: Cancellation, disposal and final-delivery lifetimes need separate assertions. A cancelled task does not prove its process can release native resources. Keep the stdin producer open during process tests; closing it would hide this defect. This evidence is Linux-specific, not proof of Windows/macOS behavior.
+
+**References**:
+- `src/Configurator.Cli/Program.cs`
+- `tests/Configurator.Cli.Tests/SetupCliProgramTests.cs`
+- `docs/internal/adr/ADR-cli-command-runtime.md`
+- https://learn.microsoft.com/en-us/dotnet/api/system.io.pipes.namedpipeclientstream.-ctor?view=net-10.0
+
+**Promotion Consideration**:
+- [x] Runtime ADR records the ownership decision; retain the debugging evidence here.

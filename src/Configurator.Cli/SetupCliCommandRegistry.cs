@@ -27,7 +27,8 @@ internal static class SetupCliCommandRegistry
         DoctorCommands.Descriptor
     ];
 
-    internal static CommandApp Create(SetupCliCommandRuntime runtime, IAnsiConsole console)
+    internal static CommandApp Create(SetupCliCommandRuntime runtime, IAnsiConsole console,
+        SetupCliHelpProvider? helpProvider = null)
     {
         var app = new CommandApp(new SetupCliTypeRegistrar(console));
         app.Configure(configuration =>
@@ -35,7 +36,10 @@ internal static class SetupCliCommandRegistry
             configuration.SetApplicationName(SetupCliExecutableMarker.ExecutableName);
             configuration.ConfigureConsole(console);
             configuration.PropagateExceptions();
+            configuration.UseStrictParsing();
+            configuration.CaseSensitivity(CaseSensitivity.All);
             configuration.CancellationExitCode((int)SetupCliExitCode.Cancelled);
+            if (helpProvider is not null) configuration.SetHelpProvider(helpProvider);
             foreach (SetupCliFamilyDescriptor family in Families)
             {
                 if (family.Name == "doctor")
@@ -66,10 +70,10 @@ internal static class SetupCliCommandRegistry
             DescribeOptions(typeof(TSettings)),
             (branch, family, runtime) => branch.AddAsyncDelegate<TSettings>(
                 name,
-                (_, settings, token) => runtime.ExecuteAsync(family, name, settings, token)),
+                (context, settings, token) => runtime.ExecuteAsync(family, name, settings, context.Remaining, token)),
             (root, family, runtime) => root.AddAsyncDelegate<TSettings>(
                 name,
-                (_, settings, token) => runtime.ExecuteAsync(family, name, settings, token)));
+                (context, settings, token) => runtime.ExecuteAsync(family, name, settings, context.Remaining, token)));
 
     internal static bool TryResolve(string family, string operation, out SetupCliOperationDescriptor? descriptor)
     {
@@ -109,18 +113,20 @@ internal static class SetupCliCommandRegistry
         {
             public object? Resolve(Type? type)
             {
-                if (type is null)
-                    return null;
-                if (registrations.TryGetValue(type, out Func<object>? factory))
-                    return factory();
+                if (type is null) return null;
+                if (registrations.TryGetValue(type, out Func<object>? factory)) return factory();
                 if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-                    return Array.CreateInstance(type.GetGenericArguments()[0], 0);
+                {
+                    Type elementType = type.GetGenericArguments()[0];
+                    bool registered = registrations.TryGetValue(elementType, out Func<object>? element);
+                    Array values = Array.CreateInstance(elementType, registered ? 1 : 0);
+                    if (registered) values.SetValue(element!(), 0);
+                    return values;
+                }
                 return Activator.CreateInstance(type);
             }
 
-            public void Dispose()
-            {
-            }
+            public void Dispose() { }
         }
     }
 }

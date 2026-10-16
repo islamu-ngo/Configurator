@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Configurator.Core.Definitions;
 using TUnit.Assertions;
@@ -9,6 +10,97 @@ namespace Configurator.Architecture.Tests;
 [Category("Packaging")]
 public sealed class MaintainerPackageTests
 {
+    [Test]
+    public async Task InstalledLinuxCliValidatesAndCreatesProtectedArtifactWithoutOverwriting()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string package = Path.Combine(ReleaseTestPaths.PackageRoot, "cli/linux-x64");
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-installed-cli-" + Guid.NewGuid().ToString("N"));
+        await Assert.That(Path.GetRelativePath(ReleaseTestPaths.Root, directory)
+            .StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)).IsTrue();
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string installed = Path.Combine(directory, "installed");
+            Directory.CreateDirectory(installed);
+            foreach (string source in Directory.EnumerateDirectories(package, "*", SearchOption.AllDirectories))
+                Directory.CreateDirectory(Path.Combine(installed, Path.GetRelativePath(package, source)));
+            foreach (string source in Directory.EnumerateFiles(package, "*", SearchOption.AllDirectories))
+                File.Copy(source, Path.Combine(installed, Path.GetRelativePath(package, source)));
+            string executable = Path.Combine(installed, "islamu-configurator");
+            File.SetUnixFileMode(executable, File.GetUnixFileMode(Path.Combine(package, "islamu-configurator")));
+
+            string workspace = Path.Combine(directory, "workspace");
+            Directory.CreateDirectory(workspace);
+            byte[] definition = """
+                {"schemaVersion":1,"familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
+                 "revision":1,"applicationId":"example.service","applicationVersions":["1.0"],
+                 "publisher":"example","title":"Installed service","entryPoints":["setup"],"locales":["en"],
+                 "fields":[{"id":"service.name","type":"string","required":true,
+                    "sensitivity":"sensitive","disclosure":"guided","title":"Service name"}],
+                 "artifacts":[{"id":"config","format":"json","fileName":"service.json",
+                    "applySemantics":"create","restart":"process",
+                    "projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}}]}
+                """u8.ToArray();
+            _ = SetupDefinitionCodec.ParseJson(definition);
+            await File.WriteAllBytesAsync(Path.Combine(workspace, "definition.json"), definition);
+            string answers = Path.Combine(workspace, "answers.json");
+            await File.WriteAllTextAsync(answers, """{"service.name":"synthetic-installed-service"}""");
+            string artifact = Path.Combine(workspace, "service.json");
+            byte[] expected = """{"name":"synthetic-installed-service"}"""u8.ToArray();
+
+            var validate = await ReleaseTestPaths.RunInDirectory(workspace, executable, "artifact", "validate",
+                "--definition", "definition.json", "--artifact", "config", "--input", "answers.json", "--machine");
+            await AssertInstalledReceipt(validate, "validate", 0, "none", expected);
+            await Assert.That(File.Exists(artifact)).IsFalse();
+
+            string[] create = ["artifact", "create", "--definition", "definition.json", "--artifact", "config",
+                "--input", "answers.json", "--output", "service.json", "--machine"];
+            var written = await ReleaseTestPaths.RunInDirectory(workspace, executable, create);
+            await AssertInstalledReceipt(written, "create", 0, "written", expected);
+            await Assert.That(await File.ReadAllBytesAsync(artifact)).IsEquivalentTo(expected);
+            await Assert.That(File.GetUnixFileMode(artifact)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+            await File.WriteAllTextAsync(answers, """{"service.name":"synthetic-replacement"}""");
+            var conflict = await ReleaseTestPaths.RunInDirectory(workspace, executable, create);
+            await AssertInstalledReceipt(conflict, "create", 74, "conflict", """{"name":"synthetic-replacement"}"""u8.ToArray());
+            await Assert.That(await File.ReadAllBytesAsync(artifact)).IsEquivalentTo(expected);
+            await Assert.That(File.GetUnixFileMode(artifact)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static async Task AssertInstalledReceipt((int ExitCode, string Output, string StandardError) result,
+        string operation, int exitCode, string writeStatus, byte[] expectedArtifact)
+    {
+        await Assert.That(result.ExitCode).IsEqualTo(exitCode);
+        await Assert.That(result.StandardError).IsEmpty();
+        await Assert.That(Encoding.UTF8.GetByteCount(result.Output)).IsLessThanOrEqualTo(65_536);
+        await Assert.That(result.Output.EndsWith('\n')).IsTrue();
+        await Assert.That(result.Output.Count(character => character == '\n')).IsEqualTo(1);
+        using JsonDocument receipt = JsonDocument.Parse(result.Output);
+        JsonElement root = receipt.RootElement;
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v2");
+        await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo("artifact");
+        await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo(operation);
+        await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(exitCode);
+        await Assert.That(root.GetProperty("completion").GetString()).IsEqualTo(exitCode == 0 ? "completed" : "failed");
+        await Assert.That(root.GetProperty("preparation").GetString()).IsEqualTo("ready");
+        await Assert.That(root.GetProperty("targetAcceptance").GetString()).IsEqualTo("unassessed");
+        await Assert.That(root.GetProperty("delivery").GetString()).IsEqualTo("attempt");
+        await Assert.That(root.GetProperty("artifacts").GetArrayLength()).IsEqualTo(1);
+        JsonElement output = root.GetProperty("artifacts")[0];
+        await Assert.That(output.GetProperty("id").GetString()).IsEqualTo("config");
+        await Assert.That(output.GetProperty("sensitivity").GetString()).IsEqualTo("restricted");
+        await Assert.That(output.GetProperty("digest").GetString()).IsEqualTo(ReleaseTestPaths.Hash(expectedArtifact));
+        await Assert.That(output.GetProperty("writeStatus").GetString()).IsEqualTo(writeStatus);
+        await Assert.That(result.Output.Contains("synthetic-", StringComparison.Ordinal)).IsFalse();
+        await Assert.That(result.Output.Contains("configurator-installed-cli-", StringComparison.Ordinal)).IsFalse();
+    }
+
     [Test]
     public async Task PublishedCliCompilesOneSourceWithoutStoreAndRetainsImmutableRelease()
     {

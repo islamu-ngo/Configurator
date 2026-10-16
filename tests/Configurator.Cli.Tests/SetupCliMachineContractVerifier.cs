@@ -18,13 +18,15 @@ internal static partial class SetupCliMachineContractVerifier
         ["$.coverage"] = ["coveredCount", "missingCount", "detailDigest"],
         ["$.readiness"] = ["state", "missingCount", "blockedCount"],
         ["$.detail"] = ["kind", "offset", "limit", "total", "digest", "diagnostics", "coverage"],
-        ["$.detail.coverage[]"] = ["id", "state"]
+        ["$.detail.coverage[]"] = ["id", "state"],
+        ["$.help"] = ["scope", "commandPath", "commands", "options"],
+        ["$.help.options[]"] = ["name", "requiresValue", "repeatable"]
     };
 
     private static readonly Dictionary<string, string[]> Allowed = Required.ToDictionary(
         item => item.Key, item => item.Key switch
         {
-            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail"],
+            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help"],
             "$.diagnostics[]" => [.. item.Value, "line", "column", "byteOffset"],
             _ => item.Value
         },
@@ -66,7 +68,9 @@ internal static partial class SetupCliMachineContractVerifier
             ["$.coverage"] = schema["$defs"]!["coverage"]!.AsObject(),
             ["$.readiness"] = schema["$defs"]!["readiness"]!.AsObject(),
             ["$.detail"] = schema["$defs"]!["detail"]!.AsObject(),
-            ["$.detail.coverage[]"] = schema["$defs"]!["coverageEntry"]!.AsObject()
+            ["$.detail.coverage[]"] = schema["$defs"]!["coverageEntry"]!.AsObject(),
+            ["$.help"] = schema["$defs"]!["help"]!.AsObject(),
+            ["$.help.options[]"] = schema["$defs"]!["helpOption"]!.AsObject()
         };
         foreach ((string path, JsonObject obj) in objects)
         {
@@ -82,6 +86,24 @@ internal static partial class SetupCliMachineContractVerifier
         if (!schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()).ToHashSet()
             .SetEquals(SetupCliContractSpecification.ExitCodes.Values))
             errors.Add("schema-exit-vocabulary");
+        JsonObject help = schema["$defs"]!["help"]!["properties"]!.AsObject();
+        JsonObject helpOption = schema["$defs"]!["helpOption"]!["properties"]!.AsObject();
+        if (schema["properties"]!["help"]?["$ref"]?.GetValue<string>() != "#/$defs/help"
+            || help["commandPath"]?["maxItems"]?.GetValue<int>() != 2
+            || help["commands"]?["maxItems"]?.GetValue<int>() != 32
+            || help["options"]?["maxItems"]?.GetValue<int>() != 64
+            || help["options"]?["items"]?["$ref"]?.GetValue<string>() != "#/$defs/helpOption"
+            || helpOption["name"]?["maxLength"]?.GetValue<int>() != 64
+            || helpOption["requiresValue"]?["type"]?.GetValue<string>() != "boolean"
+            || helpOption["repeatable"]?["type"]?.GetValue<string>() != "boolean")
+            errors.Add("schema-help-contract");
+        if (!schema["$defs"]!["invocation"]!["properties"]!["commandFamily"]!["enum"]!.AsArray()
+                .Select(node => node!.GetValue<string>()).ToHashSet(StringComparer.Ordinal)
+                .SetEquals(SetupCliContractSpecification.Operations.Keys.Append("cli"))
+            || !schema["$defs"]!["invocation"]!["properties"]!["operation"]!["enum"]!.AsArray()
+                .Select(node => node!.GetValue<string>()).ToHashSet(StringComparer.Ordinal)
+                .SetEquals(SetupCliContractSpecification.Operations.Values.SelectMany(value => value).Append("help")))
+            errors.Add("schema-invocation-vocabulary");
         JsonArray commands = schema["_metadata"]!["commands"]!.AsArray();
         if (!commands.Select(command => command!["name"]!.GetValue<string>()).ToHashSet(StringComparer.Ordinal)
             .SetEquals(SetupCliContractSpecification.Operations.Keys))
@@ -137,7 +159,7 @@ internal static partial class SetupCliMachineContractVerifier
             ValidateStatus(root, errors);
             bool compilerHandshake = root["invocation"]?["commandFamily"]?.GetValue<string>() == "definition"
                 && root["invocation"]?["operation"]?.GetValue<string>() is "check" or "build"
-                && root["exitCode"]?.GetValue<int>() == 0;
+                && root["exitCode"]?.GetValue<int>() == 0 && !root.ContainsKey("help");
             if (compilerHandshake ? root["authoringContractVersion"]?.GetValue<int>() != 1 || root["runtimeSchemaVersion"]?.GetValue<int>() != 1
                 : root.ContainsKey("authoringContractVersion") || root.ContainsKey("runtimeSchemaVersion"))
                 errors.Add("machine-compiler-handshake");
@@ -147,6 +169,8 @@ internal static partial class SetupCliMachineContractVerifier
             ValidateReadiness(root["readiness"] as JsonObject, "$.readiness", errors);
             ValidateSummary(root, errors);
             if (root.ContainsKey("detail")) ValidateDetail(root, errors);
+            if (root.ContainsKey("help") || root["invocation"]?["operation"]?.GetValue<string>() == "help"
+                && root["exitCode"]?.GetValue<int>() == 0) ValidateHelp(root, errors);
         }
         catch (Exception exception) when (exception is InvalidOperationException or FormatException or OverflowException or ArgumentException)
         {
@@ -242,7 +266,8 @@ internal static partial class SetupCliMachineContractVerifier
             {
                 foreach ((string name, JsonNode? child) in properties)
                 {
-                    if (ForbiddenPublicNames.Any(forbidden => forbidden == "live" ? name.Equals(forbidden, StringComparison.OrdinalIgnoreCase)
+                    if (!(path == "$/$defs/helpOption" && name == "requiresValue")
+                        && ForbiddenPublicNames.Any(forbidden => forbidden == "live" ? name.Equals(forbidden, StringComparison.OrdinalIgnoreCase)
                         : name.Contains(forbidden, StringComparison.OrdinalIgnoreCase)))
                     {
                         errors.Add("schema-forbidden-name:" + name);
@@ -300,10 +325,68 @@ internal static partial class SetupCliMachineContractVerifier
         string family = invocation["commandFamily"]?.GetValue<string>() ?? string.Empty;
         string operation = invocation["operation"]?.GetValue<string>() ?? string.Empty;
         string mode = invocation["mode"]?.GetValue<string>() ?? string.Empty;
-        if (!SetupCliContractSpecification.Operations.TryGetValue(family, out IReadOnlySet<string>? operations) || !operations.Contains(operation) || mode != "machine")
+        if (!SetupCliContractSpecification.IsInvocation(family, operation) || mode != "machine")
         {
             errors.Add("machine-invocation-vocabulary");
         }
+    }
+
+    private static void ValidateHelp(JsonObject root, List<string> errors)
+    {
+        if (root["help"] is not JsonObject help)
+        {
+            errors.Add("machine-help-required");
+            return;
+        }
+        ValidateObject(help, "$.help", errors);
+        if (help["commandPath"] is not JsonArray path || help["commands"] is not JsonArray commands
+            || help["options"] is not JsonArray options)
+        {
+            errors.Add("machine-help-shape");
+            return;
+        }
+        string[] segments = path.Select(node => node?.GetValue<string>() ?? "").ToArray();
+        string[] children = commands.Select(node => node?.GetValue<string>() ?? "").ToArray();
+        if (segments.Length > 2 || children.Length > 32 || options.Count > 64
+            || segments.Concat(children).Any(name => name.Length is < 1 or > 64 || !CodePattern().IsMatch(name))
+            || children.Distinct(StringComparer.Ordinal).Count() != children.Length)
+            errors.Add("machine-help-bounds");
+        string family = root["invocation"]?["commandFamily"]?.GetValue<string>() ?? "";
+        string operation = root["invocation"]?["operation"]?.GetValue<string>() ?? "";
+        string scope = help["scope"]?.GetValue<string>() ?? "";
+        bool identity = scope switch
+        {
+            "root" => family == "cli" && operation == "help" && segments.Length == 0 && options.Count == 0
+                && children.ToHashSet(StringComparer.Ordinal).SetEquals(SetupCliContractSpecification.Operations.Keys),
+            "branch" => operation == "help" && family != "doctor" && segments.SequenceEqual([family]) && options.Count == 0
+                && SetupCliContractSpecification.Operations.TryGetValue(family, out IReadOnlySet<string>? operations)
+                && operations.SetEquals(children),
+            "leaf" => SetupCliContractSpecification.Operations.TryGetValue(family, out IReadOnlySet<string>? operations)
+                && operations.Contains(operation) && segments.SequenceEqual(family == "doctor" ? ["doctor"] : new[] { family, operation })
+                && children.Length == 0 && options.Count > 0,
+            _ => false
+        };
+        if (!identity) errors.Add("machine-help-identity");
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonNode? node in options)
+        {
+            if (node is not JsonObject option)
+            {
+                errors.Add("machine-help-option");
+                continue;
+            }
+            ValidateObject(option, "$.help.options[]", errors);
+            string name = option["name"]?.GetValue<string>() ?? "";
+            if (name.Length is < 3 or > 64 || !name.StartsWith("--", StringComparison.Ordinal)
+                || !CodePattern().IsMatch(name[2..]) || !names.Add(name)
+                || option["requiresValue"] is not JsonValue requiresValue || !requiresValue.TryGetValue<bool>(out _)
+                || option["repeatable"] is not JsonValue repeatable || !repeatable.TryGetValue<bool>(out _))
+                errors.Add("machine-help-option");
+        }
+        if (root["exitCode"]?.GetValue<int>() != 0 || root["artifacts"] is not JsonArray { Count: 0 }
+            || root["preparation"] is not null || root["coverage"]?["coveredCount"]?.GetValue<int>() != 0
+            || root["coverage"]?["missingCount"]?.GetValue<int>() != 0)
+            errors.Add("machine-help-operation");
     }
 
     private static void ValidateStatus(JsonObject root, List<string> errors)

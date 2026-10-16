@@ -6,15 +6,49 @@ options, input semantics, confidentiality and exits.
 
 ## Execution
 
-`SetupCliCommandRegistry` is the grammar authority. Spectre settings derive
-command metadata; `SetupCliArgumentPreflight` checks the same descriptors before
-Spectre can produce diagnostics containing input values. It enforces closed
-families/options, singleton options except repeated bundle `--artifact`, explicit file intent, mode exclusivity,
-local definition input, bounds and revision grammar. Bind failures emit fixed
-codes. Human rendering is isolated from machine output.
+`SetupCliCommandRegistry` declares the public command tree and typed settings;
+strict Spectre binding is the sole grammar authority. It admits `--option=value`
+and `--option value`, ordinary `-` values and the `--` option terminator, with
+strict command/option case and repeated bundle `--artifact`. The terminator does
+not admit undeclared positional operands. Framework-owned `cli`/`export` routes
+are not public commands.
+
+`SetupCliArgumentPreflight` is not a second parser. Its checks are limited to
+bounded arguments, control characters, mode selection/conflicts, public-route
+admission and duplicate-singleton gaps. After Spectre binds settings, typed
+`ValidateInput` checks operation requirements, explicit file/stdin intent and
+revision/format constraints before any I/O. Binding and validation failures map to
+fixed value-safe codes rather than leaking framework diagnostics. No secret-word
+substring filter rejects filenames or admitted IDs, and no ambient environment
+enumeration supplies inputs or rejects an invocation.
+
+`SetupCliInvocation(arguments, mode, io)` has no environment constructor argument;
+`SetupCliEnvironmentPresence` is removed without a compatibility adapter. Answers
+come only from explicitly selected bounded files or redirected stdin. Removing
+ambient/substring filtering does not relax definition admission, path/control
+checks or protected output, and actual private values still do not belong in
+arguments, filenames or identifiers.
 Both invocation admission and preflight bound arguments to 256 tokens, 32,768
 aggregate UTF-8 bytes including one separator byte per token, and 4,096 characters
 per argument. Artifact IDs remain bounded to 128 admitted ASCII characters.
+
+### Help and human rendering
+
+Root, branch and leaf help use Spectre's command model without requiring operational
+inputs or reading files/stdin. `SetupCliHelpProvider` produces a typed help view
+for machine mode: `scope` (`root`, `branch`, `leaf`), `commandPath`, public child
+`commands` and `options` (`name`, `requiresValue`, `repeatable`). Machine root help
+uses `cli`/`help`, branch help uses the selected family/`help`, and leaf help retains
+the actual route. The root result identifier does not expose a `cli` command.
+Help has no successful `definition check`/`build` compiler-version handshake.
+
+Human help keeps standard Spectre formatting through the injected console and
+goes to stdout. Human failures go to stderr. Public catalogue artifact stdout is
+not contaminated by status text: human status goes to stderr when `--output -`
+is selected. Human result content uses safe `Text`, not markup interpretation;
+machine mode never scrapes human help or emits its formatting.
+
+### Bounded operation execution
 
 `SetupCliIoOperations` reads bounded bytes, admits a local definition using
 `SetupDefinitionCodec`, rejects duplicate answer properties and snapshots JSON
@@ -208,18 +242,24 @@ their vocabularies. The independent specification/verifier must migrate with the
 compiled schema, rather than using production serialization as its oracle.
 
 The [runtime decision](adr/ADR-cli-command-runtime.md) records result, cooperative
-lifetime and delivery ownership. Explicit-input parser/environment changes remain
-separate work, not a guarantee of the async migration. Public-file
-custody, installed discovery/repair, portable skill lifecycle, four actual host
-qualifications and adoption evidence remain open; no enterprise certification is
-implied.
+lifetime, explicit-input parsing, help and delivery ownership. Contract tests exercise
+the admitted grammar and typed help; native process tests separately exercise
+signal handling, inherited environments, stream routing and receipt framing.
+
+Public-file custody, installed discovery/repair, portable skill lifecycle and
+installed adoption evidence remain open. The expanded requested target is .NET 10
+on Linux glibc/musl x64/arm64, macOS x64/arm64 and Windows 10/11 x64; Windows 7 is
+unsupported. Packaging admission is documented separately in [PACKAGING.md](PACKAGING.md);
+the expanded actual-host matrix is not qualified, and native
+restricted-save qualification remains Linux-only. No non-Linux protected writer,
+actual-host equivalence or enterprise certification is implied.
 
 ## Invariant disposition and Event handoff
 
 Generic replacements retain command closure, deterministic single framing,
 culture independence, bounded I/O, duplicate/control/path rejection, explicit
 stdin/output, private stdout refusal, dry-run isolation, native create-only
-permissions, environment-name rejection without value reads, safe parse failures,
+permissions, no ambient input discovery, safe parse failures,
 digest/exit/readiness/schema checks, real composition and explicit revision binding.
 Tests exercise actual CLI execution and real native processes/writer behavior,
 not mock call counts or source/prose scraping.

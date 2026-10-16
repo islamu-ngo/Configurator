@@ -28,8 +28,12 @@ internal class DefinitionSourceSettings : SetupCliCommandSettings
     public int Limit { get; set; } = 16;
     [CommandOption("--expected-detail-digest <DIGEST>")]
     public string? ExpectedDetailDigest { get; set; }
+
+    protected override string? ValidateValues() => base.ValidateValues()
+        ?? ValidateDetail(Detail, Offset, Limit, ExpectedDetailDigest);
+
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
-        base.Bind(family, operation, invocationMode) with { Source = Path(Source), Root = Path(Root), Against = Path(Against),
+        base.Bind(family, operation, invocationMode) with { Source = Source, Root = Root, Against = Against,
             Detail = Detail, Offset = Offset, Limit = Limit, ExpectedDetailDigest = ExpectedDetailDigest };
 }
 
@@ -39,8 +43,11 @@ internal sealed class DefinitionBuildSettings : DefinitionSourceSettings
     public string? Output { get; set; }
     [CommandOption("--id-map <PATH>")]
     public string? IdMap { get; set; }
+
+    protected override string? ValidateValues() => base.ValidateValues() ?? ValidateOutput(Output);
+
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
-        base.Bind(family, operation, invocationMode) with { Output = Path(Output), IdMap = Path(IdMap) };
+        base.Bind(family, operation, invocationMode) with { Output = Output, IdMap = IdMap };
 }
 
 internal sealed class DefinitionReviseSettings : DefinitionSourceSettings;
@@ -67,18 +74,36 @@ internal sealed class DefinitionInitSettings : SetupCliCommandSettings
     public string? FromSchema { get; set; }
     [CommandOption("--accept-bounded-semantics")]
     public bool AcceptBoundedSemantics { get; set; }
+
+    protected override string? ValidateRequired() => base.ValidateRequired()
+        ?? (ForkFrom is not null
+            ? string.IsNullOrEmpty(Output) || FromSchema is not null || FromEnvExample is not null ? "definition-fork-options" : null
+            : string.IsNullOrEmpty(ProjectId) || string.IsNullOrEmpty(Name) || string.IsNullOrEmpty(ApplicationVersion)
+                ? "definition-project-metadata-required" : null);
+
+    protected override string? ValidateValues() => base.ValidateValues() ?? ValidateOutput(Output)
+        ?? (FromSchema is not null && FromEnvExample is not null ? "definition-scaffold-conflict" : null)
+        ?? (AcceptBoundedSemantics && FromSchema is null ? "definition-schema-required" : null)
+        ?? (Format is not null && Format is not ("yaml" or "json") ? "definition-source-format" : null)
+        ?? (Format is not null && Output is not null && IsYaml(Output) != (Format == "yaml") ? "definition-source-format" : null)
+        ?? (ForkFrom is not null && Output is not null && IsYaml(ForkFrom) != IsYaml(Output) ? "definition-source-format" : null)
+        ?? (ForkFrom is not null && Format is not null && IsYaml(ForkFrom) != (Format == "yaml") ? "definition-source-format" : null);
+
+    private static bool IsYaml(string path) =>
+        path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase);
+
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with
         {
-            Root = Path(Root),
-            Output = Path(Output),
+            Root = Root,
+            Output = Output,
             Format = Format,
             ProjectId = ProjectId,
             ProjectName = Name,
             ApplicationVersion = ApplicationVersion,
-            ForkFrom = Path(ForkFrom),
-            FromEnvExample = Path(FromEnvExample),
-            FromSchema = Path(FromSchema),
+            ForkFrom = ForkFrom,
+            FromEnvExample = FromEnvExample,
+            FromSchema = FromSchema,
             AcceptBoundedSemantics = AcceptBoundedSemantics
         };
 }

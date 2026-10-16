@@ -1,0 +1,31 @@
+Change-Id: CHG-01M4ZEE0065E2ZV2K4G04SBJY4
+Title: "accept explicit inputs without ambient secret-word filtering"
+Type: fix
+Scope: cli
+Summary: "Use strict Spectre grammar and typed pre-I/O validation for explicit bounded inputs, remove ambient environment enumeration and secret-word filename/ID bans, and derive machine help from the command model."
+Group: cli
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Remove SetupCliEnvironmentPresence and the embedded invocation environment parameter without compatibility adapters. Strict Spectre binding replaces parallel operational parsing; framework cli/export routes are not public. Active pre-release development requires no backward-compatibility layer for ambient-name or substring filtering."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Answers enter only through explicitly selected bounded files or redirected stdin, not ambient environment discovery or argument values. Removing secret-word bans retains definition admission, control/path checks, typed validation before I/O, safe diagnostics and Linux create-only restricted output. Help performs no reads."
+  Migration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Embedded callers construct SetupCliInvocation with arguments, mode and io only. Use strict case-sensitive Spectre syntax, equals-form value options, normal stdin '-', proper '--' termination and repeated bundle --artifact. Machine help consumers use typed scope, commandPath, commands and option metadata; help is not a compiler handshake."
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Ambient environment names/values neither supply answers nor reject invocations. Ordinary filenames and IDs containing secret-word substrings are admitted subject to bounded grammar and ordinary validation; actual private values still belong only in explicit input documents."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Root/branch/leaf machine help needs no operational inputs; human help uses stdout, failures use stderr, and public-artifact stdout has no status contamination. Modern package admission and actual-host qualification are separate; Windows 7 is unsupported. Protected saves remain Linux-only; custody, discovery/repair, skill lifecycle and adoption limits remain deferred."

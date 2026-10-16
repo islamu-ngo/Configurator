@@ -51,9 +51,30 @@ public static class SetupCliCommandSchemaMetadata
         {
             ["invocation"] = ObjectSchema(["commandFamily", "operation", "mode"], new()
             {
-                ["commandFamily"] = Enum(Families),
-                ["operation"] = Enum(Operations),
+                ["commandFamily"] = Enum(Families.Append("cli")),
+                ["operation"] = Enum(Operations.Append("help")),
                 ["mode"] = Enum(["machine"])
+            }),
+            ["help"] = ObjectSchema(["scope", "commandPath", "commands", "options"], new()
+            {
+                ["scope"] = Enum(["root", "branch", "leaf"]),
+                ["commandPath"] = new JsonObject
+                {
+                    ["type"] = "array", ["maxItems"] = 2,
+                    ["items"] = String(1, 64, "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+                },
+                ["commands"] = new JsonObject
+                {
+                    ["type"] = "array", ["maxItems"] = 32, ["uniqueItems"] = true,
+                    ["items"] = String(1, 64, "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+                },
+                ["options"] = BoundedArray("helpOption", 64)
+            }),
+            ["helpOption"] = ObjectSchema(["name", "requiresValue", "repeatable"], new()
+            {
+                ["name"] = String(3, 64, "^--[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"),
+                ["requiresValue"] = new JsonObject { ["type"] = "boolean" },
+                ["repeatable"] = new JsonObject { ["type"] = "boolean" }
             }),
             ["diagnostic"] = ObjectSchema(["code", "path", "severity"], new()
             {
@@ -156,6 +177,7 @@ public static class SetupCliCommandSchemaMetadata
                 ["diagnosticsOmitted"] = Integer(0, 4096),
                 ["detailDigest"] = String(null, null, "^[0-9a-f]{64}$"),
                 ["detail"] = Ref("detail"),
+                ["help"] = Ref("help"),
                 ["diagnostics"] = BoundedArray("diagnostic", 16),
                 ["artifacts"] = BoundedArray("artifact", 64),
                 ["coverage"] = Ref("coverage"),

@@ -290,7 +290,7 @@ public sealed class SetupCliDefinitionTests
         string[] arguments = ["definition", "build", "--root", files.Root, "--output", definition,
             "--id-map", map, "--machine"];
         SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(arguments, SetupCliMode.Machine,
-            new(io, io, io, 1, 4 * 1024 * 1024), new([])));
+            new(io, io, io, 1, 4 * 1024 * 1024)));
         await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
         await Assert.That(File.Exists(definition)).IsFalse();
         await Assert.That(File.Exists(map)).IsFalse();

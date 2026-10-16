@@ -15,6 +15,11 @@ internal static class SetupCliContractSpecification
                 ["definition"] = new HashSet<string>(["init", "check", "build", "revise"], StringComparer.Ordinal)
             });
 
+    internal static bool IsInvocation(string family, string operation) =>
+        Operations.TryGetValue(family, out IReadOnlySet<string>? operations)
+            && (operations.Contains(operation) || family != "doctor" && operation == "help")
+        || family == "cli" && operation == "help";
+
     internal static readonly IReadOnlyDictionary<string, int> ExitCodes =
         new ReadOnlyDictionary<string, int>(new Dictionary<string, int>(StringComparer.Ordinal)
         {

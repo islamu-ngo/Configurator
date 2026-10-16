@@ -14,40 +14,36 @@ internal static class ReleaseTestPaths
 
     internal static async Task<(int ExitCode, string Output)> Run(string executable, params string[] arguments)
     {
+        var result = await RunInDirectory(Root, executable, arguments);
+        return (result.ExitCode, result.Output + result.StandardError);
+    }
+
+    internal static async Task<(int ExitCode, string Output, string StandardError)> RunInDirectory(
+        string workingDirectory, string executable, params string[] arguments)
+    {
         var start = new ProcessStartInfo(executable)
         {
-            WorkingDirectory = Root,
+            WorkingDirectory = workingDirectory,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
         foreach (string argument in arguments) start.ArgumentList.Add(argument);
-        foreach (string key in start.Environment.Keys.ToArray())
-        {
-            string normalized = key.Replace('_', '-');
-            if (normalized.Contains("secret", StringComparison.OrdinalIgnoreCase)
-                || normalized.Contains("password", StringComparison.OrdinalIgnoreCase)
-                || normalized.Contains("token", StringComparison.OrdinalIgnoreCase)
-                || normalized.Contains("credential", StringComparison.OrdinalIgnoreCase)
-                || normalized.Contains("private-key", StringComparison.OrdinalIgnoreCase)
-                || normalized.Contains("api-key", StringComparison.OrdinalIgnoreCase)
-                || normalized.Contains("connection-string", StringComparison.OrdinalIgnoreCase))
-            {
-                start.Environment.Remove(key);
-            }
-        }
         using var process = new Process { StartInfo = start };
         process.Start();
         Task<string> output = process.StandardOutput.ReadToEndAsync();
         Task<string> error = process.StandardError.ReadToEndAsync();
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        using var cleanupDeadline = new CancellationTokenSource();
         try { await process.WaitForExitAsync(deadline.Token); }
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
+            cleanupDeadline.CancelAfter(TimeSpan.FromSeconds(5));
+            await process.WaitForExitAsync(cleanupDeadline.Token);
             throw;
         }
-        return (process.ExitCode, await output + await error);
+        return (process.ExitCode, await output, await error);
     }
 
     private static string FindRoot()
