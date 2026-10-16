@@ -40,7 +40,7 @@ native protected-save permissions.
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \
   artifact bundle-check \
   --definition examples/minimal-self-hosted/setup-definition.json \
-  --artifacts environment,configuration,configuration-yaml \
+  --artifact environment --artifact configuration --artifact configuration-yaml \
   --input examples/minimal-self-hosted/answers/complete.json --machine
 ```
 
@@ -61,7 +61,7 @@ mkdir -m 700 prepared
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \
   artifact bundle-create \
   --definition examples/minimal-self-hosted/setup-definition.json \
-  --artifacts environment,configuration,configuration-yaml \
+  --artifact environment --artifact configuration --artifact configuration-yaml \
   --input examples/minimal-self-hosted/answers/complete.json \
   --output ./prepared --machine
 ```
