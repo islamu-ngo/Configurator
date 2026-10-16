@@ -1,0 +1,29 @@
+Change-Id: CHG-01M523ARKDDMT5MR2AHJSHZ2QA
+Title: "admit modern native CLI packages with explicit host gates"
+Type: feat
+Scope: cli
+Summary: "Admit seven modern CLI runtime identifiers and add native package/runtime CI lanes without widening Terminal, Desktop or protected-save capabilities."
+Group: cli
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/packaging.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: documented
+    Detail: "Protected export remains Linux-only and filesystem-qualified. macOS and Windows restricted writes still fail closed; package admission and CI configuration do not establish protected-save qualification."
+  Migration:
+    Reference: docs/public/packaging.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: documented
+    Detail: "CLI admission includes linux-x64, linux-arm64, linux-musl-x64, linux-musl-arm64, osx-x64, osx-arm64 and win-x64. Other surfaces retain their previous RID sets. Windows 7 is unsupported; .NET 10 host dependencies and OS lifecycle requirements apply."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/packaging.md
+    Disposition: documented
+    Detail: "Native CI tests and smokes actual standalone packages on glibc Linux x64/Arm64, macOS Intel/Arm64 and Windows Server x64. Configured jobs are not executed evidence; musl, Windows 10/11 client and protected-save qualification require actual hosts."

@@ -24,6 +24,7 @@
   <ItemGroup>
     <ConfiguratorRuntimeIdentifier Include="linux-x64" />
     <ConfiguratorRuntimeIdentifier Include="linux-arm64;osx-arm64;win-x64" Condition="'$(ConfiguratorSurface)' != 'desktop'" />
+    <ConfiguratorRuntimeIdentifier Include="linux-musl-x64;linux-musl-arm64;osx-x64" Condition="'$(ConfiguratorSurface)' == 'cli'" />
     <ConfiguratorNotice Include="$(ConfiguratorRoot)/LICENSE;$(ConfiguratorRoot)/THIRD-PARTY-NOTICES.md" />
     <ConfiguratorCapability Include="$(MSBuildThisFileDirectory)generated/*.json" />
     <ConfiguratorSchema Include="$(ConfiguratorRoot)/schemas/*.schema.json" />
@@ -32,7 +33,7 @@
 
   <Target Name="ValidateConfiguratorRelease">
     <Error Condition="'$(ConfiguratorSurface)' != 'cli' and '$(ConfiguratorSurface)' != 'terminal' and '$(ConfiguratorSurface)' != 'desktop'" Text="Unsupported Configurator surface '$(ConfiguratorSurface)'." />
-    <Error Condition="'$(ConfiguratorRid)' != '' and '$(ConfiguratorRid)' != 'linux-x64' and '$(ConfiguratorRid)' != 'linux-arm64' and '$(ConfiguratorRid)' != 'osx-arm64' and '$(ConfiguratorRid)' != 'win-x64'" Text="Unsupported Configurator runtime identifier '$(ConfiguratorRid)'." />
+    <Error Condition="'$(ConfiguratorRid)' != '' and '@(ConfiguratorRuntimeIdentifier->WithMetadataValue('Identity', '$(ConfiguratorRid)'))' == ''" Text="Unsupported Configurator runtime identifier '$(ConfiguratorRid)' for surface '$(ConfiguratorSurface)'." />
     <Error Condition="'$(ConfiguratorSurface)' == 'desktop' and '$(ConfiguratorRid)' != '' and '$(ConfiguratorRid)' != 'linux-x64'" Text="Desktop releases are limited to the verified linux-x64 host." />
     <Error Condition="'$(SelfContained)' != 'true' or '$(PublishSingleFile)' != 'true' or '$(UseAppHost)' != 'true' or '$(PublishTrimmed)' != 'false' or '$(IncludeNativeLibrariesForSelfExtract)' != 'true' or '$(EnableCompressionInSingleFile)' != 'true'" Text="Native releases require untrimmed standalone single-file executables with embedded native libraries." />
     <Error Condition="('$(ConfiguratorSurface)' == 'cli' and '$(ConfiguratorExecutableName)' != 'islamu-configurator') or ('$(ConfiguratorSurface)' == 'terminal' and '$(ConfiguratorExecutableName)' != 'islamu-configurator-terminal') or ('$(ConfiguratorSurface)' == 'desktop' and '$(ConfiguratorExecutableName)' != 'islamu-configurator-desktop')" Text="The Configurator executable name is part of the operator contract." />

@@ -95,13 +95,78 @@ requests must not return `index.html`. Base path, worker scope and manifest
 must agree. Worker activation waits for a clean lifecycle across tabs; a package
 does not prove real browser update/network/cache behavior.
 
-The current release project admits CLI and Terminal packages for `linux-x64`,
-`linux-arm64`, `osx-arm64` and `win-x64`; Desktop is limited to `linux-x64`.
-CI publishes and checks the three Linux x64 packages and static Browser only.
-The four-RID native host/surface matrix is **Planned**: cross-publication does
-not establish that a package runs or saves restricted output on that host.
-Windows/macOS protected save and Linux arm64 host execution require actual-host
-evidence before those capabilities are claimed.
+## CLI native admission and host gates
+
+The release project admits exactly seven CLI RIDs: `linux-x64`, `linux-arm64`,
+`linux-musl-x64`, `linux-musl-arm64`, `osx-x64`, `osx-arm64` and `win-x64`.
+Admission validates the requested RID against the selected surface's evaluated
+item list, so the CLI expansion cannot widen Terminal or Desktop admission.
+Terminal retains `linux-x64`, `linux-arm64`, `osx-arm64` and `win-x64`;
+Desktop retains only `linux-x64`. Browser publication is unchanged.
+`ReleaseContractTests` evaluates actual MSBuild contract JSON, requires exact CLI
+membership and successful validation for each CLI RID, rejects Windows 7 and
+unknown RIDs, and checks that the three new RIDs remain refused for Terminal.
+All surface contracts continue to report `protectedExportHosts: ["linux"]`.
+
+The existing standalone CI lane still checks the three Linux x64 clients and
+static Browser. A separate CLI-only native matrix uses these explicitly selected
+GitHub-hosted labels:
+
+| Runner | CLI RID | Evidence boundary |
+| --- | --- | --- |
+| `ubuntu-24.04` | `linux-x64` | Ubuntu/glibc, not Arch, Debian or musl |
+| `ubuntu-24.04-arm` | `linux-arm64` | Native Arm64 Ubuntu/glibc, not musl |
+| `macos-15-intel` | `osx-x64` | Native Intel macOS |
+| `macos-15` | `osx-arm64` | Native Arm64 macOS |
+| `windows-2025` | `win-x64` | Windows Server, not Windows 10/11 |
+
+Each native lane restores locked CLI-owner dependencies, runs only
+`Configurator.Cli.Tests` with a nonempty-test guard, publishes the actual
+self-contained CLI package through `PublishConfigurator`, then executes that
+package's doctor and root-help machine entrypoints. Smoke assertions require
+successful exits, nonempty stdout and empty stderr; they do not parse JSON with
+shell text matching or claim full package-schema verification. The CLI-owner
+suite covers machine JSON semantics separately. Existing pinned checkout,
+setup-dotnet and upload-artifact Actions are reused, with no new dependency,
+Action, container image, publication credential or dispatch.
+
+The five lanes are **configured, awaiting actual-host results**. No CI run was
+dispatched as part of this increment. Musl x64/Arm64 execution, separate
+Arch/Debian execution, and Windows 10/11 execution remain pending. Packaging
+admission is not proof that every workflow works on a host; Windows Server cannot
+qualify Windows clients, and a glibc result cannot qualify musl. No wider
+Terminal/Desktop native matrix or cross-platform protected-save claim is added.
+
+The [public operating-system boundaries](../public/packaging.md#cli-operating-system-boundaries)
+record .NET 10 OS/lifecycle and libc eligibility, Windows 7 exclusion and native
+dependency limits. The Linux writer additionally requires kernel/filesystem
+anonymous-file support, procfs descriptor linking, atomic create-only publication
+and verified owner-only permissions. libc or kernel version alone proves none
+of those filesystem guarantees. Unsupported hosts/filesystems reject; macOS and
+Windows protected writers remain unimplemented and fail closed.
+
+### Platform fact provenance
+
+Official documentation was consulted read-only on 2026-10-16:
+
+- [GitHub-hosted runners reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners):
+  exact standard runner labels and native architectures used above.
+- [.NET 10 supported OS matrix](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md):
+  current OS release/edition lifecycle constraints and x64/Arm64 libc floors
+  (glibc 2.27, musl 1.2.3).
+- [Microsoft Linux installation guidance](https://learn.microsoft.com/en-us/dotnet/core/install/linux):
+  distribution-specific native dependency guidance.
+
+Only functional platform facts and required interoperability identifiers inform
+this increment. No external implementation, snippets, prose, images or assets
+are copied into the deliverable; no dependency decision changes. AFC/SSO review:
+runner spellings and platform floors are constrained facts; surface admission,
+tests and CI structure are independently derived from existing Configurator
+owners. The design deliberately reuses the surface RID list as the admission
+authority instead of introducing a second host allowlist. Raw research remains
+outside the repository; this source register retains only identities and facts.
+
+## Generated contracts and package verification
 
 `GenerateConfiguratorRatchets.cs` uses compiled Core definition schema and CLI
 command metadata. It evaluates `WriteConfiguratorReleaseContract` for each

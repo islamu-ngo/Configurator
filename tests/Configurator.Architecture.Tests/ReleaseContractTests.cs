@@ -9,7 +9,7 @@ namespace Configurator.Architecture.Tests;
 public sealed class ReleaseContractTests
 {
     [Test]
-    [Arguments("cli", "islamu-configurator", 4)]
+    [Arguments("cli", "islamu-configurator", 7)]
     [Arguments("terminal", "islamu-configurator-terminal", 4)]
     [Arguments("desktop", "islamu-configurator-desktop", 1)]
     public async Task EvaluatedReleaseContractPreservesStandaloneAndSupportedHosts(string surface, string executable, int ridCount)
@@ -25,6 +25,11 @@ public sealed class ReleaseContractTests
             JsonElement root = contract.RootElement;
             await Assert.That(root.GetProperty("executableName").GetString()).IsEqualTo(executable);
             await Assert.That(root.GetProperty("runtimeIdentifiers").GetArrayLength()).IsEqualTo(ridCount);
+            if (surface == "cli")
+            {
+                await Assert.That(root.GetProperty("runtimeIdentifiers").EnumerateArray().Select(item => item.GetString()!))
+                    .IsEquivalentTo(["linux-x64", "linux-arm64", "linux-musl-x64", "linux-musl-arm64", "osx-x64", "osx-arm64", "win-x64"]);
+            }
             await Assert.That(root.GetProperty("selfContained").GetBoolean()).IsTrue();
             await Assert.That(root.GetProperty("publishSingleFile").GetBoolean()).IsTrue();
             await Assert.That(root.GetProperty("publishTrimmed").GetBoolean()).IsFalse();
@@ -32,6 +37,22 @@ public sealed class ReleaseContractTests
             await Assert.That(root.GetProperty("protectedExportHosts").EnumerateArray().Select(item => item.GetString()!)).IsEquivalentTo(["linux"]);
         }
         finally { File.Delete(path); }
+    }
+
+    [Test]
+    [Arguments("linux-x64")]
+    [Arguments("linux-arm64")]
+    [Arguments("linux-musl-x64")]
+    [Arguments("linux-musl-arm64")]
+    [Arguments("osx-x64")]
+    [Arguments("osx-arm64")]
+    [Arguments("win-x64")]
+    public async Task CliAdmitsEachDeclaredModernRuntime(string rid)
+    {
+        var result = await ReleaseTestPaths.Run("dotnet", "msbuild", "eng/configurator/Configurator.Release.proj",
+            "-nologo", "-verbosity:quiet", "-t:ValidateConfiguratorRelease",
+            "-p:ConfiguratorSurface=cli", $"-p:ConfiguratorRid={rid}");
+        await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.Output);
     }
 
     [Test]
@@ -75,8 +96,9 @@ public sealed class ReleaseContractTests
 
     [Test]
     [Arguments("-p:ConfiguratorSurface=unknown")]
-    [Arguments("-p:ConfiguratorRid=linux-musl-x64")]
-    [Arguments("-p:ConfiguratorRid=osx-x64")]
+    [Arguments("-p:ConfiguratorRid=win7-x64")]
+    [Arguments("-p:ConfiguratorRid=win-x86")]
+    [Arguments("-p:ConfiguratorRid=osx-arm32")]
     [Arguments("-p:SelfContained=false")]
     [Arguments("-p:PublishTrimmed=true")]
     [Arguments("-p:PublishSingleFile=false")]
@@ -85,6 +107,18 @@ public sealed class ReleaseContractTests
     {
         var result = await ReleaseTestPaths.Run("dotnet", "msbuild", "eng/configurator/Configurator.Release.proj",
             "-nologo", "-verbosity:quiet", "-t:ValidateConfiguratorRelease", property);
+        await Assert.That(result.ExitCode).IsNotEqualTo(0);
+    }
+
+    [Test]
+    [Arguments("linux-musl-x64")]
+    [Arguments("linux-musl-arm64")]
+    [Arguments("osx-x64")]
+    public async Task CliRuntimeExpansionDoesNotExpandTerminalAdmission(string rid)
+    {
+        var result = await ReleaseTestPaths.Run("dotnet", "msbuild", "eng/configurator/Configurator.Release.proj",
+            "-nologo", "-verbosity:quiet", "-t:ValidateConfiguratorRelease",
+            "-p:ConfiguratorSurface=terminal", $"-p:ConfiguratorRid={rid}");
         await Assert.That(result.ExitCode).IsNotEqualTo(0);
     }
 

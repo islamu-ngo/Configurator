@@ -1,9 +1,12 @@
 # Backlog: Native Protected-Save Host Evidence
 
-- Status: Future work explicitly excluded from Configurator extraction
+- Status: Required modern-CLI follow-up, blocked on native hosts and test principals
 - Owner: Configurator Artifacts maintainers
 - Trigger: A supported release needs restricted artifact output on a native host
   other than the verified Linux path.
+- Trigger satisfied: the user's 2026-10-16 modern cross-platform CLI request covers
+  macOS Intel/Arm64 and Windows 10/11 x64; Windows 7 is explicitly excluded.
+  Runtime/package admission is not completion of this protected-save requirement.
 
 ## Outcome sought
 
@@ -30,6 +33,24 @@ For each proposed host, the owning maintainer must separately:
    and
 5. update the supported-host and operator guidance only after the implementation
    and evidence pass.
+
+For macOS, independently verify descriptor-relative no-follow path authority,
+owner-only creation and removal of inherited ACL access before any restricted
+bytes, atomic no-replace publication and identity-bound staging cleanup. Linux
+`O_TMPFILE`/`statx`/`linkat` code is not a Darwin implementation.
+
+For Windows, establish a protected owner-only DACL at creation and verify owner,
+DACL and object identity before restricted bytes. Retain directory/file authority
+through reparse/device/alternate-stream checks, create-only publication and cleanup;
+do not replace it with path prechecks followed by ordinary file writes. Existing
+`WindowsProtectedArtifactWriter` is a refusal stub, not an enabled capability.
+
+Both hosts require second-principal read-denial tests, inherited/broad ACL cases,
+two-process competing creators, directory/target substitution, cancellation before
+and around publication, and cleanup failures that retain established write facts.
+Record exactly which ACL/filesystem/OS variants were exercised. Native macOS and
+Windows hosts and suitable independent principals are not available in the current
+Linux checkout; keep the capability disabled rather than guessing these results.
 
 ## Acceptance criteria
 

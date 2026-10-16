@@ -19,8 +19,8 @@ whole package directory, including MIT ownership and third-party notices:
 
 | Surface | Default executable or static root | Packaging RIDs |
 | --- | --- | --- |
-| CLI | `artifacts/configurator/cli/<rid>/islamu-configurator` | `linux-x64`, `linux-arm64`, `osx-arm64`, `win-x64` |
-| Terminal | `artifacts/configurator/terminal/<rid>/islamu-configurator-terminal` | Same as CLI |
+| CLI | `artifacts/configurator/cli/<rid>/islamu-configurator` | `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `osx-x64`, `osx-arm64`, `win-x64` |
+| Terminal | `artifacts/configurator/terminal/<rid>/islamu-configurator-terminal` | `linux-x64`, `linux-arm64`, `osx-arm64`, `win-x64` |
 | Desktop | `artifacts/configurator/desktop/linux-x64/islamu-configurator-desktop` | `linux-x64` only |
 | Browser | `artifacts/configurator/browser/wwwroot/` | Independent static WASM, no native RID |
 
@@ -29,6 +29,45 @@ protected exports work on that host. Protected native writes are Linux-only and
 still reject filesystems where create-only, owner-only protection cannot be
 established. macOS and Windows exports fail closed; Desktop packaging refuses
 unverified hosts. GUI packages still need the host's display and platform libraries.
+
+## CLI operating-system boundaries
+
+The CLI packaging scope is modern Linux (including Arch, Debian and Ubuntu),
+Intel/Arm64 macOS, and x64 Windows 10/11. **Windows 7 is unsupported.**
+Select `linux-*` for glibc distributions and `linux-musl-*` for musl distributions;
+these packages are not interchangeable. Terminal, Desktop and Browser admission
+is unchanged by this CLI expansion.
+
+Self-contained packages include .NET, not every operating-system library. Hosts
+still need the native dependencies required by [.NET 10](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md).
+As checked on 2026-10-16, its x64/Arm64 libc floors are glibc 2.27 and musl 1.2.3;
+these are runtime compatibility floors, not supported-distribution guarantees.
+The current upstream list includes Debian 13, Ubuntu 22.04/24.04/26.04 and
+macOS 15 or newer listed releases. Arch is a rolling-distribution target, not an
+upstream Microsoft support promise. Windows 10/11 eligibility depends on the
+specific release/edition and its upstream lifecycle; a `win-x64` package does not
+make every Windows 10 installation supported. Follow the linked upstream matrix
+for current versions and required native libraries.
+
+Linux protected output additionally needs a compatible kernel, accessible
+`/proc/self/fd`, filesystem support for anonymous-file preparation and atomic
+create-only linking, and verifiable owner-only permissions through a safe directory
+chain. Meeting a libc floor or running a recent kernel alone is insufficient.
+Unsupported filesystems, existing-file conflicts and unsafe destinations reject
+without overwriting or falling back to an ordinary write. macOS/Windows still
+have no protected writer and reject restricted output.
+
+CI now declares native CLI-owner tests and actual self-contained package
+`doctor --machine` / `--help --machine` smoke checks for Linux x64/Arm64,
+macOS Intel/Arm64 and Windows Server x64. These configured gates are **pending
+actual-host execution evidence**, not a completed support qualification.
+Ubuntu execution does not establish Arch or Debian coverage, Windows Server is
+not Windows 10/11 evidence, and glibc execution does not establish musl coverage.
+Both musl hosts and Windows 10/11 remain explicit pending actual-host checks;
+no emulation or unreviewed container image substitutes for them. Package smoke
+checks alone do not qualify protected export or every CLI workflow.
+
+## Package contents
 
 Native package directories include `schemas/`, `contracts/`, `dependency-notices/`,
 `LICENSE` and `THIRD-PARTY-NOTICES.md`. The dependency directory retains original

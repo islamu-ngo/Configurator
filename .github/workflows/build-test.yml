@@ -18,6 +18,68 @@ env:
   DOTNET_NOLOGO: "1"
 
 jobs:
+  cli-native:
+    name: CLI native runtime and package (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            rid: linux-x64
+          - runner: ubuntu-24.04-arm
+            rid: linux-arm64
+          - runner: macos-15-intel
+            rid: osx-x64
+          - runner: macos-15
+            rid: osx-arm64
+          - runner: windows-2025
+            rid: win-x64
+    steps:
+      - name: Checkout only Configurator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Test only the CLI owner on the native host
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --locked-mode
+          dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --no-restore -- --minimum-expected-tests 1
+      - name: Publish standalone CLI for this native host
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=cli -p:ConfiguratorRid=${{ matrix.rid }} -verbosity:minimal
+      - name: Smoke the actual package doctor and help entrypoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          executable="$PWD/artifacts/configurator/cli/${{ matrix.rid }}/islamu-configurator"
+          if [[ '${{ matrix.rid }}' == 'win-x64' ]]; then executable="$executable.exe"; fi
+          # Check real package exits and output streams; CLI owner tests validate JSON semantics.
+          for command in doctor help; do
+            if [[ "$command" == doctor ]]; then arguments=(doctor --machine); else arguments=(--help --machine); fi
+            expected=0
+            if [[ "$command" == doctor && '${{ matrix.rid }}' != linux-* ]]; then expected=4; fi
+            if "$executable" "${arguments[@]}" > "$RUNNER_TEMP/cli-$command.json" 2> "$RUNNER_TEMP/cli-$command.stderr"; then actual=0; else actual=$?; fi
+            test "$actual" -eq "$expected"
+            test -s "$RUNNER_TEMP/cli-$command.json"
+            test ! -s "$RUNNER_TEMP/cli-$command.stderr"
+          done
+      - name: Retain unsigned native CLI validation package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: configurator-cli-${{ matrix.rid }}
+          path: artifacts/configurator/cli/${{ matrix.rid }}/
+          if-no-files-found: error
+          retention-days: 7
+
   standalone:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
