@@ -207,7 +207,9 @@ machine result reports each artifact as `written`, `conflict`, `blocked`,
 `failed`, `not-attempted` or `unknown` and exits unsuccessfully. `unknown` means
 publication could not be established, not that nothing was written. An earlier
 `written` result survives a later publication or cleanup failure. Inspect those
-statuses before retrying. Neither command accepts an artifact with import semantics;
+statuses before retrying, including after an unexpected failure. If publication or
+cleanup could not be established, the result says `unknown`, not that nothing
+happened. Neither command accepts an artifact with import semantics;
 use revision-bound `artifact import` for that artifact. `--dry-run` checks
 composition only and does not reserve or inspect destinations.
 

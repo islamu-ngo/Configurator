@@ -1,0 +1,30 @@
+Change-Id: CHG-01M5248XXG63S8G0X7QRM2PACC
+Title: "retain established bundle writes after unexpected faults"
+Type: fix
+Scope: cli
+Summary: "Forward established native bundle outcomes to the invocation ledger before aggregate completion so unexpected faults cannot hide an already written prefix."
+Group: cli
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Embedded bundle writer implementations must accept and forward established outcome observations. Migrate directly; no compatibility overload silently discards observations. Command spelling and command/v2 JSON shape are unchanged."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "A known restricted write remains written after an unexpected later exception. Unobserved publication and exceptional cleanup remain unknown rather than becoming false no-write or cleanup-success claims. Native create-only protection is unchanged."
+  Migration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Update ISetupCliWriter.WriteBundleAsync implementations and callers to propagate established per-artifact observations before returning or throwing."
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Inspect written and unknown bundle outcomes before retrying a failed operation. No rollback, replay, forced-kill recovery or new host qualification is implied."

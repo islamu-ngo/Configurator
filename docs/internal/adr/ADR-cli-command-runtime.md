@@ -1,6 +1,6 @@
 # CLI results preserve publication facts independently of delivery
 
-Status: accepted; explicit-input/help implementation underway, post-change verification pending.
+Status: accepted; runtime boundary implemented and verified on Linux x64; native host qualification remains separate.
 Date: 2026-10-16. Owners: CLI and native packaging.
 Implementation anchor: [CLI contract](../CLI_CONTRACT.md).
 Operator guidance: [command-line configurator](../../public/cli.md).
@@ -53,6 +53,9 @@ stays unassessed because this offline tool never contacts the target.
 
 Prepare all selected destinations before ordered commits, including canonical
 definition and optional ID map. Preserve a committed prefix if later work fails.
+Forward the native bundle publisher's established outcomes into the invocation
+ledger before aggregate completion. Unexpected exceptions may leave unobserved
+entries and cleanup unknown, but must not erase an already observed write.
 Regenerate v2 from the compiled schema owner and retire command v1 through owned
 generator/package cleanup, preserving unrelated package content and definition
 schemas. Independent machine verification must not use production serialization
@@ -135,15 +138,16 @@ established destinations before retrying; no in-band protocol can guarantee
 delivery acknowledgment, rollback or recovery after process loss.
 
 Cooperative cancellation cannot guarantee cleanup or a final receipt after forced
-kill, OS crash or a blocked non-cancellable native primitive. Explicit-input/help
-work has pre-production Red evidence only here: 119 total, 108 passed, 11 failed;
-post-change green is not claimed. Hardened public authoring custody, installed
+kill, OS crash or a blocked non-cancellable native primitive. The runtime boundary
+has behavioral regression and native Linux process evidence; that evidence does
+not qualify other hosts. Hardened public authoring custody, installed
 discovery/repair, portable skill lifecycle and complete installed adoption remain
 deferred.
 
 The expanded requested .NET 10 platform matrix covers Linux glibc/musl x64/arm64,
-macOS x64/arm64 and Windows 10/11 x64, not Windows 7. It is not yet implemented or
-qualified. Current restricted-save qualification remains Linux-only; this decision
+macOS x64/arm64 and Windows 10/11 x64, not Windows 7. Package admission and native CI
+lanes are configured; actual-host qualification is not established by configuration.
+Current restricted-save qualification remains Linux-only; this decision
 does not establish non-Linux protected writers or actual-host equivalence. These
 runtime improvements are not enterprise certification.
 

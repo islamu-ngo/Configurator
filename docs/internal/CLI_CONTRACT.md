@@ -92,6 +92,13 @@ it never includes filenames, directory paths or bytes. Dry run
 composes but does not preflight destinations or write. Partial publication is
 an unsuccessful exit and does not roll back already written files.
 
+The bundle writer forwards established native outcomes to the invocation ledger
+as they occur, before returning its aggregate result. An unexpected later exception
+therefore cannot erase a known written prefix. Entries with no established outcome
+remain `unknown` after publication starts; exceptional cleanup remains `unknown`
+unless its result is established. A normal aggregate result still distinguishes
+untouched `not-attempted` destinations from uncertain publication.
+
 Import preparation requires declared import semantics, an explicit expected
 revision and a declared string revision field. The selected projection must copy
 it unconditionally to a root object member, and validation must confirm it is
@@ -152,7 +159,11 @@ callers migrate directly, without compatibility wrappers:
   `WriteArtifactAsync(..., cancellationToken)` and
   `WriteBundleAsync(..., cancellationToken)` return
   `ValueTask<SetupCliPublicationResult>`, preserving completion, publication and
-  cleanup facts rather than discarding them in an exception path.
+   cleanup facts rather than discarding them in an exception path.
+
+Embedded bundle writers also accept an outcome observer and report established
+per-artifact facts before later work can throw. Migrate implementations directly;
+there is no overload that silently drops those observations.
 
 `Program` owns one invocation CTS, the Ctrl+C subscription and, on Unix, the
 SIGTERM registration. It disposes registrations and the CTS on exit. Repeated

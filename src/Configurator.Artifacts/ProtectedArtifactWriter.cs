@@ -3,6 +3,7 @@ using System.Runtime.ExceptionServices;
 using Configurator.Core;
 
 [assembly: InternalsVisibleTo("Configurator.Artifacts.Tests")]
+[assembly: InternalsVisibleTo("Configurator.Cli.Tests")]
 
 namespace Configurator.Artifacts;
 

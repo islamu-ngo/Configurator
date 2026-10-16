@@ -77,8 +77,11 @@ internal static class SetupCliProgram
     {
         if (handle is not null)
         {
-            try { return new NamedPipeClientStream(descriptor == 0 ? PipeDirection.In : PipeDirection.Out,
-                isAsync: true, isConnected: true, handle); }
+            try
+            {
+                return new NamedPipeClientStream(descriptor == 0 ? PipeDirection.In : PipeDirection.Out,
+                isAsync: true, isConnected: true, handle);
+            }
             catch (IOException)
             {
                 // Console output streams also initialize the terminal driver on their first write.
@@ -126,8 +129,10 @@ internal static class SetupCliProgram
         }
     }
 
-    private sealed class SystemWriter(Stream standardOutput) : ISetupCliWriter
+    internal sealed class SystemWriter(Stream standardOutput, IProtectedArtifactWriter? protectedWriter = null) : ISetupCliWriter
     {
+        private readonly IProtectedArtifactWriter _protectedWriter = protectedWriter ?? new ProtectedArtifactWriter();
+
         public async ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -152,9 +157,8 @@ internal static class SetupCliProgram
                 await WriteAsync(path, projection, maximumBytes, cancellationToken);
                 return new([new(ProtectedArtifactStatus.Written)]);
             }
-            var writer = new ProtectedArtifactWriter();
             ProtectedArtifactPreparation preparation;
-            try { preparation = await writer.PrepareAsync(kind, path, bytes, cancellationToken); }
+            try { preparation = await _protectedWriter.PrepareAsync(kind, path, bytes, cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 return new([new(null)], Cancelled: true);
@@ -179,12 +183,15 @@ internal static class SetupCliProgram
         }
 
         public async ValueTask<SetupCliPublicationResult> WriteBundleAsync(
-            IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes, CancellationToken cancellationToken)
+            IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes,
+            Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken)
         {
+            ArgumentNullException.ThrowIfNull(outcomeObserver);
             if (artifacts.Any(item => item.ByteLength > maximumBytes))
                 throw new IOException("output-bound");
             ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
-                new ProtectedArtifactWriter(), artifacts, directory, cancellationToken: cancellationToken);
+                _protectedWriter, artifacts, directory,
+                outcome => outcomeObserver(outcome.ArtifactId, new(outcome.Status)), cancellationToken);
             return new(result.Outcomes.Select(item => new SetupCliPublicationOutcome(item.Status)).ToArray(),
                 result.CleanupFailed, result.CompletionCode == ProtectedArtifactBundleCompletionCode.Cancelled);
         }

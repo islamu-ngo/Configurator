@@ -2,11 +2,64 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Configurator.Artifacts;
+using Configurator.Core;
 
 namespace Configurator.Cli.Tests;
 
 public sealed class SetupCliMachineBoundaryTests
 {
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task UnexpectedBundleCommitFaultRetainsRealNativeWrittenPrefix(bool cleanupFails)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-prefix-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var fixture = new CliFixture();
+            using var output = new MemoryStream();
+            using var error = new MemoryStream();
+            var writer = new SetupCliProgram.SystemWriter(output, new FaultingSecondCommitWriter(cleanupFails));
+            SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(
+                ["artifact", "bundle-create", "--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
+                    "--input", "answers.json", "--output", directory, "--machine"], SetupCliMode.Machine,
+                new(fixture, writer, new SetupCliProgram.SystemWriter(error), 65_536, 4 * 1024 * 1024)))
+                .WaitAsync(TimeSpan.FromSeconds(10));
+
+            string target = Path.Combine(directory, "service.json");
+            await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("{\"enabled\":true,\"name\":\"private-answer-marker\"}");
+            await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            await Assert.That(File.Exists(Path.Combine(directory, "service.yaml"))).IsFalse();
+            await Assert.That(exit).IsEqualTo(SetupCliExitCode.Internal);
+            await Assert.That(error.Length).IsEqualTo(0);
+            byte[] receipt = output.ToArray();
+            await Assert.That(receipt.Length).IsLessThanOrEqualTo(65_536);
+            await Assert.That(SetupCliMachineContractVerifier.Validate(receipt)).IsEmpty();
+            string text = Encoding.UTF8.GetString(receipt);
+            await Assert.That(text.Count(character => character == '\n')).IsEqualTo(1);
+            await Assert.That(text.EndsWith('\n')).IsTrue();
+            await Assert.That(text.Contains(directory, StringComparison.Ordinal)).IsFalse();
+            await Assert.That(text.Contains("synthetic-unexpected-commit-fault", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(text.Contains("synthetic-cleanup-fault", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(text.Contains("private-answer-marker", StringComparison.Ordinal)).IsFalse();
+            using JsonDocument result = JsonDocument.Parse(receipt);
+            JsonElement root = result.RootElement;
+            await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(70);
+            await Assert.That(root.GetProperty("completion").GetString()).IsEqualTo("failed");
+            await Assert.That(root.GetProperty("cleanup").GetString()).IsEqualTo("unknown");
+            JsonElement artifacts = root.GetProperty("artifacts");
+            await Assert.That(artifacts.GetArrayLength()).IsEqualTo(2);
+            await Assert.That(artifacts[0].GetProperty("id").GetString()).IsEqualTo("config");
+            await Assert.That(artifacts[0].GetProperty("writeStatus").GetString()).IsEqualTo("written");
+            await Assert.That(artifacts[1].GetProperty("id").GetString()).IsEqualTo("yaml");
+            await Assert.That(artifacts[1].GetProperty("writeStatus").GetString()).IsEqualTo("unknown");
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
     [Test]
     public async Task MaximumCoverageCannotHideAnEstablishedNativeWrite()
     {
@@ -21,8 +74,15 @@ public sealed class SetupCliMachineBoundaryTests
             for (int index = 0; index < 1024; index++)
             {
                 string id = "f" + index.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + new string('x', 123);
-                fields.Add(new JsonObject { ["id"] = id, ["type"] = "string", ["required"] = true,
-                    ["sensitivity"] = "public", ["disclosure"] = "guided", ["title"] = "Field" });
+                fields.Add(new JsonObject
+                {
+                    ["id"] = id,
+                    ["type"] = "string",
+                    ["required"] = true,
+                    ["sensitivity"] = "public",
+                    ["disclosure"] = "guided",
+                    ["title"] = "Field"
+                });
                 answers[id] = "synthetic";
             }
             var artifacts = new JsonArray();
@@ -33,8 +93,11 @@ public sealed class SetupCliMachineBoundaryTests
                 ids.Add(id);
                 artifacts.Add(new JsonObject
                 {
-                    ["id"] = id, ["format"] = "json", ["fileName"] = index + ".json",
-                    ["applySemantics"] = "create", ["restart"] = "none",
+                    ["id"] = id,
+                    ["format"] = "json",
+                    ["fileName"] = index + ".json",
+                    ["applySemantics"] = "create",
+                    ["restart"] = "none",
                     ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject { ["ok"] = true } }
                 });
             }
@@ -147,14 +210,21 @@ public sealed class SetupCliMachineBoundaryTests
         var fields = new JsonArray();
         for (int index = 0; index < 40; index++) fields.Add(new JsonObject
         {
-            ["id"] = "field" + index, ["type"] = "string", ["required"] = true,
-            ["sensitivity"] = "public", ["disclosure"] = "guided", ["title"] = "Field"
+            ["id"] = "field" + index,
+            ["type"] = "string",
+            ["required"] = true,
+            ["sensitivity"] = "public",
+            ["disclosure"] = "guided",
+            ["title"] = "Field"
         });
         definition["fields"] = fields;
         definition["artifacts"] = new JsonArray(new JsonObject
         {
-            ["id"] = "config", ["format"] = "json", ["fileName"] = "output.json",
-            ["applySemantics"] = "create", ["restart"] = "none",
+            ["id"] = "config",
+            ["format"] = "json",
+            ["fileName"] = "output.json",
+            ["applySemantics"] = "create",
+            ["restart"] = "none",
             ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject() }
         });
         fixture.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
@@ -180,7 +250,7 @@ public sealed class SetupCliMachineBoundaryTests
     public async Task EscapedPublicDiagnosticsRespectSharedByteBudgetAndMakePageProgress()
     {
         var command = new SetupCliCommand("artifact", "validate", true, false, false, null, null, null, null, null, null)
-            { Detail = "diagnostics" };
+        { Detail = "diagnostics" };
         SetupCliCommandResult result = SetupCliResults.Failure(SetupCliExitCode.Validation, "public-failure") with
         {
             Diagnostics = Enumerable.Range(0, 1024).Select(_ =>
@@ -210,6 +280,26 @@ public sealed class SetupCliMachineBoundaryTests
             "--input", "answers.json", "--output", "prepared.json", "--machine"], SetupCliMode.Machine,
             new(fixture, writer, writer, budget, 4 * 1024 * 1024)));
 
+    private sealed class FaultingSecondCommitWriter(bool cleanupFails) : IProtectedArtifactWriter
+    {
+        private readonly ProtectedArtifactWriter _writer = new();
+        private int _prepared;
+        public bool IsAvailable => _writer.IsAvailable;
+
+        public async Task<ProtectedArtifactPreparation> PrepareAsync(SetupArtifactKind kind, string targetPath,
+            ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
+        {
+            ProtectedArtifactPreparation preparation = await _writer.PrepareAsync(kind, targetPath, bytes, cancellationToken);
+            if (_prepared++ == 0) return preparation;
+            return new ProtectedArtifactPreparation(_ => throw new InvalidOperationException("synthetic-unexpected-commit-fault:" + targetPath),
+                () =>
+                {
+                    preparation.Dispose();
+                    if (cleanupFails) throw new InvalidOperationException("synthetic-cleanup-fault:" + targetPath);
+                }, preparation.RejectionStatus);
+        }
+    }
+
     private sealed class PublicationWriter(CliFixture fixture, SetupCliPublicationResult? result) : ISetupCliWriter
     {
         internal int Publications { get; private set; }
@@ -223,7 +313,8 @@ public sealed class SetupCliMachineBoundaryTests
             return result ?? throw new IOException("synthetic-post-publication-failure");
         }
         public ValueTask<SetupCliPublicationResult> WriteBundleAsync(IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts,
-            string directory, int maximumBytes, CancellationToken cancellationToken) => throw new InvalidOperationException();
+            string directory, int maximumBytes, Action<string, SetupCliPublicationOutcome> outcomeObserver,
+            CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
 
     private sealed class FailingWriter(int prefix) : ISetupCliWriter
@@ -239,6 +330,6 @@ public sealed class SetupCliMachineBoundaryTests
             ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) => throw new IOException();
         public ValueTask<SetupCliPublicationResult> WriteBundleAsync(
             IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts, string directory, int maximumBytes,
-            CancellationToken cancellationToken) => throw new IOException();
+            Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken) => throw new IOException();
     }
 }

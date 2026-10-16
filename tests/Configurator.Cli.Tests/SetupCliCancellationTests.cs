@@ -248,8 +248,10 @@ public sealed class SetupCliCancellationTests
         }
 
         public async ValueTask<SetupCliPublicationResult> WriteBundleAsync(IReadOnlyList<DefinitionArtifact> artifacts,
-            string directory, int maximumBytes, CancellationToken cancellationToken)
+            string directory, int maximumBytes, Action<string, SetupCliPublicationOutcome> outcomeObserver,
+            CancellationToken cancellationToken)
         {
+            outcomeObserver(artifacts[0].ArtifactId, new(ProtectedArtifactStatus.Written));
             await AwaitCancellationAsync(cancellationToken);
             return new([new(ProtectedArtifactStatus.Written), new(null)], Cancelled: true);
         }
@@ -280,6 +282,7 @@ public sealed class SetupCliCancellationTests
         public ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
             ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) => throw new InvalidOperationException();
         public ValueTask<SetupCliPublicationResult> WriteBundleAsync(IReadOnlyList<DefinitionArtifact> artifacts,
-            string directory, int maximumBytes, CancellationToken cancellationToken) => throw new InvalidOperationException();
+            string directory, int maximumBytes, Action<string, SetupCliPublicationOutcome> outcomeObserver,
+            CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
 }

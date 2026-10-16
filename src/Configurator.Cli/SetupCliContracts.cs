@@ -20,8 +20,10 @@ public interface ISetupCliWriter
     ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
         ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken);
 
+    /// <summary>Reports established artifact outcomes synchronously before later work can fail; the result supplies final cleanup and cancellation facts.</summary>
     ValueTask<SetupCliPublicationResult> WriteBundleAsync(
-        IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes, CancellationToken cancellationToken);
+        IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes,
+        Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken);
 }
 
 public sealed record SetupCliPublicationOutcome(ProtectedArtifactStatus? Status, bool Unknown = false);

@@ -62,7 +62,8 @@ internal static class SetupCliArtifactHandlers
                 coverage.MissingKeys.Count > 0 ? coverage.MissingKeys : ["input-invalid"], []);
             return new(missingOnly ? SetupCliExitCode.Incomplete : SetupCliExitCode.Validation,
                 validation.Diagnostics.Select(item => new SetupCliMachineDiagnostic(item.Code, "/input", "error")).ToArray(),
-                [], coverage, readiness) { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
+                [], coverage, readiness)
+            { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
         }
         DefinitionArtifactResult composed = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers);
         if (!composed.Succeeded)
@@ -105,7 +106,8 @@ internal static class SetupCliArtifactHandlers
                 output.Digest.Value, "restricted", coverage, hostReadiness,
                 write ? SetupCliResults.PathIntent(command.Output) : "input",
                 write ? command.DryRun ? "planned" : "not-attempted" : "none") { Id = artifact.Id }], coverage, hostReadiness)
-                with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
+                with
+            { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
             if (command.Output == "-") return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "/output");
             if (!write || command.DryRun) return result;
             ledger.Plan(invocation, command, result);
@@ -151,8 +153,11 @@ internal static class SetupCliArtifactHandlers
         var readiness = validation.IsReady ? SetupCliResults.Ready()
             : new SetupCliMachineReadiness("incomplete", coverage.MissingKeys, []);
         if (command.Operation == "check-existing")
-            return SetupCliResults.Success(coverage: coverage, readiness: readiness) with { DefinitionDigest = definition.Digest.Value,
-                Preparation = validation.IsReady ? "ready" : "incomplete" };
+            return SetupCliResults.Success(coverage: coverage, readiness: readiness) with
+            {
+                DefinitionDigest = definition.Digest.Value,
+                Preparation = validation.IsReady ? "ready" : "incomplete"
+            };
 
         if (command.Output == "-")
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "$.output");
@@ -162,7 +167,8 @@ internal static class SetupCliArtifactHandlers
             SetupCliCommandResult receipt = SetupCliResults.Success([SetupCliResults.Artifact("answer-snapshot", "application/json", bytes,
                 "restricted", SetupCliResults.PathIntent(command.Output),
                 command.DryRun ? "planned" : "not-attempted", coverage, readiness)], coverage, readiness)
-                with { DefinitionDigest = definition.Digest.Value, Preparation = validation.IsReady ? "ready" : "incomplete" };
+                with
+            { DefinitionDigest = definition.Digest.Value, Preparation = validation.IsReady ? "ready" : "incomplete" };
             if (command.DryRun) return receipt;
             ledger.Plan(invocation, command, receipt);
             cancellationToken.ThrowIfCancellationRequested();
@@ -186,21 +192,23 @@ internal static class SetupCliArtifactHandlers
             return new(SetupCliExitCode.Validation,
                 bundle.Diagnostics.Select(item => new SetupCliMachineDiagnostic(item.Code, "/input", "error")).ToArray(),
                 [], SetupCliResults.EmptyCoverage(), new("incomplete", ["input-invalid"], []))
-                { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
+            { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
 
         bool inspectedOnly = command.Operation == "bundle-check" || command.DryRun;
         var planned = SetupCliResults.Success(bundle.Artifacts.Select(artifact =>
             new SetupCliMachineArtifact("definition-artifact", artifact.MediaType, artifact.Digest.Value, "restricted",
                 SetupCliResults.EmptyCoverage(), SetupCliResults.Ready(), SetupCliResults.PathIntent(command.Output),
-                command.Operation == "bundle-check" ? "none" : command.DryRun ? "planned" : "not-attempted") { Id = artifact.ArtifactId }).ToArray(),
+                command.Operation == "bundle-check" ? "none" : command.DryRun ? "planned" : "not-attempted")
+            { Id = artifact.ArtifactId }).ToArray(),
             new(bundle.Artifacts.Select(item => item.ArtifactId), []),
-            new("incomplete", ["host-validation-required"], [])) with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
+            new("incomplete", ["host-validation-required"], [])) with
+        { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
         if (inspectedOnly) return planned;
         ledger.Plan(invocation, command, planned);
         cancellationToken.ThrowIfCancellationRequested();
         ledger.BeginPublication();
         return ledger.Apply(await invocation.Io.Output.WriteBundleAsync(bundle.Artifacts, command.Output!,
-            invocation.Io.MaximumBytes, cancellationToken), planned, blockedRejections: true);
+            invocation.Io.MaximumBytes, ledger.Record, cancellationToken), planned, blockedRejections: true);
     }
 
     private static async Task<bool> EquivalentInputAsync(SetupCliInvocation invocation, string path,
@@ -324,14 +332,14 @@ internal static class SetupCliIoOperations
         using SetupCliInputBuffer buffer = await ReadAsync(invocation, path, cancellationToken);
         using JsonDocument document = JsonDocument.Parse(buffer.Bytes,
                 new JsonDocumentOptions { MaxDepth = 32 });
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-                throw new JsonException();
-            var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (JsonProperty property in document.RootElement.EnumerateObject())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!values.TryAdd(property.Name, property.Value.Clone())) throw new JsonException();
-            }
-            return new(long.Parse(revision, CultureInfo.InvariantCulture), values);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+            throw new JsonException();
+        var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (JsonProperty property in document.RootElement.EnumerateObject())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!values.TryAdd(property.Name, property.Value.Clone())) throw new JsonException();
+        }
+        return new(long.Parse(revision, CultureInfo.InvariantCulture), values);
     }
 }
