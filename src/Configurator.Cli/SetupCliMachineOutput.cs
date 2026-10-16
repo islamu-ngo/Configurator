@@ -109,9 +109,14 @@ internal static class SetupCliMachineOutput
         if (pointer.Length > 256 || pointer.Any(char.IsControl) || pointer.Length > 0 && pointer[0] != '/') pointer = "";
         string code = diagnostic.Code.Length is > 0 and <= 96 && diagnostic.Code.All(character => char.IsAsciiLetterOrDigit(character) || character == '-')
             ? diagnostic.Code : "diagnostic-invalid";
-        return diagnostic with { Code = code, Path = pointer,
+        return diagnostic with
+        {
+            Code = code,
+            Path = pointer,
             Severity = diagnostic.Severity is "error" or "warning" or "info" ? diagnostic.Severity : "error",
-            Line = diagnostic.Line > 0 ? diagnostic.Line : null, Column = diagnostic.Column > 0 ? diagnostic.Column : null,
-            ByteOffset = diagnostic.ByteOffset >= 0 ? diagnostic.ByteOffset : null };
+            Line = diagnostic.Line > 0 ? diagnostic.Line : null,
+            Column = diagnostic.Column > 0 ? diagnostic.Column : null,
+            ByteOffset = diagnostic.ByteOffset >= 0 ? diagnostic.ByteOffset : null
+        };
     }
 }

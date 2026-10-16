@@ -73,8 +73,14 @@ internal class DefinitionSettings : SetupCliCommandSettings
         ?? ValidateDetail(Detail, Offset, Limit, ExpectedDetailDigest);
 
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
-        base.Bind(family, operation, invocationMode) with { Definition = Definition, Detail = Detail,
-            Offset = Offset, Limit = Limit, ExpectedDetailDigest = ExpectedDetailDigest };
+        base.Bind(family, operation, invocationMode) with
+        {
+            Definition = Definition,
+            Detail = Detail,
+            Offset = Offset,
+            Limit = Limit,
+            ExpectedDetailDigest = ExpectedDetailDigest
+        };
 }
 
 internal class CatalogueListSettings : DefinitionSettings

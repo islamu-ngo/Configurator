@@ -279,5 +279,6 @@ internal static class SetupCliDefinitionHandlers
     private static bool IsYaml(string path) => Path.GetExtension(path).ToLowerInvariant() is ".yaml" or ".yml";
     private static SetupCliCommandResult Receipt(string kind, bool yaml, ReadOnlyMemory<byte> bytes, string status, string digest, string intent = "output") =>
         SetupCliResults.Success([SetupCliResults.Artifact(kind, yaml ? "application/yaml" : "application/json", bytes.Span, "public", intent, status)])
-            with { DefinitionDigest = digest, Preparation = "ready" };
+            with
+        { DefinitionDigest = digest, Preparation = "ready" };
 }

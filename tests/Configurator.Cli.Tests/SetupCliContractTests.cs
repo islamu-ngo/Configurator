@@ -174,8 +174,12 @@ public sealed class SetupCliContractTests
                 root["diagnosticsTotal"] = 1;
                 root["diagnostics"] = new JsonArray(new JsonObject
                 {
-                    ["code"] = "invalid-artifact", ["path"] = path, ["severity"] = "error",
-                    ["line"] = 1, ["column"] = 1, ["byteOffset"] = 0
+                    ["code"] = "invalid-artifact",
+                    ["path"] = path,
+                    ["severity"] = "error",
+                    ["line"] = 1,
+                    ["column"] = 1,
+                    ["byteOffset"] = 0
                 });
             });
             await Assert.That(SetupCliMachineContractVerifier.Validate(located)).IsEmpty();
@@ -240,7 +244,9 @@ public sealed class SetupCliContractTests
     {
         JsonObject Diagnostic(int pathLength = 0) => new()
         {
-            ["code"] = "invalid-artifact", ["path"] = pathLength == 0 ? "" : "/" + new string('é', pathLength - 1), ["severity"] = "error"
+            ["code"] = "invalid-artifact",
+            ["path"] = pathLength == 0 ? "" : "/" + new string('é', pathLength - 1),
+            ["severity"] = "error"
         };
         byte[] bounded = SetupCliMachineContractVerifier.Mutate(root =>
         {
@@ -249,8 +255,12 @@ public sealed class SetupCliContractTests
             root["diagnostics"] = new JsonArray(Enumerable.Range(0, 16).Select(_ => (JsonNode)Diagnostic()).ToArray());
             root["detail"] = new JsonObject
             {
-                ["kind"] = "diagnostics", ["offset"] = 0, ["limit"] = 32, ["total"] = 32,
-                ["digest"] = root["detailDigest"]!.DeepClone(), ["coverage"] = new JsonArray(),
+                ["kind"] = "diagnostics",
+                ["offset"] = 0,
+                ["limit"] = 32,
+                ["total"] = 32,
+                ["digest"] = root["detailDigest"]!.DeepClone(),
+                ["coverage"] = new JsonArray(),
                 ["diagnostics"] = new JsonArray(Enumerable.Range(0, 32).Select(_ => (JsonNode)Diagnostic()).ToArray())
             };
         });
@@ -272,9 +282,12 @@ public sealed class SetupCliContractTests
     {
         var detail = new JsonObject
         {
-            ["kind"] = "coverage", ["offset"] = 0, ["limit"] = 16,
+            ["kind"] = "coverage",
+            ["offset"] = 0,
+            ["limit"] = 16,
             ["total"] = root["coverage"]!["coveredCount"]!.GetValue<int>() + root["coverage"]!["missingCount"]!.GetValue<int>(),
-            ["digest"] = root["detailDigest"]!.DeepClone(), ["diagnostics"] = new JsonArray(),
+            ["digest"] = root["detailDigest"]!.DeepClone(),
+            ["diagnostics"] = new JsonArray(),
             ["coverage"] = new JsonArray(CoverageEntry("service.name"))
         };
         root["detail"] = detail;
@@ -391,7 +404,8 @@ public sealed class SetupCliContractTests
         root["coverage"]!["coveredCount"] = 0;
         root["help"] = new JsonObject
         {
-            ["scope"] = "root", ["commandPath"] = new JsonArray(),
+            ["scope"] = "root",
+            ["commandPath"] = new JsonArray(),
             ["commands"] = new JsonArray("catalogue", "artifact", "env", "definition", "doctor"),
             ["options"] = new JsonArray()
         };

@@ -60,12 +60,15 @@ public static class SetupCliCommandSchemaMetadata
                 ["scope"] = Enum(["root", "branch", "leaf"]),
                 ["commandPath"] = new JsonObject
                 {
-                    ["type"] = "array", ["maxItems"] = 2,
+                    ["type"] = "array",
+                    ["maxItems"] = 2,
                     ["items"] = String(1, 64, "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
                 },
                 ["commands"] = new JsonObject
                 {
-                    ["type"] = "array", ["maxItems"] = 32, ["uniqueItems"] = true,
+                    ["type"] = "array",
+                    ["maxItems"] = 32,
+                    ["uniqueItems"] = true,
                     ["items"] = String(1, 64, "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
                 },
                 ["options"] = BoundedArray("helpOption", 64)

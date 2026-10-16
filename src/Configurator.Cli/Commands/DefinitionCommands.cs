@@ -33,8 +33,16 @@ internal class DefinitionSourceSettings : SetupCliCommandSettings
         ?? ValidateDetail(Detail, Offset, Limit, ExpectedDetailDigest);
 
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
-        base.Bind(family, operation, invocationMode) with { Source = Source, Root = Root, Against = Against,
-            Detail = Detail, Offset = Offset, Limit = Limit, ExpectedDetailDigest = ExpectedDetailDigest };
+        base.Bind(family, operation, invocationMode) with
+        {
+            Source = Source,
+            Root = Root,
+            Against = Against,
+            Detail = Detail,
+            Offset = Offset,
+            Limit = Limit,
+            ExpectedDetailDigest = ExpectedDetailDigest
+        };
 }
 
 internal sealed class DefinitionBuildSettings : DefinitionSourceSettings

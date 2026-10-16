@@ -14,8 +14,12 @@ public sealed class SetupCliApplication
         ArgumentNullException.ThrowIfNull(invocation);
         using var text = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
         IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
-        { Ansi = AnsiSupport.No, ColorSystem = ColorSystemSupport.NoColors, Interactive = InteractionSupport.No,
-            Out = new AnsiConsoleOutput(text) });
+        {
+            Ansi = AnsiSupport.No,
+            ColorSystem = ColorSystemSupport.NoColors,
+            Interactive = InteractionSupport.No,
+            Out = new AnsiConsoleOutput(text)
+        });
         SetupCliCommand command = new("doctor", "doctor", invocation.Mode == SetupCliMode.Machine, false, false, null, null, null, null, null, null);
         SetupCliCommandResult result;
         var ledger = new SetupCliOutcomeLedger();
@@ -65,8 +69,11 @@ public sealed class SetupCliApplication
         }
         catch (Exception)
         {
-            try { await invocation.Io.Error.WriteAsync("-", "configurator: result delivery failed\n"u8.ToArray(),
-                invocation.Io.MaximumOutputBytes, delivery.Token); }
+            try
+            {
+                await invocation.Io.Error.WriteAsync("-", "configurator: result delivery failed\n"u8.ToArray(),
+                invocation.Io.MaximumOutputBytes, delivery.Token);
+            }
             catch (Exception) { }
             return SetupCliExitCode.Io;
         }
@@ -97,7 +104,8 @@ public sealed class SetupCliApplication
     }
 
     private static SetupCliCommandResult Cancelled() => SetupCliResults.Failure(SetupCliExitCode.Cancelled, "cancelled")
-        with { Completion = "cancelled" };
+        with
+    { Completion = "cancelled" };
 
     private static SetupCliCommandResult MapFailure(Exception exception) => exception switch
     {
