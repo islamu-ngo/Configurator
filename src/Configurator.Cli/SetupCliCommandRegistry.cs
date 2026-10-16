@@ -35,6 +35,7 @@ internal static class SetupCliCommandRegistry
             configuration.SetApplicationName(SetupCliExecutableMarker.ExecutableName);
             configuration.ConfigureConsole(console);
             configuration.PropagateExceptions();
+            configuration.CancellationExitCode((int)SetupCliExitCode.Cancelled);
             foreach (SetupCliFamilyDescriptor family in Families)
             {
                 if (family.Name == "doctor")
@@ -63,12 +64,12 @@ internal static class SetupCliCommandRegistry
             name,
             typeof(TSettings),
             DescribeOptions(typeof(TSettings)),
-            (branch, family, runtime) => branch.AddDelegate<TSettings>(
+            (branch, family, runtime) => branch.AddAsyncDelegate<TSettings>(
                 name,
-                (_, settings, _) => runtime.Execute(family, name, settings)),
-            (root, family, runtime) => root.AddDelegate<TSettings>(
+                (_, settings, token) => runtime.ExecuteAsync(family, name, settings, token)),
+            (root, family, runtime) => root.AddAsyncDelegate<TSettings>(
                 name,
-                (_, settings, _) => runtime.Execute(family, name, settings)));
+                (_, settings, token) => runtime.ExecuteAsync(family, name, settings, token)));
 
     internal static bool TryResolve(string family, string operation, out SetupCliOperationDescriptor? descriptor)
     {

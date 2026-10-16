@@ -50,19 +50,32 @@ internal sealed class SetupCliOutcomeLedger
         for (int index = 0; index < publication.Outcomes.Count; index++)
             Record(index, publication.Outcomes[index].Unknown ? "unknown" : Status(publication.Outcomes[index].Status));
         Cleanup(publication.CleanupFailed ? "failed" : "completed");
-        bool failed = publication.Outcomes.Any(item => item.Unknown || item.Status is not ProtectedArtifactStatus.Written);
+        bool failed = publication.Outcomes.Any(item => item.Unknown
+            || item.Status is not null and not ProtectedArtifactStatus.Written)
+            || !publication.Cancelled && publication.Outcomes.Any(item => item.Status is null);
         if (publication.CleanupFailed || failed)
-            result = result with { Exit = !publication.CleanupFailed && publication.Outcomes.Any(item => item.Status is ProtectedArtifactStatus.UnsupportedPlatform
-                    or ProtectedArtifactStatus.TargetExists or ProtectedArtifactStatus.TargetChanged or ProtectedArtifactStatus.PermissionDenied
-                    or ProtectedArtifactStatus.UnsafeTarget or ProtectedArtifactStatus.InvalidRequest) && blockedRejections
+            result = result with { Exit = !publication.CleanupFailed && blockedRejections
+                    && publication.Outcomes.Any(item => item.Status is not null and not ProtectedArtifactStatus.Written)
+                    && publication.Outcomes.All(item => !item.Unknown && item.Status is null or ProtectedArtifactStatus.Written
+                        or ProtectedArtifactStatus.UnsupportedPlatform or ProtectedArtifactStatus.TargetExists or ProtectedArtifactStatus.TargetChanged
+                        or ProtectedArtifactStatus.PermissionDenied or ProtectedArtifactStatus.UnsafeTarget or ProtectedArtifactStatus.InvalidRequest)
                     ? SetupCliExitCode.Blocked : SetupCliExitCode.Io,
                 Diagnostics = [new(publication.CleanupFailed ? "publication-cleanup-failed" : "publication-failed", "/output", "error")] };
+        else if (publication.Cancelled)
+            result = result with { Exit = SetupCliExitCode.Cancelled, Completion = "cancelled",
+                Diagnostics = [new("cancelled", "", "error")] };
         return Preserve(result);
     }
 
-    internal SetupCliCommandResult Preserve(SetupCliCommandResult result) => _planned is null ? result : result with
-    { Artifacts = _planned.Artifacts, Cleanup = _planned.Cleanup, DefinitionDigest = _planned.DefinitionDigest,
-        Coverage = _planned.Coverage, Readiness = _planned.Readiness, Preparation = _planned.Preparation };
+    internal SetupCliCommandResult Preserve(SetupCliCommandResult result)
+    {
+        if (_planned is null) return result;
+        if (_planned.Cleanup == "failed" && result.Exit is SetupCliExitCode.Success or SetupCliExitCode.Cancelled)
+            result = result with { Exit = SetupCliExitCode.Io, Completion = "failed",
+                Diagnostics = [new("publication-cleanup-failed", "/output", "error")] };
+        return result with { Artifacts = _planned.Artifacts, Cleanup = _planned.Cleanup, DefinitionDigest = _planned.DefinitionDigest,
+            Coverage = _planned.Coverage, Readiness = _planned.Readiness, Preparation = _planned.Preparation };
+    }
 
     internal static string Status(ProtectedArtifactStatus? status) => status switch
     {

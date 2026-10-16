@@ -1,0 +1,30 @@
+Change-Id: CHG-01M4ZEE06923BCRR6R1EJW4REX
+Title: "cancel native work without hiding committed outputs"
+Type: fix
+Scope: cli
+Summary: "Propagate cooperative cancellation through async CLI execution and I/O, release owned buffers and native preparations, and preserve publication facts during cancellation and cleanup."
+Group: cli
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Embedded synchronous execution and input/writer contracts are replaced by token-aware async contracts without compatibility wrappers. Callers must await operations and dispose returned owned input buffers. Executable command spelling is unchanged."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Bounded streaming reads and disposable owned byte buffers reduce avoidable retention; immutable JSON/string erasure is not guaranteed. Cancellation and cleanup preserve established and unknown publication facts. Restricted output retains create-only protection and unsupported-host refusal."
+  Migration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Migrate embedded callers to RunAsync, ReadAsync and WriteAsync/WriteArtifactAsync/WriteBundleAsync, forward the work token and dispose SetupCliInputBuffer. Cancellation exits 130 unless an earlier operation/cleanup failure applies; final delivery failure wins with 74."
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Ctrl+C and Unix SIGTERM request cancellation; repeated signals do not append output. A distinct bounded final-delivery attempt may report cancellation. Inspect written/unknown outcomes before retrying; no rollback, kill/crash recovery, additional host qualification or hardened public-file custody is implied."

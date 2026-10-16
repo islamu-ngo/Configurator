@@ -24,34 +24,42 @@ internal static class DefinitionSourceFiles
         return SafePath(found[0]);
     }
 
-    internal static byte[] Read(string path)
+    internal static async ValueTask<byte[]> ReadAsync(string path, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         path = SafePath(path);
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
         if (stream.Length is < 1 or > MaximumBytes) throw new DefinitionFileException("definition-source-bound");
         using var buffer = new MemoryStream();
         byte[] chunk = new byte[8192];
         int read;
-        while ((read = stream.Read(chunk)) != 0)
+        while ((read = await stream.ReadAsync(chunk.AsMemory(0, Math.Min(chunk.Length, MaximumBytes - (int)buffer.Length + 1)),
+            cancellationToken).ConfigureAwait(false)) != 0)
         {
             if (buffer.Length + read > MaximumBytes) throw new DefinitionFileException("definition-source-bound");
             buffer.Write(chunk, 0, read);
         }
+        cancellationToken.ThrowIfCancellationRequested();
         return buffer.ToArray();
     }
 
-    internal static bool Create(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical)
+    internal static async ValueTask<bool> CreateAsync(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using PreparedArtifact prepared = PrepareCreate(path, bytes, acceptIdentical);
-        prepared.Stage();
-        return prepared.Commit();
+        await prepared.StageAsync(cancellationToken).ConfigureAwait(false);
+        return await prepared.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    internal static void Replace(string path, ReadOnlyMemory<byte> original, ReadOnlyMemory<byte> replacement)
+    internal static async ValueTask ReplaceAsync(string path, ReadOnlyMemory<byte> original, ReadOnlyMemory<byte> replacement,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using PreparedArtifact prepared = PrepareReplace(path, original, replacement);
-        prepared.Stage();
-        prepared.Commit();
+        await prepared.StageAsync(cancellationToken).ConfigureAwait(false);
+        await prepared.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     internal static PreparedArtifact PrepareCreate(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical) =>
@@ -83,11 +91,13 @@ internal static class DefinitionSourceFiles
             _temporary = Path.Combine(Path.GetDirectoryName(_path)!, ".configurator-" + Guid.NewGuid().ToString("N") + ".tmp");
         }
 
-        internal void Stage()
+        internal async ValueTask StageAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_staged) throw new InvalidOperationException("definition-already-staged");
-            if (_original is null && _acceptIdentical && File.Exists(_path) && Read(_path).AsSpan().SequenceEqual(_bytes.Span))
+            if (_original is null && _acceptIdentical && File.Exists(_path)
+                && (await ReadAsync(_path, cancellationToken).ConfigureAwait(false)).AsSpan().SequenceEqual(_bytes.Span))
             {
                 _acceptedIdentical = true;
                 _staged = true;
@@ -104,27 +114,29 @@ internal static class DefinitionSourceFiles
                 Directory.CreateDirectory(directory);
                 SafePath(directory);
             }
-            WriteTemporary(_temporary, _bytes);
+            await WriteTemporaryAsync(_temporary, _bytes, cancellationToken).ConfigureAwait(false);
             _staged = true;
         }
 
-        internal bool Commit()
+        internal async ValueTask<bool> CommitAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!_staged) throw new InvalidOperationException("definition-not-staged");
             if (_acceptedIdentical && !File.Exists(_path)) throw new DefinitionFileException("definition-output-conflict");
             if (_original is { } original)
             {
-                byte[] current = Read(_path);
+                byte[] current = await ReadAsync(_path, cancellationToken).ConfigureAwait(false);
                 if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(current), SHA256.HashData(original.Span)))
                     throw new DefinitionFileException("definition-source-changed");
             }
             else if (File.Exists(_path))
             {
-                if (_acceptIdentical && Read(_path).AsSpan().SequenceEqual(_bytes.Span)) return false;
+                if (_acceptIdentical && (await ReadAsync(_path, cancellationToken).ConfigureAwait(false)).AsSpan().SequenceEqual(_bytes.Span)) return false;
                 throw new DefinitionFileException("definition-output-conflict");
             }
             SafePath(_path);
+            cancellationToken.ThrowIfCancellationRequested();
             try { File.Move(_temporary, _path, _original is not null); }
             catch (IOException) when (_original is null && File.Exists(_path))
             {
@@ -171,10 +183,12 @@ internal static class DefinitionSourceFiles
         if (bytes.Length is < 1 or > MaximumBytes) throw new DefinitionFileException("definition-source-bound");
     }
 
-    private static void WriteTemporary(string path, ReadOnlyMemory<byte> bytes)
+    private static async ValueTask WriteTemporaryAsync(string path, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
     {
-        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        stream.Write(bytes.Span);
-        stream.Flush(true);
+        cancellationToken.ThrowIfCancellationRequested();
+        await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 8192,
+            FileOptions.Asynchronous | FileOptions.WriteThrough);
+        await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 }

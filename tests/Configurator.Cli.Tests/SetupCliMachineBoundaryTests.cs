@@ -83,7 +83,7 @@ public sealed class SetupCliMachineBoundaryTests
     {
         var writer = new FailingWriter(prefix);
         var error = new FailingWriter(0);
-        SetupCliExitCode exit = new SetupCliApplication().Run(new(["doctor", "--machine"], SetupCliMode.Machine,
+        SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(["doctor", "--machine"], SetupCliMode.Machine,
             new(new CliFixture(), writer, error, 65_536, 4 * 1024 * 1024), new([])));
         await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
         await Assert.That(writer.Attempts).IsEqualTo(1);
@@ -95,7 +95,7 @@ public sealed class SetupCliMachineBoundaryTests
     {
         var fixture = new CliFixture();
         var writer = new PublicationWriter(fixture, new([new(Configurator.Artifacts.ProtectedArtifactStatus.Written)]));
-        SetupCliExitCode exit = RunArtifact(fixture, writer, 512);
+        SetupCliExitCode exit = await RunArtifactAsync(fixture, writer, 512);
         await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
         await Assert.That(writer.Publications).IsEqualTo(0);
         await Assert.That(fixture.Files.ContainsKey("prepared.json")).IsFalse();
@@ -110,7 +110,7 @@ public sealed class SetupCliMachineBoundaryTests
         var status = unknownStatus ? (Configurator.Artifacts.ProtectedArtifactStatus)int.MaxValue
             : Configurator.Artifacts.ProtectedArtifactStatus.Written;
         var writer = new PublicationWriter(fixture, new([new(status)], CleanupFailed: !unknownStatus));
-        await Assert.That(RunArtifact(fixture, writer)).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(await RunArtifactAsync(fixture, writer)).IsEqualTo(SetupCliExitCode.Io);
         using JsonDocument result = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString())
             .IsEqualTo(unknownStatus ? "unknown" : "written");
@@ -122,7 +122,7 @@ public sealed class SetupCliMachineBoundaryTests
     {
         var fixture = new CliFixture();
         var writer = new PublicationWriter(fixture, null);
-        await Assert.That(RunArtifact(fixture, writer)).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(await RunArtifactAsync(fixture, writer)).IsEqualTo(SetupCliExitCode.Io);
         await Assert.That(fixture.Files.ContainsKey("prepared.json")).IsTrue();
         using JsonDocument result = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString()).IsEqualTo("unknown");
@@ -152,52 +152,84 @@ public sealed class SetupCliMachineBoundaryTests
         fixture.Files["answers.json"] = "{}"u8.ToArray();
         string[] arguments = ["artifact", operation, "--definition", "definition.json", "--artifact", "config",
             "--input", "answers.json", "--machine", "--detail", "diagnostics", "--limit", "16"];
-        await Assert.That(fixture.Run(arguments)).IsEqualTo(expected);
+        await Assert.That(await fixture.RunAsync(arguments)).IsEqualTo(expected);
         using JsonDocument first = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(first.RootElement.GetProperty("diagnosticsTotal").GetInt32()).IsEqualTo(40);
         await Assert.That(first.RootElement.GetProperty("diagnosticsOmitted").GetInt32()).IsEqualTo(24);
         await Assert.That(first.RootElement.GetProperty("detail").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(16);
         string digest = first.RootElement.GetProperty("detailDigest").GetString()!;
         string[] continuation = [.. arguments, "--offset", "16", "--expected-detail-digest", digest];
-        await Assert.That(fixture.Run(continuation)).IsEqualTo(expected);
+        await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(expected);
         await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
         fixture.Files["answers.json"] = "{\"field0\":\"synthetic\"}"u8.ToArray();
-        await Assert.That(fixture.Run(continuation)).IsEqualTo(SetupCliExitCode.Data);
+        await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(SetupCliExitCode.Data);
         using JsonDocument mismatch = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(mismatch.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString()).IsEqualTo("detail-digest-mismatch");
     }
 
-    private static SetupCliExitCode RunArtifact(CliFixture fixture, PublicationWriter writer, int budget = 65_536) =>
-        new SetupCliApplication().Run(new(["artifact", "create", "--definition", "definition.json", "--artifact", "config",
+    [Test]
+    public async Task EscapedPublicDiagnosticsRespectSharedByteBudgetAndMakePageProgress()
+    {
+        var command = new SetupCliCommand("artifact", "validate", true, false, false, null, null, null, null, null, null)
+            { Detail = "diagnostics" };
+        SetupCliCommandResult result = SetupCliResults.Failure(SetupCliExitCode.Validation, "public-failure") with
+        {
+            Diagnostics = Enumerable.Range(0, 1024).Select(_ =>
+                new SetupCliMachineDiagnostic("public-failure", "/" + new string('\uFFFF', 255), "error")).ToArray()
+        };
+        byte[] bytes = SetupCliMachineOutput.Serialize(command, result, 65_536);
+        await Assert.That(bytes.Length <= 65_536).IsTrue();
+        await Assert.That(SetupCliMachineContractVerifier.Validate(bytes)).IsEmpty();
+        using JsonDocument document = JsonDocument.Parse(bytes);
+        JsonElement root = document.RootElement;
+        int inline = root.GetProperty("diagnostics").GetArrayLength();
+        int page = root.GetProperty("detail").GetProperty("diagnostics").GetArrayLength();
+        await Assert.That(page > 0).IsTrue();
+        await Assert.That(inline + root.GetProperty("diagnosticsOmitted").GetInt32()).IsEqualTo(1024);
+        int optionalBytes = Encoding.UTF8.GetByteCount(root.GetProperty("detail").GetRawText())
+            + root.GetProperty("diagnostics").EnumerateArray().Sum(item => Encoding.UTF8.GetByteCount(item.GetRawText()));
+        await Assert.That(optionalBytes <= 8192).IsTrue();
+        string digest = root.GetProperty("detailDigest").GetString()!;
+        byte[] next = SetupCliMachineOutput.Serialize(command with { Offset = page, ExpectedDetailDigest = digest }, result, 65_536);
+        using JsonDocument continuation = JsonDocument.Parse(next);
+        await Assert.That(continuation.RootElement.GetProperty("detail").GetProperty("offset").GetInt32()).IsEqualTo(page);
+        await Assert.That(continuation.RootElement.GetProperty("detail").GetProperty("diagnostics").GetArrayLength() > 0).IsTrue();
+    }
+
+    private static Task<SetupCliExitCode> RunArtifactAsync(CliFixture fixture, PublicationWriter writer, int budget = 65_536) =>
+        new SetupCliApplication().RunAsync(new(["artifact", "create", "--definition", "definition.json", "--artifact", "config",
             "--input", "answers.json", "--output", "prepared.json", "--machine"], SetupCliMode.Machine,
             new(fixture, writer, writer, budget, 4 * 1024 * 1024), new([])));
 
     private sealed class PublicationWriter(CliFixture fixture, SetupCliPublicationResult? result) : ISetupCliWriter
     {
         internal int Publications { get; private set; }
-        public void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes) => fixture.Write(path, bytes, maximumBytes);
-        public SetupCliPublicationResult WriteArtifact(string path, Configurator.Core.SetupArtifactKind kind,
-            ReadOnlyMemory<byte> bytes, int maximumBytes)
+        public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) =>
+            fixture.WriteAsync(path, bytes, maximumBytes, cancellationToken);
+        public async ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, Configurator.Core.SetupArtifactKind kind,
+            ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
             Publications++;
-            fixture.WriteArtifact(path, kind, bytes, maximumBytes);
+            await fixture.WriteArtifactAsync(path, kind, bytes, maximumBytes, cancellationToken);
             return result ?? throw new IOException("synthetic-post-publication-failure");
         }
-        public SetupCliPublicationResult WriteBundle(IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts,
-            string directory, int maximumBytes) => throw new InvalidOperationException();
+        public ValueTask<SetupCliPublicationResult> WriteBundleAsync(IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts,
+            string directory, int maximumBytes, CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
 
     private sealed class FailingWriter(int prefix) : ISetupCliWriter
     {
         internal int Attempts { get; private set; }
-        public void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes)
+        public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
             Attempts++;
             _ = bytes.Span[..Math.Min(prefix, bytes.Length)];
             throw new IOException("synthetic-delivery-failure");
         }
-        public SetupCliPublicationResult WriteArtifact(string path, Configurator.Core.SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes) => throw new IOException();
-        public SetupCliPublicationResult WriteBundle(
-            IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts, string directory, int maximumBytes) => throw new IOException();
+        public ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, Configurator.Core.SetupArtifactKind kind,
+            ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) => throw new IOException();
+        public ValueTask<SetupCliPublicationResult> WriteBundleAsync(
+            IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts, string directory, int maximumBytes,
+            CancellationToken cancellationToken) => throw new IOException();
     }
 }

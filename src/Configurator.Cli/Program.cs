@@ -1,22 +1,43 @@
+using System.IO.Pipes;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Configurator.Artifacts;
 using Configurator.Cli;
 using Configurator.Core;
 using Configurator.Core.Artifacts;
+using Microsoft.Win32.SafeHandles;
 
-return SetupCliProgram.Run(args);
+return await SetupCliProgram.RunAsync(args);
 
 internal static class SetupCliProgram
 {
-    internal static int Run(string[] args)
+    internal static async Task<int> RunAsync(string[] args)
     {
+        using var cancellation = new CancellationTokenSource();
+        ConsoleCancelEventHandler cancel = (_, context) =>
+        {
+            context.Cancel = true;
+            cancellation.Cancel();
+        };
+        Console.CancelKeyPress += cancel;
         try
         {
+            using PosixSignalRegistration? termination = OperatingSystem.IsWindows() ? null
+                : PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
+                {
+                    context.Cancel = true;
+                    cancellation.Cancel();
+                });
             SetupCliMode mode = args.Contains("--machine", StringComparer.Ordinal) ? SetupCliMode.Machine : SetupCliMode.Text;
-            using Stream standardOutput = Console.OpenStandardOutput();
-            using Stream standardError = Console.OpenStandardError();
+            // Non-owning handles can hang async pipe disposal after cancellation.
+            using SafePipeHandle? inputHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)0, ownsHandle: true);
+            using SafePipeHandle? outputHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)1, ownsHandle: true);
+            using SafePipeHandle? errorHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)2, ownsHandle: true);
+            using Stream standardOutput = OpenStandardStream(1, outputHandle);
+            using Stream standardError = OpenStandardStream(2, errorHandle);
             var writer = new SystemWriter(standardOutput);
             var error = new SystemWriter(standardError);
-            var io = new SetupCliIo(new SystemInput(), writer, error, 65_536, 4 * 1024 * 1024);
+            var io = new SetupCliIo(new SystemInput(inputHandle), writer, error, 65_536, 4 * 1024 * 1024);
             SetupCliInvocation invocation;
             try
             {
@@ -27,7 +48,7 @@ internal static class SetupCliProgram
             {
                 invocation = new(["doctor", mode == SetupCliMode.Machine ? "--machine" : "--text", "--invalid-arguments"], mode, io, new([]));
             }
-            return (int)new SetupCliApplication().Run(invocation);
+            return (int)await new SetupCliApplication().RunAsync(invocation, cancellation.Token);
         }
         catch (ArgumentException)
         {
@@ -41,74 +62,116 @@ internal static class SetupCliProgram
         {
             return (int)SetupCliExitCode.Internal;
         }
+        finally { Console.CancelKeyPress -= cancel; }
     }
 
-    private sealed class SystemInput : ISetupCliInput
+    private static Stream OpenStandardStream(int descriptor, SafePipeHandle? handle)
     {
-        public ReadOnlyMemory<byte> Read(string path, int maximumBytes)
+        if (handle is not null)
         {
-            using Stream stream = path == "-"
-                ? Console.OpenStandardInput()
-                : new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using var buffer = new MemoryStream();
-            byte[] chunk = new byte[8192];
-            int total = 0;
-            while (true)
+            try { return new NamedPipeClientStream(descriptor == 0 ? PipeDirection.In : PipeDirection.Out,
+                isAsync: true, isConnected: true, handle); }
+            catch (IOException) { }
+        }
+        return descriptor switch
+        {
+            0 => Console.OpenStandardInput(),
+            1 => Console.OpenStandardOutput(),
+            _ => Console.OpenStandardError()
+        };
+    }
+
+    private sealed class SystemInput(SafePipeHandle? standardInput) : ISetupCliInput
+    {
+        public async ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (maximumBytes is < 1 or > 4 * 1024 * 1024) throw new IOException("input-bound");
+            if (path == "-" && !Console.IsInputRedirected) throw new IOException("stdin-redirect-required");
+            byte[] bytes = new byte[maximumBytes + 1];
+            try
             {
-                int read = stream.Read(chunk, 0, Math.Min(chunk.Length, maximumBytes + 1 - total));
-                if (read == 0) break;
-                total += read;
-                if (total > maximumBytes) throw new IOException("input-bound");
-                buffer.Write(chunk, 0, read);
+                await using Stream stream = path == "-"
+                    ? OpenStandardStream(0, standardInput)
+                    : new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192,
+                        FileOptions.Asynchronous | FileOptions.SequentialScan);
+                int total = 0;
+                while (true)
+                {
+                    int read = await stream.ReadAsync(bytes.AsMemory(total, Math.Min(8192, bytes.Length - total)), cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (read == 0) return new SetupCliInputBuffer(bytes, total);
+                    total += read;
+                    if (total > maximumBytes) throw new IOException("input-bound");
+                }
             }
-            return buffer.ToArray();
+            catch
+            {
+                CryptographicOperations.ZeroMemory(bytes);
+                throw;
+            }
         }
     }
 
     private sealed class SystemWriter(Stream standardOutput) : ISetupCliWriter
     {
-        public void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes)
+        public async ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (bytes.Length > maximumBytes) throw new IOException("output-bound");
             if (path == "-")
             {
-                standardOutput.Write(bytes.Span);
-                standardOutput.Flush();
+                await standardOutput.WriteAsync(bytes, cancellationToken);
+                await standardOutput.FlushAsync(cancellationToken);
                 return;
             }
             throw new IOException("protected-output-required");
         }
 
-        public SetupCliPublicationResult WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes)
+        public async ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
+            ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
             if (bytes.Length > maximumBytes) throw new IOException("output-bound");
             if (path == "-")
             {
-                ProtectedArtifactWriter.WritePublic(standardOutput, kind, bytes);
+                if (!SetupArtifactPolicy.TryProjectPublic(kind, bytes, out ReadOnlyMemory<byte> projection))
+                    throw new IOException("protected-output-required");
+                await WriteAsync(path, projection, maximumBytes, cancellationToken);
                 return new([new(ProtectedArtifactStatus.Written)]);
             }
             var writer = new ProtectedArtifactWriter();
-            ProtectedArtifactPreparation preparation = writer.PrepareAsync(kind, path, bytes).GetAwaiter().GetResult();
+            ProtectedArtifactPreparation preparation;
+            try { preparation = await writer.PrepareAsync(kind, path, bytes, cancellationToken); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return new([new(null)], Cancelled: true);
+            }
             ProtectedArtifactStatus? status = null;
             bool unknown = false;
             bool cleanupFailed = false;
-            try { status = preparation.CommitAsync().GetAwaiter().GetResult(); }
+            bool cancelled = false;
+            try { status = await preparation.CommitAsync(cancellationToken); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                status = preparation.EstablishedStatus;
+                cancelled = true;
+            }
             catch (Exception) { status = preparation.EstablishedStatus; unknown = !status.HasValue; }
             finally
             {
                 try { preparation.Dispose(); } catch (Exception) { cleanupFailed = true; }
                 cleanupFailed |= preparation.CleanupFailed;
             }
-            return new([new(status, unknown)], cleanupFailed);
+            return new([new(status, unknown)], cleanupFailed, cancelled || cancellationToken.IsCancellationRequested);
         }
 
-        public SetupCliPublicationResult WriteBundle(
-            IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes)
+        public async ValueTask<SetupCliPublicationResult> WriteBundleAsync(
+            IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes, CancellationToken cancellationToken)
         {
             if (artifacts.Any(item => item.ByteLength > maximumBytes))
                 throw new IOException("output-bound");
-            ProtectedArtifactBundleResult result = ProtectedArtifactBundlePublisher.PublishAsync(
-                new ProtectedArtifactWriter(), artifacts, directory).GetAwaiter().GetResult();
+            ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
+                new ProtectedArtifactWriter(), artifacts, directory, cancellationToken: cancellationToken);
             return new(result.Outcomes.Select(item => new SetupCliPublicationOutcome(item.Status)).ToArray(),
                 result.CleanupFailed, result.CompletionCode == ProtectedArtifactBundleCompletionCode.Cancelled);
         }

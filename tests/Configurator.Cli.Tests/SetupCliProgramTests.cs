@@ -8,6 +8,124 @@ namespace Configurator.Cli.Tests;
 public sealed class SetupCliProgramTests
 {
     [Test]
+    public async Task TerminalStdinRejectsWithoutWaitingForEof()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        using var files = new NativeFixture();
+        string[] command = [Path.Combine(AppContext.BaseDirectory, "Configurator.Cli"),
+            "artifact", "validate", "--definition", files.Definition,
+            "--artifact", "config", "--input", "-", "--machine"];
+        ProcessResult result = await ExecuteHostAsync("/usr/bin/script",
+            ["-q", "-e", "-c", string.Join(' ', command.Select(ShellQuote)), "/dev/null"]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(74);
+        await Assert.That(result.StandardError).IsEmpty();
+        byte[] receipt = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(result.StandardOutput)
+            .Replace("\r\n", "\n", StringComparison.Ordinal));
+        await Assert.That(SetupCliMachineContractVerifier.Validate(receipt)).IsEmpty();
+        await Assert.That(receipt.Count(value => value == (byte)'\n')).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task RegularFileStdinAndStdoutPreserveArtifactAndReceipt()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        using var files = new NativeFixture();
+        string artifactPath = Path.Combine(Path.GetDirectoryName(files.Input)!, "service ' config.json");
+        string receiptPath = Path.Combine(Path.GetDirectoryName(files.Input)!, "receipt ' result.json");
+        string[] command = [Path.Combine(AppContext.BaseDirectory, "Configurator.Cli"),
+            "artifact", "create", "--definition", files.Definition,
+            "--artifact", "config", "--input", "-", "--output", artifactPath, "--machine"];
+        ProcessResult result = await ExecuteHostAsync("/bin/sh",
+            ["-c", "exec " + string.Join(' ', command.Select(ShellQuote))
+                + " < " + ShellQuote(files.Input) + " > " + ShellQuote(receiptPath)]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(result.StandardOutput).IsEmpty();
+        await Assert.That(result.StandardError).IsEmpty();
+        await Assert.That(await File.ReadAllBytesAsync(artifactPath))
+            .IsEquivalentTo("""{"enabled":true,"name":"private-answer-marker"}"""u8.ToArray());
+        byte[] receipt = await File.ReadAllBytesAsync(receiptPath);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(receipt)).IsEmpty();
+        await Assert.That(receipt.Count(value => value == (byte)'\n')).IsEqualTo(1);
+        using JsonDocument document = JsonDocument.Parse(receipt);
+        await Assert.That(document.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString())
+            .IsEqualTo("written");
+    }
+
+    [Test]
+    [Arguments("TERM", false, false)]
+    [Arguments("INT", false, false)]
+    [Arguments("TERM", true, false)]
+    [Arguments("TERM", false, true)]
+    public async Task SignalDuringBoundedStdinReadPreservesFinalDelivery(string signalName, bool repeated, bool brokenOutput)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        using var files = new NativeFixture();
+        var info = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "Configurator.Cli"))
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        string[] hostVariables = ["PATH", "DOTNET_ROOT", "DOTNET_ROOT_X64", "DOTNET_ROOT_ARM64", "TMPDIR"];
+        foreach (string name in info.Environment.Keys.Where(key => !hostVariables.Contains(key, StringComparer.Ordinal)).ToArray())
+            info.Environment.Remove(name);
+        foreach (string argument in new[] { "artifact", "validate", "--definition", files.Definition,
+            "--artifact", "config", "--input", "-", "--machine" })
+            info.ArgumentList.Add(argument);
+        using var process = new Process { StartInfo = info, EnableRaisingEvents = true };
+        var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.Exited += (_, _) => exited.TrySetResult();
+        if (!process.Start()) throw new InvalidOperationException("process-start-failed");
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        Task<byte[]> output = ReadAllAsync(process.StandardOutput.BaseStream);
+        Task<byte[]> error = ReadAllAsync(process.StandardError.BaseStream);
+        try
+        {
+            // This exceeds Linux's maximum pipe capacity: completion proves the child is consuming stdin.
+            await process.StandardInput.BaseStream.WriteAsync(new byte[2 * 1024 * 1024], timeout.Token);
+            if (brokenOutput) process.StandardOutput.Close();
+            var signalInfo = new ProcessStartInfo("/bin/kill")
+            {
+                UseShellExecute = false
+            };
+            signalInfo.ArgumentList.Add("-" + signalName);
+            signalInfo.ArgumentList.Add(process.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if (repeated) signalInfo.ArgumentList.Add(process.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            using var signal = Process.Start(signalInfo) ?? throw new InvalidOperationException("signal-start-failed");
+            await signal.WaitForExitAsync(timeout.Token);
+            await exited.Task.WaitAsync(timeout.Token);
+            await Assert.That(process.ExitCode).IsEqualTo(brokenOutput ? 74 : 130);
+            if (brokenOutput)
+            {
+                try { await output.WaitAsync(timeout.Token); }
+                catch (Exception exception) when (exception is IOException or ObjectDisposedException) { }
+                await Assert.That(Encoding.UTF8.GetString(await error.WaitAsync(timeout.Token)))
+                    .IsEqualTo("configurator: result delivery failed\n");
+            }
+            else
+            {
+                byte[] receipt = await output.WaitAsync(timeout.Token);
+                await Assert.That(await error.WaitAsync(timeout.Token)).IsEmpty();
+                await Assert.That(SetupCliMachineContractVerifier.Validate(receipt)).IsEmpty();
+                await Assert.That(receipt.Count(value => value == (byte)'\n')).IsEqualTo(1);
+                using JsonDocument result = JsonDocument.Parse(receipt);
+                await Assert.That(result.RootElement.GetProperty("completion").GetString()).IsEqualTo("cancelled");
+            }
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+        }
+    }
+
+    [Test]
     [Arguments(true)]
     [Arguments(false)]
     public async Task FrameworkParseFailureCannotDiscloseInputPaths(bool machine)
@@ -235,6 +353,44 @@ public sealed class SetupCliProgramTests
         finally
         {
             File.Delete(path);
+        }
+    }
+
+    private static string ShellQuote(string value) => "'" + value.Replace("'", "'\"'\"'", StringComparison.Ordinal) + "'";
+
+    private static async Task<ProcessResult> ExecuteHostAsync(string executable, IReadOnlyList<string> arguments)
+    {
+        var info = new ProcessStartInfo(executable)
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        string[] hostVariables = ["PATH", "DOTNET_ROOT", "DOTNET_ROOT_X64", "DOTNET_ROOT_ARM64", "TMPDIR"];
+        foreach (string name in info.Environment.Keys.Where(key => !hostVariables.Contains(key, StringComparer.Ordinal)).ToArray())
+            info.Environment.Remove(name);
+        foreach (string argument in arguments) info.ArgumentList.Add(argument);
+        using var process = new Process { StartInfo = info, EnableRaisingEvents = true };
+        var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.Exited += (_, _) => exited.TrySetResult();
+        if (!process.Start()) throw new InvalidOperationException("process-start-failed");
+        Task<byte[]> output = ReadAllAsync(process.StandardOutput.BaseStream);
+        Task<byte[]> error = ReadAllAsync(process.StandardError.BaseStream);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            // Keep the parent's stdin open: a terminal read must reject without EOF.
+            await exited.Task.WaitAsync(timeout.Token);
+            return new(process.ExitCode, await output.WaitAsync(timeout.Token), await error.WaitAsync(timeout.Token));
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
         }
     }
 

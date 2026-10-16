@@ -6,21 +6,22 @@ using Configurator.Core.Artifacts;
 namespace Configurator.Cli;
 
 public enum SetupCliMode { Text, Machine }
-public enum SetupCliExitCode { Success = 0, Validation = 2, Incomplete = 3, Blocked = 4, Usage = 64, Data = 65, Internal = 70, Io = 74 }
+public enum SetupCliExitCode { Success = 0, Validation = 2, Incomplete = 3, Blocked = 4, Usage = 64, Data = 65, Internal = 70, Io = 74, Cancelled = 130 }
 
 public interface ISetupCliInput
 {
-    ReadOnlyMemory<byte> Read(string path, int maximumBytes);
+    ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken);
 }
 
 public interface ISetupCliWriter
 {
-    void Write(string path, ReadOnlyMemory<byte> bytes, int maximumBytes);
+    ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken);
 
-    SetupCliPublicationResult WriteArtifact(string path, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes, int maximumBytes);
+    ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
+        ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken);
 
-    SetupCliPublicationResult WriteBundle(
-        IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes);
+    ValueTask<SetupCliPublicationResult> WriteBundleAsync(
+        IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes, CancellationToken cancellationToken);
 }
 
 public sealed record SetupCliPublicationOutcome(ProtectedArtifactStatus? Status, bool Unknown = false);

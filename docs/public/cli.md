@@ -203,7 +203,9 @@ or a host application.
 
 `--definition` must be a local file, never stdin or a URL fetch. `--input -`,
 `--baseline -` and `--answers -` explicitly read stdin; only one may consume stdin
-in an invocation.
+in an invocation. Stdin must be redirected from a pipe or file. Terminal stdin
+rejects with exit 74 without waiting for input; this noninteractive CLI has no
+prompt or terminal-entry mode.
 Answer output is create-only. On Linux, native publication proves owner-only file
 protection; unsupported platforms or unsafe targets fail closed. There is no
 plain file fallback. An existing output remains unchanged.
@@ -216,6 +218,32 @@ stdout. Diagnostics contain fixed codes and safe paths, not input values, raw
 exceptions or filesystem paths. Arguments and ambient environment names that
 look like secret-bearing process surfaces are rejected without reading their values.
 File inputs retain the 4 MiB byte limit and depth 32.
+
+### Cooperative cancellation
+
+Ctrl+C, or SIGTERM on Unix, requests cancellation of the current invocation.
+Reads and protected publication observe that request cooperatively; cancellation
+does not undo a committed file. Repeated signals do not append another receipt.
+The CLI releases owned input buffers and native preparations, then makes its one
+final delivery attempt with a separate bounded lifetime so the cancelled work
+token does not itself prevent a receipt.
+
+Cancellation exits 130 unless an earlier operation or cleanup failure already
+determines the result. Final delivery failure takes precedence and exits 74.
+Inspect per-artifact write statuses and cleanup independently of the exit code;
+an established write remains written even if cancellation follows immediately.
+Check destinations before retrying an interrupted write.
+
+Cancellation is not a rollback or erasure guarantee. Bounded parsing need not stop
+immediately, and a non-cancellable native call, forced kill or OS crash may prevent
+cleanup or a final receipt. Clearing owned byte buffers does not erase immutable
+JSON or string allocations.
+
+Linux process tests qualify cancellation during redirected pipe reads (Ctrl+C,
+SIGTERM and repeated SIGTERM), including final-delivery failure with broken
+stdout. Regular-file stdin/stdout redirection is qualified for successful
+publication and receipt delivery, not interruption of a stalled filesystem call.
+These checks do not establish equivalent signal behavior on other hosts.
 
 ## Machine contract and exit codes
 
@@ -302,6 +330,7 @@ Value changes that leave that view unchanged need not invalidate continuation.
 | 65 | data | Malformed definition/answer document or admission failure |
 | 70 | internal | Unexpected invariant/framework failure |
 | 74 | io | Bounded read, protected publication or output-stream failure |
+| 130 | cancelled | Cooperative cancellation, unless an earlier failure or failed delivery takes precedence |
 
 Old `manifest`, `tenant-package`, `portability`, `legal`, `catalog` and `tui`
 families are not aliases. Event workflows use Event-owned definitions and

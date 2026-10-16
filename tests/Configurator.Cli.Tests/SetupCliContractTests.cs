@@ -309,7 +309,7 @@ public sealed class SetupCliContractTests
         foreach (string[] arguments in rejected)
         {
             var io = new CliFixture();
-            await Assert.That(io.Run(arguments)).IsEqualTo(SetupCliExitCode.Usage);
+            await Assert.That(await io.RunAsync(arguments)).IsEqualTo(SetupCliExitCode.Usage);
             await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
             await Assert.That(io.StandardError).IsEmpty();
         }
@@ -324,7 +324,7 @@ public sealed class SetupCliContractTests
                 var io = new CliFixture();
                 string[] args = family.Name == "doctor"
                     ? ["doctor", "--help", "--machine"] : [family.Name, operation.Name, "--help", "--machine"];
-                await Assert.That(io.Run(args)).IsEqualTo(SetupCliExitCode.Success);
+                await Assert.That(await io.RunAsync(args)).IsEqualTo(SetupCliExitCode.Success);
                 await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
             }
     }
@@ -356,7 +356,7 @@ public sealed class SetupCliContractTests
     public async Task MachineReadinessNeverClaimsHostAcceptance()
     {
         var io = new CliFixture();
-        await Assert.That(io.Artifact("open")).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(await io.ArtifactAsync("open")).IsEqualTo(SetupCliExitCode.Success);
         using JsonDocument result = JsonDocument.Parse(io.StandardOutput);
         await Assert.That(result.RootElement.GetProperty("readiness").GetProperty("state").GetString()).IsEqualTo("incomplete");
         await Assert.That(result.RootElement.GetProperty("readiness").GetProperty("missingCount").GetInt32()).IsGreaterThan(0);

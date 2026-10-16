@@ -60,6 +60,35 @@ Report unrelated failures without absorbing them into the task. Prove baseline
 origin where available and quarantine pre-existing rot in task-owned context.
 No warning suppression, hidden skip or test weakening is an acceptable repair.
 
+## CLI cancellation and interrupted publication
+
+The [CLI contract](CLI_CONTRACT.md#async-lifetime-and-owned-input) defines the
+cooperative async lifetime; the [operator guide](../public/cli.md#cooperative-cancellation)
+describes its process behavior. Ctrl+C and Unix SIGTERM request cancellation of
+one invocation. Repeated signals do not create additional receipt attempts.
+Owned input byte buffers are cleared and native preparations are disposed; this
+does not promise managed JSON/string erasure or recovery from kill/crash.
+
+Final receipt delivery has a separate bounded token so cancellation of work does
+not automatically cancel the receipt. A delivery failure exits 74. Otherwise
+cancellation exits 130 unless an earlier operation or cleanup failure already
+determines completion. Neither exit code proves that nothing was published:
+retain established writes, inspect each artifact's write status and cleanup, and
+check destinations before deliberately retrying. Unknown means publication was
+not established, not that the destination is absent. Ordered bundle and public
+definition/ID-map writes are not transactions.
+
+For runtime verification, record the CLI Release build and affected cancellation,
+native process, application, definition, prepared-artifact, machine-boundary and
+source-helper test selections separately from protected writer/bundle owner checks.
+Controlled gates and bounded waits must exercise cancellation before reads/commit,
+at successful commit, after a written bundle prefix and during cleanup; native
+process checks cover Ctrl+C, SIGTERM, repeated signals and a broken final channel.
+This is the required evidence scope, **not a claim those checks have run**.
+Non-cancellable native I/O may delay shutdown; forced process loss cannot guarantee
+a receipt. This increment does not qualify additional hosts, harden public-file
+custody or deliver the separate parser/environment migration.
+
 ## Browser custody and offline verification
 
 The [browser ADR](adr/ADR-browser-session-trust-and-export.md) records the design;

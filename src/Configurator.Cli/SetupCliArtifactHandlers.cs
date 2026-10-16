@@ -13,11 +13,12 @@ namespace Configurator.Cli;
 
 internal static class SetupCliArtifactHandlers
 {
-    internal static SetupCliCommandResult Execute(SetupCliCommand command, SetupCliInvocation invocation, SetupCliOutcomeLedger ledger)
+    internal static async Task<SetupCliCommandResult> ExecuteAsync(SetupCliCommand command, SetupCliInvocation invocation,
+        SetupCliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
-        SetupDefinition definition = SetupCliIoOperations.Definition(invocation, command.Definition!);
+        SetupDefinition definition = await SetupCliIoOperations.DefinitionAsync(invocation, command.Definition!, cancellationToken);
         if (command.Operation is "bundle-check" or "bundle-create")
-            return Bundle(command, invocation, definition, ledger);
+            return await BundleAsync(command, invocation, definition, ledger, cancellationToken);
         SetupArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == command.Artifact);
         if (artifact is null)
             return SetupCliResults.Failure(SetupCliExitCode.Validation, "artifact-unknown", "$.artifact");
@@ -29,9 +30,10 @@ internal static class SetupCliArtifactHandlers
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "import-command-required", "$.artifact");
 
         if (command.Operation is "check-existing" or "prefill")
-            return AssessExisting(command, invocation, definition, artifact, ledger);
+            return await AssessExistingAsync(command, invocation, definition, artifact, ledger, cancellationToken);
 
-        SetupAnswerSnapshot answers = SetupCliIoOperations.Answers(invocation, command.Answers ?? command.Input!, command.InputRevision);
+        SetupAnswerSnapshot answers = await SetupCliIoOperations.AnswersAsync(invocation,
+            command.Answers ?? command.Input!, command.InputRevision, cancellationToken);
         if (command.Operation == "import")
         {
             if (artifact.ApplySemantics != "import"
@@ -69,18 +71,18 @@ internal static class SetupCliArtifactHandlers
         ReadOnlyMemory<byte> outputBytes = output.Bytes;
         try
         {
-            if (command.Answers is not null && !EquivalentInput(
-                invocation, command.Input!, artifact.Format, outputBytes))
+            if (command.Answers is not null && !await EquivalentInputAsync(
+                invocation, command.Input!, artifact.Format, outputBytes, cancellationToken))
                 return SetupCliResults.Failure(SetupCliExitCode.Data, "artifact-projection-mismatch", "$.input");
             if (command.Operation == "diff")
             {
                 if (command.Answers is not null)
                 {
-                    bool equal = EquivalentInput(invocation, command.Baseline!, artifact.Format, outputBytes);
+                    bool equal = await EquivalentInputAsync(invocation, command.Baseline!, artifact.Format, outputBytes, cancellationToken);
                     var compared = new SetupCliMachineCoverage(equal ? [artifact.Id] : [], equal ? [] : [artifact.Id]);
                     return SetupCliResults.Success(coverage: compared);
                 }
-                SetupAnswerSnapshot baseline = SetupCliIoOperations.Answers(invocation, command.Baseline!, command.InputRevision);
+                SetupAnswerSnapshot baseline = await SetupCliIoOperations.AnswersAsync(invocation, command.Baseline!, command.InputRevision, cancellationToken);
                 DefinitionArtifactResult previous = DefinitionArtifactComposer.Compose(definition, artifact.Id, baseline);
                 if (!previous.Succeeded)
                     return SetupCliResults.Failure(SetupCliExitCode.Validation, "baseline-invalid", "$.baseline");
@@ -107,9 +109,11 @@ internal static class SetupCliArtifactHandlers
             if (command.Output == "-") return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "/output");
             if (!write || command.DryRun) return result;
             ledger.Plan(invocation, command, result);
+            cancellationToken.ThrowIfCancellationRequested();
             ledger.BeginPublication();
-            SetupCliPublicationResult publication = invocation.Io.Output.WriteArtifact(command.Output!,
-                artifact.Format == "dotenv" ? SetupArtifactKind.Environment : SetupArtifactKind.Configuration, outputBytes, invocation.Io.MaximumBytes);
+            SetupCliPublicationResult publication = await invocation.Io.Output.WriteArtifactAsync(command.Output!,
+                artifact.Format == "dotenv" ? SetupArtifactKind.Environment : SetupArtifactKind.Configuration,
+                outputBytes, invocation.Io.MaximumBytes, cancellationToken);
             return ledger.Apply(publication, result);
         }
         finally { Clear(outputBytes); }
@@ -124,17 +128,15 @@ internal static class SetupCliArtifactHandlers
             "public", "none", "none")]);
     }
 
-    private static SetupCliCommandResult AssessExisting(SetupCliCommand command, SetupCliInvocation invocation,
-        SetupDefinition definition, SetupArtifactDefinition artifact, SetupCliOutcomeLedger ledger)
+    private static async Task<SetupCliCommandResult> AssessExistingAsync(SetupCliCommand command, SetupCliInvocation invocation,
+        SetupDefinition definition, SetupArtifactDefinition artifact, SetupCliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
         SetupAnswerSnapshot current = command.Answers is null
             ? new(long.Parse(command.InputRevision, CultureInfo.InvariantCulture),
                 new Dictionary<string, JsonElement>(StringComparer.Ordinal))
-            : SetupCliIoOperations.Answers(invocation, command.Answers, command.InputRevision);
-        byte[] source = SetupCliIoOperations.Read(invocation, command.Input!);
-        DefinitionImportResult result;
-        try { result = DefinitionImport.Assess(definition, artifact.Id, source, current); }
-        finally { CryptographicOperations.ZeroMemory(source); }
+            : await SetupCliIoOperations.AnswersAsync(invocation, command.Answers, command.InputRevision, cancellationToken);
+        using SetupCliInputBuffer source = await SetupCliIoOperations.ReadAsync(invocation, command.Input!, cancellationToken);
+        DefinitionImportResult result = DefinitionImport.Assess(definition, artifact.Id, source.Bytes, current);
         if (!result.Succeeded)
             return SetupCliResults.Failure(result.Code == "answer-conflict" ? SetupCliExitCode.Validation
                 : result.Code == "inverse-unsupported" || result.Code == "import-unsupported"
@@ -163,21 +165,22 @@ internal static class SetupCliArtifactHandlers
                 with { DefinitionDigest = definition.Digest.Value, Preparation = validation.IsReady ? "ready" : "incomplete" };
             if (command.DryRun) return receipt;
             ledger.Plan(invocation, command, receipt);
+            cancellationToken.ThrowIfCancellationRequested();
             ledger.BeginPublication();
-            return ledger.Apply(invocation.Io.Output.WriteArtifact(command.Output!, SetupArtifactKind.Configuration, bytes,
-                invocation.Io.MaximumBytes), receipt);
+            return ledger.Apply(await invocation.Io.Output.WriteArtifactAsync(command.Output!, SetupArtifactKind.Configuration, bytes,
+                invocation.Io.MaximumBytes, cancellationToken), receipt);
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    private static SetupCliCommandResult Bundle(SetupCliCommand command, SetupCliInvocation invocation,
-        SetupDefinition definition, SetupCliOutcomeLedger ledger)
+    private static async Task<SetupCliCommandResult> BundleAsync(SetupCliCommand command, SetupCliInvocation invocation,
+        SetupDefinition definition, SetupCliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
         string[] ids = command.Artifacts!;
         if (definition.Artifacts.Any(item => ids.Contains(item.Id, StringComparer.Ordinal)
             && item.ApplySemantics == "import"))
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "import-command-required", "$.artifacts");
-        SetupAnswerSnapshot answers = SetupCliIoOperations.Answers(invocation, command.Input!, command.InputRevision);
+        SetupAnswerSnapshot answers = await SetupCliIoOperations.AnswersAsync(invocation, command.Input!, command.InputRevision, cancellationToken);
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers);
         if (!bundle.Succeeded)
             return new(SetupCliExitCode.Validation,
@@ -194,16 +197,17 @@ internal static class SetupCliArtifactHandlers
             new("incomplete", ["host-validation-required"], [])) with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
         if (inspectedOnly) return planned;
         ledger.Plan(invocation, command, planned);
+        cancellationToken.ThrowIfCancellationRequested();
         ledger.BeginPublication();
-        return ledger.Apply(invocation.Io.Output.WriteBundle(bundle.Artifacts, command.Output!, invocation.Io.MaximumBytes), planned, blockedRejections: true);
+        return ledger.Apply(await invocation.Io.Output.WriteBundleAsync(bundle.Artifacts, command.Output!,
+            invocation.Io.MaximumBytes, cancellationToken), planned, blockedRejections: true);
     }
 
-    private static bool EquivalentInput(SetupCliInvocation invocation, string path,
-        string format, ReadOnlyMemory<byte> expected)
+    private static async Task<bool> EquivalentInputAsync(SetupCliInvocation invocation, string path,
+        string format, ReadOnlyMemory<byte> expected, CancellationToken cancellationToken)
     {
-        byte[] candidate = SetupCliIoOperations.Read(invocation, path);
-        try { return Equivalent(format, candidate, expected); }
-        finally { CryptographicOperations.ZeroMemory(candidate); }
+        using SetupCliInputBuffer candidate = await SetupCliIoOperations.ReadAsync(invocation, path, cancellationToken);
+        return await EquivalentAsync(format, candidate.Bytes, expected, cancellationToken);
     }
 
     private static void Clear(ReadOnlyMemory<byte> bytes)
@@ -226,8 +230,10 @@ internal static class SetupCliArtifactHandlers
             && !projection.TryGetProperty("when", out _);
     }
 
-    private static bool Equivalent(string format, ReadOnlyMemory<byte> source, ReadOnlyMemory<byte> expected)
+    private static async Task<bool> EquivalentAsync(string format, ReadOnlyMemory<byte> source,
+        ReadOnlyMemory<byte> expected, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (format == "markdown") return source.Span.SequenceEqual(expected.Span);
         if (format == "dotenv")
         {
@@ -281,8 +287,8 @@ internal static class SetupCliArtifactHandlers
             ? new SetupCompositionYamlSource(source) : new SetupCompositionJsonSource(source);
         SetupCompositionSource referenceSource = format == "yaml"
             ? new SetupCompositionYamlSource(expected) : new SetupCompositionJsonSource(expected);
-        SetupCompositionResult candidateResult = compiler.CompileAsync(candidateSource).AsTask().GetAwaiter().GetResult();
-        SetupCompositionResult referenceResult = compiler.CompileAsync(referenceSource).AsTask().GetAwaiter().GetResult();
+        SetupCompositionResult candidateResult = await compiler.CompileAsync(candidateSource, cancellationToken);
+        SetupCompositionResult referenceResult = await compiler.CompileAsync(referenceSource, cancellationToken);
         if (!candidateResult.Succeeded || !referenceResult.Succeeded) throw new JsonException();
         return JsonElement.DeepEquals(candidateResult.Artifact!.Value, referenceResult.Artifact!.Value);
     }
@@ -290,45 +296,42 @@ internal static class SetupCliArtifactHandlers
 
 internal static class SetupCliIoOperations
 {
-    internal static byte[] Read(SetupCliInvocation invocation, string path)
+    internal static async ValueTask<SetupCliInputBuffer> ReadAsync(SetupCliInvocation invocation, string path,
+        CancellationToken cancellationToken)
     {
-        ReadOnlyMemory<byte> bytes = invocation.Io.Input.Read(path, invocation.Io.MaximumBytes);
-        if (bytes.Length > invocation.Io.MaximumBytes) throw new IOException("input-bound");
-        return bytes.ToArray();
-    }
-
-    internal static SetupDefinition Definition(SetupCliInvocation invocation, string path)
-    {
-        byte[] bytes = Read(invocation, path);
-        try
+        cancellationToken.ThrowIfCancellationRequested();
+        SetupCliInputBuffer buffer = await invocation.Io.Input.ReadAsync(path, invocation.Io.MaximumBytes, cancellationToken);
+        if (buffer.Bytes.Length > invocation.Io.MaximumBytes || cancellationToken.IsCancellationRequested)
         {
-            return Path.GetExtension(path).ToLowerInvariant() is ".yaml" or ".yml"
-                ? SetupDefinitionSourceCodec.ParseYaml(bytes) : SetupDefinitionSourceCodec.ParseJson(bytes);
+            buffer.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new IOException("input-bound");
         }
-        finally { CryptographicOperations.ZeroMemory(bytes); }
+        return buffer;
     }
 
-    internal static SetupAnswerSnapshot Answers(SetupCliInvocation invocation, string path, string revision)
+    internal static async ValueTask<SetupDefinition> DefinitionAsync(SetupCliInvocation invocation, string path,
+        CancellationToken cancellationToken)
     {
-        byte[] bytes = Read(invocation, path);
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(bytes,
+        using SetupCliInputBuffer buffer = await ReadAsync(invocation, path, cancellationToken);
+        return Path.GetExtension(path).ToLowerInvariant() is ".yaml" or ".yml"
+            ? SetupDefinitionSourceCodec.ParseYaml(buffer.Bytes) : SetupDefinitionSourceCodec.ParseJson(buffer.Bytes);
+    }
+
+    internal static async ValueTask<SetupAnswerSnapshot> AnswersAsync(SetupCliInvocation invocation, string path,
+        string revision, CancellationToken cancellationToken)
+    {
+        using SetupCliInputBuffer buffer = await ReadAsync(invocation, path, cancellationToken);
+        using JsonDocument document = JsonDocument.Parse(buffer.Bytes,
                 new JsonDocumentOptions { MaxDepth = 32 });
             if (document.RootElement.ValueKind != JsonValueKind.Object)
                 throw new JsonException();
             var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (JsonProperty property in document.RootElement.EnumerateObject())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!values.TryAdd(property.Name, property.Value.Clone())) throw new JsonException();
+            }
             return new(long.Parse(revision, CultureInfo.InvariantCulture), values);
-        }
-        finally { CryptographicOperations.ZeroMemory(bytes); }
-    }
-
-    internal static void Write(SetupCliInvocation invocation, SetupCliCommand command,
-        SetupArtifactKind kind, ReadOnlyMemory<byte> bytes)
-    {
-        if (!command.DryRun)
-            invocation.Io.Output.WriteArtifact(command.Output!, kind, bytes, invocation.Io.MaximumBytes);
     }
 }

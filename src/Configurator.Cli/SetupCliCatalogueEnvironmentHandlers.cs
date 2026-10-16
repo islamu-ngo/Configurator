@@ -6,9 +6,10 @@ namespace Configurator.Cli;
 
 internal static class SetupCliCatalogueEnvironmentHandlers
 {
-    internal static SetupCliCommandResult Catalogue(SetupCliCommand command, SetupCliInvocation invocation, SetupCliOutcomeLedger ledger)
+    internal static async Task<SetupCliCommandResult> CatalogueAsync(SetupCliCommand command, SetupCliInvocation invocation,
+        SetupCliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
-        SetupDefinition definition = SetupCliIoOperations.Definition(invocation, command.Definition!);
+        SetupDefinition definition = await SetupCliIoOperations.DefinitionAsync(invocation, command.Definition!, cancellationToken);
         SetupFieldDefinition[] fields = command.Operation == "list"
             ? definition.Fields.OrderBy(item => item.Id, StringComparer.Ordinal).ToArray()
             : definition.Fields.Where(item => item.Id == command.Key).ToArray();
@@ -21,6 +22,7 @@ internal static class SetupCliCatalogueEnvironmentHandlers
             if (command.Operation == "list") writer.WriteStartArray();
             foreach (SetupFieldDefinition field in fields)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 writer.WriteStartObject();
                 writer.WriteString("id", field.Id);
                 writer.WriteString("type", field.Type);
@@ -45,8 +47,9 @@ internal static class SetupCliCatalogueEnvironmentHandlers
             SetupCliResults.PathIntent(command.Output), command.DryRun ? "planned" : "not-attempted")]);
         if (command.DryRun) return result;
         ledger.Plan(invocation, command, result);
+        cancellationToken.ThrowIfCancellationRequested();
         ledger.BeginPublication();
-        return ledger.Apply(invocation.Io.Output.WriteArtifact(command.Output!, SetupArtifactKind.PublicCatalogue,
-            bytes, invocation.Io.MaximumBytes), result);
+        return ledger.Apply(await invocation.Io.Output.WriteArtifactAsync(command.Output!, SetupArtifactKind.PublicCatalogue,
+            bytes, invocation.Io.MaximumBytes, cancellationToken), result);
     }
 }

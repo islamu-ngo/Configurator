@@ -1,6 +1,6 @@
 # CLI results preserve publication facts independently of delivery
 
-Status: accepted for the authorized bounded machine-outcome implementation.
+Status: accepted for the authorized bounded machine-outcome and cooperative lifetime implementation.
 Date: 2026-10-15. Owners: CLI and native packaging.
 Implementation anchor: [CLI contract](../CLI_CONTRACT.md).
 Operator guidance: [command-line configurator](../../public/cli.md).
@@ -52,9 +52,40 @@ generator/package cleanup, preserving unrelated package content and definition
 schemas. Independent machine verification must not use production serialization
 as its expected-result oracle.
 
+### Cooperative process lifetime
+
+Replace the embedded synchronous execution/I/O surface with
+`Task<SetupCliExitCode> RunAsync(invocation, cancellationToken = default)`,
+`ValueTask<SetupCliInputBuffer> ReadAsync(path, maximumBytes, cancellationToken)`
+and token-aware `WriteAsync`, `WriteArtifactAsync` and `WriteBundleAsync` methods.
+The plain write returns `ValueTask`; publication methods return
+`ValueTask<SetupCliPublicationResult>` so established outcomes and cleanup stay
+observable. The disposable input buffer owns and clears its byte array. Consumers
+dispose it on success and failure; readers clear owned scratch buffers as well.
+Bound streaming reads without relying on seekability or reported length. This
+reduces avoidable byte retention, not immutable JSON/string lifetime.
+
+`Program` owns/disposes one work CTS, Ctrl+C subscription and Unix SIGTERM
+registration. Repeated signals request the same cancellation without extra output.
+Use the existing Spectre.Console.Cli 0.56.1 `RunAsync` and `AddAsyncDelegate` APIs
+with cancellation exit 130. Propagate the work token through handlers, bounded
+input/source/schema reads and protected preparation/commit; retain no sync wrapper,
+`Task.Run` or blocking async bridge. Observe cancellation between bounded CPU
+stages and before commit without promising immediate parser interruption.
+
+Keep final delivery separate: the sole emitter uses a distinct bounded delivery
+token, not the cancelled work token. Delivery failure wins with 74. Otherwise
+cancellation returns 130 unless an earlier operation or cleanup failure already
+determines completion. Native preparations are disposed even when parsing or
+outcome observation fails. Established writes survive cancellation and cleanup;
+unknown outcomes cannot be recast as not-written. No cancellation path grants
+rollback, automatic replay or target acceptance.
+
 ## Consequences and limits
 
 Automation must migrate envelope consumers and CSV bundle arguments together.
+Embedded callers must also await the new execution/I/O APIs, forward their work
+token and dispose returned input buffers; no synchronous compatibility API remains.
 Validation exits still describe the underlying read-only operation during detail
 retrieval. Consumers advance by actual returned entries and guard noninitial pages
 with the sanitized-view digest; unchanged structural views may survive value changes.
@@ -64,10 +95,12 @@ only a prefix or nothing even after successful publication. Consumers inspect
 established destinations before retrying; no in-band protocol can guarantee
 delivery acknowledgment, rollback or recovery after process loss.
 
-This decision does not claim cooperative async/cancellation, parser/environment
-rework, hardened public authoring custody, installed discovery/repair, portable
-skill lifecycle, four-host qualification or complete installed adoption. Those
-remain separate work; the receipt improvement is not enterprise certification.
+Cooperative cancellation cannot guarantee cleanup or a final receipt after forced
+kill, OS crash or a blocked non-cancellable native primitive. This decision does
+not claim parser/environment rework, hardened public authoring custody, installed
+discovery/repair, portable skill lifecycle, four-host qualification or complete
+installed adoption. Those remain separate work; these runtime improvements are
+not enterprise certification.
 
 ## Functional provenance and independent design
 
@@ -80,10 +113,12 @@ documentation prose. The relevant sources are:
 | [Spectre command lifecycle](https://spectreconsole.net/cli/explanation/command-lifecycle-and-execution-flow) | Settings binding/validation precede command execution. |
 | [Spectre error handling](https://spectreconsole.net/cli/how-to/handling-errors-and-exit-codes) | Exception propagation changes which handler owns failure mapping. |
 | [Spectre testing](https://spectreconsole.net/cli/how-to/testing-command-line-applications) | An injected console supports observing actual command binding/output. |
+| [Spectre async commands](https://spectreconsole.net/cli/how-to/async-commands-and-cancellation) | Token-aware execution and async delegates are available in the pinned CLI package, as confirmed by the planning handoff's local API check. |
 | [RFC 6901](https://www.rfc-editor.org/rfc/rfc6901.html) | JSON Pointer defines structural member-token escaping. |
 
 Framework API availability does not determine product authority. The single CLI
-emitter, pre-sized result ledger, reused protected publisher and count/digest
-continuation are independently chosen around Configurator's existing owners and
-privacy constraints. No package upgrade, source transfer, new host/container or
-license approval is inferred; existing component identities/notices remain intact.
+emitter, pre-sized result ledger, reused protected publisher, owned input buffers,
+separate work/delivery lifetimes and count/digest continuation are independently
+chosen around Configurator's existing owners and privacy constraints. No package
+upgrade, source transfer, new host/container or license approval is inferred;
+existing component identities/notices remain intact.

@@ -49,7 +49,7 @@ an alias. Core composes the selected
 artifacts in definition order with an aggregate byte limit before native output.
 Import-semantic artifacts are excluded so a bundle cannot bypass explicit
 revision binding. The check reports local composition metadata only. Create
-passes the complete ordered bundle through `ISetupCliWriter.WriteBundle` to
+passes the complete ordered bundle through `ISetupCliWriter.WriteBundleAsync` to
 `ProtectedArtifactBundlePublisher`: all destinations are prepared before the
 first commit, then create-only commits may leave a written prefix if a later
 race or I/O failure occurs. The machine envelope reports the full ID, established
@@ -67,7 +67,7 @@ Target integrity validation is not duplicated here.
 
 ## Publication and machine output
 
-`ISetupCliWriter.WriteArtifact` has no default plain-file implementation.
+`ISetupCliWriter.WriteArtifactAsync` has no default plain-file implementation.
 The native adapter calls `IProtectedArtifactWriter.PrepareAsync(kind, path,
 bytes, cancellation)` and commits the preparation once. Public catalogue stdout
 uses `ProtectedArtifactWriter.WritePublic`. Answer-derived output is classified
@@ -103,6 +103,61 @@ UTF-8 JSON line without BOM/ANSI; failed delivery returns 74 with fixed best-eff
 stderr diagnostics, even if stderr also fails. No appended envelope, rollback
 claim or automatic retry follows partial stdout. Process exit is separate transport
 evidence; consumers must inspect established outputs before replaying a failed write.
+
+### Async lifetime and owned input
+
+The cooperative lifetime contract replaces the embedded synchronous entrypoints;
+callers migrate directly, without compatibility wrappers:
+
+- `SetupCliApplication.RunAsync(invocation, cancellationToken = default)` returns
+  `Task<SetupCliExitCode>`.
+- `ISetupCliInput.ReadAsync(path, maximumBytes, cancellationToken)` returns
+  `ValueTask<SetupCliInputBuffer>`. The disposable buffer owns its `byte[]` and
+  clears it on disposal; the consumer must dispose it even when parsing fails.
+- `ISetupCliWriter.WriteAsync(..., cancellationToken)` returns `ValueTask`;
+  `WriteArtifactAsync(..., cancellationToken)` and
+  `WriteBundleAsync(..., cancellationToken)` return
+  `ValueTask<SetupCliPublicationResult>`, preserving completion, publication and
+  cleanup facts rather than discarding them in an exception path.
+
+`Program` owns one invocation CTS, the Ctrl+C subscription and, on Unix, the
+SIGTERM registration. It disposes registrations and the CTS on exit. Repeated
+signals request the same work cancellation without new output. The installed
+Spectre.Console.Cli 0.56.1 `RunAsync(args, token)` and
+`AddAsyncDelegate<TSettings>` carry the work token through binding/execution,
+family handlers, bounded file/stdin and source/schema reads, and native
+preparation/commit. Spectre's cancellation exit is explicitly 130. No `Task.Run`,
+blocking `GetResult` bridge or synchronous public execution wrapper is retained.
+
+Reads enforce the byte cap while streaming, including non-seekable input, rather
+than trusting stream length. Native `SystemInput.ReadAsync` rejects `-` unless
+`Console.IsInputRedirected`, before opening or reading stdin. The resulting
+`IOException` maps to safe I/O failure (74) through the ordinary single emitter;
+there is no prompt or terminal-read support. Unix pipes use the existing async
+standard-stream adapter with owning handles so disposal completes after
+cancellation; non-pipe descriptors retain the Console stream fallback.
+Original and scratch byte buffers owned by the CLI
+are cleared on every exit path, and native preparations are disposed even when
+parsing, outcome observation or cleanup fails. Cancellation is checked between
+bounded CPU stages and before commit; it does not promise immediate interruption
+of parsing or erasure of immutable JSON/string allocations.
+
+`SetupCliApplication` makes its sole final-delivery attempt under a distinct,
+bounded delivery token, not the cancelled work token. Delivery failure returns
+74 even when operation or cleanup also failed. Otherwise cancellation returns
+130 unless an earlier operation/cleanup failure already determines completion;
+later cancellation must not mask that failure. Ledger facts are independent:
+established writes survive cancellation, untouched outputs remain not-attempted,
+and unknown publication never becomes an inferred not-written result. Forced
+kill, OS crash and non-cancellable native I/O cannot guarantee cleanup or delivery.
+
+Linux native process tests hold stdin open and establish pipe consumption before
+sending SIGINT/SIGTERM, including repeated SIGTERM and broken-stdout delivery
+precedence. A real `/usr/bin/script` pseudo-terminal qualifies immediate terminal
+stdin rejection without EOF; only its CRLF transport conversion is normalized
+before machine-contract verification. Shell-redirected regular-file stdin/stdout
+qualifies native artifact bytes and a single machine receipt, not cancellation
+of a stalled filesystem call. Other hosts' signal behavior remains unqualified.
 
 Public `definition build` also prepares all canonical-definition/optional-ID-map
 outputs before ordered commits. This is not a transaction: later failure preserves
@@ -152,9 +207,9 @@ Authoring/runtime v1 remain current: changing the command receipt does not chang
 their vocabularies. The independent specification/verifier must migrate with the
 compiled schema, rather than using production serialization as its oracle.
 
-The [runtime decision](adr/ADR-cli-command-runtime.md) records result and delivery
-ownership. Cooperative async/cancellation and explicit-input parser/environment
-changes are separate work, not guarantees of this receipt increment. Public-file
+The [runtime decision](adr/ADR-cli-command-runtime.md) records result, cooperative
+lifetime and delivery ownership. Explicit-input parser/environment changes remain
+separate work, not a guarantee of the async migration. Public-file
 custody, installed discovery/repair, portable skill lifecycle, four actual host
 qualifications and adoption evidence remain open; no enterprise certification is
 implied.
