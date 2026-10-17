@@ -3,19 +3,12 @@
 Configurator prepares local drafts. It does not apply them to a target or grant
 administrator authority. The utility needs no Event checkout or running service.
 
-Install .NET SDK 10.0.302 to build packages. Run these commands from Configurator:
+Choose the interface and platform below. If you already have a native package,
+[run it directly](#run-a-native-package); the .NET SDK is only needed to
+[build from source](#build-from-source). Browser packages need a
+[static web host](#host-the-browser-package), not a native executable.
 
-```bash
-export TMPDIR="$HOME/.cache/agent-tmp"
-dotnet build eng/configurator/Configurator.Release.proj --configuration Release --verbosity quiet
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=cli -p:ConfiguratorRid=linux-x64
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=terminal -p:ConfiguratorRid=linux-x64
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=desktop -p:ConfiguratorRid=linux-x64
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser
-```
-
-Native outputs are self-contained, untrimmed single-file executables. Copy the
-whole package directory, including MIT ownership and third-party notices:
+Native outputs are self-contained, untrimmed single-file executables:
 
 | Surface | Default executable or static root | Packaging RIDs |
 | --- | --- | --- |
@@ -29,6 +22,32 @@ protected exports work on that host. Protected native writes are Linux-only and
 still reject filesystems where create-only, owner-only protection cannot be
 established. macOS and Windows exports fail closed; Desktop packaging refuses
 unverified hosts. GUI packages still need the host's display and platform libraries.
+
+## Run a native package
+
+Copy the **whole package directory**, not just the executable. Keep its schemas,
+contracts, license and dependency notices beside it. No separately installed .NET
+runtime or SDK is needed, but the operating-system dependencies below still apply.
+
+For the CLI, open a shell in the copied package directory:
+
+```bash
+# Linux or macOS
+./islamu-configurator --help
+./islamu-configurator doctor --machine
+```
+
+```powershell
+# Windows PowerShell
+.\islamu-configurator.exe --help
+.\islamu-configurator.exe doctor --machine
+```
+
+Help needs no definition or answers. `doctor` is read-only: exit `0` reports the
+available protected host path; exit `4` reports an unavailable protected writer,
+as expected on macOS and Windows today. It does not test every destination or
+qualify every workflow. Continue with the [CLI guide](cli.md) or
+[synthetic first run](getting-started.md).
 
 ## CLI operating-system boundaries
 
@@ -86,6 +105,9 @@ routed resources. Copy that complete skill directory into an Agent Skills-aware
 tool's supported skill location; no agent framework or installer is required.
 The included authoring schema and native `definition` commands supply the actual
 contract. The workflow never needs private answer discovery or target startup.
+
+## Host the browser package
+
 Serve the entire browser `wwwroot/` tree from a static server with appropriate
 WASM MIME types and route fallback to `index.html`; there is no application
 server, authentication, target apply or answer persistence. Browser private
@@ -134,6 +156,30 @@ Terminal.Gui is restored from NuGet.org using an exact centrally managed
 version and generated dependency locks. No custom feed or upstream rebuild is
 required. See the [dependency decision and history](../internal/TERMINAL_GUI_DEPENDENCY.md)
 and [internal packaging anchor](../internal/PACKAGING.md) for verification.
+
+## Build from source
+
+Install .NET SDK **10.0.302** and run from the repository root. These examples use
+Bash; each publication line is independent, so run only the surface you need.
+Replace `linux-x64` with an admitted RID from the table above when appropriate.
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+mkdir -p "$TMPDIR"
+dotnet build eng/configurator/Configurator.Release.proj --configuration Release --verbosity quiet
+
+# Choose one native surface:
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=cli -p:ConfiguratorRid=linux-x64
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=terminal -p:ConfiguratorRid=linux-x64
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=desktop -p:ConfiguratorRid=linux-x64
+
+# Or build the static browser package:
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser
+```
+
+The default output directories are in the table above. Building creates packages;
+it does not install them, start a server or establish release-signing authority.
+The first restore may need network access for build dependencies.
 
 ## Arch Linux development package
 

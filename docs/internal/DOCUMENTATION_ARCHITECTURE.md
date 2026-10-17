@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Adopters | Integrators | AI agents
 > **Status:** Implemented repository documentation policy
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-09
+> **Last Verified:** 2026-10-16
 > **Source Anchors:** `README.md`, `docs/README.md`, `PROJECTS.md`, `docs/public/`, `docs/internal/`
 
 This repository uses Markdown-first documentation as the authoritative adopter,
@@ -137,6 +137,7 @@ Single Responsibility and do not duplicate content:
 |---|---|---|---|
 | First run | [getting-started.md](../public/getting-started.md), [neutral example](../../examples/minimal-self-hosted/README.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md), [CLI_CONTRACT.md](CLI_CONTRACT.md), [PROTECTED_ARTIFACTS.md](PROTECTED_ARTIFACTS.md) | Public: reproducible local steps; internal: admission, command and save contracts |
 | Definitions | [definitions.md](../public/definitions.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md) | Public: authoring and admission usage; internal: bounded declarative model and validation |
+| Maintainer authoring | [integrate-your-tool.md](../public/integrate-your-tool.md) | [MAINTAINER_AUTHORING.md](MAINTAINER_AUTHORING.md) | Public: maintain one source, check/build/revise and distribute; internal: compilation, revision and public-source custody mechanisms |
 | CLI | [cli.md](../public/cli.md) | [CLI_CONTRACT.md](CLI_CONTRACT.md) | Public: commands and results; internal: machine contract and exit semantics |
 | Terminal | [terminal.md](../public/terminal.md) | [TERMINAL_CLIENT.md](TERMINAL_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: interaction; internal: shared state and terminal adapter |
 | Desktop | [desktop.md](../public/desktop.md) | [DESKTOP_CLIENT.md](DESKTOP_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: workflow; internal: Avalonia adapter and generation fencing |
@@ -144,6 +145,7 @@ Single Responsibility and do not duplicate content:
 | Native output | [native-output.md](../public/native-output.md) | [PROTECTED_ARTIFACTS.md](PROTECTED_ARTIFACTS.md) | Public: safe save procedure; internal: create-only protected writes and failure posture |
 | Launch integration | [launch-integration.md](../public/launch-integration.md) | [LAUNCH_CONTRACT.md](LAUNCH_CONTRACT.md), [ADR](adr/ADR-definition-runtime-boundary.md) | Public: handoff; internal: preparation is not host apply/admin authority |
 | Packaging | [packaging.md](../public/packaging.md) | [PACKAGING.md](PACKAGING.md) | Public: platform commands and limits; internal: evaluated release contracts and package closure |
+| Optional catalogue | [definition-store.md](../public/definition-store.md) | [DEFINITION_STORE.md](DEFINITION_STORE.md) | Public: browse and contribute; internal: metadata admission, canonical snapshots and optional package generation |
 
 ### Dual-Documentation Parity Protocol
 
@@ -168,3 +170,21 @@ Single Responsibility and do not duplicate content:
    frontmatter and never synthetic AI comment headers. Navigation is anchored
    in `docs/README.md` and the twin matrix here. Internal docs use natural
    Markdown metadata blocks.
+
+### Review a documentation-only change
+
+- Begin with the reader's task, its prerequisites and expected result. Keep the
+  documentation hub task-oriented; put complete option tables in the CLI reference.
+- Distinguish public maintainer source, compiled runtime definitions, private
+  answers and prepared artifacts. Do not use “configuration” ambiguously where
+  the distinction affects custody or validation.
+- Explain safe recovery where a command can write files. An error or cancellation
+  does not imply rollback; an unknown outcome is not proof of no write.
+- Keep package admission, runtime compatibility, actual-host execution and
+  protected-save qualification separate. Link to packaging for the current
+  platform boundary rather than reproducing a distribution/version matrix.
+- Check changed local links and heading anchors, command arguments against the
+  current owner/help, and whitespace. Use synthetic values for executable
+  examples. Do not rebuild the product merely to verify prose.
+- Preserve source contracts and historical evidence. A clearer guide must not
+  silently turn a roadmap, configured CI job or old report into current support.

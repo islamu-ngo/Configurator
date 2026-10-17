@@ -42,8 +42,9 @@ bounded data format.
 
 String and numeric fields have ordinary input boxes; numbers use invariant
 decimal notation. Boolean and enum fields have selection controls, including an
-unset option. Object fields expose their named child controls, and scalar lists
-have **Add item** and **Remove item** actions. You do not need to edit JSON.
+unset option. Object fields expose their named child controls. Scalar and object
+lists have **Add item** and **Remove item** actions; object rows expose their
+declared child fields. You do not need to edit JSON.
 Declared defaults are loaded, and public recommendations can be selected
 explicitly. Protected inputs are masked, including descendants of an object
 whose nested fields raise its sensitivity. Protected boolean and enum values

@@ -38,7 +38,7 @@ receipt. The CLI plans receipt capacity before publication and preserves written
 not-attempted and unknown outcomes through later failures. One application emitter
 attempts delivery without Program fallback; cleanup and target acceptance remain
 independent. See the [runtime decision](../adr/ADR-cli-command-runtime.md).
-Public authoring custody, discovery/repair, portable skill lifecycle, four-host
+Public authoring custody, discovery/repair, portable skill lifecycle, actual-host
 qualification and installed adoption remain open, not enterprise certification.
 
 `global.json` pins SDK 10.0.302 and Microsoft.Testing.Platform.
@@ -104,6 +104,13 @@ See [browser custody ADR](../adr/ADR-browser-session-trust-and-export.md),
 [packaging](../PACKAGING.md) for the corresponding source and evidence anchors.
 
 ## Verification and provenance
+
+The [documentation hub](../../README.md) routes readers by task into public
+procedures and technical contracts. The [documentation architecture](../DOCUMENTATION_ARCHITECTURE.md)
+owns their parity matrix and documentation-only review checks. Guides distinguish
+public authoring/runtime definitions from private answer workspaces, and package
+production from native host/protected-save qualification; historical transfer and
+review reports remain evidence, not current product guarantees.
 
 The [Terminal CTO review](../TERMINAL_CTO_REVIEW.md) records the point-in-time
 2026-10-14 assessment of terminal interaction, security, maintainability and

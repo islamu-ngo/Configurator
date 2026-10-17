@@ -8,6 +8,11 @@ DTOs, built-in catalogue, HTTP client or implicit application selection remain.
 
 ## Data and control flow
 
+`SetupTerminalProgram` rejects redirected stdin, stdout or stderr before loading
+a definition (`interactive-terminal-required`, exit 4). This is an interactive
+surface; scripts and redirected streams use the CLI instead. `--help` is handled
+before the interactive-stream gate.
+
 `SetupTerminalDefinitionSelection` reads bounded local files, admits JSON/YAML
 through `SetupDefinitionCodec`, or explicitly resolves a family and optional
 application version through `SetupDefinitionRegistry`. Definition bytes are

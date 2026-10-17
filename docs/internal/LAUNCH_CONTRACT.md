@@ -49,8 +49,11 @@ still usable. No private answers or output enter this optional read/cache path.
 Bundled query selectors are closed, unique and bounded. Remote `/open` metadata
 is fragment-only: `src` plus optional digest/version/entry/locale, never answers.
 Remote URLs admit public credential-free HTTPS without query, userinfo,
-fragment or redirect. Local/private literal addresses, single-label names and
-local suffixes reject; browser DNS remains outside the utility's authority.
+fragment or redirect. `BrowserDefinitionPointer.ValidateSource` admits public
+hostnames and IP literals that pass its explicit address filter. Local/private
+literal addresses, single-label names and local suffixes reject; browser DNS
+remains outside the utility's authority. This filter is not DNS-resolution or
+server-side network-isolation proof.
 Fetch omits credentials/referrer, uses no-store, has a 10-second timeout and
 streams at most 4 MiB regardless of Content-Length. Admission, digest and
 selector checks precede workspace publication. Failures expose stable codes,

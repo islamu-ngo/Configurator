@@ -15,7 +15,8 @@ origin, delivered code, browser and extensions, and its exports cannot enforce
 native file protection. Prefer a reviewed local [Desktop](desktop.md),
 [TUI](terminal.md) or [CLI](cli.md) build on a trusted machine for high-value
 secrets. Native clients still require trusted software and an operating system;
-protected saving is verified on Linux only and unsupported hosts refuse it.
+protected saving has actual-host evidence on Linux x64 only; Arm/musl host
+qualification remains pending, and macOS/Windows protected saves fail closed.
 This is a recommendation about exposure, not a measured universal security
 ranking or a guarantee that any client is immune to compromise.
 
@@ -182,9 +183,18 @@ and that retained definition, not merely a registered worker or an installed
 shortcut. Retention is bounded to eight definitions, each within Core's 4 MiB
 limit, and each is re-admitted and checked against its canonical digest on read.
 
-After preparing the app and definition online, you can disconnect and reopen
-the retained workspace definition, then edit, validate, compose and export
-locally. Answers are not retained: reopening starts a new empty workspace.
+Before disconnecting:
+
+1. Load and review the public definition without opening its answer workspace.
+2. Confirm **I confirm this definition is safe to retain as public metadata**,
+   then select **Retain definition for offline use** and wait for confirmation.
+3. Make sure the app's public assets are available offline as well. Retaining a
+   definition alone does not complete the app-asset cache.
+
+After disconnecting, go to **Open configuration**, choose the entry under
+**Retained public definitions**, then open its workspace. You can edit, validate,
+compose and export locally. Answers are not retained: reopening starts a new
+empty workspace.
 Offline operation and live answer work block application remote-definition
 fetches. Starting another definition deliberately ends the current workspace.
 Worker updates wait rather than reload or replace a live workspace; close

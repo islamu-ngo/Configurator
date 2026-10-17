@@ -4,6 +4,14 @@
 changes to a target application. Supply a local admitted definition explicitly;
 there is no built-in Event catalogue or old command alias.
 
+For a first run with checked synthetic files, start with
+[Prepare a configuration offline](getting-started.md). This page is the command
+reference: jump to [complete usage](#complete-usage),
+[help without inputs](#help-without-operational-inputs),
+[maintainer definitions](#maintainer-definitions),
+[input and confidentiality](#input-output-and-confidentiality), or
+[machine results and exit codes](#machine-contract-and-exit-codes).
+
 ```bash
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- --help
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \

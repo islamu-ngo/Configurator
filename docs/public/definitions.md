@@ -4,12 +4,22 @@ A definition describes an application's questions, constraints and artifact
 mappings. Configurator interprets bounded data; it does not execute scripts,
 install services or grant application-administration authority.
 
-Start with `examples/minimal-self-hosted/setup-definition.json`. Its fields
-produce a dotenv file, JSON document or YAML document through the same
+## Choose the right definition file
+
+| File | Purpose | Where to start |
+| --- | --- | --- |
+| Maintainer source (`configurator.yaml`, `.yml` or `.json`) | The compact public declaration maintained beside an application's code. | [Integrate your tool](integrate-your-tool.md) |
+| Compiled runtime definition (canonical JSON) | The admitted, versioned definition distributed to clients and used for integrity pinning. | [Check and build a source](integrate-your-tool.md#check-build-and-revise) |
+| Answer workspace (JSON object) | Local values keyed by definition field IDs; not part of either public definition. | [Prepare a configuration](getting-started.md) |
+
+Start with the [minimal runtime definition](../../examples/minimal-self-hosted/setup-definition.json).
+Its fields produce a dotenv file, JSON document or YAML document through the same
 definition used by every interface. The sample's credential can be deferred in
 an explicitly incomplete browser draft or entered voluntarily after per-workspace
 consent. All answer-derived artifacts are restricted even when all fields are
 declared public; browser downloads cannot establish native file protection.
+
+## Identity and distribution
 
 Each definition has a stable family GUID, a revision, declared application
 versions and a digest computed from canonical definition bytes. GUID identity
@@ -22,6 +32,8 @@ The native builder derives canonical identity and compatibility metadata from
 admitted content. Store inclusion remains separate from publisher authenticity;
 local files and independent public publisher links remain usable without it.
 
+## Fields, validation and output mappings
+
 Field IDs are independent of output keys. Activation and required conditions
 refer to declared fields. Disclosure controls the view, never the validation:
 required or protected decisions cannot disappear from guided review.
@@ -32,9 +44,9 @@ validated against those properties. Optional `uniqueBy: ["metadata", "name"]`
 identifies a declared nested string key for ordinal uniqueness across rows.
 Unknown members, malformed rows, missing required properties and duplicate
 keys reject; diagnostics never echo the duplicate value. Core's depth, node,
-scalar and 4,096 repeated-item budgets still apply. Event's tenant definition
-uses its target-owned maximum of 256 and unique tenant names; no exporter must
-be rerun merely to edit an operator's tenant rows.
+scalar and 4,096 repeated-item budgets still apply. A target may impose stricter
+limits or additional validation; admitting a definition does not prove that the
+target will accept every prepared file.
 
 Nested fields preserve their own sensitivity. A public parent label never
 permits secret defaults or bypasses browser consent. Removed object-list rows
@@ -45,6 +57,8 @@ filename hints, not permission to write arbitrary files. Apply/restart metadata
 describes consequences for the operator; the target still validates and applies
 its own configuration.
 
+## Complete configuration versus a secret-deferred draft
+
 Complete preparation requires all active required answers and valid values.
 Secret-deferred preparation is a separate draft operation: missing secret
 leaves produce blank dotenv values, empty JSON/YAML strings or null nonstring
@@ -54,9 +68,12 @@ secret-dependent conditions cannot silently be treated as false. Complete the
 listed locations and run target validation before use. A draft is neither a
 ready configuration nor host acceptance.
 
-The generated schema is `schemas/setup-definition-v1.schema.json`. See
-`docs/internal/CORE_DEFINITION_CONTRACT.md` for the closed grammar and exact
-Configurator v1 canonicalization profile. It is not an RFC 8785 compatibility
+## Schemas and YAML syntax
+
+The runtime schema is
+[`setup-definition-v1.schema.json`](../../schemas/setup-definition-v1.schema.json).
+See the [definition contract](../internal/CORE_DEFINITION_CONTRACT.md) for the
+closed grammar and exact Configurator v1 canonicalization profile. It is not an RFC 8785 compatibility
 claim. Local YAML is normalized to the same definition model; distribution,
 integrity and digest pinning use the canonical JSON bytes.
 
@@ -67,6 +84,8 @@ multiline strings and precise JSON-shaped decimal/exponent numbers. Quote intend
 numeric, boolean or null keys and ambiguous strings. Empty plain values, typed keys,
 duplicate/colliding keys, merge keys, anchors, aliases, tags, directives and multiple
 documents reject. Use explicit `null` or `""` instead of a blank plain value.
+
+## More examples and existing configuration
 
 For a second independently authored format example, see
 [`examples/grafana-13.2.2`](../../examples/grafana-13.2.2/README.md). It shows

@@ -6,6 +6,16 @@ Native private bytes cannot be sent to stdout or to a public writer. The
 [browser](browser.md) has a separate deliberate copy/download custody boundary;
 it does not use this native writer or promise its filesystem protections.
 
+## Before saving
+
+1. Run the client's validation or the CLI's read-only `artifact bundle-check`.
+2. Choose a new destination you control. For the CLI bundle workflow, create an
+   empty owner-only directory as shown in [getting started](getting-started.md#3-save-to-a-new-private-directory).
+3. Check [platform and filesystem requirements](packaging.md#cli-operating-system-boundaries).
+   `doctor` reports host capability, not proof that a particular destination is safe.
+
+## What protected publication guarantees
+
 On the supported Linux path, the writer prepares an anonymous file and publishes
 it with create-only, no-replacement semantics. Existing destinations are never
 overwritten. Competing writers have at most one winner. Unsafe directories,
@@ -14,6 +24,8 @@ changed targets, cancellation or missing filesystem guarantees reject publicatio
 Restricted saves on unsupported hosts fail closed. A desktop framework's ability
 to start on Windows or macOS does not prove protected-save support on those hosts.
 There is no unprotected fallback.
+
+## Bundles and partial completion
 
 The shared bundle API renders selected files from one answer revision and checks
 their combined size. It checks every destination before creating the first
@@ -24,6 +36,34 @@ identify that committed prefix without exposing values or private paths.
 Cancellation after a file is written has the same partial-result behavior. A
 bundle is not an atomic transaction and Configurator never deletes a written
 file as a rollback.
+
+## Recover before retrying
+
+Keep the original receipt or the client's save-attempt history. Inspect each
+artifact outcome and the destination before choosing what to do next:
+
+| Outcome | Meaning and next action |
+| --- | --- |
+| `written` | The file was published. Keep it; a later failure or cancellation does not undo it. |
+| `not-attempted` | Publication of this artifact was not attempted. Resolve the earlier failure before preparing another attempt. |
+| `unknown` | Publication is not established either way. Inspect the destination; never interpret this as proof that no file exists. |
+| `conflict` | The destination already existed or changed. Inspect it and choose a fresh destination rather than overwriting it. |
+| `blocked` or `failed` | The boundary rejected the operation or an I/O operation failed. Review the diagnostic and any other artifacts' outcomes. |
+| `none` | The operation did not request publication, such as a read-only check. |
+| `planned` | A dry run planned the output but did not publish it. |
+
+These are CLI `writeStatus` spellings; interactive clients present the same
+established facts in their own status views. An overall error is not proof that
+every file failed, and an established write is not target acceptance. Cleanup
+failure is independent of a written file. A broken receipt channel can leave
+missing or partial JSON even after publication.
+
+Do not blindly replay a write command, delete an uncertain file, weaken directory
+permissions or switch to an ordinary writer to force success. Keep existing
+files, resolve the cause, and select a fresh destination when appropriate. See
+[CLI exit codes](cli.md#machine-contract-and-exit-codes).
+
+## Interactive save history and readiness
 
 The [terminal client](terminal.md) keeps a history of the newest 16 completed
 save attempts, plus the attempt still running. Each attempt identifies declared

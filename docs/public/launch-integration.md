@@ -62,8 +62,9 @@ and at most 2,048 characters; the encoded fragment is at most 4,096 characters.
 The remaining keys are `digest`, `appVersion`, `entry` and `locale` with the
 bounds above. Duplicate decoded keys and malformed/unknown values reject.
 The source must be credential-free HTTPS with no user information, query or
-fragment. Public DNS hostnames are required; local/private literal addresses,
-single-label hosts and `.local`/`.localhost` names reject. No redirect is
+fragment. Public hostnames and IP literals admitted by the source-address filter
+are allowed; local/private literal addresses, single-label hosts and
+`.local`/`.localhost` names reject. No redirect is
 followed. A public hostname is not proof of safe DNS resolution; browsers
 control DNS and transport, so this is not a server-side network isolation claim.
 

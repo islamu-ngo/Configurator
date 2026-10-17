@@ -21,6 +21,9 @@ compatible application version; unversioned ambiguity fails closed. Publisher
 and family metadata are identifiers, not proof of trust. The definition is frozen
 for the session; close and relaunch to select another.
 
+Run interactively without redirecting stdin, stdout or stderr; redirected startup
+is refused. `--help` can still be printed noninteractively. Use the [CLI](cli.md)
+for pipes, scripts and machine-readable output.
 Use a terminal of at least 80 columns and 26 rows. Tab and Shift+Tab move focus;
 Enter activates buttons. Underlined button shortcuts are available. English and
 Arabic resources follow the process UI culture.
@@ -65,7 +68,8 @@ Arabic resources follow the process UI culture.
 5. Save protected creates selected outputs under their declared filenames in the
    working directory. Existing files are never overwritten. All answer-derived
    output is private, even when its fields are labelled public. Protected saving
-   currently requires Linux's verified writer; unsupported hosts fail closed.
+   uses the Linux writer, with actual-host evidence on Linux x64 only; Arm/musl
+   qualification remains pending and macOS/Windows protected saves fail closed.
    The result shows how many files were created. For multiple outputs, use Next
    output result to review each artifact ID and status. If a later file fails,
    earlier created files remain: review them in the working directory and decide
