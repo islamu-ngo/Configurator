@@ -19,15 +19,48 @@ public enum ProtectedArtifactStatus
     UnsupportedPlatform
 }
 
+/// <summary>Historical installation and immediate verification facts, not a guarantee of continued destination integrity.</summary>
+public sealed record ProtectedArtifactCommitResult
+{
+    private ProtectedArtifactCommitResult(ProtectedArtifactStatus status, bool installationEstablished,
+        bool verificationSucceeded, bool cleanupFailed)
+    {
+        Status = status;
+        InstallationEstablished = installationEstablished;
+        VerificationSucceeded = verificationSucceeded;
+        CleanupFailed = cleanupFailed;
+    }
+
+    public ProtectedArtifactStatus Status { get; }
+    public bool InstallationEstablished { get; }
+    public bool VerificationSucceeded { get; }
+    public bool CleanupFailed { get; }
+    public bool Succeeded => InstallationEstablished && VerificationSucceeded && !CleanupFailed;
+
+    public static ProtectedArtifactCommitResult NotInstalled(ProtectedArtifactStatus status, bool cleanupFailed = false)
+    {
+        if (!Enum.IsDefined(status) || status == ProtectedArtifactStatus.Written)
+            throw new ArgumentOutOfRangeException(nameof(status));
+        return new(status, false, false, cleanupFailed);
+    }
+
+    public static ProtectedArtifactCommitResult Installed(bool verificationSucceeded, bool cleanupFailed = false) =>
+        new(verificationSucceeded ? ProtectedArtifactStatus.Written : ProtectedArtifactStatus.TargetChanged,
+            true, verificationSucceeded, cleanupFailed);
+
+    internal ProtectedArtifactCommitResult WithCleanupFailure() =>
+        new(Status, InstallationEstablished, VerificationSucceeded, true);
+}
+
 public sealed class ProtectedArtifactPreparation : IDisposable
 {
-    private readonly Func<CancellationToken, Task<ProtectedArtifactStatus>> _commit;
+    private readonly Func<CancellationToken, Action, Task<ProtectedArtifactCommitResult>> _commit;
     private readonly Action _cleanup;
     private readonly ProtectedArtifactStatus? _rejectionStatus;
     private int _completed;
 
     internal ProtectedArtifactPreparation(
-        Func<CancellationToken, Task<ProtectedArtifactStatus>> commit,
+        Func<CancellationToken, Action, Task<ProtectedArtifactCommitResult>> commit,
         Action cleanup, ProtectedArtifactStatus? rejectionStatus = null)
     {
         _commit = commit;
@@ -36,25 +69,29 @@ public sealed class ProtectedArtifactPreparation : IDisposable
     }
 
     internal static ProtectedArtifactPreparation Rejected(ProtectedArtifactStatus status) =>
-        new(_ => Task.FromResult(status), static () => { }, status);
+        new((_, _) => Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(status)), static () => { }, status);
 
     /// <summary>A value-free preflight refusal; null means the preparation is ready to commit.</summary>
     public ProtectedArtifactStatus? RejectionStatus => _rejectionStatus;
 
     /// <summary>The established commit result, retained even when subsequent cleanup throws.</summary>
-    public ProtectedArtifactStatus? EstablishedStatus { get; private set; }
+    public ProtectedArtifactCommitResult? EstablishedResult { get; private set; }
     /// <summary>Cleanup failed independently of any established commit result.</summary>
     public bool CleanupFailed { get; private set; }
 
-    public async Task<ProtectedArtifactStatus> CommitAsync(CancellationToken cancellationToken = default)
+    public async Task<ProtectedArtifactCommitResult> CommitAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _completed, 1) != 0)
-            return ProtectedArtifactStatus.InvalidRequest;
+            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
         ExceptionDispatchInfo? commitFailure = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            EstablishedStatus = await _commit(cancellationToken).ConfigureAwait(false);
+            ProtectedArtifactCommitResult result = await _commit(cancellationToken,
+                () => EstablishedResult = ProtectedArtifactCommitResult.Installed(false)).ConfigureAwait(false);
+            if (EstablishedResult is { InstallationEstablished: true } && !result.InstallationEstablished)
+                throw new InvalidOperationException("installation-fact-cannot-be-retracted");
+            EstablishedResult = result;
         }
         catch (Exception exception)
         {
@@ -64,10 +101,11 @@ public sealed class ProtectedArtifactPreparation : IDisposable
         catch
         {
             CleanupFailed = true;
+            EstablishedResult = EstablishedResult?.WithCleanupFailure();
             if (commitFailure is null) throw;
         }
         commitFailure?.Throw();
-        return EstablishedStatus!.Value;
+        return EstablishedResult!;
     }
 
     public void Dispose()
@@ -90,6 +128,12 @@ public interface IProtectedArtifactWriter
 
 public sealed class ProtectedArtifactWriter : IProtectedArtifactWriter
 {
+    private readonly Action? _beforeVerification;
+
+    public ProtectedArtifactWriter() { }
+
+    internal ProtectedArtifactWriter(Action beforeVerification) => _beforeVerification = beforeVerification;
+
     public const int MaximumBytes = 4 * 1024 * 1024;
 
     public bool IsAvailable => OperatingSystem.IsLinux();
@@ -120,6 +164,6 @@ public sealed class ProtectedArtifactWriter : IProtectedArtifactWriter
             return ProtectedArtifactPreparation.Rejected(ProtectedArtifactStatus.InvalidRequest);
 
         // Every file, including an unknown kind, uses the same owner-only boundary.
-        return await UnixProtectedArtifactWriter.PrepareAsync(targetPath, bytes, cancellationToken).ConfigureAwait(false);
+        return await UnixProtectedArtifactWriter.PrepareAsync(targetPath, bytes, cancellationToken, _beforeVerification).ConfigureAwait(false);
     }
 }

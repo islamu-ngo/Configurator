@@ -72,7 +72,9 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         "answer-conflict" => "Resolve conflicting current answers before retrying the whole import.",
         "input-invalid" or "input-ambiguous" or "import-field-invalid" => "Correct the existing file's format and declared field values, then retry the whole import.",
         "save-failed" or "bundle-save-blocked" => "Check host protection, the existing destination and file conflicts; prepare again before retrying.",
-        "bundle-save-partial" => "Keep written files. Select only failed or unattempted outputs, resolve the problem and prepare again.",
+        "save-installed-unverified" => "Installation occurred, but verification did not succeed. Inspect the destination manually; its current contents are not guaranteed. Keep existing files and use a fresh destination before retrying.",
+        "save-installed-verified" => "Installation was verified, but cleanup failed. Keep the file and review the cleanup problem; retrying cannot overwrite it.",
+        "bundle-save-partial" => "Keep installed files and inspect unverified destinations manually. Select only failed or unattempted outputs, resolve the problem and prepare again using fresh destinations.",
         "save-cancelled" or "bundle-save-cancelled" or "operation-cancelled" => "Preparation was discarded. Prepare current answers again when ready.",
         "inputs-changed" => "Validate and prepare the current answers before saving.",
         _ => "Local preparation does not apply configuration to the target application."

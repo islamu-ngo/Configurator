@@ -8,6 +8,51 @@ using Configurator.Terminal;
 public sealed class SetupTerminalPublicationReceiptTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task InstalledUnverifiedReceiptSurvivesCancellationAndPrivateClear(bool cleanupFailed)
+    {
+        using var form = TerminalDefinitionFixture.Form();
+        using var cancellation = new CancellationTokenSource();
+        SetupTerminalArtifactOperation? active = null;
+        using var operation = new SetupTerminalArtifactOperation(form, new UnavailableWriter(available: true),
+            "/synthetic/private-output", outcomeObserver: _ =>
+            {
+                cancellation.Cancel();
+                active!.ClearPrivateState();
+            }, publishBundle: (_, _, observe, token) =>
+            {
+                var outcome = new ProtectedArtifactBundleOutcome("config",
+                    ProtectedArtifactCommitResult.Installed(false, cleanupFailed));
+                observe(outcome);
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult(new SetupTerminalArtifactResult([outcome]));
+            });
+        active = operation;
+        operation.ArtifactId = "environment";
+        operation.ToggleCurrentArtifact();
+        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(async () => await operation.ExecuteAsync(cancellation.Token)).Throws<OperationCanceledException>();
+        SetupTerminalPublicationReceipt receipt = operation.PublicationHistory.Single();
+        await Assert.That(receipt.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.Cancelled);
+        await Assert.That(receipt.Outcomes[0].Result!.InstallationEstablished).IsTrue();
+        await Assert.That(receipt.Outcomes[0].Result!.VerificationSucceeded).IsFalse();
+        await Assert.That(receipt.CleanupFailed).IsEqualTo(cleanupFailed);
+        await Assert.That(receipt.Outcomes[1].Result).IsNull();
+        await Assert.That(operation.IsPrepared).IsFalse();
+        await Assert.That(form.Snapshot().Values.ContainsKey("token")).IsFalse();
+        string status = SetupTerminalText.FormatReceipt(receipt, 0);
+        await Assert.That(status).Contains("installation-established");
+        await Assert.That(status).Contains("verification-failed");
+        await Assert.That(status).Contains("current-integrity-not-guaranteed");
+        await Assert.That(status).DoesNotContain(SetupTerminalText.Get("ProtectedDraftSaved"));
+        await Assert.That(status).DoesNotContain("privateValue");
+        await Assert.That(status).DoesNotContain("/synthetic/private-output");
+        await Assert.That(SetupTerminalText.FormatReceipt(receipt, 1)).Contains(SetupTerminalText.Get("NotAttempted"));
+        await Assert.That(SetupTerminalText.FormatClosingReceipt(receipt)).Contains("installation-established");
+    }
+
+    [Test]
     public async Task UnexpectedFailureRetainsAnUncertainValueFreeReceipt()
     {
         using var form = TerminalDefinitionFixture.Form();
@@ -19,7 +64,7 @@ public sealed class SetupTerminalPublicationReceiptTests
         await Assert.That(receipt.Failed).IsTrue();
         await Assert.That(receipt.IsUnknown).IsTrue();
         await Assert.That(receipt.IsSettled).IsTrue();
-        await Assert.That(receipt.Outcomes[0].Status).IsNull();
+        await Assert.That(receipt.Outcomes[0].Result).IsNull();
         string status = SetupTerminalText.FormatReceipt(receipt, 0);
         await Assert.That(status).Contains("terminal-operation-failed");
         await Assert.That(status).Contains(SetupTerminalText.Get("PublicationUnknown"));
@@ -44,19 +89,19 @@ public sealed class SetupTerminalPublicationReceiptTests
         await Assert.That(snapshot.Select(item => item.AttemptId).Distinct()).Count().IsEqualTo(16);
         await Assert.That(snapshot.Select(item => item.AttemptId).SequenceEqual(attempts.Skip(2))).IsTrue();
         await Assert.That(snapshot.All(item => item.IsSettled && item.Outcomes.Count == 1 &&
-            item.Outcomes[0].Status == ProtectedArtifactStatus.UnsupportedPlatform)).IsTrue();
+            item.Outcomes[0].Result?.Status == ProtectedArtifactStatus.UnsupportedPlatform)).IsTrue();
         operation.ClearPrivateState();
         await Assert.That(operation.PublicationHistory).Count().IsEqualTo(16);
         operation.Dispose();
         await Assert.That(operation.PublicationHistory).IsEmpty();
         await Assert.That(operation.LatestPublication).IsNull();
         await Assert.That(snapshot).Count().IsEqualTo(16);
-        ProtectedArtifactBundleOutcome[] callerOwned = [new("declared", ProtectedArtifactStatus.Written)];
+        ProtectedArtifactBundleOutcome[] callerOwned = [new("declared", ProtectedArtifactCommitResult.Installed(true))];
         var receipt = new SetupTerminalPublicationReceipt(Guid.NewGuid(), callerOwned, true);
         var result = new SetupTerminalArtifactResult(callerOwned);
         callerOwned[0] = new("changed", null);
         await Assert.That(receipt.Outcomes[0].ArtifactId).IsEqualTo("declared");
-        await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[0].Result!.Succeeded).IsTrue();
     }
 
     [Test]
@@ -88,7 +133,7 @@ public sealed class SetupTerminalPublicationReceiptTests
         await Assert.That(operation.CurrentPublication).IsNull();
         await Assert.That(ReferenceEquals(operation.LatestPublication, operation.PublicationHistory[0])).IsTrue();
         await Assert.That(operation.PublicationHistory[0].IsSettled).IsTrue();
-        await Assert.That(operation.PublicationHistory[0].Outcomes[0].Status).IsNull();
+        await Assert.That(operation.PublicationHistory[0].Outcomes[0].Result).IsNull();
         await Assert.That(operation.PublicationHistory[0].CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.Cancelled);
     }
 
@@ -108,8 +153,9 @@ public sealed class SetupTerminalPublicationReceiptTests
             await operation.ExecuteAsync(CancellationToken.None);
             SetupTerminalPublicationReceipt receipt = operation.PublicationHistory.Single();
             await Assert.That(receipt.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.ObserverFailed);
-            await Assert.That(receipt.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
-            await Assert.That(receipt.Outcomes[1].Status).IsNull();
+            await Assert.That(receipt.Outcomes[0].Result!.InstallationEstablished).IsTrue();
+            await Assert.That(receipt.Outcomes[0].Result!.VerificationSucceeded).IsTrue();
+            await Assert.That(receipt.Outcomes[1].Result).IsNull();
             await Assert.That(receipt.ToString()).DoesNotContain("synthetic-private-exception");
             await Assert.That(Directory.GetFiles(directory)).Count().IsEqualTo(1);
         }
@@ -138,7 +184,7 @@ public sealed class SetupTerminalPublicationReceiptTests
                     await release.Task.WaitAsync(token);
                 }, outcomeObserver: outcome =>
                 {
-                    if (outcome.Status != ProtectedArtifactStatus.Written || ++written != prefix) return;
+                    if (outcome.Result is not { InstallationEstablished: true } || ++written != prefix) return;
                     reached.TrySetResult();
                     release.Task.GetAwaiter().GetResult();
                 });
@@ -162,7 +208,7 @@ public sealed class SetupTerminalPublicationReceiptTests
             await Assert.That(operation.PublicationHistory).Count().IsEqualTo(1);
             SetupTerminalPublicationReceipt receipt = operation.PublicationHistory[0];
             await Assert.That(receipt.IsSettled).IsTrue();
-            await Assert.That(receipt.Outcomes.Count(item => item.Status == ProtectedArtifactStatus.Written)).IsEqualTo(prefix);
+            await Assert.That(receipt.Outcomes.Count(item => item.Result is { InstallationEstablished: true })).IsEqualTo(prefix);
             await Assert.That(workspace.Output).IsEmpty();
             await Assert.That(workspace.Result).IsNull();
             await Assert.That(operation.IsPrepared).IsFalse();

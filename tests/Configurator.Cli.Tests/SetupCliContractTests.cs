@@ -71,6 +71,43 @@ public sealed class SetupCliContractTests
     }
 
     [Test]
+    public async Task MachineContractRequiresIndependentNativeFactsAndRejectsStdoutInstallationClaims()
+    {
+        foreach (string name in new[] { "installation", "verification" })
+        {
+            byte[] missing = SetupCliMachineContractVerifier.Mutate(root => root["artifacts"]![0]!.AsObject().Remove(name));
+            await Assert.That(SetupCliMachineContractVerifier.Validate(missing)).Contains("machine-required:$.artifacts[]");
+        }
+        byte[] stdoutClaim = SetupCliMachineContractVerifier.Mutate(root =>
+        {
+            root["artifacts"]![0]!["pathIntent"] = "stdout";
+            root["artifacts"]![0]!["writeStatus"] = "written";
+            root["artifacts"]![0]!["installation"] = "established";
+            root["artifacts"]![0]!["verification"] = "succeeded";
+        });
+        await Assert.That(SetupCliMachineContractVerifier.Validate(stdoutClaim)).Contains("machine-publication-facts");
+        foreach ((string installation, string verification) in new[]
+        {
+            ("established", "not-attempted"), ("not-established", "succeeded"), ("not-attempted", "failed"), ("unknown", "succeeded")
+        })
+        {
+            byte[] inconsistent = SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                root["artifacts"]![0]!["pathIntent"] = "output";
+                root["artifacts"]![0]!["writeStatus"] = "written";
+                root["artifacts"]![0]!["installation"] = installation;
+                root["artifacts"]![0]!["verification"] = verification;
+            });
+            await Assert.That(SetupCliMachineContractVerifier.Validate(inconsistent)).Contains("machine-publication-facts");
+        }
+        JsonObject schema = SetupCliMachineContractVerifier.ParseSchema(SetupCliCommandSchemaMetadata.GenerateSchema());
+        schema["$defs"]!["artifact"]!["properties"]!["verification"]!["enum"] = new JsonArray("succeeded", "unknown");
+        await Assert.That(SetupCliMachineContractVerifier.InspectSchema(schema)).Contains("schema-publication-vocabulary");
+        schema["$defs"]!["artifact"]!["properties"]!.AsObject().Remove("installation");
+        await Assert.That(SetupCliMachineContractVerifier.InspectSchema(schema)).Contains("schema-object-contract:$.artifacts[]");
+    }
+
+    [Test]
     public async Task MachineVerifierRejectsDigestExitOrderingReadinessAndBoundsBreakers()
     {
         byte[][] vectors =

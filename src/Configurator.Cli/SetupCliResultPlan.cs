@@ -10,6 +10,12 @@ internal static class SetupCliResultPlan
             Exit = SetupCliExitCode.Internal,
             Completion = "cancelled",
             Cleanup = "not-required",
+            Artifacts = result.Artifacts.Select(artifact => artifact with
+            {
+                WriteStatus = "not-attempted",
+                Installation = "not-established",
+                Verification = "not-applicable"
+            }).ToArray(),
             Diagnostics = Enumerable.Range(0, 16).Select(_ => new SetupCliMachineDiagnostic(new string('x', 96),
                 "/" + new string('x', 255), "warning")).ToArray()
         };

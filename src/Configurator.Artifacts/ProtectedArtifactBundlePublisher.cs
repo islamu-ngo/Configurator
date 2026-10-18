@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using Configurator.Core;
 using Configurator.Core.Artifacts;
 
-public sealed record ProtectedArtifactBundleOutcome(string ArtifactId, ProtectedArtifactStatus? Status);
+public sealed record ProtectedArtifactBundleOutcome(string ArtifactId, ProtectedArtifactCommitResult? Result);
 
 public enum ProtectedArtifactBundleCompletionCode { Completed, Cancelled, ObserverFailed }
 
@@ -24,7 +24,7 @@ public sealed class ProtectedArtifactBundleResult
     /// <summary>Cleanup failed independently of the established file outcomes and completion reason.</summary>
     public bool CleanupFailed { get; }
     public bool Succeeded => CompletionCode == ProtectedArtifactBundleCompletionCode.Completed && !CleanupFailed
-        && Outcomes.Count > 0 && Outcomes.All(outcome => outcome.Status == ProtectedArtifactStatus.Written);
+        && Outcomes.Count > 0 && Outcomes.All(outcome => outcome.Result is { Succeeded: true });
     public override string ToString() =>
         $"{nameof(ProtectedArtifactBundleResult)}:Completion={CompletionCode}:CleanupFailed={CleanupFailed}:Succeeded={Succeeded}:Count={Outcomes.Count}";
 }
@@ -48,9 +48,9 @@ public static class ProtectedArtifactBundlePublisher
         ProtectedArtifactBundleCompletionCode completionCode = ProtectedArtifactBundleCompletionCode.Completed;
         bool cleanupFailed = false;
         ProtectedArtifactBundleResult Result() => new(outcomes, completionCode, cleanupFailed);
-        void RecordOutcome(int index, ProtectedArtifactStatus status)
+        void RecordOutcome(int index, ProtectedArtifactCommitResult result)
         {
-            outcomes[index] = outcomes[index] with { Status = status };
+            outcomes[index] = outcomes[index] with { Result = result };
             if (completionCode == ProtectedArtifactBundleCompletionCode.ObserverFailed) return;
             try { outcomeObserver?.Invoke(outcomes[index]); }
             catch (Exception) { completionCode = ProtectedArtifactBundleCompletionCode.ObserverFailed; }
@@ -58,7 +58,7 @@ public static class ProtectedArtifactBundlePublisher
         void FailAll(ProtectedArtifactStatus status)
         {
             for (int index = 0; index < outcomes.Length; index++)
-                RecordOutcome(index, status);
+                RecordOutcome(index, ProtectedArtifactCommitResult.NotInstalled(status));
         }
 
         DefinitionArtifact first = selected[0];
@@ -110,7 +110,7 @@ public static class ProtectedArtifactBundlePublisher
                 try { target = Path.Combine(directory, artifact.FileName); }
                 catch (ArgumentException)
                 {
-                    RecordOutcome(index, ProtectedArtifactStatus.InvalidRequest);
+                    RecordOutcome(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest));
                     return;
                 }
                 ProtectedArtifactPreparation preparation;
@@ -130,23 +130,23 @@ public static class ProtectedArtifactBundlePublisher
                 }
                 catch (ObjectDisposedException)
                 {
-                    RecordOutcome(index, ProtectedArtifactStatus.InvalidRequest);
+                    RecordOutcome(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest));
                     return;
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    RecordOutcome(index, ProtectedArtifactStatus.PermissionDenied);
+                    RecordOutcome(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.PermissionDenied));
                     return;
                 }
                 catch (IOException)
                 {
-                    RecordOutcome(index, ProtectedArtifactStatus.IoFailure);
+                    RecordOutcome(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure));
                     return;
                 }
                 prepared.Add(preparation);
                 if (preparation.RejectionStatus is { } rejection)
                 {
-                    RecordOutcome(index, rejection);
+                    RecordOutcome(index, ProtectedArtifactCommitResult.NotInstalled(rejection));
                     return;
                 }
             }
@@ -155,15 +155,17 @@ public static class ProtectedArtifactBundlePublisher
             {
                 if (Cancelled()) return;
                 ProtectedArtifactPreparation preparation = prepared[index];
-                ProtectedArtifactStatus status;
+                ProtectedArtifactCommitResult result;
                 try
                 {
-                    status = await preparation.CommitAsync(cancellationToken)
+                    result = await preparation.CommitAsync(cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (Exception) when (preparation.EstablishedStatus.HasValue && preparation.CleanupFailed)
+                catch (Exception) when (preparation.EstablishedResult is not null)
                 {
-                    status = preparation.EstablishedStatus.Value;
+                    result = preparation.EstablishedResult;
+                    if (cancellationToken.IsCancellationRequested)
+                        completionCode = ProtectedArtifactBundleCompletionCode.Cancelled;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -172,15 +174,16 @@ public static class ProtectedArtifactBundlePublisher
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    status = ProtectedArtifactStatus.PermissionDenied;
+                    result = ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.PermissionDenied);
                 }
                 catch (IOException)
                 {
-                    status = ProtectedArtifactStatus.IoFailure;
+                    result = ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure);
                 }
                 finally { cleanupFailed |= preparation.CleanupFailed; }
-                RecordOutcome(index, status);
-                if (status != ProtectedArtifactStatus.Written || cleanupFailed
+                cleanupFailed |= result.CleanupFailed;
+                RecordOutcome(index, result);
+                if (!result.Succeeded || cleanupFailed || completionCode == ProtectedArtifactBundleCompletionCode.Cancelled
                     || completionCode == ProtectedArtifactBundleCompletionCode.ObserverFailed) return;
             }
         }

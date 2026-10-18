@@ -878,7 +878,9 @@
         "digest",
         "sensitivity",
         "pathIntent",
-        "writeStatus"
+        "writeStatus",
+        "installation",
+        "verification"
       ],
       "properties": {
         "id": {
@@ -930,6 +932,24 @@
             "not-attempted",
             "conflict",
             "blocked",
+            "failed",
+            "unknown"
+          ]
+        },
+        "installation": {
+          "enum": [
+            "not-applicable",
+            "not-attempted",
+            "not-established",
+            "established",
+            "unknown"
+          ]
+        },
+        "verification": {
+          "enum": [
+            "not-applicable",
+            "not-attempted",
+            "succeeded",
             "failed",
             "unknown"
           ]

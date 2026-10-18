@@ -4,6 +4,11 @@ namespace Configurator.Cli.Tests;
 
 internal static class SetupCliContractSpecification
 {
+    internal static readonly IReadOnlySet<string> InstallationStates = new HashSet<string>(
+        ["not-applicable", "not-attempted", "not-established", "established", "unknown"], StringComparer.Ordinal);
+    internal static readonly IReadOnlySet<string> VerificationStates = new HashSet<string>(
+        ["not-applicable", "not-attempted", "succeeded", "failed", "unknown"], StringComparer.Ordinal);
+
     internal static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> Operations =
         new ReadOnlyDictionary<string, IReadOnlySet<string>>(
             new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)

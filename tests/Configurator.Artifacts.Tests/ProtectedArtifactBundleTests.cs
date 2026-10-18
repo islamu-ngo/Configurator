@@ -9,6 +9,66 @@ namespace Configurator.Artifacts.Tests;
 public sealed class ProtectedArtifactBundleTests
 {
     [Test]
+    public async Task PostPublicationInspectionFailureRetainsInstallationAndStopsTheNextOutput()
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("actual-linux-required");
+        using var directory = new TestDirectory();
+        DefinitionArtifact[] artifacts = Artifacts();
+        string first = Path.Combine(directory.Path, artifacts[0].FileName);
+        string retained = Path.Combine(directory.Path, "installed");
+        var writer = new ProtectedArtifactWriter(() => File.Move(first, retained));
+        try
+        {
+            ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(writer, artifacts, directory.Path);
+            await Assert.That(File.Exists(retained)).IsTrue();
+            await Assert.That(File.Exists(Path.Combine(directory.Path, artifacts[1].FileName))).IsFalse();
+            await Assert.That(result.Outcomes[0].Result!.InstallationEstablished).IsTrue();
+            await Assert.That(result.Outcomes[0].Result!.VerificationSucceeded).IsFalse();
+            await Assert.That(result.Outcomes[1].Result).IsNull();
+            await Assert.That(result.CleanupFailed).IsFalse();
+            await Assert.That(result.Succeeded).IsFalse();
+        }
+        finally { foreach (DefinitionArtifact artifact in artifacts) artifact.Dispose(); }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task PostPublicationExceptionOrCancellationPreservesTheObservedPrefix(bool cancel)
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("actual-linux-required");
+        using var directory = new TestDirectory();
+        using var cancellation = new CancellationTokenSource();
+        DefinitionArtifact[] artifacts = Artifacts();
+        var observed = new List<ProtectedArtifactBundleOutcome>();
+        var writer = new ProtectedArtifactWriter(() =>
+        {
+            if (cancel)
+            {
+                cancellation.Cancel();
+                cancellation.Token.ThrowIfCancellationRequested();
+            }
+            throw new InvalidOperationException("synthetic-inspection-fault");
+        });
+        try
+        {
+            ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(writer,
+                artifacts, directory.Path, observed.Add, cancellation.Token);
+            await Assert.That(File.Exists(Path.Combine(directory.Path, artifacts[0].FileName))).IsTrue();
+            await Assert.That(File.Exists(Path.Combine(directory.Path, artifacts[1].FileName))).IsFalse();
+            await Assert.That(observed.Single().Result!.InstallationEstablished).IsTrue();
+            await Assert.That(observed.Single().Result!.VerificationSucceeded).IsFalse();
+            await Assert.That(result.Outcomes[0]).IsEqualTo(observed.Single());
+            await Assert.That(result.Outcomes[1].Result).IsNull();
+            await Assert.That(result.CompletionCode).IsEqualTo(cancel
+                ? ProtectedArtifactBundleCompletionCode.Cancelled : ProtectedArtifactBundleCompletionCode.Completed);
+            await Assert.That(result.CleanupFailed).IsFalse();
+            await Assert.That(result.Succeeded).IsFalse();
+        }
+        finally { foreach (DefinitionArtifact artifact in artifacts) artifact.Dispose(); }
+    }
+
+    [Test]
     public async Task SuccessfulBundlePublishesOnlyOwnerPrivateDeclaredFiles()
     {
         if (!OperatingSystem.IsLinux()) return;
@@ -48,9 +108,9 @@ public sealed class ProtectedArtifactBundleTests
             Artifacts(), "/unused", outcomeObserver: observed.Add);
         await Assert.That(result.CleanupFailed).IsTrue();
         await Assert.That(result.Succeeded).IsFalse();
-        await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
-        await Assert.That(result.Outcomes[1].Status).IsNull();
-        await Assert.That(observed.Single().Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[0].Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[1].Result).IsNull();
+        await Assert.That(observed.Single().Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
         await Assert.That(writer.Committed).IsEqualTo(1);
         await Assert.That(writer.Payloads.Count).IsEqualTo(2);
         await Assert.That(writer.Disposed).IsEqualTo(2);
@@ -92,8 +152,8 @@ public sealed class ProtectedArtifactBundleTests
         ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(writer,
             artifacts, "/unused");
         await Assert.That(writer.Committed).IsEqualTo(0);
-        await Assert.That(result.Outcomes[0].Status).IsNull();
-        await Assert.That(result.Outcomes[1].Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That(result.Outcomes[0].Result).IsNull();
+        await Assert.That(result.Outcomes[1].Result?.Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
     }
 
@@ -110,8 +170,8 @@ public sealed class ProtectedArtifactBundleTests
             new ProtectedArtifactWriter(), artifacts, directory.Path);
 
         await Assert.That(result.Succeeded).IsFalse();
-        await Assert.That(result.Outcomes[0].Status).IsNull();
-        await Assert.That(result.Outcomes[1].Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+        await Assert.That(result.Outcomes[0].Result).IsNull();
+        await Assert.That(result.Outcomes[1].Result?.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
         await Assert.That(File.Exists(Path.Combine(directory.Path, artifacts[0].FileName))).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("original");
     }
@@ -125,7 +185,7 @@ public sealed class ProtectedArtifactBundleTests
             [artifacts[0], artifacts[0]], "/unused");
         await Assert.That(result.Succeeded).IsFalse();
         await Assert.That(writer.Prepared).IsEqualTo(0);
-        await Assert.That(result.Outcomes.All(item => item.Status == ProtectedArtifactStatus.InvalidRequest)).IsTrue();
+        await Assert.That(result.Outcomes.All(item => item.Result?.Status == ProtectedArtifactStatus.InvalidRequest)).IsTrue();
     }
 
     [Test]
@@ -137,7 +197,7 @@ public sealed class ProtectedArtifactBundleTests
         ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(writer,
             [artifacts[0], second], "/unused");
         await Assert.That(writer.Prepared).IsEqualTo(0);
-        await Assert.That(result.Outcomes.All(item => item.Status == ProtectedArtifactStatus.InvalidRequest)).IsTrue();
+        await Assert.That(result.Outcomes.All(item => item.Result?.Status == ProtectedArtifactStatus.InvalidRequest)).IsTrue();
     }
 
     [Test]
@@ -150,7 +210,7 @@ public sealed class ProtectedArtifactBundleTests
         File.CreateSymbolicLink(unsafeTarget, Path.Combine(directory.Path, "outside"));
         ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
             new ProtectedArtifactWriter(), artifacts, directory.Path);
-        await Assert.That(result.Outcomes[1].Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That(result.Outcomes[1].Result?.Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(File.Exists(Path.Combine(directory.Path, artifacts[0].FileName))).IsFalse();
         await Assert.That(File.Exists(Path.Combine(directory.Path, "outside"))).IsFalse();
     }
@@ -165,8 +225,8 @@ public sealed class ProtectedArtifactBundleTests
         await Assert.That(writer.Disposed).IsEqualTo(1);
         await Assert.That(writer.Committed).IsEqualTo(0);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
-        await Assert.That(result.Outcomes[0].Status).IsNull();
-        await Assert.That(result.Outcomes[1].Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That(result.Outcomes[0].Result).IsNull();
+        await Assert.That(result.Outcomes[1].Result?.Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
     }
 
     [Test]
@@ -178,8 +238,8 @@ public sealed class ProtectedArtifactBundleTests
         await Assert.That(writer.Prepared).IsEqualTo(2);
         await Assert.That(writer.Committed).IsEqualTo(2);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
-        await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
-        await Assert.That(result.Outcomes[1].Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
+        await Assert.That(result.Outcomes[0].Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[1].Result?.Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
         await Assert.That(result.ToString()!.Contains("/unused", StringComparison.Ordinal)).IsFalse();
     }
 
@@ -192,8 +252,8 @@ public sealed class ProtectedArtifactBundleTests
             Artifacts(), "/unused", cancellationToken: cancellation.Token);
         await Assert.That(writer.Committed).IsEqualTo(1);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
-        await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
-        await Assert.That(result.Outcomes[1].Status).IsNull();
+        await Assert.That(result.Outcomes[0].Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[1].Result).IsNull();
     }
 
     [Test]
@@ -213,9 +273,9 @@ public sealed class ProtectedArtifactBundleTests
         await Assert.That(result.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.ObserverFailed);
         await Assert.That(result.CleanupFailed).IsEqualTo(cleanupIndex >= 0);
         await Assert.That(result.Succeeded).IsFalse();
-        await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
-        await Assert.That(result.Outcomes[1].Status).IsNull();
-        await Assert.That(observed.Single().Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[0].Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[1].Result).IsNull();
+        await Assert.That(observed.Single().Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
         await Assert.That(writer.Committed).IsEqualTo(1);
         await Assert.That(writer.Disposed).IsEqualTo(2);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
@@ -241,7 +301,7 @@ public sealed class ProtectedArtifactBundleTests
                 if (observed.Count == prefix) cancellation.Cancel();
             }, cancellation.Token);
         await Assert.That(observed.Count).IsEqualTo(prefix);
-        await Assert.That(result.Outcomes.Count(outcome => outcome.Status == ProtectedArtifactStatus.Written))
+        await Assert.That(result.Outcomes.Count(outcome => outcome.Result?.Status == ProtectedArtifactStatus.Written))
             .IsEqualTo(prefix);
         for (int index = 0; index < artifacts.Length; index++)
         {
@@ -265,9 +325,9 @@ public sealed class ProtectedArtifactBundleTests
             new CleanupFailingWriter(), artifacts, directory.Path, observed.Add);
         await Assert.That(result.CleanupFailed).IsTrue();
         await Assert.That(result.Succeeded).IsFalse();
-        await Assert.That(observed.Single().Status).IsEqualTo(ProtectedArtifactStatus.Written);
-        await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
-        await Assert.That(result.Outcomes[1].Status).IsNull();
+        await Assert.That(observed.Single().Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[0].Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes[1].Result).IsNull();
         string target = Path.Combine(directory.Path, artifacts[0].FileName);
         await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(artifacts[0].Bytes.ToArray());
         await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
@@ -283,7 +343,7 @@ public sealed class ProtectedArtifactBundleTests
             writer, Artifacts(), "/unused", observed.Add);
         await Assert.That(result.CleanupFailed).IsTrue();
         await Assert.That(result.Succeeded).IsFalse();
-        await Assert.That(result.Outcomes.All(outcome => outcome.Status == ProtectedArtifactStatus.Written)).IsTrue();
+        await Assert.That(result.Outcomes.All(outcome => outcome.Result?.Status == ProtectedArtifactStatus.Written)).IsTrue();
         await Assert.That(observed.Count).IsEqualTo(2);
         await Assert.That(writer.Disposed).IsEqualTo(2);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
@@ -309,7 +369,7 @@ public sealed class ProtectedArtifactBundleTests
         }
         catch (InvalidOperationException exception) { actual = exception; }
         await Assert.That(ReferenceEquals(actual, expected)).IsTrue();
-        await Assert.That(observed.Single().Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(observed.Single().Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
         await Assert.That(writer.Disposed).IsEqualTo(2);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
     }
@@ -321,7 +381,7 @@ public sealed class ProtectedArtifactBundleTests
         var observed = new List<ProtectedArtifactBundleOutcome>();
         await Assert.That(async () => await ProtectedArtifactBundlePublisher.PublishAsync(
             writer, Artifacts(), "/unused", observed.Add)).Throws<OperationCanceledException>();
-        await Assert.That(observed.Single().Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(observed.Single().Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
         await Assert.That(writer.Disposed).IsEqualTo(2);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
     }
@@ -333,8 +393,8 @@ public sealed class ProtectedArtifactBundleTests
         ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
             writer, Artifacts(), "/unused", _ => throw new IOException("synthetic-observer-io-fault"));
         await Assert.That(result.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.ObserverFailed);
-        await Assert.That(result.Outcomes[0].Status).IsNull();
-        await Assert.That(result.Outcomes[1].Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That(result.Outcomes[0].Result).IsNull();
+        await Assert.That(result.Outcomes[1].Result?.Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(writer.Committed).IsEqualTo(0);
         await Assert.That(writer.Disposed).IsEqualTo(1);
         await Assert.That(writer.Payloads.All(memory => memory.Span.ToArray().All(value => value == 0))).IsTrue();
@@ -343,10 +403,10 @@ public sealed class ProtectedArtifactBundleTests
     [Test]
     public async Task BundleResultCopiesKnownOutcomesBeforeExposingThem()
     {
-        ProtectedArtifactBundleOutcome[] outcomes = [new("one", ProtectedArtifactStatus.Written)];
+        ProtectedArtifactBundleOutcome[] outcomes = [new("one", ProtectedArtifactCommitResult.Installed(true))];
         var result = new ProtectedArtifactBundleResult(outcomes);
         outcomes[0] = new("one", null);
-        await Assert.That(result.Outcomes.Single().Status).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That(result.Outcomes.Single().Result?.Status).IsEqualTo(ProtectedArtifactStatus.Written);
         await Assert.That(() => ((IList<ProtectedArtifactBundleOutcome>)result.Outcomes)[0] = outcomes[0])
             .Throws<NotSupportedException>();
         await Assert.That(result.Succeeded).IsTrue();
@@ -397,14 +457,15 @@ public sealed class ProtectedArtifactBundleTests
             AfterPrepare?.Invoke(index);
             if (index == RejectIndex)
                 return Task.FromResult(ProtectedArtifactPreparation.Rejected(ProtectedArtifactStatus.UnsafeTarget));
-            return Task.FromResult(new ProtectedArtifactPreparation(_ =>
+            return Task.FromResult(new ProtectedArtifactPreparation((_, _) =>
             {
                 Committed++;
                 if (index == ThrowOnCommitIndex) throw CommitException!;
                 if (bytes.Span.ContainsAnyExcept((byte)0)) NonzeroAtCommit++;
                 if (Committed == 1) CancelAfterFirstCommit?.Cancel();
                 return Task.FromResult(index == FailCommitIndex
-                    ? ProtectedArtifactStatus.TargetChanged : ProtectedArtifactStatus.Written);
+                    ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetChanged)
+                    : ProtectedArtifactCommitResult.Installed(true));
             }, () =>
             {
                 Disposed++;
@@ -422,7 +483,7 @@ public sealed class ProtectedArtifactBundleTests
             ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
         {
             ProtectedArtifactPreparation preparation = await _writer.PrepareAsync(kind, targetPath, bytes, cancellationToken);
-            return new ProtectedArtifactPreparation(preparation.CommitAsync, () =>
+            return new ProtectedArtifactPreparation(async (token, _) => await preparation.CommitAsync(token), () =>
             {
                 preparation.Dispose();
                 throw new IOException("synthetic-cleanup-failure");

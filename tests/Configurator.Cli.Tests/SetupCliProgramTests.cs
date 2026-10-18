@@ -51,6 +51,10 @@ public sealed class SetupCliProgramTests
         using JsonDocument document = JsonDocument.Parse(receipt);
         await Assert.That(document.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString())
             .IsEqualTo("written");
+        await Assert.That(document.RootElement.GetProperty("artifacts")[0].GetProperty("installation").GetString())
+            .IsEqualTo("established");
+        await Assert.That(document.RootElement.GetProperty("artifacts")[0].GetProperty("verification").GetString())
+            .IsEqualTo("succeeded");
     }
 
     [Test]
@@ -204,6 +208,10 @@ public sealed class SetupCliProgramTests
                 byte[] original = await File.ReadAllBytesAsync(target);
                 ProcessResult overwrite = await ExecuteAsync(files.Arguments("env", "render", "environment", "--output", target, "--machine"));
                 await Assert.That(overwrite.ExitCode).IsEqualTo(74);
+                using JsonDocument refusal = JsonDocument.Parse(overwrite.StandardOutput);
+                await Assert.That(refusal.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString()).IsEqualTo("conflict");
+                await Assert.That(refusal.RootElement.GetProperty("artifacts")[0].GetProperty("installation").GetString()).IsEqualTo("not-established");
+                await Assert.That(refusal.RootElement.GetProperty("artifacts")[0].GetProperty("verification").GetString()).IsEqualTo("not-attempted");
                 await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(original);
                 await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([target]);
             }

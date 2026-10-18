@@ -29,7 +29,7 @@ internal sealed class SetupTerminalWindow : Window
     private readonly Label _fieldLabel;
     private readonly Label _help;
     private readonly Label _artifactLabel;
-    private readonly Label _status;
+    private readonly TextField _status;
     private readonly Label _smallNotice;
     private readonly TextField _value;
     private readonly SetupSecretTextField _masked;
@@ -118,7 +118,11 @@ internal sealed class SetupTerminalWindow : Window
         _nextOutcome.Visible = false;
         _nextAttempt = Button("NextAttempt", 34, 17, NextAttempt);
         _nextAttempt.Visible = false;
-        _status = new Label { X = 1, Y = 18, Width = Dim.Fill(2), Height = 3, Text = SetupTerminalText.Get("Ready") };
+        _status = new TextField
+        {
+            X = 1, Y = 18, Width = Dim.Fill(2),
+            ReadOnly = true, Text = SetupTerminalText.Get("Ready")
+        };
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
         var limitations = new Label { X = 1, Y = 22, Width = Dim.Fill(2), Height = 2, Text = SetupTerminalText.Get("Limitations") };

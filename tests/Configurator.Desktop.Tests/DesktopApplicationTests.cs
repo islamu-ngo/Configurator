@@ -180,7 +180,7 @@ public sealed class DesktopApplicationTests
         using var shell = Shell((_, bytes, _) =>
         {
             written = bytes.ToArray();
-            return Task.FromResult(ProtectedArtifactStatus.Written);
+            return Task.FromResult(ProtectedArtifactCommitResult.Installed(true));
         });
         try
         {
@@ -189,7 +189,7 @@ public sealed class DesktopApplicationTests
             await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
             await Assert.That(shell.Publisher.Preparation!.ArtifactId).IsEqualTo(artifactId);
             await Assert.That(shell.Publisher.Preparation.DefinitionDigest).IsEqualTo(shell.Workspace.Form!.Definition.Digest);
-            await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.Written);
+            await Assert.That((await shell.Publisher.SaveAsync()).Succeeded).IsTrue();
             string output = Encoding.UTF8.GetString(written);
             await Assert.That(output).Contains("Example service");
             if (artifactId == "config")
@@ -199,7 +199,7 @@ public sealed class DesktopApplicationTests
             }
             await Assert.That(shell.Publisher.CanSave).IsFalse();
             await Assert.That(shell.Publisher.Preparation).IsNull();
-            await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+            await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
         }
         finally { CryptographicOperations.ZeroMemory(written); }
     }
@@ -241,15 +241,15 @@ public sealed class DesktopApplicationTests
         using var shell = Shell((_, bytes, _) =>
         {
             observed = bytes;
-            return Task.FromResult(ProtectedArtifactStatus.UnsafeTarget);
+            return Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsafeTarget));
         });
         shell.Loader.LoadDefinition(Definition());
         await shell.Publisher.PrepareAsync();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         await Assert.That(shell.Status).IsEqualTo("save-failed:UnsafeTarget");
         await Assert.That(observed.Span.ToArray().All(value => value == 0)).IsTrue();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
     }
 
     [Test]
@@ -263,17 +263,17 @@ public sealed class DesktopApplicationTests
             observed = cancellation;
             started.SetResult();
             await finish.Task;
-            return ProtectedArtifactStatus.Written;
+            return ProtectedArtifactCommitResult.Installed(true);
         });
         shell.Loader.LoadDefinition(Definition());
         await shell.Publisher.PrepareAsync();
-        Task<ProtectedArtifactStatus> pending = shell.Publisher.SaveAsync();
+        Task<ProtectedArtifactCommitResult> pending = shell.Publisher.SaveAsync();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         shell.Loader.LoadDefinition(Definition(revision: 2));
         await Assert.That(observed.IsCancellationRequested).IsTrue();
         finish.SetResult();
-        await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(5))).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That((await pending.WaitAsync(TimeSpan.FromSeconds(5))).Succeeded).IsTrue();
         await Assert.That(shell.Status).IsEqualTo("definition-loaded");
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         await Assert.That(shell.Workspace.Form!.Definition.Revision).IsEqualTo(2L);
@@ -290,14 +290,14 @@ public sealed class DesktopApplicationTests
             started.SetResult();
             await cancelled.Task;
             cancellation.ThrowIfCancellationRequested();
-            return ProtectedArtifactStatus.Written;
+            return ProtectedArtifactCommitResult.Installed(true);
         });
         shell.Loader.LoadDefinition(Definition());
         await shell.Publisher.PrepareAsync();
         var pending = shell.Publisher.SaveAsync();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         shell.Cancel();
-        await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(5))).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That((await pending.WaitAsync(TimeSpan.FromSeconds(5))).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
         await Assert.That(shell.Status).IsEqualTo("operation-cancelled");
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         await Assert.That(shell.Publisher.IsSaving).IsFalse();
@@ -313,12 +313,12 @@ public sealed class DesktopApplicationTests
         using var shell = Shell((_, _, _) =>
         {
             reached = true;
-            return Task.FromResult(ProtectedArtifactStatus.Written);
+            return Task.FromResult(ProtectedArtifactCommitResult.Installed(true));
         });
         shell.Loader.LoadDefinition(Definition());
         shell.Publisher.FileName = fileName;
         await shell.Publisher.PrepareAsync();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(reached).IsFalse();
         await Assert.That(shell.Publisher.CanSave).IsFalse();
     }
@@ -330,12 +330,12 @@ public sealed class DesktopApplicationTests
         using var shell = DesktopTestContext.Root((_, _, _) =>
         {
             reached = true;
-            return Task.FromResult(ProtectedArtifactStatus.Written);
+            return Task.FromResult(ProtectedArtifactCommitResult.Installed(true));
         }, Path.GetTempPath(), protectedOutputAvailable: false);
         shell.Loader.LoadDefinition(Definition());
         await shell.Publisher.PrepareAsync();
         await Assert.That(shell.Publisher.CanSave).IsFalse();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
         await Assert.That(reached).IsFalse();
         using var native = DesktopTestContext.Root();
         await Assert.That(native.Publisher.ProtectedSaveAvailable).IsEqualTo(OperatingSystem.IsLinux());
@@ -370,7 +370,7 @@ public sealed class DesktopApplicationTests
         await Assert.That(shell.Publisher.Artifacts.Count).IsEqualTo(0);
         await Assert.That(shell.Publisher.CanPrepare).IsFalse();
         await Assert.That(await shell.Publisher.PrepareAsync()).IsFalse();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
     }
 
     [Test]
@@ -464,7 +464,7 @@ public sealed class DesktopApplicationTests
         shell.Workspace.Form!.Fields.Single(item => item.Definition.Id == "name").Text = "Later edit";
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
         using var blocked = DesktopTestContext.Root((_, _, _) =>
-            Task.FromResult(ProtectedArtifactStatus.Written), Path.GetTempPath(), protectedOutputAvailable: false);
+            Task.FromResult(ProtectedArtifactCommitResult.Installed(true)), Path.GetTempPath(), protectedOutputAvailable: false);
         blocked.Loader.LoadDefinition(Definition());
         await Assert.That(blocked.Publisher.ProtectedSaveAvailable).IsFalse();
         await Assert.That(blocked.Publisher.CanSaveBundle).IsFalse();
@@ -503,7 +503,7 @@ public sealed class DesktopApplicationTests
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = DesktopTestContext.Root((_, _, _) =>
-            Task.FromResult(ProtectedArtifactStatus.Written), directory.Path, protectedOutputAvailable: true,
+            Task.FromResult(ProtectedArtifactCommitResult.Installed(true)), directory.Path, protectedOutputAvailable: true,
             async (artifacts, output, cancellation) =>
             {
                 started.SetResult();
@@ -531,7 +531,7 @@ public sealed class DesktopApplicationTests
     {
         string privatePath = "/synthetic/private/output";
         using var shell = DesktopTestContext.Root((_, _, _) =>
-            Task.FromResult(ProtectedArtifactStatus.Written), Path.GetTempPath(), protectedOutputAvailable: true,
+            Task.FromResult(ProtectedArtifactCommitResult.Installed(true)), Path.GetTempPath(), protectedOutputAvailable: true,
             (_, _, _) => throw new IOException(privatePath));
         shell.Loader.LoadDefinition(Definition());
         await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
@@ -588,8 +588,8 @@ public sealed class DesktopApplicationTests
     }
 
     private static DesktopShellViewModel Shell(
-        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>>? save = null) =>
-        DesktopTestContext.Root(save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactStatus.Written)),
+        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>>? save = null) =>
+        DesktopTestContext.Root(save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
             Path.GetTempPath(), protectedOutputAvailable: true);
 
     private sealed class TemporaryDirectory : IDisposable

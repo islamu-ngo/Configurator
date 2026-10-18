@@ -101,12 +101,22 @@ Publication has a physical lifetime independent of workspace readiness.
 `SetupTerminalArtifactOperation` rejects overlapping publication and retains one
 current receipt plus the newest 16 settled attempts, each bounded to 64 declared
 outcomes. `SetupTerminalPublicationReceipt` copies its collection and contains
-only attempt/artifact identifiers, statuses and safe completion flags. Established
-statuses are recorded before workspace delivery. Cancellation, edits and private
+only attempt/artifact identifiers, immutable `ProtectedArtifactCommitResult`
+facts and safe completion flags. Installation, immediate verification and cleanup
+remain separate; `TargetChanged` with `InstallationEstablished` is not a failed
+attempt to create a file. Established results are recorded before workspace
+delivery. Cancellation, edits and private
 clear retain history without restoring answers, bytes or preparation; final
 operation disposal clears history. Unknown pending outcomes differ from settled
 unattempted ones. Observer and cleanup failures remain visible alongside known
-Written statuses. The window coalesces receipt refresh through its weak owner
+installation facts, including installed-but-unverified outcomes. Per-file cleanup
+failures survive cancellation even before the final bundle result is delivered.
+Success requires verified installations and no cleanup failure. Rendering counts
+installations, marks verification failure and explicitly disclaims continued
+integrity; it never claims the destination still contains the expected file.
+The read-only, focusable status field supports horizontal keyboard navigation so
+long receipts remain inspectable without expanding the minimum terminal size.
+The window coalesces receipt refresh through its weak owner
 dispatcher and checks lifetime again inside the callback. Save history cycles
 attempts; outcome navigation only inspects that receipt and cannot change exit
 status or re-enable Save. Imports, preparation and another save remain disabled

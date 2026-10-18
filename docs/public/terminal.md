@@ -70,8 +70,14 @@ Arabic resources follow the process UI culture.
    output is private, even when its fields are labelled public. Protected saving
    uses the Linux writer, with actual-host evidence on Linux x64 only; Arm/musl
    qualification remains pending and macOS/Windows protected saves fail closed.
-   The result shows how many files were created. For multiple outputs, use Next
-   output result to review each artifact ID and status. If a later file fails,
+   The result counts established installations, separately from verification.
+   Tab to the read-only status field and use Left/Right or Home/End to inspect
+   its full text. For multiple outputs, use Next output result to review each
+   artifact ID and outcome. `installation-established` means the file was
+   installed at the publication point; `verification-failed` means its immediate
+   post-installation check did not succeed. Neither successful verification nor
+   installation guarantees the destination's current integrity. If a later file
+   fails,
    earlier created files remain: review them in the working directory and decide
    how to clean up or retry. Configurator does not delete or overwrite them.
    Save history cycles through the newest 16 attempts, including cancelled or
@@ -79,8 +85,12 @@ Arabic resources follow the process UI culture.
    private state keeps this history for the session without restoring answers or
    readiness; closing the session discards it. A result still marked unknown
    must not be treated as proof that no file was created. Cleanup or observation
-   failure is reported alongside known file outcomes. While a save is still
-   finishing, another import, preparation or save waits for its cleanup.
+   failure is reported alongside known file outcomes, including installed but
+   unverified files. Do not assume such a file is absent or safe to use: review
+   it manually before retrying. A verification failure stops later outputs;
+   cleanup failure never changes an established installation into "not written".
+   While a save is still finishing, another import, preparation or save waits
+   for its cleanup.
 
 Editing a field or changing output selection invalidates readiness immediately.
 Field navigation clears

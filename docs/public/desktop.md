@@ -103,12 +103,26 @@ and the preparation is discarded. Prepare again before another save.
 **Cancel / discard preparation** cancels pending work and drops prepared output;
 a late completion cannot restore it.
 
+An installed file and a successfully verified file are different outcomes.
+`save-installed-unverified` means installation happened but the immediate
+post-installation check failed; do not treat it as "nothing written" or assume
+the file is safe to use. `cleanup-failed` is independent and cannot undo an
+installation. Review these files manually before retrying. Successful
+verification is historical evidence, not a guarantee of current integrity.
+
 A bundle checks every destination before writing any file. If a destination
 already exists, nothing is overwritten: resolve the conflict and prepare again.
-If a later write fails, status lists the declared files already written and the
-failed or unattempted files. Keep written files; select only the remaining
+If a later write or verification fails, status lists the declared files already
+installed, their verification and cleanup outcomes, and the unattempted files.
+Review installed-but-unverified files before using them or choosing a recovery.
+Keep verified files; select only the remaining
 outputs and prepare again. Configurator does not roll back committed files or
 apply them to the target application.
+
+Cancellation or edits still fence stale status updates and discard preparation.
+They do not retract an established installation. Desktop's separate in-flight
+buffer ownership and close/drain recovery work is not qualified by these result
+semantics.
 
 ## Keyboard
 

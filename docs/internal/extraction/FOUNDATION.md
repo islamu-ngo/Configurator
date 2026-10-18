@@ -137,6 +137,14 @@ with compiled declarative field templates; the root coordinates operation leases
 and cancellation without moving answer or publication policy into the view.
 See [Desktop custody](../DESKTOP_CLIENT.md).
 
+Native publication results distinguish historical installation, immediate
+verification and cleanup. Linux records successful namespace publication before
+post-inspection; CLI and native UI receipts retain that fact after verification
+failure without promising continued destination integrity or rollback. The
+[protected-artifact contract](../PROTECTED_ARTIFACTS.md) owns these invariants and
+the direct result/machine-contract replacement; the change does not qualify new
+hosts or resolve the separately tracked Desktop operation-buffer settlement risk.
+
 Engineering changes run engineering tests only. Generic release tests use local
 inert workflow/script fixtures; the verified fixture closure requires no Event
 checkout and does not activate publication or import signer authority.

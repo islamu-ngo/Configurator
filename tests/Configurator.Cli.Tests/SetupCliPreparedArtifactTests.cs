@@ -1,9 +1,37 @@
 using System.Text;
+using System.Text.Json;
+using Configurator.Core;
 
 namespace Configurator.Cli.Tests;
 
 public sealed class SetupCliPreparedArtifactTests
 {
+    [Test]
+    public async Task PublicStdoutDeliveryDoesNotClaimNativeInstallationOrVerification()
+    {
+        using var output = new MemoryStream();
+        var writer = new SetupCliProgram.SystemWriter(output);
+        SetupCliPublicationResult publication = await writer.WriteArtifactAsync("-", SetupArtifactKind.PublicCatalogue,
+            "[]"u8.ToArray(), 65_536, CancellationToken.None);
+        await Assert.That(Encoding.UTF8.GetString(output.ToArray())).IsEqualTo("[]");
+        await Assert.That(publication.Outcomes[0].Result).IsNull();
+        await Assert.That(publication.Outcomes[0].DeliveredToStandardOutput).IsTrue();
+        var invocation = new SetupCliInvocation([], SetupCliMode.Machine, new(new CliFixture(), writer, writer, 65_536, 4 * 1024 * 1024));
+        var command = new SetupCliCommand("catalogue", "list", true, false, false, null, null, null, "-", null, null);
+        SetupCliCommandResult planned = SetupCliResults.Success([SetupCliResults.Artifact("catalogue", "application/json",
+            "[]"u8.ToArray(), "public", "stdout", "not-attempted")]);
+        var ledger = new SetupCliOutcomeLedger();
+        ledger.Plan(invocation, command, planned);
+        ledger.BeginPublication();
+        byte[] receipt = SetupCliMachineOutput.Serialize(command, ledger.Apply(publication, planned), 65_536);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(receipt)).IsEmpty();
+        using JsonDocument result = JsonDocument.Parse(receipt);
+        JsonElement artifact = result.RootElement.GetProperty("artifacts")[0];
+        await Assert.That(artifact.GetProperty("writeStatus").GetString()).IsEqualTo("written");
+        await Assert.That(artifact.GetProperty("installation").GetString()).IsEqualTo("not-applicable");
+        await Assert.That(artifact.GetProperty("verification").GetString()).IsEqualTo("not-applicable");
+    }
+
     [Test]
     [Arguments("config", "json")]
     [Arguments("yaml", "yaml")]

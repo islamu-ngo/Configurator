@@ -1,0 +1,30 @@
+Change-Id: CHG-01M57Z7Y42P6KWVMT7WFXTRGAS
+Title: "retain established writes after verification failure"
+Type: fix
+Scope: output
+Summary: "Preserve successful native installation when subsequent verification fails, stop later bundle outputs, and report installation, verification and cleanup independently in CLI, terminal and desktop receipts."
+Group: output
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Replace status-only commit results and bundle outcomes with immutable ProtectedArtifactCommitResult facts. The command/v2 receipt now requires installation and verification fields; no compatibility alias or old wire interpretation is retained."
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Capture installation immediately after successful namespace publication, before post-inspection can fail. Preserve known verification and cleanup failures through cancellation and receipt faults. Create-only restricted output and unsupported-host rejection remain unchanged; installation does not guarantee continued integrity."
+  Migration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Migrate native commit and embedded writer callers directly to explicit results and regenerate receipt consumers from the command schema. Interpret written with established installation and failed verification as an installed but unverified file, not permission to overwrite or replay. Public stdout uses not-applicable native installation and verification."
+  Configuration:
+    Reference: docs/public/native-output.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/native-output.md
+    Disposition: documented
+    Detail: "Inspect established or unknown outcomes and the destination before retrying; use a fresh destination rather than overwriting. Cancellation, cleanup or receipt failure does not undo installation. No additional host/filesystem qualification, rollback, current-integrity guarantee or Desktop buffer-settlement fix is implied."

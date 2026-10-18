@@ -117,7 +117,7 @@ public sealed class DesktopShellViewModelTests
         shell.Workspace.Form!.Fields.Single(item => item.Definition.Id == "owner").Text =
             """{"name":"synthetic-private-answer"}""";
         await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
-        Task<ProtectedArtifactStatus> pending = shell.Publisher.SaveAsync();
+        Task<ProtectedArtifactCommitResult> pending = shell.Publisher.SaveAsync();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         try
         {
@@ -127,7 +127,7 @@ public sealed class DesktopShellViewModelTests
             if (change == "dispose")
                 await Assert.That(held.ToArray().All(value => value == 0)).IsTrue();
             release.SetResult();
-            await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(10)))
+            await Assert.That((await pending.WaitAsync(TimeSpan.FromSeconds(10))).Status)
                 .IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
             await Assert.That(Directory.GetFiles(directory.Path).Length).IsEqualTo(0);
             await Assert.That(shell.Status).IsEqualTo(status);
@@ -214,7 +214,7 @@ public sealed class DesktopShellViewModelTests
         {
             held = bytes;
             output = Encoding.UTF8.GetString(bytes.Span);
-            return Task.FromResult(ProtectedArtifactStatus.Written);
+            return Task.FromResult(ProtectedArtifactCommitResult.Installed(true));
         });
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.ArtifactId = artifact;
@@ -222,12 +222,12 @@ public sealed class DesktopShellViewModelTests
         await Assert.That(shell.Publisher.Preparation!.ArtifactId).IsEqualTo(artifact);
         await Assert.That(shell.Publisher.Preparation.DefinitionDigest).IsEqualTo(shell.Workspace.Form!.Definition.Digest);
         await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsTrue();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That((await shell.Publisher.SaveAsync()).Succeeded).IsTrue();
         await Assert.That(output).Contains("Example service");
         await Assert.That(held.ToArray().All(value => value == 0)).IsTrue();
         await Assert.That(shell.Publisher.Preparation).IsNull();
         await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsFalse();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
     }
 
     [Test]
@@ -295,12 +295,12 @@ public sealed class DesktopShellViewModelTests
         using var shell = CreateShell(save: (_, _, _) =>
         {
             writes++;
-            return Task.FromResult(ProtectedArtifactStatus.Written);
+            return Task.FromResult(ProtectedArtifactCommitResult.Installed(true));
         }, protectedOutputAvailable: false);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
         await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsFalse();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
         await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
         await Assert.That(shell.Publisher.SaveBundleCommand.CanExecute(null)).IsFalse();
         await Assert.That(await shell.Publisher.SaveBundleAsync()).IsNull();
@@ -318,12 +318,12 @@ public sealed class DesktopShellViewModelTests
         using var shell = CreateShell(save: (_, _, _) =>
         {
             reached = true;
-            return Task.FromResult(ProtectedArtifactStatus.Written);
+            return Task.FromResult(ProtectedArtifactCommitResult.Installed(true));
         });
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.FileName = name;
         await shell.Publisher.PrepareAsync();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(reached).IsFalse();
     }
 
@@ -370,7 +370,7 @@ public sealed class DesktopShellViewModelTests
         string existing = Path.Combine(directory.Path, "service.json");
         await File.WriteAllTextAsync(existing, "existing-data");
         await shell.Publisher.PrepareAsync();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
         shell.Publisher.SelectArtifact("environment", true);
         shell.Publisher.PrepareBundle();
         await Assert.That((await shell.Publisher.SaveBundleAsync())!.Succeeded).IsFalse();
@@ -482,11 +482,11 @@ public sealed class DesktopShellViewModelTests
         });
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         await shell.Publisher.PrepareAsync();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.IoFailure);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.IoFailure);
         await Assert.That(held.ToArray().All(value => value == 0)).IsTrue();
         await Assert.That(shell.Status).IsEqualTo("save-failed:IoFailure");
         await Assert.That(shell.IsBusy).IsFalse();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
     }
 
     [Test]
@@ -527,7 +527,7 @@ public sealed class DesktopShellViewModelTests
     }
 
     private static TestShell CreateShell(IStorageDialogService? dialogs = null,
-        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>>? save = null,
+        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>>? save = null,
         string? outputDirectory = null, bool protectedOutputAvailable = true,
         Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken, Task<ProtectedArtifactBundleResult>>? publishBundle = null)
         => new(dialogs, save, outputDirectory, protectedOutputAvailable, publishBundle);
@@ -568,7 +568,7 @@ public sealed class DesktopShellViewModelTests
         private readonly DesktopShellViewModel _root;
 
         public TestShell(IStorageDialogService? dialogs = null,
-            Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>>? save = null,
+            Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>>? save = null,
             string? outputDirectory = null, bool protectedOutputAvailable = true,
             Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken, Task<ProtectedArtifactBundleResult>>? publishBundle = null,
             bool native = false, IProtectedArtifactWriter? writer = null)
@@ -579,7 +579,7 @@ public sealed class DesktopShellViewModelTests
             _workspace = new FormWorkspaceViewModel(messenger);
             _publisher = native ? new ArtifactPublisherViewModel(messenger, dialogs, writer ?? new ProtectedArtifactWriter())
                 : new ArtifactPublisherViewModel(messenger, dialogs,
-                    save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactStatus.Written)),
+                    save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
                     outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable, publishBundle);
             _root = new DesktopShellViewModel(messenger, _loader, _workspace, _publisher);
             if (native) _publisher.OutputDirectory = outputDirectory!;

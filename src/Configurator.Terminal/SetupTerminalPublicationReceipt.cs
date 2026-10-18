@@ -15,7 +15,7 @@ internal sealed record SetupTerminalPublicationReceipt
         Outcomes = Array.AsReadOnly(copy);
         IsSettled = isSettled;
         CompletionCode = completionCode;
-        CleanupFailed = cleanupFailed;
+        CleanupFailed = cleanupFailed || copy.Any(item => item.Result is { CleanupFailed: true });
         IsUnknown = isUnknown;
         Failed = failed;
     }

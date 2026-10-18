@@ -38,7 +38,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
             await Assert.That(operation.Preparation!.ToString()).DoesNotContain("privateValue");
             await workspace.ExecuteAsync(Guid.NewGuid());
             var result = (SetupTerminalArtifactResult)workspace.Result!;
-            await Assert.That(result.Outcomes[0].Status).IsEqualTo(ProtectedArtifactStatus.Written);
+            await Assert.That(result.Outcomes[0].Result?.Succeeded).IsEqualTo(true);
             string path = Path.Combine(directory, form.Definition.Artifacts.Single(item => item.Id == id).FileName);
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(expected);
             await Assert.That(File.GetUnixFileMode(path)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
@@ -46,7 +46,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
             await Assert.That(workspace.Output).IsEmpty();
             await Assert.That(await operation.PrepareAsync()).IsTrue();
             var repeated = await operation.ExecuteAsync(CancellationToken.None);
-            await Assert.That(((SetupTerminalArtifactResult)repeated.CoreResult).Outcomes[0].Status)
+            await Assert.That(((SetupTerminalArtifactResult)repeated.CoreResult).Outcomes[0].Result?.Status)
                 .IsEqualTo(ProtectedArtifactStatus.TargetExists);
             await Assert.That(await File.ReadAllTextAsync(path)).IsEqualTo(expected);
         }
@@ -62,7 +62,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
         form.Fields.Single(input => input.Definition.Id == "name").Text = "changed";
         await Assert.That(operation.IsPrepared).IsFalse();
         var result = await operation.ExecuteAsync(CancellationToken.None);
-        await Assert.That(((SetupTerminalArtifactResult)result.CoreResult).Outcomes[0].Status)
+        await Assert.That(((SetupTerminalArtifactResult)result.CoreResult).Outcomes[0].Result?.Status)
             .IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
         await Assert.That(await operation.PrepareAsync()).IsTrue();
         operation.ArtifactId = "legal";
@@ -169,7 +169,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
         await Assert.That(await operation.PrepareAsync()).IsTrue();
         await Assert.That(operation.ProtectedOutputAvailable).IsFalse();
         var outcome = await operation.ExecuteAsync(CancellationToken.None);
-        await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Status)
+        await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Result?.Status)
             .IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
         await Assert.That(operation.IsPrepared).IsFalse();
     }
@@ -224,7 +224,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
             await Assert.That(await operation.PrepareAsync()).IsTrue();
             await Assert.That(operation.ProtectedOutputAvailable).IsFalse();
             var outcome = await operation.ExecuteAsync(CancellationToken.None);
-            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Status)
+            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Result?.Status)
                 .IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
             await Assert.That(Directory.GetFiles(directory)).Count().IsEqualTo(2);
         }

@@ -19,7 +19,17 @@ it does not use this native writer or promise its filesystem protections.
 On the supported Linux path, the writer prepares an anonymous file and publishes
 it with create-only, no-replacement semantics. Existing destinations are never
 overwritten. Competing writers have at most one winner. Unsafe directories,
-changed targets, cancellation or missing filesystem guarantees reject publication.
+changed targets or missing filesystem guarantees reject publication before
+installation. Cancellation can stop work, but cannot undo an installation that
+has already happened.
+
+Installation and verification are different facts. A successful create-only
+namespace operation establishes that the prepared file was installed. A later
+inspection can fail or find a different file at that name. The receipt retains
+the installation fact, reports that verification did not succeed, and stops
+before publishing the next artifact. It does not claim the destination still
+contains the prepared bytes. Even successful immediate verification cannot
+promise continued integrity after another process changes the destination.
 
 Restricted saves on unsupported hosts fail closed. A desktop framework's ability
 to start on Windows or macOS does not prove protected-save support on those hosts.
@@ -44,15 +54,16 @@ artifact outcome and the destination before choosing what to do next:
 
 | Outcome | Meaning and next action |
 | --- | --- |
-| `written` | The file was published. Keep it; a later failure or cancellation does not undo it. |
+| `written` | The file was published. Keep it; a later failure or cancellation does not undo it. Post-installation inspection failure remains `written`, with installation `established` and verification `failed`; inspect the destination before retrying. |
 | `not-attempted` | Publication of this artifact was not attempted. Resolve the earlier failure before preparing another attempt. |
 | `unknown` | Publication is not established either way. Inspect the destination; never interpret this as proof that no file exists. |
-| `conflict` | The destination already existed or changed. Inspect it and choose a fresh destination rather than overwriting it. |
+| `conflict` | Publication was refused before installation because the destination already existed or changed. Inspect it and choose a fresh destination rather than overwriting it. |
 | `blocked` or `failed` | The boundary rejected the operation or an I/O operation failed. Review the diagnostic and any other artifacts' outcomes. |
 | `none` | The operation did not request publication, such as a read-only check. |
 | `planned` | A dry run planned the output but did not publish it. |
 
-These are CLI `writeStatus` spellings; interactive clients present the same
+These are CLI `writeStatus` spellings, not a substitute for the independent
+installation and verification facts. Interactive clients present the same
 established facts in their own status views. An overall error is not proof that
 every file failed, and an established write is not target acceptance. Cleanup
 failure is independent of a written file. A broken receipt channel can leave

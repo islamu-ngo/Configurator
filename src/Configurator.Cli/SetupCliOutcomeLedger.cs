@@ -23,7 +23,14 @@ internal sealed class SetupCliOutcomeLedger
     {
         if (_planned is null) throw new InvalidOperationException("publication-plan-missing");
         SetupCliMachineArtifact[] artifacts = _planned.Artifacts.ToArray();
-        artifacts[index] = artifacts[index] with { WriteStatus = status };
+        SetupCliMachineArtifact artifact = artifacts[index];
+        if (status == "unknown" && artifact.Installation == "established") return;
+        artifacts[index] = artifact with
+        {
+            WriteStatus = status,
+            Installation = status == "unknown" && artifact.Installation != "not-applicable" ? "unknown" : artifact.Installation,
+            Verification = status == "unknown" && artifact.Verification != "not-applicable" ? "unknown" : artifact.Verification
+        };
         _planned = _planned with { Artifacts = artifacts };
     }
 
@@ -32,12 +39,42 @@ internal sealed class SetupCliOutcomeLedger
         if (_planned is null) throw new InvalidOperationException("publication-plan-missing");
         int index = Array.FindIndex(_planned.Artifacts.ToArray(), artifact => artifact.Id == artifactId);
         if (index < 0) throw new InvalidOperationException("publication-artifact-unknown");
-        Record(index, outcome.Unknown ? "unknown" : Status(outcome.Status));
+        Record(index, outcome);
+    }
+
+    private void Record(int index, SetupCliPublicationOutcome outcome)
+    {
+        if (_planned is null) throw new InvalidOperationException("publication-plan-missing");
+        if (outcome.Result?.CleanupFailed == true) Cleanup("failed");
+        SetupCliMachineArtifact[] artifacts = _planned.Artifacts.ToArray();
+        SetupCliMachineArtifact artifact = artifacts[index];
+        if (artifact.Installation == "established" && outcome.Result is not { InstallationEstablished: true }) return;
+        ProtectedArtifactCommitResult? result = outcome.Result;
+        artifacts[index] = artifact with
+        {
+            WriteStatus = outcome.DeliveredToStandardOutput || result?.InstallationEstablished == true ? "written"
+                : outcome.Unknown ? "unknown" : result?.Status switch
+                {
+                    ProtectedArtifactStatus.TargetExists or ProtectedArtifactStatus.TargetChanged => "conflict",
+                    ProtectedArtifactStatus.IoFailure => "failed",
+                    null => "not-attempted",
+                    ProtectedArtifactStatus.UnsupportedPlatform or ProtectedArtifactStatus.UnsafeTarget
+                        or ProtectedArtifactStatus.PermissionDenied or ProtectedArtifactStatus.InvalidRequest => "blocked",
+                    _ => "unknown"
+                },
+            Installation = outcome.DeliveredToStandardOutput ? "not-applicable"
+                : result is not null ? result.InstallationEstablished ? "established" : "not-established"
+                : outcome.Unknown ? "unknown" : "not-attempted",
+            Verification = outcome.DeliveredToStandardOutput ? "not-applicable"
+                : result is not null ? result.InstallationEstablished ? result.VerificationSucceeded ? "succeeded" : "failed" : "not-attempted"
+                : outcome.Unknown ? "unknown" : "not-attempted"
+        };
+        _planned = _planned with { Artifacts = artifacts };
     }
 
     internal void Cleanup(string status)
     {
-        if (_planned is not null) _planned = _planned with { Cleanup = status };
+        if (_planned is not null && _planned.Cleanup != "failed") _planned = _planned with { Cleanup = status };
     }
 
     internal void BeginPublication()
@@ -56,21 +93,23 @@ internal sealed class SetupCliOutcomeLedger
             return Preserve(SetupCliResults.Failure(SetupCliExitCode.Internal, "publication-status-invalid"));
         }
         for (int index = 0; index < publication.Outcomes.Count; index++)
-            Record(index, publication.Outcomes[index].Unknown ? "unknown" : Status(publication.Outcomes[index].Status));
-        Cleanup(publication.CleanupFailed ? "failed" : "completed");
-        bool failed = publication.Outcomes.Any(item => item.Unknown
-            || item.Status is not null and not ProtectedArtifactStatus.Written)
-            || !publication.Cancelled && publication.Outcomes.Any(item => item.Status is null);
-        if (publication.CleanupFailed || failed)
+            Record(index, publication.Outcomes[index]);
+        bool cleanupFailed = publication.CleanupFailed || publication.Outcomes.Any(item => item.Result?.CleanupFailed == true);
+        Cleanup(cleanupFailed ? "failed" : "completed");
+        bool failed = publication.Outcomes.Any(item => item.Unknown || item.Result is { Succeeded: false })
+            || !publication.Cancelled && publication.Outcomes.Any(item => item.Result is null && !item.DeliveredToStandardOutput);
+        if (cleanupFailed || failed)
             result = result with
             {
-                Exit = !publication.CleanupFailed && blockedRejections
-                    && publication.Outcomes.Any(item => item.Status is not null and not ProtectedArtifactStatus.Written)
-                    && publication.Outcomes.All(item => !item.Unknown && item.Status is null or ProtectedArtifactStatus.Written
-                        or ProtectedArtifactStatus.UnsupportedPlatform or ProtectedArtifactStatus.TargetExists or ProtectedArtifactStatus.TargetChanged
-                        or ProtectedArtifactStatus.PermissionDenied or ProtectedArtifactStatus.UnsafeTarget or ProtectedArtifactStatus.InvalidRequest)
+                Exit = !cleanupFailed && blockedRejections
+                    && publication.Outcomes.Any(item => item.Result is { InstallationEstablished: false })
+                    && publication.Outcomes.All(item => !item.Unknown && (item.Result is null or { Succeeded: true }
+                        or { InstallationEstablished: false, Status: ProtectedArtifactStatus.UnsupportedPlatform or ProtectedArtifactStatus.TargetExists
+                            or ProtectedArtifactStatus.TargetChanged or ProtectedArtifactStatus.PermissionDenied
+                            or ProtectedArtifactStatus.UnsafeTarget or ProtectedArtifactStatus.InvalidRequest }))
                     ? SetupCliExitCode.Blocked : SetupCliExitCode.Io,
-                Diagnostics = [new(publication.CleanupFailed ? "publication-cleanup-failed" : "publication-failed", "/output", "error")]
+                Completion = "failed",
+                Diagnostics = [new(cleanupFailed ? "publication-cleanup-failed" : "publication-failed", "/output", "error")]
             };
         else if (publication.Cancelled)
             result = result with
@@ -85,12 +124,14 @@ internal sealed class SetupCliOutcomeLedger
     internal SetupCliCommandResult Preserve(SetupCliCommandResult result)
     {
         if (_planned is null) return result;
-        if (_planned.Cleanup == "failed" && result.Exit is SetupCliExitCode.Success or SetupCliExitCode.Cancelled)
+        bool cleanupFailed = _planned.Cleanup == "failed";
+        bool verificationFailed = _planned.Artifacts.Any(artifact => artifact.Verification == "failed");
+        if ((cleanupFailed || verificationFailed) && result.Exit is SetupCliExitCode.Success or SetupCliExitCode.Cancelled)
             result = result with
             {
                 Exit = SetupCliExitCode.Io,
                 Completion = "failed",
-                Diagnostics = [new("publication-cleanup-failed", "/output", "error")]
+                Diagnostics = [new(cleanupFailed ? "publication-cleanup-failed" : "publication-failed", "/output", "error")]
             };
         return result with
         {
@@ -103,14 +144,4 @@ internal sealed class SetupCliOutcomeLedger
         };
     }
 
-    internal static string Status(ProtectedArtifactStatus? status) => status switch
-    {
-        ProtectedArtifactStatus.Written => "written",
-        ProtectedArtifactStatus.TargetExists or ProtectedArtifactStatus.TargetChanged => "conflict",
-        ProtectedArtifactStatus.IoFailure => "failed",
-        null => "not-attempted",
-        ProtectedArtifactStatus.UnsupportedPlatform or ProtectedArtifactStatus.UnsafeTarget
-            or ProtectedArtifactStatus.PermissionDenied or ProtectedArtifactStatus.InvalidRequest => "blocked",
-        _ => "unknown"
-    };
 }

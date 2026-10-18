@@ -272,9 +272,11 @@ token does not itself prevent a receipt.
 
 Cancellation exits 130 unless an earlier operation or cleanup failure already
 determines the result. Final delivery failure takes precedence and exits 74.
-Inspect per-artifact write statuses and cleanup independently of the exit code;
-an established write remains written even if cancellation follows immediately.
-Check destinations before retrying an interrupted write.
+Inspect per-artifact installation, verification and cleanup independently of the
+exit code. An established installation survives later verification failure,
+cancellation or receipt-delivery failure. It does not prove the destination still
+contains the expected file. Check destinations before retrying an interrupted
+write; existing files are never overwritten automatically.
 
 Cancellation is not a rollback or erasure guarantee. Bounded parsing need not stop
 immediately, and a non-cancellable native call, forced kill or OS crash may prevent
@@ -308,7 +310,7 @@ status, exit category/code and dry-run intent. It separates these outcome facts:
 - `delivery`: `attempt`, not an acknowledgment that the recipient received these bytes.
 
 `artifacts` retains every selected output's full `id`, kind, mediaType, established
-digest, sensitivity, pathIntent and writeStatus. No output repeats coverage or
+digest, sensitivity, pathIntent, writeStatus, installation and verification. No output repeats coverage or
 readiness lists, and no artifact body is included. Kinds are `catalogue`,
 `definition-artifact`, `answer-snapshot`, `doctor-report`, `authoring-source`,
 `compiled-definition`, `logical-id-map`; sensitivities are `public`, `restricted`.
@@ -317,6 +319,27 @@ Successful `definition check` and `definition build` additionally report
 handoff must verify those versions, the envelope version, successful exit and the
 compiled file's digest before installation. The chosen output path is supplied by
 the caller and is not echoed in the machine envelope.
+
+For native file output, interpret the independent facts together:
+
+| Situation | `installation` | `verification` | `writeStatus` |
+| --- | --- | --- | --- |
+| Planned or not reached | `not-attempted` | `not-attempted` | `planned` or `not-attempted` |
+| Refused before installation | `not-established` | `not-attempted` | `conflict`, `blocked` or `failed` |
+| Installed and immediately verified | `established` | `succeeded` | `written` |
+| Installed but verification failed or was interrupted | `established` | `failed` | `written` |
+| No reliable outcome available | `unknown` | `unknown` | `unknown` |
+
+`written` alone is not verification or overall success. Installation records the
+successful create-only namespace operation before inspection; verification is
+only the immediate follow-up check, never a promise of continued integrity. An
+unverified installation fails the operation and stops later bundle outputs, even
+when cancellation follows. Cleanup remains independent. Public stdout delivery,
+read-only artifacts and public authoring-file writes use `not-applicable` for both
+native facts: stream delivery or ordinary authoring writes cannot establish native
+protected-save guarantees. Consumers must read the explicit fields; there is no
+status-only compatibility interpretation.
+
 Root `coverage` contains exact `coveredCount`, `missingCount` and `detailDigest`;
 `readiness` reports state and missing/blocked counts, not full key arrays.
 Successful local preparation reports `host-validation-required`, not host acceptance.

@@ -131,8 +131,8 @@ public sealed class SetupTerminalSecurityTests
             using var operation = new SetupTerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory);
             await Assert.That(await operation.PrepareAsync()).IsTrue();
             var outcome = await operation.ExecuteAsync(CancellationToken.None);
-            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Status)
-                .IsEqualTo(ProtectedArtifactStatus.Written);
+            await Assert.That(((SetupTerminalArtifactResult)outcome.CoreResult).Outcomes[0].Result?.Succeeded)
+                .IsEqualTo(true);
             await Assert.That(Directory.EnumerateFiles(directory).Select(Path.GetFileName))
                 .Contains("config.json");
             await Assert.That(Directory.EnumerateFiles(directory).Count()).IsEqualTo(1);

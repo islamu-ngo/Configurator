@@ -155,7 +155,7 @@ internal static class SetupCliProgram
                 if (!SetupArtifactPolicy.TryProjectPublic(kind, bytes, out ReadOnlyMemory<byte> projection))
                     throw new IOException("protected-output-required");
                 await WriteAsync(path, projection, maximumBytes, cancellationToken);
-                return new([new(ProtectedArtifactStatus.Written)]);
+                return new([new(null, DeliveredToStandardOutput: true)]);
             }
             ProtectedArtifactPreparation preparation;
             try { preparation = await _protectedWriter.PrepareAsync(kind, path, bytes, cancellationToken); }
@@ -163,23 +163,24 @@ internal static class SetupCliProgram
             {
                 return new([new(null)], Cancelled: true);
             }
-            ProtectedArtifactStatus? status = null;
+            ProtectedArtifactCommitResult? result = null;
             bool unknown = false;
             bool cleanupFailed = false;
             bool cancelled = false;
-            try { status = await preparation.CommitAsync(cancellationToken); }
+            try { result = await preparation.CommitAsync(cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                status = preparation.EstablishedStatus;
+                result = preparation.EstablishedResult;
                 cancelled = true;
             }
-            catch (Exception) { status = preparation.EstablishedStatus; unknown = !status.HasValue; }
+            catch (Exception) { result = preparation.EstablishedResult; unknown = result is null; }
             finally
             {
                 try { preparation.Dispose(); } catch (Exception) { cleanupFailed = true; }
                 cleanupFailed |= preparation.CleanupFailed;
             }
-            return new([new(status, unknown)], cleanupFailed, cancelled || cancellationToken.IsCancellationRequested);
+            return new([new(result, unknown)], cleanupFailed || result?.CleanupFailed == true,
+                cancelled || cancellationToken.IsCancellationRequested);
         }
 
         public async ValueTask<SetupCliPublicationResult> WriteBundleAsync(
@@ -191,8 +192,8 @@ internal static class SetupCliProgram
                 throw new IOException("output-bound");
             ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
                 _protectedWriter, artifacts, directory,
-                outcome => outcomeObserver(outcome.ArtifactId, new(outcome.Status)), cancellationToken);
-            return new(result.Outcomes.Select(item => new SetupCliPublicationOutcome(item.Status)).ToArray(),
+                outcome => outcomeObserver(outcome.ArtifactId, new(outcome.Result)), cancellationToken);
+            return new(result.Outcomes.Select(item => new SetupCliPublicationOutcome(item.Result)).ToArray(),
                 result.CleanupFailed, result.CompletionCode == ProtectedArtifactBundleCompletionCode.Cancelled);
         }
     }

@@ -48,6 +48,7 @@ public sealed class SetupCliCancellationTests
     [Arguments("prepare", "not-attempted", 130, "completed")]
     [Arguments("before-commit", "not-attempted", 130, "completed")]
     [Arguments("established-commit", "written", 130, "completed")]
+    [Arguments("unverified-commit", "written", 74, "completed")]
     [Arguments("cleanup", "written", 74, "failed")]
     [Arguments("operational-failure", "failed", 74, "completed")]
     public async Task CancellationKeepsEstablishedFactsAndEarlierFailurePrecedence(
@@ -68,6 +69,12 @@ public sealed class SetupCliCancellationTests
         await Assert.That(SetupCliMachineContractVerifier.Validate(output.Receipt)).IsEmpty();
         using JsonDocument result = JsonDocument.Parse(output.Receipt);
         await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString()).IsEqualTo(writeStatus);
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("installation").GetString())
+            .IsEqualTo(boundary is "prepare" or "before-commit" ? "not-attempted"
+                : boundary == "operational-failure" ? "not-established" : "established");
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("verification").GetString())
+            .IsEqualTo(boundary is "prepare" or "before-commit" or "operational-failure" ? "not-attempted"
+                : boundary == "unverified-commit" ? "failed" : "succeeded");
         await Assert.That(result.RootElement.GetProperty("cleanup").GetString()).IsEqualTo(cleanup);
         await Assert.That(result.RootElement.GetProperty("completion").GetString())
             .IsEqualTo(expectedExit == 130 ? "cancelled" : "failed");
@@ -91,6 +98,40 @@ public sealed class SetupCliCancellationTests
         await Assert.That(artifacts[0].GetProperty("writeStatus").GetString()).IsEqualTo("written");
         await Assert.That(artifacts[1].GetProperty("id").GetString()).IsEqualTo("yaml");
         await Assert.That(artifacts[1].GetProperty("writeStatus").GetString()).IsEqualTo("not-attempted");
+    }
+
+    [Test]
+    [Arguments("observed-cleanup-failure", "succeeded", "failed", "publication-cleanup-failed")]
+    [Arguments("observed-cleanup-return", "succeeded", "failed", "publication-cleanup-failed")]
+    [Arguments("observed-verification-failure", "failed", "unknown", "publication-failed")]
+    public async Task ObservedBundleFailureSurvivesLaterCancellation(
+        string boundary, string verification, string cleanup, string diagnostic)
+    {
+        using var work = new CancellationTokenSource();
+        var output = new ControlledWriter(boundary);
+        Task<SetupCliExitCode> running = RunAsync(new RecordingInput(), output, work.Token, bundle: true);
+        await output.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await work.CancelAsync();
+
+        await Assert.That(await running.WaitAsync(TimeSpan.FromSeconds(10))).IsEqualTo(SetupCliExitCode.Io);
+        await Assert.That(output.Publications).IsEqualTo(1);
+        await Assert.That(output.Deliveries).IsEqualTo(1);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(output.Receipt)).IsEmpty();
+        using JsonDocument result = JsonDocument.Parse(output.Receipt);
+        JsonElement receipt = result.RootElement;
+        await Assert.That(receipt.GetProperty("exitCode").GetInt32()).IsEqualTo(74);
+        await Assert.That(receipt.GetProperty("completion").GetString()).IsEqualTo("failed");
+        await Assert.That(receipt.GetProperty("cleanup").GetString()).IsEqualTo(cleanup);
+        await Assert.That(receipt.GetProperty("diagnostics")[0].GetProperty("code").GetString()).IsEqualTo(diagnostic);
+        JsonElement artifacts = receipt.GetProperty("artifacts");
+        await Assert.That(artifacts[0].GetProperty("writeStatus").GetString()).IsEqualTo("written");
+        await Assert.That(artifacts[0].GetProperty("installation").GetString()).IsEqualTo("established");
+        await Assert.That(artifacts[0].GetProperty("verification").GetString()).IsEqualTo(verification);
+        // A thrown writer cannot certify the unreported remainder.
+        string remaining = boundary == "observed-cleanup-return" ? "not-attempted" : "unknown";
+        await Assert.That(artifacts[1].GetProperty("writeStatus").GetString()).IsEqualTo(remaining);
+        await Assert.That(artifacts[1].GetProperty("installation").GetString()).IsEqualTo(remaining);
+        await Assert.That(artifacts[1].GetProperty("verification").GetString()).IsEqualTo(remaining);
     }
 
     [Test]
@@ -238,22 +279,27 @@ public sealed class SetupCliCancellationTests
         {
             Payload = bytes;
             await AwaitCancellationAsync(cancellationToken);
-            ProtectedArtifactStatus? status = boundary switch
+            ProtectedArtifactCommitResult? result = boundary switch
             {
                 "prepare" or "before-commit" => null,
-                "operational-failure" => ProtectedArtifactStatus.IoFailure,
-                _ => ProtectedArtifactStatus.Written
+                "operational-failure" => ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure),
+                "unverified-commit" => ProtectedArtifactCommitResult.Installed(false),
+                _ => ProtectedArtifactCommitResult.Installed(true)
             };
-            return new([new(status)], CleanupFailed: boundary == "cleanup", Cancelled: true);
+            return new([new(result)], CleanupFailed: boundary == "cleanup", Cancelled: true);
         }
 
         public async ValueTask<SetupCliPublicationResult> WriteBundleAsync(IReadOnlyList<DefinitionArtifact> artifacts,
             string directory, int maximumBytes, Action<string, SetupCliPublicationOutcome> outcomeObserver,
             CancellationToken cancellationToken)
         {
-            outcomeObserver(artifacts[0].ArtifactId, new(ProtectedArtifactStatus.Written));
+            outcomeObserver(artifacts[0].ArtifactId, new(ProtectedArtifactCommitResult.Installed(
+                boundary != "observed-verification-failure",
+                cleanupFailed: boundary is "observed-cleanup-failure" or "observed-cleanup-return")));
             await AwaitCancellationAsync(cancellationToken);
-            return new([new(ProtectedArtifactStatus.Written), new(null)], Cancelled: true);
+            if (boundary is "observed-cleanup-failure" or "observed-verification-failure")
+                cancellationToken.ThrowIfCancellationRequested();
+            return new([new(ProtectedArtifactCommitResult.Installed(true)), new(null)], Cancelled: true);
         }
 
         private async Task AwaitCancellationAsync(CancellationToken cancellationToken)

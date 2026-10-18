@@ -45,7 +45,7 @@ public sealed class DesktopWorkflowReadinessTests
     {
         using var directory = new TemporaryDirectory();
         using var shell = DesktopTestContext.Root(
-            (_, _, _) => Task.FromResult(ProtectedArtifactStatus.UnsupportedPlatform),
+            (_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsupportedPlatform)),
             directory.Path, protectedOutputAvailable: false);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
@@ -80,7 +80,7 @@ public sealed class DesktopWorkflowReadinessTests
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Workspace.Form!.Fields.Single(input => input.Definition.Id == "name").Text = "synthetic-private-answer";
         await shell.Publisher.PrepareAsync();
-        Task<ProtectedArtifactStatus> save = shell.Publisher.SaveAsync();
+        Task<ProtectedArtifactCommitResult> save = shell.Publisher.SaveAsync();
         await prepared.Task.WaitAsync(TimeSpan.FromSeconds(10));
         switch (change)
         {
@@ -114,7 +114,7 @@ public sealed class DesktopWorkflowReadinessTests
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = DesktopTestContext.Root(
-            (_, _, _) => Task.FromResult(ProtectedArtifactStatus.InvalidRequest),
+            (_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest)),
             directory.Path, protectedOutputAvailable: true, async (artifacts, destination, cancellation) =>
             {
                 started.SetResult();
@@ -158,7 +158,9 @@ public sealed class DesktopWorkflowReadinessTests
         }, directory.Path, protectedOutputAvailable: true);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         await shell.Publisher.PrepareAsync();
-        await Assert.That(await shell.Publisher.SaveAsync()).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
+        ProtectedArtifactCommitResult conflict = await shell.Publisher.SaveAsync();
+        await Assert.That(conflict.Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
+        await Assert.That(conflict.InstallationEstablished).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(System.IO.Path.Combine(directory.Path, "service.json")))
             .IsEqualTo("existing-operator-data");
         await Assert.That(shell.Publisher.CanSave).IsFalse();

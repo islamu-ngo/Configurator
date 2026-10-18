@@ -9,7 +9,7 @@ using Configurator.Desktop.ViewModels;
 internal static class DesktopTestContext
 {
     internal static DesktopShellViewModel Root(
-        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>>? save = null,
+        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>>? save = null,
         string? outputDirectory = null,
         bool? protectedOutputAvailable = null,
         Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken,
@@ -33,7 +33,7 @@ internal static class DesktopTestContext
             else
             {
                 publisher = new ArtifactPublisherViewModel(messenger, dialogs,
-                    save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactStatus.Written)),
+                    save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
                     outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable ?? true, publishBundle);
             }
             var root = new DesktopShellViewModel(messenger, loader, workspace, publisher);

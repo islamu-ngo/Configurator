@@ -344,8 +344,8 @@ public sealed class SetupTerminalGuiAdapterTests
         using var harness = new Harness(initialize: true);
         var receipt = new SetupTerminalPublicationReceipt(Guid.NewGuid(),
         [
-            new("config", ProtectedArtifactStatus.Written),
-            new("environment", ProtectedArtifactStatus.TargetExists),
+            new("config", ProtectedArtifactCommitResult.Installed(verificationSucceeded: true)),
+            new("environment", ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetExists)),
             new("yaml", null)
         ], true);
         harness.Window.PresentReceipt(receipt);

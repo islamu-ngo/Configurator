@@ -13,18 +13,18 @@ internal static class SetupTerminalText
     {
         var result = new SetupTerminalArtifactResult(receipt.Outcomes,
             receipt.CompletionCode ?? ProtectedArtifactBundleCompletionCode.Completed, receipt.CleanupFailed);
-        int written = receipt.Outcomes.Count(item => item.Status == ProtectedArtifactStatus.Written);
+        int installed = receipt.Outcomes.Count(item => item.Result is { InstallationEstablished: true });
         string state = receipt.Failed ? Get("PublicationFailed") : receipt.IsUnknown ? Get("PublicationUnknown")
             : !receipt.IsSettled ? Get("PublicationInProgress") : Get(result.Succeeded ? "ProtectedDraftSaved"
-                : written > 0 ? "PartialBundle" : "ProtectedDraftFailed");
+                : installed > 0 ? "PartialBundle" : "ProtectedDraftFailed");
         if (receipt.Outcomes.Count > 0)
         {
             index = Math.Clamp(index, 0, receipt.Outcomes.Count - 1);
-            state += $" {written}/{receipt.Outcomes.Count}. {index + 1}/{receipt.Outcomes.Count} " + FormatOutcome(receipt, index);
+            state += $" {installed}/{receipt.Outcomes.Count}. {index + 1}/{receipt.Outcomes.Count} " + FormatOutcome(receipt, index);
         }
         return $"{Get("PublicationAttempt")} {receipt.AttemptId:N}: {state}"
             + (receipt.Failed ? " terminal-operation-failed" : string.Empty)
-            + (written > 0 && !result.Succeeded ? " " + Get("ManualRecovery") : string.Empty)
+            + (installed > 0 && !result.Succeeded ? " " + Get("ManualRecovery") : string.Empty)
             + (receipt.CleanupFailed ? " " + Get("PublicationCleanupFailed") : string.Empty)
             + (receipt.CompletionCode is { } code && code != ProtectedArtifactBundleCompletionCode.Completed ? " " + code : string.Empty);
     }
@@ -41,8 +41,13 @@ internal static class SetupTerminalText
     private static string FormatOutcome(SetupTerminalPublicationReceipt receipt, int index)
     {
         ProtectedArtifactBundleOutcome outcome = receipt.Outcomes[index];
-        return Safe(outcome.ArtifactId) + ": " + (outcome.Status?.ToString()
-            ?? Get(!receipt.IsSettled || receipt.IsUnknown ? "PublicationUnknown" : "NotAttempted"));
+        if (outcome.Result is not { } result)
+            return Safe(outcome.ArtifactId) + ": " + Get(!receipt.IsSettled || receipt.IsUnknown ? "PublicationUnknown" : "NotAttempted");
+        return Safe(outcome.ArtifactId) + ": " + result.Status
+            + (result.InstallationEstablished ? " [installation-established;"
+                + (result.VerificationSucceeded ? "verification-succeeded" : "verification-failed")
+                + ";current-integrity-not-guaranteed]" : string.Empty)
+            + (result.CleanupFailed ? " " + Get("PublicationCleanupFailed") : string.Empty);
     }
 
     private static string Safe(string text) => new(text.Select(character => char.IsControl(character) ? ' ' : character).ToArray());

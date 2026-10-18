@@ -12,13 +12,13 @@ internal sealed record SetupTerminalArtifactResult
     {
         Outcomes = Array.AsReadOnly(outcomes.ToArray());
         CompletionCode = completionCode;
-        CleanupFailed = cleanupFailed;
+        CleanupFailed = cleanupFailed || Outcomes.Any(item => item.Result is { CleanupFailed: true });
     }
     internal IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes { get; }
     internal ProtectedArtifactBundleCompletionCode CompletionCode { get; }
     internal bool CleanupFailed { get; }
     internal bool Succeeded => CompletionCode == ProtectedArtifactBundleCompletionCode.Completed && !CleanupFailed && Outcomes.Count > 0
-        && Outcomes.All(item => item.Status == ProtectedArtifactStatus.Written);
+        && Outcomes.All(item => item.Result is { Succeeded: true });
     public override string ToString() => $"{nameof(SetupTerminalArtifactResult)}:Succeeded={Succeeded}:Count={Outcomes.Count}";
 }
 
@@ -34,6 +34,8 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
     private readonly string _baseDirectory;
     private readonly Func<CancellationToken, Task>? _beforePublication;
     private readonly Action<ProtectedArtifactBundleOutcome>? _outcomeObserver;
+    private readonly Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>,
+        CancellationToken, Task<SetupTerminalArtifactResult>> _publishBundle;
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
     private readonly object _receiptGate = new();
     private readonly Queue<SetupTerminalPublicationReceipt> _history = new();
@@ -45,13 +47,21 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
     internal SetupTerminalArtifactOperation(
         DefinitionFormModel form, IProtectedArtifactWriter writer, string baseDirectory,
         Func<CancellationToken, Task>? beforePublication = null,
-        Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null)
+        Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null,
+        Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>,
+            CancellationToken, Task<SetupTerminalArtifactResult>>? publishBundle = null)
     {
         Form = form;
         _writer = writer;
         _baseDirectory = baseDirectory;
         _beforePublication = beforePublication;
         _outcomeObserver = outcomeObserver;
+        _publishBundle = publishBundle ?? (async (artifacts, directory, observe, token) =>
+        {
+            ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
+                writer, artifacts, directory, observe, token).ConfigureAwait(false);
+            return new(result.Outcomes, result.CompletionCode, result.CleanupFailed);
+        });
         _artifactId = form.Definition.Artifacts[0].Id;
         _selected.Add(_artifactId);
         Form.InputChanged += InputChanged;
@@ -158,13 +168,11 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
             return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
         if (_beforePublication is not null) await _beforePublication(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
-            _writer, bundle.Artifacts, _baseDirectory, RecordOutcome, cancellationToken).ConfigureAwait(false);
-        return new(result.Outcomes, result.CompletionCode, result.CleanupFailed);
+        return await _publishBundle(bundle.Artifacts, _baseDirectory, RecordOutcome, cancellationToken).ConfigureAwait(false);
     }
 
     private static SetupTerminalArtifactResult Outcome(IEnumerable<string> selected, ProtectedArtifactStatus status) =>
-        new(selected.Select(id => new ProtectedArtifactBundleOutcome(id, status)));
+        new(selected.Select(id => new ProtectedArtifactBundleOutcome(id, ProtectedArtifactCommitResult.NotInstalled(status))));
 
     private void RecordOutcome(ProtectedArtifactBundleOutcome outcome)
     {

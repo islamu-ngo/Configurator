@@ -26,7 +26,8 @@ public interface ISetupCliWriter
         Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken);
 }
 
-public sealed record SetupCliPublicationOutcome(ProtectedArtifactStatus? Status, bool Unknown = false);
+public sealed record SetupCliPublicationOutcome(ProtectedArtifactCommitResult? Result, bool Unknown = false,
+    bool DeliveredToStandardOutput = false);
 public sealed record SetupCliPublicationResult(IReadOnlyList<SetupCliPublicationOutcome> Outcomes,
     bool CleanupFailed = false, bool Cancelled = false);
 
@@ -117,6 +118,10 @@ public sealed record SetupCliMachineArtifact(string Kind, string MediaType, stri
     [property: JsonIgnore] SetupCliMachineReadiness Readiness, string PathIntent, string WriteStatus)
 {
     public string Id { get; init; } = Kind;
+    public string Installation { get; init; } = PathIntent == "output"
+        && Kind is not ("authoring-source" or "compiled-definition" or "logical-id-map") ? "not-attempted" : "not-applicable";
+    public string Verification { get; init; } = PathIntent == "output"
+        && Kind is not ("authoring-source" or "compiled-definition" or "logical-id-map") ? "not-attempted" : "not-applicable";
 }
 
 public sealed record SetupCliMachineCoverageEntry(string Id, string State);

@@ -79,60 +79,61 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         {
             if (!SetupArtifactPolicy.TryProjectPublic(kind, bytes, out _)) throw new IOException();
             await WriteAsync(path, bytes, maximumBytes, cancellationToken);
+            return new([new(null, DeliveredToStandardOutput: true)]);
         }
-        else if (!Files.TryAdd(path, bytes.ToArray())) return new([new(ProtectedArtifactStatus.TargetExists)]);
-        return new([new(ProtectedArtifactStatus.Written)]);
+        if (!Files.TryAdd(path, bytes.ToArray())) return new([new(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetExists))]);
+        return new([new(ProtectedArtifactCommitResult.Installed(true))]);
     }
 
     public ValueTask<SetupCliPublicationResult> WriteBundleAsync(
         IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes,
         Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken)
     {
-        var statuses = new ProtectedArtifactStatus?[artifacts.Count];
+        var results = new ProtectedArtifactCommitResult?[artifacts.Count];
         if (BundleBlocked)
         {
-            for (int index = 0; index < statuses.Length; index++) Record(index, ProtectedArtifactStatus.UnsupportedPlatform);
+            for (int index = 0; index < results.Length; index++) Record(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsupportedPlatform));
             return Result();
         }
         if (artifacts.Any(item => item.ByteLength > maximumBytes))
         {
-            for (int index = 0; index < statuses.Length; index++) Record(index, ProtectedArtifactStatus.InvalidRequest);
+            for (int index = 0; index < results.Length; index++) Record(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest));
             return Result();
         }
         for (int index = 0; index < artifacts.Count; index++)
         {
             if (!Files.ContainsKey(Path.Combine(directory, artifacts[index].FileName))) continue;
-            Record(index, ProtectedArtifactStatus.TargetExists);
+            Record(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetExists));
             return Result();
         }
         for (int index = 0; index < artifacts.Count; index++)
         {
             if (BundleFailureAfter == index)
             {
-                Record(index, ProtectedArtifactStatus.IoFailure);
+                Record(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure));
                 break;
             }
             string path = Path.Combine(directory, artifacts[index].FileName);
             ReadOnlyMemory<byte> payload = artifacts[index].Bytes;
             if (!Files.TryAdd(path, payload.ToArray()))
             {
-                Record(index, ProtectedArtifactStatus.TargetExists);
+                Record(index, ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetExists));
                 if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(payload, out ArraySegment<byte> rejected))
                     CryptographicOperations.ZeroMemory(rejected.AsSpan());
                 break;
             }
             if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(payload, out ArraySegment<byte> written))
                 CryptographicOperations.ZeroMemory(written.AsSpan());
-            Record(index, ProtectedArtifactStatus.Written);
+            Record(index, ProtectedArtifactCommitResult.Installed(true));
         }
         return Result();
-        void Record(int index, ProtectedArtifactStatus status)
+        void Record(int index, ProtectedArtifactCommitResult result)
         {
-            statuses[index] = status;
-            outcomeObserver(artifacts[index].ArtifactId, new(status));
+            results[index] = result;
+            outcomeObserver(artifacts[index].ArtifactId, new(result));
         }
         ValueTask<SetupCliPublicationResult> Result() => ValueTask.FromResult(
-            new SetupCliPublicationResult(statuses.Select(status => new SetupCliPublicationOutcome(status)).ToArray()));
+            new SetupCliPublicationResult(results.Select(result => new SetupCliPublicationOutcome(result)).ToArray()));
     }
 
     private sealed class ErrorWriter(CliFixture owner) : ISetupCliWriter

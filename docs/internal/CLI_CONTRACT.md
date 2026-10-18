@@ -132,10 +132,44 @@ self-attest acknowledgment inside those same bytes. Root coverage has exact
 covered/missing counts plus a sanitized-view SHA-256 digest; readiness has state
 and missing/blocked counts. Per-artifact coverage/readiness arrays are not emitted.
 Every output ledger entry retains its full ID, established digest, sensitivity,
-path intent and write status. Known `written`, untouched `not-attempted` and
+path intent, write status and independent `installation`/`verification` facts.
+Known `written`, untouched `not-attempted` and
 indeterminate `unknown` outcomes survive later failures; unknown is never inferred
 to mean not-written. Conflicts, blocked destinations and failed commits retain
 their specific statuses. Cleanup failure is independent of publication success.
+
+`SetupCliPublicationOutcome.Result` carries the immutable
+`ProtectedArtifactCommitResult` directly, never a status-only compatibility map.
+Native installation is recorded immediately after the successful Linux link,
+before inspection or a fault hook. `SystemWriter` preserves `EstablishedResult`
+on every commit exception, not only cleanup failure. The ledger reads
+`InstallationEstablished` and `VerificationSucceeded` independently of `Status`;
+an installed result with `TargetChanged` is `written`, `established`, `failed`,
+not a pre-install conflict. It fails the operation and stops the following bundle
+output. Earlier failure takes precedence over later cancellation.
+
+The mandatory artifact fields have closed vocabularies:
+
+- `installation`: `not-applicable`, `not-attempted`, `not-established`,
+  `established`, `unknown`.
+- `verification`: `not-applicable`, `not-attempted`, `succeeded`, `failed`, `unknown`.
+
+An unattempted native output has both facts `not-attempted`; a native refusal has
+`not-established`/`not-attempted`; an indeterminate invocation has
+`unknown`/`unknown`. An established installation has `succeeded` or `failed`
+verification. Failed includes interrupted/uncompleted post-install inspection;
+it does not assert that a missing or replaced destination still has its original
+identity. Neither successful verification nor the content digest promises ongoing
+integrity. Cleanup is reported separately even when verification succeeded.
+
+Public stdout has `DeliveredToStandardOutput` rather than a fabricated native
+commit result. Its two native facts are `not-applicable`, as are read-only output
+descriptions and the separate public authoring-file workflow. `writeStatus`
+continues to describe delivery/refusal but cannot substitute for either native
+fact. New fields are mandatory; consumers migrate directly without a legacy
+alias or inference from `Written`. Capacity reservation includes the largest
+fact strings before publication, and the independent specification/verifier
+checks both vocabulary and impossible combinations, including stdout claims.
 
 `SetupCliApplication` is the sole renderer/emitter. Runtime delegates return/store
 typed results; Program does not reopen stdout or emit fallback JSON. Delivery

@@ -108,7 +108,7 @@ public sealed class DesktopLocalSelectionTests
                 {
                     window.Show();
                     await shell.Publisher.PrepareAsync();
-                    Task<ProtectedArtifactStatus> saving = shell.Publisher.SaveAsync();
+                    Task<ProtectedArtifactCommitResult> saving = shell.Publisher.SaveAsync();
                     await staged.Task.WaitAsync(TimeSpan.FromSeconds(10));
                     window.Close();
                     string status = shell.Status;

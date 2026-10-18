@@ -102,6 +102,16 @@ the same boundary. `CommitAsync` enforces native create-only publication and
 Linux owner-only permissions; no definition value grants filesystem authority.
 Unsupported hosts fail closed.
 
+`SaveAsync` and the internal save delegate return the immutable
+`ProtectedArtifactCommitResult`, not a status alone. The public writer adapter
+retains `EstablishedResult` after any commit exception, even without a cleanup
+failure. It preserves installation, immediate verification and cleanup facts
+instead of inventing an uninstalled I/O failure. A stale completion returns its
+physical result without publishing stale status or restoring readiness.
+`save-installed-unverified` identifies a real installation whose immediate check
+failed; cleanup failures remain separate. Installed outcomes carry an explicit
+current-integrity disclaimer and require manual review, not an automatic retry.
+
 Bundle preparation verifies the selected IDs through `DefinitionBundleComposer`
 against the current snapshot, rejecting empty, inactive or uncomposable output.
 It immediately disposes the temporary bundle, retaining only an answer revision
@@ -111,12 +121,16 @@ against the current snapshot immediately before
 publication and disposes the Core bundle afterward to zero its private buffers.
 Each answer, definition, destination, or selection change discards it.
 Publication consumes the bundle and preflights every target before committing
-any file. Its ordered statuses distinguish files already written from a failed
-or unattempted remainder. A conflict leaves existing files untouched; after
-resolving it, the operator prepares again. After a partial commit, the operator
-leaves written outputs in place, selects only remaining outputs, and prepares
-again. There is no overwrite or rollback claim. The UI displays artifact IDs
-and status codes, never protected bytes or local paths. The capability notice
+any file. Its ordered results distinguish installation from verification and
+cleanup, and a null result denotes the unattempted remainder in a settled bundle.
+Failed verification stops subsequent files. A conflict leaves existing files
+untouched; after resolving it, the operator prepares again. After a partial
+commit, the operator leaves verified outputs in place, selects only remaining
+outputs, and prepares again. Installed-but-unverified files require manual review before use or retry;
+installation and successful verification never promise continued integrity.
+There is no overwrite or rollback claim. Bundle success uses the full result's
+`Succeeded`, including cleanup. The UI displays artifact IDs and safe result
+facts, never protected bytes or local paths. The capability notice
 reflects the native writer on the current host.
 
 Input, destination, definition, or artifact changes increment the adapter
@@ -127,6 +141,11 @@ Save failure, cancellation, and success all consume preparation. The final
 private save copy is zeroed in `finally`. Closing unloads the form and disposes
 the session. .NET input strings cannot promise secure memory erasure; the form
 clears references on disposal and no prepared bytes enter status or logs.
+
+These result changes do not implement Desktop operation-owned buffer settlement,
+close/drain handling or independent stale receipt recovery. Those lifetime
+concerns remain the separate follow-up; existing buffer disposal behavior is
+not newly certified by this publication-point migration.
 
 ## Verification
 

@@ -394,7 +394,7 @@ public sealed class SetupTerminalImportOperationTests
                 harness = new Harness(owner, (_, _) => Task.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty),
                     clock, outputDirectory: directory, outcomeObserver: outcome =>
                     {
-                        if (outcome.Status != ProtectedArtifactStatus.Written) return;
+                        if (outcome.Result is not { InstallationEstablished: true }) return;
                         reached.TrySetResult();
                         release.Task.GetAwaiter().GetResult();
                     });

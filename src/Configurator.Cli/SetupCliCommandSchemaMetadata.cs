@@ -88,7 +88,7 @@ public static class SetupCliCommandSchemaMetadata
                 ["column"] = Integer(1, int.MaxValue),
                 ["byteOffset"] = Integer(0, long.MaxValue)
             }),
-            ["artifact"] = ObjectSchema(["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus"], new()
+            ["artifact"] = ObjectSchema(["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"], new()
             {
                 ["id"] = String(1, 128, "^[A-Za-z][A-Za-z0-9._-]*$"),
                 ["kind"] = Enum(["catalogue", "definition-artifact", "answer-snapshot", "doctor-report", "authoring-source", "compiled-definition", "logical-id-map"]),
@@ -97,7 +97,9 @@ public static class SetupCliCommandSchemaMetadata
                 ["sensitivity"] = Enum(["public", "restricted"]),
                 ["pathIntent"] = Enum(["none", "input", "output", "stdout"]),
                 ["writeStatus"] = Enum(["none", "planned", "written", "not-attempted",
-                    "conflict", "blocked", "failed", "unknown"])
+                    "conflict", "blocked", "failed", "unknown"]),
+                ["installation"] = Enum(["not-applicable", "not-attempted", "not-established", "established", "unknown"]),
+                ["verification"] = Enum(["not-applicable", "not-attempted", "succeeded", "failed", "unknown"])
             }),
             ["coverage"] = ObjectSchema(["coveredCount", "missingCount", "detailDigest"], new()
             {

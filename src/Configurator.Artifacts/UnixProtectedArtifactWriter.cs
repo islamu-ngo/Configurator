@@ -23,7 +23,7 @@ internal static partial class UnixProtectedArtifactWriter
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Staging stream ownership is transferred to the returned ProtectedArtifactPreparation which disposes it.")]
     internal static async Task<ProtectedArtifactPreparation> PrepareAsync(
-        string targetPath, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
+        string targetPath, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken, Action? beforeVerification = null)
     {
         SafeFileHandle? parent = null;
         FileStream? staged = null;
@@ -70,10 +70,11 @@ internal static partial class UnixProtectedArtifactWriter
             SafeFileHandle ownedParent = parent;
             FileStream ownedStaging = staged;
             int length = bytes.Length;
-            var preparation = new ProtectedArtifactPreparation(token =>
+            var preparation = new ProtectedArtifactPreparation((token, establishInstallation) =>
             {
                 token.ThrowIfCancellationRequested();
-                return Task.FromResult(Commit(directory, name, ownedParent, initialParent, ownedStaging, length));
+                return Task.FromResult(Commit(directory, name, ownedParent, initialParent, ownedStaging,
+                    length, establishInstallation, beforeVerification));
             }, () =>
             {
                 ownedStaging.Dispose();
@@ -103,22 +104,23 @@ internal static partial class UnixProtectedArtifactWriter
         }
     }
 
-    private static ProtectedArtifactStatus Commit(
+    private static ProtectedArtifactCommitResult Commit(
         string directory, string name, SafeFileHandle parent, FileIdentity initialParent,
-        FileStream staged, int length)
+        FileStream staged, int length, Action establishInstallation, Action? beforeVerification)
     {
+        bool installationEstablished = false;
         try
         {
             using SafeFileHandle? current = OpenDirectoryChain(directory);
             if (current is null)
-                return ProtectedArtifactStatus.UnsafeTarget;
+                return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsafeTarget);
             if (!Inspect(current).SameFile(initialParent))
-                return ProtectedArtifactStatus.TargetChanged;
+                return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetChanged);
             if (!IsTrustedDirectory(Inspect(parent), final: true))
-                return ProtectedArtifactStatus.UnsafeTarget;
+                return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsafeTarget);
             FileIdentity prepared = Inspect(staged.SafeFileHandle);
             if (!IsPrivateFile(prepared, length))
-                return ProtectedArtifactStatus.PermissionDenied;
+                return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.PermissionDenied);
 
             // linkat follows only our procfs descriptor, not an operator pathname.
             // The kernel installs that inode iff the destination is still absent.
@@ -131,7 +133,12 @@ internal static partial class UnixProtectedArtifactWriter
                 string descriptorPath = "/proc/self/fd/" + staged.SafeFileHandle.DangerousGetHandle()
                     .ToInt64().ToString(CultureInfo.InvariantCulture);
                 linkResult = LinkAt(CurrentDirectory, descriptorPath, parent, name, FollowDescriptorLink);
-                if (linkResult != 0)
+                if (linkResult == 0)
+                {
+                    installationEstablished = true;
+                    establishInstallation();
+                }
+                else
                     linkError = Marshal.GetLastPInvokeError();
             }
             finally
@@ -141,17 +148,19 @@ internal static partial class UnixProtectedArtifactWriter
             }
 
             if (linkResult != 0)
-                return linkError == 17
-                    ? ProtectedArtifactStatus.TargetChanged : ProtectedArtifactStatus.IoFailure;
+                return ProtectedArtifactCommitResult.NotInstalled(linkError == 17
+                    ? ProtectedArtifactStatus.TargetChanged : ProtectedArtifactStatus.IoFailure);
 
+            beforeVerification?.Invoke();
             if (StatAt(parent, name, NoFollow, BasicStats, out FileIdentity installed) != 0
                 || !installed.SameFile(prepared) || !IsPrivateFile(installed, length))
-                return ProtectedArtifactStatus.TargetChanged;
-            return ProtectedArtifactStatus.Written;
+                return ProtectedArtifactCommitResult.Installed(false);
+            return ProtectedArtifactCommitResult.Installed(true);
         }
         catch (IOException)
         {
-            return ProtectedArtifactStatus.IoFailure;
+            return installationEstablished ? ProtectedArtifactCommitResult.Installed(false)
+                : ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure);
         }
     }
 

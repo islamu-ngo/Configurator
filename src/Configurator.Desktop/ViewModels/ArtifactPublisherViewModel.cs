@@ -18,7 +18,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
 {
     private readonly IMessenger _messenger;
     private readonly IStorageDialogService _dialogs;
-    private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>> _save;
+    private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> _save;
     private readonly Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken,
         Task<ProtectedArtifactBundleResult>> _publishBundle;
     private readonly SetupPresentationSession _session;
@@ -65,7 +65,11 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         {
             using ProtectedArtifactPreparation preparation = await writer.PrepareAsync(
                 SetupArtifactKind.Unknown, path, bytes, token);
-            return await preparation.CommitAsync(token);
+            try { return await preparation.CommitAsync(token); }
+            catch (Exception) when (preparation.EstablishedResult is not null)
+            {
+                return preparation.EstablishedResult;
+            }
         }, Directory.GetCurrentDirectory(), writer.IsAvailable,
             (artifacts, directory, token) => ProtectedArtifactBundlePublisher.PublishAsync(
                 writer, artifacts, directory, cancellationToken: token))
@@ -73,7 +77,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     }
 
     internal ArtifactPublisherViewModel(IMessenger messenger, IStorageDialogService dialogs,
-        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactStatus>> save,
+        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> save,
         string outputDirectory, bool protectedOutputAvailable,
         Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken,
             Task<ProtectedArtifactBundleResult>>? publishBundle = null)
@@ -235,40 +239,42 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     }
 
     [RelayCommand(CanExecute = nameof(CanSave))]
-    public async Task<ProtectedArtifactStatus> SaveAsync(CancellationToken cancellationToken = default)
+    public async Task<ProtectedArtifactCommitResult> SaveAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (IsBusy || Preparation is not { Succeeded: true } || _preparationWorkspace is null)
-            return ProtectedArtifactStatus.InvalidRequest;
+            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
         byte[] bytes = _preparationWorkspace.Output.ToArray();
         ClearPreparation();
         using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "save", cancellationToken);
         if (operation is null)
         {
             CryptographicOperations.ZeroMemory(bytes);
-            return ProtectedArtifactStatus.InvalidRequest;
+            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
         }
         _saveBytes = bytes;
         try
         {
-            ProtectedArtifactStatus result = !ProtectedSaveAvailable ? ProtectedArtifactStatus.UnsupportedPlatform
-                : !SafeFileName(FileName) || string.IsNullOrWhiteSpace(OutputDirectory) ? ProtectedArtifactStatus.UnsafeTarget
-                : !operation.IsCurrent ? ProtectedArtifactStatus.InvalidRequest
+            ProtectedArtifactCommitResult result = !ProtectedSaveAvailable
+                ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsupportedPlatform)
+                : !SafeFileName(FileName) || string.IsNullOrWhiteSpace(OutputDirectory)
+                    ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsafeTarget)
+                : !operation.IsCurrent ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest)
                 : await _save(Path.Combine(OutputDirectory, FileName), bytes, operation.Token);
-            if (!operation.IsCurrent) return ProtectedArtifactStatus.InvalidRequest;
-            _messenger.Send(new StatusChangedMessage(result == ProtectedArtifactStatus.Written
-                ? "save-complete" : $"save-failed:{result}", operation.Generation));
+            if (operation.IsCurrent)
+                _messenger.Send(new StatusChangedMessage(result.Succeeded ? "save-complete"
+                    : "save-" + FormatCommitResult(result), operation.Generation));
             return result;
         }
         catch (OperationCanceledException)
         {
             _messenger.Send(new StatusChangedMessage("save-cancelled", operation.Generation));
-            return ProtectedArtifactStatus.InvalidRequest;
+            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
             _messenger.Send(new StatusChangedMessage("save-failed:IoFailure", operation.Generation));
-            return ProtectedArtifactStatus.IoFailure;
+            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure);
         }
         finally
         {
@@ -307,10 +313,11 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             ProtectedArtifactBundleResult result = await _publishBundle(bundle.Artifacts, OutputDirectory, operation.Token);
             if (operation.IsCurrent)
                 _messenger.Send(new StatusChangedMessage(result.Succeeded ? "bundle-save-complete" :
-                    (result.Outcomes.Any(item => item.Status == ProtectedArtifactStatus.Written)
+                    (result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
                         ? "bundle-save-partial:" : "bundle-save-blocked:") +
                     string.Join(",", result.Outcomes.Select(item =>
-                        $"{item.ArtifactId}:{item.Status?.ToString() ?? "not-attempted"}")), operation.Generation));
+                        $"{item.ArtifactId}:{(item.Result is { } commit ? FormatCommitResult(commit) : "not-attempted")}"))
+                    + (result.CleanupFailed ? ";cleanup-failed" : string.Empty), operation.Generation));
             return result;
         }
         catch (OperationCanceledException)
@@ -481,6 +488,13 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         SelectImportCommand.NotifyCanExecuteChanged();
         SelectOutputDirectoryCommand.NotifyCanExecuteChanged();
     }
+
+    private static string FormatCommitResult(ProtectedArtifactCommitResult result) =>
+        (result.InstallationEstablished
+            ? (result.VerificationSucceeded ? "installed-verified:" : "installed-unverified:") + result.Status
+                + ";current-integrity-not-guaranteed;manual-review-required"
+            : "failed:" + result.Status)
+        + (result.CleanupFailed ? ";cleanup-failed" : string.Empty);
 
     private static bool SafeFileName(string value) =>
         value.Length is > 0 and <= 128 && value is not "-" and not "." and not ".." &&

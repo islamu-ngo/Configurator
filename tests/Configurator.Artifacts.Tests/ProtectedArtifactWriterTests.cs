@@ -40,7 +40,7 @@ public sealed class ProtectedArtifactWriterTests
         using var directory = new TestDirectory();
         using var preparation = await writer.PrepareAsync(
             SetupArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
+        await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
     }
 
@@ -52,11 +52,67 @@ public sealed class ProtectedArtifactWriterTests
         string target = Path.Combine(directory.Path, OutputFileName);
         byte[] bytes = RandomNumberGenerator.GetBytes(64);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(SetupArtifactKind.Environment, target, bytes);
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That((await preparation.CommitAsync()).Succeeded).IsTrue();
         await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(bytes);
         await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(OwnerOnly);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEquivalentTo([target]);
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+        await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task PostPublicationInspectionFailureRetainsEstablishedInstallation(bool replaceTarget)
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("actual-linux-required");
+        using var directory = new TestDirectory();
+        string target = Path.Combine(directory.Path, OutputFileName);
+        string retained = Path.Combine(directory.Path, "installed");
+        byte[] bytes = RandomNumberGenerator.GetBytes(64);
+        var writer = new ProtectedArtifactWriter(() =>
+        {
+            File.Move(target, retained);
+            if (replaceTarget) File.WriteAllBytes(target, [1, 2, 3]);
+        });
+        using var preparation = await writer.PrepareAsync(SetupArtifactKind.Configuration, target, bytes);
+        ProtectedArtifactCommitResult result = await preparation.CommitAsync();
+        await Assert.That(await File.ReadAllBytesAsync(retained)).IsEquivalentTo(bytes);
+        await Assert.That(File.GetUnixFileMode(retained)).IsEqualTo(OwnerOnly);
+        await Assert.That(result.InstallationEstablished).IsTrue();
+        await Assert.That(result.VerificationSucceeded).IsFalse();
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(preparation.EstablishedResult).IsEqualTo(result);
+        await Assert.That(preparation.CleanupFailed).IsFalse();
+    }
+
+    [Test]
+    public async Task PostPublicationExceptionRetainsInstallationBeforeCleanup()
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("actual-linux-required");
+        using var directory = new TestDirectory();
+        string target = Path.Combine(directory.Path, OutputFileName);
+        byte[] bytes = RandomNumberGenerator.GetBytes(64);
+        var writer = new ProtectedArtifactWriter(() => throw new InvalidOperationException("synthetic-inspection-fault"));
+        using var preparation = await writer.PrepareAsync(SetupArtifactKind.Configuration, target, bytes);
+        await Assert.That(async () => await preparation.CommitAsync()).Throws<InvalidOperationException>();
+        await Assert.That(preparation.EstablishedResult!.InstallationEstablished).IsTrue();
+        await Assert.That(preparation.EstablishedResult!.VerificationSucceeded).IsFalse();
+        await Assert.That(preparation.CleanupFailed).IsFalse();
+        await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(bytes);
+    }
+
+    [Test]
+    public async Task ResultFactoriesRejectFictionalWrittenRefusals()
+    {
+        await Assert.That(() => ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.Written))
+            .Throws<ArgumentOutOfRangeException>();
+        await Assert.That(() => ProtectedArtifactCommitResult.NotInstalled((ProtectedArtifactStatus)999))
+            .Throws<ArgumentOutOfRangeException>();
+        ProtectedArtifactCommitResult result = ProtectedArtifactCommitResult.Installed(true, cleanupFailed: true);
+        await Assert.That(result.InstallationEstablished).IsTrue();
+        await Assert.That(result.VerificationSucceeded).IsTrue();
+        await Assert.That(result.CleanupFailed).IsTrue();
+        await Assert.That(result.Succeeded).IsFalse();
     }
 
     [Test]
@@ -69,7 +125,9 @@ public sealed class ProtectedArtifactWriterTests
         await File.WriteAllBytesAsync(target, original);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
             SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+        ProtectedArtifactCommitResult result = await preparation.CommitAsync();
+        await Assert.That(result.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+        await Assert.That(result.InstallationEstablished).IsFalse();
         await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(original);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEquivalentTo([target]);
     }
@@ -86,18 +144,18 @@ public sealed class ProtectedArtifactWriterTests
         using var one = await writer.PrepareAsync(SetupArtifactKind.Environment, target, first);
         using var two = await writer.PrepareAsync(SetupArtifactKind.Environment, target, second);
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task<ProtectedArtifactStatus> Commit(ProtectedArtifactPreparation prepared) => Task.Run(async () =>
+        Task<ProtectedArtifactCommitResult> Commit(ProtectedArtifactPreparation prepared) => Task.Run(async () =>
         {
             await start.Task;
             return await prepared.CommitAsync();
         });
-        Task<ProtectedArtifactStatus> firstCommit = Commit(one);
-        Task<ProtectedArtifactStatus> secondCommit = Commit(two);
+        Task<ProtectedArtifactCommitResult> firstCommit = Commit(one);
+        Task<ProtectedArtifactCommitResult> secondCommit = Commit(two);
         start.SetResult();
-        ProtectedArtifactStatus[] statuses = await Task.WhenAll(firstCommit, secondCommit).WaitAsync(TimeSpan.FromSeconds(10));
-        await Assert.That(statuses.Count(status => status == ProtectedArtifactStatus.Written)).IsEqualTo(1);
+        ProtectedArtifactCommitResult[] results = await Task.WhenAll(firstCommit, secondCommit).WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(results.Count(result => result.InstallationEstablished && result.VerificationSucceeded)).IsEqualTo(1);
         byte[] actual = await File.ReadAllBytesAsync(target);
-        await Assert.That(actual).IsEquivalentTo(statuses[0] == ProtectedArtifactStatus.Written ? first : second);
+        await Assert.That(actual).IsEquivalentTo(results[0].Succeeded ? first : second);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEquivalentTo([target]);
     }
 
@@ -111,7 +169,7 @@ public sealed class ProtectedArtifactWriterTests
             SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
         byte[] competing = RandomNumberGenerator.GetBytes(64);
         await File.WriteAllBytesAsync(target, competing);
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
+        await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
         await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(competing);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEquivalentTo([target]);
     }
@@ -153,7 +211,7 @@ public sealed class ProtectedArtifactWriterTests
         {
             using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
                 SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
-            await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+            await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         }
         await Assert.That(Directory.GetFileSystemEntries(child)).IsEmpty();
         await Assert.That(File.Exists(Path.Combine(directory.Path, "absent"))).IsFalse();
@@ -167,7 +225,7 @@ public sealed class ProtectedArtifactWriterTests
         File.SetUnixFileMode(directory.Path, OwnerOnly | UnixFileMode.UserExecute | UnixFileMode.OtherWrite);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
             SetupArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
     }
 
@@ -179,7 +237,7 @@ public sealed class ProtectedArtifactWriterTests
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
             SetupArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
         File.SetUnixFileMode(directory.Path, OwnerOnly | UnixFileMode.UserExecute | UnixFileMode.OtherWrite);
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
+        await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
     }
 
@@ -195,7 +253,7 @@ public sealed class ProtectedArtifactWriterTests
             SetupArtifactKind.Environment, Path.Combine(parent, OutputFileName), RandomNumberGenerator.GetBytes(64));
         Directory.Move(parent, moved);
         Directory.CreateDirectory(parent);
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
+        await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
         await Assert.That(Directory.GetFileSystemEntries(parent)).IsEmpty();
         await Assert.That(Directory.GetFileSystemEntries(moved)).IsEmpty();
     }
@@ -220,12 +278,12 @@ public sealed class ProtectedArtifactWriterTests
         foreach (byte[] bytes in new[] { Array.Empty<byte>(), RandomNumberGenerator.GetBytes(ProtectedArtifactWriter.MaximumBytes + 1) })
         {
             using var rejected = await writer.PrepareAsync(SetupArtifactKind.Environment, target, bytes);
-            await Assert.That(await rejected.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
+            await Assert.That((await rejected.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
             await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
         }
         byte[] unknown = RandomNumberGenerator.GetBytes(32);
         using var preparation = await writer.PrepareAsync((SetupArtifactKind)999, target, unknown);
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.Written);
+        await Assert.That((await preparation.CommitAsync()).Succeeded).IsTrue();
         await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(unknown);
         await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(OwnerOnly);
     }
@@ -242,7 +300,7 @@ public sealed class ProtectedArtifactWriterTests
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
             SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
         File.CreateSymbolicLink(target, original);
-        await Assert.That(await preparation.CommitAsync()).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
+        await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
         await Assert.That(await File.ReadAllBytesAsync(original)).IsEquivalentTo(bytes);
         await Assert.That(new FileInfo(target).LinkTarget).IsEqualTo(original);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEquivalentTo([target, original]);

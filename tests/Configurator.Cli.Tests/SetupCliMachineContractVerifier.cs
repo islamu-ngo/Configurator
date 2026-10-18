@@ -14,7 +14,7 @@ internal static partial class SetupCliMachineContractVerifier
             "targetAcceptance", "cleanup", "delivery", "diagnosticsTotal", "diagnosticsOmitted", "detailDigest", "diagnostics", "artifacts", "coverage", "readiness"],
         ["$.invocation"] = ["commandFamily", "operation", "mode"],
         ["$.diagnostics[]"] = ["code", "path", "severity"],
-        ["$.artifacts[]"] = ["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus"],
+        ["$.artifacts[]"] = ["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"],
         ["$.coverage"] = ["coveredCount", "missingCount", "detailDigest"],
         ["$.readiness"] = ["state", "missingCount", "blockedCount"],
         ["$.detail"] = ["kind", "offset", "limit", "total", "digest", "diagnostics", "coverage"],
@@ -86,6 +86,14 @@ internal static partial class SetupCliMachineContractVerifier
         if (!schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()).ToHashSet()
             .SetEquals(SetupCliContractSpecification.ExitCodes.Values))
             errors.Add("schema-exit-vocabulary");
+        JsonObject artifactProperties = schema["$defs"]!["artifact"]!["properties"]!.AsObject();
+        if (artifactProperties["installation"]?["enum"] is not JsonArray installationValues
+            || !installationValues.Select(node => node!.GetValue<string>())
+                .ToHashSet(StringComparer.Ordinal).SetEquals(SetupCliContractSpecification.InstallationStates)
+            || artifactProperties["verification"]?["enum"] is not JsonArray verificationValues
+            || !verificationValues.Select(node => node!.GetValue<string>())
+                .ToHashSet(StringComparer.Ordinal).SetEquals(SetupCliContractSpecification.VerificationStates))
+            errors.Add("schema-publication-vocabulary");
         JsonObject help = schema["$defs"]!["help"]!["properties"]!.AsObject();
         JsonObject helpOption = schema["$defs"]!["helpOption"]!["properties"]!.AsObject();
         if (schema["properties"]!["help"]?["$ref"]?.GetValue<string>() != "#/$defs/help"
@@ -209,7 +217,9 @@ internal static partial class SetupCliMachineContractVerifier
                     ["digest"] = digest,
                     ["sensitivity"] = "restricted",
                     ["pathIntent"] = "input",
-                    ["writeStatus"] = "none"
+                    ["writeStatus"] = "none",
+                    ["installation"] = "not-applicable",
+                    ["verification"] = "not-applicable"
                 }
             },
             ["coverage"] = Coverage(digest),
@@ -453,16 +463,33 @@ internal static partial class SetupCliMachineContractVerifier
             ValidateObject(artifact, "$.artifacts[]", errors);
             string id = artifact["id"]?.GetValue<string>() ?? string.Empty;
             string mediaType = artifact["mediaType"]?.GetValue<string>() ?? string.Empty;
+            string installation = artifact["installation"]?.GetValue<string>() ?? string.Empty;
+            string verification = artifact["verification"]?.GetValue<string>() ?? string.Empty;
+            string writeStatus = artifact["writeStatus"]?.GetValue<string>() ?? string.Empty;
             if (id.Length is < 1 or > 128 || !KeyPattern().IsMatch(id) || !ids.Add(id)
                 || !DigestPattern().IsMatch(artifact["digest"]?.GetValue<string>() ?? string.Empty)
                 || artifact["sensitivity"]?.GetValue<string>() is not ("public" or "restricted")
                 || artifact["kind"]?.GetValue<string>() is not ("catalogue" or "definition-artifact" or "answer-snapshot" or "doctor-report" or "authoring-source" or "compiled-definition" or "logical-id-map")
                 || mediaType.Length is < 1 or > 128 || !MediaTypePattern().IsMatch(mediaType)
                 || artifact["pathIntent"]?.GetValue<string>() is not ("none" or "input" or "output" or "stdout")
-                || artifact["writeStatus"]?.GetValue<string>() is not ("none" or "planned" or "written" or "not-attempted" or "conflict" or "blocked" or "failed" or "unknown"))
+                || writeStatus is not ("none" or "planned" or "written" or "not-attempted" or "conflict" or "blocked" or "failed" or "unknown")
+                || !SetupCliContractSpecification.InstallationStates.Contains(installation)
+                || !SetupCliContractSpecification.VerificationStates.Contains(verification))
             {
                 errors.Add("machine-artifact-shape");
             }
+            bool nativeOutput = artifact["pathIntent"]?.GetValue<string>() == "output"
+                && artifact["kind"]?.GetValue<string>() is not ("authoring-source" or "compiled-definition" or "logical-id-map");
+            bool consistent = installation switch
+            {
+                "not-applicable" => verification == "not-applicable" && !nativeOutput,
+                "established" => nativeOutput && writeStatus == "written" && verification is "succeeded" or "failed",
+                "not-established" => nativeOutput && verification == "not-attempted" && writeStatus is "conflict" or "blocked" or "failed",
+                "not-attempted" => nativeOutput && verification == "not-attempted" && writeStatus is "planned" or "not-attempted",
+                "unknown" => nativeOutput && writeStatus == "unknown" && verification == "unknown",
+                _ => false
+            };
+            if (!consistent) errors.Add("machine-publication-facts");
         }
     }
 

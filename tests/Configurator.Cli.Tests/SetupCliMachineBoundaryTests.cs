@@ -10,6 +10,96 @@ namespace Configurator.Cli.Tests;
 public sealed class SetupCliMachineBoundaryTests
 {
     [Test]
+    [Arguments("missing", false, true)]
+    [Arguments("replaced", false, true)]
+    [Arguments("exception", false, true)]
+    [Arguments("cancelled", false, true)]
+    [Arguments("cancelled", true, true)]
+    [Arguments("exception", false, false)]
+    [Arguments("cancelled", false, false)]
+    public async Task PostInstallationFailureRetainsUnverifiedPrefixThroughCancellationAndReceiptFailure(string failure, bool failDelivery, bool bundle)
+    {
+        await Assert.That(OperatingSystem.IsLinux()).IsTrue();
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("linux-publication-check-required");
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-installed-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string target = Path.Combine(directory, "service.json");
+            using var work = new CancellationTokenSource();
+            bool observedInstallation = false;
+            var native = new ProtectedArtifactWriter(() =>
+            {
+                observedInstallation = File.Exists(target);
+                if (failure == "missing") File.Delete(target);
+                else if (failure == "replaced")
+                {
+                    File.Delete(target);
+                    File.WriteAllText(target, "synthetic-replacement");
+                }
+                else if (failure == "cancelled")
+                {
+                    work.Cancel();
+                    work.Token.ThrowIfCancellationRequested();
+                }
+                else throw new InvalidOperationException("synthetic-post-install-fault:" + target);
+            });
+            var fixture = new CliFixture();
+            using var output = new ReceiptStream(failDelivery);
+            using var error = new MemoryStream();
+            var writer = new SetupCliProgram.SystemWriter(output, native);
+            string[] arguments = bundle
+                ? ["artifact", "bundle-create", "--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
+                    "--input", "answers.json", "--output", directory, "--machine"]
+                : ["artifact", "create", "--definition", "definition.json", "--artifact", "config",
+                    "--input", "answers.json", "--output", target, "--machine"];
+            SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(
+                arguments, SetupCliMode.Machine,
+                new(fixture, writer, new SetupCliProgram.SystemWriter(error), 65_536, 4 * 1024 * 1024)), work.Token)
+                .WaitAsync(TimeSpan.FromSeconds(10));
+
+            await Assert.That(observedInstallation).IsTrue();
+            await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
+            await Assert.That(output.Attempts).IsEqualTo(1);
+            await Assert.That(File.Exists(Path.Combine(directory, "service.yaml"))).IsFalse();
+            byte[] receipt = output.ToArray();
+            await Assert.That(SetupCliMachineContractVerifier.Validate(receipt)).IsEmpty();
+            string text = Encoding.UTF8.GetString(receipt);
+            await Assert.That(text).DoesNotContain(directory);
+            await Assert.That(text).DoesNotContain("private-answer-marker");
+            await Assert.That(text).DoesNotContain("synthetic-post-install-fault");
+            using JsonDocument document = JsonDocument.Parse(receipt);
+            JsonElement first = document.RootElement.GetProperty("artifacts")[0];
+            await Assert.That(first.GetProperty("writeStatus").GetString()).IsEqualTo("written");
+            await Assert.That(first.GetProperty("installation").GetString()).IsEqualTo("established");
+            await Assert.That(first.GetProperty("verification").GetString()).IsEqualTo("failed");
+            if (bundle)
+            {
+                JsonElement second = document.RootElement.GetProperty("artifacts")[1];
+                await Assert.That(second.GetProperty("installation").GetString()).IsEqualTo("not-attempted");
+                await Assert.That(second.GetProperty("verification").GetString()).IsEqualTo("not-attempted");
+            }
+            await Assert.That(document.RootElement.GetProperty("cleanup").GetString()).IsEqualTo("completed");
+            await Assert.That(Encoding.UTF8.GetString(error.ToArray()))
+                .IsEqualTo(failDelivery ? "configurator: result delivery failed\n" : "");
+            if (failure == "replaced")
+            {
+                SetupCliPublicationResult retry = await writer.WriteArtifactAsync(target, SetupArtifactKind.Configuration,
+                    "{}"u8.ToArray(), 65_536, CancellationToken.None);
+                await Assert.That(retry.Outcomes[0].Result?.InstallationEstablished).IsEqualTo(false);
+                await Assert.That(retry.Outcomes[0].Result?.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+                await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("synthetic-replacement");
+            }
+            else if (failure != "missing")
+            {
+                await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("{\"enabled\":true,\"name\":\"private-answer-marker\"}");
+                await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     public async Task UnexpectedBundleCommitFaultRetainsRealNativeWrittenPrefix(bool cleanupFails)
@@ -166,7 +256,7 @@ public sealed class SetupCliMachineBoundaryTests
     public async Task InsufficientReceiptCapacityRejectsBeforePublication()
     {
         var fixture = new CliFixture();
-        var writer = new PublicationWriter(fixture, new([new(Configurator.Artifacts.ProtectedArtifactStatus.Written)]));
+        var writer = new PublicationWriter(fixture, new([new(ProtectedArtifactCommitResult.Installed(true))]));
         SetupCliExitCode exit = await RunArtifactAsync(fixture, writer, 512);
         await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
         await Assert.That(writer.Publications).IsEqualTo(0);
@@ -179,14 +269,17 @@ public sealed class SetupCliMachineBoundaryTests
     public async Task CleanupFailureDoesNotEraseWrittenOutcome(bool unknownStatus)
     {
         var fixture = new CliFixture();
-        var status = unknownStatus ? (Configurator.Artifacts.ProtectedArtifactStatus)int.MaxValue
-            : Configurator.Artifacts.ProtectedArtifactStatus.Written;
-        var writer = new PublicationWriter(fixture, new([new(status)], CleanupFailed: !unknownStatus));
+        ProtectedArtifactCommitResult? commit = unknownStatus ? null : ProtectedArtifactCommitResult.Installed(true, cleanupFailed: true);
+        var writer = new PublicationWriter(fixture, new([new(commit, Unknown: unknownStatus)]));
         await Assert.That(await RunArtifactAsync(fixture, writer)).IsEqualTo(SetupCliExitCode.Io);
         using JsonDocument result = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString())
             .IsEqualTo(unknownStatus ? "unknown" : "written");
         await Assert.That(result.RootElement.GetProperty("cleanup").GetString()).IsEqualTo(unknownStatus ? "completed" : "failed");
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("installation").GetString())
+            .IsEqualTo(unknownStatus ? "unknown" : "established");
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("verification").GetString())
+            .IsEqualTo(unknownStatus ? "unknown" : "succeeded");
     }
 
     [Test]
@@ -291,7 +384,7 @@ public sealed class SetupCliMachineBoundaryTests
         {
             ProtectedArtifactPreparation preparation = await _writer.PrepareAsync(kind, targetPath, bytes, cancellationToken);
             if (_prepared++ == 0) return preparation;
-            return new ProtectedArtifactPreparation(_ => throw new InvalidOperationException("synthetic-unexpected-commit-fault:" + targetPath),
+            return new ProtectedArtifactPreparation((_, _) => throw new InvalidOperationException("synthetic-unexpected-commit-fault:" + targetPath),
                 () =>
                 {
                     preparation.Dispose();
@@ -315,6 +408,17 @@ public sealed class SetupCliMachineBoundaryTests
         public ValueTask<SetupCliPublicationResult> WriteBundleAsync(IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts,
             string directory, int maximumBytes, Action<string, SetupCliPublicationOutcome> outcomeObserver,
             CancellationToken cancellationToken) => throw new InvalidOperationException();
+    }
+
+    private sealed class ReceiptStream(bool failDelivery) : MemoryStream
+    {
+        internal int Attempts { get; private set; }
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            await base.WriteAsync(buffer, cancellationToken);
+            if (failDelivery) throw new IOException("synthetic-receipt-failure");
+        }
     }
 
     private sealed class FailingWriter(int prefix) : ISetupCliWriter
