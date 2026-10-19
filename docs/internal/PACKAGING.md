@@ -103,6 +103,13 @@ Admission validates the requested RID against the selected surface's evaluated
 item list, so the CLI expansion cannot widen Terminal or Desktop admission.
 Terminal retains `linux-x64`, `linux-arm64`, `osx-arm64` and `win-x64`;
 Desktop retains only `linux-x64`. Browser publication is unchanged.
+Transient answer semantics are shared across the packaged clients: explicitly
+supplied empty values remain distinct from omission. Browser consent denial
+clears secret leaves and retires all current export owners before awaiting
+cleanup, without affecting later output. This logical revocation neither
+retracts files/clipboard contents already exported nor supplies native
+owner-only/create-only protection. No packaging inputs, dependency closure or
+protected-save host support change with this repair.
 `ReleaseContractTests` evaluates actual MSBuild contract JSON, requires exact CLI
 membership and successful validation for each CLI RID, rejects Windows 7 and
 unknown RIDs, and checks that the three new RIDs remain refused for Terminal.

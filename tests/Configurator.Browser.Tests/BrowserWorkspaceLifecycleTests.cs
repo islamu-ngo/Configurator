@@ -1,12 +1,142 @@
 namespace Configurator.Browser.Tests;
 
+using System.Text;
+using System.Text.Json.Nodes;
 using Bunit;
+using Configurator.Core.Definitions;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
 public sealed class BrowserWorkspaceLifecycleTests
 {
+    [Test]
+    public async Task RepeatedEmptyEnumSelectionFencesHeldSecretImport()
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        source["fields"]![0]!["choices"]!.AsArray().Insert(0, JsonValue.Create(""));
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        component.Find("#choice-mode").Change("0");
+        component.Find("#choice-hostname").Input("retained.test");
+        component.Find("#secret-consent").Change(true);
+        using var stream = new HeldReadStream("{\"mode\":\"\",\"hostname\":\"retained.test\",\"credential\":\"repeated-selection-canary\"}"u8.ToArray());
+        Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+        await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try { component.Find("#choice-mode").Change("0"); }
+        finally { stream.Release.TrySetResult(); }
+        await reading.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(component.Find("#choice-credential").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Markup).DoesNotContain("repeated-selection-canary");
+    }
+
+    [Test]
+    [Arguments("invalid")]
+    [Arguments("same-value")]
+    [Arguments("denial")]
+    public async Task EditOrDenialFencesSecretBearingReadCompletion(string transition)
+    {
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        component.Find("#choice-hostname").Input("retained.test");
+        component.Find("#secret-consent").Change(true);
+        using var stream = new HeldReadStream("{\"mode\":\"single\",\"hostname\":\"retained.test\",\"credential\":\"late-import-canary\"}"u8.ToArray());
+        Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+        await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            if (transition == "denial") component.Find("#secret-consent").Change(false);
+            else component.Find("#choice-hostname").Input(transition == "invalid" ? "invalid host" : "retained.test");
+        }
+        finally { stream.Release.TrySetResult(); }
+        await reading.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(component.Find("#choice-credential").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo(transition == "invalid" ? "invalid host" : "retained.test");
+        await Assert.That(component.Markup).DoesNotContain("late-import-canary");
+        await Assert.That(stream.Captured.ToArray().All(value => value == 0)).IsTrue();
+    }
+
+    [Test]
+    public async Task DenialRetiresSecondPendingExportBeforeFirstCleanupCompletes()
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        JsonNode second = source["artifacts"]![0]!.DeepClone();
+        second["id"] = "second";
+        second["fileName"] = "second.json";
+        source["artifacts"]!.AsArray().Add(second);
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using var context = BrowserFixture.Context();
+        await using var policyModule = new LifecycleModule();
+        await using var exportModule = new LifecycleModule();
+        context.Services.AddSingleton<IJSRuntime>(new LifecycleJavascript(policyModule, exportModule));
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        component.Find("#choice-mode").Change("single");
+        component.Find("#choice-hostname").Input("old.test");
+        component.Find("#secret-consent").Change(true);
+        component.Find("#choice-credential").Input("second-artifact-canary");
+        component.Find("#prepare-complete").Click();
+        component.FindAll(".configuration-editor__artifact")[0].QuerySelector("button")!.Click();
+        exportModule.GateNextOpen = true;
+        Task opening = component.InvokeAsync(() => component.FindAll(".configuration-editor__artifact")[1].QuerySelector("button")!.ClickAsync(new MouseEventArgs()));
+        await exportModule.OpenStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        exportModule.GateNextInvalidate = true;
+        Task denied = component.InvokeAsync(() => component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false }));
+        await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            exportModule.OpenRelease.TrySetResult();
+            await opening.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(exportModule.Exposures.Count).IsEqualTo(1);
+            await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+        }
+        finally
+        {
+            exportModule.OpenRelease.TrySetResult();
+            exportModule.Release.TrySetResult();
+            await denied.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Test]
+    public async Task DenialClearsSecretsBeforeHeldCleanupAndPreservesCompetingPublicEdit()
+    {
+        using var context = BrowserFixture.Context();
+        await using var policyModule = new LifecycleModule();
+        await using var exportModule = new LifecycleModule();
+        context.Services.AddSingleton<IJSRuntime>(new LifecycleJavascript(policyModule, exportModule));
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        component.Find("#choice-mode").Change("single");
+        component.Find("#choice-hostname").Input("old.test");
+        component.Find("#secret-consent").Change(true);
+        component.Find("#choice-credential").Input("revoked-lifecycle-canary");
+        component.Find("#prepare-complete").Click();
+        component.Find(".configuration-editor__artifact button").Click();
+        await Assert.That(exportModule.Exposures.Single()).Contains("revoked-lifecycle-canary");
+        exportModule.GateNextInvalidate = true;
+        Task denied = component.InvokeAsync(() => component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false }));
+        await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            component.Find("#choice-hostname").Input("current.test");
+            await Assert.That(component.Find("#choice-credential").HasAttribute("disabled")).IsTrue();
+            await Assert.That(component.Find("#choice-credential").GetAttribute("value")).IsEqualTo("");
+            await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+            await Assert.That(exportModule.HasOpenOutput).IsFalse();
+        }
+        finally
+        {
+            exportModule.Release.TrySetResult();
+            await denied.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        component.Find("#prepare-draft").Click();
+        component.Find(".configuration-editor__artifact button").Click();
+        await Assert.That(exportModule.Exposures.Last()).Contains("current.test");
+        await Assert.That(exportModule.Exposures.Last()).DoesNotContain("revoked-lifecycle-canary");
+        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+    }
+
     [Test]
     [Arguments(false)]
     [Arguments(true)]
@@ -34,7 +164,9 @@ public sealed class BrowserWorkspaceLifecycleTests
     }
 
     [Test]
-    public async Task DelayedOldExportCleanupCannotEraseNewOutputOrResumeStalePreparation()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task DelayedOldExportCleanupCannotEraseNewOutputOrResumeStalePreparation(bool failCleanup)
     {
         using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule();
@@ -47,6 +179,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         component.Find("#prepare-draft").Click();
         component.Find(".configuration-editor__artifact button").Click();
         exportModule.GateNextInvalidate = true;
+        exportModule.FailNextInvalidate = failCleanup;
         Task older = component.InvokeAsync(() => component.Find("#prepare-draft").ClickAsync(new MouseEventArgs()));
         await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         component.Find("#choice-hostname").Input("current.test");
@@ -56,6 +189,25 @@ public sealed class BrowserWorkspaceLifecycleTests
         await older.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("preparation-ready");
+        component.Find(".configuration-editor__artifact button").Click();
+        await Assert.That(exportModule.Exposures.Last()).Contains("current.test");
+        await Assert.That(exportModule.Exposures.Last()).DoesNotContain("old.test");
+        if (failCleanup) await Assert.That(component.Markup).Contains("output-cleanup-failed");
+        await Assert.That(component.Markup).DoesNotContain("cleanup-fault-canary");
+    }
+
+    private sealed class HeldReadStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal Memory<byte> Captured { get; private set; }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (Captured.IsEmpty) Captured = buffer;
+            Started.TrySetResult();
+            await Release.Task.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+            return await base.ReadAsync(buffer, CancellationToken.None);
+        }
     }
 
     private sealed class LifecycleJavascript(LifecycleModule policy, LifecycleModule export) : IJSRuntime
@@ -72,20 +224,63 @@ public sealed class BrowserWorkspaceLifecycleTests
     {
         internal bool GateNextBegin { get; set; }
         internal bool GateNextInvalidate { get; set; }
+        internal bool GateNextOpen { get; set; }
+        internal bool FailNextInvalidate { get; set; }
+        internal TaskCompletionSource OpenStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource OpenRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly Dictionary<string, (long Generation, byte[]? Bytes)> _sessions = new(StringComparer.Ordinal);
+        internal List<string> Exposures { get; } = [];
+        internal bool HasOpenOutput => _sessions.Values.Any(session => session.Bytes is not null);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
+            if (identifier == "open" && GateNextOpen)
+            {
+                GateNextOpen = false;
+                args = args!.ToArray();
+                args[2] = ((byte[])args[2]!).ToArray();
+                OpenStarted.TrySetResult();
+                await OpenRelease.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            if (identifier is "open" or "invalidate")
+            {
+                string id = (string)args![0]!;
+                long generation = (long)args[1]!;
+                _sessions.TryGetValue(id, out var previous);
+                if (generation >= previous.Generation &&
+                    !(identifier == "open" && generation == previous.Generation && previous.Bytes is not null))
+                {
+                    previous.Bytes?.AsSpan().Clear();
+                    _sessions[id] = (generation, identifier == "open" ? ((byte[])args[2]!).ToArray() : null);
+                }
+            }
             if (identifier == "beginWorkspace" && GateNextBegin || identifier == "invalidate" && GateNextInvalidate)
             {
                 GateNextBegin = false;
                 GateNextInvalidate = false;
                 Started.TrySetResult();
                 await Release.Task.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+                if (identifier == "invalidate" && FailNextInvalidate)
+                {
+                    FailNextInvalidate = false;
+                    throw new InvalidOperationException("cleanup-fault-canary");
+                }
+            }
+            bool exposed = false;
+            if (identifier is "copy" or "download" or "reveal")
+            {
+                if (_sessions.TryGetValue((string)args![0]!, out var session)
+                    && session.Generation == (long)args[1]! && session.Bytes is not null)
+                {
+                    Exposures.Add(Encoding.UTF8.GetString(session.Bytes));
+                    exposed = true;
+                }
             }
             object? result = identifier == "initialize" ? new BrowserOfflineState(true, true, true)
-                : identifier is "beginWorkspace" or "copy" ? true : null;
+                : identifier == "beginWorkspace" ? true
+                : identifier is "copy" or "download" or "reveal" ? exposed : null;
             return result is null ? default! : (TValue)result;
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

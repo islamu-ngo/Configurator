@@ -67,9 +67,12 @@ public sealed class BrowserArtifactExport(IJSRuntime javascript) : IAsyncDisposa
     {
         if (_disposed) return;
         _disposed = true;
-        await InvalidateAsync();
-        if (_module is not null)
-            try { await _module.DisposeAsync(); }
-            catch (JSException) { }
+        try { await InvalidateAsync(); }
+        finally
+        {
+            if (_module is not null)
+                try { await _module.DisposeAsync(); }
+                catch (JSException) { }
+        }
     }
 }

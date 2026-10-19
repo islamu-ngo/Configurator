@@ -32,6 +32,7 @@ public partial class ConfigurationEditor
     private bool _focusConsent;
     private ElementReference _consentControl;
     private long _generation;
+    private Task _outputRetirement = Task.CompletedTask;
     private long _fileKey;
     private CancellationTokenSource? _readCancellation;
     private byte[]? _readBuffer;
@@ -122,12 +123,13 @@ public partial class ConfigurationEditor
     {
         bool enabled = args.Value is true;
         DefinitionFormModel form = _form!;
-        long generation = _generation + 1;
-        await InvalidateOutputAsync();
-        if (_disposed || generation != _generation || !ReferenceEquals(form, _form)) return;
+        long generation = _generation;
         form.SetSecretEntryEnabled(enabled);
+        if (generation == _generation) Invalidate();
+        Task retirement = _outputRetirement;
         _status = enabled ? "Secret entry enabled for this workspace. Values remain masked." : "Secret entry revoked. Secret answers and output discarded; ordinary settings retained.";
         _statusCode = enabled ? "secret-entry-enabled" : "secret-entry-revoked";
+        await retirement;
     }
 
     private async Task PrepareAsync(bool draft)
@@ -328,7 +330,8 @@ public partial class ConfigurationEditor
         if (!_ready) { _status = "Offline app preparation is incomplete. Finish loading public app assets before entering answers."; _statusCode = "app-preparation-incomplete"; }
         if (!_disposed) StateHasChanged();
     }
-    public void Invalidate()
+    public void Invalidate() => _ = InvalidateOutputAsync();
+    private Task InvalidateOutputAsync()
     {
         ++_generation;
         _readCancellation?.Cancel();
@@ -338,18 +341,24 @@ public partial class ConfigurationEditor
         _prepared.Clear();
         _diagnostics.Clear();
         _validation = null;
-        foreach (var prepared in previous) _ = prepared.DisposeAsync().AsTask();
+        // Start every retirement before awaiting any JS cleanup. Each owner
+        // revokes its workspace, bytes and generation synchronously.
+        Task[] retirements = previous.Select(prepared => prepared.DisposeAsync().AsTask()).ToArray();
+        return _outputRetirement = ObserveRetirementAsync(retirements);
     }
-    private async Task InvalidateOutputAsync()
+    private async Task ObserveRetirementAsync(Task[] retirements)
     {
-        ++_generation;
-        _readCancellation?.Cancel();
-        if (_readBuffer is not null) CryptographicOperations.ZeroMemory(_readBuffer);
-        PreparedArtifact[] previous = _prepared.ToArray();
-        _prepared.Clear();
-        _diagnostics.Clear();
-        _validation = null;
-        foreach (var prepared in previous) await prepared.DisposeAsync();
+        try { await Task.WhenAll(retirements); }
+        catch (Exception)
+        {
+            // Cleanup is an external boundary: report failure without values
+            // and never let a retired owner mutate current policy or bytes.
+            if (!_disposed) await InvokeAsync(() =>
+            {
+                _diagnostics.Add("output-cleanup-failed");
+                StateHasChanged();
+            });
+        }
     }
     private async Task ClearAsync()
     {
@@ -408,6 +417,10 @@ public partial class ConfigurationEditor
         public BrowserArtifactExport Export { get; }
         public ElementReference PreviewElement;
         public bool Revealed { get; set; }
-        public async ValueTask DisposeAsync() { Workspace.Dispose(); await Export.DisposeAsync(); }
+        public async ValueTask DisposeAsync()
+        {
+            try { Workspace.Dispose(); }
+            finally { await Export.DisposeAsync(); }
+        }
     }
 }

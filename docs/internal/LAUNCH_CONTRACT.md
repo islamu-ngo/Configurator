@@ -90,6 +90,18 @@ Revocation removes secret leaves recursively, increments the answer revision
 and invalidates output; clear, edits, navigation and disposal fence old work.
 Typed fields and object-list rows follow admitted activation, validation and
 effective sensitivity. Display modes affect disclosure only.
+The shared form owns typed presence separately from display text. Explicit empty
+strings, admitted empty enum choices and empty containers survive import and
+preparation; omission uses a distinct editing action. Invalid or rejected edit
+intent invalidates output/import authority even if accepted JSON is unchanged.
+Refresh and untouched navigation do not count as edits.
+
+Consent denial and recursive secret clearing happen before the first cleanup
+await. The editor detaches and synchronously invalidates every old artifact's
+workspace and export owner before awaiting any retirement. Cleanup touches only
+captured old resources, preserving public edits and replacement output through
+late completion or failure. Unexpected cleanup failure is observed as a stable
+value-free diagnostic; expected JS denial cannot restore authority.
 
 Strict `DefinitionArtifactComposer` still requires complete valid answers.
 `DefinitionDraftArtifactComposer` offers distinct secret-deferred preparation

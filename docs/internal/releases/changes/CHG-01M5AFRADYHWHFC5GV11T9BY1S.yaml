@@ -1,0 +1,28 @@
+Change-Id: CHG-01M5AFRADYHWHFC5GV11T9BY1S
+Title: "keep revoked secrets out of competing browser work"
+Type: fix
+Scope: privacy
+Summary: "Make secret denial effective before asynchronous cleanup, invalidate every captured artifact owner before awaiting any retirement, and prevent old import/export work from restoring revoked secrets or damaging replacement output."
+Group: privacy
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Repair a consent/export ordering defect: cleanup could delay denial and a competing ordinary edit could abandon it; sequential retirement could leave later artifact owners live. This describes reproduced local races, not observed external exfiltration."
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Revocation clears secret leaves while preserving ordinary settings even when old cleanup is delayed or fails. Earlier clipboard/file transfers remain outside workspace revocation; browser export does not provide native protected-save guarantees."

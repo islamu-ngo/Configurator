@@ -66,6 +66,12 @@ public parent label or import cannot bypass secret denial. Revocation removes
 secret leaves while preserving ordinary answers, increments the input revision
 and invalidates pending/prepared output. New browser workspaces always begin
 without secret consent; no policy choice persists across navigation.
+The Browser editor establishes denial and secret-leaf clearing before awaiting
+cleanup. It synchronously detaches and retires every prior workspace/export
+owner before awaiting any old retirement. Cleanup operates only on captured
+old resources; delayed or failed cleanup cannot restore denied secrets or erase
+replacement output. Cleanup faults remain observable through a stable
+value-free diagnostic. This cannot revoke earlier external clipboard/file copies.
 
 Typed object-list edits add, modify or remove declared rows in one immutable
 snapshot revision. Native Desktop and Terminal controls use this same form

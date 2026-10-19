@@ -6,6 +6,23 @@ using Microsoft.JSInterop;
 public sealed class BrowserExportLifecycleTests
 {
     [Test]
+    public async Task CleanupFaultStillDisposesModuleAndCannotExposeRetiredBytes()
+    {
+        var javascript = new GatedJavascript();
+        await using var module = new RecordingModule();
+        javascript.Release.TrySetResult(module);
+        await using var export = new BrowserArtifactExport(javascript);
+        export.SetOutput("cleanup-export-canary"u8.ToArray());
+        _ = await export.CopyAsync();
+        module.FailInvalidation = true;
+        await Assert.That(() => export.DisposeAsync().AsTask()).Throws<InvalidOperationException>();
+        await Assert.That(module.Disposed).IsTrue();
+        await Assert.That(export.HasOutput).IsFalse();
+        await Assert.That(await export.CopyAsync()).IsFalse();
+        await Assert.That(module.PrivateOpeningCount).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task PreparingNeverInvokesBrowserAndInvalidationRemovesPrivateBytes()
     {
         using var context = BrowserFixture.Context();
@@ -55,9 +72,11 @@ public sealed class BrowserExportLifecycleTests
     {
         internal int PrivateOpeningCount { get; private set; }
         internal bool Disposed { get; private set; }
+        internal bool FailInvalidation { get; set; }
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
+            if (identifier == "invalidate" && FailInvalidation) return ValueTask.FromException<TValue>(new InvalidOperationException("synthetic-cleanup-fault"));
             if (identifier == "open") PrivateOpeningCount++;
             return ValueTask.FromResult(default(TValue)!);
         }

@@ -109,4 +109,7 @@ have a separate transient custody boundary described in the
 Within that workspace, explicitly supplied empty strings and admitted empty
 enum choices remain answers; omission is an explicit editing action. Invalid
 edits invalidate earlier output and fence pending imports even if the previous
-accepted value is unchanged.
+accepted value is unchanged. Secret denial clears secret leaves and retires
+all prior artifact capabilities before awaiting cleanup, preserving ordinary
+settings and any later output. These local controls do not retract earlier
+clipboard or downloaded copies.

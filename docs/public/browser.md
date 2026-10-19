@@ -133,6 +133,10 @@ Secret entry is **off for every new workspace**. You have two choices:
 
 Revoking consent clears secret leaves, including those nested in objects or
 rows, and invalidates prepared output while retaining ordinary settings.
+Denial takes effect before asynchronous export cleanup starts. Ordinary edits
+made while cleanup is pending remain intact; all old artifact capabilities are
+retired together, and a late cleanup cannot erase newly prepared output.
+Cleanup failures are reported without answer values and cannot restore consent.
 Consent is never remembered for another workspace. Imports cannot bypass this
 policy; a secret-bearing import is rejected without consent. Malformed values,
 invalid nonsecret fields and unresolved secret-dependent conditions do not

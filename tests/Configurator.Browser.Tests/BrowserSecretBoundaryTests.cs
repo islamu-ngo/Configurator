@@ -8,6 +8,32 @@ using Configurator.Core.Definitions;
 public sealed class BrowserSecretBoundaryTests
 {
     [Test]
+    public async Task NestedSecretDenialKeepsOrdinarySiblingAndStartsReplacementWithoutConsent()
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        source["fields"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"profile","type":"object","title":"Profile","sensitivity":"public","disclosure":"guided","properties":[
+              {"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
+              {"id":"token","type":"string","title":"Token","sensitivity":"secret","disclosure":"guided"}]}
+            """));
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        component.Find("[data-field='profile.name'] input").Input("ordinary-sibling");
+        await Assert.That(component.Find("[data-field='profile.token'] input").HasAttribute("disabled")).IsTrue();
+        component.Find("#secret-consent").Change(true);
+        component.Find("[data-field='profile.token'] input").Input("nested-revoked-canary");
+        component.Find("#secret-consent").Change(false);
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.Snapshot().Values["profile"].GetRawText()).IsEqualTo("{\"name\":\"ordinary-sibling\"}");
+        await Assert.That(component.Find("[data-field='profile.token'] input").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Markup).DoesNotContain("nested-revoked-canary");
+        component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
+        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await Assert.That(component.Find("#choice-credential").HasAttribute("disabled")).IsTrue();
+    }
+
+    [Test]
     public async Task SecretEntryDefaultsOffAndConsentRevocationRetainsOrdinarySettings()
     {
         using var context = BrowserFixture.Context();
