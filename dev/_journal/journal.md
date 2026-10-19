@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-14 Europe/Brussels
+Last Updated: 2026-10-19 Europe/Brussels
 
 ## Index & Recent
 
@@ -158,3 +158,48 @@ bespoke target tooling.
 
 **Promotion Consideration**:
 - [x] Runtime ADR records the ownership decision; retain the debugging evidence here.
+
+[2026-10-19 Europe/Brussels] - Sequential cleanup needs all-owner invalidation evidence
+
+**Context**: CTO review of the Browser production-v1 plan traced consent, shared edit revisions and export ownership without implementing fixes or running product tests.
+
+**Symptom / Observation**: `ConfigurationEditor.InvalidateOutputAsync` removes artifact UI entries, then awaits each artifact's disposal in sequence. Holding the first cleanup delays reaching later owners. The existing lifecycle regression asserts artifact counts/status after release, while its JS fake models cleanup completion but not private bytes or open/id/generation behavior.
+
+**Root Cause**: Removing UI references, invalidating each output owner and completing asynchronous resource cleanup are different transitions. A one-artifact fake that only delays disposal cannot establish that all detached outputs lose authority before the first await, nor that replacement output retains the correct bytes.
+
+**Resolution**: No runtime fix is claimed. The revised plan requires synchronous invalidation of the entire detached artifact set before awaited cleanup, plus a failing two-artifact regression. It must assert stale-capability rejection while the first cleanup remains held and verify replacement content afterward, using real form/Core objects and a boundary fake faithful to the actual JS generation contract. Cleanup failure and replacement orderings remain required. Product verification is pending.
+
+**Why This Matters for Future Work**: In multi-resource privacy cleanup, verify every owner's authority before releasing the first asynchronous gate. DOM counts and final status do not prove byte or capability safety. An already completed external clipboard/download transfer remains outside revocation guarantees.
+
+**References**:
+- `src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs:343`
+- `src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs:411`
+- `src/Configurator.Browser/BrowserArtifactExport.cs`
+- `src/Configurator.Browser/wwwroot/browser-artifacts.js`
+- `tests/Configurator.Browser.Tests/BrowserWorkspaceLifecycleTests.cs:37`
+- `docs/internal/adr/ADR-browser-answer-intent-and-denial.md`
+- Source revision: `37bfa9b492f54f0e746150edc9a624ad668774b3`.
+
+**Promotion Consideration**:
+- [x] Stays in journal only while implementation evidence is pending; the related ADR remains proposed, not an accepted new policy.
+
+[2026-10-19 Europe/Brussels] - HTML number controls can conceal invalid answer drafts
+
+**Context**: Browser answer-integrity implementation reached actual published Chromium 153 after the component suite passed.
+
+**Symptom / Observation**: Trusted entry of `1e` into an optional numeric control produced DOM value `""` with `validity.badInput === true`. The shared parser saw absence, and complete preparation incorrectly succeeded. bUnit's event boundary preserved the supplied test string and did not reproduce browser number-input sanitization.
+
+**Root Cause**: `ConfigurationField.razor` used an HTML number input for a string-backed draft. Browser sanitization happened before the event reached the shared typed conversion owner, so malformed text and deliberate absence became indistinguishable.
+
+**Resolution**: Keep raw drafts in text inputs with numeric/decimal input-mode hints, then use the shared parser for validity. Actual Chromium now retains `1e`, marks the input invalid and rejects preparation with no artifact. The exact command `dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` passed 150 cases; a freshly published package also preserved empty values, false and zero in revealed and downloaded JSON.
+
+**Why This Matters for Future Work**: A component fake can test parser and event ordering without implementing the browser's native control normalization. Verify malformed drafts on the real platform before claiming that an HTML input type preserves typed-answer intent.
+
+**References**:
+- `src/Configurator.Browser/Components/Configuration/ConfigurationField.razor`
+- `src/Configurator.Presentation/Presentation/DefinitionScalarEditing.cs`
+- `tests/Configurator.Browser.Tests/BrowserCollectionWorkflowTests.cs`
+- `docs/internal/PRESENTATION_STATE.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the shared draft contract is documented in the presentation anchor.
