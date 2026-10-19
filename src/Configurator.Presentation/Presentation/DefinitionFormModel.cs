@@ -1,7 +1,6 @@
 namespace Configurator.Presentation;
 
 using System.ComponentModel;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -28,7 +27,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         SessionPrivacy = sessionPrivacy;
         Definition = definition;
         Fields = Array.AsReadOnly(definition.Fields.Select(field =>
-            new DefinitionFieldInput(field, Edit, text => AllowsText(field, text), Notify)).ToArray());
+            new DefinitionFieldInput(field, Edit, (text, value) => AllowsValue(field, text, value), Notify)).ToArray());
     }
 
     public SetupDefinition Definition { get; }
@@ -64,15 +63,16 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             if (!enabled)
                 foreach (DefinitionFieldInput field in Fields)
                 {
-                    if (!field.TryValue(out JsonElement? value) || value is null)
+                    field.ClearDeniedDrafts(CanEdit);
+                    if (field.Value is not { } value)
                     {
                         if (field.Definition.Sensitivity == SetupFieldSensitivity.Secret) field.Clear();
                         continue;
                     }
                     JsonNode? retained = DefinitionSecretPolicy.RemoveSecrets(field.Definition.Constraints,
-                        JsonNode.Parse(value.Value.GetRawText()));
+                        JsonNode.Parse(value.GetRawText()));
                     if (retained is null) field.Clear();
-                    else field.SetImported(JsonSerializer.SerializeToElement(retained));
+                    else field.RetainValue(JsonSerializer.SerializeToElement(retained));
                 }
             OnPropertyChanged(nameof(SessionPrivacy));
             OnInputChanged();
@@ -86,16 +86,27 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             !DefinitionSecretPolicy.IsSecret(metadata, inheritedSecret);
     }
 
-    public bool SetValue(IReadOnlyList<string> path, JsonElement? value)
+    public bool SetValue(IReadOnlyList<string> path, JsonElement? value) => ApplyValue(path, value, clearDrafts: true);
+
+    private bool ApplyValue(IReadOnlyList<string> path, JsonElement? value, bool clearDrafts)
     {
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (path.Count == 0 || !TryMetadata(path, out _, out _) || value is not null && !CanEdit(path)) return false;
             DefinitionFieldInput field = Fields.Single(item => item.Definition.Id == path[0]);
-            if (path.Count == 1) return field.TrySetValue(value);
+            if (path.Count == 1)
+            {
+                bool accepted = field.TrySetValue(value);
+                if (accepted && clearDrafts) field.ClearDrafts(path);
+                return accepted;
+            }
             bool hasValue = field.TryValue(out JsonElement? existing) && existing is not null;
-            if (!hasValue && value is null) return true;
+            if (!hasValue && value is null)
+            {
+                if (field.ClearDrafts(path)) OnInputChanged();
+                return true;
+            }
             JsonNode root = hasValue
                 ? JsonNode.Parse(existing!.Value.GetRawText())! : field.Definition.Type == "list" ? new JsonArray() : new JsonObject();
             JsonNode parent = root;
@@ -111,7 +122,11 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
                 {
                     if (mapping[segment] is null)
                     {
-                        if (value is null) return true;
+                        if (value is null)
+                        {
+                            if (field.ClearDrafts(path)) OnInputChanged();
+                            return true;
+                        }
                         mapping[segment] = new JsonObject();
                     }
                     parent = mapping[segment]!;
@@ -127,7 +142,37 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             else if (parent is JsonArray items && int.TryParse(path[^1], out int row) && row >= 0 && row < items.Count)
                 items[row] = replacement;
             else return false;
-            return field.TrySetValue(JsonSerializer.SerializeToElement(root));
+            if (!field.TrySetValue(JsonSerializer.SerializeToElement(root))) return false;
+            if (clearDrafts) field.ClearDrafts(path);
+            return true;
+        }
+    }
+
+    /// <summary>Records one deliberate draft edit or omission (null), including rejected or unchanged input, before notifying observers.</summary>
+    public bool EditValue(IReadOnlyList<string> path, string? text)
+    {
+        using (BeginMutation())
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadata(path, out JsonElement metadata, out _) || !CanEdit(path)) return false;
+            DefinitionFieldInput field = Fields.Single(item => item.Definition.Id == path[0]);
+            long before = _inputRevision;
+            if (text is null)
+            {
+                bool omitted = SetValue(path, null);
+                if (omitted && _inputRevision == before) OnInputChanged();
+                return omitted;
+            }
+            if (path.Count == 1)
+            {
+                field.Text = text;
+                return field.InputDiagnosticCode is null && field.TryValue(out _);
+            }
+            bool accepted = DefinitionScalarEditing.TryParse(metadata.GetProperty("type").GetString()!,
+                text, metadata, out JsonElement? value) && SetValue(path, value);
+            field.SetDraftValidity(path, accepted);
+            if (_inputRevision == before) OnInputChanged();
+            return accepted;
         }
     }
 
@@ -169,7 +214,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
                 "boolean" => JsonValue.Create(false),
                 _ => JsonValue.Create(0)
             });
-            return SetValue(path, JsonSerializer.SerializeToElement(items));
+            return ApplyValue(path, JsonSerializer.SerializeToElement(items), clearDrafts: false);
         }
     }
 
@@ -180,7 +225,9 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (ReadNode(path) is not JsonArray items || index < 0 || index >= items.Count) return false;
             items.RemoveAt(index);
-            return SetValue(path, JsonSerializer.SerializeToElement(items));
+            if (!ApplyValue(path, JsonSerializer.SerializeToElement(items), clearDrafts: false)) return false;
+            Fields.Single(field => field.Definition.Id == path[0]).RemoveItemDrafts(path, index);
+            return true;
         }
     }
 
@@ -222,7 +269,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         return true;
     }
 
-    private bool AllowsText(SetupFieldDefinition field, string text)
+    private bool AllowsValue(SetupFieldDefinition field, string text, JsonElement? candidate)
     {
         DefinitionFieldInput input = Fields.Single(item => item.Definition.Id == field.Id);
         bool fitsBudget = text.Length <= 65_536;
@@ -231,9 +278,9 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         {
             var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (DefinitionFieldInput current in Fields)
-                if (current.Definition.Id != field.Id && current.TryValue(out JsonElement? existing) && existing is { } supplied)
+                if (current.Definition.Id != field.Id && current.Value is { } supplied)
                     values.Add(current.Definition.Id, supplied);
-            if (input.TryValue(text, out JsonElement? candidate) && candidate is { } value) values[field.Id] = value;
+            if (candidate is { } value) values[field.Id] = value;
             try { _ = new SetupAnswerSnapshot(_inputRevision, values); }
             catch (SetupDefinitionException exception)
             {
@@ -244,7 +291,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         }
         input.SetInputDiagnostic(rejection);
         if (!fitsBudget) return false;
-        if (SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets || text.Length == 0) return true;
+        if (SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets || candidate is null && text.Length == 0) return true;
         JsonElement metadata = field.Constraints;
         if (DefinitionSecretPolicy.IsSecret(metadata)) return false;
         if (field.Type is not ("object" or "list")) return true;
@@ -297,6 +344,16 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Projects current draft validity for one editor path without exposing draft values.</summary>
+    public bool HasInputError(IReadOnlyList<string> path)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return path.Count > 0 && Fields.Any(field => field.Definition.Id == path[0] && field.HasInputError(path));
+        }
+    }
+
     public SetupAnswerSnapshot Snapshot()
     {
         lock (_gate)
@@ -305,7 +362,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (var field in Fields)
             {
-                if (field.TryValue(out JsonElement? value) && value is { } supplied)
+                if (field.Value is { } supplied)
                     values.Add(field.Definition.Id, supplied);
             }
             return new SetupAnswerSnapshot(_inputRevision, values);
@@ -448,17 +505,21 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 public sealed class DefinitionFieldInput : ObservableObject
 {
     private readonly Action<Func<bool>> _changed;
-    private readonly Func<string, bool> _allowsText;
+    private readonly Func<string, JsonElement?, bool> _allowsValue;
     private readonly Action<Action> _notify;
     private string _text;
+    private JsonElement? _value;
+    private readonly List<string[]> _invalidPaths = [];
+    private string? _inputDiagnosticCode;
 
     internal DefinitionFieldInput(SetupFieldDefinition definition, Action<Func<bool>> changed,
-        Func<string, bool> allowsText, Action<Action> notify)
+        Func<string, JsonElement?, bool> allowsValue, Action<Action> notify)
     {
         Definition = definition;
         _changed = changed;
-        _allowsText = allowsText;
+        _allowsValue = allowsValue;
         _notify = notify;
+        _value = definition.Default?.Clone();
         _text = definition.Default is { } value ? Display(value) : string.Empty;
     }
 
@@ -467,17 +528,34 @@ public sealed class DefinitionFieldInput : ObservableObject
     public string? Help => Definition.Help;
     public bool RequiresMasking => Definition.Sensitivity != SetupFieldSensitivity.Public;
     public bool HasAnswerBudgetError => InputDiagnosticCode == "answer-budget-exceeded";
-    public string? InputDiagnosticCode { get; private set; }
+    public string? InputDiagnosticCode => _inputDiagnosticCode ?? (_invalidPaths.Count > 0 ? "input-type-invalid" : null);
+    internal JsonElement? Value => _value;
     public IReadOnlyList<string> Choices =>
         Array.AsReadOnly(Definition.Choices.Select(Display).ToArray());
 
     public string Text
     {
         get => _text;
-        set => _changed(() => _allowsText(value) && SetProperty(ref _text, value));
+        set => _changed(() =>
+        {
+            bool valid = TryValue(value, out JsonElement? parsed);
+            if (!_allowsValue(value, valid ? parsed : _value))
+            {
+                if (!valid) SetDraftValidity([Definition.Id], false);
+                return true;
+            }
+            SetDraftValidity([Definition.Id], valid);
+            if (valid)
+            {
+                ClearDrafts([Definition.Id]);
+                _value = parsed?.Clone();
+            }
+            SetProperty(ref _text, value);
+            return true;
+        });
     }
 
-    public bool TrySetValue(JsonElement? value)
+    internal bool TrySetValue(JsonElement? value)
     {
         if (value is { } typed && (Definition.Type == "object" && typed.ValueKind != JsonValueKind.Object ||
             Definition.Type == "list" && typed.ValueKind != JsonValueKind.Array)) return false;
@@ -485,8 +563,14 @@ public sealed class DefinitionFieldInput : ObservableObject
         bool accepted = false;
         _changed(() =>
         {
-            accepted = _allowsText(text);
-            return accepted && SetProperty(ref _text, text, nameof(Text));
+            accepted = _allowsValue(text, value);
+            if (accepted)
+            {
+                _value = value?.Clone();
+                SetInputDiagnostic(null);
+                if (!SetProperty(ref _text, text, nameof(Text))) OnPropertyChanged(nameof(Text));
+            }
+            return true;
         });
         return accepted;
     }
@@ -494,12 +578,21 @@ public sealed class DefinitionFieldInput : ObservableObject
     internal void SetImported(JsonElement value)
     {
         SetInputDiagnostic(null);
-        SetProperty(ref _text, Display(value), nameof(Text));
+        _invalidPaths.Clear();
+        RetainValue(value);
+    }
+
+    internal void RetainValue(JsonElement value)
+    {
+        _value = value.Clone();
+        if (!SetProperty(ref _text, Display(value), nameof(Text))) OnPropertyChanged(nameof(Text));
     }
 
     internal void Clear()
     {
-        SetProperty(ref _text, string.Empty, nameof(Text));
+        _value = null;
+        _invalidPaths.Clear();
+        if (!SetProperty(ref _text, string.Empty, nameof(Text))) OnPropertyChanged(nameof(Text));
         SetInputDiagnostic(null);
     }
 
@@ -510,12 +603,48 @@ public sealed class DefinitionFieldInput : ObservableObject
         _notify(() => base.OnPropertyChanging(e));
 
     public bool TryValue(out JsonElement? value)
-        => TryValue(_text, out value);
+    {
+        value = _value;
+        return !_invalidPaths.Any(path => path.Length == 1);
+    }
+
+    internal bool HasInputError(IReadOnlyList<string> path) =>
+        path.Count == 1 && _inputDiagnosticCode is not null || _invalidPaths.Any(existing => existing.SequenceEqual(path));
+
+    internal void SetDraftValidity(IReadOnlyList<string> path, bool valid)
+    {
+        _invalidPaths.RemoveAll(existing => existing.SequenceEqual(path));
+        if (!valid) _invalidPaths.Add(path.ToArray());
+        OnPropertyChanged(nameof(InputDiagnosticCode));
+    }
+
+    internal bool ClearDrafts(IReadOnlyList<string> path)
+    {
+        bool changed = _invalidPaths.RemoveAll(existing => existing.Take(path.Count).SequenceEqual(path)) > 0;
+        if (changed) OnPropertyChanged(nameof(InputDiagnosticCode));
+        return changed;
+    }
+
+    internal void ClearDeniedDrafts(Func<IReadOnlyList<string>, bool> canEdit)
+    {
+        if (_invalidPaths.RemoveAll(path => !canEdit(path)) > 0) OnPropertyChanged(nameof(InputDiagnosticCode));
+    }
+
+    internal void RemoveItemDrafts(IReadOnlyList<string> path, int index)
+    {
+        _invalidPaths.RemoveAll(existing => existing.Length > path.Count &&
+            existing.Take(path.Count).SequenceEqual(path) && existing[path.Count] == index.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        foreach (string[] existing in _invalidPaths.Where(existing => existing.Length > path.Count &&
+            existing.Take(path.Count).SequenceEqual(path)))
+            if (int.TryParse(existing[path.Count], out int row) && row > index)
+                existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        OnPropertyChanged(nameof(InputDiagnosticCode));
+    }
 
     internal void SetInputDiagnostic(string? code)
     {
-        if (InputDiagnosticCode == code) return;
-        InputDiagnosticCode = code;
+        if (_inputDiagnosticCode == code) return;
+        _inputDiagnosticCode = code;
         OnPropertyChanged(nameof(InputDiagnosticCode));
         OnPropertyChanged(nameof(HasAnswerBudgetError));
     }
@@ -523,37 +652,12 @@ public sealed class DefinitionFieldInput : ObservableObject
     internal bool TryValue(string text, out JsonElement? value)
     {
         value = null;
-        if (text.Length == 0) return true;
         if (text.Length > 65_536) return false;
         switch (Definition.Type)
         {
-            case "string":
-                value = JsonSerializer.SerializeToElement(text);
-                return true;
-            case "enum":
-                foreach (var choice in Definition.Choices)
-                    if (Display(choice) == text)
-                    {
-                        value = choice.Clone();
-                        return true;
-                    }
-                return false;
-            case "boolean":
-                if (!bool.TryParse(text, out bool boolean)) return false;
-                value = JsonSerializer.SerializeToElement(boolean);
-                return true;
-            case "integer":
-                if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long integer))
-                    return false;
-                value = JsonSerializer.SerializeToElement(integer);
-                return true;
-            case "number":
-                if (!decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number))
-                    return false;
-                value = JsonSerializer.SerializeToElement(number);
-                return true;
             case "list":
             case "object":
+                if (text.Length == 0) return true;
                 try
                 {
                     using JsonDocument document = JsonDocument.Parse(
@@ -569,7 +673,7 @@ public sealed class DefinitionFieldInput : ObservableObject
                     return false;
                 }
             default:
-                return false;
+                return DefinitionScalarEditing.TryParse(Definition.Type, text, Definition.Constraints, out value);
         }
     }
 

@@ -103,6 +103,14 @@ declared properties may be empty, explicitly supply the object when the target
 requires its presence; leaving it absent and supplying `{}` are different
 answers. Object lists use declared row properties and
 bounded add/remove controls; removed rows are excluded from the next output.
+An explicitly supplied empty string, an admitted empty enum choice, `false`,
+zero, `{}` and `[]` are values, not omitted answers. Use the field's explicit
+omission action to remove an explicit answer without clearing its siblings.
+An admitted definition's default still applies when an answer is absent.
+An untouched blank control or abandoned new list item supplies nothing.
+Changing an answer, even to invalid text or the same value, discards old output
+and prevents a pending import from replacing that edit. Changing sections or
+refreshing the view alone does not change answers.
 For Event, tenant names must be unique and the definition permits at most 256
 tenants; Core's aggregate budgets still apply.
 

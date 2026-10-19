@@ -89,6 +89,13 @@ Its public definition distribution boundary is distinct
 from transient private answers. Secret input is disabled for each new workspace
 until the operator explicitly consents. Revocation recursively clears secret
 leaves and prepared output; edits and replacement invalidate old operations.
+Typed presence preserves explicitly supplied empty strings, admitted empty enum
+choices and empty containers independently of draft text. Explicit omission is
+distinct from those values. Deliberate invalid or same-value edits fence pending
+work; programmatic refresh and untouched native navigation do not supply values.
+Browser denial takes effect synchronously, retiring every old artifact owner
+before asynchronous cleanup can yield; cleanup cannot restore denied secrets
+or clear replacement output.
 Complete composition remains strict. A secret-deferred draft instead identifies
 completion locations and never claims complete readiness or target acceptance.
 

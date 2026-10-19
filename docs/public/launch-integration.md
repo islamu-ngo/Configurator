@@ -105,3 +105,8 @@ values, private defaults, credentials or confidential instructions. Explicit
 retention caches a selected admitted definition only. Drafts and private output
 have a separate transient custody boundary described in the
 [browser guide](browser.md).
+
+Within that workspace, explicitly supplied empty strings and admitted empty
+enum choices remain answers; omission is an explicit editing action. Invalid
+edits invalidate earlier output and fence pending imports even if the previous
+accepted value is unchanged.

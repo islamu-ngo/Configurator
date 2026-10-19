@@ -179,7 +179,7 @@ internal static class Program
             })
             {
                 Select(window, shell, id);
-                Input<TextBox>(window, "Service name").Text = "";
+                Click(Named<Button>(window, "Clear Service name"));
                 await FlushAsync();
                 string path = Path.Combine(directory, file);
                 await File.WriteAllTextAsync(path, content);

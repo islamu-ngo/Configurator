@@ -5,11 +5,11 @@ using System.Text.Json;
 public sealed class DefinitionScalarEditingTests
 {
     [Test]
-    [Arguments("string", "", null)]
+    [Arguments("string", "", "\"\"")]
     [Arguments("boolean", "", null)]
     [Arguments("integer", "", null)]
     [Arguments("number", "", null)]
-    [Arguments("enum", "", null)]
+    [Arguments("enum", "", "\"\"")]
     [Arguments("string", "  ", "\"  \"")]
     [Arguments("string", "null", "\"null\"")]
     [Arguments("boolean", " TRUE ", "true")]
@@ -21,7 +21,7 @@ public sealed class DefinitionScalarEditingTests
     [Arguments("enum", "2", "2")]
     public async Task ScalarTextKeepsDeclaredTypeAndExplicitAbsence(string type, string text, string? expected)
     {
-        using JsonDocument metadata = JsonDocument.Parse("""{"choices":["alpha",true,2]}""");
+        using JsonDocument metadata = JsonDocument.Parse("""{"choices":["","alpha",true,2]}""");
         await Assert.That(DefinitionScalarEditing.TryParse(type, text, metadata.RootElement, out JsonElement? value)).IsTrue();
         await Assert.That(value?.GetRawText()).IsEqualTo(expected);
     }

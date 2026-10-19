@@ -11,7 +11,7 @@ do not change validation. `DefinitionPresentationOperation` captures the
 definition, artifact ID and input revision for a workspace execution.
 `DefinitionFormModel.ImportAsync` captures the current immutable answer snapshot
 before reading an existing file. After Core assesses its declared inverse, the
-form applies imported field text as one revision only if the captured revision
+form applies cloned imported typed values as one revision only if the captured revision
 still matches and cancellation/disposal have not invalidated the operation.
 Manual edits use the same form gate, so a late read cannot overwrite them.
 Field/property and input-change notifications run after the outermost form
@@ -38,10 +38,22 @@ snapshot and secret-consent gates. An empty object `{}` or list `[]` is distinct
 from an absent answer; supplying an existing container preserves its contents.
 Clearing an absent nested child does not materialize its ancestors or advance
 the input revision. Clearing a supplied container removes it and reevaluates
-requiredness. `DefinitionScalarEditing` converts scalar drafts without target
-semantics: empty text means absence, whitespace in strings remains literal,
-and rejected conversions produce no replacement value. List editors distinguish
-an abandoned empty append draft from an existing empty string item.
+requiredness. Typed presence is owned independently of display text.
+`DefinitionScalarEditing` converts scalar drafts without target semantics:
+explicit empty strings and admitted empty enum choices remain values, whitespace
+in strings remains literal, and rejected conversions retain invalid draft state.
+Explicit omission removes an answer path without clearing its siblings. Core's
+declared-default fallback remains effective for absent answers; omission does
+not override that definition policy. Scalar edit
+intent, parsing, validity and revision settle under the same mutation gate.
+Deliberate invalid, rejected or same-value edits advance one revision and fence
+pending imports even if accepted JSON does not change. Programmatic refresh,
+untouched navigation and abandoned append slots do not materialize answers or
+advance the revision. Browser and native selection controls distinguish an
+empty enum choice from omission rather than sharing an empty selection identity.
+Browser numeric controls retain raw text with numeric/decimal keyboard hints;
+native HTML number sanitization must not turn an incomplete token into absence.
+Preparation rejects those invalid drafts through the same shared conversion.
 Native bundle clients compose a selected set from one captured snapshot through
 `DefinitionBundleComposer` and hand the immutable result to the protected
 bundle publisher; per-file publication can have a written prefix after a later

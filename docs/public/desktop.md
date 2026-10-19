@@ -50,7 +50,11 @@ explicitly. Protected inputs are masked, including descendants of an object
 whose nested fields raise its sensitivity. Protected boolean and enum values
 use masked entry instead of a popup that could disclose their choices.
 Protected booleans accept `true` or `false`; protected enums accept their
-declared value. A blank entry is unset. The workspace scrolls vertically so
+declared value. Imported/default empty strings and admitted empty enum choices
+remain supplied values. Erasing a string after editing supplies an empty string;
+use **Clear** or **Not supplied** to omit the answer. Declared defaults still
+apply to absent answers. Untouched blank controls
+and view refresh do not create answers. The workspace scrolls vertically so
 fields, artifact actions and status remain reachable in a shorter window.
 
 **Essential** shows active required, invalid, protected, consequential, and

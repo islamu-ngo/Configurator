@@ -44,7 +44,7 @@
   <DataTemplate x:Key="EnumFieldTemplate" DataType="fields:EnumFieldViewModel" x:DataType="fields:EnumFieldViewModel">
     <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
-      <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice, Mode=TwoWay}" IsVisible="{Binding IsPublic}"
+      <ComboBox ItemsSource="{Binding Choices}" SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" IsVisible="{Binding IsPublic}"
                 HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
                 local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
       <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding RequiresMasking}" MaxLength="65536"

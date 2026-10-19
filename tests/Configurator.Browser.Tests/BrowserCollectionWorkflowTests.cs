@@ -5,9 +5,74 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Core.Definitions;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserCollectionWorkflowTests
 {
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task OmittingInvalidObjectClearsItsDraftAndPreservesSibling(bool nested)
+    {
+        JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        document["fields"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
+              {"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
+              {"id":"count","type":"integer","title":"Count","sensitivity":"public","disclosure":"guided"},
+              {"id":"inner","type":"object","title":"Inner","sensitivity":"public","disclosure":"guided","properties":[
+                {"id":"count","type":"integer","title":"Inner count","sensitivity":"public","disclosure":"guided"}]}]}
+            """));
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
+        component.Find("#choice-mode").Change("single");
+        component.Find("#choice-hostname").Input("retained.test");
+        component.Find("[data-field='settings.name'] input").Input("kept");
+        string field = nested ? "settings.inner.count" : "settings.count";
+        component.Find($"[data-field='{field}'] input").Input("invalid");
+        if (nested) component.Find("[data-field='settings.count'] input").Input("also-invalid");
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.HasInputErrors).IsTrue();
+        string container = nested ? "settings.inner" : "settings";
+        component.Find($"[data-field='{container}'] > [data-action=omit]").Click();
+        await Assert.That(component.Find($"[data-field='{field}'] input").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Find($"[data-field='{field}'] > .configuration-field__error").TextContent).IsEqualTo("");
+        if (nested)
+        {
+            await Assert.That(form.HasInputErrors).IsTrue();
+            component.Find("[data-field='settings.count'] input").Input("2");
+            await Assert.That(form.Snapshot().Values["settings"].GetProperty("name").GetString()).IsEqualTo("kept");
+        }
+        else await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
+        await Assert.That(form.HasInputErrors).IsFalse();
+        component.Find("#prepare-draft").Click();
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo("retained.test");
+    }
+
+    [Test]
+    public async Task EmptyStringRowAndContainerOmissionPreserveSiblingAnswers()
+    {
+        JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        document["fields"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"tags","type":"list","title":"Tags","itemType":"string","sensitivity":"public","disclosure":"guided"}
+            """));
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
+        await component.Find("#choice-hostname").InputAsync(new ChangeEventArgs { Value = "example.test" });
+        await component.Find("[data-field='tags'] [data-action='add-item']").ClickAsync(new MouseEventArgs());
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.Snapshot().Values["tags"].GetRawText()).IsEqualTo("""[""]""");
+        await component.Find("[data-field='tags.0'] input").InputAsync(new ChangeEventArgs { Value = "erase" });
+        await component.Find("[data-field='tags.0'] input").InputAsync(new ChangeEventArgs { Value = "" });
+        await Assert.That(form.Snapshot().Values["tags"].GetRawText()).IsEqualTo("""[""]""");
+        await component.Find("[data-field='tags'] > [data-action='omit']").ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values.ContainsKey("tags")).IsFalse();
+        await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("example.test");
+    }
+
     [Test]
     public async Task DuplicateRowDiagnosticConnectsOnlyAffectedRowAndCollectionControls()
     {
@@ -107,6 +172,10 @@ public sealed class BrowserCollectionWorkflowTests
         component.Find("#choice-hostname").Input("example.test");
         component.Find("#choice-count").Input("7");
         component.Find("#choice-rate").Input("1.25");
+        await Assert.That(component.Find("#choice-count").GetAttribute("type")).IsEqualTo("text");
+        await Assert.That(component.Find("#choice-count").GetAttribute("inputmode")).IsEqualTo("numeric");
+        await Assert.That(component.Find("#choice-rate").GetAttribute("type")).IsEqualTo("text");
+        await Assert.That(component.Find("#choice-rate").GetAttribute("inputmode")).IsEqualTo("decimal");
         component.Find("[data-field='tags'] > fieldset > button[data-action='add-item']").Click();
         component.Find("[data-field='tags.0'] input").Input("blue");
         await Assert.That(component.Find("[data-field='settings.enabled'] input").GetAttribute("type")).IsEqualTo("password");

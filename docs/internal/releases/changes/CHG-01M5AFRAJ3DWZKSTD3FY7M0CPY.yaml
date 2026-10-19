@@ -1,0 +1,31 @@
+Change-Id: CHG-01M5AFRAJ3DWZKSTD3FY7M0CPY
+Title: "preserve explicitly supplied empty configuration values"
+Type: fix
+Scope: definitions
+Summary: "Keep supplied empty strings and admitted empty enum choices distinct from omission across imported answers and Browser, Desktop and Terminal editors. Fence pending work on deliberate invalid or same-value edits without materializing untouched controls."
+Group: definitions
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Typed presence no longer follows empty display text. Direct editors use explicit omission and coherent edit intent; explicitly supplied empty strings and empty enum choices remain values."
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Deliberate invalid or rejected edits advance the answer revision and invalidate prior preparation and pending imports even when accepted JSON does not change. Nested secret consent remains authoritative."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Use explicit omission to remove an optional answer. No persisted answer format or database migration is introduced; native and Browser editors migrate together."
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Imported or deliberately supplied empty values remain present in prepared configuration. False, zero, empty strings and empty containers are not absence."
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Choose omission explicitly when a setting should be absent. Navigation and untouched append drafts do not supply values or change the answer revision."

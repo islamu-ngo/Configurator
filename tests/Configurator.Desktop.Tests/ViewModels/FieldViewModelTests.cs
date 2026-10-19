@@ -16,6 +16,55 @@ using Configurator.Presentation;
 public sealed class FieldViewModelTests
 {
     [Test]
+    public async Task EmptyEnumSelectionSurvivesRefreshAndClearMeansOmission()
+    {
+        using var form = Form("""
+            {"id":"value","title":"Value","type":"enum","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
+            """);
+        var fields = new FormFieldFactory().Create(form);
+        try
+        {
+            var field = (EnumFieldViewModel)fields.Single();
+            long before = form.InputRevision;
+            field.Refresh(DesktopDisplayMode.Advanced);
+            await Assert.That(form.InputRevision).IsEqualTo(before);
+            await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
+            field.SelectedIndex = 2;
+            field.SelectedIndex = 1;
+            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
+            before = form.InputRevision;
+            field.Refresh(DesktopDisplayMode.Guided);
+            await Assert.That(form.InputRevision).IsEqualTo(before);
+            field.ClearCommand.Execute(null);
+            await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
+        }
+        finally { Dispose(fields); }
+    }
+
+    [Test]
+    public async Task DefaultEmptyStringAndErasedStringRemainSuppliedUntilClear()
+    {
+        using var form = Form("""
+            {"id":"value","title":"Value","type":"string","default":"","sensitivity":"public","disclosure":"guided"}
+            """);
+        var fields = new FormFieldFactory().Create(form);
+        try
+        {
+            FieldViewModel field = fields.Single();
+            long before = form.InputRevision;
+            field.Refresh(DesktopDisplayMode.Advanced);
+            await Assert.That(form.InputRevision).IsEqualTo(before);
+            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
+            field.Text = "erase";
+            field.Text = "";
+            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
+            field.ClearCommand.Execute(null);
+            await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
+        }
+        finally { Dispose(fields); }
+    }
+
+    [Test]
     public async Task FactoryProjectsEveryDeclaredType()
     {
         using var form = Form();
@@ -54,7 +103,7 @@ public sealed class FieldViewModelTests
             if (field is EnumFieldViewModel choice)
             {
                 await Assert.That(choice.Choices.Count).IsEqualTo(0);
-                await Assert.That(choice.SelectedChoice).IsEmpty();
+                await Assert.That(choice.SelectedIndex).IsEqualTo(-1);
             }
             if (field is BooleanFieldViewModel boolean)
                 await Assert.That(boolean.Value).IsNull();

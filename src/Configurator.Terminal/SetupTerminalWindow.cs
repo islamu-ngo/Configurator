@@ -53,6 +53,8 @@ internal sealed class SetupTerminalWindow : Window
     private SetupTerminalPublicationReceipt? _receipt;
     private int _publicationRefreshQueued;
     private bool _loading;
+    private bool _draftEdited;
+    private bool _draftValid = true;
     private bool _disposed;
     private bool _tooSmall;
     private bool _confirmRemove;
@@ -120,8 +122,11 @@ internal sealed class SetupTerminalWindow : Window
         _nextAttempt.Visible = false;
         _status = new TextField
         {
-            X = 1, Y = 18, Width = Dim.Fill(2),
-            ReadOnly = true, Text = SetupTerminalText.Get("Ready")
+            X = 1,
+            Y = 18,
+            Width = Dim.Fill(2),
+            ReadOnly = true,
+            Text = SetupTerminalText.Get("Ready")
         };
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
@@ -194,10 +199,11 @@ internal sealed class SetupTerminalWindow : Window
     private void EditorChanged()
     {
         if (_loading) return;
+        _draftEdited = true;
         _confirmRemove = false;
         _importOperation.RequestCancellationAsync();
         _operation.Invalidate();
-        Status("InputChanged");
+        Status(CommitField() ? "InputChanged" : "DraftInvalid");
         RefreshCommands();
     }
 
@@ -205,6 +211,8 @@ internal sealed class SetupTerminalWindow : Window
     {
         if (Volatile.Read(ref _closeRequested) != 0) return false;
         if (_slot is null) return true;
+        if (!_draftEdited) return _draftValid;
+        _draftEdited = false;
         byte[] bytes = [];
         try
         {
@@ -214,7 +222,8 @@ internal sealed class SetupTerminalWindow : Window
                 bytes = _secret.Count == 0 ? [] : _secret.CopyUtf8Bytes();
                 text = Encoding.UTF8.GetString(bytes);
             }
-            if (!SetupTerminalFieldEditor.Write(_slot, text, _itemIndex))
+            _draftValid = SetupTerminalFieldEditor.Write(_slot, text, _itemIndex);
+            if (!_draftValid)
             {
                 Status("DraftInvalid");
                 return false;
@@ -279,12 +288,13 @@ internal sealed class SetupTerminalWindow : Window
         }
         if (!collection.IsObjectList)
         {
-            _itemIndex = SetupTerminalFieldEditor.ItemCount(collection);
+            if (!SetupTerminalFieldEditor.AddItem(collection)) { Status("DraftInvalid"); return; }
+            _itemIndex = SetupTerminalFieldEditor.ItemCount(collection) - 1;
             ShowField();
             FocusInput();
             return;
         }
-        if (!SetupTerminalFieldEditor.AddObjectItem(collection)) { Status("DraftInvalid"); return; }
+        if (!SetupTerminalFieldEditor.AddItem(collection)) { Status("DraftInvalid"); return; }
         _itemIndex = SetupTerminalFieldEditor.ItemCount(collection) - 1;
         MoveField(1);
     }
@@ -311,6 +321,8 @@ internal sealed class SetupTerminalWindow : Window
         try
         {
             _confirmRemove = false;
+            _draftEdited = false;
+            _draftValid = true;
             _masked.ClearSensitiveState();
             _value.Text = string.Empty;
             var slots = _editor.Slots;
@@ -347,7 +359,9 @@ internal sealed class SetupTerminalWindow : Window
         _value.Visible = scalar && _slot is { RequiresMasking: false };
         _masked.Visible = scalar && _slot is { RequiresMasking: true };
         _addItem.Visible = !_tooSmall && _slot is { IsList: true };
-        _supplyContainer.Visible = _clearContainer.Visible = !_tooSmall && _slot is { IsContainer: true };
+        _supplyContainer.Visible = !_tooSmall && _slot is { IsContainer: true };
+        _clearContainer.Visible = !_tooSmall && _slot is not null;
+        _clearContainer.Text = _slot is { IsContainer: true } ? SetupTerminalText.Get("ClearContainer") : "Omit value";
         _choice.Visible = !_tooSmall && _slot is not null && SetupTerminalFieldEditor.Choices(_slot).Count > 0;
         foreach (var button in _listButtons) button.Visible = !_tooSmall && _slot is { IsList: true };
     }

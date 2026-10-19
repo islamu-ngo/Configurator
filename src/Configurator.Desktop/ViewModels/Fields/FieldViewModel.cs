@@ -1,7 +1,6 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
 using System.ComponentModel;
-using System.Globalization;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -101,7 +100,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             else
             {
                 SetProperty(ref _text, value);
-                _provided = value.Length > 0 || IsListItem;
+                _provided = true;
                 NotifyValue();
             }
             Parent?.MarkProvided();
@@ -138,30 +137,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     {
         value = null;
         if (!_provided) return true;
-        switch (Schema.GetProperty("type").GetString())
-        {
-            case "string":
-                value = JsonSerializer.SerializeToElement(Text);
-                return true;
-            case "enum":
-                foreach (var choice in Schema.GetProperty("choices").EnumerateArray())
-                    if (Display(choice) == Text) { value = choice; return true; }
-                return false;
-            case "boolean":
-                if (!bool.TryParse(Text, out bool boolean)) return false;
-                value = JsonSerializer.SerializeToElement(boolean);
-                return true;
-            case "integer":
-                if (!long.TryParse(Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long integer)) return false;
-                value = JsonSerializer.SerializeToElement(integer);
-                return true;
-            case "number":
-                if (!decimal.TryParse(Text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number)) return false;
-                value = JsonSerializer.SerializeToElement(number);
-                return true;
-            default:
-                return false;
-        }
+        return DefinitionScalarEditing.TryParse(Schema.GetProperty("type").GetString()!, Text, Schema, out value);
     }
 
     protected virtual void NotifyValue() { }
@@ -171,7 +147,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _provided = value is not null;
         SetProperty(ref _text, value?.GetRawText() ?? string.Empty, nameof(Text));
     }
-    protected void MarkProvided()
+    internal void MarkProvided()
     {
         _structuredInvalid = false;
         _provided = true;
@@ -185,11 +161,14 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         root._synchronizing = true;
         try
         {
-            string text = root is ObjectFieldViewModel or ListFieldViewModel
-                ? root.TryValue(out var value) ? value?.GetRawText() ?? string.Empty : "invalid"
-                : root.Text;
-            root._input.Text = text;
-            if (root._input.Text != text) root.LoadInput();
+            bool accepted;
+            if (root.TryValue(out var value)) accepted = root._form!.SetValue([root.Id], value);
+            else
+            {
+                root._input.Text = root is ObjectFieldViewModel or ListFieldViewModel ? "invalid" : root.Text;
+                accepted = root._input.InputDiagnosticCode != "answer-budget-exceeded";
+            }
+            if (!accepted) root.LoadInput();
             else root.UpdateStructuredText();
         }
         finally { root._synchronizing = false; }
@@ -269,7 +248,6 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         if (IsDisposed) return;
         Load(IsListItem && Schema.GetProperty("type").GetString() == "string"
             ? JsonSerializer.SerializeToElement("") : null);
-        Parent?.MarkProvided();
         Commit();
         RequestFocus();
     }

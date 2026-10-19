@@ -35,11 +35,16 @@ Arabic resources follow the process UI culture.
    Supply container and Clear container actions. Supply deliberately includes
    the container, including an empty object or list; Clear omits it and checks
    requiredness again. Browsing blank object properties leaves an omitted object
-   omitted. Object properties remain separate editable fields.
+    omitted. Object properties remain separate editable fields. Scalar fields
+    offer **Omit value** to remove the answer explicitly. Supplied empty strings
+    and admitted empty enum choices remain values; omission is a separate action.
+    Declared defaults still apply to absent answers.
    Lists use Previous item, Next/add item, Add item and Remove item. When capacity
    remains, the position after the last item is the new-item position. Leave an
    empty new-item draft to skip adding it, including for boolean and numeric
-   lists. At the item limit, a notice explains the bound and existing items stay
+    lists. Deliberately choosing **Add item** supplies a typed item, including an
+    empty string item; editing and then erasing that string retains its presence.
+    At the item limit, a notice explains the bound and existing items stay
    editable; field navigation remains available even when no items are allowed.
    To delete an existing item, press Remove item twice. Navigating or editing
    cancels the confirmation. Selection then moves to the next item, the previous

@@ -21,7 +21,7 @@ public sealed class DefinitionPresentationOperationTests
         await Assert.That(form.InputRevision).IsEqualTo(1);
         await Assert.That(discarded.ToString()).DoesNotContain("private-import-marker");
 
-        form.Fields.Single().Text = string.Empty;
+        form.SetValue(["service.name"], null);
         DefinitionImportResult applied = await form.ImportAsync("config",
             _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"name":"private-import-marker"}"""u8.ToArray()));
         await Assert.That(applied.Succeeded).IsTrue();

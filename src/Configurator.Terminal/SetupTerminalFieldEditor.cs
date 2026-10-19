@@ -71,9 +71,9 @@ internal sealed class SetupTerminalFieldEditor
     }
     internal static bool Supply(Slot slot) => slot.IsObject ? slot.Form.SupplyObject(slot.FullPath)
         : slot.IsList && slot.Form.SupplyList(slot.FullPath);
-    internal static bool Clear(Slot slot) => slot.Form.SetValue(slot.FullPath, null);
+    internal static bool Clear(Slot slot) => slot.Form.EditValue(slot.FullPath, null);
     internal static bool HasItem(Slot slot, int index) => Node(slot) is JsonArray items && index >= 0 && index < items.Count;
-    internal static bool AddObjectItem(Slot slot) => slot.IsObjectList && slot.Form.AddListItem(slot.FullPath);
+    internal static bool AddItem(Slot slot) => slot.IsList && slot.Form.AddListItem(slot.FullPath);
 
     internal static IReadOnlyList<string> Choices(Slot slot)
     {
@@ -86,26 +86,22 @@ internal sealed class SetupTerminalFieldEditor
     internal static bool Write(Slot slot, string text, int listIndex = 0)
     {
         if (slot.IsObject || slot.IsObjectList) return text.Length == 0;
-        if (text.Length > 65_536) return false;
         if (slot.IsList)
         {
             JsonArray array = Node(slot) as JsonArray ?? [];
             if (listIndex < 0 || listIndex > array.Count) return false;
             if (listIndex == array.Count && text.Length == 0) return true;
             if (array.Count >= MaximumItems(slot) && listIndex == array.Count) return false;
-            JsonNode? value;
-            if (text.Length == 0 && slot.ScalarType == "string") value = JsonValue.Create(string.Empty);
-            else
+            string[] itemPath = [.. slot.FullPath, listIndex.ToString(CultureInfo.InvariantCulture)];
+            if (listIndex < array.Count) return slot.Form.EditValue(itemPath, text);
+            if (!DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Metadata, out JsonElement? scalar))
             {
-                if (text.Length == 0 || !DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Metadata, out JsonElement? scalar)) return false;
-                value = scalar is { } item ? JsonNode.Parse(item.GetRawText()) : null;
+                return slot.Form.EditValue(itemPath, text);
             }
-            if (listIndex == array.Count) array.Add(value);
-            else array[listIndex] = value;
+            array.Add(scalar is { } item ? JsonNode.Parse(item.GetRawText()) : null);
             return slot.Form.SetValue(slot.FullPath, JsonSerializer.SerializeToElement(array));
         }
-        return DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Metadata, out JsonElement? parsed)
-            && slot.Form.SetValue(slot.FullPath, parsed);
+        return slot.Form.EditValue(slot.FullPath, text);
     }
 
     internal static void Remove(Slot slot, int listIndex)

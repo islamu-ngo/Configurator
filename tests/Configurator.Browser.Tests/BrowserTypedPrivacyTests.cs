@@ -5,11 +5,70 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Core.Definitions;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
 public sealed class BrowserTypedPrivacyTests
 {
+    [Test]
+    public async Task EmptyEnumSelectionAndAccessibleOmissionHaveDistinctIdentities()
+    {
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
+            {"id":"emptyChoice","type":"enum","title":"Empty choice","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
+            """)));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        var options = component.FindAll("[data-field='emptyChoice'] option");
+        await Assert.That(options[0].GetAttribute("value")).IsNotEqualTo(options[1].GetAttribute("value"));
+        await component.Find("[data-field='emptyChoice'] select").ChangeAsync(new ChangeEventArgs { Value = options[1].GetAttribute("value") });
+        await Assert.That(form.Snapshot().Values["emptyChoice"].GetRawText()).IsEqualTo("\"\"");
+        var omit = component.Find("[data-field='emptyChoice'] [data-action='omit']");
+        await Assert.That(omit.GetAttribute("aria-label")).IsEqualTo("Omit Empty choice");
+        await Assert.That(omit.GetAttribute("type")).IsEqualTo("button");
+        await omit.ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values.ContainsKey("emptyChoice")).IsFalse();
+        await Assert.That(component.Find("[data-field='emptyChoice'] select").GetAttribute("value")).IsEqualTo("");
+    }
+
+    [Test]
+    public async Task NestedSecretOmissionStaysDisabledAndOrdinaryEmptyStringStaysSupplied()
+    {
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
+            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
+              {"id":"ordinary","type":"string","title":"Ordinary setting","sensitivity":"public","disclosure":"guided"},
+              {"id":"secret","type":"string","title":"Secret setting","sensitivity":"secret","disclosure":"guided"}]}
+            """)));
+        await component.Find("[data-field='settings.ordinary'] input").InputAsync(new ChangeEventArgs { Value = "erase" });
+        await component.Find("[data-field='settings.ordinary'] input").InputAsync(new ChangeEventArgs { Value = "" });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.Snapshot().Values["settings"].GetProperty("ordinary").GetRawText()).IsEqualTo("\"\"");
+        await Assert.That(component.Find("[data-field='settings.secret'] [data-action='omit']").HasAttribute("disabled")).IsTrue();
+        await component.Find("[data-field='settings.ordinary'] [data-action='omit']").ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values["settings"].GetRawText()).IsEqualTo("{}");
+    }
+
+    [Test]
+    public async Task RejectedNestedEditFencesImportBeforeAnyTypedValueExists()
+    {
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
+            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
+              {"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"sensitive","disclosure":"guided"}]}
+            """)));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        long before = form.InputRevision;
+        var read = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<DefinitionImportResult> import = form.ImportAsync("config", _ => read.Task);
+        await component.Find("[data-field='settings.enabled'] input").InputAsync(new ChangeEventArgs { Value = "invalid" });
+        read.SetResult("""{"mode":"single","hostname":"late.example","credential":"synthetic"}"""u8.ToArray());
+        await Assert.That(form.InputRevision).IsEqualTo(before + 1);
+        await Assert.That(form.HasInputErrors).IsTrue();
+        await Assert.That((await import.WaitAsync(TimeSpan.FromSeconds(5))).Code).IsEqualTo("import-stale");
+    }
+
     [Test]
     public async Task LocallyCompiledNestedSecretsRequireConsentAndRevocationClearsOutput()
     {

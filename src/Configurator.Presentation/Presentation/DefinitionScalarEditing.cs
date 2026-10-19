@@ -3,14 +3,14 @@ namespace Configurator.Presentation;
 using System.Globalization;
 using System.Text.Json;
 
-/// <summary>Converts scalar editor text to typed values; empty text represents an absent answer.</summary>
+/// <summary>Converts supplied scalar drafts; empty strings and admitted empty choices remain values.</summary>
 public static class DefinitionScalarEditing
 {
     public static bool TryParse(string type, string text, JsonElement metadata, out JsonElement? value)
     {
         value = null;
-        if (text.Length == 0) return true;
         if (text.Length > 65_536) return false;
+        if (text.Length == 0 && type is "boolean" or "integer" or "number") return true;
         switch (type)
         {
             case "string":

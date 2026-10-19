@@ -15,6 +15,40 @@ using global::Terminal.Gui.Views;
 public sealed class SetupTerminalGuiAdapterTests
 {
     [Test]
+    public async Task ExplicitEmptyEnumChoiceIsNotOmission()
+    {
+        using var form = new DefinitionFormModel(EditingDefinition("""
+            {"id":"choice","title":"Choice","type":"enum","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
+            """));
+        var slot = new SetupTerminalFieldEditor(form).Slots.Single();
+        await Assert.That(SetupTerminalFieldEditor.Write(slot, "")).IsTrue();
+        await Assert.That(form.Snapshot().Values["choice"].GetRawText()).IsEqualTo("\"\"");
+        await Assert.That(SetupTerminalFieldEditor.Clear(slot)).IsTrue();
+        await Assert.That(form.Snapshot().Values.ContainsKey("choice")).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task DeliberateEmptyRowAndErasedRowAgreeWhileNavigationDoesNotRevise()
+    {
+        using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
+            {"id":"items","title":"Items","type":"list","itemType":"string","sensitivity":"public","disclosure":"guided"},
+            {"id":"after","title":"After","type":"string","sensitivity":"public","disclosure":"guided"}
+            """)));
+        Button add = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("AddItem"));
+        add.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Form.Snapshot().Values["items"].GetRawText()).IsEqualTo("""[""]""");
+        harness.Window.PublicInput.Text = "erase";
+        harness.Window.PublicInput.Text = "";
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(harness.Form.Snapshot().Values["items"].GetRawText()).IsEqualTo("""[""]""");
+        long before = harness.Form.InputRevision;
+        harness.Window.MoveField(1);
+        harness.Window.MoveField(-1);
+        await Assert.That(harness.Form.InputRevision).IsEqualTo(before);
+    }
+
+    [Test]
     [Arguments("boolean")]
     [Arguments("integer")]
     [Arguments("number")]
@@ -487,26 +521,26 @@ public sealed class SetupTerminalGuiAdapterTests
         using var form = new DefinitionFormModel(ObjectListDefinition());
         var editor = new SetupTerminalFieldEditor(form);
         var collection = editor.Slots.Single(slot => slot.IsObjectList);
-        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(collection)).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddItem(collection)).IsTrue();
         var name = editor.Slots.Single(slot => slot.Title == "Row name");
         var password = editor.Slots.Single(slot => slot.Title == "Row password");
         await Assert.That(SetupTerminalFieldEditor.Write(name, "first")).IsTrue();
         await Assert.That(SetupTerminalFieldEditor.Write(password, "synthetic-secret")).IsTrue();
         await Assert.That(password.RequiresMasking).IsTrue();
-        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(collection)).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddItem(collection)).IsTrue();
         var secondName = editor.Slots.Single(slot => slot.Title == "Row name" && slot.Path[0] == "1");
         await Assert.That(SetupTerminalFieldEditor.Write(secondName, "second")).IsTrue();
-        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(collection)).IsFalse();
+        await Assert.That(SetupTerminalFieldEditor.AddItem(collection)).IsFalse();
         var aliases = editor.Slots.Single(slot => slot.Title == "Aliases" && slot.Path[0] == "0");
         await Assert.That(SetupTerminalFieldEditor.Write(aliases, "alpha", 0)).IsTrue();
         await Assert.That(SetupTerminalFieldEditor.Write(aliases, "beta", 1)).IsTrue();
         SetupTerminalFieldEditor.Remove(aliases, 0);
         await Assert.That(SetupTerminalFieldEditor.Read(aliases)).IsEqualTo("beta");
         var localizations = editor.Slots.Single(slot => slot.Title == "Localizations" && slot.Path[0] == "0");
-        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(localizations)).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddItem(localizations)).IsTrue();
         var locale = editor.Slots.Single(slot => slot.Title == "Locale");
         await Assert.That(SetupTerminalFieldEditor.Write(locale, "en")).IsTrue();
-        await Assert.That(SetupTerminalFieldEditor.AddObjectItem(localizations)).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddItem(localizations)).IsTrue();
         var secondLocale = editor.Slots.Single(slot => slot.Title == "Locale" && slot.Path[2] == "1");
         await Assert.That(SetupTerminalFieldEditor.Write(secondLocale, "ar")).IsTrue();
         SetupTerminalFieldEditor.Remove(localizations, 0);

@@ -19,8 +19,7 @@ internal static class DefinitionSecretPolicy
     internal static bool ContainsSecret(JsonElement metadata, JsonElement value, bool inherited = false)
     {
         if (IsSecret(metadata, inherited))
-            return value.ValueKind != JsonValueKind.Null &&
-                (value.ValueKind != JsonValueKind.String || value.GetString()!.Length > 0);
+            return value.ValueKind != JsonValueKind.Null;
         if (!metadata.TryGetProperty("properties", out JsonElement properties)) return false;
         if (value.ValueKind == JsonValueKind.Array)
             return value.EnumerateArray().Any(item => ContainsProperties(properties, item));

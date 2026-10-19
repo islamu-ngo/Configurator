@@ -1,6 +1,5 @@
 namespace Configurator.Browser.Components.Configuration;
 
-using System.Globalization;
 using System.Text.Json;
 using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
@@ -32,6 +31,7 @@ public partial class ConfigurationField
     private int _focusNewRow = -1;
     private bool _focusObjectChildren;
     private bool _focusAdd;
+    private bool _focusAfterOmit;
     private bool _invalid;
     private string? _editing;
     private string? _observedText;
@@ -44,6 +44,25 @@ public partial class ConfigurationField
     private string? Help => Schema.TryGetProperty("help", out var value) ? value.GetString() : null;
     private string? Consequence => Schema.TryGetProperty("consequence", out var value) ? value.GetString() : null;
     private bool Required => RequiredOverride ?? (Schema.TryGetProperty("required", out var value) && value.GetBoolean());
+    private bool HasEmptyChoice => Type == "enum" && Schema.GetProperty("choices").EnumerateArray()
+        .Any(choice => choice.ValueKind == JsonValueKind.String && choice.GetString() == "");
+    private string ChoiceIdentity(int index, JsonElement choice) => HasEmptyChoice
+        ? index.ToString(System.Globalization.CultureInfo.InvariantCulture) : Display(choice);
+    private string Selection
+    {
+        get
+        {
+            if (Value is not { } value) return "";
+            if (Type != "enum") return Display(value);
+            int index = 0;
+            foreach (JsonElement choice in Schema.GetProperty("choices").EnumerateArray())
+            {
+                if (JsonElement.DeepEquals(choice, value)) return ChoiceIdentity(index, choice);
+                index++;
+            }
+            return "";
+        }
+    }
     private bool IsSecret => InheritedSecret || Schema.TryGetProperty("sensitivity", out var value) && value.GetString() == "secret";
     private bool IsMasked => IsSecret || InheritedSensitive || Schema.TryGetProperty("sensitivity", out var value) && value.GetString() == "sensitive";
     private int MaximumItems => Schema.TryGetProperty("maxItems", out var value) ? value.GetInt32() : SetupCompositionLimits.DefaultSequenceEntries;
@@ -61,6 +80,7 @@ public partial class ConfigurationField
     private JsonElement ItemSchema => JsonSerializer.SerializeToElement(new Dictionary<string, object?>
     {
         ["type"] = Schema.GetProperty("itemType").GetString(),
+        ["required"] = true,
         ["title"] = Title + " item",
         ["sensitivity"] = Schema.GetProperty("sensitivity").GetString(),
         ["properties"] = Schema.TryGetProperty("properties", out var value) ? value : (JsonElement?)null
@@ -91,39 +111,48 @@ public partial class ConfigurationField
             _editing = null;
             if (_invalid) { _invalid = false; _ = NotifyValidityAsync(); }
         }
+        if (_invalid && !Form.HasInputError(Path))
+        {
+            _invalid = false;
+            _editing = null;
+            _ = NotifyValidityAsync();
+        }
         string? current = Value is { } value ? Display(value) : null;
         if (_observedText != current) _editing = null;
         _observedText = current;
     }
-    private void Edit(ChangeEventArgs args) => EditText(args.Value?.ToString());
+    private void Edit(ChangeEventArgs args)
+    {
+        string selection = args.Value?.ToString() ?? "";
+        if (selection.Length == 0) { Omit(); return; }
+        if (HasEmptyChoice)
+        {
+            if (!int.TryParse(selection, out int index) || index < 0 ||
+                index >= Schema.GetProperty("choices").GetArrayLength()) return;
+            _invalid = !Form.SetValue(Path, Schema.GetProperty("choices")[index]);
+            _editing = null;
+            _ = NotifyValidityAsync();
+            return;
+        }
+        EditText(selection);
+    }
     private void EditText(string? suppliedText)
     {
         string text = suppliedText ?? string.Empty;
         _editing = text;
-        if (Path.Count == 1)
-        {
-            var input = Form.Fields.Single(field => field.Definition.Id == Path[0]);
-            input.Text = text;
-            _invalid = input.InputDiagnosticCode is not null || !input.TryValue(out _);
-            _ = NotifyValidityAsync();
-            return;
-        }
-        JsonElement? value = null;
-        _invalid = false;
-        if (text.Length > 0)
-        {
-            if (Type is "string" or "enum") value = JsonSerializer.SerializeToElement(text);
-            else if (Type == "boolean" && bool.TryParse(text, out bool boolean)) value = JsonSerializer.SerializeToElement(boolean);
-            else if (Type == "integer" && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long integer)) value = JsonSerializer.SerializeToElement(integer);
-            else if (Type == "number" && decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number)) value = JsonSerializer.SerializeToElement(number);
-            else _invalid = true;
-        }
-        // Remove an invalid previous value so strict preparation cannot use stale input.
-        if (!Form.SetValue(Path, _invalid ? null : value)) _invalid = true;
+        _invalid = !Form.EditValue(Path, text);
         _observedText = Value is { } supplied ? Display(supplied) : null;
         _ = NotifyValidityAsync();
     }
     private Task NotifyValidityAsync() => ValidationChanged.InvokeAsync((ControlId, Path[0], _invalid));
+    private void Omit()
+    {
+        if (!Form.EditValue(Path, null)) return;
+        _editing = null;
+        _invalid = false;
+        _focusAfterOmit = true;
+        _ = NotifyValidityAsync();
+    }
     private void Add()
     {
         _focusNewRow = Count;
@@ -142,6 +171,13 @@ public partial class ConfigurationField
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         _focusNewRow = -1;
+        if (_focusAfterOmit)
+        {
+            _focusAfterOmit = false;
+            if (Type is "object" or "list") await _group.FocusAsync(preventScroll: true);
+            else if (_input is not null) await _input.FocusAsync();
+            else await _control.FocusAsync(preventScroll: true);
+        }
         if (_focusObjectChildren) { _focusObjectChildren = false; if (!CanFocus(Schema, Path)) await _group.FocusAsync(preventScroll: true); }
         if (FocusFirstControl && !_focusedForRequest && Form.CanEdit(Path) && Type != "object" && (Type != "list" || Count == 0))
         {
