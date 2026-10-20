@@ -90,6 +90,10 @@ unknown, transformed, conditional, inactive or conflicting input rejects with
 a value-free code. It returns an answer snapshot without mutating the caller's
 current workspace. A partial prefill may still lack required native answers;
 it does not imply native readiness or target acceptance.
+`CanImport` uses the same mapping admission as `Assess`. Successful results carry
+immutable `ProvidedFields` root identifiers. Callers may pass a provenance-owned
+set of replaceable default roots; absent that permission, existing unequal
+answers remain conflicts. Full merged snapshot limits and validation still apply.
 
 `DotenvEntry`, `DotenvDocument`, `DotenvCodec`, `ArtifactDigest`, and
 `SetupArtifactKind`/`SetupArtifactPolicy` remain writer-compatible. The old

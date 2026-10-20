@@ -8,44 +8,24 @@ using Configurator.Core.Environment;
 
 public sealed record DefinitionImportResult(bool Succeeded, SetupAnswerSnapshot? Answers, string Code)
 {
+    public IReadOnlyList<string> ProvidedFields { get; init; } = [];
     public override string ToString() => $"{nameof(DefinitionImportResult)}:{Code}";
 }
 
 public static class DefinitionImport
 {
     public static DefinitionImportResult Assess(SetupDefinition definition, string artifactId,
-        ReadOnlyMemory<byte> bytes, SetupAnswerSnapshot current)
+        ReadOnlyMemory<byte> bytes, SetupAnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(current);
-        SetupArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
-        if (artifact is null || artifact.Format is not ("dotenv" or "json" or "yaml"))
-            return Failed("import-unsupported");
-
-        JsonElement projection = artifact.Data.GetProperty("projection");
-        if (projection.GetProperty("op").GetString() != "object"
-            || projection.TryGetProperty("when", out _))
-            return Failed("inverse-unsupported");
-        JsonElement members = projection.GetProperty("members");
-        var mappings = new Dictionary<string, string>(StringComparer.Ordinal);
-        var mappedFields = new HashSet<string>(StringComparer.Ordinal);
-        foreach (JsonProperty member in members.EnumerateObject())
-        {
-            if (member.Value.GetProperty("op").GetString() != "copy"
-                || member.Value.TryGetProperty("when", out _))
-                return Failed("inverse-unsupported");
-            string fieldId = member.Value.GetProperty("field").GetString()!;
-            if (artifact.Format == "dotenv" && definition.Fields.Single(item => item.Id == fieldId).Type
-                is not ("string" or "enum" or "boolean" or "integer" or "number"))
-                return Failed("inverse-unsupported");
-            if (!mappedFields.Add(fieldId)) return Failed("inverse-ambiguous");
-            mappings.Add(member.Name, fieldId);
-        }
+        if (!TryMappings(definition, artifactId, out SetupArtifactDefinition? artifact,
+            out Dictionary<string, string> mappings, out string code)) return Failed(code);
         try
         {
             if (bytes.IsEmpty || bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
                 return Failed("input-invalid");
-            Dictionary<string, JsonElement>? input = Parse(artifact.Format, bytes);
+            Dictionary<string, JsonElement>? input = Parse(artifact!.Format, bytes);
             if (input is null || input.Count == 0) return Failed("input-invalid");
 
             var values = current.Values.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
@@ -61,7 +41,7 @@ public static class DefinitionImport
                     definition.Fields.Single(item => item.Id == field), value.GetString()!, out answer))
                     return Failed("inverse-unsupported");
                 if (values.TryGetValue(field, out JsonElement previous)
-                    && !JsonElement.DeepEquals(previous, answer))
+                    && !JsonElement.DeepEquals(previous, answer) && replaceableDefaults?.Contains(field) != true)
                     return Failed("answer-conflict");
                 values[field] = answer;
             }
@@ -71,13 +51,47 @@ public static class DefinitionImport
             if (validation.Fields.Any(field => imported.Contains(field.Id) && (!field.IsActive || field.HasError))
                 || validation.Diagnostics.Any(item => item.Code != "value-required"))
                 return Failed("import-field-invalid");
-            return new(true, candidate, "import-ready");
+            return new(true, candidate, "import-ready") { ProvidedFields = Array.AsReadOnly(imported.ToArray()) };
         }
         catch (Exception exception) when (exception is SetupCompositionException or JsonException
             or SetupDefinitionException or OverflowException or InvalidOperationException)
         {
             return Failed("input-invalid");
         }
+    }
+
+    public static bool CanImport(SetupDefinition definition, string artifactId) =>
+        TryMappings(definition, artifactId, out _, out _, out _);
+
+    private static bool TryMappings(SetupDefinition definition, string artifactId,
+        out SetupArtifactDefinition? artifact, out Dictionary<string, string> mappings, out string code)
+    {
+        artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
+        mappings = new(StringComparer.Ordinal);
+        code = "import-unsupported";
+        if (artifact is null || artifact.Format is not ("dotenv" or "json" or "yaml"))
+            return false;
+
+        code = "inverse-unsupported";
+        JsonElement projection = artifact.Data.GetProperty("projection");
+        if (projection.GetProperty("op").GetString() != "object"
+            || projection.TryGetProperty("when", out _))
+            return false;
+        JsonElement members = projection.GetProperty("members");
+        var mappedFields = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonProperty member in members.EnumerateObject())
+        {
+            if (member.Value.GetProperty("op").GetString() != "copy"
+                || member.Value.TryGetProperty("when", out _))
+                return false;
+            string fieldId = member.Value.GetProperty("field").GetString()!;
+            if (artifact.Format == "dotenv" && definition.Fields.Single(item => item.Id == fieldId).Type
+                is not ("string" or "enum" or "boolean" or "integer" or "number"))
+                return false;
+            if (!mappedFields.Add(fieldId)) { code = "inverse-ambiguous"; return false; }
+            mappings.Add(member.Name, fieldId);
+        }
+        return true;
     }
 
     private static bool TryDotenvValue(SetupFieldDefinition field, string text, out JsonElement value)

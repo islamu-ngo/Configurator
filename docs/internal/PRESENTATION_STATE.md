@@ -16,6 +16,17 @@ definition, artifact ID and input revision for a workspace execution.
 before reading an existing file. After Core assesses its declared inverse, the
 form applies cloned imported typed values as one revision only if the captured revision
 still matches and cancellation/disposal have not invalidated the operation.
+Core returns immutable `ProvidedFields` metadata from the actual parsed mappings,
+not a value comparison. Only those roots are applied and assigned imported
+provenance; unmentioned drafts, row identities and origins survive. Presentation
+captures pristine default roots under the same gate as the original snapshot
+and passes replacement permission to Core. Explicit-equal-default edits and
+invalid drafts do not qualify; Core still checks the full merged answer budget.
+Browser mounts the positive effects list only at the Review workflow location.
+It consumes value-free projection entries, origin metadata and declared output
+bindings; it never reads answers for review markup. Change uses literal typed
+paths and shared focus promotion; returning refreshes validation without an
+answer revision or automatic consent.
 Manual edits use the same form gate, so a late read cannot overwrite them.
 Field/property and input-change notifications run after the outermost form
 mutation releases that gate. Nested collection edits, imports and consent

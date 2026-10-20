@@ -587,7 +587,14 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(read);
-        SetupAnswerSnapshot original = Snapshot();
+        SetupAnswerSnapshot original;
+        HashSet<string> replaceableDefaults;
+        lock (_gate)
+        {
+            original = Snapshot();
+            replaceableDefaults = Fields.Where(field => field.IsPristineDefault)
+                .Select(field => field.Definition.Id).ToHashSet(StringComparer.Ordinal);
+        }
         if (cancellationToken.IsCancellationRequested)
             return new(false, null, "import-cancelled");
         ReadOnlyMemory<byte> bytes;
@@ -599,7 +606,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         try
         {
             if (cancellationToken.IsCancellationRequested) return new(false, null, "import-cancelled");
-            DefinitionImportResult result = DefinitionImport.Assess(Definition, artifactId, bytes, original);
+            DefinitionImportResult result = DefinitionImport.Assess(Definition, artifactId, bytes, original, replaceableDefaults);
             if (!result.Succeeded) return result;
             using (BeginMutation())
             {
@@ -609,10 +616,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                     result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value) &&
                     DefinitionSecretPolicy.ContainsSecret(field.Definition.Constraints, value)))
                     return new(false, null, "import-secret-consent-required");
-                _rowIdentities.Clear();
-                foreach (DefinitionFieldInput field in Fields)
+                foreach (DefinitionFieldInput field in Fields.Where(field => result.ProvidedFields.Contains(field.Definition.Id)))
                     if (result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value))
+                    {
+                        ClearRowIdentities([field.Definition.Id]);
                         field.SetImported(value);
+                    }
                 OnInputChanged();
                 return result;
             }
@@ -755,6 +764,8 @@ public sealed class DefinitionFieldInput : ObservableObject
     public bool HasAnswerBudgetError => InputDiagnosticCode == "answer-budget-exceeded";
     public string? InputDiagnosticCode => _inputDiagnosticCode ?? (_invalidPaths.Count > 0 ? "input-type-invalid" : null);
     internal JsonElement? Value => _value;
+    internal bool IsPristineDefault => _origin == DefinitionAnswerOrigin.Defaulted
+        && _origins.Count == 0 && InputDiagnosticCode is null;
     public IReadOnlyList<string> Choices =>
         Array.AsReadOnly(Definition.Choices.Select(Display).ToArray());
 

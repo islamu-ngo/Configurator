@@ -1,4 +1,48 @@
 @using Configurator.Core.Definitions
+@using Configurator.Presentation
+
+@if (ShowEffects && Form is not null)
+{
+    <section class="configuration-review__effects" data-review-effects aria-label="Configuration effects">
+        <p>Values stay masked here. Answer readiness is separate from file preparation and target acceptance.</p>
+        <ul class="configuration-review__outputs">
+            @foreach (var artifact in Definition.Artifacts)
+            {
+                <li><strong>@artifact.FileName</strong> · @artifact.ApplySemantics · restart: @artifact.Restart</li>
+            }
+        </ul>
+        <ul class="configuration-review__answers">
+            @foreach (var entry in Form.Projection.Entries)
+            {
+                var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, entry.RelativePath);
+                <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
+                    data-review-path="@string.Join(".", new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
+                    <div class="configuration-review__answer">
+                        <strong>@FieldTitle(diagnostic)</strong>
+                        @if (entry.IsActive)
+                        {
+                            <AppButton Variant="Variant.Text" Color="Color.Default" OnClick="() => ChangeField.InvokeAsync(diagnostic)"
+                                       aria-label="@("Change " + FieldTitle(diagnostic))">Change</AppButton>
+                        }
+                    </div>
+                    <p>@OriginText(entry.Origin) · @StateText(entry)</p>
+                    @if (entry.Sensitivity != SetupFieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
+                    {
+                        <p>Private value masked.</p>
+                    }
+                    @if (entry.OutputArtifactIds.Count > 0)
+                    {
+                        <details><summary>Declared output bindings</summary>
+                            <p>@string.Join(", ", entry.OutputArtifactIds)</p>
+                            <p>@string.Join(", ", entry.BindingKeys)</p>
+                            <p>These are declared references, not a guarantee that a conditional output is included.</p>
+                        </details>
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+}
 
 @if (Validation is not null || DiagnosticCodes.Count > 0 || InvalidFields.Count > 0)
 {
@@ -37,6 +81,9 @@
 
 @code {
     [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
+    [Parameter] public DefinitionFormModel? Form { get; set; }
+    [Parameter] public bool ShowEffects { get; set; }
+    [Parameter] public EventCallback<DefinitionDiagnostic> ChangeField { get; set; }
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public IReadOnlyList<string> DiagnosticCodes { get; set; } = [];
     [Parameter] public IReadOnlyList<DefinitionDiagnostic> InvalidFields { get; set; } = [];
@@ -44,6 +91,18 @@
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     [Parameter] public EventCallback PrepareDraft { get; set; }
+    private static string OriginText(DefinitionAnswerOrigin origin) => origin switch
+    {
+        DefinitionAnswerOrigin.Defaulted => "Authored default",
+        DefinitionAnswerOrigin.Imported => "Imported",
+        DefinitionAnswerOrigin.Explicit => "Explicitly supplied",
+        _ => "Omitted"
+    };
+    private static string StateText(DefinitionDiscoveryEntry entry) => !entry.IsActive ? "Inactive; not exported"
+        : entry.IsDeferred ? "Secret deferred; incomplete"
+        : entry.NeedsAttention ? "Needs correction"
+        : entry.IsReady ? "Answer ready"
+        : entry.IsRequired ? "Required answer missing" : "Optional; no supplied answer";
     private string FieldTitle(DefinitionDiagnostic diagnostic)
     {
         SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => diagnostic.FieldId == item.Id);

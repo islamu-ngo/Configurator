@@ -35,6 +35,7 @@ public partial class ConfigurationEditor
     private IReadOnlyList<string> _focusPath = [];
     private long _focusGeneration;
     private bool _focusConsent;
+    private bool _returnToReview;
     private ElementReference _consentControl;
     private long _generation;
     private Task _outputRetirement = Task.CompletedTask;
@@ -59,6 +60,7 @@ public partial class ConfigurationEditor
         Invalidate();
         _form?.Dispose();
         _activeWorkflowStage = "configure";
+        _returnToReview = false;
         _selectedSection = null;
         _focusField = null;
         _pinned = Definition;
@@ -68,12 +70,14 @@ public partial class ConfigurationEditor
         _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;
         _form.ViewChanged += ViewChanged;
-        _importArtifact = Definition.Artifacts.Count > 0 ? Definition.Artifacts[0].Id : string.Empty;
+        _importArtifact = ImportableArtifacts.FirstOrDefault()?.Id ?? string.Empty;
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         _navigation?.Register(this, Invalidate, DiscardAsync);
     }
 
     private DefinitionFormExperience SelectedExperience => _form!.Experiences.Single(item => item.Id == _form.SelectedExperienceId);
+    private SetupArtifactDefinition[] ImportableArtifacts => Definition.Artifacts
+        .Where(artifact => DefinitionImport.CanImport(Definition, artifact.Id)).ToArray();
     private sealed record EditorSection(string Id, string Title, IReadOnlyList<DefinitionFieldInput> Fields);
     private EditorSection[] EditorSections()
     {
@@ -115,6 +119,16 @@ public partial class ConfigurationEditor
         _focusWorkflowStage = null;
         ++_focusGeneration;
         _focusConsent = denied;
+    }
+    private void ChangeReviewField(DefinitionDiagnostic diagnostic)
+    {
+        _returnToReview = true;
+        CorrectField(diagnostic);
+    }
+    private void ReturnToReview()
+    {
+        _returnToReview = false;
+        SelectWorkflowStage("review");
     }
     private async Task EnableSecretsAsync()
     {

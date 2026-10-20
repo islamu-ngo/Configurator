@@ -16,6 +16,11 @@ public sealed class DefinitionImportTests
         await Assert.That(result.Succeeded).IsTrue();
         await Assert.That(result.Answers!.InputRevision).IsEqualTo(1);
         await Assert.That(result.Answers.Values["service.name"].GetString()).IsEqualTo("private-import-marker");
+        await Assert.That(result.ProvidedFields.Count).IsEqualTo(2);
+        await Assert.That(result.ProvidedFields).Contains("enabled");
+        await Assert.That(result.ProvidedFields).Contains("service.name");
+        await Assert.That(DefinitionImport.CanImport(definition, "config")).IsTrue();
+        await Assert.That(DefinitionImport.CanImport(definition, "transformed")).IsFalse();
         await Assert.That(result.ToString()).DoesNotContain("private-import-marker");
     }
 

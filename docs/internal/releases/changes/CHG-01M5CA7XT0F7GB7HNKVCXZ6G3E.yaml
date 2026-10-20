@@ -1,0 +1,26 @@
+Change-Id: CHG-01M5CA7XT0F7GB7HNKVCXZ6G3E
+Title: "review configuration effects before export"
+Type: feat
+Scope: browser
+Summary: "Explain masked answer provenance and declared output effects, and offer supported atomic prefill before manual entry."
+Group: guided-configuration-experiences
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

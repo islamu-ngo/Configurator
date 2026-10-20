@@ -75,8 +75,23 @@ public sealed partial class DefinitionFormModel
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out JsonElement metadata, out _)) return DefinitionAnswerOrigin.Omitted;
             if (ReadNode(path) is null)
-                return path.Count == 1 && metadata.TryGetProperty("default", out _)
-                    ? DefinitionAnswerOrigin.Defaulted : DefinitionAnswerOrigin.Omitted;
+            {
+                if (metadata.TryGetProperty("default", out _)) return DefinitionAnswerOrigin.Defaulted;
+                DefinitionFieldInput root = Fields.Single(input => input.Definition.Id == path[0]);
+                if (root.Value is null && root.Definition.Default is { } value)
+                {
+                    foreach (string segment in path.Skip(1))
+                    {
+                        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty(segment, out JsonElement child))
+                            value = child;
+                        else if (value.ValueKind == JsonValueKind.Array && int.TryParse(segment, out int row)
+                            && row >= 0 && row < value.GetArrayLength()) value = value[row];
+                        else return DefinitionAnswerOrigin.Omitted;
+                    }
+                    if (value.ValueKind != JsonValueKind.Null) return DefinitionAnswerOrigin.Defaulted;
+                }
+                return DefinitionAnswerOrigin.Omitted;
+            }
             return Fields.Single(input => input.Definition.Id == path[0]).OriginAt(path);
         }
     }

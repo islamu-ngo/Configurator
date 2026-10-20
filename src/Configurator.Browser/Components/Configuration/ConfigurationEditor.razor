@@ -68,6 +68,25 @@
                 </div>
             </div>
         </div>
+        @if (ImportableArtifacts.Length > 0)
+        {
+            <details class="configuration-editor__import">
+                <summary>Start from an existing configuration <span class="configuration-editor__optional">Optional</span></summary>
+                <p class="form-help" id="artifact-import-help">Maximum 1 MiB. Supported direct mappings only. Import replaces untouched defaults; conflicting manual answers reject the whole file. Secret values require workspace consent above.</p>
+                <div class="configuration-editor__import-controls">
+                    <div class="form-group">
+                        <label for="import-artifact">Artifact format to import</label>
+                        <select id="import-artifact" value="@_importArtifact" @onchange="ChangeImportFormat">
+                            @foreach (var artifact in ImportableArtifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="artifact-import">Choose an existing declared artifact</label>
+                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync" aria-describedby="session-boundary artifact-import-help" />
+                    </div>
+                </div>
+            </details>
+        }
         @{ var fieldStates = _form.Validate().Fields; var editorSections = EditorSections();
             var sections = editorSections.Where(section => section.Fields.Any(input =>
                 fieldStates.Any(state => state.Id == input.Definition.Id && state.IsActive) &&
@@ -113,10 +132,15 @@
                 }
             </div>
         </div>
+        @if (_returnToReview)
+        {
+            <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="ReturnToReview">Return to review</AppButton>
+        }
         <section class="configuration-editor__review-stage" aria-labelledby="configuration-review-stage-heading">
             <h3 @ref="_reviewHeading" id="configuration-review-stage-heading" tabindex="-1">Review configuration</h3>
             <p class="form-help">Check required answers and optional changes before preparing files. Preparation does not apply them to your target.</p>
-            <ConfigurationReview Definition="Definition" Validation="_validation" DiagnosticCodes="_diagnostics"
+            <ConfigurationReview Definition="Definition" Form="_form" ShowEffects="@(_activeWorkflowStage == "review")"
+                                 ChangeField="ChangeReviewField" Validation="_validation" DiagnosticCodes="_diagnostics"
                                  InvalidFields="_form.InputDiagnostics"
                                  SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
                                  CorrectField="CorrectField" EnableSecrets="EnableSecretsAsync" PrepareDraft="() => PrepareAsync(true)" />
@@ -146,25 +170,6 @@
                     <AppButton Variant="Variant.Outlined" aria-expanded="@prepared.Revealed.ToString().ToLowerInvariant()" OnClick="() => RevealAsync(prepared)">@(prepared.Revealed ? "Hide" : "Reveal") @prepared.Metadata.FileName</AppButton>
                 </div>
                 <pre @ref="prepared.PreviewElement" hidden="@(!prepared.Revealed)" dir="ltr" tabindex="0" aria-label="@("Private preview of " + prepared.Metadata.FileName)"></pre>
-            </section>
-        }
-        @if (Definition.Artifacts.Count > 0)
-        {
-            <section class="configuration-editor__import" aria-labelledby="artifact-import-heading">
-                <h3 id="artifact-import-heading">Import an existing configuration <span class="configuration-editor__optional">Optional</span></h3>
-                <p class="form-help" id="artifact-import-help">Optional · maximum 1 MiB. Only the definition's declared import mappings are supported.</p>
-                <div class="configuration-editor__import-controls">
-                    <div class="form-group">
-                        <label for="import-artifact">Artifact format to import</label>
-                        <select id="import-artifact" value="@_importArtifact" @onchange="ChangeImportFormat">
-                            @foreach (var artifact in Definition.Artifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="artifact-import">Choose an existing declared artifact</label>
-                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync" aria-describedby="session-boundary artifact-import-help" />
-                    </div>
-                </div>
             </section>
         }
     </fieldset>

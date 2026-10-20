@@ -135,6 +135,12 @@ fields in other sections; selecting a correction opens that section and focuses
 the field or affected collection row. Review also offers secret-entry recovery
 when a required secret inside a supplied object needs consent. Authored labels
 remain unchanged, and field details expose the exact configuration key.
+Opening Review also shows supplied, defaulted and omitted settings, including
+collapsed optional settings. Values stay masked; provenance, readiness and
+declared output bindings are separate facts. **Change** opens the exact active
+question, and **Return to review** returns directly without resetting answers.
+Output filenames and declared apply/restart consequences do not prove that
+the target will accept the files.
 
 Secret entry is **off for every new workspace**. You have two choices:
 
@@ -158,7 +164,11 @@ invalid nonsecret fields and unresolved secret-dependent conditions do not
 become valid merely because draft preparation was selected.
 
 Existing artifact import is limited to 1 MiB and the definition's supported
-unconditional top-level copy mappings. Transformed, conditional or repeated
+unconditional top-level copy mappings. Eligible imports appear before manual
+questions under **Start from an existing configuration**. Import replaces only
+untouched authored defaults. Conflicting manual answers reject the whole file;
+unmentioned answers, origins and invalid drafts remain intact. An equal-value
+import still records imported provenance. Transformed, conditional or repeated
 projections do not have a supported inverse; for example, Event's nested
 manifest cannot be universally imported. Use the typed controls for those
 definitions. Unsupported import is distinct from invalid file contents.
