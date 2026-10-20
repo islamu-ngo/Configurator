@@ -105,6 +105,20 @@ preparation; omission uses a distinct editing action. Invalid or rejected edit
 intent invalidates output/import authority even if accepted JSON is unchanged.
 Refresh and untouched navigation do not count as edits.
 
+Denied secret leaves have no answer-bearing inputs, even when disclosure is
+expanded. Consented controls use family/literal-path identities and stable row
+tokens for both IDs and names. Admitted password purposes map `create` to
+section-qualified `new-password` and `existing` to `current-password`; issuer
+tokens retain `off` and acquisition/custom-field guidance. No fake username,
+submitting form or vendor vault API is introduced. Password managers have
+independent custody, outside workspace clearing.
+
+Each rendered scalar input callback captures its form, copied literal path and
+input revision. A callback held across edits, row replacement, revocation,
+reconsent, form replacement or disposal cannot publish into a newer workspace
+state. Current callbacks still pass through `Form.CanEdit` and shared typed
+editing; autocomplete hints never confer consent.
+
 Consent denial and recursive secret clearing happen before the first cleanup
 await. The editor detaches and synchronously invalidates every old artifact's
 workspace and export owner before awaiting any retirement. Cleanup touches only

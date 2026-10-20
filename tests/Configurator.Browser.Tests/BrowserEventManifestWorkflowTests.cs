@@ -18,7 +18,7 @@ public sealed class BrowserEventManifestWorkflowTests
         var module = context.JSInterop.SetupModule("./browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("#choice-operation").Change("configuration-manifest");
+        component.Find("[data-field='operation'] select").Change("configuration-manifest");
         component.Find("[data-field='configuration-manifest.metadata.name'] input").Input("qa-config");
         component.Find("[data-field='configuration-manifest.spec.instance.settings'] > fieldset > button").Click();
         await Assert.That(component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").GetAttribute("type")).IsEqualTo("password");

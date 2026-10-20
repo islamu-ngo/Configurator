@@ -20,17 +20,17 @@ public sealed class BrowserSecretBoundaryTests
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("[data-field='profile.name'] input").Input("ordinary-sibling");
-        await Assert.That(component.Find("[data-field='profile.token'] input").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.FindAll("[data-field='profile.token'] input")).IsEmpty();
         component.Find("#secret-consent").Change(true);
         component.Find("[data-field='profile.token'] input").Input("nested-revoked-canary");
         component.Find("#secret-consent").Change(false);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values["profile"].GetRawText()).IsEqualTo("{\"name\":\"ordinary-sibling\"}");
-        await Assert.That(component.Find("[data-field='profile.token'] input").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.FindAll("[data-field='profile.token'] input")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("nested-revoked-canary");
         component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
-        await Assert.That(component.Find("#choice-credential").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
     }
 
     [Test]
@@ -38,14 +38,14 @@ public sealed class BrowserSecretBoundaryTests
     {
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await Assert.That(component.Find("#choice-credential").HasAttribute("disabled")).IsTrue();
-        component.Find("#choice-hostname").Input("example.test");
+        await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
+        component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#secret-consent").Change(true);
-        component.Find("#choice-credential").Input("synthetic-private-canary");
-        await Assert.That(component.Find("#choice-credential").GetAttribute("type")).IsEqualTo("password");
+        component.Find("[data-field='credential'] input").Input("synthetic-private-canary");
+        await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("password");
         component.Find("#secret-consent").Change(false);
-        await Assert.That(component.Find("#choice-credential").GetAttribute("value")).IsEqualTo("");
-        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo("example.test");
+        await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("example.test");
         await Assert.That(component.Markup).DoesNotContain("synthetic-private-canary");
         await Assert.That(context.JSInterop.Invocations.Any(call => call.Arguments.Any(arg => arg?.ToString()?.Contains("synthetic-private-canary", StringComparison.Ordinal) == true))).IsFalse();
     }
@@ -59,7 +59,7 @@ public sealed class BrowserSecretBoundaryTests
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("import-secret-consent-required");
         await Assert.That(component.Markup).DoesNotContain("synthetic-private-canary");
-        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("");
     }
 
     [Test]
@@ -79,7 +79,7 @@ public sealed class BrowserSecretBoundaryTests
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsNotEqualTo("imported");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("private-canary");
-        await Assert.That(component.Find("#choice-mode").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Find("[data-field='mode'] select").GetAttribute("value")).IsEqualTo("");
     }
 
     [Test]
@@ -95,8 +95,9 @@ public sealed class BrowserSecretBoundaryTests
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
-        await Assert.That(component.FindAll("[data-field='private'] input").All(input => input.HasAttribute("disabled"))).IsTrue();
+        await Assert.That(component.FindAll("[data-field='private'] input")).IsEmpty();
         component.Find("#secret-consent").Change(true);
+        await Assert.That(component.FindAll("[data-field='private'] input")).Count().IsEqualTo(3);
         await Assert.That(component.FindAll("[data-field='private'] input").All(input => input.GetAttribute("type") == "password")).IsTrue();
         await Assert.That(component.FindAll("[data-field='private'] select")).IsEmpty();
     }

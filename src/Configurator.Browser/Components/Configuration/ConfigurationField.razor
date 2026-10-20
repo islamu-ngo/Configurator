@@ -65,6 +65,13 @@
     }
     else
     {
+        @if (IsSecret && !Form.CanEdit(Path))
+        {
+            <p class="configuration-field__label"><strong>@Title</strong> <span class="configuration-field__requirement">@(Required ? "Required" : "Optional")</span></p>
+            <p data-secret-denied>Secret entry is disabled for this workspace. Enable it deliberately above, or complete a downloaded draft locally.</p>
+        }
+        else
+        {
         <label for="@ControlId">@Title <span class="configuration-field__requirement">@(Required ? "Required" : "Optional")</span></label>
         @if (Type is "boolean" or "enum" && !IsMasked)
         {
@@ -87,7 +94,11 @@
         }
         else
         {
-            <div class="configuration-field__input" @oninput="args => EditText(args.Value?.ToString())">
+            var editForm = Form;
+            var editPath = Path.ToArray();
+            long editRevision = Form.InputRevision;
+            <div class="configuration-field__input" @oninput="args => EditText(args.Value?.ToString(), editForm, editPath, editRevision)"
+                 @onchange="args => EditText(args.Value?.ToString(), editForm, editPath, editRevision)">
                 <MudInput T="string" @ref="_input" InputId="@ControlId" InputType="@(IsMasked ? InputType.Password : InputType.Text)"
                           InputMode="@(Type == "integer" ? InputMode.numeric : Type == "number" ? InputMode.@decimal : InputMode.text)"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Value="@Text" MaxLength="65536"
@@ -95,16 +106,21 @@
                           Disabled="@(!Form.CanEdit(Path))" UserAttributes="InputAttributes" />
             </div>
         }
+        }
     }
     @if (!Required)
     {
         <button type="button" class="button button--secondary" data-action="omit" aria-label="@($"Omit {Title}")"
                 disabled="@(!Form.CanEdit(Path))" @onclick="Omit">Omit @Title</button>
     }
-    <p id="@(ControlId + "-help")" class="configuration-field__help">@Help @Consequence @(IsSecret && !Form.CanEdit(Path) ? "Secret entry is disabled. You can prepare a draft and fill this value in the exported file." : "")
+    <p id="@(ControlId + "-help")" class="configuration-field__help">@Help @Consequence
         @if (IsMasked && Type == "boolean") { <span>Use true or false.</span> }
         @if (IsMasked && Type == "enum") { <span>Declared choices: @string.Join(", ", Schema.GetProperty("choices").EnumerateArray().Select(Display)).</span> }
     </p>
+    @if (InputPurposeHelp is { } purposeHelp)
+    {
+        <p class="configuration-field__help">@purposeHelp</p>
+    }
     @if (Schema.TryGetProperty("guidance", out JsonElement guidance) &&
         (guidance.TryGetProperty("instructions", out _) ||
          guidance.TryGetProperty("links", out JsonElement guidanceLinks) && guidanceLinks.GetArrayLength() > 0))

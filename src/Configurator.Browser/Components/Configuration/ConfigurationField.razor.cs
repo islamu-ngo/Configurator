@@ -33,10 +33,11 @@ public partial class ConfigurationField
     private bool _focusAdd;
     private bool _focusAfterOmit;
     private bool _invalid;
+    private bool _disposed;
     private string Error => string.Join(" ", Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
     private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
         diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1));
-    private string ControlId => Path.Count == 1 ? "choice-" + Path[0] : Form.GetEditorIdentity(Path);
+    private string ControlId => Form.GetEditorIdentity(Path);
     private string Type => Schema.GetProperty("type").GetString()!;
     private string Title => ConfigurationDiagnosticText.Title(Schema.TryGetProperty("title", out var value) ? value.GetString()! : "Item", Schema.TryGetProperty("id", out var id) ? id.GetString() : null);
     private string? Help => Schema.TryGetProperty("help", out var value) ? value.GetString() : null;
@@ -80,11 +81,28 @@ public partial class ConfigurationField
         : Form.ReadDraftText(Path) ?? (Value is { } value ? Display(value) : string.Empty);
     private Dictionary<string, object> InputAttributes => new()
     {
-        ["autocomplete"] = "off",
+        ["name"] = ControlId,
+        ["autocomplete"] = Autocomplete,
         ["spellcheck"] = "false",
         ["step"] = Type == "integer" ? "1" : "any",
         ["aria-required"] = Required.ToString().ToLowerInvariant()
     };
+    private string Autocomplete => Form.CanEdit(Path) && Schema.TryGetProperty("credential", out JsonElement credential)
+        && credential.GetProperty("kind").GetString() == "password"
+        ? credential.GetProperty("acquisition").GetString() switch
+        {
+            "create" => "section-" + ControlId + " new-password",
+            "existing" => "section-" + ControlId + " current-password",
+            _ => "off"
+        } : "off";
+    private string? InputPurposeHelp => Schema.TryGetProperty("credential", out JsonElement credential)
+        ? credential.GetProperty("acquisition").GetString() switch
+        {
+            "issuer" => "Obtain this value from its issuer, then paste it or map a password manager custom field. Do not substitute a locally generated password.",
+            "create" => "Choose a new value that meets the target's requirements. A password manager may help create and retain it.",
+            _ => "Use the value already accepted by your target. A password manager may fill or paste it."
+        } + " Your password manager has independent custody; clearing this workspace does not clear its vault."
+        : null;
     private JsonElement ItemSchema => JsonSerializer.SerializeToElement(new Dictionary<string, object?>
     {
         ["type"] = Schema.GetProperty("itemType").GetString(),
@@ -143,6 +161,12 @@ public partial class ConfigurationField
         _invalid = !Form.EditValue(Path, text);
         _ = NotifyValidityAsync();
     }
+    private void EditText(string? text, DefinitionFormModel expectedForm, IReadOnlyList<string> expectedPath, long expectedRevision)
+    {
+        if (_disposed || !ReferenceEquals(Form, expectedForm) || Form.InputRevision != expectedRevision
+            || !Path.SequenceEqual(expectedPath)) return;
+        EditText(text);
+    }
     private Task NotifyValidityAsync() => ValidationChanged.InvokeAsync((ControlId, Path[0], _invalid));
     private void Omit()
     {
@@ -193,5 +217,5 @@ public partial class ConfigurationField
         return schema.GetProperty("properties").EnumerateArray().Any(child => CanFocus(child, path.Append(child.GetProperty("id").GetString()!).ToArray()));
     }
     private static string Display(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
-    public void Dispose() { if (_invalid) { _invalid = false; _ = NotifyValidityAsync(); } GC.SuppressFinalize(this); }
+    public void Dispose() { _disposed = true; if (_invalid) { _invalid = false; _ = NotifyValidityAsync(); } GC.SuppressFinalize(this); }
 }

@@ -27,13 +27,13 @@ public sealed class BrowserAnswerBudgetTests
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         string oversizedPart = "synthetic-budget-canary" + new string('x', 65536 - "synthetic-budget-canary".Length);
-        for (int index = 0; index < 17; index++) component.Find("#choice-text" + index).Input(oversizedPart);
+        for (int index = 0; index < 17; index++) component.Find($"[data-field='text{index}'] input").Input(oversizedPart);
         component.Find("#prepare-draft").Click();
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("answer-budget-exceeded");
         await Assert.That(component.Find("[role=status]").TextContent).DoesNotContain("synthetic-budget-canary");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
-        component.Find("#choice-text16").Input("");
-        component.Find("#choice-text15").Input("");
+        component.Find("[data-field='text16'] input").Input("");
+        component.Find("[data-field='text15'] input").Input("");
         component.Find("#prepare-draft").Click();
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("preparation-ready");
     }
@@ -58,7 +58,7 @@ public sealed class BrowserAnswerBudgetTests
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
-        component.Find("#choice-payload").Input(new string('x', 65536));
+        component.Find("[data-field='payload'] input").Input(new string('x', 65536));
         component.Find("#prepare-draft").Click();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("preparation-rejected");

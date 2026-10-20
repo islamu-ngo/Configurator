@@ -19,16 +19,16 @@ public sealed class BrowserWorkspaceLifecycleTests
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("#choice-mode").Change("0");
-        component.Find("#choice-hostname").Input("retained.test");
+        component.Find("[data-field='mode'] select").Change("0");
+        component.Find("[data-field='hostname'] input").Input("retained.test");
         component.Find("#secret-consent").Change(true);
         using var stream = new HeldReadStream("{\"mode\":\"\",\"hostname\":\"retained.test\",\"credential\":\"repeated-selection-canary\"}"u8.ToArray());
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        try { component.Find("#choice-mode").Change("0"); }
+        try { component.Find("[data-field='mode'] select").Change("0"); }
         finally { stream.Release.TrySetResult(); }
         await reading.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.That(component.Find("#choice-credential").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("value")).IsEqualTo("");
         await Assert.That(component.Markup).DoesNotContain("repeated-selection-canary");
     }
 
@@ -40,7 +40,7 @@ public sealed class BrowserWorkspaceLifecycleTests
     {
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("#choice-hostname").Input("retained.test");
+        component.Find("[data-field='hostname'] input").Input("retained.test");
         component.Find("#secret-consent").Change(true);
         using var stream = new HeldReadStream("{\"mode\":\"single\",\"hostname\":\"retained.test\",\"credential\":\"late-import-canary\"}"u8.ToArray());
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
@@ -48,12 +48,13 @@ public sealed class BrowserWorkspaceLifecycleTests
         try
         {
             if (transition == "denial") component.Find("#secret-consent").Change(false);
-            else component.Find("#choice-hostname").Input(transition == "invalid" ? "invalid host" : "retained.test");
+            else component.Find("[data-field='hostname'] input").Input(transition == "invalid" ? "invalid host" : "retained.test");
         }
         finally { stream.Release.TrySetResult(); }
         await reading.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.That(component.Find("#choice-credential").GetAttribute("value")).IsEqualTo("");
-        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo(transition == "invalid" ? "invalid host" : "retained.test");
+        if (transition == "denial") await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
+        else await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo(transition == "invalid" ? "invalid host" : "retained.test");
         await Assert.That(component.Markup).DoesNotContain("late-import-canary");
         await Assert.That(stream.Captured.ToArray().All(value => value == 0)).IsTrue();
     }
@@ -72,10 +73,10 @@ public sealed class BrowserWorkspaceLifecycleTests
         await using var exportModule = new LifecycleModule();
         context.Services.AddSingleton<IJSRuntime>(new LifecycleJavascript(policyModule, exportModule));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("old.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#secret-consent").Change(true);
-        component.Find("#choice-credential").Input("second-artifact-canary");
+        component.Find("[data-field='credential'] input").Input("second-artifact-canary");
         component.Find("#prepare-complete").Click();
         component.FindAll(".configuration-editor__artifact")[0].QuerySelector("button")!.Click();
         exportModule.GateNextOpen = true;
@@ -107,10 +108,10 @@ public sealed class BrowserWorkspaceLifecycleTests
         await using var exportModule = new LifecycleModule();
         context.Services.AddSingleton<IJSRuntime>(new LifecycleJavascript(policyModule, exportModule));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("old.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#secret-consent").Change(true);
-        component.Find("#choice-credential").Input("revoked-lifecycle-canary");
+        component.Find("[data-field='credential'] input").Input("revoked-lifecycle-canary");
         component.Find("#prepare-complete").Click();
         component.Find(".configuration-editor__artifact button").Click();
         await Assert.That(exportModule.Exposures.Single()).Contains("revoked-lifecycle-canary");
@@ -119,9 +120,10 @@ public sealed class BrowserWorkspaceLifecycleTests
         await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
         {
-            component.Find("#choice-hostname").Input("current.test");
-            await Assert.That(component.Find("#choice-credential").HasAttribute("disabled")).IsTrue();
-            await Assert.That(component.Find("#choice-credential").GetAttribute("value")).IsEqualTo("");
+            component.Find("[data-field='hostname'] input").Input("current.test");
+            await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
+            var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+            await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
             await Assert.That(exportModule.HasOpenOutput).IsFalse();
         }
@@ -174,15 +176,15 @@ public sealed class BrowserWorkspaceLifecycleTests
         var javascript = new LifecycleJavascript(policyModule, exportModule);
         context.Services.AddSingleton<IJSRuntime>(javascript);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("old.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#prepare-draft").Click();
         component.Find(".configuration-editor__artifact button").Click();
         exportModule.GateNextInvalidate = true;
         exportModule.FailNextInvalidate = failCleanup;
         Task older = component.InvokeAsync(() => component.Find("#prepare-draft").ClickAsync(new MouseEventArgs()));
         await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        component.Find("#choice-hostname").Input("current.test");
+        component.Find("[data-field='hostname'] input").Input("current.test");
         component.Find("#prepare-draft").Click();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         exportModule.Release.TrySetResult();

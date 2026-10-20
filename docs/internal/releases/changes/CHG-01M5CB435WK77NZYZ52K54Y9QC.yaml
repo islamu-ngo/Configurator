@@ -1,0 +1,26 @@
+Change-Id: CHG-01M5CB435WK77NZYZ52K54Y9QC
+Title: "support consented password manager entry"
+Type: feat
+Scope: browser
+Summary: "Render stable masked credential controls only after consent, declare honest password-purpose hints, and reject stale fill notifications."
+Group: guided-configuration-experiences
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

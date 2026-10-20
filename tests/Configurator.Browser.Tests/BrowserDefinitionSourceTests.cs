@@ -282,8 +282,8 @@ public sealed class BrowserDefinitionSourceTests
         navigation.NavigateTo("/open#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
         var component = context.Render<App>();
         component.FindAll("button").Single(button => button.TextContent == "Open configuration workspace").Click();
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("example.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#prepare-draft").Click();
         component.Find(".configuration-editor__artifact button").Click();
         Task discard = component.FindAll("button").Single(button => button.TextContent == "Discard this workspace to choose another definition")

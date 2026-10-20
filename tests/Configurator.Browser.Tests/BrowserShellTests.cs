@@ -76,8 +76,8 @@ public sealed class BrowserShellTests
         exports.SetupVoid("invalidate", _ => true).SetVoidResult();
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
         var component = context.Render<App>();
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("synthetic.example.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("synthetic.example.test");
         component.Find("#prepare-draft").Click();
         component.Find(".configuration-editor__artifact button").Click();
         byte[] before = (byte[])exports.Invocations.Single(call => call.Identifier == "open").Arguments[2]!;

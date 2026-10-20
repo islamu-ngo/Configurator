@@ -13,13 +13,13 @@ public sealed class BrowserConfigurationNavigationTests
         SetupDefinition definition = GroupedDefinition();
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("example.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#secret-consent").Change(true);
         component.Find("[data-section='credentials']").Click();
-        component.Find("#choice-credential").Input("synthetic-navigation-secret");
+        component.Find("[data-field='credential'] input").Input("synthetic-navigation-secret");
         component.Find("[data-section='connection']").Click();
-        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo("example.test");
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("example.test");
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsTrue();
         await Assert.That(component.FindAll("[data-section-panel='credentials']")).IsEmpty();
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -28,21 +28,22 @@ public sealed class BrowserConfigurationNavigationTests
     }
 
     [Test]
-    public async Task HiddenCorrectionOpensItsSectionAndDisabledSecretOffersConsentRecovery()
+    public async Task HiddenCorrectionOpensItsSectionAndDeniedSecretOffersConsentRecovery()
     {
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, GroupedDefinition()));
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("example.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#prepare-complete").Click();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         component.Find("[data-correction='credential']").Click();
         await Assert.That(component.Find("[data-section-panel='credentials']").HasAttribute("hidden")).IsFalse();
-        await Assert.That(component.Find("#choice-credential").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
         await Assert.That(component.FindAll("[data-action='enable-secret-entry']")).Count().IsEqualTo(1);
         component.Find("[data-action='enable-secret-entry']").Click();
-        await Assert.That(component.Find("#choice-credential").HasAttribute("disabled")).IsFalse();
+        await Assert.That(component.Find("[data-field='credential'] input").HasAttribute("disabled")).IsFalse();
+        await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("password");
     }
 
     [Test]
@@ -61,15 +62,17 @@ public sealed class BrowserConfigurationNavigationTests
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await Assert.That(component.Find("label[for='choice-HTTPServer_URL']").TextContent).Contains("HTTP Server URL");
+        string fallbackInputId = component.Find("[data-field='HTTPServer_URL'] input").Id!;
+        await Assert.That(component.Find($"label[for='{fallbackInputId}']").TextContent).Contains("HTTP Server URL");
         await Assert.That(component.Find("[data-field='HTTPServer_URL'] code").TextContent).IsEqualTo("HTTPServer_URL");
-        await Assert.That(component.Find("label[for='choice-authored_key']").TextContent).Contains("Publisher's exact wording");
+        string authoredInputId = component.Find("[data-field='authored_key'] input").Id!;
+        await Assert.That(component.Find($"label[for='{authoredInputId}']").TextContent).Contains("Publisher's exact wording");
         await Assert.That(component.FindAll("#configuration-experience")).IsEmpty();
         await Assert.That(component.Find("[data-experience]").GetAttribute("data-experience")).IsEqualTo("configure");
         await Assert.That(component.FindAll("[data-field='optional_note'] input")).IsEmpty();
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() => form.SetAllSectionsExpanded(true));
-        await Assert.That(component.Find("#choice-optional_note").HasAttribute("disabled")).IsFalse();
+        await Assert.That(component.Find("[data-field='optional_note'] input").HasAttribute("disabled")).IsFalse();
         await component.InvokeAsync(() => form.SetAllSectionsExpanded(false));
         await Assert.That(component.FindAll("[data-field='optional_note'] input")).IsEmpty();
         await Assert.That(component.FindComponents<ConfigurationField>()[0].Instance.Form.Definition.Digest).IsEqualTo(definition.Digest);
@@ -84,11 +87,11 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.FindAll("#configuration-experience option")).Count().IsEqualTo(2);
         await Assert.That(component.Find("#configuration-experience option[value='quick-start']").TextContent).IsEqualTo("Connect service");
         await Assert.That(component.Find("#configuration-experience option[value='inspect-settings']").TextContent).IsEqualTo("Inspect configuration");
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("example.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#secret-consent").Change(true);
         component.Find("[data-section='credentials']").Click();
-        component.Find("#choice-credential").Input("synthetic-experience-secret");
+        component.Find("[data-field='credential'] input").Input("synthetic-experience-secret");
         component.Find("#prepare-complete").Click();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -127,8 +130,8 @@ public sealed class BrowserConfigurationNavigationTests
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("example.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
         await Assert.That(component.FindAll("[data-field='options.dotted.count'] input")).IsEmpty();
         component.Find("#configuration-experience").Change("inspect-settings");
         component.Find("[data-section='tuning']").Click();

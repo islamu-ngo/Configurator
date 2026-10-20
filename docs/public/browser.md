@@ -152,6 +152,16 @@ Secret entry is **off for every new workspace**. You have two choices:
   trust this origin, its shipped code and your browser environment. Secret
   controls are masked. Complete preparation validates all required answers.
 
+Denied secrets have no entry control until you consent, even after showing
+optional settings. Password fields declare whether you are creating a new
+password or supplying an existing one, with stable identities for optional
+password-manager matching. Your manager may offer generation or fill; support
+varies, so ordinary paste remains available. Issuer tokens must come from their
+issuer; use paste or an explicit custom-field mapping rather than substituting a
+generated password. Configurator does not add a login form or read your vault.
+Your manager retains independent custody: clearing this tab does not clear
+its saved entries, and clearing its vault does not clear this workspace.
+
 Revoking consent clears secret leaves, including those nested in objects or
 rows, and invalidates prepared output while retaining ordinary settings.
 Denial takes effect before asynchronous export cleanup starts. Ordinary edits

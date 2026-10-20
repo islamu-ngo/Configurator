@@ -62,14 +62,14 @@ public sealed class BrowserTemplateReadLifecycleTests
         await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
         {
-            if (transition == "edit") component.Find("#choice-hostname").Input("retained.test");
+            if (transition == "edit") component.Find("[data-field='hostname'] input").Input("retained.test");
             else if (transition == "clear") component.Find("#clear-workspace").Click();
             else if (transition == "replacement") component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
             else component.Find("#secret-consent").Change(false);
         }
         finally { older.Release.TrySetResult(); }
         await pending.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo(transition == "edit" ? "retained.test" : "");
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo(transition == "edit" ? "retained.test" : "");
         await Assert.That(older.CapturedBuffer.ToArray().All(value => value == 0)).IsTrue();
     }
 
@@ -99,7 +99,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         using var stream = new GatedReadStream(OrdinaryArtifact);
         stream.Release.TrySetResult();
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
-        await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo("example.test");
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("example.test");
         await Assert.That(stream.CapturedBuffer.ToArray().All(value => value == 0)).IsTrue();
         using var failed = new FailedReadStream();
         await component.InvokeAsync(() => component.Instance.LoadAsync(failed));

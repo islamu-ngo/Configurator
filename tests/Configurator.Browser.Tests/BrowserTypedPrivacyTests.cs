@@ -33,7 +33,7 @@ public sealed class BrowserTypedPrivacyTests
     }
 
     [Test]
-    public async Task NestedSecretOmissionStaysDisabledAndOrdinaryEmptyStringStaysSupplied()
+    public async Task NestedSecretOmissionStaysAbsentAndOrdinaryEmptyStringStaysSupplied()
     {
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
@@ -80,7 +80,7 @@ public sealed class BrowserTypedPrivacyTests
         SetupDefinition definition = await source.ReadLocalAsync(input);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("[data-field='HOST'] input").Input("example.test");
-        await Assert.That(component.Find("[data-field='settings.secret'] input").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.FindAll("[data-field='settings.secret'] input")).IsEmpty();
         component.Find("#secret-consent").Change(true);
         component.Find("[data-field='settings.secret'] input").Input("synthetic-local-nested-secret");
         component.Find("#prepare-complete").Click();
@@ -106,7 +106,7 @@ public sealed class BrowserTypedPrivacyTests
         await Assert.That(ordinary.GetAttribute("type")).IsEqualTo("password");
         await Assert.That(ordinary.HasAttribute("disabled")).IsFalse();
         ordinary.Input("synthetic-private-value");
-        await Assert.That(component.Find("[data-field='settings.secret'] input").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.FindAll("[data-field='settings.secret'] input")).IsEmpty();
         component.Find("#secret-consent").Change(true);
         component.Find("[data-field='settings.secret'] input").Input("synthetic-nested-secret");
         component.Find("#secret-consent").Change(false);
@@ -153,8 +153,8 @@ public sealed class BrowserTypedPrivacyTests
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("#choice-mode").Change("single");
-        component.Find("#choice-hostname").Input("example.test");
+        component.Find("[data-field='mode'] select").Change("single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("[data-field='settings.ordinary'] input").Input("synthetic-ordinary-setting");
         component.Find("#prepare-complete").Click();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();

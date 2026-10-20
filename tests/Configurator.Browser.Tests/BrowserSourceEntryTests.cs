@@ -87,7 +87,7 @@ public sealed class BrowserSourceEntryTests
         BrowserDefinitionPointer pointer = BrowserDefinitionPointer.Parse(uri.Fragment, uri.Query);
         await Assert.That(pointer.Digest).IsEqualTo(BrowserFixture.Definition.Digest.Value);
         await Assert.That(pointer.Source.AbsoluteUri).IsEqualTo("https://publisher.example/definition.json");
-        await Assert.That(page.FindAll("#choice-hostname")).IsEmpty();
+        await Assert.That(page.FindAll("[data-field='hostname'] input")).IsEmpty();
         await Assert.That(uri.Query).IsEqualTo(string.Empty);
     }
 
