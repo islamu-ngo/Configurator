@@ -10,7 +10,7 @@
 
 The authoring discriminator is `$schema: urn:islamu:configurator:authoring:v1`.
 Root members are `identity`, `project`, `applicationVersions`, `fields`, `outputs`
-and optional `entryPoints` and `locales`. The generated
+and optional `entryPoints`, `locales` and `presentation`. The generated
 [source schema](../../schemas/configurator-authoring-v1.schema.json) describes
 structure; Core also enforces references, privacy, resource budgets and output
 semantics. Authoring version, runtime schema version, family revision and target
@@ -63,6 +63,47 @@ Advanced projections use the existing closed literal/copy/object/list/repeat/omi
 vocabulary and conditions; Markdown requires an explicit projection. Source compilation
 does not supply target acceptance, administration or apply authority. Answer-derived
 output remains restricted under the existing composer/writer contracts.
+
+## Authored presentation and guidance
+
+Source `presentation` shares runtime `defaultExperience`, `sections` and
+`experiences`. Section objects share `id`, `title`, optional `description` and
+`disclosure`, but select roots using a nonempty `fields` array of logical keys
+and/or a nonempty `groups` array of existing field-group labels. Unknown groups,
+missing roots, duplicate selectors and cross-section overlap reject. Explicit
+fields preserve authored order; each group appends matching roots in ordinal
+logical-key order. Compilation expands groups once and maps all logical roots
+through the existing `FieldId` map; runtime retains only ordered `fields` IDs.
+Nested properties are not independently laid out. No selector syntax is inferred
+from punctuation in a logical key.
+
+Every root must occur once across 1-64 nonempty sections; every experience must
+list all sections once. There are 1-16 experiences, with a declared
+`defaultExperience` reference. IDs are unique ASCII lowercase kebab-case starting
+with a letter, at most 64 characters; titles 128, optional descriptions 2,048.
+Section `disclosure` and experience `initialDisclosure` use the existing
+essential/guided/advanced vocabulary and default to guided. Experience
+`navigation` is guided/sections, default sections. These authored choices do not
+depend on experience names, supply presets or override validation. Absent
+presentation is valid and neutral for generic machine-only definitions.
+
+Per-field `help` remains the short authored explanation, not an alias for comments
+or a new sidecar. `guidance` accepts only optional `instructions`, `links`,
+`searchTerms`; `credential` accepts only required `kind`, `acquisition`. They pass
+through the same recursive field expansion, including inherited secret context,
+then the closed runtime admission boundary. Guidance bounds and plain-text/link
+restrictions, credential-kind acquisition matrix and immutable public API are
+defined in the [Core contract](CORE_DEFINITION_CONTRACT.md#presentation-guidance-and-credentials).
+First-party interactive secret fields require useful authored help at integration
+review; generic machine-only definitions may omit all descriptors.
+
+`DefinitionAuthoringSchema` derives these runtime descriptors from
+`DefinitionSchema`, adding only source `groups` and optional logical `fields`
+selection. Regenerate both via the native definition schema generator; semantic
+coverage, effective-secret and existing source/generated node/scalar/depth budgets
+are still enforced by the compiler/codec. Any admitted metadata edit changes the
+canonical digest and requires the existing revision workflow. YAML syntax comments
+remain excluded. See the [public source example](../public/integrate-your-tool.md#describe-journeys-and-credential-acquisition).
 
 ## Syntax and identity editing
 

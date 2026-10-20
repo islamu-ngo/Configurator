@@ -95,6 +95,170 @@
         "maxLength": 128
       }
     },
+    "presentation": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "defaultExperience": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "disclosure": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "essential",
+                  "guided",
+                  "advanced"
+                ],
+                "default": "guided"
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 1024,
+                "uniqueItems": true
+              },
+              "groups": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1024,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                }
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false,
+            "anyOf": [
+              {
+                "required": [
+                  "fields"
+                ]
+              },
+              {
+                "required": [
+                  "groups"
+                ]
+              }
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "experiences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "initialDisclosure": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "essential",
+                  "guided",
+                  "advanced"
+                ],
+                "default": "guided"
+              },
+              "navigation": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "guided",
+                  "sections"
+                ],
+                "default": "sections"
+              },
+              "sections": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "maxItems": 64,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "sections"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "defaultExperience",
+        "sections",
+        "experiences"
+      ],
+      "additionalProperties": false
+    },
     "fields": {
       "type": "object",
       "maxProperties": 1024,
@@ -388,6 +552,140 @@
           "type": [
             "string",
             "null"
+          ]
+        },
+        "guidance": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "instructions": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "links": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "format": "uri",
+                    "pattern": "^https://[^/?#@\\s]\u002B(?:/[^?#\\s]*)?$"
+                  }
+                },
+                "required": [
+                  "title",
+                  "url"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 0,
+              "maxItems": 4
+            },
+            "searchTerms": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "minItems": 0,
+              "maxItems": 16,
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "credential": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "password",
+                "opaque-token",
+                "symmetric-key",
+                "private-key",
+                "connection-string"
+              ]
+            },
+            "acquisition": {
+              "type": "string",
+              "enum": [
+                "existing",
+                "create",
+                "issuer"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "acquisition"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "acquisition": {
+                    "const": "create"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "password",
+                      "symmetric-key"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "acquisition": {
+                    "const": "issuer"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "password",
+                      "opaque-token",
+                      "private-key",
+                      "connection-string"
+                    ]
+                  }
+                }
+              }
+            }
           ]
         },
         "validator": {
@@ -694,6 +992,140 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "guidance": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "instructions": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "links": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "url": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2048,
+                          "format": "uri",
+                          "pattern": "^https://[^/?#@\\s]\u002B(?:/[^?#\\s]*)?$"
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "url"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 0,
+                    "maxItems": 4
+                  },
+                  "searchTerms": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "minItems": 0,
+                    "maxItems": 16,
+                    "uniqueItems": true
+                  }
+                },
+                "additionalProperties": false
+              },
+              "credential": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "password",
+                      "opaque-token",
+                      "symmetric-key",
+                      "private-key",
+                      "connection-string"
+                    ]
+                  },
+                  "acquisition": {
+                    "type": "string",
+                    "enum": [
+                      "existing",
+                      "create",
+                      "issuer"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "acquisition"
+                ],
+                "additionalProperties": false,
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "acquisition": {
+                          "const": "create"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "password",
+                            "symmetric-key"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "acquisition": {
+                          "const": "issuer"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "password",
+                            "opaque-token",
+                            "private-key",
+                            "connection-string"
+                          ]
+                        }
+                      }
+                    }
+                  }
                 ]
               },
               "validator": {
@@ -1114,6 +1546,148 @@
           },
           "minItems": 1,
           "maxItems": 64
+        },
+        "presentation": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "defaultExperience": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "disclosure": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "essential",
+                      "guided",
+                      "advanced"
+                    ],
+                    "default": "guided"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 1024,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "fields"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 64
+            },
+            "experiences": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "initialDisclosure": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "essential",
+                      "guided",
+                      "advanced"
+                    ],
+                    "default": "guided"
+                  },
+                  "navigation": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "guided",
+                      "sections"
+                    ],
+                    "default": "sections"
+                  },
+                  "sections": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "sections"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 16
+            }
+          },
+          "required": [
+            "defaultExperience",
+            "sections",
+            "experiences"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

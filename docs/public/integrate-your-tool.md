@@ -86,6 +86,75 @@ numbers. Quote typed-looking keys and intended strings. Tags, anchors, aliases,
 merge keys, directives, duplicate/colliding keys and multiple documents reject.
 Both syntaxes produce identical canonical bytes for equivalent declarations.
 
+## Describe journeys and credential acquisition
+
+Add public explanations beside the field declaration, not private values or a
+human-only sidecar. For an interactive first-party secret field, author useful
+`help` before accepting the integration. A YAML `#` comment does not survive into
+the admitted runtime definition. For example, extend the source above with:
+
+```yaml
+presentation:
+  defaultExperience: recommended
+  sections:
+    - id: network
+      title: Network
+      fields: [SERVICE_PORT]
+      disclosure: guided
+    - id: access
+      title: Access
+      fields: [SERVICE_TOKEN]
+      disclosure: advanced
+  experiences:
+    - id: recommended
+      title: Recommended
+      initialDisclosure: essential
+      navigation: guided
+      sections: [network, access]
+    - id: custom
+      title: Custom
+      initialDisclosure: advanced
+      navigation: sections
+      sections: [access, network]
+```
+
+Under the existing `fields.SERVICE_TOKEN`, add this partial field metadata:
+
+```yaml
+help: Credential issued for this service, not your hosting login.
+guidance:
+  instructions: Ask the service administrator to issue the credential.
+  links:
+    - title: Public credential instructions
+      url: https://example.org/docs/service-credentials
+  searchTerms: [service, access, token]
+credential:
+  kind: opaque-token
+  acquisition: issuer
+```
+
+These are metadata additions, not another complete source. `presentation` must
+cover every root exactly once across its sections, and each experience must list
+all sections once. Alternatively a section's `groups: [network]` selects all roots
+whose field `group` is `network`; explicit fields and group expansion must not
+overlap. Nested properties stay within their root. The compiler rewrites logical
+keys through the same ID map used by conditions and output mappings.
+
+Disclosure and initial disclosure default to `guided`; navigation defaults to
+`sections`. The labels Recommended and Custom are ordinary author choices, not
+hard-coded modes or answer presets. Metadata admission is available independently
+of client rendering. Omitting presentation, guidance or credentials remains valid
+for a machine-only definition.
+
+Use only bounded plain public text and credential-free HTTPS documentation links,
+without query strings or fragments. `credential` describes an effectively secret
+string leaf, including inherited secret context. `create` is permitted only for
+passwords and symmetric keys; issuer acquisition cannot describe a symmetric key.
+It never enables generation, bypasses consent, or implies target acceptance.
+See the [complete vocabulary and limits](definitions.md#authored-journeys-and-field-guidance).
+Changing any admitted metadata requires a new canonical revision just like a field
+or output change.
+
 ## Check, build and revise
 
 ```bash

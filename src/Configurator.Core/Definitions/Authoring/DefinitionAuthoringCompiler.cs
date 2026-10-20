@@ -15,7 +15,7 @@ public static class DefinitionAuthoringCompiler
         try
         {
             JsonObject root = JsonNode.Parse(document.CanonicalBytes.Span)!.AsObject();
-            Only(root, "$schema", "identity", "project", "applicationVersions", "entryPoints", "locales", "fields", "outputs");
+            Only(root, "$schema", "identity", "project", "applicationVersions", "entryPoints", "locales", "fields", "outputs", "presentation");
             RejectNullMembers(root);
             JsonObject identity = root["identity"]!.AsObject();
             Only(identity, "familyId", "revision");
@@ -58,6 +58,12 @@ public static class DefinitionAuthoringCompiler
             Charge(runtime, generatedBudget, 1);
             runtime["fields"] = expandedFields;
             runtime["artifacts"] = artifacts;
+            if (root["presentation"] is JsonNode presentation)
+            {
+                JsonObject expanded = ExpandPresentation(presentation.AsObject(), fields, ids);
+                Charge(expanded, generatedBudget, 2);
+                runtime["presentation"] = expanded;
+            }
             return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString()));
         }
         catch (SetupDefinitionException) { throw; }
@@ -67,6 +73,53 @@ public static class DefinitionAuthoringCompiler
         {
             throw new SetupDefinitionException("authoring-invalid");
         }
+    }
+
+    private static JsonObject ExpandPresentation(JsonObject source, JsonObject fields, Dictionary<string, string> ids)
+    {
+        JsonObject presentation = source.DeepClone().AsObject();
+        if (presentation["sections"]!.AsArray().Count is < 1 or > 64
+            || presentation["experiences"]!.AsArray().Count is < 1 or > 16)
+            throw new SetupDefinitionException("presentation-limit");
+        foreach (JsonNode? node in presentation["sections"]!.AsArray())
+        {
+            JsonObject section = node!.AsObject();
+            Only(section, "id", "title", "description", "disclosure", "fields", "groups");
+            RejectNullMembers(section);
+            var references = new JsonArray();
+            var included = new HashSet<string>(StringComparer.Ordinal);
+            if (section["fields"] is JsonNode explicitFields)
+            {
+                if (explicitFields.AsArray().Count is < 1 or > 1024) throw new SetupDefinitionException("presentation-reference");
+                foreach (JsonNode? reference in explicitFields.AsArray())
+                {
+                    if (!ids.TryGetValue(reference!.GetValue<string>(), out string? id))
+                        throw new SetupDefinitionException("authoring-reference");
+                    if (!included.Add(id)) throw new SetupDefinitionException("presentation-reference");
+                    references.Add(id);
+                }
+            }
+            if (section["groups"] is JsonNode groups)
+            {
+                if (groups.AsArray().Count is < 1 or > 1024) throw new SetupDefinitionException("presentation-reference");
+                foreach (JsonNode? group in groups.AsArray())
+                {
+                    ValidateProjectText(group!, 256);
+                    string name = group!.GetValue<string>();
+                    string[] matches = fields.Where(pair => pair.Value!["group"]?.GetValue<string>() == name)
+                        .OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => ids[pair.Key]).ToArray();
+                    if (matches.Length == 0) throw new SetupDefinitionException("authoring-reference");
+                    foreach (string id in matches)
+                    {
+                        if (!included.Add(id)) throw new SetupDefinitionException("presentation-reference");
+                        references.Add(id);
+                    }
+                }
+                section.Remove("groups");
+            }
+            section["fields"] = references;
+        }
+        return presentation;
     }
 
     private static void ValidateProject(JsonObject project)

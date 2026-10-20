@@ -181,6 +181,73 @@ of scalar values. Markdown accepts a `list` of string literals/copies and joins
 them without interpreting templates; active HTML and link syntax in substituted
 values are escaped. The engine makes no legal-validity claim.
 
+## Presentation, guidance and credentials
+
+`SetupDefinition.Presentation` is an optional immutable `DefinitionPresentation`
+snapshot. Its `DefaultExperience` names one of `Experiences`; `Sections` contains
+`DefinitionSection` snapshots (`Id`, `Title`, nullable `Description`, `Disclosure`,
+ordered root-ID `Fields`). `DefinitionExperience` exposes `Id`, `Title`, nullable
+`Description`, `InitialDisclosure`, `Navigation` and ordered section-ID `Sections`.
+Disclosure properties use `SetupFieldDisclosure`; navigation is the admitted
+`guided`/`sections` string. Omission defaults disclosure to Guided and navigation to
+`sections`, without inserting synthetic fields into canonical content. Collections
+are copied into read-only arrays, never caller-owned mutable lists.
+
+Wire `presentation` requires `defaultExperience`, `sections`, `experiences`.
+Each section requires `id`, `title`, nonempty `fields`; optional members are
+`description` and `disclosure`. Each experience requires `id`, `title`, `sections`;
+optional members are `description`, `initialDisclosure`, `navigation`.
+Section/experience IDs are unique within their own namespace, lowercase ASCII
+kebab-case starting with a letter, at most 64 characters. Titles are bounded at
+128 and descriptions at 2,048. Admission requires 1-64 sections, 1-16 experiences,
+exactly one section per root and every section once per experience. It rejects
+unknown/default/duplicate/overlapping/empty references and does not admit nested
+layout paths. Disclosure vocabularies are `essential`, `guided`, `advanced`;
+navigation is `guided`, `sections`. No answer presets or executable actions exist.
+
+`SetupFieldDefinition.Guidance` optionally exposes `DefinitionFieldGuidance`:
+nullable `Instructions`, read-only `Links` of `DefinitionGuidanceLink(Title, Url)`,
+and read-only `SearchTerms`. Its closed wire members are `instructions` (4,096),
+`links` (at most four, with title 128 and URL 2,048), `searchTerms` (at most sixteen
+ordinally distinct nonempty strings, 64 each). Empty optional lists/descriptors are
+neutral. Existing `Text` admission rejects blank supplied strings, controls and
+HTML delimiters. Instructions additionally reject backticks, Markdown link syntax
+and `${`/`{{`/`}}` template markers. Absolute credential-free HTTPS links reject
+whitespace and any query/fragment delimiter, including empty queries/fragments.
+Metadata never executes commands or expands values. Consumers must render inert
+text and open links only deliberately, with no fetch/prefetch, opener or referrer
+transfer. Existing `Help` (4,096) and `Consequence` remain separate and unchanged;
+YAML comments never become runtime data.
+
+`SetupFieldDefinition.InputPurpose` optionally exposes immutable
+`DefinitionInputPurpose(Kind, Acquisition)` from the wire `credential` descriptor.
+It describes input intent, not a credential value or live authority. Closed kinds are `password`,
+`opaque-token`, `symmetric-key`, `private-key`, `connection-string`; acquisition is
+`existing`, `create`, `issuer`. `create` accepts only password/symmetric-key and
+`issuer` excludes symmetric-key. Admission requires a string leaf whose own or
+ancestor classification is secret, including object-list properties. The inherited
+context is tracked during recursive admission independently of `publicAncestors`,
+so credential admission cannot weaken private-default/recommendation rejection.
+Descriptors never change sensitivity or validation. A public leaf's declared
+sensitivity remains public even when credential admission uses its secret ancestor.
+Certificates use guidance; non-password descriptors do not grant password-autofill
+semantics. No `generation` or duplicate `comment` alias is admitted.
+
+The compiler expands authoring `groups`/logical references before the runtime
+boundary; see [source vocabulary](MAINTAINER_AUTHORING.md#authored-presentation-and-guidance).
+Runtime has only root-ID `fields` references, never group selectors. `DefinitionDocument`
+and its closed wire records feed `DefinitionSchema`; `DefinitionAuthoringSchema`
+derives the source shape and adds the sole group-selector vocabulary. Both remain
+generated through the native schema generator, with semantic cross-reference,
+inherited-secret and resource checks at admission.
+
+All descriptors are canonical definition content; changing them changes the digest
+and conflicts with an already admitted family/revision. Optional absence is neutral
+for machine-only definitions, not a legacy visibility policy. This increment admits
+public data only; Presentation owns any derived neutral experience and later
+client navigation, never Core validation or answer presets. Public procedures are
+in [definitions](../public/definitions.md#authored-journeys-and-field-guidance).
+
 ## Canonicalization and bounds
 
 Canonical JSON uses ordinal property order, preserved array order, invariant

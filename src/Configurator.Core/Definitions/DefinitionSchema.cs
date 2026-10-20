@@ -49,6 +49,58 @@ public static class DefinitionSchema
                 if (members.ContainsKey("op"))
                     Enum(members["op"]!, members.ContainsKey("operands")
                         ? DefinitionVocabulary.ConditionOperations : DefinitionVocabulary.ProjectionOperations);
+                if (members.ContainsKey("defaultExperience"))
+                {
+                    String(members["defaultExperience"]!, 64);
+                    Array(members["sections"]!, 64, minimum: 1);
+                    Array(members["experiences"]!, 16, minimum: 1);
+                }
+                if (members.ContainsKey("description") && members.ContainsKey("id") && members.ContainsKey("title"))
+                {
+                    String(members["id"]!, 64);
+                    members["id"]!["pattern"] = "^[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*$";
+                    String(members["title"]!, 128);
+                    String(members["description"]!, 2048);
+                    if (members.ContainsKey("fields"))
+                    {
+                        Enum(members["disclosure"]!, DefinitionVocabulary.Disclosures);
+                        members["disclosure"]!["default"] = "guided";
+                        Array(members["fields"]!, 1024, minimum: 1, unique: true);
+                    }
+                    else
+                    {
+                        Enum(members["initialDisclosure"]!, DefinitionVocabulary.Disclosures);
+                        members["initialDisclosure"]!["default"] = "guided";
+                        Enum(members["navigation"]!, "guided", "sections");
+                        members["navigation"]!["default"] = "sections";
+                        Array(members["sections"]!, 64, minimum: 1, unique: true);
+                    }
+                }
+                if (members.ContainsKey("instructions"))
+                {
+                    String(members["instructions"]!, 4096);
+                    Array(members["links"]!, 4);
+                    Array(members["searchTerms"]!, 16, unique: true);
+                    String(members["searchTerms"]!["items"]!, 64);
+                }
+                if (members.ContainsKey("url") && members.ContainsKey("title"))
+                {
+                    String(members["title"]!, 128);
+                    String(members["url"]!, 2048);
+                    members["url"]!["format"] = "uri";
+                    members["url"]!["pattern"] = "^https://[^/?#@\\s]+(?:/[^?#\\s]*)?$";
+                }
+                if (members.ContainsKey("kind") && members.ContainsKey("acquisition"))
+                {
+                    Enum(members["kind"]!, "password", "opaque-token", "symmetric-key", "private-key", "connection-string");
+                    Enum(members["acquisition"]!, "existing", "create", "issuer");
+                    map["allOf"] = JsonNode.Parse("""
+                        [{"if":{"properties":{"acquisition":{"const":"create"}}},
+                          "then":{"properties":{"kind":{"enum":["password","symmetric-key"]}}}},
+                         {"if":{"properties":{"acquisition":{"const":"issuer"}}},
+                          "then":{"properties":{"kind":{"enum":["password","opaque-token","private-key","connection-string"]}}}}]
+                        """);
+                }
             }
             foreach ((_, JsonNode? child) in map)
                 if (child is not null) AddVocabulary(child);
@@ -60,4 +112,17 @@ public static class DefinitionSchema
 
     private static void Enum(JsonNode schema, params string[] values) =>
         schema["enum"] = new JsonArray(values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray());
+
+    private static void String(JsonNode schema, int maximum)
+    {
+        schema["minLength"] = 1;
+        schema["maxLength"] = maximum;
+    }
+
+    private static void Array(JsonNode schema, int maximum, int minimum = 0, bool unique = false)
+    {
+        schema["minItems"] = minimum;
+        schema["maxItems"] = maximum;
+        if (unique) schema["uniqueItems"] = true;
+    }
 }

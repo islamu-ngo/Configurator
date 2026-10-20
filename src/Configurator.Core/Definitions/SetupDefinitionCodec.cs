@@ -77,6 +77,7 @@ public static class SetupDefinitionCodec
             if (!ids.Add(id) || !folded.Add(id)) throw new SetupDefinitionException("field-duplicate");
             ValidateField(field, nested: false);
         }
+        if (document.TryGetProperty("presentation", out var presentation)) ValidatePresentation(presentation, ids);
         var dependencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         foreach (JsonElement field in fields.EnumerateArray())
         {
@@ -120,7 +121,7 @@ public static class SetupDefinitionCodec
         }
     }
 
-    private static void ValidateField(JsonElement field, bool nested, bool publicAncestors = true)
+    private static void ValidateField(JsonElement field, bool nested, bool publicAncestors = true, bool secretAncestors = false)
     {
         Identifier(field.GetProperty("id"));
         Text(field.GetProperty("title"), 256);
@@ -143,6 +144,19 @@ public static class SetupDefinitionCodec
                 throw new SetupDefinitionException("constraint-invalid");
         }
         string type = field.GetProperty("type").GetString()!;
+        bool secretContext = secretAncestors || field.GetProperty("sensitivity").GetString() == "secret";
+        if (field.TryGetProperty("guidance", out var guidance)) ValidateGuidance(guidance);
+        if (field.TryGetProperty("credential", out var credential))
+        {
+            Choice(credential, "kind", "password", "opaque-token", "symmetric-key", "private-key", "connection-string");
+            Choice(credential, "acquisition", "existing", "create", "issuer");
+            string kind = credential.GetProperty("kind").GetString()!;
+            string acquisition = credential.GetProperty("acquisition").GetString()!;
+            if (type != "string" || !secretContext
+                || acquisition == "create" && kind is not ("password" or "symmetric-key")
+                || acquisition == "issuer" && kind == "symmetric-key")
+                throw new SetupDefinitionException("credential-invalid");
+        }
         foreach ((string name, bool allowed) in new[]
         {
             ("minLength", type is "string" or "enum"), ("maxLength", type is "string" or "enum"),
@@ -171,7 +185,7 @@ public static class SetupDefinitionCodec
             {
                 if (!ids.Add(Identifier(property.GetProperty("id"))))
                     throw new SetupDefinitionException("field-duplicate");
-                ValidateField(property, nested: true, publicAncestors: publicContext);
+                ValidateField(property, nested: true, publicAncestors: publicContext, secretAncestors: secretContext);
             }
         }
         else if (field.TryGetProperty("properties", out _)) throw new SetupDefinitionException("constraint-invalid");
@@ -205,6 +219,89 @@ public static class SetupDefinitionCodec
                 || !DefinitionValidator.ValueValid(field, value)
                 || HasProtectedProperty(field))
                 throw new SetupDefinitionException("default-invalid");
+        }
+    }
+
+    private static void ValidatePresentation(JsonElement presentation, HashSet<string> roots)
+    {
+        JsonElement sections = presentation.GetProperty("sections");
+        JsonElement experiences = presentation.GetProperty("experiences");
+        if (sections.GetArrayLength() is < 1 or > 64 || experiences.GetArrayLength() is < 1 or > 16)
+            throw new SetupDefinitionException("presentation-limit");
+        var sectionIds = new HashSet<string>(StringComparer.Ordinal);
+        var covered = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement section in sections.EnumerateArray())
+        {
+            if (!sectionIds.Add(PresentationItem(section))) throw new SetupDefinitionException("presentation-duplicate");
+            if (section.TryGetProperty("disclosure", out _)) Choice(section, "disclosure", DefinitionVocabulary.Disclosures);
+            JsonElement fields = section.GetProperty("fields");
+            if (fields.GetArrayLength() is < 1 or > 1024) throw new SetupDefinitionException("presentation-reference");
+            foreach (JsonElement field in fields.EnumerateArray())
+                if (!roots.Contains(field.GetString()!) || !covered.Add(field.GetString()!))
+                    throw new SetupDefinitionException("presentation-reference");
+        }
+        if (!covered.SetEquals(roots)) throw new SetupDefinitionException("presentation-coverage");
+        var experienceIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement experience in experiences.EnumerateArray())
+        {
+            if (!experienceIds.Add(PresentationItem(experience))) throw new SetupDefinitionException("presentation-duplicate");
+            if (experience.TryGetProperty("initialDisclosure", out _))
+                Choice(experience, "initialDisclosure", DefinitionVocabulary.Disclosures);
+            if (experience.TryGetProperty("navigation", out _)) Choice(experience, "navigation", "guided", "sections");
+            JsonElement references = experience.GetProperty("sections");
+            var listed = new HashSet<string>(StringComparer.Ordinal);
+            if (references.GetArrayLength() != sectionIds.Count) throw new SetupDefinitionException("presentation-coverage");
+            foreach (JsonElement reference in references.EnumerateArray())
+                if (!sectionIds.Contains(reference.GetString()!) || !listed.Add(reference.GetString()!))
+                    throw new SetupDefinitionException("presentation-reference");
+        }
+        if (!experienceIds.Contains(presentation.GetProperty("defaultExperience").GetString()!))
+            throw new SetupDefinitionException("presentation-default");
+    }
+
+    private static string PresentationItem(JsonElement item)
+    {
+        string id = Text(item.GetProperty("id"), 64);
+        if (id[0] is < 'a' or > 'z' || id[^1] == '-' || id.Contains("--", StringComparison.Ordinal)
+            || !id.All(character => character is >= 'a' and <= 'z' or >= '0' and <= '9' or '-'))
+            throw new SetupDefinitionException("presentation-identifier");
+        Text(item.GetProperty("title"), 128);
+        if (item.TryGetProperty("description", out var description)) Text(description, 2048);
+        return id;
+    }
+
+    private static void ValidateGuidance(JsonElement guidance)
+    {
+        if (guidance.TryGetProperty("instructions", out var instructions))
+        {
+            string text = Text(instructions, 4096);
+            if (text.Contains('`', StringComparison.Ordinal) || text.Contains("](", StringComparison.Ordinal)
+                || text.Contains("${", StringComparison.Ordinal) || text.Contains("{{", StringComparison.Ordinal)
+                || text.Contains("}}", StringComparison.Ordinal))
+                throw new SetupDefinitionException("guidance-invalid");
+        }
+        if (guidance.TryGetProperty("links", out var links))
+        {
+            if (links.GetArrayLength() > 4) throw new SetupDefinitionException("guidance-limit");
+            foreach (JsonElement link in links.EnumerateArray())
+            {
+                Text(link.GetProperty("title"), 128);
+                string url = Text(link.GetProperty("url"), 2048);
+                if (url.Any(char.IsWhiteSpace) || url.Contains('?', StringComparison.Ordinal)
+                    || url.Contains('#', StringComparison.Ordinal)
+                    || url.Contains("${", StringComparison.Ordinal) || url.Contains("{{", StringComparison.Ordinal)
+                    || url.Contains("}}", StringComparison.Ordinal)
+                    || !Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) || uri.Scheme != Uri.UriSchemeHttps
+                    || uri.UserInfo.Length != 0 || uri.Query.Length != 0 || uri.Fragment.Length != 0)
+                    throw new SetupDefinitionException("guidance-link");
+            }
+        }
+        if (guidance.TryGetProperty("searchTerms", out var terms))
+        {
+            if (terms.GetArrayLength() > 16) throw new SetupDefinitionException("guidance-limit");
+            var unique = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonElement term in terms.EnumerateArray())
+                if (!unique.Add(Text(term, 64))) throw new SetupDefinitionException("guidance-duplicate");
         }
     }
 
@@ -331,6 +428,7 @@ internal sealed record DefinitionDocument
     public required IReadOnlyList<string> Locales { get; init; }
     public required IReadOnlyList<FieldDocument> Fields { get; init; }
     public required IReadOnlyList<ArtifactDocument> Artifacts { get; init; }
+    public PresentationDocument? Presentation { get; init; }
 }
 
 internal sealed record FieldDocument
@@ -345,6 +443,8 @@ internal sealed record FieldDocument
     public string? Group { get; init; }
     public string? Format { get; init; }
     public string? Consequence { get; init; }
+    public GuidanceDocument? Guidance { get; init; }
+    public CredentialDocument? Credential { get; init; }
     public string? Validator { get; init; }
     public JsonElement? Default { get; init; }
     public JsonElement? Recommended { get; init; }
@@ -360,6 +460,51 @@ internal sealed record FieldDocument
     public IReadOnlyList<FieldDocument>? Properties { get; init; }
     public ConditionDocument? ActiveWhen { get; init; }
     public ConditionDocument? RequiredWhen { get; init; }
+}
+
+internal sealed record PresentationDocument
+{
+    public required string DefaultExperience { get; init; }
+    public required IReadOnlyList<SectionDocument> Sections { get; init; }
+    public required IReadOnlyList<ExperienceDocument> Experiences { get; init; }
+}
+
+internal sealed record SectionDocument
+{
+    public required string Id { get; init; }
+    public required string Title { get; init; }
+    public string? Description { get; init; }
+    public string? Disclosure { get; init; }
+    public required IReadOnlyList<string> Fields { get; init; }
+}
+
+internal sealed record ExperienceDocument
+{
+    public required string Id { get; init; }
+    public required string Title { get; init; }
+    public string? Description { get; init; }
+    public string? InitialDisclosure { get; init; }
+    public string? Navigation { get; init; }
+    public required IReadOnlyList<string> Sections { get; init; }
+}
+
+internal sealed record GuidanceDocument
+{
+    public string? Instructions { get; init; }
+    public IReadOnlyList<GuidanceLinkDocument>? Links { get; init; }
+    public IReadOnlyList<string>? SearchTerms { get; init; }
+}
+
+internal sealed record GuidanceLinkDocument
+{
+    public required string Title { get; init; }
+    public required string Url { get; init; }
+}
+
+internal sealed record CredentialDocument
+{
+    public required string Kind { get; init; }
+    public required string Acquisition { get; init; }
 }
 
 internal sealed record ConditionDocument

@@ -1,0 +1,26 @@
+Change-Id: CHG-01M5C07BTSKR8KPAFVF69T4DZ3
+Title: "explain authored configuration journeys"
+Type: feat
+Scope: definitions
+Summary: "Describe bounded authored setup journeys and contextual field acquisition guidance while preserving offline authority."
+Group: guided-configuration-experiences
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+  Migration:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: documented
+  Configuration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: documented

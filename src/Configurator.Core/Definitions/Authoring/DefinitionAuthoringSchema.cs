@@ -29,6 +29,18 @@ public static class DefinitionAuthoringSchema
             ["additionalProperties"] = new JsonObject { ["type"] = "string" }
         };
         output["required"] = new JsonArray("format");
+        JsonNode presentation = runtime["properties"]!["presentation"]!.DeepClone();
+        JsonNode section = presentation["properties"]!["sections"]!["items"]!;
+        section["properties"]!["groups"] = new JsonObject
+        {
+            ["type"] = "array",
+            ["minItems"] = 1,
+            ["maxItems"] = 1024,
+            ["uniqueItems"] = true,
+            ["items"] = new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = 256 }
+        };
+        section["required"] = new JsonArray("id", "title");
+        section["anyOf"] = JsonNode.Parse("""[{"required":["fields"]},{"required":["groups"]}]""");
         var projectProperties = new JsonObject();
         foreach (string name in new[] { "id", "name", "publisher", "description", "repository", "definitionLicense" })
             projectProperties[name] = new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = name == "description" ? 4096 : 256 };
@@ -44,6 +56,7 @@ public static class DefinitionAuthoringSchema
             ["applicationVersions"] = Strings(),
             ["entryPoints"] = Strings(),
             ["locales"] = Strings(),
+            ["presentation"] = presentation,
             ["fields"] = new JsonObject { ["type"] = "object", ["maxProperties"] = 1024, ["additionalProperties"] = new JsonObject { ["$ref"] = "#/$defs/field" } },
             ["outputs"] = new JsonObject { ["type"] = "object", ["minProperties"] = 1, ["maxProperties"] = 64, ["additionalProperties"] = output }
         };

@@ -31,6 +31,8 @@ public sealed class SetupDefinition
         ApplicationVersions = Strings("applicationVersions");
         EntryPoints = Strings("entryPoints");
         Locales = Strings("locales");
+        Presentation = document.TryGetProperty("presentation", out var presentation)
+            ? new DefinitionPresentation(presentation) : null;
     }
 
     internal JsonElement Document { get; }
@@ -46,6 +48,7 @@ public sealed class SetupDefinition
     public IReadOnlyList<string> Locales { get; }
     public IReadOnlyList<SetupFieldDefinition> Fields { get; }
     public IReadOnlyList<SetupArtifactDefinition> Artifacts { get; }
+    public DefinitionPresentation? Presentation { get; }
     public override string ToString() => $"{nameof(SetupDefinition)}:{FamilyId:D}:{Revision}:{Digest}";
 
     private ReadOnlyCollection<string> Strings(string name) => Array.AsReadOnly(
@@ -61,6 +64,9 @@ public sealed class SetupFieldDefinition
             ? properties.EnumerateArray().Select(item => new SetupFieldDefinition(item)).ToArray() : []);
         UniqueBy = Array.AsReadOnly(data.TryGetProperty("uniqueBy", out var path)
             ? path.EnumerateArray().Select(item => item.GetString()!).ToArray() : []);
+        Guidance = data.TryGetProperty("guidance", out var guidance) ? new DefinitionFieldGuidance(guidance) : null;
+        InputPurpose = data.TryGetProperty("credential", out var credential) ? new DefinitionInputPurpose(
+            credential.GetProperty("kind").GetString()!, credential.GetProperty("acquisition").GetString()!) : null;
     }
     internal JsonElement Data { get; }
     public string Id => Data.GetProperty("id").GetString()!;
@@ -70,6 +76,8 @@ public sealed class SetupFieldDefinition
     public string? Group => Text("group");
     public string? Format => Text("format");
     public string? Consequence => Text("consequence");
+    public DefinitionFieldGuidance? Guidance { get; }
+    public DefinitionInputPurpose? InputPurpose { get; }
     public bool Required => Data.TryGetProperty("required", out var value) && value.GetBoolean();
     public string? ItemType => Text("itemType");
     public int? MinimumItems => Data.TryGetProperty("minItems", out var value) ? value.GetInt32() : null;
