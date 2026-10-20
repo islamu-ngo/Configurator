@@ -1,6 +1,7 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -22,7 +23,6 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private bool _isRequired;
     private bool _synchronizing;
     private int _focusRequestVersion;
-    private DesktopDisplayMode _mode;
     private DefinitionFormModel? _form;
     private DefinitionFieldInput? _input;
     private FieldViewModel? _root;
@@ -108,16 +108,16 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         }
     }
 
-    internal void Attach(DefinitionFormModel form, DefinitionFieldInput input, DesktopDisplayMode mode)
+    internal void Attach(DefinitionFormModel form, DefinitionFieldInput input)
     {
         _root = this;
         _form = form;
         _input = input;
-        _mode = mode;
         input.PropertyChanged += InputChanged;
         form.InputChanged += FormChanged;
+        form.ViewChanged += FormChanged;
         LoadInput();
-        Refresh(mode);
+        Refresh();
     }
 
     internal void AdoptRoot(FieldViewModel root)
@@ -172,7 +172,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             else root.UpdateStructuredText();
         }
         finally { root._synchronizing = false; }
-        root.Refresh(root._mode);
+        root.Refresh();
     }
 
     private void UpdateStructuredText()
@@ -205,23 +205,20 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Re-evaluates activation, requiredness, errors and disclosure without replacing editor instances.</summary>
-    public void Refresh(DesktopDisplayMode mode)
+    public void Refresh()
     {
         if (IsDisposed) return;
-        _mode = mode;
         if (_form is not null && _input is not null)
         {
             SetupFieldState state = _form.Validate().Fields.Single(field => field.Id == Id);
             IsRequired = state.IsRequired;
-            HasError = state.HasError || _input.InputDiagnosticCode is not null || !_input.TryValue(out _);
-            IsVisible = state.IsActive && (HasError || IsRequired || HasProtectedDescendants ||
-                Consequence.Length > 0 || ReadMetadata("disclosure") == "essential" || mode == DesktopDisplayMode.Advanced ||
-                mode == DesktopDisplayMode.Guided && ReadMetadata("disclosure") != "advanced");
-            RefreshChildren(mode, HasError);
+            HasError = state.IsActive && (state.HasError || _input.InputDiagnosticCode is not null || !_input.TryValue(out _));
         }
-        else
+        if (Root._form is { } form)
         {
-            RefreshChildren(mode, HasError);
+            IReadOnlyList<string> path = FullPath();
+            IsVisible = form.IsEditorVisible(path);
+            RefreshChildren(form, path, HasError);
         }
         OnPropertyChanged(nameof(ErrorText));
         OnPropertyChanged(nameof(HasProtectedDescendants));
@@ -230,15 +227,19 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         RemoveCommand.NotifyCanExecuteChanged();
     }
 
-    private void RefreshChildren(DesktopDisplayMode mode, bool rootError)
+    private IReadOnlyList<string> FullPath() => Parent is null ? [Id]
+        : [.. Parent.FullPath(), Parent is ListFieldViewModel list
+            ? list.Items.IndexOf(this).ToString(CultureInfo.InvariantCulture) : Id];
+
+    private void RefreshChildren(DefinitionFormModel form, IReadOnlyList<string> path, bool rootError)
     {
         foreach (var child in Descendants)
         {
+            IReadOnlyList<string> childPath = [.. path, this is ListFieldViewModel list
+                ? list.Items.IndexOf(child).ToString(CultureInfo.InvariantCulture) : child.Id];
             child.HasError = rootError;
-            child.IsVisible = rootError || child.IsRequired || child.HasProtectedDescendants ||
-                child.Consequence.Length > 0 || child.ReadMetadata("disclosure") == "essential" || mode == DesktopDisplayMode.Advanced ||
-                mode == DesktopDisplayMode.Guided && child.ReadMetadata("disclosure") != "advanced";
-            child.RefreshChildren(mode, rootError);
+            child.IsVisible = form.IsEditorVisible(childPath);
+            child.RefreshChildren(form, childPath, rootError);
             child.OnPropertyChanged(nameof(ErrorText));
         }
     }
@@ -263,11 +264,11 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     {
         if (_synchronizing || IsDisposed || args.PropertyName != nameof(DefinitionFieldInput.Text)) return;
         LoadInput();
-        Refresh(_mode);
+        Refresh();
     }
     private void FormChanged(object? sender, EventArgs args)
     {
-        if (!_synchronizing && !IsDisposed) Refresh(_mode);
+        if (!_synchronizing && !IsDisposed) Refresh();
     }
     private void LoadInput()
     {
@@ -307,7 +308,11 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         if (IsDisposed) return;
         IsDisposed = true;
         if (_input is not null) _input.PropertyChanged -= InputChanged;
-        if (_form is not null) _form.InputChanged -= FormChanged;
+        if (_form is not null)
+        {
+            _form.InputChanged -= FormChanged;
+            _form.ViewChanged -= FormChanged;
+        }
         foreach (var child in Descendants) child.Dispose();
         _form = null;
         _input = null;

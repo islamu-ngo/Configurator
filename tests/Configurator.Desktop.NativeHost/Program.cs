@@ -128,6 +128,8 @@ internal static class Program
             window.GetControl<TextBox>("OutputDirectory").Text = directory;
             Require(window.GetControl<ComboBox>("Artifact").SelectedIndex >= 0 &&
                 window.GetControl<ComboBox>("Artifact").SelectionBoxItem is not null, "artifact-label-missing");
+            Require(window.GetControl<ComboBox>("Experience").SelectedItem is not null &&
+                workspace.SelectedExperience?.Title == "Configure", "neutral-experience-missing");
             await CaptureAsync(window, "loaded");
             Pass();
 
@@ -157,11 +159,19 @@ internal static class Program
             Input<ComboBox>(window, "Mode").SelectedItem = "remote";
             await FlushAsync();
             Require(Editor(window, "Port").IsVisible, "activation");
-            window.GetControl<ComboBox>("DisplayMode").SelectedIndex = (int)DesktopDisplayMode.Advanced;
+            long revision = workspace.Form.InputRevision;
+            window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
+            await FlushAsync();
+            Require(Editor(window, "Advanced note").IsVisible && Editor(window, "Owner").IsVisible &&
+                workspace.Form.InputRevision == revision, "expansion-mutates-input");
+            window.GetControl<CheckBox>("OptionalEditors").IsChecked = false;
+            await FlushAsync();
+            Require(!Editor(window, "Advanced note").IsVisible, "authored-default-not-restored");
+            window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
             await FlushAsync();
             Input<TextBox>(window, "Advanced note").Text = "too-long-note";
             await FlushAsync();
-            window.GetControl<ComboBox>("DisplayMode").SelectedIndex = (int)DesktopDisplayMode.Essential;
+            window.GetControl<CheckBox>("OptionalEditors").IsChecked = false;
             await FlushAsync();
             Require(Editor(window, "Advanced note").IsVisible && Editor(window, "Owner").IsVisible, "invalid-hidden");
             Input<TextBox>(window, "Advanced note").Text = "";
@@ -303,8 +313,8 @@ internal static class Program
     private static async Task EventAsync(MainWindow window, DesktopShellViewModel shell, string directory, int count)
     {
         await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json"), true);
-        window.GetControl<ComboBox>("DisplayMode").SelectedIndex = (int)DesktopDisplayMode.Advanced;
-        Input<ComboBox>(window, "Artifact to prepare").SelectedItem = "configuration-manifest";
+        window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
+        Select(window, shell, "configuration-manifest");
         await FlushAsync();
         var name = Field(window, "configuration-manifest.metadata.name");
         name.GetLogicalDescendants().OfType<TextBox>().Single().Text = "qa-config";

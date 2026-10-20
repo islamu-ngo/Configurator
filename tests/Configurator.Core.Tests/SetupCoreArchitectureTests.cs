@@ -399,7 +399,7 @@ internal static class SetupCoreAssemblyVerifier
                     && (isEnvironmentContract
                         ? property.Name is not "Code" and not "Path" and not "Key" and not "Category"
                         : type == typeof(Configurator.Core.Definitions.DefinitionDiagnostic)
-                            ? property.Name is not "Code" and not "FieldId"
+                            ? property.Name is not "Code" and not "FieldId" and not "RelativePath"
                             : property.Name is not "Code" and not "Path" and not "Severity"))
                     failures.Add($"value-bearing diagnostic field {type.FullName}.{property.Name}");
             }

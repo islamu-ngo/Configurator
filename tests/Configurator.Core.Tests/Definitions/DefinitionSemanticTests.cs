@@ -9,7 +9,7 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionSemanticTests
 {
     [Test]
-    public async Task NestedProtectedDecisionsCannotHideBehindPublicObjectMetadata()
+    public async Task NestedProtectedDecisionsRetainTheirEffectiveSensitivity()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
         root["fields"] = JsonNode.Parse("""
@@ -18,12 +18,12 @@ public sealed class DefinitionSemanticTests
             """);
         var validation = DefinitionValidator.Validate(DefinitionFixture.Parse(root.ToJsonString()),
             DefinitionFixture.Answers("{}"));
-        await Assert.That(validation.Fields[0].IsVisible(SetupDisplayMode.Guided)).IsTrue();
+        await Assert.That(validation.Fields[0].IsActive).IsTrue();
         await Assert.That(validation.Fields[0].Definition.Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
     }
 
     [Test]
-    public async Task ActivationAndConditionalRequirednessShareOneValidationAcrossDisplayModes()
+    public async Task ActivationAndConditionalRequirednessControlValidationAndComposition()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
         root["fields"]!.AsArray().Add(JsonNode.Parse("""
@@ -37,20 +37,19 @@ public sealed class DefinitionSemanticTests
             DefinitionFixture.Answers("""{"enabled":false,"service.name":"ignored"}"""));
         await Assert.That(inactive.IsReady).IsTrue();
         await Assert.That(inactive.Fields[0].IsActive).IsFalse();
-        await Assert.That(inactive.Fields[0].IsVisible(SetupDisplayMode.Advanced)).IsFalse();
-        await Assert.That(inactive.Fields[0].IsVisible(SetupDisplayMode.AllDeclared)).IsTrue();
+        await Assert.That(inactive.Fields[0].IsRequired).IsFalse();
         DefinitionArtifactResult omitted = DefinitionArtifactComposer.Compose(definition, "config",
             DefinitionFixture.Answers("""{"enabled":false,"service.name":"ignored"}"""));
         await Assert.That(Encoding.UTF8.GetString(omitted.Artifact!.Bytes.Span)).IsEqualTo("{}");
         DefinitionValidationResult required = DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"enabled":true}"""));
         await Assert.That(required.IsReady).IsFalse();
-        foreach (SetupDisplayMode mode in Enum.GetValues<SetupDisplayMode>())
-            await Assert.That(required.Fields[0].IsVisible(mode)).IsTrue();
+        await Assert.That(required.Fields[0].IsRequired).IsTrue();
+        await Assert.That(required.Fields[0].HasError).IsTrue();
     }
 
     [Test]
-    public async Task ActiveOptionalProtectedAndConsequenceFieldsAreNeverHiddenInGuidedMode()
+    public async Task OptionalProtectionAndConsequencesDoNotInventRequiredObligations()
     {
         foreach (string extra in new[] { "\"sensitivity\":\"secret\"", "\"sensitivity\":\"public\",\"consequence\":\"restart\"" })
         {
@@ -58,7 +57,9 @@ public sealed class DefinitionSemanticTests
                 .Replace("\"required\":true", "\"required\":false", StringComparison.Ordinal)
                 .Replace("\"sensitivity\":\"public\"", extra, StringComparison.Ordinal));
             var validation = DefinitionValidator.Validate(definition, DefinitionFixture.Answers("{}"));
-            await Assert.That(validation.Fields[0].IsVisible(SetupDisplayMode.Guided)).IsTrue();
+            await Assert.That(validation.Fields[0].IsActive).IsTrue();
+            await Assert.That(validation.Fields[0].IsRequired).IsFalse();
+            await Assert.That(validation.IsReady).IsTrue();
         }
     }
 

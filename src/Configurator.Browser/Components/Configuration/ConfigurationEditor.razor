@@ -20,11 +20,18 @@
         <legend class="sr-only">Local configuration answers</legend>
         <div class="configuration-editor__toolbar">
             <div class="configuration-editor__mode">
-                <label for="display-mode">Fields to show</label>
-                <select id="display-mode" value="@_form!.DisplayMode" aria-describedby="display-mode-help" @onchange="ChangeMode">
-                    <option value="Guided">Guided</option><option value="Advanced">Advanced</option><option value="AllDeclared">All declared</option>
+                <label for="configuration-experience">Configuration experience</label>
+                <select id="configuration-experience" value="@_form!.SelectedExperienceId" aria-describedby="configuration-experience-help" @onchange="ChangeExperience">
+                    @foreach (var experience in _form.Experiences)
+                    {
+                        <option value="@experience.Id">@experience.Title</option>
+                    }
                 </select>
-                <p id="display-mode-help" class="form-help">Start with Guided for essential settings.</p>
+                <p id="configuration-experience-help" class="form-help">Initial disclosure: @SelectedExperience.InitialDisclosure. Validation covers every active field.</p>
+                <button type="button" class="button button--secondary" aria-expanded="@_form.OptionalEditorsExpanded.ToString().ToLowerInvariant()"
+                        @onclick="() => _form.SetAllSectionsExpanded(!_form.OptionalEditorsExpanded)">
+                    @(_form.OptionalEditorsExpanded ? "Restore initial disclosure" : "Show optional settings")
+                </button>
             </div>
             <div class="configuration-editor__consent">
                 <input @ref="_consentControl" id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
@@ -35,25 +42,43 @@
                 </div>
             </div>
         </div>
-        @{ var fieldStates = _form.Validate().Fields; var sections = Sections(fieldStates); }
-        <div class="configuration-editor__guided">
-            <ConfigurationNavigation Sections="sections" Selected="@SelectedSection(sections)" SelectedChanged="SelectSection" />
+        @{ var fieldStates = _form.Validate().Fields; var editorSections = EditorSections(); var sections = editorSections.Where(section => section.Fields.Any(EditorVisible)).ToArray(); }
+        <div class="configuration-editor__guided" data-navigation="@SelectedExperience.Navigation">
+            <nav aria-label="Configuration sections">
+                <ul>
+                    @foreach (var section in sections)
+                    {
+                        var sectionStates = fieldStates.Where(state => section.Fields.Any(input => input.Definition.Id == state.Id)).ToArray();
+                        int corrections = sectionStates.Count(state => state.HasError || _form.InputDiagnostics.Any(diagnostic => diagnostic.FieldId == state.Id));
+                        <li><AppButton Variant="Variant.Text" Color="Color.Default" FullWidth="true" data-section="@section.Id"
+                                       aria-current="@(SelectedSection(sections) == section.Id ? "true" : null)" OnClick="() => SelectSection(section.Id)">
+                            <span>@section.Title</span>
+                            <span>@sectionStates.Count(state => state.IsActive) fields</span>
+                            @if (corrections > 0)
+                            {
+                                <span> · @corrections corrections</span>
+                            }
+                        </AppButton></li>
+                    }
+                </ul>
+            </nav>
             <div class="configuration-editor__fields">
-                @foreach (var group in _form.Fields.GroupBy(input => Group(input.Definition)))
+                @foreach (var section in editorSections)
                 {
-                    <section @key="group.Key" data-section-panel="@group.Key" hidden="@(SelectedSection(sections) != group.Key)" aria-labelledby="@SectionId(group.Key)">
-                        <h3 id="@SectionId(group.Key)">@group.Key</h3>
-                        @foreach (var input in group)
+                    <section @key="section.Id" data-section-panel="@section.Id" hidden="@(SelectedSection(sections) != section.Id)" aria-labelledby="@SectionId(section.Id)">
+                        <h3 id="@SectionId(section.Id)">@section.Title</h3>
+                        @foreach (var input in section.Fields)
                         {
                             var state = fieldStates.Single(item => item.Id == input.Definition.Id);
-                            bool visible = state.IsVisible(_form.DisplayMode) || input.InputDiagnosticCode is not null || _invalidInputs.ContainsValue(input.Definition.Id);
+                            bool visible = EditorVisible(input);
                             if (visible) _mountedFields.Add(input.Definition.Id);
                             @if (_mountedFields.Contains(input.Definition.Id))
                             {
                                 <div @key="input" hidden="@(!visible)">
                                     <ConfigurationField Form="_form" Schema="input.Definition.Constraints" Path="@(new[] { input.Definition.Id })"
-                                                        Validation="_validation" ValidationChanged="InputValidityChanged" RequiredOverride="state.IsRequired"
-                                                        FocusFirstControl="@(_focusField == input.Definition.Id)" FocusGeneration="_focusGeneration" FocusRow="_focusRow" />
+                                                        Validation="_validation" RequiredOverride="state.IsRequired"
+                                                        FocusFirstControl="@(_focusField == input.Definition.Id)" FocusGeneration="_focusGeneration"
+                                                        FocusPath="@(_focusField == input.Definition.Id ? _focusPath : Array.Empty<string>())" />
                                 </div>
                             }
                         }
@@ -72,7 +97,7 @@
         </div>
         <p role="status" class="notice" data-code="@_statusCode">@_status</p>
         <ConfigurationReview Definition="Definition" Validation="_validation" DiagnosticCodes="_diagnostics"
-                             InvalidFields="@_invalidInputs.Values.Distinct(StringComparer.Ordinal).ToArray()"
+                             InvalidFields="_form.InputDiagnostics"
                              SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
                              CorrectField="CorrectField" EnableSecrets="EnableSecretsAsync" PrepareDraft="() => PrepareAsync(true)" />
         @foreach (var prepared in _prepared)

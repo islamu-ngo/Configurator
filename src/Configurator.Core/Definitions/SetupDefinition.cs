@@ -9,7 +9,6 @@ public sealed class SetupDefinitionException : Exception
     public string Code { get; }
 }
 
-public enum SetupDisplayMode { Guided, Advanced, AllDeclared }
 public enum SetupFieldSensitivity { Public, Sensitive, Secret }
 public enum SetupFieldDisclosure { Essential, Guided, Advanced }
 
@@ -105,7 +104,7 @@ public sealed class SetupFieldDefinition
     public override string ToString() => $"{nameof(SetupFieldDefinition)}:{Id}:{Type}:{Sensitivity}";
     internal string? Text(string name) => Data.TryGetProperty(name, out var value) ? value.GetString() : null;
 
-    private static SetupFieldSensitivity EffectiveSensitivity(JsonElement field)
+    internal static SetupFieldSensitivity EffectiveSensitivity(JsonElement field)
     {
         SetupFieldSensitivity sensitivity = field.GetProperty("sensitivity").GetString() switch
         {
@@ -129,6 +128,7 @@ public sealed class SetupArtifactDefinition
     public string FileName => Data.GetProperty("fileName").GetString()!;
     public string ApplySemantics => Data.GetProperty("applySemantics").GetString()!;
     public string Restart => Data.GetProperty("restart").GetString()!;
+    public JsonElement Projection => Data.GetProperty("projection").Clone();
     public override string ToString() => $"{nameof(SetupArtifactDefinition)}:{Id}:{Format}";
 }
 
@@ -166,5 +166,23 @@ public sealed class SetupAnswerSnapshot
 
 public sealed record DefinitionDiagnostic(string Code, string FieldId)
 {
+    public DefinitionDiagnostic(string code, string fieldId, IReadOnlyList<string> relativePath)
+        : this(code, fieldId)
+    {
+        ArgumentNullException.ThrowIfNull(relativePath);
+        RelativePath = Array.AsReadOnly(relativePath.ToArray());
+    }
+
+    public IReadOnlyList<string> RelativePath { get; } = Array.Empty<string>();
+    public bool Equals(DefinitionDiagnostic? other) => other is not null &&
+        Code == other.Code && FieldId == other.FieldId && RelativePath.SequenceEqual(other.RelativePath);
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Code, StringComparer.Ordinal);
+        hash.Add(FieldId, StringComparer.Ordinal);
+        foreach (string segment in RelativePath) hash.Add(segment, StringComparer.Ordinal);
+        return hash.ToHashCode();
+    }
     public override string ToString() => $"{Code}:{FieldId}";
 }

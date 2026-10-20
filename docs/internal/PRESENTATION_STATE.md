@@ -6,8 +6,11 @@ the client constructs `DefinitionFormModel`. Syntax is explicit and canonical
 identity is shared with expanded runtime input. Source bytes and comments do
 not become answer snapshots or prepared output; existing load generations fence
 replacement/cancellation. Browser remote retrieval remains runtime JSON only.
-`DefinitionFormModel` owns typed editing and disclosure; guided/advanced views
-do not change validation. `DefinitionPresentationOperation` captures the
+`DefinitionFormModel` owns typed editing and view state. Authored experiences,
+section expansion and discovery publish `ViewChanged`, not `InputChanged`;
+they preserve answer revision, consent and current preparation. Definitions
+without presentation metadata expose one neutral Configure experience.
+`DefinitionPresentationOperation` captures the
 definition, artifact ID and input revision for a workspace execution.
 `DefinitionFormModel.ImportAsync` captures the current immutable answer snapshot
 before reading an existing file. After Core assesses its declared inverse, the
@@ -31,8 +34,11 @@ restore private values. It returns `false` only for definitions without any
 protected roots. A client with separate prepared state must still invalidate
 that state in the `false` case. Browser consent revocation remains a distinct
 secret-leaf clear that preserves nonsecret siblings.
-Guided disclosure includes active invalid fields even when their ordinary
-disclosure is Advanced, keeping correction controls reachable. `SupplyObject`
+The shared projection promotes active missing obligations, invalid editors
+and their literal ancestors. Corrected editors stay open until deliberate
+collapse or experience navigation; optional secrets and consequences do not
+alone force disclosure. `FocusEditor` clears obstructing discovery and expands
+the exact path without granting consent. `SupplyObject`
 and `SupplyList` express deliberate container presence through the same bounded
 snapshot and secret-consent gates. An empty object `{}` or list `[]` is distinct
 from an absent answer; supplying an existing container preserves its contents.
@@ -54,6 +60,30 @@ empty enum choice from omission rather than sharing an empty selection identity.
 Browser numeric controls retain raw text with numeric/decimal keyboard hints;
 native HTML number sanitization must not turn an incomplete token into absence.
 Preparation rejects those invalid drafts through the same shared conversion.
+Nested invalid text is retained by the form, not only by a mounted component.
+`ReadDraftText` applies the current custody fence; revocation clears denied
+drafts synchronously. Nonexistent row paths cannot admit drafts. Stable
+workspace row tokens survive sibling deletion, with no answer-derived identity.
+Defaulted, imported and explicit origins follow successful mutations rather
+than value equality; invalid text does not acquire successful provenance.
+Core diagnostics retain `FieldId` as the root and immutable `RelativePath`
+segments for children/rows. Dots in admitted identifiers are literal; never
+parse semantic paths from display separators.
+`DefinitionFormProgress` counts active required leaves and independent list
+cardinality obligations without double-counting required objects. Explicit
+false/zero count as answers; zero obligations has no percentage. Optional invalid
+drafts still block preparation, inactive drafts do not, and deferred secrets
+never count as ready.
+`DefinitionDiscovery` indexes only admitted IDs, literal metadata paths, titles,
+section labels, guidance/search terms and declared artifact/binding keys. Literal
+projection values and answer/draft contents never enter the index. Query tokens
+use ordinal case-insensitive AND matching, bounded to 256 characters/16 tokens.
+Exact binding/field keys precede exact titles, prefixes, title tokens, terms
+and help; ties use section order and literal path segments. Facets OR within a
+category and AND across categories; counts remove only their own selection.
+Inactive entries require deliberate inclusion and cannot activate an answer.
+Selection/reset operations are transient view mutations. Clearing filters keeps
+the query; clearing search keeps filters; correction clears both.
 Native bundle clients compose a selected set from one captured snapshot through
 `DefinitionBundleComposer` and hand the immutable result to the protected
 bundle publisher; per-file publication can have a written prefix after a later

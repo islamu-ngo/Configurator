@@ -57,10 +57,12 @@ apply to absent answers. Untouched blank controls
 and view refresh do not create answers. The workspace scrolls vertically so
 fields, artifact actions and status remain reachable in a shorter window.
 
-**Essential** shows active required, invalid, protected, consequential, and
-essentially disclosed fields. **Guided** adds ordinarily disclosed fields.
-**Advanced** shows every active field. Switching modes never changes validation,
-answers, or readiness, and inactive fields do not participate in output.
+**Experience** selects a definition-authored journey, or the neutral Configure
+experience when none is declared. **Optional editors** expands optional settings;
+turning it off restores authored defaults. Missing required work and active
+errors remain reachable, and corrected editors stay open until deliberate
+collapse or navigation. Optional secrets do not force disclosure. View changes
+preserve answers and preparation; inactive fields do not participate in output.
 Help, grouping, type constraints, and declared consequences accompany the inputs.
 
 Choose **Validate** to check the current answers and focus the first invalid

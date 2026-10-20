@@ -490,23 +490,37 @@ public sealed class DesktopShellViewModelTests
     }
 
     [Test]
-    public async Task DisplayModeChangesPreservePinnedInputsAndPreparation()
+    public async Task ExperienceAndExpansionChangesPreservePinnedInputsAndPreparation()
     {
         using var shell = CreateShell();
-        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        await shell.Publisher.PrepareAsync();
+        shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
         var form = shell.Workspace.Form!;
         var preparation = shell.Publisher.Preparation;
         long revision = form.InputRevision;
-        shell.Workspace.DisplayMode = DesktopDisplayMode.Essential;
+        var editors = shell.Workspace.Fields;
+        var owner = (ObjectFieldViewModel)editors.Single(item => item.Id == "owner");
+        var child = owner.Children[0];
+        string status = shell.Status;
         await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "note").IsVisible).IsFalse();
         await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "owner").IsVisible).IsTrue();
-        shell.Workspace.DisplayMode = DesktopDisplayMode.Advanced;
+        shell.Workspace.SelectedExperience = shell.Workspace.Experiences.Single(item => item.Id == "inspection");
         await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "note").IsVisible).IsTrue();
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("inspection");
+        form.SelectExperience("deployment");
+        await Assert.That(shell.Workspace.SelectedExperience!.Id).IsEqualTo("deployment");
+        await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "note").IsVisible).IsFalse();
+        shell.Workspace.OptionalEditorsExpanded = true;
+        await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "note").IsVisible).IsTrue();
+        shell.Workspace.OptionalEditorsExpanded = false;
+        await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "note").IsVisible).IsFalse();
         shell.Workspace.IsRightToLeft = true;
         await Assert.That(shell.Workspace.FlowDirection).IsEqualTo(Avalonia.Media.FlowDirection.RightToLeft);
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(ReferenceEquals(preparation, shell.Publisher.Preparation)).IsTrue();
+        await Assert.That(ReferenceEquals(editors, shell.Workspace.Fields)).IsTrue();
+        await Assert.That(ReferenceEquals(child, owner.Children[0])).IsTrue();
+        await Assert.That(shell.Status).IsEqualTo(status);
     }
 
     private static void Change(TestShell shell, string change)

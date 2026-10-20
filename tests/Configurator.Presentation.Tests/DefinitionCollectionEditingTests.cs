@@ -2,11 +2,107 @@ namespace Configurator.Presentation.Tests;
 
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 
 public sealed class DefinitionCollectionEditingTests
 {
+    [Test]
+    public async Task MaterializedDefaultsAndImportedRowsKeepOriginsAcrossCollectionMutations()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        form.AddListItem(["rows"]);
+        await Assert.That(form.AnswerOrigin(["rows", "0", "settings", "enabled"]))
+            .IsEqualTo(DefinitionAnswerOrigin.Defaulted);
+        form.EditValue(["rows", "0", "settings", "enabled"], "true");
+        await Assert.That(form.AnswerOrigin(["rows", "0", "settings", "enabled"]))
+            .IsEqualTo(DefinitionAnswerOrigin.Explicit);
+        form.SetValue(["rows"], null);
+        await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(
+            """{"rows":[{"metadata":{"name":"imported"},"settings":{"enabled":true}}]}"""u8.ToArray()));
+        await Assert.That(form.AnswerOrigin(["rows", "0", "metadata", "name"]))
+            .IsEqualTo(DefinitionAnswerOrigin.Imported);
+        form.AddListItem(["rows"]);
+        form.RemoveListItem(["rows"], 1);
+        await Assert.That(form.AnswerOrigin(["rows", "0", "metadata", "name"]))
+            .IsEqualTo(DefinitionAnswerOrigin.Imported);
+    }
+
+    [Test]
+    public async Task CorrectionDisclosureFollowsSurvivingRowInsteadOfItsOldIndex()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"]![0]!["properties"]![0]!["properties"]![0]!["required"] = false;
+        source["fields"]![0]!["properties"]![0]!["properties"]![0]!["disclosure"] = "advanced";
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.AddListItem(["rows"]);
+        form.AddListItem(["rows"]);
+        await Assert.That(form.IsEditorVisible(["rows", "1", "metadata", "name"])).IsFalse();
+        form.FocusEditor(["rows", "1", "metadata", "name"]);
+        form.SetValue(["rows", "1", "metadata", "name"], JsonSerializer.SerializeToElement("configured"));
+        form.RemoveListItem(["rows"], 0);
+
+        await Assert.That(form.IsEditorVisible(["rows", "0", "metadata", "name"])).IsTrue();
+        form.SetAllSectionsExpanded(false);
+        await Assert.That(form.IsEditorVisible(["rows", "0", "metadata", "name"])).IsFalse();
+    }
+
+    [Test]
+    public async Task RevocationClearsSharedSecretDraftAndRejectsLateEditorEvents()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"]![0]!["properties"]![2]!["type"] = "integer";
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        form.AddListItem(["rows"]);
+        form.EditValue(["rows", "0", "password"], "synthetic-secret-draft");
+        await Assert.That(form.ReadDraftText(["rows", "0", "password"])).IsEqualTo("synthetic-secret-draft");
+        form.SetDiscovery("password");
+        form.SetAllSectionsExpanded(false);
+        form.SetSecretEntryEnabled(false);
+
+        await Assert.That(form.ReadDraftText(["rows", "0", "password"])).IsNull();
+        await Assert.That(form.HasInputError(["rows", "0", "password"])).IsFalse();
+        await Assert.That(form.EditValue(["rows", "0", "password"], "late-secret-draft")).IsFalse();
+        form.SetSecretEntryEnabled(true);
+        await Assert.That(form.ReadDraftText(["rows", "0", "password"])).IsNull();
+        await Assert.That(form.Snapshot().Values["rows"][0].TryGetProperty("password", out _)).IsFalse();
+    }
+
+    [Test]
+    public async Task NonexistentRowsCannotRetainDraftsAndNestedInvalidDraftsBlockPreparation()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        form.AddListItem(["rows"]);
+        await Assert.That(form.EditValue(["rows", "40", "settings", "enabled"], "invalid")).IsFalse();
+        await Assert.That(form.HasInputError(["rows", "40", "settings", "enabled"])).IsFalse();
+        await Assert.That(form.EditValue(["rows", "0", "settings", "enabled"], "invalid")).IsFalse();
+        await Assert.That(form.HasInputErrors).IsTrue();
+    }
+
+    [Test]
+    public async Task ViewChangesAndSiblingRemovalPreserveDraftAndSemanticRowIdentity()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        form.AddListItem(["rows"]);
+        form.AddListItem(["rows"]);
+        string identity = form.GetEditorIdentity(["rows", "1", "settings", "enabled"]);
+        form.EditValue(["rows", "1", "settings", "enabled"], "not-a-boolean");
+        form.SetAllSectionsExpanded(true);
+        form.SetDiscovery("settings");
+        form.RemoveListItem(["rows"], 0);
+
+        await Assert.That(form.ReadDraftText(["rows", "0", "settings", "enabled"])).IsEqualTo("not-a-boolean");
+        await Assert.That(form.GetEditorIdentity(["rows", "0", "settings", "enabled"])).IsEqualTo(identity);
+        await Assert.That(form.HasInputErrors).IsTrue();
+        await Assert.That(form.EditValue(["rows", "0", "settings", "enabled"], "false")).IsTrue();
+        await Assert.That(form.ReadDraftText(["rows", "0", "settings", "enabled"])).IsNull();
+        await Assert.That(form.HasInputErrors).IsFalse();
+    }
+
     [Test]
     public async Task TypedRowsMaterializeOnlyDeclaredContainersAndEveryEditAdvancesRevision()
     {

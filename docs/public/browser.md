@@ -96,9 +96,12 @@ retention, then open the workspace. That confirmation concerns definition
 metadata only; it neither retains answers nor enables secret entry.
 
 Complete active public and sensitive nonsecret fields using the typed controls.
-Guided, Advanced and All Declared views change disclosure, not validation.
-Required fields remain required; active invalid fields remain reachable in
-Guided view even when normally disclosed under Advanced. For an object whose
+The definition's authored experiences and optional-editor expansion change
+disclosure, not answers or validation. Without authored journeys, use Configure.
+Required work and active errors remain reachable; corrected editors stay open
+until you deliberately collapse or navigate. Optional secrets do not open
+merely because they are secret, and disclosure never grants secret consent.
+For an object whose
 declared properties may be empty, explicitly supply the object when the target
 requires its presence; leaving it absent and supplying `{}` are different
 answers. Object lists use declared row properties and

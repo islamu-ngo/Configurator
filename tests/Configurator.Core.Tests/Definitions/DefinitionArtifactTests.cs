@@ -62,7 +62,7 @@ public sealed class DefinitionArtifactTests
         SetupDefinition definition = DefinitionFixture.Parse();
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, DefinitionFixture.Answers("{}"));
         await Assert.That(validation.IsReady).IsFalse();
-        await Assert.That(validation.Fields.Single().IsVisible(SetupDisplayMode.Guided)).IsTrue();
+        await Assert.That(validation.Fields.Single().HasError).IsTrue();
         await Assert.That(DefinitionArtifactComposer.Compose(definition, "config", DefinitionFixture.Answers("{}")).Artifact)
             .IsNull();
     }

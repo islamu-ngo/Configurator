@@ -9,9 +9,9 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels;
@@ -39,14 +39,14 @@ public sealed class DesktopApplicationTests
             return (artifact.Bounds.Width, filename.Bounds.Width,
                 separate: left.X + artifact.Bounds.Width <= right.X,
                 selected: artifact.SelectedItem is SetupArtifactDefinition,
-                modeSelected: window.GetControl<ComboBox>("DisplayMode").SelectedIndex
-                    == (int)((DesktopShellViewModel)window.DataContext!).Workspace.DisplayMode);
+                experienceSelected: ReferenceEquals(window.GetControl<ComboBox>("Experience").SelectedItem,
+                    ((DesktopShellViewModel)window.DataContext!).Workspace.SelectedExperience));
         });
         await Assert.That(result.Item1 > 0).IsTrue();
         await Assert.That(result.Item2 > 0).IsTrue();
         await Assert.That(result.separate).IsTrue();
         await Assert.That(result.selected).IsTrue();
-        await Assert.That(result.modeSelected).IsTrue();
+        await Assert.That(result.experienceSelected).IsTrue();
     }
 
     [Test]
@@ -124,7 +124,7 @@ public sealed class DesktopApplicationTests
 
     [Test]
     [NotInParallel]
-    public async Task DisplayModesPreserveProtectedConsequentialAndInvalidFields()
+    public async Task OptionalEditorControlRestoresDefaultsWithoutHidingActiveCorrections()
     {
         var result = await InWindow(window =>
         {
@@ -134,21 +134,103 @@ public sealed class DesktopApplicationTests
             StackPanel advanced = fields.First(item => ((FieldViewModel)item.DataContext!).Title == "Advanced note");
             StackPanel protectedField = fields.First(item => ((FieldViewModel)item.DataContext!).Title == "Owner");
             StackPanel consequence = fields.First(item => ((FieldViewModel)item.DataContext!).Title == "Mode");
-            bool guidedHidden = !advanced.IsVisible;
-            shell.Workspace.DisplayMode = DesktopDisplayMode.Essential;
-            bool essentialSafe = !advanced.IsVisible && protectedField.IsVisible && consequence.IsVisible;
-            shell.Workspace.DisplayMode = DesktopDisplayMode.Advanced;
+            bool authoredDefaults = !advanced.IsVisible && protectedField.IsVisible && consequence.IsVisible;
+            var optional = window.GetControl<CheckBox>("OptionalEditors");
+            optional.IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
             bool shown = advanced.IsVisible;
             Input<TextBox>(window, "Advanced note").Text = new string('a', 9);
             Dispatcher.UIThread.RunJobs();
-            shell.Workspace.DisplayMode = DesktopDisplayMode.Essential;
-            return (guidedHidden, essentialSafe, shown, invalidShown: advanced.IsVisible, ready: shell.Workspace.Validate());
+            optional.IsChecked = false;
+            Dispatcher.UIThread.RunJobs();
+            bool invalidShown = advanced.IsVisible;
+            bool ready = shell.Workspace.Validate();
+            shell.Workspace.Fields.Single(field => field.Id == "note").ClearCommand.Execute(null);
+            Dispatcher.UIThread.RunJobs();
+            return (authoredDefaults, shown, invalidShown, ready, restored: !advanced.IsVisible);
         });
-        await Assert.That(result.guidedHidden).IsTrue();
-        await Assert.That(result.essentialSafe).IsTrue();
+        await Assert.That(result.authoredDefaults).IsTrue();
         await Assert.That(result.shown).IsTrue();
         await Assert.That(result.invalidShown).IsTrue();
         await Assert.That(result.ready).IsFalse();
+        await Assert.That(result.restored).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task AuthoredExperienceControlPreservesEditorsAnswersAndPreparedOutput()
+    {
+        var result = await InWindow(window =>
+        {
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            shell.Loader.LoadDefinition(DefinitionWithExperiences());
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var experience = window.GetControl<ComboBox>("Experience");
+            var optional = window.GetControl<CheckBox>("OptionalEditors");
+            var note = shell.Workspace.Fields.Single(field => field.Id == "note");
+            TextBox editor = Input<TextBox>(window, "Advanced note");
+            Click(window.GetControl<Button>("Prepare"));
+            Dispatcher.UIThread.RunJobs();
+            var preparation = shell.Publisher.Preparation;
+            long revision = shell.Workspace.Form!.InputRevision;
+            string status = shell.Status;
+            bool initiallyHidden = !note.IsVisible;
+            experience.SelectedItem = shell.Workspace.Experiences.Single(item => item.Id == "inspection");
+            Dispatcher.UIThread.RunJobs();
+            bool selected = shell.Workspace.Form.SelectedExperienceId == "inspection" && note.IsVisible;
+            experience.SelectedItem = shell.Workspace.Experiences.Single(item => item.Id == "deployment");
+            Dispatcher.UIThread.RunJobs();
+            bool defaultsRestored = !note.IsVisible;
+            optional.IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            bool expanded = note.IsVisible;
+            optional.IsChecked = false;
+            Dispatcher.UIThread.RunJobs();
+            return (initiallyHidden, selected, defaultsRestored, expanded,
+                restored: !note.IsVisible,
+                sameEditor: ReferenceEquals(editor, Input<TextBox>(window, "Advanced note")),
+                revisionPreserved: revision == shell.Workspace.Form.InputRevision,
+                preparationPreserved: preparation is not null && ReferenceEquals(preparation, shell.Publisher.Preparation),
+                statusPreserved: status == shell.Status,
+                titles: experience.GetVisualDescendants().OfType<TextBlock>()
+                    .Any(text => text.Text == "Prepare deployment" && text.IsEffectivelyVisible && text.Bounds.Width > 0));
+        });
+        await Assert.That(result.initiallyHidden).IsTrue();
+        await Assert.That(result.selected).IsTrue();
+        await Assert.That(result.defaultsRestored).IsTrue();
+        await Assert.That(result.expanded).IsTrue();
+        await Assert.That(result.restored).IsTrue();
+        await Assert.That(result.sameEditor).IsTrue();
+        await Assert.That(result.revisionPreserved).IsTrue();
+        await Assert.That(result.preparationPreserved).IsTrue();
+        await Assert.That(result.statusPreserved).IsTrue();
+        await Assert.That(result.titles).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task InactiveInvalidControlStaysHiddenEvenWhenOptionalEditorsExpand()
+    {
+        var result = await InWindow(window =>
+        {
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            Input<ComboBox>(window, "Mode").SelectedItem = "remote";
+            Input<TextBox>(window, "Port").Text = "invalid-number";
+            Dispatcher.UIThread.RunJobs();
+            bool activeInvalid = shell.Workspace.Form!.HasInputErrors;
+            Input<ComboBox>(window, "Mode").SelectedItem = "local";
+            window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            var port = shell.Workspace.Fields.Single(field => field.Id == "port");
+            return (activeInvalid, hidden: !Input<TextBox>(window, "Port").IsEffectivelyVisible,
+                visible: port.IsVisible, error: port.HasError, ready: shell.Workspace.Validate());
+        });
+        await Assert.That(result.activeInvalid).IsTrue();
+        await Assert.That(result.hidden).IsTrue();
+        await Assert.That(result.visible).IsFalse();
+        await Assert.That(result.error).IsFalse();
+        await Assert.That(result.ready).IsTrue();
     }
 
     [Test]
@@ -719,4 +801,17 @@ public sealed class DesktopApplicationTests
           ]
         }
         """.Replace("REVISION", revision.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal));
+
+    internal static byte[] DefinitionWithExperiences()
+    {
+        JsonObject source = JsonNode.Parse(Definition(2))!.AsObject();
+        source["presentation"] = JsonNode.Parse("""
+            {"defaultExperience":"deployment",
+             "sections":[{"id":"service","title":"Service settings","fields":["name","mode","enabled","port","ratio","owner","hosts","note"]}],
+             "experiences":[
+               {"id":"deployment","title":"Prepare deployment","initialDisclosure":"guided","navigation":"sections","sections":["service"]},
+               {"id":"inspection","title":"Inspect all settings","initialDisclosure":"advanced","navigation":"sections","sections":["service"]}]}
+            """);
+        return Encoding.UTF8.GetBytes(source.ToJsonString());
+    }
 }

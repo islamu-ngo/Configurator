@@ -17,13 +17,10 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private DefinitionFormModel? _form;
     private IReadOnlyList<FieldViewModel> _fields = [];
     private bool _disposed;
-    private static readonly IReadOnlyList<DesktopDisplayMode> Modes = Array.AsReadOnly(Enum.GetValues<DesktopDisplayMode>());
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ValidateCommand))]
     private bool _isBusy;
-    [ObservableProperty]
-    private DesktopDisplayMode _displayMode = DesktopDisplayMode.Guided;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FlowDirection))]
     private bool _isRightToLeft;
@@ -46,35 +43,51 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     public DefinitionFormModel? Form => _form;
     public IReadOnlyList<FieldViewModel> Fields => _fields;
-    public IReadOnlyList<DesktopDisplayMode> DisplayModes => Modes;
+    public IReadOnlyList<DefinitionFormExperience> Experiences => Form?.Experiences ?? [];
+    public DefinitionFormExperience? SelectedExperience
+    {
+        get => Experiences.FirstOrDefault(experience => experience.Id == Form?.SelectedExperienceId);
+        set
+        {
+            if (!_disposed && value is not null) Form?.SelectExperience(value.Id);
+        }
+    }
+    public bool OptionalEditorsExpanded
+    {
+        get => Form?.OptionalEditorsExpanded ?? false;
+        set
+        {
+            if (!_disposed) Form?.SetAllSectionsExpanded(value);
+        }
+    }
     public FlowDirection FlowDirection => IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
     public FieldViewModel? FirstError => Fields.FirstOrDefault(item => item.IsVisible && item.HasError);
     public FieldViewModel? FirstVisible => Fields.FirstOrDefault(item => item.IsVisible);
     public bool CanValidate => !_disposed && !IsBusy && Form is not null;
     public IRelayCommand ValidateCommand { get; }
 
-    partial void OnDisplayModeChanged(DesktopDisplayMode value)
-    {
-        if (Form is not null)
-            Form.DisplayMode = value == DesktopDisplayMode.Advanced ? SetupDisplayMode.Advanced : SetupDisplayMode.Guided;
-        RefreshFields();
-    }
-
     private void Replace(DefinitionFormModel? form)
     {
-        if (_form is not null) _form.InputChanged -= InputChanged;
+        if (_form is not null)
+        {
+            _form.InputChanged -= InputChanged;
+            _form.ViewChanged -= ViewChanged;
+        }
         foreach (FieldViewModel field in _fields) field.Dispose();
         _form?.Dispose();
         _form = form;
         if (form is not null)
         {
-            form.DisplayMode = DisplayMode == DesktopDisplayMode.Advanced ? SetupDisplayMode.Advanced : SetupDisplayMode.Guided;
-            _fields = _factory.Create(form, DisplayMode);
+            _fields = _factory.Create(form);
             form.InputChanged += InputChanged;
+            form.ViewChanged += ViewChanged;
         }
         else _fields = [];
         OnPropertyChanged(nameof(Form));
         OnPropertyChanged(nameof(Fields));
+        OnPropertyChanged(nameof(Experiences));
+        OnPropertyChanged(nameof(SelectedExperience));
+        OnPropertyChanged(nameof(OptionalEditorsExpanded));
         RefreshFields();
         ValidateCommand.NotifyCanExecuteChanged();
         _messenger.Send(new FormWorkspaceChangedMessage(form));
@@ -88,9 +101,16 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     private void RefreshFields()
     {
-        foreach (FieldViewModel field in _fields) field.Refresh(DisplayMode);
+        foreach (FieldViewModel field in _fields) field.Refresh();
         OnPropertyChanged(nameof(FirstError));
         OnPropertyChanged(nameof(FirstVisible));
+    }
+
+    private void ViewChanged(object? sender, EventArgs args)
+    {
+        OnPropertyChanged(nameof(SelectedExperience));
+        OnPropertyChanged(nameof(OptionalEditorsExpanded));
+        RefreshFields();
     }
 
     public bool Validate()

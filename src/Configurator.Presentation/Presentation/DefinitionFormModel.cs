@@ -10,13 +10,16 @@ using Configurator.Core.Definitions;
 /// Keeps field editing independent of a target application and freezes
 /// the admitted definition for the lifetime of the form.
 /// </summary>
-public sealed class DefinitionFormModel : ObservableObject, IDisposable
+public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 {
     private readonly object _gate = new();
     private List<Action> _notifications = [];
     private int _mutationDepth;
     private long _inputRevision;
-    private SetupDisplayMode _displayMode = SetupDisplayMode.Guided;
+    private DefinitionValidationResult? _validationResult;
+    private DefinitionFormProjection? _projection;
+    private readonly HashSet<string> _promotedPaths = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _sectionExpansion = new(StringComparer.Ordinal);
     private bool _disposed;
 
     public DefinitionFormModel(SetupDefinition definition,
@@ -28,9 +31,165 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         Definition = definition;
         Fields = Array.AsReadOnly(definition.Fields.Select(field =>
             new DefinitionFieldInput(field, Edit, (text, value) => AllowsValue(field, text, value), Notify)).ToArray());
+        Sections = Array.AsReadOnly(definition.Presentation is { } authored
+            ? authored.Sections.Select(section => new DefinitionFormSection(section.Id, section.Title,
+                section.Description, section.Fields, section.Disclosure)).ToArray()
+            : definition.Fields.GroupBy(input => input.Group ?? "", StringComparer.Ordinal).Select((group, index) =>
+                new DefinitionFormSection(group.Key.Length == 0 ? "configure" :
+                    "group-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    group.Key.Length == 0 ? "Configure" : group.Key, null,
+                    group.Select(input => input.Id))).ToArray());
+        Experiences = Array.AsReadOnly(definition.Presentation is { } presentation
+            ? presentation.Experiences.Select(experience => new DefinitionFormExperience(experience.Id,
+                experience.Title, experience.InitialDisclosure, experience.Navigation, experience.Sections)).ToArray()
+            : [new DefinitionFormExperience("configure", "Configure", SetupFieldDisclosure.Guided,
+                "sections", Sections.Select(section => section.Id))]);
+        SelectedExperienceId = definition.Presentation?.DefaultExperience ?? "configure";
     }
 
     public SetupDefinition Definition { get; }
+    public IReadOnlyList<DefinitionFormExperience> Experiences { get; }
+    public IReadOnlyList<DefinitionFormSection> Sections { get; }
+    public string SelectedExperienceId { get; private set; }
+    public bool OptionalEditorsExpanded { get; private set; }
+    public event EventHandler? ViewChanged;
+
+    public bool SelectExperience(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!Experiences.Any(experience => experience.Id == id)) return false;
+        if (SelectedExperienceId == id) return true;
+        SelectedExperienceId = id;
+        OptionalEditorsExpanded = false;
+        _sectionExpansion.Clear();
+        _promotedPaths.Clear();
+        OnPropertyChanged(nameof(SelectedExperienceId));
+        OnViewChanged();
+        return true;
+    }
+
+    public void SetAllSectionsExpanded(bool expanded)
+    {
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        OptionalEditorsExpanded = expanded;
+        _sectionExpansion.Clear();
+        _promotedPaths.Clear();
+        OnViewChanged();
+    }
+
+    public bool SetSectionExpanded(string sectionId, bool expanded)
+    {
+        ArgumentNullException.ThrowIfNull(sectionId);
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!Experiences.Single(experience => experience.Id == SelectedExperienceId).Sections.Contains(sectionId))
+            return false;
+        _sectionExpansion[sectionId] = expanded;
+        _promotedPaths.Clear();
+        OnViewChanged();
+        return true;
+    }
+
+    public bool IsEditorVisible(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadata(path, out JsonElement metadata, out _)) return false;
+            DefinitionValidationResult validation = Validate();
+            if (!validation.Fields.Any(state => state.Id == path[0] && state.IsActive)) return false;
+            string[] relative = path.Skip(1).ToArray();
+            bool needsCorrection = validation.Nodes.Any(node => node.FieldId == path[0] &&
+                node.RelativePath.Take(relative.Length).SequenceEqual(relative) &&
+                (node.HasError || node.IsObligation && node.IsMissing)) ||
+                InputDiagnostics.Any(diagnostic => diagnostic.FieldId == path[0] &&
+                    diagnostic.RelativePath.Take(relative.Length).SequenceEqual(relative));
+            string key = GetEditorIdentity(path);
+            if (needsCorrection) _promotedPaths.Add(key);
+            if (needsCorrection || _promotedPaths.Contains(key) || ContainsEssentialDecision(metadata)) return true;
+            DefinitionFormExperience experience = Experiences.Single(item => item.Id == SelectedExperienceId);
+            DefinitionFormSection? section = Sections
+                .FirstOrDefault(item => item.Fields.Contains(path[0]));
+            if (section is not null && !experience.Sections.Contains(section.Id)) return false;
+            bool expanded = OptionalEditorsExpanded;
+            if (section is not null && _sectionExpansion.TryGetValue(section.Id, out bool sectionExpanded))
+                expanded = sectionExpanded;
+            if (expanded) return true;
+            SetupFieldDisclosure disclosure = metadata.TryGetProperty("disclosure", out JsonElement declared)
+                ? declared.GetString() switch
+                {
+                    "essential" => SetupFieldDisclosure.Essential,
+                    "advanced" => SetupFieldDisclosure.Advanced,
+                    _ => SetupFieldDisclosure.Guided
+                } : SetupFieldDisclosure.Guided;
+            return disclosure == SetupFieldDisclosure.Essential || disclosure <= experience.InitialDisclosure &&
+                (section is null || section.Disclosure <= experience.InitialDisclosure);
+        }
+    }
+
+    private static bool ContainsEssentialDecision(JsonElement metadata) =>
+        metadata.TryGetProperty("disclosure", out JsonElement disclosure) && disclosure.GetString() == "essential" ||
+        metadata.TryGetProperty("properties", out JsonElement properties) &&
+        properties.EnumerateArray().Any(ContainsEssentialDecision);
+
+    private void OnViewChanged()
+    {
+        _projection = null;
+        OnPropertyChanged(nameof(Projection));
+        OnPropertyChanged(nameof(VisibleFields));
+        OnPropertyChanged(nameof(OptionalEditorsExpanded));
+        Notify(() => ViewChanged?.Invoke(this, EventArgs.Empty));
+    }
+    public DefinitionFormProjection Projection
+    {
+        get
+        {
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                return _projection ??= DefinitionFormProjection.Create(this);
+            }
+        }
+    }
+    public DefinitionDiscoverySelection DiscoverySelection { get; private set; } = new();
+    public string DiscoveryQuery => DiscoverySelection.Query;
+
+    public void SetDiscovery(string query)
+    {
+        SetDiscoverySelection(new(query, DiscoverySelection.IncludeInactive, DiscoverySelection.Facets));
+    }
+
+    public void SetDiscoverySelection(DefinitionDiscoverySelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        using (BeginMutation())
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            DiscoverySelection = selection;
+            OnPropertyChanged(nameof(DiscoverySelection));
+            OnPropertyChanged(nameof(DiscoveryQuery));
+            OnViewChanged();
+        }
+    }
+
+    public void ClearDiscoveryFilters() => SetDiscoverySelection(new(DiscoveryQuery));
+    public void ClearDiscoveryQuery() => SetDiscovery(string.Empty);
+    public void ResetDiscovery() => SetDiscoverySelection(new());
+
+    public IReadOnlyList<DefinitionDiagnostic> InputDiagnostics
+    {
+        get
+        {
+            var active = Validate().Fields.Where(state => state.IsActive)
+                .Select(state => state.Id).ToHashSet(StringComparer.Ordinal);
+            return Array.AsReadOnly(Fields.Where(input => active.Contains(input.Definition.Id))
+                .SelectMany(input => input.InputDiagnostics).ToArray());
+        }
+    }
 
     /// <summary>Clears protected roots and returns whether one invalidating revision was published, even if already empty.</summary>
     public bool ClearPrivateState()
@@ -81,9 +240,13 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool CanEdit(IReadOnlyList<string> path)
     {
-        if (SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets) return true;
-        return TryMetadata(path, out JsonElement metadata, out bool inheritedSecret) &&
-            !DefinitionSecretPolicy.IsSecret(metadata, inheritedSecret);
+        lock (_gate)
+        {
+            if (_disposed) return false;
+            if (SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets) return true;
+            return TryMetadata(path, out JsonElement metadata, out bool inheritedSecret) &&
+                !DefinitionSecretPolicy.IsSecret(metadata, inheritedSecret);
+        }
     }
 
     public bool SetValue(IReadOnlyList<string> path, JsonElement? value) => ApplyValue(path, value, clearDrafts: true);
@@ -97,8 +260,12 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             DefinitionFieldInput field = Fields.Single(item => item.Definition.Id == path[0]);
             if (path.Count == 1)
             {
-                bool accepted = field.TrySetValue(value);
-                if (accepted && clearDrafts) field.ClearDrafts(path);
+                bool accepted = field.TrySetValue(value, recordOrigin: clearDrafts);
+                if (accepted && clearDrafts)
+                {
+                    field.ClearDrafts(path);
+                    ClearRowIdentities(path);
+                }
                 return accepted;
             }
             bool hasValue = field.TryValue(out JsonElement? existing) && existing is not null;
@@ -142,8 +309,14 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             else if (parent is JsonArray items && int.TryParse(path[^1], out int row) && row >= 0 && row < items.Count)
                 items[row] = replacement;
             else return false;
-            if (!field.TrySetValue(JsonSerializer.SerializeToElement(root))) return false;
-            if (clearDrafts) field.ClearDrafts(path);
+            if (!field.TrySetValue(JsonSerializer.SerializeToElement(root), recordOrigin: false)) return false;
+            if (clearDrafts)
+                field.RecordOrigin(path, value is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Explicit);
+            if (clearDrafts)
+            {
+                field.ClearDrafts(path);
+                ClearRowIdentities(path);
+            }
             return true;
         }
     }
@@ -171,6 +344,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             bool accepted = DefinitionScalarEditing.TryParse(metadata.GetProperty("type").GetString()!,
                 text, metadata, out JsonElement? value) && SetValue(path, value);
             field.SetDraftValidity(path, accepted);
+            field.RetainDraft(path, accepted ? null : text);
             if (_inputRevision == before) OnInputChanged();
             return accepted;
         }
@@ -183,7 +357,9 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out JsonElement metadata, out _) || metadata.GetProperty("type").GetString() != "object") return false;
             if (ReadNode(path) is JsonObject) return true;
-            return SetValue(path, DefinitionCollectionItem.CreateObject(metadata));
+            if (!SetValue(path, DefinitionCollectionItem.CreateObject(metadata))) return false;
+            RecordMaterializedDefaults(path, metadata);
+            return true;
         }
     }
 
@@ -207,6 +383,8 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             JsonArray items = ReadNode(path) as JsonArray ?? [];
             int maximum = metadata.TryGetProperty("maxItems", out JsonElement limit) ? limit.GetInt32() : 4096;
             if (items.Count >= maximum) return false;
+            DefinitionAnswerOrigin[] origins = Enumerable.Range(0, items.Count)
+                .Select(index => AnswerOrigin([.. path, index.ToString(System.Globalization.CultureInfo.InvariantCulture)])).ToArray();
             string type = metadata.GetProperty("itemType").GetString()!;
             items.Add(type == "object" ? JsonNode.Parse(DefinitionCollectionItem.CreateObject(metadata).GetRawText()) : type switch
             {
@@ -214,7 +392,13 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
                 "boolean" => JsonValue.Create(false),
                 _ => JsonValue.Create(0)
             });
-            return ApplyValue(path, JsonSerializer.SerializeToElement(items), clearDrafts: false);
+            if (!ApplyValue(path, JsonSerializer.SerializeToElement(items), clearDrafts: false)) return false;
+            RetainRowOrigins(path, origins);
+            string[] addedPath = [.. path, origins.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+            Fields.Single(input => input.Definition.Id == path[0]).RecordOrigin(addedPath, DefinitionAnswerOrigin.Explicit);
+            if (TryMetadata(addedPath, out JsonElement addedMetadata, out _))
+                RecordMaterializedDefaults(addedPath, addedMetadata);
+            return true;
         }
     }
 
@@ -224,8 +408,21 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (ReadNode(path) is not JsonArray items || index < 0 || index >= items.Count) return false;
+            DefinitionAnswerOrigin[] origins = Enumerable.Range(0, items.Count)
+                .Select(row => AnswerOrigin([.. path, row.ToString(System.Globalization.CultureInfo.InvariantCulture)])).ToArray();
+            string identity = GetEditorIdentity(path);
+            EnsureRowIdentities(identity, items.Count);
+            string removedIdentity = identity + "-row-" +
+                _rowIdentities[identity][index].ToString(System.Globalization.CultureInfo.InvariantCulture);
             items.RemoveAt(index);
             if (!ApplyValue(path, JsonSerializer.SerializeToElement(items), clearDrafts: false)) return false;
+            RetainRowOrigins(path, origins);
+            _rowIdentities[identity].RemoveAt(index);
+            foreach (string key in _rowIdentities.Keys.Where(key =>
+                key.StartsWith(removedIdentity + "-", StringComparison.Ordinal)).ToArray())
+                _rowIdentities.Remove(key);
+            _promotedPaths.RemoveWhere(key => key == removedIdentity ||
+                key.StartsWith(removedIdentity + "-", StringComparison.Ordinal));
             Fields.Single(field => field.Definition.Id == path[0]).RemoveItemDrafts(path, index);
             return true;
         }
@@ -242,29 +439,36 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         return node;
     }
 
-    private bool TryMetadata(IReadOnlyList<string> path, out JsonElement metadata, out bool inheritedSecret)
+    internal bool TryMetadata(IReadOnlyList<string> path, out JsonElement metadata, out bool inheritedSecret)
     {
         metadata = default;
         inheritedSecret = false;
         if (path.Count == 0 || Fields.FirstOrDefault(item => item.Definition.Id == path[0]) is not { } field) return false;
         metadata = field.Definition.Constraints;
+        var prefix = new List<string> { path[0] };
         foreach (string segment in path.Skip(1))
         {
             inheritedSecret |= DefinitionSecretPolicy.IsSecret(metadata);
-            if (metadata.GetProperty("type").GetString() == "list" && int.TryParse(segment, out int index) && index >= 0)
+            if (metadata.GetProperty("type").GetString() == "list")
             {
+                if (!int.TryParse(segment, System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out int index) ||
+                    segment != index.ToString(System.Globalization.CultureInfo.InvariantCulture) ||
+                    ReadNode(prefix) is not JsonArray rows || index < 0 || index >= rows.Count) return false;
                 metadata = JsonSerializer.SerializeToElement(new
                 {
                     type = metadata.GetProperty("itemType").GetString(),
                     properties = metadata.TryGetProperty("properties", out JsonElement properties) ? properties : JsonSerializer.SerializeToElement(Array.Empty<object>()),
                     sensitivity = "public"
                 });
+                prefix.Add(segment);
                 continue;
             }
             if (!metadata.TryGetProperty("properties", out JsonElement children)) return false;
             JsonElement child = children.EnumerateArray().FirstOrDefault(item => item.GetProperty("id").GetString() == segment);
             if (child.ValueKind == JsonValueKind.Undefined) return false;
             metadata = child;
+            prefix.Add(segment);
         }
         return true;
     }
@@ -307,26 +511,12 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
     public bool HasAnswerBudgetError => Fields.Any(input => input.HasAnswerBudgetError);
     public event EventHandler? InputChanged;
 
-    public SetupDisplayMode DisplayMode
-    {
-        get => _displayMode;
-        set
-        {
-            using var mutation = BeginMutation();
-            if (SetProperty(ref _displayMode, value))
-                OnPropertyChanged(nameof(VisibleFields));
-        }
-    }
-
     public IReadOnlyList<DefinitionFieldInput> VisibleFields
     {
         get
         {
-            var states = DefinitionValidator.Validate(Definition, Snapshot()).Fields;
-            return Array.AsReadOnly(Fields.Where(input => states.Any(state =>
-                state.Id == input.Definition.Id && state.IsActive &&
-                (state.IsVisible(DisplayMode) || input.InputDiagnosticCode is not null ||
-                    !input.TryValue(out _)))).ToArray());
+            DefinitionFormProjection projection = Projection;
+            return Array.AsReadOnly(Fields.Where(input => projection.IsFieldVisible(input.Definition.Id)).ToArray());
         }
     }
 
@@ -334,13 +524,12 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
     {
         get
         {
-            if (Fields.Any(input => input.InputDiagnosticCode is not null)) return true;
-            var active = DefinitionValidator.Validate(Definition, Snapshot()).Fields
+            var active = Validate().Fields
                 .Where(state => state.IsActive)
                 .Select(state => state.Id)
                 .ToHashSet(StringComparer.Ordinal);
             return Fields.Any(input => active.Contains(input.Definition.Id) &&
-                !input.TryValue(out _));
+                (input.InputDiagnosticCode is not null || !input.TryValue(out _)));
         }
     }
 
@@ -369,8 +558,14 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public DefinitionValidationResult Validate() =>
-        DefinitionValidator.Validate(Definition, Snapshot());
+    public DefinitionValidationResult Validate()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _validationResult ??= DefinitionValidator.Validate(Definition, Snapshot());
+        }
+    }
 
     public async Task<DefinitionImportResult> ImportAsync(string artifactId,
         Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
@@ -399,6 +594,7 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
                     result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value) &&
                     DefinitionSecretPolicy.ContainsSecret(field.Definition.Constraints, value)))
                     return new(false, null, "import-secret-consent-required");
+                _rowIdentities.Clear();
                 foreach (DefinitionFieldInput field in Fields)
                     if (result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value))
                         field.SetImported(value);
@@ -425,6 +621,8 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
+        _validationResult = null;
+        _projection = null;
         checked { _inputRevision++; }
         OnPropertyChanged(nameof(InputRevision));
         OnPropertyChanged(nameof(HasInputErrors));
@@ -451,7 +649,14 @@ public sealed class DefinitionFormModel : ObservableObject, IDisposable
             if (_disposed) return;
             _disposed = true;
             foreach (var field in Fields) field.Clear();
+            _rowIdentities.Clear();
+            _validationResult = null;
+            _projection = null;
+            _promotedPaths.Clear();
+            _sectionExpansion.Clear();
+            DiscoverySelection = new();
             InputChanged = null;
+            ViewChanged = null;
         }
     }
 
@@ -510,6 +715,9 @@ public sealed class DefinitionFieldInput : ObservableObject
     private string _text;
     private JsonElement? _value;
     private readonly List<string[]> _invalidPaths = [];
+    private readonly List<(string[] Path, string Text)> _draftTexts = [];
+    private readonly List<(string[] Path, DefinitionAnswerOrigin Origin)> _origins = [];
+    private DefinitionAnswerOrigin _origin;
     private string? _inputDiagnosticCode;
 
     internal DefinitionFieldInput(SetupFieldDefinition definition, Action<Func<bool>> changed,
@@ -521,6 +729,7 @@ public sealed class DefinitionFieldInput : ObservableObject
         _notify = notify;
         _value = definition.Default?.Clone();
         _text = definition.Default is { } value ? Display(value) : string.Empty;
+        _origin = definition.Default is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Defaulted;
     }
 
     public SetupFieldDefinition Definition { get; }
@@ -532,6 +741,18 @@ public sealed class DefinitionFieldInput : ObservableObject
     internal JsonElement? Value => _value;
     public IReadOnlyList<string> Choices =>
         Array.AsReadOnly(Definition.Choices.Select(Display).ToArray());
+
+    internal IEnumerable<DefinitionDiagnostic> InputDiagnostics
+    {
+        get
+        {
+            if (_inputDiagnosticCode is not null)
+                yield return new(_inputDiagnosticCode, Definition.Id);
+            foreach (string[] path in _invalidPaths)
+                if (_inputDiagnosticCode is null || path.Length > 1)
+                    yield return new("input-type-invalid", Definition.Id, path.Skip(1).ToArray());
+        }
+    }
 
     public string Text
     {
@@ -549,13 +770,14 @@ public sealed class DefinitionFieldInput : ObservableObject
             {
                 ClearDrafts([Definition.Id]);
                 _value = parsed?.Clone();
+                RecordOrigin([Definition.Id], parsed is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Explicit);
             }
             SetProperty(ref _text, value);
             return true;
         });
     }
 
-    internal bool TrySetValue(JsonElement? value)
+    internal bool TrySetValue(JsonElement? value, bool recordOrigin = true)
     {
         if (value is { } typed && (Definition.Type == "object" && typed.ValueKind != JsonValueKind.Object ||
             Definition.Type == "list" && typed.ValueKind != JsonValueKind.Array)) return false;
@@ -567,6 +789,8 @@ public sealed class DefinitionFieldInput : ObservableObject
             if (accepted)
             {
                 _value = value?.Clone();
+                if (recordOrigin) RecordOrigin([Definition.Id],
+                    value is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Explicit);
                 SetInputDiagnostic(null);
                 if (!SetProperty(ref _text, text, nameof(Text))) OnPropertyChanged(nameof(Text));
             }
@@ -579,6 +803,8 @@ public sealed class DefinitionFieldInput : ObservableObject
     {
         SetInputDiagnostic(null);
         _invalidPaths.Clear();
+        _draftTexts.Clear();
+        RecordOrigin([Definition.Id], DefinitionAnswerOrigin.Imported);
         RetainValue(value);
     }
 
@@ -592,6 +818,8 @@ public sealed class DefinitionFieldInput : ObservableObject
     {
         _value = null;
         _invalidPaths.Clear();
+        _draftTexts.Clear();
+        RecordOrigin([Definition.Id], DefinitionAnswerOrigin.Omitted);
         if (!SetProperty(ref _text, string.Empty, nameof(Text))) OnPropertyChanged(nameof(Text));
         SetInputDiagnostic(null);
     }
@@ -620,6 +848,7 @@ public sealed class DefinitionFieldInput : ObservableObject
 
     internal bool ClearDrafts(IReadOnlyList<string> path)
     {
+        _draftTexts.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
         bool changed = _invalidPaths.RemoveAll(existing => existing.Take(path.Count).SequenceEqual(path)) > 0;
         if (changed) OnPropertyChanged(nameof(InputDiagnosticCode));
         return changed;
@@ -627,11 +856,46 @@ public sealed class DefinitionFieldInput : ObservableObject
 
     internal void ClearDeniedDrafts(Func<IReadOnlyList<string>, bool> canEdit)
     {
+        _draftTexts.RemoveAll(existing => !canEdit(existing.Path));
         if (_invalidPaths.RemoveAll(path => !canEdit(path)) > 0) OnPropertyChanged(nameof(InputDiagnosticCode));
+    }
+
+    internal string? DraftText(IReadOnlyList<string> path) =>
+        path.Count == 1 && HasInputError(path) ? _text :
+            _draftTexts.FirstOrDefault(existing => existing.Path.SequenceEqual(path)).Text;
+
+    internal void RetainDraft(IReadOnlyList<string> path, string? text)
+    {
+        _draftTexts.RemoveAll(existing => existing.Path.SequenceEqual(path));
+        if (text is not null && text.Length <= 65_536 &&
+            _draftTexts.Sum(existing => existing.Text.Length) + text.Length <= 65_536)
+            _draftTexts.Add((path.ToArray(), text));
+    }
+
+    internal DefinitionAnswerOrigin OriginAt(IReadOnlyList<string> path) =>
+        _origins.Where(existing => path.Take(existing.Path.Length).SequenceEqual(existing.Path))
+            .OrderByDescending(existing => existing.Path.Length).Select(existing => existing.Origin)
+            .FirstOrDefault(_origin);
+
+    internal void RecordOrigin(IReadOnlyList<string> path, DefinitionAnswerOrigin origin, bool clearDescendants = true)
+    {
+        _origins.RemoveAll(existing => existing.Path.SequenceEqual(path) ||
+            clearDescendants && existing.Path.Take(path.Count).SequenceEqual(path));
+        if (path.Count == 1) _origin = origin;
+        else _origins.Add((path.ToArray(), origin));
     }
 
     internal void RemoveItemDrafts(IReadOnlyList<string> path, int index)
     {
+        static bool IsRow(string[] candidate, IReadOnlyList<string> prefix, int row) =>
+            candidate.Length > prefix.Count && candidate.Take(prefix.Count).SequenceEqual(prefix) &&
+            candidate[prefix.Count] == row.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _draftTexts.RemoveAll(existing => IsRow(existing.Path, path, index));
+        _origins.RemoveAll(existing => IsRow(existing.Path, path, index));
+        foreach (string[] existing in _draftTexts.Select(draft => draft.Path).Concat(_origins.Select(origin => origin.Path)))
+            if (existing.Length > path.Count && existing.Take(path.Count).SequenceEqual(path) &&
+                int.TryParse(existing[path.Count], out int row) && row > index)
+                existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
         _invalidPaths.RemoveAll(existing => existing.Length > path.Count &&
             existing.Take(path.Count).SequenceEqual(path) && existing[path.Count] == index.ToString(System.Globalization.CultureInfo.InvariantCulture));
         foreach (string[] existing in _invalidPaths.Where(existing => existing.Length > path.Count &&

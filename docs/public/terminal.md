@@ -49,8 +49,11 @@ Arabic resources follow the process UI culture.
    To delete an existing item, press Remove item twice. Navigating or editing
    cancels the confirmation. Selection then moves to the next item, the previous
    item when deleting the last row, or the empty container.
-2. Disclosure cycles Guided, Advanced and All declared. Activation and validation
-   stay governed by Core; hiding a field never relaxes readiness.
+2. Experience cycles the definition's authored journeys, or neutral Configure.
+   Optional-editor expansion reveals optional settings; restoring defaults uses
+   the selected journey's disclosure. Missing required work and active errors
+   remain reachable. View changes preserve answers and preparation; activation
+   and validation stay governed by Core.
 3. To prefill supported answers, cycle to the matching declared artifact, enter
    the path to an existing local file in Import file, and press Import selected
    artifact. Directly copied JSON, YAML and dotenv object fields are supported;

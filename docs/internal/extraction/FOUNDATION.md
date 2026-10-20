@@ -93,6 +93,10 @@ Typed presence preserves explicitly supplied empty strings, admitted empty enum
 choices and empty containers independently of draft text. Explicit omission is
 distinct from those values. Deliberate invalid or same-value edits fence pending
 work; programmatic refresh and untouched native navigation do not supply values.
+Shared experience/disclosure/discovery state has its own notifications and cannot
+grant consent, change answers or retire current preparation. Invalid nested drafts,
+literal correction paths, provenance and workspace row identity belong to
+Presentation/Core, rather than independent Browser or native visibility policies.
 Browser denial takes effect synchronously, retiring every old artifact owner
 before asynchronous cleanup can yield; cleanup cannot restore denied secrets
 or clear replacement output.

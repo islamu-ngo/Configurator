@@ -37,10 +37,13 @@ IReadOnlyDictionary<string, JsonElement> values)` clones answer values.
 `DefinitionValidator.Validate(SetupDefinition, SetupAnswerSnapshot)` returns
 `DefinitionValidationResult` with `IsReady`, `Fields`, and value-free
 `Diagnostics`. `Fields` expose `Id`, `IsActive`, `IsRequired`, `IsProvided`,
-`HasError`, and `IsVisible(SetupDisplayMode)`. Display modes are `Guided`,
-`Advanced`, and `AllDeclared`; they never change validation.
+and `HasError`. `Nodes` carries value-free literal child/row paths and obligation,
+presence, missing and validity facts for shared progress. Diagnostics keep their
+root `FieldId` and snapshot relative segments in `RelativePath`; duplicate rows
+identify the row and declared uniqueness property without including its value.
+Presentation owns disclosure; Core has no display-mode policy.
 Object fields inherit the strongest sensitivity of their nested properties,
-so a public parent label cannot hide protected decisions in Guided mode.
+so a public parent label cannot demote protected decisions.
 
 `Configurator.Core.Artifacts.DefinitionArtifactComposer.Compose(SetupDefinition,
 string artifactId, SetupAnswerSnapshot)` returns `DefinitionArtifactResult`

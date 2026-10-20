@@ -6,13 +6,13 @@ using Configurator.Presentation;
 /// <summary>Projects admitted fields; the caller owns and disposes the returned roots, not the shared form.</summary>
 public sealed class FormFieldFactory
 {
-    public IReadOnlyList<FieldViewModel> Create(DefinitionFormModel form, DesktopDisplayMode mode = DesktopDisplayMode.Guided)
+    public IReadOnlyList<FieldViewModel> Create(DefinitionFormModel form)
     {
         ArgumentNullException.ThrowIfNull(form);
         return Array.AsReadOnly(form.Fields.Select(input =>
         {
             var field = Project(input.Definition.Constraints, null, false);
-            field.Attach(form, input, mode);
+            field.Attach(form, input);
             return field;
         }).ToArray());
     }

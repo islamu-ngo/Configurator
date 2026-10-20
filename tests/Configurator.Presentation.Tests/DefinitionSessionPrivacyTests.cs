@@ -34,7 +34,7 @@ public sealed class DefinitionSessionPrivacyTests
     }
 
     [Test]
-    public async Task InvalidAdvancedInputRemainsVisibleForCorrectionInGuidedMode()
+    public async Task CorrectedAdvancedInputRemainsVisibleUntilDeliberateCollapse()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["fields"] = JsonNode.Parse("""
@@ -42,13 +42,15 @@ public sealed class DefinitionSessionPrivacyTests
         """);
         source["artifacts"]![0]!["projection"]!["members"]!["settings"]!["field"] = "f0";
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
-        form.DisplayMode = SetupDisplayMode.Advanced;
+        form.SetAllSectionsExpanded(true);
         form.Fields.Single().Text = "not-an-integer";
-        form.DisplayMode = SetupDisplayMode.Guided;
+        form.SetAllSectionsExpanded(false);
         await Assert.That(form.HasInputErrors).IsTrue();
         await Assert.That(form.VisibleFields.Count).IsEqualTo(1);
         form.Fields.Single().Text = "42";
         await Assert.That(form.HasInputErrors).IsFalse();
+        await Assert.That(form.VisibleFields.Count).IsEqualTo(1);
+        form.SetAllSectionsExpanded(false);
         await Assert.That(form.VisibleFields.Count).IsEqualTo(0);
     }
 

@@ -5,6 +5,7 @@
     xmlns:vm="using:Configurator.Desktop.ViewModels"
     xmlns:local="using:Configurator.Desktop.Views"
     xmlns:definitions="using:Configurator.Core.Definitions"
+    xmlns:presentation="using:Configurator.Presentation"
     x:DataType="vm:DesktopShellViewModel"
     x:CompileBindings="True"
     local:FocusBehavior.Target="{Binding FocusTarget}"
@@ -38,11 +39,20 @@
       <TextBlock Text="{Binding Loader.DefinitionPin}" TextWrapping="Wrap" />
       <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
         <StackPanel>
-          <TextBlock Text="Display mode (validation is unchanged)" />
-          <ComboBox Name="DisplayMode" HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="Field display mode"
-                    ItemsSource="{Binding Workspace.DisplayModes}"
-                    SelectedItem="{Binding Workspace.DisplayMode, Mode=TwoWay}" />
+          <TextBlock Text="Configuration experience" />
+          <ComboBox Name="Experience" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="Configuration experience"
+                    ItemsSource="{Binding Workspace.Experiences}"
+                    SelectedItem="{Binding Workspace.SelectedExperience, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="presentation:DefinitionFormExperience">
+                <TextBlock Text="{Binding Title}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <CheckBox Name="OptionalEditors" Content="Show _optional editors"
+                    AutomationProperties.Name="Show optional editors"
+                    IsChecked="{Binding Workspace.OptionalEditorsExpanded, Mode=TwoWay}" />
         </StackPanel>
         <CheckBox Grid.Column="1" Content="_Right-to-left layout" VerticalAlignment="Bottom"
                   AutomationProperties.Name="Use right-to-left layout"

@@ -20,8 +20,8 @@ public partial class ConfigurationField
     [Parameter] public bool FocusFirstControl { get; set; }
     [Parameter] public long FocusGeneration { get; set; }
     [Parameter] public int FocusRow { get; set; } = -1;
-    private readonly string _controlId = "field-" + Guid.NewGuid().ToString("N");
-    private readonly List<Guid> _rowKeys = [];
+    [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
+    private readonly List<string> _rowKeys = [];
     private ElementReference _addButton;
     private ElementReference _group;
     private ElementReference _control;
@@ -33,12 +33,10 @@ public partial class ConfigurationField
     private bool _focusAdd;
     private bool _focusAfterOmit;
     private bool _invalid;
-    private string? _editing;
-    private string? _observedText;
-    private string Error => string.Join(" ", Validation?.Diagnostics.Where(item => MatchesDiagnostic(item.FieldId)).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
-    private bool MatchesDiagnostic(string? fieldId) => fieldId == Path[0] || fieldId is not null &&
-        (Path.Count == 1 ? fieldId.StartsWith(Path[0] + "/", StringComparison.Ordinal) : fieldId == Path[0] + "/" + Path[1]);
-    private string ControlId => Path.Count == 1 ? "choice-" + Path[0] : _controlId;
+    private string Error => string.Join(" ", Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
+    private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
+        diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1));
+    private string ControlId => Path.Count == 1 ? "choice-" + Path[0] : Form.GetEditorIdentity(Path);
     private string Type => Schema.GetProperty("type").GetString()!;
     private string Title => ConfigurationDiagnosticText.Title(Schema.TryGetProperty("title", out var value) ? value.GetString()! : "Item", Schema.TryGetProperty("id", out var id) ? id.GetString() : null);
     private string? Help => Schema.TryGetProperty("help", out var value) ? value.GetString() : null;
@@ -69,7 +67,7 @@ public partial class ConfigurationField
     private int Count => Value is { ValueKind: JsonValueKind.Array } value ? value.GetArrayLength() : 0;
     private string Text => !Form.CanEdit(Path) ? string.Empty : Path.Count == 1
         ? Form.Fields.Single(input => input.Definition.Id == Path[0]).Text
-        : _editing ?? (Value is { } value ? Display(value) : string.Empty);
+        : Form.ReadDraftText(Path) ?? (Value is { } value ? Display(value) : string.Empty);
     private Dictionary<string, object> InputAttributes => new()
     {
         ["autocomplete"] = "off",
@@ -104,22 +102,15 @@ public partial class ConfigurationField
     {
         if (!FocusFirstControl || _observedFocusGeneration != FocusGeneration) _focusedForRequest = false;
         _observedFocusGeneration = FocusGeneration;
-        while (_rowKeys.Count < Count) _rowKeys.Add(Guid.NewGuid());
-        if (_rowKeys.Count > Count) _rowKeys.RemoveRange(Count, _rowKeys.Count - Count);
-        if (!Form.CanEdit(Path))
+        _rowKeys.Clear();
+        for (int row = 0; row < Count; row++)
+            _rowKeys.Add(Form.GetEditorIdentity(Path.Append(row.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray()));
+        bool invalid = Form.CanEdit(Path) && Form.HasInputError(Path);
+        if (_invalid != invalid)
         {
-            _editing = null;
-            if (_invalid) { _invalid = false; _ = NotifyValidityAsync(); }
-        }
-        if (_invalid && !Form.HasInputError(Path))
-        {
-            _invalid = false;
-            _editing = null;
+            _invalid = invalid;
             _ = NotifyValidityAsync();
         }
-        string? current = Value is { } value ? Display(value) : null;
-        if (_observedText != current) _editing = null;
-        _observedText = current;
     }
     private void Edit(ChangeEventArgs args)
     {
@@ -130,7 +121,6 @@ public partial class ConfigurationField
             if (!int.TryParse(selection, out int index) || index < 0 ||
                 index >= Schema.GetProperty("choices").GetArrayLength()) return;
             _invalid = !Form.SetValue(Path, Schema.GetProperty("choices")[index]);
-            _editing = null;
             _ = NotifyValidityAsync();
             return;
         }
@@ -138,17 +128,15 @@ public partial class ConfigurationField
     }
     private void EditText(string? suppliedText)
     {
+        if (!Form.CanEdit(Path)) return;
         string text = suppliedText ?? string.Empty;
-        _editing = text;
         _invalid = !Form.EditValue(Path, text);
-        _observedText = Value is { } supplied ? Display(supplied) : null;
         _ = NotifyValidityAsync();
     }
     private Task NotifyValidityAsync() => ValidationChanged.InvokeAsync((ControlId, Path[0], _invalid));
     private void Omit()
     {
         if (!Form.EditValue(Path, null)) return;
-        _editing = null;
         _invalid = false;
         _focusAfterOmit = true;
         _ = NotifyValidityAsync();
@@ -156,16 +144,13 @@ public partial class ConfigurationField
     private void Add()
     {
         _focusNewRow = Count;
-        _rowKeys.Add(Guid.NewGuid());
-        if (!Form.AddListItem(Path)) { _rowKeys.RemoveAt(_rowKeys.Count - 1); _focusNewRow = -1; }
+        if (!Form.AddListItem(Path)) _focusNewRow = -1;
     }
     private void SupplyObject() { _focusObjectChildren = true; if (!Form.SupplyObject(Path)) _focusObjectChildren = false; }
     private void SupplyList() { if (Form.SetValue(Path, JsonSerializer.SerializeToElement(Array.Empty<object>()))) _focusAdd = true; }
     private void Remove(int index)
     {
-        Guid identity = _rowKeys[index];
-        _rowKeys.RemoveAt(index);
-        if (!Form.RemoveListItem(Path, index)) { _rowKeys.Insert(index, identity); return; }
+        if (!Form.RemoveListItem(Path, index)) return;
         _focusAdd = true;
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -192,6 +177,7 @@ public partial class ConfigurationField
     }
     private bool CanFocus(JsonElement schema, IReadOnlyList<string> path)
     {
+        if (FocusPath.Count > 0 && !FocusPath.Take(path.Count).SequenceEqual(path)) return false;
         if (!Form.CanEdit(path)) return false;
         if (schema.GetProperty("type").GetString() != "object") return true;
         return schema.GetProperty("properties").EnumerateArray().Any(child => CanFocus(child, path.Append(child.GetProperty("id").GetString()!).ToArray()));

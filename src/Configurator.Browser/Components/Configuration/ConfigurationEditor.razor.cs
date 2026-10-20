@@ -20,14 +20,13 @@ public partial class ConfigurationEditor
     private readonly SetupPresentationSession _session = new(new WeakReferenceMessenger());
     private readonly List<PreparedArtifact> _prepared = [];
     private readonly List<string> _diagnostics = [];
-    private readonly Dictionary<string, string> _invalidInputs = new(StringComparer.Ordinal);
     private readonly HashSet<string> _mountedFields = new(StringComparer.Ordinal);
     private string _status = "Supply ordinary settings. Secret entry is disabled.";
     private string _statusCode = "workspace-ready";
     private string _importArtifact = string.Empty;
     private string? _selectedSection;
     private string? _focusField;
-    private int _focusRow = -1;
+    private IReadOnlyList<string> _focusPath = [];
     private long _focusGeneration;
     private bool _focusConsent;
     private ElementReference _consentControl;
@@ -53,7 +52,6 @@ public partial class ConfigurationEditor
         if (ReferenceEquals(_pinned, Definition)) return;
         Invalidate();
         _form?.Dispose();
-        _invalidInputs.Clear();
         _mountedFields.Clear();
         _selectedSection = null;
         _focusField = null;
@@ -62,30 +60,40 @@ public partial class ConfigurationEditor
         _beginPending = true;
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
         _form.InputChanged += InputChanged;
+        _form.ViewChanged += ViewChanged;
         _importArtifact = Definition.Artifacts.Count > 0 ? Definition.Artifacts[0].Id : string.Empty;
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         _navigation?.Register(this, Invalidate, DiscardAsync);
     }
 
-    private static string Group(SetupFieldDefinition field) => field.Group ?? "Other";
-    private string SectionId(string group) => "configuration-section-" + Array.FindIndex(Definition.Fields.Select(Group).Distinct(StringComparer.Ordinal).ToArray(), item => item == group);
-    private ConfigurationSection[] Sections(IReadOnlyList<SetupFieldState> fields) =>
-        fields.GroupBy(state => Group(state.Definition)).Where(group => group.Any(state => state.IsVisible(_form!.DisplayMode) || _invalidInputs.ContainsValue(state.Id)))
-            .Select(group => new ConfigurationSection(group.Key, group.Count(state => state.IsActive),
-                group.Count(state => state.HasError || _invalidInputs.ContainsValue(state.Id)))).ToArray();
-    private string? SelectedSection(IReadOnlyList<ConfigurationSection> sections) =>
-        sections.Any(item => item.Name == _selectedSection) ? _selectedSection : sections.Count > 0 ? sections[0].Name : null;
-    private void SelectSection(string section) { _selectedSection = section; _focusField = null; }
-    private void CorrectField(string fieldId)
+    private DefinitionFormExperience SelectedExperience => _form!.Experiences.Single(item => item.Id == _form.SelectedExperienceId);
+    private sealed record EditorSection(string Id, string Title, IReadOnlyList<DefinitionFieldInput> Fields);
+    private EditorSection[] EditorSections()
     {
-        SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId || fieldId.StartsWith(item.Id + "/", StringComparison.Ordinal));
+        return _form!.Projection.Sections
+            .Select(section => new EditorSection(section.Id, section.Title,
+                section.Fields.Select(id => _form!.Fields.Single(input => input.Definition.Id == id)).ToArray()))
+            .ToArray();
+    }
+    private bool EditorVisible(DefinitionFieldInput input) => _form!.IsEditorVisible([input.Definition.Id]);
+    private string SectionId(string section) => "configuration-section-" + Array.FindIndex(EditorSections(), item => item.Id == section);
+    private string? SelectedSection(IReadOnlyList<EditorSection> sections) =>
+        sections.Any(item => item.Id == _selectedSection) ? _selectedSection : sections.Count > 0 ? sections[0].Id : null;
+    private void SelectSection(string section) { _selectedSection = section; _focusField = null; }
+    private void CorrectField(DefinitionDiagnostic diagnostic)
+    {
+        string fieldId = diagnostic.FieldId;
+        SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId);
         if (field is null) return;
-        _selectedSection = Group(field);
-        _focusField = field.Id;
-        string suffix = fieldId.Length > field.Id.Length ? fieldId[(field.Id.Length + 1)..] : string.Empty;
-        _focusRow = int.TryParse(suffix, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int row) ? row : -1;
+        string[] path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
+        bool focused = _form!.FocusEditor(path);
+        bool denied = !_form.CanEdit(path);
+        if (!focused && !denied) return;
+        _selectedSection = EditorSections().Single(section => section.Fields.Any(input => input.Definition.Id == fieldId)).Id;
+        _focusField = denied ? null : field.Id;
+        _focusPath = denied ? [] : path;
         ++_focusGeneration;
-        _focusConsent = !_form!.CanEdit([field.Id]);
+        _focusConsent = denied;
     }
     private async Task EnableSecretsAsync()
     {
@@ -102,13 +110,12 @@ public partial class ConfigurationEditor
         _statusCode = "answers-changed";
         StateHasChanged();
     }
-    private void ChangeMode(ChangeEventArgs args)
+    private void ViewChanged(object? sender, EventArgs args) => StateHasChanged();
+    private void ChangeExperience(ChangeEventArgs args)
     {
-        if (!Enum.TryParse(args.Value?.ToString(), out SetupDisplayMode mode) || !Enum.IsDefined(mode)) return;
-        Invalidate();
-        _form!.DisplayMode = mode;
-        _status = "Field view changed. Previous output has been discarded; validation still covers every active field.";
-        _statusCode = "display-mode-changed";
+        if (args.Value is not string id || !_form!.SelectExperience(id)) return;
+        _selectedSection = null;
+        _focusField = null;
     }
     private void ChangeImportFormat(ChangeEventArgs args)
     {
@@ -155,7 +162,7 @@ public partial class ConfigurationEditor
             return;
         }
         _validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : form.Validate();
-        if (form.HasInputErrors || _invalidInputs.Count > 0)
+        if (form.HasInputErrors)
         {
             _diagnostics.Add("input-type-invalid");
             _status = "Correct invalid field values before preparing configuration.";
@@ -208,11 +215,6 @@ public partial class ConfigurationEditor
         }
         _status = _prepared.Count == 0 ? "No configuration prepared. Correct required settings." : $"Prepared {_prepared.Count} private artifact(s). Reveal, copy or download each explicitly.";
         _statusCode = _prepared.Count == 0 ? "preparation-rejected" : "preparation-ready";
-    }
-    private void InputValidityChanged((string Id, string FieldId, bool Invalid) value)
-    {
-        if (value.Invalid) _invalidInputs[value.Id] = value.FieldId;
-        else _invalidInputs.Remove(value.Id);
     }
     private async Task CopyAsync(PreparedArtifact artifact)
     {
@@ -383,7 +385,7 @@ public partial class ConfigurationEditor
         {
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
             _form.InputChanged += InputChanged;
-            _invalidInputs.Clear();
+            _form.ViewChanged += ViewChanged;
             _mountedFields.Clear();
             _focusField = null;
         }

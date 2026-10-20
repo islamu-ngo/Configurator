@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
@@ -39,7 +40,8 @@ internal sealed class SetupTerminalWindow : Window
     private readonly Button _nextAttempt;
     private readonly Button _save;
     private readonly Button _prepare;
-    private readonly Button _mode;
+    private readonly Button _experience;
+    private readonly Button _optionalEditors;
     private readonly Button _choice;
     private readonly Button _addItem;
     private readonly Button _supplyContainer;
@@ -91,7 +93,10 @@ internal sealed class SetupTerminalWindow : Window
             Width = Dim.Fill(2),
             Text = Safe($"{definition.Title} | {definition.ApplicationId} | r{definition.Revision}")
         };
-        _mode = Button("DisplayMode", 1, 2, CycleMode);
+        _experience = Button("Choose", 1, 2, CycleExperience);
+        _experience.Width = Dim.Fill(2);
+        _optionalEditors = Button("Choose", 1, 3, ToggleOptionalEditors);
+        _optionalEditors.Width = Dim.Fill(2);
         _fieldLabel = new Label { X = 1, Y = 4, Width = Dim.Fill(2) };
         _value = new TextField { X = 1, Y = 5, Width = Dim.Fill(2) };
         _masked = new SetupSecretTextField(secret) { X = 1, Y = 5, Width = Dim.Fill(2), Visible = false };
@@ -140,7 +145,7 @@ internal sealed class SetupTerminalWindow : Window
             Text = SetupTerminalText.Get("TerminalTooSmall"),
             Visible = false
         };
-        Add(heading, _mode, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
+        Add(heading, _experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
             _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import,
             validate, _prepare, _save, _nextOutcome, _nextAttempt, _status,
             clear, close, limitations, previousItem, nextItem, removeItem, _addItem);
@@ -157,6 +162,7 @@ internal sealed class SetupTerminalWindow : Window
         };
         _operation.Invalidated += OperationInvalidated;
         _operation.PublicationChanged += PublicationChanged;
+        _operation.Form.ViewChanged += FormViewChanged;
         _workspace.PropertyChanged += WorkspaceChanged;
         ViewportChanged += ViewportUpdated;
         ShowArtifact();
@@ -171,6 +177,8 @@ internal sealed class SetupTerminalWindow : Window
     internal bool IsImportBusy => _importOperation.IsBusy;
     internal Task ShutdownCompletion => _shutdown;
     internal Task SaveCompletion => _saveObservation;
+    private IReadOnlyList<SetupTerminalFieldEditor.Slot> VisibleSlots =>
+        _editor.Slots.Where(slot => _operation.Form.IsEditorVisible(slot.FullPath)).ToArray();
 
     private Button Button(string key, int x, int y, Action action)
     {
@@ -236,7 +244,7 @@ internal sealed class SetupTerminalWindow : Window
     internal void MoveField(int delta)
     {
         if (!CommitField()) return;
-        var slots = _editor.Slots;
+        var slots = VisibleSlots;
         if (slots.Count == 0) { ShowField(); return; }
         int current = _slot is null ? 0 : slots.ToList().FindIndex(slot =>
             slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
@@ -325,7 +333,7 @@ internal sealed class SetupTerminalWindow : Window
             _draftValid = true;
             _masked.ClearSensitiveState();
             _value.Text = string.Empty;
-            var slots = _editor.Slots;
+            var slots = VisibleSlots;
             if (preserveLocation && _slot is not null)
             {
                 int current = slots.ToList().FindIndex(slot => slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
@@ -345,11 +353,14 @@ internal sealed class SetupTerminalWindow : Window
                 else if (!_slot.RequiresMasking) _value.Text = text;
             }
             SetEditorVisibility();
-            _mode.Text = SetupTerminalText.Get("DisplayMode") + ": " + SetupTerminalText.Get(operationModeKey());
+            var experience = _operation.Form.Experiences.Single(item => item.Id == _operation.Form.SelectedExperienceId);
+            _experience.Text = Safe(experience.Title);
+            _experience.Enabled = _operation.Form.Experiences.Count > 1;
+            _optionalEditors.Text = _operation.Form.OptionalEditorsExpanded
+                ? "Restore default disclosure" : "Show optional editors";
             RefreshCommands();
         }
         finally { _loading = false; }
-        string operationModeKey() => "Mode" + _operation.Form.DisplayMode;
     }
 
     private void SetEditorVisibility()
@@ -375,14 +386,22 @@ internal sealed class SetupTerminalWindow : Window
         else _value.SetFocus();
     }
 
-    private void CycleMode()
+    internal void CycleExperience()
     {
-        if (!CommitField()) return;
-        _operation.Form.DisplayMode = (SetupDisplayMode)(((int)_operation.Form.DisplayMode + 1) % 3);
-        _fieldIndex = 0;
-        _itemIndex = 0;
-        ShowField(preserveLocation: false);
+        var form = _operation.Form;
+        var experiences = form.Experiences;
+        int current = experiences.ToList().FindIndex(item => item.Id == form.SelectedExperienceId);
+        form.SelectExperience(experiences[(current + 1) % experiences.Count].Id);
     }
+
+    internal void ToggleOptionalEditors() =>
+        _operation.Form.SetAllSectionsExpanded(!_operation.Form.OptionalEditorsExpanded);
+
+    private void FormViewChanged(object? sender, EventArgs args) =>
+        DispatchToOwner(static window =>
+        {
+            if (Volatile.Read(ref window._closeRequested) == 0) window.ShowField();
+        });
 
     private void CycleChoice()
     {
@@ -462,7 +481,7 @@ internal sealed class SetupTerminalWindow : Window
         RefreshCommands();
     }
 
-    private void Validate()
+    internal void Validate()
     {
         if (!CommitField()) return;
         try
@@ -471,7 +490,8 @@ internal sealed class SetupTerminalWindow : Window
             _status.Text = validation.IsReady && !_operation.Form.HasInputErrors
                 ? SetupTerminalText.Get("PreviewReady")
                 : SetupTerminalText.Get("DraftInvalid") + " " +
-                    string.Join(", ", validation.Diagnostics.Select(item => Safe(item.Code + ":" + item.FieldId)));
+                    string.Join(", ", validation.Diagnostics.Select(item => Safe(item.Code + ":" +
+                        JsonSerializer.Serialize(new[] { item.FieldId }.Concat(item.RelativePath)))));
         }
         catch (SetupDefinitionException) { Status("DraftInvalid"); }
     }
@@ -627,6 +647,7 @@ internal sealed class SetupTerminalWindow : Window
         _workspace.PropertyChanged -= WorkspaceChanged;
         _operation.Invalidated -= OperationInvalidated;
         _operation.PublicationChanged -= PublicationChanged;
+        _operation.Form.ViewChanged -= FormViewChanged;
         ViewportChanged -= ViewportUpdated;
     }
 

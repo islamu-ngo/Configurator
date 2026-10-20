@@ -9,12 +9,72 @@ using Avalonia.Headless;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Configurator.Core.Definitions;
-using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Presentation;
 
 public sealed class FieldViewModelTests
 {
+    [Test]
+    public async Task OptionalAdvancedSecretDoesNotOpenBecauseItIsProtected()
+    {
+        using var form = Form("""
+            {"id":"token","title":"Token","type":"string","sensitivity":"secret","disclosure":"advanced",
+             "consequence":"Acquire a token only if this optional integration is needed."}
+            """);
+        var fields = new FormFieldFactory().Create(form);
+        try
+        {
+            await Assert.That(fields.Single().IsVisible).IsFalse();
+            await Assert.That(fields.Single().RequiresMasking).IsTrue();
+            long revision = form.InputRevision;
+            form.SetAllSectionsExpanded(true);
+            await Assert.That(fields.Single().IsVisible).IsTrue();
+            form.SetAllSectionsExpanded(false);
+            await Assert.That(fields.Single().IsVisible).IsFalse();
+            await Assert.That(form.Snapshot().Values.ContainsKey("token")).IsFalse();
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+        }
+        finally { Dispose(fields); }
+    }
+
+    [Test]
+    public async Task LiteralNestedPathsFollowSurvivingListMembershipForCorrections()
+    {
+        using var form = Form("""
+            {"id":"rows.list","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
+             "properties":[{"id":"value.part","title":"Value","type":"string","maxLength":2,"sensitivity":"secret","disclosure":"advanced"}]}
+            """);
+        var fields = new FormFieldFactory().Create(form);
+        try
+        {
+            var list = (ListFieldViewModel)fields.Single();
+            list.Text = """[{"value.part":"ok"},{"value.part":"ok"}]""";
+            var first = (ObjectFieldViewModel)list.Items[0];
+            var second = (ObjectFieldViewModel)list.Items[1];
+            var firstValue = first.Children.Single();
+            var secondValue = second.Children.Single();
+            await Assert.That(firstValue.IsVisible).IsFalse();
+            await Assert.That(secondValue.IsVisible).IsFalse();
+            secondValue.Text = "invalid";
+            await Assert.That(firstValue.IsVisible).IsFalse();
+            await Assert.That(secondValue.IsVisible).IsTrue();
+            list.RemoveItemCommand.Execute(first);
+            await Assert.That(ReferenceEquals(list.Items.Single(), second)).IsTrue();
+            await Assert.That(secondValue.IsVisible).IsTrue();
+            await Assert.That(form.Snapshot().Values["rows.list"].GetArrayLength()).IsEqualTo(1);
+            secondValue.Text = "ok";
+            await Assert.That(secondValue.IsVisible).IsFalse();
+            long revision = form.InputRevision;
+            form.SetAllSectionsExpanded(true);
+            await Assert.That(secondValue.IsVisible).IsTrue();
+            form.SetAllSectionsExpanded(false);
+            await Assert.That(secondValue.IsVisible).IsFalse();
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+            await Assert.That(ReferenceEquals(second.Children.Single(), secondValue)).IsTrue();
+        }
+        finally { Dispose(fields); }
+    }
+
     [Test]
     public async Task EmptyEnumSelectionSurvivesRefreshAndClearMeansOmission()
     {
@@ -26,14 +86,16 @@ public sealed class FieldViewModelTests
         {
             var field = (EnumFieldViewModel)fields.Single();
             long before = form.InputRevision;
-            field.Refresh(DesktopDisplayMode.Advanced);
+            form.SetAllSectionsExpanded(true);
+            field.Refresh();
             await Assert.That(form.InputRevision).IsEqualTo(before);
             await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
             field.SelectedIndex = 2;
             field.SelectedIndex = 1;
             await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
             before = form.InputRevision;
-            field.Refresh(DesktopDisplayMode.Guided);
+            form.SetAllSectionsExpanded(false);
+            field.Refresh();
             await Assert.That(form.InputRevision).IsEqualTo(before);
             field.ClearCommand.Execute(null);
             await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
@@ -52,7 +114,8 @@ public sealed class FieldViewModelTests
         {
             FieldViewModel field = fields.Single();
             long before = form.InputRevision;
-            field.Refresh(DesktopDisplayMode.Advanced);
+            form.SetAllSectionsExpanded(true);
+            field.Refresh();
             await Assert.That(form.InputRevision).IsEqualTo(before);
             await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
             field.Text = "erase";
@@ -182,10 +245,10 @@ public sealed class FieldViewModelTests
     }
 
     [Test]
-    public async Task DisplayRefreshPreservesErrorsConsequencesAndProtectedFields()
+    public async Task ExpansionRestoresAuthoredDefaultsAndKeepsActiveCorrectionsReachable()
     {
         using var form = Form();
-        var fields = new FormFieldFactory().Create(form, DesktopDisplayMode.Essential);
+        var fields = new FormFieldFactory().Create(form);
         try
         {
             var note = fields.Single(field => field.Id == "note");
@@ -193,14 +256,19 @@ public sealed class FieldViewModelTests
             await Assert.That(fields.Single(field => field.Id == "mode").IsVisible).IsTrue();
             await Assert.That(fields.Single(field => field.Id == "owner").IsVisible).IsTrue();
             form.Fields.Single(input => input.Definition.Id == "note").Text = "too-long-note";
-            note.Refresh(DesktopDisplayMode.Essential);
+            note.Refresh();
             await Assert.That(note.HasError).IsTrue();
             await Assert.That(note.IsVisible).IsTrue();
             await Assert.That(note.ErrorText.Contains("too-long-note", StringComparison.Ordinal)).IsFalse();
             note.ClearCommand.Execute(null);
             await Assert.That(note.HasError).IsFalse();
-            note.Refresh(DesktopDisplayMode.Advanced);
+            long revision = form.InputRevision;
+            form.SetAllSectionsExpanded(true);
             await Assert.That(note.IsVisible).IsTrue();
+            form.SetAllSectionsExpanded(false);
+            await Assert.That(note.IsVisible).IsFalse();
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+            await Assert.That(ReferenceEquals(note, fields.Single(field => field.Id == "note"))).IsTrue();
         }
         finally { Dispose(fields); }
     }
@@ -293,7 +361,7 @@ public sealed class FieldViewModelTests
         using var form = Form("""
             {"id":"note","title":"Note","type":"string","sensitivity":"public","disclosure":"essential","minLength":1,"maxLength":8}
             """);
-        var fields = new FormFieldFactory().Create(form, DesktopDisplayMode.Essential);
+        var fields = new FormFieldFactory().Create(form);
         try
         {
             var note = fields.Single();

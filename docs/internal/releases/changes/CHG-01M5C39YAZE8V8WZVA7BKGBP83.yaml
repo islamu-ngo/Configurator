@@ -1,0 +1,26 @@
+Change-Id: CHG-01M5C39YAZE8V8WZVA7BKGBP83
+Title: "separate guidance from configuration answers"
+Type: feat
+Scope: definitions
+Summary: "Centralize attention, literal correction paths, progress and metadata discovery while preserving answers, drafts and consent."
+Group: guided-configuration-experiences
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented

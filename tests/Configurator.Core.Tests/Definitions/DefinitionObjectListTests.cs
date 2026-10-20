@@ -74,7 +74,9 @@ public sealed class DefinitionObjectListTests
         using DefinitionDraftArtifactResult duplicate = DefinitionDraftArtifactComposer.Compose(Definition(), "config",
             DefinitionFixture.Answers("""{"service.name":[{"metadata":{"name":"one"}},{"metadata":{"name":"one"}}]}"""));
         await Assert.That(duplicate.Artifact).IsNull();
-        await Assert.That(duplicate.Diagnostics.Single()).IsEqualTo(new DefinitionDiagnostic("value-duplicate", "service.name/1"));
+        await Assert.That(duplicate.Diagnostics.Single().Code).IsEqualTo("value-duplicate");
+        await Assert.That(duplicate.Diagnostics.Single().FieldId).IsEqualTo("service.name");
+        await Assert.That(duplicate.Diagnostics.Single().RelativePath.SequenceEqual(["1", "metadata", "name"])).IsTrue();
     }
 
     [Test]

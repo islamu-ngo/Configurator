@@ -10,12 +10,12 @@
             <ul>
                 @foreach (var diagnostic in Validation?.Diagnostics ?? [])
                 {
-                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@diagnostic.FieldId" OnClick="() => CorrectField.InvokeAsync(diagnostic.FieldId)">@FieldTitle(diagnostic.FieldId)</AppButton>
+                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@diagnostic.FieldId" OnClick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</AppButton>
                         <span>@ConfigurationDiagnosticText.Describe(diagnostic.Code)</span></li>
                 }
-                @foreach (string field in InvalidFields)
+                @foreach (DefinitionDiagnostic diagnostic in InvalidFields)
                 {
-                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@field" OnClick="() => CorrectField.InvokeAsync(field)">@FieldTitle(field)</AppButton>
+                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@diagnostic.FieldId" OnClick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</AppButton>
                         <span>@ConfigurationDiagnosticText.Describe("input-type-invalid")</span></li>
                 }
             </ul>
@@ -39,14 +39,28 @@
     [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public IReadOnlyList<string> DiagnosticCodes { get; set; } = [];
-    [Parameter] public IReadOnlyList<string> InvalidFields { get; set; } = [];
+    [Parameter] public IReadOnlyList<DefinitionDiagnostic> InvalidFields { get; set; } = [];
     [Parameter] public bool SecretsEnabled { get; set; }
-    [Parameter] public EventCallback<string> CorrectField { get; set; }
+    [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     [Parameter] public EventCallback PrepareDraft { get; set; }
-    private string FieldTitle(string path)
+    private string FieldTitle(DefinitionDiagnostic diagnostic)
     {
-        var field = Definition.Fields.FirstOrDefault(item => path == item.Id || path.StartsWith(item.Id + "/", StringComparison.Ordinal));
-        return field is null ? "Preparation" : ConfigurationDiagnosticText.Title(field);
+        SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => diagnostic.FieldId == item.Id);
+        if (field is null) return "Preparation";
+        var titles = new List<string> { ConfigurationDiagnosticText.Title(field) };
+        foreach (string segment in diagnostic.RelativePath)
+        {
+            if (field.Type == "list" && int.TryParse(segment, out int row))
+                titles.Add($"Item {row + 1}");
+            else
+            {
+                SetupFieldDefinition? child = field.Properties.FirstOrDefault(item => item.Id == segment);
+                if (child is null) break;
+                field = child;
+                titles.Add(ConfigurationDiagnosticText.Title(child));
+            }
+        }
+        return string.Join(" / ", titles);
     }
 }

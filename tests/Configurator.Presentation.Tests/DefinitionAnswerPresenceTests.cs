@@ -8,6 +8,21 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionAnswerPresenceTests
 {
     [Test]
+    public async Task ProvenanceTracksMutationRatherThanEqualityAndInvalidEditsAreNotAcceptedOrigins()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        await Assert.That(form.AnswerOrigin(["defaultText"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
+        form.SetValue(["defaultText"], JsonSerializer.SerializeToElement(""));
+        await Assert.That(form.AnswerOrigin(["defaultText"])).IsEqualTo(DefinitionAnswerOrigin.Explicit);
+        form.SetValue(["defaultText"], null);
+        await Assert.That(form.AnswerOrigin(["defaultText"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
+        await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"text":""}"""u8.ToArray()));
+        await Assert.That(form.AnswerOrigin(["text"])).IsEqualTo(DefinitionAnswerOrigin.Imported);
+        form.EditValue(["count"], "invalid");
+        await Assert.That(form.AnswerOrigin(["count"])).IsEqualTo(DefinitionAnswerOrigin.Omitted);
+    }
+
+    [Test]
     public async Task ImportedEmptyStringSurvivesSnapshotAndPreparation()
     {
         using var form = new DefinitionFormModel(Definition());

@@ -22,7 +22,7 @@
                     bool focusChild = focusRemaining && CanFocus(child, childPath);
                     if (focusChild) focusRemaining = false;
                     <ConfigurationField @key="childId" Form="Form" Schema="child" Path="childPath" Validation="Validation" ValidationChanged="ValidationChanged"
-                                        InheritedSecret="IsSecret" InheritedSensitive="IsMasked" FocusFirstControl="focusChild" FocusGeneration="FocusGeneration" />
+                                        InheritedSecret="IsSecret" InheritedSensitive="IsMasked" FocusFirstControl="focusChild" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
                 }
             }
             else
@@ -36,7 +36,7 @@
                     int row = index;
                     <div class="configuration-field__row" @key="_rowKeys[row]">
                         <ConfigurationField Form="Form" Schema="ItemSchema" Path="@Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray()" Validation="Validation" ValidationChanged="ValidationChanged"
-                                            InheritedSecret="IsSecret" InheritedSensitive="IsMasked" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && row == (FocusRow >= 0 ? FocusRow : 0))" FocusGeneration="FocusGeneration" />
+                                            InheritedSecret="IsSecret" InheritedSensitive="IsMasked" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && (FocusPath.Count > Path.Count ? FocusPath[Path.Count] == row.ToString(CultureInfo.InvariantCulture) : row == (FocusRow >= 0 ? FocusRow : 0)))" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
                         <button type="button" class="button button--secondary" aria-label="@($"Remove {Title} item {row + 1}")" @onclick="() => Remove(row)">Remove item @(row + 1)</button>
                     </div>
                 }

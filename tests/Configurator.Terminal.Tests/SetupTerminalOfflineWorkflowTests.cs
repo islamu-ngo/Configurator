@@ -1,6 +1,8 @@
 namespace Configurator.Terminal.Tests;
 
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
@@ -105,6 +107,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
     public async Task NestedObjectLeavesAndListItemsAreEditedWithoutRawJson()
     {
         using var form = TerminalDefinitionFixture.Form();
+        form.SetAllSectionsExpanded(true);
         var slots = new SetupTerminalFieldEditor(form).Slots;
         var display = slots.Single(item => item.Title == "Display");
         var password = slots.Single(item => item.Title == "Password");
@@ -124,18 +127,96 @@ public sealed class SetupTerminalOfflineWorkflowTests
     }
 
     [Test]
-    public async Task DisclosureHidesOptionalMetadataButNotProtectedOrRequiredDecisions()
+    [NotInParallel]
+    public async Task AuthoredExperiencesAndDisclosurePreserveAnswersAndPreparation()
+    {
+        using var form = ExperienceForm();
+        using var harness = new ExperienceHarness(form);
+        await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
+        var preparation = harness.Operation.Preparation;
+        long revision = form.InputRevision;
+        int answerChanges = 0;
+        form.InputChanged += (_, _) => answerChanges++;
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("guided");
+        await Assert.That(form.IsEditorVisible(["advanced"])).IsFalse();
+        await Assert.That(form.IsEditorVisible(["token"])).IsFalse();
+        await Assert.That(form.IsEditorVisible(["profile", "password"])).IsFalse();
+        await Assert.That(form.IsEditorVisible(["endpoint"])).IsFalse();
+
+        harness.Window.CycleExperience();
+
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("complete");
+        await Assert.That(harness.Window.SubViews.OfType<global::Terminal.Gui.Views.Button>()
+            .Any(button => button.Text == "All settings")).IsTrue();
+        await Assert.That(form.IsEditorVisible(["advanced"])).IsTrue();
+        await Assert.That(form.IsEditorVisible(["profile", "password"])).IsTrue();
+        await Assert.That(new SetupTerminalFieldEditor(form).Slots
+            .Single(slot => slot.Input.Definition.Id == "token").RequiresMasking).IsTrue();
+        harness.Window.CycleExperience();
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("guided");
+        harness.Window.ToggleOptionalEditors();
+        await Assert.That(form.OptionalEditorsExpanded).IsTrue();
+        await Assert.That(form.IsEditorVisible(["advanced"])).IsTrue();
+        harness.Window.ToggleOptionalEditors();
+        await Assert.That(form.OptionalEditorsExpanded).IsFalse();
+        await Assert.That(form.IsEditorVisible(["advanced"])).IsFalse();
+        await Assert.That(form.SelectExperience("unknown")).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(answerChanges).IsEqualTo(0);
+        await Assert.That(form.Snapshot().Values["name"].GetString()).IsEqualTo("sample");
+        await Assert.That(form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
+        await Assert.That(harness.Operation.IsPrepared).IsTrue();
+        await Assert.That(ReferenceEquals(harness.Operation.Preparation, preparation)).IsTrue();
+        await Assert.That(harness.Window.PublicInput.Text).DoesNotContain("privateValue");
+        await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
+
+        form.Fields.Single(input => input.Definition.Id == "mode").Text = "external";
+        await Assert.That(form.IsEditorVisible(["endpoint"])).IsTrue();
+        await Assert.That(harness.Operation.IsPrepared).IsFalse();
+        form.EditValue(["token"], null);
+        await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
+        await Assert.That(await harness.Operation.PrepareAsync()).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task UnauthoredDefinitionHasOneNeutralExperienceWithoutChangingAnswers()
     {
         using var form = TerminalDefinitionFixture.Form();
-        var editor = new SetupTerminalFieldEditor(form);
-        await Assert.That(editor.Slots.Any(slot => slot.Input.Definition.Id == "advanced")).IsFalse();
-        await Assert.That(editor.Slots.Any(slot => slot.Input.Definition.Id == "token")).IsTrue();
-        await Assert.That(editor.Slots.Any(slot => slot.Input.Definition.Id == "endpoint")).IsFalse();
-        form.DisplayMode = SetupDisplayMode.Advanced;
-        await Assert.That(editor.Slots.Any(slot => slot.Input.Definition.Id == "advanced")).IsTrue();
-        form.Fields.Single(input => input.Definition.Id == "mode").Text = "external";
-        form.DisplayMode = SetupDisplayMode.Guided;
-        await Assert.That(editor.Slots.Any(slot => slot.Input.Definition.Id == "endpoint")).IsTrue();
+        using var harness = new ExperienceHarness(form);
+        long revision = form.InputRevision;
+        await Assert.That(form.Experiences.Count).IsEqualTo(1);
+        await Assert.That(form.Experiences.Single().Id).IsEqualTo("configure");
+        await Assert.That(form.Experiences.Single().Title).IsEqualTo("Configure");
+
+        harness.Window.CycleExperience();
+
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("configure");
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ValidationDisplaysLiteralNestedDiagnosticSegmentsWithoutPrivateAnswers()
+    {
+        JsonObject source = JsonNode.Parse(TerminalDefinitionFixture.Json)!.AsObject();
+        source["fields"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"literal.root.field","title":"Literal root","type":"object","sensitivity":"public","disclosure":"guided",
+             "properties":[{"id":"child.with.dot","title":"Child","type":"string","required":true,
+               "sensitivity":"public","disclosure":"guided"}]}
+            """));
+        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.EditValue(["name"], "sample");
+        form.EditValue(["token"], "privateValue");
+        form.SupplyObject(["literal.root.field"]);
+        using var harness = new ExperienceHarness(form);
+
+        harness.Window.Validate();
+
+        await Assert.That(harness.Window.StatusText)
+            .Contains("""["literal.root.field","child.with.dot"]""");
+        await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
     }
 
     [Test]
@@ -229,6 +310,55 @@ public sealed class SetupTerminalOfflineWorkflowTests
             await Assert.That(Directory.GetFiles(directory)).Count().IsEqualTo(2);
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    private static DefinitionFormModel ExperienceForm()
+    {
+        JsonObject source = JsonNode.Parse(TerminalDefinitionFixture.Json)!.AsObject();
+        source["presentation"] = JsonNode.Parse("""
+            {"defaultExperience":"guided","sections":[
+               {"id":"settings","title":"Settings","fields":["name","token","enabled","count","ratio",
+                 "mode","endpoint","tags","profile","advanced"]}],
+             "experiences":[
+               {"id":"guided","title":"Get started","initialDisclosure":"guided",
+                 "navigation":"guided","sections":["settings"]},
+               {"id":"complete","title":"All settings","initialDisclosure":"advanced",
+                 "navigation":"sections","sections":["settings"]}]}
+            """);
+        var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.EditValue(["name"], "sample");
+        form.EditValue(["token"], "privateValue");
+        return form;
+    }
+
+    private sealed class ExperienceHarness : IDisposable
+    {
+        private readonly global::Terminal.Gui.App.IApplication _application = global::Terminal.Gui.App.Application.Create();
+        private readonly SetupPresentationSession _session = new(new StrongReferenceMessenger());
+        private readonly SetupPresentationWorkspace _workspace;
+        private readonly SetupTerminalSecretBuffer _secret = new(262144, urlSafeOnly: false);
+
+        internal ExperienceHarness(DefinitionFormModel form)
+        {
+            Operation = new(form, new ProtectedArtifactWriter(), Path.GetTempPath());
+            SetupWorkspaceId.TryCreate("definition", out var id);
+            _workspace = _session.CreateWorkspace(id, Operation);
+            _workspace.Activate();
+            Window = new(_application, _workspace, Operation, _secret, dispatch: callback => callback());
+        }
+
+        internal SetupTerminalArtifactOperation Operation { get; }
+        internal SetupTerminalWindow Window { get; }
+
+        public void Dispose()
+        {
+            Window.Dispose();
+            _workspace.Dispose();
+            _session.Dispose();
+            Operation.Dispose();
+            _secret.Dispose();
+            _application.Dispose();
+        }
     }
 
     private sealed class UnavailableWriter : IProtectedArtifactWriter
