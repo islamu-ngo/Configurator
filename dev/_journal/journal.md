@@ -203,3 +203,28 @@ bespoke target tooling.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; the shared draft contract is documented in the presentation anchor.
+
+---
+
+[2026-10-20 Europe/Brussels] — Held input callbacks need a workspace revision fence
+
+**Context**: While implementing guided configuration and consented credential entry, the Browser had to reject fill notifications retained across workspace changes. Secret controls and shared editing already checked current consent.
+
+**Symptom / Observation**: A component regression retained the production-generated input callback, revoked consent, enabled it again and invoked the old callback. It published a synthetic secret even though the callback came from the earlier workspace state. `HeldFillCannotCrossWorkspaceInvalidation` now covers reconsent, intervening edits, form replacement and disposal.
+
+**Root Cause**: The event handler read mutable component `Form` and `Path` properties when invoked. A currently true `CanEdit` result established present permission, not that the event belonged to the current answer revision or form. Stable control IDs alone could not establish that relationship.
+
+**Resolution**: Each rendered scalar callback captures its form, copied literal path and input revision. The component rejects a disposed owner or mismatched form, path or revision before calling the existing shared typed edit and permission checks. Commit `d85af1a` records the implementation. The regression obtains the actual generated callback through a test subclass and standard render builder, without replacing the editing owner or reflecting private methods. The executed command `dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 176 --no-progress --no-ansi`, with `TMPDIR="$HOME/.cache/agent-tmp"`, passed all 176 cases, including the nine credential-entry cases. Real Browser checks also confirmed absent denied controls and empty reconsent; this is not a claim about a particular password-manager extension.
+
+**Why This Matters for Future Work**: Permission can return to the same Boolean state while the workspace has changed. Retain an actual emitted callback when testing delayed input, and bind it to the owning form and revision rather than relying only on current consent or DOM identity.
+
+**References**:
+- `src/Configurator.Browser/Components/Configuration/ConfigurationField.razor:99`
+- `src/Configurator.Browser/Components/Configuration/ConfigurationField.razor.cs:166`
+- `tests/Configurator.Browser.Tests/BrowserCredentialEntryTests.cs:34`
+- `docs/internal/LAUNCH_CONTRACT.md`
+- `docs/internal/PRESENTATION_STATE.md`
+- Local commit: `d85af1a`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the production state and launch contracts already own the invariant.
