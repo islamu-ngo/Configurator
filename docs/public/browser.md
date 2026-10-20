@@ -199,6 +199,12 @@ import still records imported provenance. Transformed, conditional or repeated
 projections do not have a supported inverse; for example, Event's nested
 manifest cannot be universally imported. Use the typed controls for those
 definitions. Unsupported import is distinct from invalid file contents.
+When rejection identifies a declared field, the import panel offers **Review**
+for that setting. It opens the exact field or its active controlling question;
+secret-consent rejection instead focuses the workspace consent control without
+enabling it. Your answers remain unchanged. Correct the source file or make a
+deliberate workspace edit, then choose the file again. An edit clears stale
+import recovery; unknown file keys are not treated as trusted field identities.
 
 For the [neutral sample](../../examples/minimal-self-hosted/setup-definition.json),
 **Recommended** follows authored sections; **Custom** starts with advanced

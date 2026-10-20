@@ -94,6 +94,10 @@ it does not imply native readiness or target acceptance.
 immutable `ProvidedFields` root identifiers. Callers may pass a provenance-owned
 set of replaceable default roots; absent that permission, existing unequal
 answers remain conflicts. Full merged snapshot limits and validation still apply.
+Rejected imports may carry a value-free `Diagnostic` with an admitted root ID
+and literal relative path for conflicts or validation failures. Unknown input
+keys never become diagnostic field IDs. Rejection still returns no answer
+snapshot; diagnostic metadata does not authorize applying any imported value.
 
 `DotenvEntry`, `DotenvDocument`, `DotenvCodec`, `ArtifactDigest`, and
 `SetupArtifactKind`/`SetupArtifactPolicy` remain writer-compatible. The old

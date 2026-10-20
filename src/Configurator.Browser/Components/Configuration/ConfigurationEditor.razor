@@ -86,6 +86,12 @@
                         <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync" aria-describedby="session-boundary artifact-import-help" />
                     </div>
                 </div>
+                @if (_importDiagnostic is { } importDiagnostic)
+                {
+                    <p>The rejected file has not changed your answers. Review the affected setting or consent, then choose the corrected file again.</p>
+                    <AppButton Variant="Variant.Outlined" data-import-correction="@importDiagnostic.FieldId"
+                               OnClick="() => CorrectImportField(importDiagnostic)">@ImportCorrectionLabel(importDiagnostic)</AppButton>
+                }
             </details>
         }
         <ConfigurationDiscovery Form="_form" Navigate="CorrectField" />

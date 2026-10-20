@@ -7,6 +7,25 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionReviewStateTests
 {
     [Test]
+    public async Task SecretImportRejectionIdentifiesAdmittedRecoveryWithoutApplyingAnswers()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"]!.AsArray().Add(JsonNode.Parse("""
+        {"id":"secret","type":"string","title":"Secret","sensitivity":"secret","disclosure":"advanced"}
+        """));
+        source["artifacts"]![0]!["projection"]!["members"]!["secret"] = JsonNode.Parse("""{"op":"copy","field":"secret"}""");
+        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionSessionPrivacy.BrowserNoSecrets);
+        long revision = form.InputRevision;
+        DefinitionImportResult result = await Import(form, """{"secret":"synthetic-private-import"}""");
+        await Assert.That(result.Code).IsEqualTo("import-secret-consent-required");
+        await Assert.That(result.Diagnostic!.FieldId).IsEqualTo("secret");
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values.ContainsKey("secret")).IsFalse();
+        await Assert.That(result.ToString()).DoesNotContain("synthetic-private-import");
+    }
+
+    [Test]
     public async Task OmittedRootDefaultKeepsEffectiveChildProvenanceWithoutMaterializingAnswers()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();

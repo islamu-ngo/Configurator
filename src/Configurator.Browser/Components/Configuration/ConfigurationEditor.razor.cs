@@ -52,6 +52,7 @@ public partial class ConfigurationEditor
     private BrowserOfflinePolicy? _offline;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
+    private DefinitionDiagnostic? _importDiagnostic;
     private BrowserNavigationState? _navigation;
 
     protected override void OnParametersSet()
@@ -130,6 +131,26 @@ public partial class ConfigurationEditor
         _returnToReview = false;
         SelectWorkflowStage("review");
     }
+    private void CorrectImportField(DefinitionDiagnostic diagnostic)
+    {
+        if (diagnostic.Code == "import-secret-consent-required")
+        {
+            _form!.ResetDiscovery();
+            _activeWorkflowStage = "configure";
+            _focusWorkflowStage = null;
+            _focusField = null;
+            _focusConsent = true;
+            return;
+        }
+        var entry = _form!.Projection.Entries.FirstOrDefault(item => item.FieldId == diagnostic.FieldId &&
+            item.RelativePath.SequenceEqual(diagnostic.RelativePath));
+        if (entry is { IsActive: false } && entry.ActiveControllerFields.Count > 0)
+            CorrectField(new("import-activation", entry.ActiveControllerFields[0]));
+        else CorrectField(diagnostic);
+    }
+    private string ImportCorrectionLabel(DefinitionDiagnostic diagnostic) =>
+        diagnostic.Code == "import-secret-consent-required" ? "Review secret-entry consent"
+            : "Review " + ConfigurationDiagnosticText.Title(Definition.Fields.Single(field => field.Id == diagnostic.FieldId));
     private async Task EnableSecretsAsync()
     {
         DefinitionFormModel form = _form!;
@@ -320,6 +341,7 @@ public partial class ConfigurationEditor
             if (length > 1024 * 1024) { _status = "Import rejected: maximum size is 1 MiB."; _statusCode = "import-too-large"; return; }
             var result = await form.ImportAsync(_importArtifact, _ => Task.FromResult<ReadOnlyMemory<byte>>(buffer.AsMemory(0, length)), cancellation.Token);
             if (_disposed || !ReferenceEquals(form, _form) || generation != _generation && !result.Succeeded) return;
+            _importDiagnostic = result.Diagnostic;
             _status = result.Succeeded ? "Artifact imported into this local workspace." : result.Code switch
             {
                 "answer-conflict" => "Import rejected (answer-conflict). Existing answers differ from the file. Clear the conflicting fields before importing; existing answers are preserved.",
@@ -394,6 +416,7 @@ public partial class ConfigurationEditor
         _prepared.Clear();
         _diagnostics.Clear();
         _validation = null;
+        _importDiagnostic = null;
         // Start every retirement before awaiting any JS cleanup. Each owner
         // revokes its workspace, bytes and generation synchronously.
         Task[] retirements = previous.Select(prepared => prepared.DisposeAsync().AsTask()).ToArray();

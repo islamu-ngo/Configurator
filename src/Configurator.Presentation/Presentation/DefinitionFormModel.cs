@@ -612,10 +612,17 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             {
                 if (_disposed || cancellationToken.IsCancellationRequested || _inputRevision != original.InputRevision)
                     return new(false, null, "import-stale");
-                if (SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets && Fields.Any(field =>
-                    result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value) &&
-                    DefinitionSecretPolicy.ContainsSecret(field.Definition.Constraints, value)))
-                    return new(false, null, "import-secret-consent-required");
+                if (SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)
+                {
+                    DefinitionFieldInput? denied = Fields.FirstOrDefault(field =>
+                        result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value) &&
+                        DefinitionSecretPolicy.ContainsSecret(field.Definition.Constraints, value));
+                    if (denied is not null)
+                        return new(false, null, "import-secret-consent-required")
+                        {
+                            Diagnostic = new("import-secret-consent-required", denied.Definition.Id)
+                        };
+                }
                 foreach (DefinitionFieldInput field in Fields.Where(field => result.ProvidedFields.Contains(field.Definition.Id)))
                     if (result.Answers!.Values.TryGetValue(field.Definition.Id, out JsonElement value))
                     {

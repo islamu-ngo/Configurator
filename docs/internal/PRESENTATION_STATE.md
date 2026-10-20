@@ -27,6 +27,13 @@ It consumes value-free projection entries, origin metadata and declared output
 bindings; it never reads answers for review markup. Change uses literal typed
 paths and shared focus promotion; returning refreshes validation without an
 answer revision or automatic consent.
+Known import failures retain their typed Core diagnostic through the existing
+operation generation fence. Consent rejection identifies an admitted root and
+offers only checkbox focus; inactive-field recovery uses shared active
+controller metadata. Other recovery reuses literal correction focus. The editor
+clears this recovery capability with every input/output invalidation, import
+format change or workspace replacement, so an old rejected file cannot direct
+a new workspace operation.
 Manual edits use the same form gate, so a late read cannot overwrite them.
 Field/property and input-change notifications run after the outermost form
 mutation releases that gate. Nested collection edits, imports and consent

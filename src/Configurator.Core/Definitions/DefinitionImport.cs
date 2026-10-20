@@ -9,6 +9,7 @@ using Configurator.Core.Environment;
 public sealed record DefinitionImportResult(bool Succeeded, SetupAnswerSnapshot? Answers, string Code)
 {
     public IReadOnlyList<string> ProvidedFields { get; init; } = [];
+    public DefinitionDiagnostic? Diagnostic { get; init; }
     public override string ToString() => $"{nameof(DefinitionImportResult)}:{Code}";
 }
 
@@ -42,15 +43,19 @@ public static class DefinitionImport
                     return Failed("inverse-unsupported");
                 if (values.TryGetValue(field, out JsonElement previous)
                     && !JsonElement.DeepEquals(previous, answer) && replaceableDefaults?.Contains(field) != true)
-                    return Failed("answer-conflict");
+                    return Failed("answer-conflict", new("answer-conflict", field));
                 values[field] = answer;
             }
 
             var candidate = new SetupAnswerSnapshot(checked(current.InputRevision + 1), values);
             DefinitionValidationResult validation = DefinitionValidator.Validate(definition, candidate);
-            if (validation.Fields.Any(field => imported.Contains(field.Id) && (!field.IsActive || field.HasError))
-                || validation.Diagnostics.Any(item => item.Code != "value-required"))
-                return Failed("import-field-invalid");
+            var rejected = validation.Fields.FirstOrDefault(field =>
+                imported.Contains(field.Id) && (!field.IsActive || field.HasError));
+            if (rejected is not null)
+                return Failed("import-field-invalid", validation.Diagnostics.FirstOrDefault(item => item.FieldId == rejected.Id)
+                    ?? new("import-field-invalid", rejected.Id));
+            if (validation.Diagnostics.FirstOrDefault(item => item.Code != "value-required") is { } diagnostic)
+                return Failed("import-field-invalid", definition.Fields.Any(field => field.Id == diagnostic.FieldId) ? diagnostic : null);
             return new(true, candidate, "import-ready") { ProvidedFields = Array.AsReadOnly(imported.ToArray()) };
         }
         catch (Exception exception) when (exception is SetupCompositionException or JsonException
@@ -144,5 +149,6 @@ public static class DefinitionImport
         finally { CryptographicOperations.ZeroMemory(normalizedBytes); }
     }
 
-    private static DefinitionImportResult Failed(string code) => new(false, null, code);
+    private static DefinitionImportResult Failed(string code, DefinitionDiagnostic? diagnostic = null) =>
+        new(false, null, code) { Diagnostic = diagnostic };
 }

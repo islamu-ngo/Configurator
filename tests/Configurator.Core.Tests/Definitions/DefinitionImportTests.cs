@@ -1,11 +1,32 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
 
 namespace Configurator.Core.Tests.Definitions;
 
 public sealed class DefinitionImportTests
 {
+    [Test]
+    public async Task InvalidNestedImportRetainsOnlyTheAdmittedLiteralDiagnosticPath()
+    {
+        JsonNode source = JsonNode.Parse(Definition().CanonicalBytes.Span)!;
+        source["fields"]!.AsArray().Add(JsonNode.Parse("""
+        {"id":"options","type":"object","title":"Options","sensitivity":"public","disclosure":"guided",
+         "properties":[{"id":"db.host","type":"string","title":"Host","maxLength":3,"sensitivity":"public","disclosure":"guided"}]}
+        """));
+        source["artifacts"]![0]!["projection"]!["members"]!["options"] = JsonNode.Parse("""{"op":"copy","field":"options"}""");
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        DefinitionImportResult result = DefinitionImport.Assess(definition, "config",
+            """{"enabled":true,"options":{"db.host":"synthetic-private-import"}}"""u8.ToArray(), Empty());
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.Answers).IsNull();
+        await Assert.That(result.Diagnostic!.FieldId).IsEqualTo("options");
+        await Assert.That(result.Diagnostic.RelativePath.Count).IsEqualTo(1);
+        await Assert.That(result.Diagnostic.RelativePath[0]).IsEqualTo("db.host");
+        await Assert.That(result.ToString()).DoesNotContain("synthetic-private-import");
+    }
+
     [Test]
     public async Task DirectCopyPrefillsWithoutRevealingValuesInResultText()
     {
@@ -91,6 +112,20 @@ public sealed class DefinitionImportTests
             """{"name":"private-import-marker","enabled":true}"""u8.ToArray(), existing);
         await Assert.That(conflict.Succeeded).IsFalse();
         await Assert.That(conflict.Answers).IsNull();
+        await Assert.That(conflict.Diagnostic!.FieldId).IsEqualTo("service.name");
+        await Assert.That(conflict.ToString()).DoesNotContain("private-import-marker");
+        DefinitionImportResult unknown = DefinitionImport.Assess(definition, "config",
+            """{"private-import-marker":"private-import-marker"}"""u8.ToArray(), Empty());
+        await Assert.That(unknown.Diagnostic).IsNull();
+        var unknownCurrent = new SetupAnswerSnapshot(4, new Dictionary<string, JsonElement>
+        {
+            ["private-import-marker"] = JsonSerializer.SerializeToElement("private-import-marker")
+        });
+        DefinitionImportResult global = DefinitionImport.Assess(definition, "config",
+            """{"enabled":true}"""u8.ToArray(), unknownCurrent);
+        await Assert.That(global.Succeeded).IsFalse();
+        await Assert.That(global.Diagnostic?.FieldId).IsNull();
+        await Assert.That(global.Diagnostic).IsNull();
     }
 
     private static SetupAnswerSnapshot Empty() => new(0, new Dictionary<string, JsonElement>());
