@@ -8,6 +8,28 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionExperienceProjectionTests
 {
     [Test]
+    public async Task InactiveControllerChainsResolveToActiveQuestionsWithoutChangingAnswers()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = JsonNode.Parse("""
+        [{"id":"enabled","type":"boolean","default":false,"title":"Enable relay","sensitivity":"public","disclosure":"essential"},
+         {"id":"mode","type":"boolean","default":true,"title":"Relay mode","sensitivity":"public","disclosure":"guided",
+          "activeWhen":{"op":"equals","field":"enabled","value":true}},
+         {"id":"port","type":"integer","title":"Port","sensitivity":"public","disclosure":"advanced",
+          "activeWhen":{"op":"equals","field":"mode","value":true}}]
+        """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        long revision = form.InputRevision;
+        var port = form.Projection.Entries.Single(entry => entry.FieldId == "port");
+        await Assert.That(port.IsActive).IsFalse();
+        await Assert.That(port.ActiveControllerFields.Count).IsEqualTo(1);
+        await Assert.That(port.ActiveControllerFields[0]).IsEqualTo("enabled");
+        await Assert.That(form.Snapshot().Values["enabled"].GetBoolean()).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
     public async Task InvalidSecretDraftIsNotCountedAsDeferredWork()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();

@@ -130,6 +130,23 @@ the whole workspace. Collapsing does not delete supplied values or hide an activ
 error. Short help stays near the question; **Help with...** opens the author's
 local instructions and deliberate public documentation links.
 
+Open **Advanced settings and search** to find exact definition or output keys,
+question titles, concepts and authored guidance. All search words must match;
+private answers and prepared contents are never searched. **Filter settings**
+offers sections, requirement, applicability, answer state, sensitivity and
+declared outputs. Options within a group combine with OR; groups combine with
+AND. Counts ignore only their own group's selections, so alternative options
+stay understandable. Selected filters can be removed individually.
+
+**Clear search** keeps filters; **Clear filters** keeps the query; **Reset search
+and filters** clears both. No-match recovery offers these same deliberate
+choices. Inactive settings are excluded by default. Including them explains
+their applicability without enabling anything; **Review activation** opens an
+active controlling question. A result's **Configure** action opens its exact
+question or routes a denied secret to consent. Corrections clear obstructing
+search and filters. Searching, filtering and navigation preserve answers,
+unfinished input, consent and prepared files; none is saved in links or storage.
+
 Review lists active corrections, including
 fields in other sections; selecting a correction opens that section and focuses
 the field or affected collection row. Review also offers secret-entry recovery
@@ -184,9 +201,12 @@ manifest cannot be universally imported. Use the typed controls for those
 definitions. Unsupported import is distinct from invalid file contents.
 
 For the [neutral sample](../../examples/minimal-self-hosted/setup-definition.json),
-extended deployment mode activates the metrics choice. Supply the service name
-and ordinary settings, then defer the required credential or voluntarily enter
-it with consent. The bundled definition contains no credential answer.
+**Recommended** follows authored sections; **Custom** starts with advanced
+disclosure. Neither changes answers. Extended deployment mode activates metrics
+and optional nested operations settings. Review the service name and ordinary
+settings, then defer the required local service password or voluntarily enter
+it with consent. The optional issuer token has no invented provider or issuance
+endpoint. The bundled definition contains no credential answer.
 
 ## Copy and download
 

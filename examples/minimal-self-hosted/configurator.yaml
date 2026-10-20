@@ -8,10 +8,44 @@ project:
   publisher: example
 applicationVersions: ["1.0"]
 locales: [en, ar]
+presentation:
+  defaultExperience: recommended
+  sections:
+    - id: service
+      title: Service identity and deployment
+      fields: [service.name, service.mode]
+      disclosure: essential
+    - id: access
+      title: Local service access
+      fields: [service.credential]
+      disclosure: essential
+    - id: operations
+      title: Extended operations
+      fields: [service.extended, metrics.enabled]
+      disclosure: guided
+    - id: integration
+      title: Optional issuer integration
+      fields: [service.issuerToken]
+      disclosure: advanced
+  experiences:
+    - id: recommended
+      title: Recommended
+      initialDisclosure: essential
+      navigation: guided
+      sections: [service, access, operations, integration]
+    - id: custom
+      title: Custom
+      initialDisclosure: advanced
+      navigation: sections
+      sections: [service, operations, access, integration]
 fields:
   service.name:
     type: string
     title: Service name
+    help: Choose a recognizable name for this deployment. Example public name, local-service.
+    guidance:
+      instructions: Use a deployment label, not a password or a private customer identifier.
+      searchTerms: [name, identity, deployment]
     sensitivity: public
     disclosure: essential
     required: true
@@ -21,26 +55,81 @@ fields:
   service.mode:
     type: enum
     title: Deployment mode
+    help: Minimal keeps the base configuration; extended makes optional operations settings available.
+    consequence: Selecting extended activates metrics and nested operations settings; it does not start services or expose a network port.
+    guidance:
+      instructions: Keep minimal unless you intend to review extended operations. Both modes still require the local service password.
+      searchTerms: [mode, minimal, extended, deployment]
     sensitivity: public
+    disclosure: essential
     choices: [minimal, extended]
     default: minimal
   metrics.enabled:
     type: boolean
     title: Enable metrics
     help: Expose metrics only on a network controlled by the operator.
+    guidance:
+      instructions: Leave disabled unless the target supports metrics and you have arranged an appropriate private network.
+      searchTerms: [monitoring, observability, metrics]
     sensitivity: public
     disclosure: advanced
     activeWhen: {op: equals, field: service.mode, value: extended}
     default: false
   service.credential:
     type: string
-    title: Service credential
-    help: Enter a local credential after enabling secret entry, or defer it and complete the exported draft locally.
+    title: Local service password
+    help: Create a unique password for this service, not your hosting login. Enable secret entry first, or defer it and finish the incomplete draft locally.
+    guidance:
+      instructions: Create and retain the password in your own password manager. Configurator does not generate it or install it on the target.
+      searchTerms: [password, credential, access]
+    credential:
+      kind: password
+      acquisition: create
     sensitivity: secret
     disclosure: essential
     required: true
     minLength: 1
     maxLength: 128
+  service.issuerToken:
+    type: string
+    title: Optional issuer token
+    help: Leave absent unless adapting this example to a service with an external token issuer. This example includes no issuer or token endpoint.
+    guidance:
+      instructions: Obtain a scoped service token through your issuer's documented administrator workflow. Ask that administrator about permissions and expiry; do not substitute the local service password. No provider documentation link is supplied because this neutral example names no provider.
+      searchTerms: [issuer, token, integration, permissions]
+    credential:
+      kind: opaque-token
+      acquisition: issuer
+    sensitivity: secret
+    disclosure: advanced
+    minLength: 1
+    maxLength: 4096
+  service.extended:
+    type: object
+    title: Extended operations settings
+    help: Optional nested settings for an adapted service; omit the object to retain target-owned behavior.
+    guidance:
+      instructions: These illustrative keys need an explicit mapping in a real target integration. Configurator only prepares them.
+      searchTerms: [operations, workers, logging]
+    sensitivity: public
+    disclosure: guided
+    activeWhen: {op: equals, field: service.mode, value: extended}
+    properties:
+      workers:
+        type: integer
+        title: Worker count
+        help: Optional worker count. Example public value, 2; confirm the target supports it.
+        sensitivity: public
+        disclosure: guided
+        minimum: 1
+        maximum: 64
+      logLevel:
+        type: enum
+        title: Log detail
+        help: Optional log level for a compatible target. Review target logs for private data before increasing detail.
+        sensitivity: public
+        disclosure: advanced
+        choices: [warning, information, debug]
 outputs:
   ".env":
     id: environment
@@ -52,15 +141,16 @@ outputs:
       SERVICE_MODE: service.mode
       METRICS_ENABLED: metrics.enabled
       SERVICE_CREDENTIAL: service.credential
+      SERVICE_ISSUER_TOKEN: service.issuerToken
   service.json:
     id: configuration
     format: json
     applySemantics: create
     restart: process
-    bindings: {name: service.name, mode: service.mode, metrics: metrics.enabled, credential: service.credential}
+    bindings: {name: service.name, mode: service.mode, metrics: metrics.enabled, credential: service.credential, issuerToken: service.issuerToken, extended: service.extended}
   service.yaml:
     id: configuration-yaml
     format: yaml
     applySemantics: create
     restart: process
-    bindings: {name: service.name, mode: service.mode, metrics: metrics.enabled, credential: service.credential}
+    bindings: {name: service.name, mode: service.mode, metrics: metrics.enabled, credential: service.credential, issuerToken: service.issuerToken, extended: service.extended}

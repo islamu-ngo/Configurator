@@ -5,6 +5,7 @@
     <header class="configuration-editor__header">
         <h2 @ref="_configureHeading" id="configuration-heading" tabindex="-1">Configuration answers</h2>
         <p id="session-boundary">Answers stay in this tab. Preparation does not change your target.</p>
+        <p class="form-help" data-declared-outputs>Declared files: @string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)). Inclusion depends on the definition's conditions; target validation remains separate.</p>
     </header>
     <details class="configuration-editor__boundary">
         <summary>Privacy and export limits</summary>
@@ -87,6 +88,7 @@
                 </div>
             </details>
         }
+        <ConfigurationDiscovery Form="_form" Navigate="CorrectField" />
         @{ var fieldStates = _form.Validate().Fields; var editorSections = EditorSections();
             var sections = editorSections.Where(section => section.Fields.Any(input =>
                 fieldStates.Any(state => state.Id == input.Definition.Id && state.IsActive) &&

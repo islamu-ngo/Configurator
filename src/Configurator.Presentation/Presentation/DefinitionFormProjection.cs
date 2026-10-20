@@ -112,12 +112,39 @@ public sealed class DefinitionFormProjection
                 node.IsActive && (node.HasError || inputError), node.IsActive && !inputError && IsDeferredLeaf(form, node),
                 form.AnswerOrigin(path), terms,
                 schema.TryGetProperty("help", out JsonElement comment) ? comment.GetString() : null,
-                instructions, binding.Artifacts, binding.Keys, Array.IndexOf(sections, section)));
+                instructions, binding.Artifacts, binding.Keys, Array.IndexOf(sections, section),
+                node.IsActive ? [] : ActiveControllers(path)));
         }
         return new(progress, DefinitionDiscovery.Search(entries, form.DiscoverySelection), entries, sections,
             validation.Fields.Where(state => state.IsActive && form.IsEditorVisible([state.Id])).Select(state => state.Id),
             sectionProgress);
+
+        IReadOnlyList<string> ActiveControllers(IReadOnlyList<string> path)
+        {
+            var controllers = new HashSet<string>(StringComparer.Ordinal);
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            for (int length = 1; length <= path.Count; length++)
+                if (form.TryMetadata(path.Take(length).ToArray(), out JsonElement metadata, out _))
+                    Follow(metadata);
+            return controllers.Order(StringComparer.Ordinal).ToArray();
+
+            void Follow(JsonElement metadata)
+            {
+                if (!metadata.TryGetProperty("activeWhen", out JsonElement condition)) return;
+                foreach (string fieldId in References(condition))
+                {
+                    if (!visited.Add(fieldId)) continue;
+                    if (validation.Fields.Single(field => field.Id == fieldId).IsActive)
+                        controllers.Add(fieldId);
+                    else Follow(form.Definition.Fields.Single(field => field.Id == fieldId).Constraints);
+                }
+            }
+        }
     }
+
+    private static IEnumerable<string> References(JsonElement condition) =>
+        condition.TryGetProperty("field", out JsonElement field) ? [field.GetString()!]
+            : condition.GetProperty("operands").EnumerateArray().SelectMany(References);
 
     private static DefinitionFormProgress CountProgress(DefinitionFormModel form,
         IEnumerable<DefinitionNodeState> nodes, IEnumerable<DefinitionDiagnostic> diagnostics,

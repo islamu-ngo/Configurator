@@ -1,0 +1,26 @@
+Change-Id: CHG-01M5CCPHF750M45V8TG7XSD46N
+Title: "find settings with advanced metadata filters"
+Type: feat
+Scope: browser
+Summary: "Find settings by value-safe metadata search and facets, explain inactive activation routes, and provide a coherent guided neutral example."
+Group: guided-configuration-experiences
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: examples/minimal-self-hosted/README.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

@@ -24,10 +24,15 @@ public sealed class LaunchRouteTests
         component.Find("[data-field='service.mode'] select").Change("extended");
         await Assert.That(component.FindAll("[data-field='metrics.enabled'] select")).IsEmpty();
         component.Find("[data-action='expand-all-optional']").Click();
+        component.Find("[data-section='operations']").Click();
         component.Find("[data-field='metrics.enabled'] select").Change("true");
         await Assert.That(component.FindAll("[data-field='service.credential'] input")).IsEmpty();
         await Assert.That(component.FindAll("input[type=text]")).IsNotEmpty();
         await Assert.That(component.FindAll("a[download]")).IsEmpty();
+        component.Find("#prepare-draft").Click();
+        await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(3);
+        await Assert.That(component.FindAll(".configuration-editor__artifact").All(artifact =>
+            artifact.GetAttribute("data-readiness") == "draft")).IsTrue();
     }
 
     [Test]

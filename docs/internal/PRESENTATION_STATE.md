@@ -95,6 +95,15 @@ category and AND across categories; counts remove only their own selection.
 Inactive entries require deliberate inclusion and cannot activate an answer.
 Selection/reset operations are transient view mutations. Clearing filters keeps
 the query; clearing search keeps filters; correction clears both.
+`ConfigurationDiscovery` renders that shared snapshot inside a deliberate local
+disclosure. Query/facet controls and removable selections call only the form's
+view-state APIs; result navigation delegates typed diagnostics to the editor's
+existing correction/focus route. Query updates do not move keyboard focus.
+`ActiveControllerFields` is copied public metadata for inactive entries: the
+projection follows admitted activation operands through inactive dependencies
+until current shared field facts identify active controlling roots. It does
+not compare answers or evaluate a second Browser activation model. Controller
+navigation promotes an editor but cannot enable a feature or grant consent.
 
 `SetEditorExpanded` owns local optional disclosure by semantic editor identity,
 including stable row tokens. Collapse preserves provided values and invalid text,

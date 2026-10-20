@@ -13,7 +13,8 @@ public sealed class DefinitionDiscoveryEntry
         bool isActive, bool isRequired, bool isProvided, bool isReady, bool needsAttention,
         bool isSecretDeferred, DefinitionAnswerOrigin origin, IEnumerable<string>? searchTerms = null,
         string? help = null, string? instructions = null, IEnumerable<string>? outputArtifactIds = null,
-        IEnumerable<string>? bindingKeys = null, int sectionOrder = 0)
+        IEnumerable<string>? bindingKeys = null, int sectionOrder = 0,
+        IEnumerable<string>? activeControllerFields = null)
     {
         FieldId = fieldId;
         RelativePath = Array.AsReadOnly(relativePath.ToArray());
@@ -35,6 +36,7 @@ public sealed class DefinitionDiscoveryEntry
         OutputArtifactIds = Array.AsReadOnly(outputArtifactIds?.ToArray() ?? []);
         BindingKeys = Array.AsReadOnly(bindingKeys?.ToArray() ?? []);
         SectionOrder = sectionOrder;
+        ActiveControllerFields = Array.AsReadOnly(activeControllerFields?.ToArray() ?? []);
     }
 
     public string FieldId { get; }
@@ -57,6 +59,7 @@ public sealed class DefinitionDiscoveryEntry
     public IReadOnlyList<string> OutputArtifactIds { get; }
     public IReadOnlyList<string> BindingKeys { get; }
     public int SectionOrder { get; }
+    public IReadOnlyList<string> ActiveControllerFields { get; }
 }
 
 /// <summary>A transient query and copied facet selections. Oversized queries reject rather than truncate.</summary>
