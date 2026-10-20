@@ -21,7 +21,7 @@ public sealed class BrowserConfigurationNavigationTests
         component.Find("[data-section='connection']").Click();
         await Assert.That(component.Find("#choice-hostname").GetAttribute("value")).IsEqualTo("example.test");
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsTrue();
-        await Assert.That(component.Find("[data-section-panel='credentials']").HasAttribute("hidden")).IsTrue();
+        await Assert.That(component.FindAll("[data-section-panel='credentials']")).IsEmpty();
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values["credential"].GetString()).IsEqualTo("synthetic-navigation-secret");
         await Assert.That(form.Definition.Digest).IsEqualTo(definition.Digest);
@@ -64,15 +64,14 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.Find("label[for='choice-HTTPServer_URL']").TextContent).Contains("HTTP Server URL");
         await Assert.That(component.Find("[data-field='HTTPServer_URL'] code").TextContent).IsEqualTo("HTTPServer_URL");
         await Assert.That(component.Find("label[for='choice-authored_key']").TextContent).Contains("Publisher's exact wording");
-        await Assert.That(component.FindAll("#configuration-experience option")).Count().IsEqualTo(1);
-        await Assert.That(component.Find("#configuration-experience option").GetAttribute("value")).IsEqualTo("configure");
-        await Assert.That(component.Find("#configuration-experience option").TextContent).IsEqualTo("Configure");
-        await Assert.That(component.FindAll("[data-field='optional_note']")).IsEmpty();
+        await Assert.That(component.FindAll("#configuration-experience")).IsEmpty();
+        await Assert.That(component.Find("[data-experience]").GetAttribute("data-experience")).IsEqualTo("configure");
+        await Assert.That(component.FindAll("[data-field='optional_note'] input")).IsEmpty();
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() => form.SetAllSectionsExpanded(true));
         await Assert.That(component.Find("#choice-optional_note").HasAttribute("disabled")).IsFalse();
         await component.InvokeAsync(() => form.SetAllSectionsExpanded(false));
-        await Assert.That(component.Find("[data-field='optional_note']").ParentElement!.HasAttribute("hidden")).IsTrue();
+        await Assert.That(component.FindAll("[data-field='optional_note'] input")).IsEmpty();
         await Assert.That(component.FindComponents<ConfigurationField>()[0].Instance.Form.Definition.Digest).IsEqualTo(definition.Digest);
     }
 
@@ -130,7 +129,7 @@ public sealed class BrowserConfigurationNavigationTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("#choice-mode").Change("single");
         component.Find("#choice-hostname").Input("example.test");
-        await Assert.That(component.FindAll("[data-section='tuning']")).IsEmpty();
+        await Assert.That(component.FindAll("[data-field='options.dotted.count'] input")).IsEmpty();
         component.Find("#configuration-experience").Change("inspect-settings");
         component.Find("[data-section='tuning']").Click();
         component.Find("[data-field='options.dotted.count'] input").Input("invalid-number");

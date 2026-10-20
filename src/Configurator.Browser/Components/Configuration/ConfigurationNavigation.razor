@@ -2,15 +2,26 @@
     <ul>
         @foreach (var section in Sections)
         {
-            <li><AppButton Variant="Variant.Text" Color="Color.Default" FullWidth="true" data-section="@section.Name"
-                           aria-current="@(Selected == section.Name ? "true" : null)" OnClick="() => SelectedChanged.InvokeAsync(section.Name)">
+            <li class="@(Selected == section.Id ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item")"><AppButton Variant="Variant.Text" Color="Color.Default" FullWidth="true" data-section="@section.Id"
+                           aria-current="@(Selected == section.Id ? "true" : null)" OnClick="() => SelectedChanged.InvokeAsync(section.Id)">
                 <span class="configuration-navigation__entry">
-                    <span>@section.Name</span>
+                    <span>@section.Title</span>
                     <span class="configuration-navigation__count">
-                        <span>@section.ActiveFields fields</span>
-                        @if (section.Corrections > 0)
+                        @if (section.Progress.Required > 0)
                         {
-                            <span> · @section.Corrections corrections</span>
+                            <span>@section.Progress.Ready of @section.Progress.Required required ready</span>
+                        }
+                        else
+                        {
+                            <span>Optional settings</span>
+                        }
+                        @if (section.Progress.Missing + section.Progress.Invalid > 0)
+                        {
+                            <span>@(section.Progress.Missing + section.Progress.Invalid) need attention</span>
+                        }
+                        @if (Selected == section.Id)
+                        {
+                            <span class="configuration-navigation__current">Current section</span>
                         }
                     </span>
                 </span>

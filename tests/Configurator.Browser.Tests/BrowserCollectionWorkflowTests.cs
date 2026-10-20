@@ -85,8 +85,11 @@ public sealed class BrowserCollectionWorkflowTests
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        string rowsSection = form.Sections.Single(section => section.Fields.Contains("tenants")).Id;
+        string generalSection = form.Sections.Single(section => section.Fields.Contains("hostname")).Id;
         component.Find("#choice-hostname").Input("example.test");
-        component.Find("[data-section='Rows']").Click();
+        component.Find($"[data-section='{rowsSection}']").Click();
         string[] names = ["alpha", "beta", "alpha"];
         for (int index = 0; index < names.Length; index++)
         {
@@ -113,10 +116,10 @@ public sealed class BrowserCollectionWorkflowTests
             await Assert.That(component.Find($"[data-field='tenants.{index}.name'] input").GetAttribute("aria-invalid")).IsEqualTo("false");
         }
         await Assert.That(component.FindAll(".configuration-output")).IsEmpty();
-        component.Find("[data-section='Other']").Click();
-        await Assert.That(component.Find("[data-section-panel='Rows']").HasAttribute("hidden")).IsTrue();
-        component.Find("[data-correction='tenants/2']").Click();
-        await Assert.That(component.Find("[data-section-panel='Rows']").HasAttribute("hidden")).IsFalse();
+        component.Find($"[data-section='{generalSection}']").Click();
+        await Assert.That(component.FindAll($"[data-section-panel='{rowsSection}']")).IsEmpty();
+        component.Find("[data-correction='tenants']").Click();
+        await Assert.That(component.FindAll($"[data-section-panel='{rowsSection}']").Count).IsEqualTo(1);
         await Assert.That(component.Find("[data-field='tenants.2.name'] input").GetAttribute("value")).IsEqualTo("alpha");
     }
 

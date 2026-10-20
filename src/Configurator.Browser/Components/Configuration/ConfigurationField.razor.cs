@@ -42,6 +42,16 @@ public partial class ConfigurationField
     private string? Help => Schema.TryGetProperty("help", out var value) ? value.GetString() : null;
     private string? Consequence => Schema.TryGetProperty("consequence", out var value) ? value.GetString() : null;
     private bool Required => RequiredOverride ?? (Schema.TryGetProperty("required", out var value) && value.GetBoolean());
+    private bool HasOptionalChildren => ContainsOptionalProperty(Schema);
+    private bool OptionalEditorsExpanded => Form.IsEditorExpanded(Path);
+    private void ExpandEditor() => Form.SetEditorExpanded(Path, true);
+    private void ToggleOptionalEditors() => Form.SetEditorExpanded(Path, !OptionalEditorsExpanded);
+    private static bool ContainsOptionalProperty(JsonElement schema) =>
+        schema.TryGetProperty("properties", out JsonElement properties) && properties.ValueKind == JsonValueKind.Array &&
+        properties.EnumerateArray().Any(child =>
+            (!(child.TryGetProperty("required", out JsonElement required) && required.GetBoolean()) &&
+             !(child.TryGetProperty("disclosure", out JsonElement disclosure) && disclosure.GetString() == "essential")) ||
+            ContainsOptionalProperty(child));
     private bool HasEmptyChoice => Type == "enum" && Schema.GetProperty("choices").EnumerateArray()
         .Any(choice => choice.ValueKind == JsonValueKind.String && choice.GetString() == "");
     private string ChoiceIdentity(int index, JsonElement choice) => HasEmptyChoice

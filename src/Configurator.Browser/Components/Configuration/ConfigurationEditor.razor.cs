@@ -20,7 +20,13 @@ public partial class ConfigurationEditor
     private readonly SetupPresentationSession _session = new(new WeakReferenceMessenger());
     private readonly List<PreparedArtifact> _prepared = [];
     private readonly List<string> _diagnostics = [];
-    private readonly HashSet<string> _mountedFields = new(StringComparer.Ordinal);
+    private string _activeWorkflowStage = "configure";
+    private string? _focusWorkflowStage;
+    private int _requiredCount;
+    private ElementReference _configureHeading;
+    private ElementReference _sectionHeading;
+    private ElementReference _reviewHeading;
+    private ElementReference _prepareHeading;
     private string _status = "Supply ordinary settings. Secret entry is disabled.";
     private string _statusCode = "workspace-ready";
     private string _importArtifact = string.Empty;
@@ -52,13 +58,14 @@ public partial class ConfigurationEditor
         if (ReferenceEquals(_pinned, Definition)) return;
         Invalidate();
         _form?.Dispose();
-        _mountedFields.Clear();
+        _activeWorkflowStage = "configure";
         _selectedSection = null;
         _focusField = null;
         _pinned = Definition;
         _ready = false;
         _beginPending = true;
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+        _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;
         _form.ViewChanged += ViewChanged;
         _importArtifact = Definition.Artifacts.Count > 0 ? Definition.Artifacts[0].Id : string.Empty;
@@ -79,7 +86,19 @@ public partial class ConfigurationEditor
     private string SectionId(string section) => "configuration-section-" + Array.FindIndex(EditorSections(), item => item.Id == section);
     private string? SelectedSection(IReadOnlyList<EditorSection> sections) =>
         sections.Any(item => item.Id == _selectedSection) ? _selectedSection : sections.Count > 0 ? sections[0].Id : null;
-    private void SelectSection(string section) { _selectedSection = section; _focusField = null; }
+    private void SelectSection(string section)
+    {
+        _selectedSection = section;
+        _focusField = null;
+        SelectWorkflowStage("configure");
+    }
+
+    private void SelectWorkflowStage(string stage)
+    {
+        _activeWorkflowStage = stage;
+        _focusWorkflowStage = stage;
+        if (stage == "review") _validation = _form!.Validate();
+    }
     private void CorrectField(DefinitionDiagnostic diagnostic)
     {
         string fieldId = diagnostic.FieldId;
@@ -92,6 +111,8 @@ public partial class ConfigurationEditor
         _selectedSection = EditorSections().Single(section => section.Fields.Any(input => input.Definition.Id == fieldId)).Id;
         _focusField = denied ? null : field.Id;
         _focusPath = denied ? [] : path;
+        _activeWorkflowStage = "configure";
+        _focusWorkflowStage = null;
         ++_focusGeneration;
         _focusConsent = denied;
     }
@@ -106,7 +127,10 @@ public partial class ConfigurationEditor
     private void InputChanged(object? sender, EventArgs args)
     {
         Invalidate();
-        _status = "Answers changed. Previous output has been discarded.";
+        int required = _form!.Projection.Progress.Required;
+        _status = required == _requiredCount ? "Answers changed. Previous output has been discarded."
+            : $"Required work changed from {_requiredCount} to {required} answers. Previous output has been discarded.";
+        _requiredCount = required;
         _statusCode = "answers-changed";
         StateHasChanged();
     }
@@ -116,6 +140,7 @@ public partial class ConfigurationEditor
         if (args.Value is not string id || !_form!.SelectExperience(id)) return;
         _selectedSection = null;
         _focusField = null;
+        SelectWorkflowStage("configure");
     }
     private void ChangeImportFormat(ChangeEventArgs args)
     {
@@ -145,6 +170,7 @@ public partial class ConfigurationEditor
         long generation = _generation + 1;
         await InvalidateOutputAsync();
         if (_disposed || generation != _generation || !ReferenceEquals(form, _form)) return;
+        _activeWorkflowStage = "prepare";
         SetupAnswerSnapshot answers;
         try { answers = form.Snapshot(); }
         catch (SetupDefinitionException)
@@ -305,6 +331,17 @@ public partial class ConfigurationEditor
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender || _beginPending) { _beginPending = false; await BeginAsync(); }
+        if (_focusWorkflowStage is { } stage)
+        {
+            _focusWorkflowStage = null;
+            ElementReference heading = stage switch
+            {
+                "review" => _reviewHeading,
+                "prepare" => _prepareHeading,
+                _ => string.IsNullOrEmpty(_sectionHeading.Id) ? _configureHeading : _sectionHeading
+            };
+            await heading.FocusAsync();
+        }
         if (_focusStart) { _focusStart = false; await _startButton.FocusAsync(preventScroll: true); }
         if (_focusConsent) { _focusConsent = false; await _consentControl.FocusAsync(); }
         if (_restoreFocus && _fileInput?.Element is { } element) { _restoreFocus = false; await element.FocusAsync(preventScroll: true); }
@@ -386,7 +423,8 @@ public partial class ConfigurationEditor
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;
-            _mountedFields.Clear();
+            _activeWorkflowStage = "configure";
+            _requiredCount = _form.Projection.Progress.Required;
             _focusField = null;
         }
         await InvalidateOutputAsync();
@@ -395,7 +433,6 @@ public partial class ConfigurationEditor
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
-        _mountedFields.Clear();
         _navigation?.Release(this);
         _ready = false;
         long lease = _offlineLease;

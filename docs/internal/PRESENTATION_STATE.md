@@ -84,6 +84,16 @@ category and AND across categories; counts remove only their own selection.
 Inactive entries require deliberate inclusion and cannot activate an answer.
 Selection/reset operations are transient view mutations. Clearing filters keeps
 the query; clearing search keeps filters; correction clears both.
+
+`SetEditorExpanded` owns local optional disclosure by semantic editor identity,
+including stable row tokens. Collapse preserves provided values and invalid text,
+keeps required/essential/error paths reachable and clears only deliberate
+correction expansion beneath that editor. Section expansion resets local
+overrides only for that section; restoring all defaults or selecting an
+experience resets the workspace's disclosure policy. These remain `ViewChanged`
+mutations, never input revisions. `SectionProgress` is an immutable map computed
+by the same obligation counter as overall progress. Deferred counts include
+eligible missing secret leaves, not missing required containers.
 Native bundle clients compose a selected set from one captured snapshot through
 `DefinitionBundleComposer` and hand the immutable result to the protected
 bundle publisher; per-file publication can have a written prefix after a later

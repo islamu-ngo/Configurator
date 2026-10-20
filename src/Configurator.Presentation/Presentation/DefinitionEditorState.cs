@@ -11,7 +11,49 @@ public enum DefinitionAnswerOrigin { Omitted, Defaulted, Imported, Explicit }
 public sealed partial class DefinitionFormModel
 {
     private readonly Dictionary<string, List<long>> _rowIdentities = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _editorExpansion = new(StringComparer.Ordinal);
     private long _nextRowIdentity;
+
+    public bool SetEditorExpanded(IReadOnlyList<string> path, bool expanded)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!TryMetadata(path, out _, out _)) return false;
+        string identity = GetEditorIdentity(path);
+        foreach (string key in _editorExpansion.Keys.Where(key =>
+            key.StartsWith(identity + "-", StringComparison.Ordinal)).ToArray())
+            _editorExpansion.Remove(key);
+        _editorExpansion[identity] = expanded;
+        if (!expanded)
+            _promotedPaths.RemoveWhere(key => key == identity || key.StartsWith(identity + "-", StringComparison.Ordinal));
+        OnViewChanged();
+        return true;
+    }
+
+    public bool IsEditorExpanded(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadata(path, out _, out _)) return false;
+            if (TryLocalExpansion(path, out bool expanded)) return expanded;
+            DefinitionFormSection section = Sections.Single(item => item.Fields.Contains(path[0]));
+            bool all = _sectionExpansion.TryGetValue(section.Id, out bool sectionExpanded)
+                ? sectionExpanded : OptionalEditorsExpanded;
+            return all || Experiences.Single(item => item.Id == SelectedExperienceId).InitialDisclosure == SetupFieldDisclosure.Advanced;
+        }
+    }
+
+    private bool TryLocalExpansion(IReadOnlyList<string> path, out bool expanded)
+    {
+        for (int length = path.Count; length > 0; length--)
+            if (_editorExpansion.TryGetValue(GetEditorIdentity(path.Take(length).ToArray()), out expanded))
+                return true;
+        expanded = false;
+        return false;
+    }
 
     /// <summary>Reads transient invalid editor text only through the current workspace custody fence.</summary>
     public string? ReadDraftText(IReadOnlyList<string> path)

@@ -89,7 +89,16 @@ leaves. Nested imports/defaults/row edits follow that same shared policy.
 Revocation removes secret leaves recursively, increments the answer revision
 and invalidates output; clear, edits, navigation and disposal fence old work.
 Typed fields and object-list rows follow admitted activation, validation and
-effective sensitivity. Display modes affect disclosure only.
+effective sensitivity. Authored experiences and shared local editor expansion
+affect disclosure only. Configure/Review/Prepare navigation stays within the
+same mounted editor; it changes focus, not answer revision or prepared authority.
+Only the selected authored section mounts answer controls. Shared form drafts,
+origins and row tokens survive section unmounting; required/error ancestors
+override obstructing optional disclosure. Required-answer and section progress
+consume the shared obligation projection, not an independent Browser counter.
+Missing containers are not misreported as deferrable secret leaves.
+Guidance renders admitted plaintext and deliberately opened public HTTPS links
+with `noopener noreferrer` and `no-referrer`; it adds no fetch or execution path.
 The shared form owns typed presence separately from display text. Explicit empty
 strings, admitted empty enum choices and empty containers survive import and
 preparation; omission uses a distinct editing action. Invalid or rejected edit

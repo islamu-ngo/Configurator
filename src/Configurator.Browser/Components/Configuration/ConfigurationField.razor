@@ -3,11 +3,29 @@
 @using System.Text.Json
 
 <div class="configuration-field" data-field="@string.Join('.', Path)">
+    @if (!Form.IsEditorVisible(Path))
+    {
+        <div class="configuration-field__collapsed">
+            <div><strong>@Title</strong><p class="configuration-field__help">@Help</p></div>
+            <button type="button" class="button button--secondary" data-action="expand-field"
+                    aria-expanded="false" @onclick="ExpandEditor">Configure @Title</button>
+        </div>
+    }
+    else
+    {
     @if (Type is "object" or "list")
     {
         <fieldset @ref="_group" tabindex="-1" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
                   aria-invalid="@((_invalid || Error.Length > 0).ToString().ToLowerInvariant())" disabled="@(!Form.CanEdit(Path))">
             <legend>@Title @(Required ? "(required)" : "(optional)")</legend>
+            @if (HasOptionalChildren)
+            {
+                <button type="button" class="button button--secondary configuration-field__disclosure"
+                        data-action="expand-optional" aria-expanded="@OptionalEditorsExpanded.ToString().ToLowerInvariant()"
+                        @onclick="ToggleOptionalEditors">
+                    @(OptionalEditorsExpanded ? "Hide optional settings" : "Show optional settings")
+                </button>
+            }
             @if (Type == "object")
             {
                 @if (Value is null)
@@ -87,9 +105,32 @@
         @if (IsMasked && Type == "boolean") { <span>Use true or false.</span> }
         @if (IsMasked && Type == "enum") { <span>Declared choices: @string.Join(", ", Schema.GetProperty("choices").EnumerateArray().Select(Display)).</span> }
     </p>
+    @if (Schema.TryGetProperty("guidance", out JsonElement guidance) &&
+        (guidance.TryGetProperty("instructions", out _) ||
+         guidance.TryGetProperty("links", out JsonElement guidanceLinks) && guidanceLinks.GetArrayLength() > 0))
+    {
+        <details class="configuration-field__guidance">
+            <summary>Help with @Title</summary>
+            @if (guidance.TryGetProperty("instructions", out JsonElement instructions))
+            {
+                <p>@instructions.GetString()</p>
+            }
+            @if (guidance.TryGetProperty("links", out JsonElement links) && links.GetArrayLength() > 0)
+            {
+                <ul>
+                    @foreach (JsonElement link in links.EnumerateArray())
+                    {
+                        <li><a href="@(link.GetProperty("url").GetString())" target="_blank"
+                               rel="noopener noreferrer" referrerpolicy="no-referrer">@link.GetProperty("title").GetString() <span class="sr-only">(new tab)</span></a></li>
+                    }
+                </ul>
+            }
+        </details>
+    }
     <p id="@(ControlId + "-error")" class="configuration-field__error">@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : Error)</p>
     @if (Schema.TryGetProperty("id", out var identifier))
     {
         <details class="configuration-field__key"><summary>Definition key</summary><code>@identifier.GetString()</code></details>
+    }
     }
 </div>

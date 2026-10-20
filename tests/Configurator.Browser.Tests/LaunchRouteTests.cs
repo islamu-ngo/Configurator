@@ -23,7 +23,7 @@ public sealed class LaunchRouteTests
         await Assert.That(component.FindAll("#choice-metrics\\.enabled")).IsEmpty();
         component.Find("#choice-service\\.mode").Change("extended");
         await Assert.That(component.FindAll("#choice-metrics\\.enabled")).IsEmpty();
-        component.Find("#display-mode").Change("Advanced");
+        component.Find("[data-action='expand-all-optional']").Click();
         component.Find("#choice-metrics\\.enabled").Change("true");
         await Assert.That(component.Find("#choice-service\\.credential").HasAttribute("disabled")).IsTrue();
         await Assert.That(component.FindAll("input[type=text]")).IsNotEmpty();
@@ -86,7 +86,12 @@ public sealed class LaunchRouteTests
         component.Find("#choice-operation").Change("environment");
         await Assert.That(component.FindAll("[data-field]").Count).IsGreaterThan(1);
         component.Find("#choice-select\\.feature\\.security-config").Change("true");
-        component.Find("#display-mode").Change("Advanced");
+        component.Find("[data-action='expand-all-optional']").Click();
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        string targetSection = form.Sections.Single(section =>
+            section.Fields.Contains("env.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION")).Id;
+        if (component.Find("[data-section-panel]").GetAttribute("data-section-panel") != targetSection)
+            component.Find($"[data-section='{targetSection}']").Click();
         await Assert.That(component.Find("#choice-env\\.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION").HasAttribute("disabled")).IsFalse();
         await Assert.That(component.FindAll("input[type=text]")).IsNotEmpty();
         await Assert.That(component.FindAll("a[download]")).IsEmpty();

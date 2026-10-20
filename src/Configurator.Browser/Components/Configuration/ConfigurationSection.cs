@@ -1,3 +1,5 @@
 namespace Configurator.Browser.Components.Configuration;
 
-public sealed record ConfigurationSection(string Name, int ActiveFields, int Corrections);
+using Configurator.Presentation;
+
+public sealed record ConfigurationSection(string Id, string Title, DefinitionFormProgress Progress);

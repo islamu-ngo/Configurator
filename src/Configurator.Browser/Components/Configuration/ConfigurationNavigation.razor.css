@@ -2,4 +2,6 @@
 .configuration-navigation { align-self: start; padding: var(--isl-space-2); border: var(--isl-card-border); border-radius: var(--isl-radius-md); background: var(--isl-color-surface-muted); }
 .configuration-navigation__entry { display: flex; flex-direction: column; align-items: flex-start; gap: var(--isl-space-1); inline-size: 100%; min-inline-size: 0; text-align: start; white-space: normal; overflow-wrap: anywhere; }
 .configuration-navigation__count { display: flex; flex-wrap: wrap; gap: var(--isl-space-1); font-size: .75rem; color: var(--isl-color-text-secondary); font-weight: 400; }
-.configuration-navigation ::deep [aria-current="true"] { background: var(--isl-color-background); border-inline-start: .25rem solid var(--isl-color-primary); }
+.configuration-navigation__current { font-weight: 600; color: var(--isl-color-text); }
+.configuration-navigation__item { border-radius: var(--isl-radius-sm); }
+.configuration-navigation__item--current { background: var(--isl-color-surface); }

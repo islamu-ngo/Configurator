@@ -117,8 +117,20 @@ refreshing the view alone does not change answers.
 For Event, tenant names must be unique and the definition permits at most 256
 tenants; Core's aggregate budgets still apply.
 
-Section buttons show field and correction counts. Switching sections keeps
-your answers and unfinished input. Review lists active corrections, including
+Configure, Review and Prepare move between real sections of this workspace;
+they do not apply configuration. Required-answer progress counts active required
+work, not scrolling or deployment. A definition without required answers shows
+that fact instead of a percentage; invalid optional input still needs correction.
+
+Section buttons show required answers ready and work needing attention.
+Only the selected section mounts its editors. Switching sections keeps
+your answers, unfinished input and repeated-row identity. Use local **Show optional
+settings** controls inside a structured field, or expand optional settings for
+the whole workspace. Collapsing does not delete supplied values or hide an active
+error. Short help stays near the question; **Help with...** opens the author's
+local instructions and deliberate public documentation links.
+
+Review lists active corrections, including
 fields in other sections; selecting a correction opens that section and focuses
 the field or affected collection row. Review also offers secret-entry recovery
 when a required secret inside a supplied object needs consent. Authored labels

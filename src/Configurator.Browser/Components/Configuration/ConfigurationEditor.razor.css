@@ -1,26 +1,39 @@
 .configuration-editor { container-type: inline-size; }
 .configuration-editor__header h2 { font-size: var(--isl-typography-h4-size); margin-block-end: var(--isl-space-2); }
-.configuration-editor__header p { max-inline-size: 78ch; color: var(--isl-color-text-secondary); }
+.configuration-editor__header p { max-inline-size: 65ch; color: var(--isl-color-text-secondary); }
 .configuration-editor__boundary { margin-block-end: var(--isl-space-5); color: var(--isl-color-text-secondary); font-size: .875rem; }
-.configuration-editor__toolbar { display: grid; grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr); align-items: center; gap: var(--isl-space-6); padding: var(--isl-space-5); border: var(--isl-card-border); border-radius: var(--isl-radius-md); background: var(--isl-color-surface-muted); }
-.configuration-editor__mode { display: grid; gap: var(--isl-space-2); }
-.configuration-editor__mode label, .configuration-editor__consent label { font-weight: 600; font-size: .875rem; }
-.configuration-editor__consent { display: flex; align-items: flex-start; gap: var(--isl-space-3); }
+.configuration-editor__toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--isl-space-4); padding-block: var(--isl-space-4); border-block-end: var(--isl-card-border); }
+.configuration-editor__mode { display: grid; gap: var(--isl-space-2); flex: 1 1 14rem; max-inline-size: 24rem; }
+.configuration-editor__mode label, .configuration-editor__consent label { font-weight: 600; font-size: inherit; }
+.configuration-editor__consent { display: flex; flex: 1 1 22rem; align-items: flex-start; gap: var(--isl-space-3); }
 .configuration-editor__consent input { flex-shrink: 0; inline-size: 1.25rem; block-size: 1.25rem; margin-block-start: var(--isl-space-1); }
 .configuration-editor__consent label { display: flex; align-items: center; min-block-size: 2rem; cursor: pointer; }
-.configuration-editor__consent .form-help { margin-block-start: var(--isl-space-1); }
+.configuration-editor__consent .form-help { margin-block: var(--isl-space-1) 0; font-size: inherit; }
 .configuration-editor__artifact { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-4); }
 .configuration-editor__guided { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr); gap: var(--isl-space-6); margin-block: var(--isl-space-6); }
+.configuration-editor__guided--single { grid-template-columns: minmax(0, 1fr); }
 .configuration-editor__fields { min-inline-size: 0; }
 .configuration-editor__fields section[hidden] { display: none; }
 .configuration-editor__fields h3 { font-size: var(--isl-typography-h5-size); padding-block-end: var(--isl-space-4); border-block-end: var(--isl-card-border); }
-.configuration-editor__preparation { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-6); }
-.configuration-editor__preparation h3 { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }
+.configuration-editor__guided--single .configuration-editor__fields h3 { padding-block-end: 0; border: 0; margin-block-end: var(--isl-space-2); }
+.configuration-editor__preparation, .configuration-editor__review-stage { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-6); margin-block-start: var(--isl-space-6); }
+.configuration-editor__preparation h3, .configuration-editor__review-stage h3 { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }
 .configuration-editor__import { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-4); margin-block-start: var(--isl-space-6); }
 .configuration-editor__import h3 { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }
 .configuration-editor__optional { font-size: .75rem; font-weight: 400; color: var(--isl-color-text-secondary); margin-inline-start: var(--isl-space-2); }
 .configuration-editor__import-controls { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(0, 2fr); gap: var(--isl-space-4); }
-@container (max-width: 42rem) {
-    .configuration-editor__guided, .configuration-editor__toolbar, .configuration-editor__import-controls { grid-template-columns: minmax(0, 1fr); }
-}
 .configuration-editor__controls { min-inline-size: 0; padding: 0; border: 0; }
+.configuration-editor__workflow ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--isl-space-2); list-style: none; padding: 0; margin: 0; }
+.configuration-editor__workflow button { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--isl-space-2); inline-size: 100%; min-block-size: var(--isl-target-min); padding: var(--isl-space-2) var(--isl-space-4); color: var(--isl-color-text); background: var(--isl-color-surface); border: var(--isl-card-border); border-radius: var(--isl-radius-sm); text-align: start; }
+.configuration-editor__workflow button[aria-current="step"], .configuration-editor__workflow button:hover { background: var(--isl-color-surface-muted); font-weight: 600; }
+.configuration-editor__progress { display: grid; gap: var(--isl-space-2); margin-block: var(--isl-space-5); font-variant-numeric: tabular-nums; }
+.configuration-editor__progress span { color: var(--isl-color-text-secondary); }
+.configuration-editor__progress progress { appearance: none; inline-size: 100%; block-size: var(--isl-space-2); border: 0; border-radius: var(--isl-radius-full); overflow: hidden; background: var(--isl-color-surface-muted); }
+.configuration-editor__progress progress::-webkit-progress-bar { background: var(--isl-color-surface-muted); }
+.configuration-editor__progress progress::-webkit-progress-value { background: var(--isl-color-primary); }
+.configuration-editor__progress progress::-moz-progress-bar { background: var(--isl-color-primary); }
+.configuration-editor__section-actions { margin-block: var(--isl-space-5); }
+@container (max-width: 42rem) {
+    .configuration-editor__guided, .configuration-editor__import-controls { grid-template-columns: minmax(0, 1fr); }
+    .configuration-editor__workflow button { grid-template-columns: minmax(0, 1fr); text-align: center; gap: var(--isl-space-1); padding: var(--isl-space-2); }
+}

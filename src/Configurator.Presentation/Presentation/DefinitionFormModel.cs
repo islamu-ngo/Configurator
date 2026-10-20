@@ -64,6 +64,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         SelectedExperienceId = id;
         OptionalEditorsExpanded = false;
         _sectionExpansion.Clear();
+        _editorExpansion.Clear();
         _promotedPaths.Clear();
         OnPropertyChanged(nameof(SelectedExperienceId));
         OnViewChanged();
@@ -76,6 +77,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         OptionalEditorsExpanded = expanded;
         _sectionExpansion.Clear();
+        _editorExpansion.Clear();
         _promotedPaths.Clear();
         OnViewChanged();
     }
@@ -88,7 +90,14 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         if (!Experiences.Single(experience => experience.Id == SelectedExperienceId).Sections.Contains(sectionId))
             return false;
         _sectionExpansion[sectionId] = expanded;
-        _promotedPaths.Clear();
+        foreach (string rootId in Sections.Single(section => section.Id == sectionId).Fields)
+        {
+            string identity = GetEditorIdentity([rootId]);
+            foreach (string key in _editorExpansion.Keys.Where(key => key == identity ||
+                key.StartsWith(identity + "-", StringComparison.Ordinal)).ToArray())
+                _editorExpansion.Remove(key);
+            _promotedPaths.RemoveWhere(key => key == identity || key.StartsWith(identity + "-", StringComparison.Ordinal));
+        }
         OnViewChanged();
         return true;
     }
@@ -111,6 +120,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             string key = GetEditorIdentity(path);
             if (needsCorrection) _promotedPaths.Add(key);
             if (needsCorrection || _promotedPaths.Contains(key) || ContainsEssentialDecision(metadata)) return true;
+            if (TryLocalExpansion(path, out bool locallyExpanded))
+                return locallyExpanded || validation.Nodes.Any(node => node.FieldId == path[0] &&
+                    node.RelativePath.Take(relative.Length).SequenceEqual(relative) && node.IsRequired);
             DefinitionFormExperience experience = Experiences.Single(item => item.Id == SelectedExperienceId);
             DefinitionFormSection? section = Sections
                 .FirstOrDefault(item => item.Fields.Contains(path[0]));
@@ -421,6 +433,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             foreach (string key in _rowIdentities.Keys.Where(key =>
                 key.StartsWith(removedIdentity + "-", StringComparison.Ordinal)).ToArray())
                 _rowIdentities.Remove(key);
+            foreach (string key in _editorExpansion.Keys.Where(key => key == removedIdentity ||
+                key.StartsWith(removedIdentity + "-", StringComparison.Ordinal)).ToArray())
+                _editorExpansion.Remove(key);
             _promotedPaths.RemoveWhere(key => key == removedIdentity ||
                 key.StartsWith(removedIdentity + "-", StringComparison.Ordinal));
             Fields.Single(field => field.Definition.Id == path[0]).RemoveItemDrafts(path, index);
@@ -654,6 +669,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _projection = null;
             _promotedPaths.Clear();
             _sectionExpansion.Clear();
+            _editorExpansion.Clear();
             DiscoverySelection = new();
             InputChanged = null;
             ViewChanged = null;

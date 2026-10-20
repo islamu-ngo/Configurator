@@ -1,0 +1,26 @@
+Change-Id: CHG-01M5C6XMMVEV9BSR2C9J2062DH
+Title: "guide setup with local advanced disclosure"
+Type: feat
+Scope: browser
+Summary: "Guide authored sections with local optional disclosure, contextual instructions and truthful required-answer progress while preserving transient answers and preparation."
+Group: guided-configuration-experiences
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

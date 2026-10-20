@@ -1,6 +1,7 @@
 namespace Configurator.Presentation;
 
 using System.Text.Json;
+using System.Collections.ObjectModel;
 using Configurator.Core.Definitions;
 
 public sealed record DefinitionFormExperience
@@ -53,12 +54,15 @@ public sealed class DefinitionFormProjection
 
     private DefinitionFormProjection(DefinitionFormProgress progress,
         DefinitionDiscoverySnapshot discovery, IEnumerable<DefinitionDiscoveryEntry> entries,
-        IEnumerable<DefinitionFormSection> sections, IEnumerable<string> visibleFields)
+        IEnumerable<DefinitionFormSection> sections, IEnumerable<string> visibleFields,
+        Dictionary<string, DefinitionFormProgress> sectionProgress)
     {
         Progress = progress;
         Discovery = discovery;
         Entries = Array.AsReadOnly(entries.ToArray());
         Sections = Array.AsReadOnly(sections.ToArray());
+        SectionProgress = new ReadOnlyDictionary<string, DefinitionFormProgress>(
+            new Dictionary<string, DefinitionFormProgress>(sectionProgress, StringComparer.Ordinal));
         _visibleFields = visibleFields.ToHashSet(StringComparer.Ordinal);
     }
 
@@ -67,28 +71,21 @@ public sealed class DefinitionFormProjection
     public IReadOnlyList<DefinitionDiscoveryMatch> Matches => Discovery.Matches;
     public IReadOnlyList<DefinitionDiscoveryEntry> Entries { get; }
     public IReadOnlyList<DefinitionFormSection> Sections { get; }
+    public IReadOnlyDictionary<string, DefinitionFormProgress> SectionProgress { get; }
     public bool IsFieldVisible(string fieldId) => _visibleFields.Contains(fieldId);
 
     internal static DefinitionFormProjection Create(DefinitionFormModel form)
     {
         DefinitionValidationResult validation = form.Validate();
-        DefinitionNodeState[] obligations = validation.Nodes.Where(node => node.IsObligation).ToArray();
         IReadOnlyList<DefinitionDiagnostic> inputErrors = form.InputDiagnostics;
-        static string Key(DefinitionDiagnostic diagnostic) =>
-            diagnostic.FieldId + JsonSerializer.Serialize(diagnostic.RelativePath);
-        var invalidPaths = validation.Diagnostics.Where(diagnostic => diagnostic.Code != "value-required")
-            .Concat(inputErrors).Select(Key).ToHashSet(StringComparer.Ordinal);
-        bool HasInputError(DefinitionNodeState node) => inputErrors.Any(diagnostic =>
-            diagnostic.FieldId == node.FieldId && diagnostic.RelativePath.SequenceEqual(node.RelativePath));
-        var progress = new DefinitionFormProgress(
-            obligations.Count(node => node.IsObligationReady && !HasInputError(node)),
-            obligations.Length,
-            obligations.Count(node => node.IsMissing && !HasInputError(node)),
-            invalidPaths.Count,
-            obligations.Count(node => node.Sensitivity == SetupFieldSensitivity.Secret && node.IsMissing));
+        DefinitionFormProgress progress = CountProgress(form, validation.Nodes, validation.Diagnostics, inputErrors);
         DefinitionFormExperience experience = form.Experiences.Single(item => item.Id == form.SelectedExperienceId);
         DefinitionFormSection[] sections = form.Sections.OrderBy(section =>
             experience.Sections.Contains(section.Id) ? experience.Sections.ToList().IndexOf(section.Id) : int.MaxValue).ToArray();
+        var sectionProgress = sections.ToDictionary(section => section.Id, section =>
+            CountProgress(form, validation.Nodes.Where(node => section.Fields.Contains(node.FieldId)),
+                validation.Diagnostics.Where(diagnostic => section.Fields.Contains(diagnostic.FieldId)),
+                inputErrors.Where(diagnostic => section.Fields.Contains(diagnostic.FieldId)).ToArray()), StringComparer.Ordinal);
         var bindings = new Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)>(StringComparer.Ordinal);
         foreach (SetupArtifactDefinition artifact in form.Definition.Artifacts)
             CollectBindings(artifact.Projection, artifact.Id, [], bindings);
@@ -112,15 +109,37 @@ public sealed class DefinitionFormProjection
                 schema.TryGetProperty("title", out JsonElement title) ? title.GetString()! : section.Title + " item",
                 section.Id, section.Title, type, node.Sensitivity, node.IsActive, node.IsRequired,
                 node.IsProvided, node.IsActive && node.IsReady && !inputError,
-                node.IsActive && (node.HasError || inputError), node.IsActive &&
-                node.IsObligation && node.Sensitivity == SetupFieldSensitivity.Secret && node.IsMissing,
+                node.IsActive && (node.HasError || inputError), node.IsActive && !inputError && IsDeferredLeaf(form, node),
                 form.AnswerOrigin(path), terms,
                 schema.TryGetProperty("help", out JsonElement comment) ? comment.GetString() : null,
                 instructions, binding.Artifacts, binding.Keys, Array.IndexOf(sections, section)));
         }
         return new(progress, DefinitionDiscovery.Search(entries, form.DiscoverySelection), entries, sections,
-            validation.Fields.Where(state => state.IsActive && form.IsEditorVisible([state.Id])).Select(state => state.Id));
+            validation.Fields.Where(state => state.IsActive && form.IsEditorVisible([state.Id])).Select(state => state.Id),
+            sectionProgress);
     }
+
+    private static DefinitionFormProgress CountProgress(DefinitionFormModel form,
+        IEnumerable<DefinitionNodeState> nodes, IEnumerable<DefinitionDiagnostic> diagnostics,
+        IReadOnlyList<DefinitionDiagnostic> inputErrors)
+    {
+        DefinitionNodeState[] obligations = nodes.Where(node => node.IsObligation).ToArray();
+        static string Key(DefinitionDiagnostic diagnostic) =>
+            diagnostic.FieldId + JsonSerializer.Serialize(diagnostic.RelativePath);
+        var invalidPaths = diagnostics.Where(diagnostic => diagnostic.Code != "value-required")
+            .Concat(inputErrors).Select(Key).ToHashSet(StringComparer.Ordinal);
+        bool HasInputError(DefinitionNodeState node) => inputErrors.Any(diagnostic =>
+            diagnostic.FieldId == node.FieldId && diagnostic.RelativePath.SequenceEqual(node.RelativePath));
+        return new(
+            obligations.Count(node => node.IsObligationReady && !HasInputError(node)), obligations.Length,
+            obligations.Count(node => node.IsMissing && !HasInputError(node)), invalidPaths.Count,
+            obligations.Count(node => !HasInputError(node) && IsDeferredLeaf(form, node)));
+    }
+
+    private static bool IsDeferredLeaf(DefinitionFormModel form, DefinitionNodeState node) =>
+        node.IsObligation && node.IsMissing && node.Sensitivity == SetupFieldSensitivity.Secret &&
+        form.TryMetadata([node.FieldId, .. node.RelativePath], out JsonElement metadata, out _) &&
+        metadata.GetProperty("type").GetString() is not ("object" or "list");
 
     private static void CollectBindings(JsonElement projection, string artifact, string[] keys,
         Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)> bindings)

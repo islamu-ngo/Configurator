@@ -8,6 +8,73 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionExperienceProjectionTests
 {
     [Test]
+    public async Task InvalidSecretDraftIsNotCountedAsDeferredWork()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = JsonNode.Parse("""
+        [{"id":"private_number","type":"integer","required":true,"title":"Private number",
+          "sensitivity":"secret","disclosure":"guided"}]
+        """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        form.EditValue(["private_number"], "synthetic-malformed-number");
+
+        await Assert.That(form.Projection.Progress.Invalid).IsEqualTo(1);
+        await Assert.That(form.Projection.Progress.Missing).IsEqualTo(0);
+        await Assert.That(form.Projection.Progress.Deferred).IsEqualTo(0);
+        await Assert.That(form.Projection.Progress.Ready).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task LocalOptionalDisclosurePreservesRevisionAndCannotHideAnInvalidDraft()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = JsonNode.Parse("""
+        [{"id":"options","type":"object","required":true,"title":"Options","sensitivity":"public","disclosure":"guided",
+          "properties":[
+            {"id":"host","type":"string","required":true,"title":"Host","sensitivity":"public","disclosure":"guided"},
+            {"id":"limit","type":"integer","title":"Limit","sensitivity":"public","disclosure":"advanced"}]}]
+        """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        long revision = form.InputRevision;
+        await Assert.That(form.SetEditorExpanded(["options"], true)).IsTrue();
+        await Assert.That(form.IsEditorVisible(["options", "limit"])).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        form.EditValue(["options", "limit"], "invalid");
+        form.SetEditorExpanded(["options"], false);
+        await Assert.That(form.IsEditorVisible(["options", "limit"])).IsTrue();
+        await Assert.That(form.Projection.SectionProgress["configure"].Invalid).IsEqualTo(1);
+        await Assert.That(form.Projection.SectionProgress["configure"].Required).IsEqualTo(1);
+        form.EditValue(["options", "limit"], "7");
+        await Assert.That(form.IsEditorVisible(["options", "limit"])).IsTrue();
+        form.SetEditorExpanded(["options"], false);
+        await Assert.That(form.IsEditorVisible(["options", "limit"])).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(revision + 2);
+    }
+
+    [Test]
+    public async Task MissingRequiredSecretContainerIsNotADeferredLeaf()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = JsonNode.Parse("""
+        [{"id":"keys","type":"list","itemType":"string","required":true,"minItems":1,
+          "title":"Keys","sensitivity":"secret","disclosure":"guided"}]
+        """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionSessionPrivacy.BrowserNoSecrets);
+
+        await Assert.That(form.Projection.Progress.Required).IsEqualTo(1);
+        await Assert.That(form.Projection.Progress.Missing).IsEqualTo(1);
+        await Assert.That(form.Projection.Progress.Deferred).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task EssentialNestedDecisionPromotesAncestorsWithoutExpandingOptionalSecrets()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
