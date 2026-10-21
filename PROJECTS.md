@@ -33,10 +33,15 @@ checkout, backend contracts or running service may be a build input.
 | Terminal.Gui client | `src/Configurator.Terminal` |
 | Avalonia Desktop client | `src/Configurator.Desktop` |
 | Static Blazor WASM with transient local configuration | `src/Configurator.Browser` |
+| Optional container transport serving only published public files | `src/Configurator.Browser.Host` |
 
 Corresponding focused suites live in `tests/Configurator.<owner>.Tests`.
 `Configurator.slnx` registers all seven product owners and their suites, the
-architecture suite, engineering tools, schema generators and dependency probes.
+optional static host, architecture suite, engineering tools, schema generators
+and dependency probes.
+The static host has no product project references and processes no answers.
+Its HTTP behavior is qualified through the actual container; the existing
+Browser package suite continues to check the static publication independently.
 
 ### Engineering & Dependency Owners
 

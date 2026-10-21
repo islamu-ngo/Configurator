@@ -95,6 +95,99 @@ requests must not return `index.html`. Base path, worker scope and manifest
 must agree. Worker activation waits for a clean lifecycle across tabs; a package
 does not prove real browser update/network/cache behavior.
 
+## Browser container
+
+`src/Configurator.Browser/Dockerfile` builds from the repository root and invokes
+`PublishConfiguratorBrowser`; it does not bypass ratchet checks, locked project
+restores, public schemas/contracts, dependency notices or the SDK's PWA asset
+inventory. The Dockerfile-specific `Dockerfile.dockerignore` admits only build
+inputs and public definitions, excluding `.git`, task workspaces, environment
+files and host `bin`/`obj`/artifact output.
+
+The build uses the repository SDK 10.0.302. Its final stage contains the pinned
+ASP.NET Core runtime, the small `Configurator.Browser.Host` executable and the
+complete published `wwwroot/`, not the SDK, native clients or a server-side
+answer workspace. The Browser remains standalone client-side WebAssembly.
+Base-image tags and manifest digests are pinned;
+the [container dependency record](legal/dependencies/browser-container.md) owns
+their identities and redistribution boundary. Keep that record synchronized
+when changing either image.
+
+The Dockerfile follows `base`/`build`/`publish`/`final` stages. The build stage
+copies central/project/lock inputs first for cacheable locked restores,
+including `App.razor`: Razor presence enables the SDK's implicit
+`Microsoft.AspNetCore.App.Internal.Assets` reference. Omitting that input
+produces `NU1004` against the unchanged lock file. It then copies the remaining
+source and builds the static host without another restore. The publication stage
+publishes the host and continues to use the existing Browser release owner.
+The final stage runs `dotnet Configurator.Browser.Host.dll` as the base image's
+non-root application user. No external web-server configuration is generated,
+copied or required.
+
+`INCLUDE_DEFINITION_STORE` is a closed `true`/`false` build argument, defaulting
+to `false`. Only `true` passes the copied public Store directory as
+`DefinitionStoreSourceRoot` to the existing publication target. Container
+packaging never revises Store sources or retained revisions, authenticates a
+publisher or repairs same-family/revision content conflicts.
+
+`src/Configurator.Browser.Host/Program.cs` owns origin-root public-file hosting:
+current application navigation, real missing-asset errors, WASM/JSON/JavaScript
+MIME handling, response compression and revalidation of update assets. Responses
+retain the shipped first-party CSP and add nosniff/no-referrer policy. The host
+has no product project references, answer model, upload endpoint or persistence.
+Request-access logging is disabled; ordinary missing/rejected requests must not
+write user-supplied URL text to logs. There is no upload handler, proxy, target
+API or private persistence. Only `/tmp` needs runtime write access.
+
+The image is deployment-neutral. Its .NET process serves public static files; it
+contains no reverse-proxy upstream, TLS termination, public hostname, host-port
+binding, Docker network or platform-specific routing labels. Coolify or another
+orchestrator owns those settings and forwards traffic to internal port 8080.
+The public guide records Coolify's repository-root context and Dockerfile path;
+the local loopback run example is a smoke-test command, not production wiring.
+
+Verify actual image behavior, not Dockerfile text: build both Store modes,
+inspect the runtime user and package closure, run read-only with dropped
+capabilities, exercise routes/assets/MIME/cache/security headers and rejected
+methods, and boot the served app in a real browser. Apply the existing Browser
+package tests to the extracted static tree. A local rootless Linux image check
+does not qualify Docker Desktop, another architecture, a production TLS proxy
+or the complete browser/assistive-technology matrix. The
+[public guide](../public/browser.md#container-image) owns operator commands.
+
+### Verified .NET image (2026-10-20)
+
+Both corrected image builds completed with exit 0 using rootless Podman 6.1.2
+on Linux amd64. Docker's local daemon was unavailable; no Coolify deployment
+was performed. The store-free image ID is
+`b7c914a261f6ccb3e005dc0523c78e05b4b19051b230511e0f296b0f4914ecaa`;
+the Store-enabled image ID is
+`bd056394656d00c180a588eb915fd821d9ce7deb003a3887a0e48db3c86d4cf7`.
+Inspection and execution confirmed `dotnet Configurator.Browser.Host.dll`,
+UID 1654, a read-only root with `/tmp` tmpfs, dropped capabilities and
+no-new-privileges. The runtime contains neither the SDK nor NGINX. The deleted
+repository configuration remains absent.
+
+The new host's Release build passed. Its generated lock has no NuGet package
+dependencies. All four existing `BrowserStorePackageTests` passed against fresh
+trees extracted from these exact images, with zero failures/skips. The test
+roots were `.tmp/browser-container-dotnet-01a157c8/without-store` and
+`.tmp/browser-container-dotnet-01a157c8/with-store`.
+
+Actual HTTP checks passed for exact-index navigation fallback, real 404s for
+missing assets/unknown routes/private host binaries, 405s for non-read methods,
+privacy/update headers, WASM/webmanifest MIME, gzip and decoded published-byte
+equality. An invalid Store argument rejected with exit 64. A synthetic query
+canary emitted no container logs, and graceful .NET shutdown exited 0.
+
+Chromium rendered the desktop catalogue and mobile neutral-definition workspace.
+The PWA readiness gate opened with a controlling service worker, secret consent
+off, no password inputs and no captured page errors; the 390-pixel workspace
+had no horizontal overflow. The existing home-page primary-link contrast issue
+was still visible and was not changed. These bounded observations do not
+establish full browser, assistive-technology, contrast or production-host
+qualification.
+
 ## CLI native admission and host gates
 
 The release project admits exactly seven CLI RIDs: `linux-x64`, `linux-arm64`,

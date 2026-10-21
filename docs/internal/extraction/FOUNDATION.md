@@ -114,6 +114,13 @@ See [browser custody ADR](../adr/ADR-browser-session-trust-and-export.md),
 [launch](../LAUNCH_CONTRACT.md), [presentation](../PRESENTATION_STATE.md) and
 [packaging](../PACKAGING.md) for the corresponding source and evidence anchors.
 
+The optional Browser Dockerfile wraps that same static publication owner and
+serves its complete output through a pinned non-root host. It adds no
+server-side answer processing, target transport or private persistence.
+[Container packaging](../PACKAGING.md#browser-container) owns build-context
+admission, optional public Store inclusion and image verification; production
+hosting remains an operator action.
+
 ## Verification and provenance
 
 The [documentation hub](../../README.md) routes readers by task into public

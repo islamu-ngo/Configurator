@@ -305,6 +305,72 @@ HTTPS definition reads must work without broadening target authority.
 No application server, answer persistence, authentication or target API is
 required. Building a package does not deploy a public origin.
 
+### Container image
+
+The Browser project includes a deployment-neutral multi-stage `Dockerfile`.
+A small ASP.NET Core host serves the published files; the application still
+runs as client-side WebAssembly. No external web-server configuration file
+is required or copied from the repository.
+The image listens on internal port 8080; your deployment platform owns domains,
+TLS, reverse proxying, host-port publication and Docker networks.
+
+For local testing, build from the repository root, not the project directory:
+
+```bash
+docker build -f src/Configurator.Browser/Dockerfile -t islamu-configurator-browser .
+docker run --rm --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --cap-drop ALL --security-opt no-new-privileges \
+  -p 127.0.0.1:8080:8080 islamu-configurator-browser
+```
+
+Open `http://localhost:8080`. The image builds the complete static package
+through the existing release target and serves it with a non-root .NET process on
+port 8080. The host processes no configuration answers. Root-filesystem
+writes are unnecessary; the temporary filesystem holds server process data,
+not configuration answers.
+
+The default image has no Store catalogue. To deliberately package the local
+public `store/` tree, add `--build-arg INCLUDE_DEFINITION_STORE=true` to the build
+command. Only `true` and `false` are accepted. This packages the selected Store
+content; it does not update definitions or make their identities compatible
+with a different bundled revision. Retained revisions must not be rewritten.
+Local files, bundled examples and publisher links do not require the Store.
+
+The Dockerfile-specific build-context allowlist excludes repository history,
+private workspaces, environment files and host build output. The final stage
+copies only the published static tree and hosting configuration. Keep the
+included notices with the image.
+
+For a public deployment, configure HTTPS and the trusted origin in your
+deployment platform. The local `-p` example above is not a required production
+port mapping. Origin-root hosting is the supported image layout; mounting it
+under a URL subpath needs the base/worker/manifest changes described above.
+The static server distinguishes application navigation from missing assets,
+revalidates update files and disables request-access logging. It adds no
+authentication, target transport or private-data persistence.
+Container isolation does not protect answers from compromised delivered code,
+the browser or extensions, and does not turn downloads into protected saves.
+
+#### Coolify
+
+Use the Git-based **Dockerfile** build pack with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Base Directory | `/` |
+| Dockerfile Location | `/src/Configurator.Browser/Dockerfile` |
+| Docker Build Stage Target | Leave empty to use the final runtime stage |
+| Ports Exposes | `8080` |
+| Ports Mappings | Leave empty for domain/proxy access |
+| Domain and HTTPS | Configure in Coolify |
+
+Keep the build context at the repository root: shared projects, central
+configuration and release tooling live outside the Browser directory.
+Coolify manages the reverse proxy, certificates and container networks.
+No Coolify-specific labels, network names, public hostname, certificate files
+or port bindings belong in this Dockerfile. No persistent volume or private
+runtime environment variables are needed for configuration answers.
+
 See [launch integration](launch-integration.md) for pinned links, source limits,
 CORS requirements and local-file alternatives, and
 [packaging](packaging.md) for distribution boundaries.

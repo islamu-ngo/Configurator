@@ -119,6 +119,12 @@ need navigation fallback, while missing assets must remain errors. See
 [browser hosting](browser.md#hosting) for base/scope/CSP/update requirements.
 Serving is an operator action, not performed by the build.
 
+The Browser project also supplies a non-root static-host container image.
+See [container build and run](browser.md#container-image) for repository-root
+Docker commands, read-only operation, explicit optional Store inclusion and
+HTTPS deployment boundaries. The image invokes the same release owner rather
+than introducing a second publication pipeline.
+
 `ConfiguratorOutputRoot` selects another package destination. Do not publish into
 a directory containing unrelated files. The CI artifact is unsigned validation
 output, not a promoted release. Signed publication remains disabled pending a

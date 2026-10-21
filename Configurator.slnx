@@ -7,6 +7,7 @@
     <Project Path="src/Configurator.Terminal/Configurator.Terminal.csproj" />
     <Project Path="src/Configurator.Desktop/Configurator.Desktop.csproj" />
     <Project Path="src/Configurator.Browser/Configurator.Browser.csproj" />
+    <Project Path="src/Configurator.Browser.Host/Configurator.Browser.Host.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj" />

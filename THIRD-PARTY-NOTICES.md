@@ -59,6 +59,19 @@ complete statically linked component notices; the retained review explicitly
 does not establish that complete binary component inventory.
 See `docs/internal/legal/dependencies/git-cliff.md`.
 
+## Browser hosting container
+
+The optional Browser image uses pinned Microsoft .NET SDK and ASP.NET Core
+runtime images. The SDK does not ship in the final image. Preserve the runtime's
+original .NET and third-party notices. Ubuntu and its installed components keep
+their separate licenses, including any component-specific source obligations;
+they are not relicensed under Configurator's MIT license.
+
+Keep the complete base-image layers and their notices/package metadata, together
+with the published Browser dependency notices. See the exact identities,
+source register and distribution limits in
+[the container dependency record](docs/internal/legal/dependencies/browser-container.md).
+
 ## Excluded expressive corpus
 
 The Evolve Demo site corpus and tokenized GitBook assets under the source
