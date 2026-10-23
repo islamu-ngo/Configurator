@@ -13,6 +13,22 @@ test counts and database/API/BFF infrastructure do not apply.
 
 ## Test execution versus measured coverage
 
+Browser interaction performance uses published Release packages, not bUnit wall
+clock assertions. The [qualification procedure](OPERATIONS.md#browser-interaction-qualification-2026-10-22)
+binds trusted input, complete DOM state and final frames to exact candidate and
+baseline inventories. Keep all 40 samples after five event-complete warmups,
+first-use separately, with 1x/4x CPU, full search counts and actual viewport.
+Unit tests guard custody, literal paths, correction read order, queued typing,
+blur deduplication, remounting and paging. They do not prove latency, offline
+platform behavior or assistive-technology conformance. A failed active budget
+blocks qualification rather than becoming a weakened timing test.
+
+The frozen indexed-edit package's 92 directional rows (3,680 measured samples)
+pass those gates on the recorded reference host. Operations binds the exact
+inventory, untouched comparisons, custody/layout evidence and quarantined
+Desktop failures. This evidence does not certify preparation responsiveness,
+screen-reader speech, physical mobile devices or actual browser UI zoom.
+
 A passing TRX proves test execution, not line or branch coverage. A count of
 passed cases and zero skips does not establish coverage unless those runs used
 the collector and produced validated coverage files for the same commit.
