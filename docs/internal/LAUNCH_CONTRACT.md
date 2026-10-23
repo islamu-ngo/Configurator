@@ -114,7 +114,13 @@ submitting form or vendor vault API is introduced. Password managers have
 independent custody, outside workspace clearing.
 
 Each rendered scalar input callback captures its form, copied literal path and
-input revision. A callback held across edits, row replacement, revocation,
+input revision. The same rendered handler advances its captured revision only
+after its own accepted event, so queued keystrokes do not discard one another.
+An input event is authoritative; the corresponding unchanged blur/change event
+does not repeat that edit. A change-only password-manager fill still enters
+through the same fenced edit method. Deliberate same-value input still advances
+the revision. The adapter retains no extra copy of the input text.
+A callback held across intervening edits, row replacement, revocation,
 reconsent, form replacement or disposal cannot publish into a newer workspace
 state. Current callbacks still pass through `Form.CanEdit` and shared typed
 editing; autocomplete hints never confer consent.

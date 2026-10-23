@@ -95,10 +95,10 @@
             </details>
         }
         <ConfigurationDiscovery Form="_form" Navigate="CorrectField" />
-        @{ var fieldStates = _form.Validate().Fields; var editorSections = EditorSections();
-            var sections = editorSections.Where(section => section.Fields.Any(input =>
-                fieldStates.Any(state => state.Id == input.Definition.Id && state.IsActive) &&
-                (SelectedExperience.Sections.Contains(section.Id) || EditorVisible(input)))).ToArray(); }
+        @{ var fieldStates = _form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal); var editorSections = EditorSections();
+            var sections = editorSections.Where(section => section.Fields.Any(fieldId =>
+                fieldStates[fieldId].IsActive &&
+                (SelectedExperience.Sections.Contains(section.Id) || EditorVisible(fieldId)))).ToArray(); }
         <div class="@("configuration-editor__guided" + (sections.Length == 1 ? " configuration-editor__guided--single" : ""))" data-navigation="@SelectedExperience.Navigation">
             @if (sections.Length > 1)
             {
@@ -110,13 +110,14 @@
                 {
                     <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)">
                         <h3 @ref="_sectionHeading" id="@SectionId(section.Id)" tabindex="-1">@section.Title</h3>
-                        @foreach (var input in section.Fields.Where(input => fieldStates.Any(state => state.Id == input.Definition.Id && state.IsActive)))
+                        @foreach (string fieldId in section.Fields.Where(fieldId => fieldStates[fieldId].IsActive))
                         {
-                            var state = fieldStates.Single(item => item.Id == input.Definition.Id);
-                            <ConfigurationField @key="input" Form="_form" Schema="input.Definition.Constraints" Path="@(new[] { input.Definition.Id })"
+                            var state = fieldStates[fieldId];
+                            var editor = _form.GetFieldEditor(fieldId);
+                            <ConfigurationField @key="editor.Input" Form="_form" Schema="editor.Schema" Path="@(new[] { fieldId })"
                                                 Validation="_validation" RequiredOverride="state.IsRequired"
-                                                FocusFirstControl="@(_focusField == input.Definition.Id)" FocusGeneration="_focusGeneration"
-                                                FocusPath="@(_focusField == input.Definition.Id ? _focusPath : Array.Empty<string>())" />
+                                                FocusFirstControl="@(_focusField == fieldId)" FocusGeneration="_focusGeneration"
+                                                FocusPath="@(_focusField == fieldId ? _focusPath : Array.Empty<string>())" />
                         }
                     </section>
                 }

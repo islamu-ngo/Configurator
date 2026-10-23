@@ -54,6 +54,8 @@ public partial class ConfigurationEditor
     private DefinitionValidationResult? _validation;
     private DefinitionDiagnostic? _importDiagnostic;
     private BrowserNavigationState? _navigation;
+    private Dictionary<string, EditorSection> _editorSections = new(StringComparer.Ordinal);
+    private DefinitionDiscoverySelection? _observedDiscoverySelection;
 
     protected override void OnParametersSet()
     {
@@ -65,9 +67,12 @@ public partial class ConfigurationEditor
         _selectedSection = null;
         _focusField = null;
         _pinned = Definition;
+        ImportableArtifacts = Definition.Artifacts
+            .Where(artifact => DefinitionImport.CanImport(Definition, artifact.Id)).ToArray();
         _ready = false;
         _beginPending = true;
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+        IndexSections();
         _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;
         _form.ViewChanged += ViewChanged;
@@ -77,17 +82,22 @@ public partial class ConfigurationEditor
     }
 
     private DefinitionFormExperience SelectedExperience => _form!.Experiences.Single(item => item.Id == _form.SelectedExperienceId);
-    private SetupArtifactDefinition[] ImportableArtifacts => Definition.Artifacts
-        .Where(artifact => DefinitionImport.CanImport(Definition, artifact.Id)).ToArray();
-    private sealed record EditorSection(string Id, string Title, IReadOnlyList<DefinitionFieldInput> Fields);
+    private SetupArtifactDefinition[] ImportableArtifacts { get; set; } = [];
+    private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields);
+    private void IndexSections()
+    {
+        _observedDiscoverySelection = _form!.DiscoverySelection;
+        _editorSections = _form.Sections.ToDictionary(section => section.Id, section =>
+            new EditorSection(section.Id, section.Title, section.Fields),
+            StringComparer.Ordinal);
+    }
     private EditorSection[] EditorSections()
     {
         return _form!.Projection.Sections
-            .Select(section => new EditorSection(section.Id, section.Title,
-                section.Fields.Select(id => _form!.Fields.Single(input => input.Definition.Id == id)).ToArray()))
+            .Select(section => _editorSections[section.Id])
             .ToArray();
     }
-    private bool EditorVisible(DefinitionFieldInput input) => _form!.IsEditorVisible([input.Definition.Id]);
+    private bool EditorVisible(string fieldId) => _form!.IsEditorVisible([fieldId]);
     private string SectionId(string section) => "configuration-section-" + Array.FindIndex(EditorSections(), item => item.Id == section);
     private string? SelectedSection(IReadOnlyList<EditorSection> sections) =>
         sections.Any(item => item.Id == _selectedSection) ? _selectedSection : sections.Count > 0 ? sections[0].Id : null;
@@ -113,7 +123,7 @@ public partial class ConfigurationEditor
         bool focused = _form!.FocusEditor(path);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
-        _selectedSection = EditorSections().Single(section => section.Fields.Any(input => input.Definition.Id == fieldId)).Id;
+        _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
         _focusField = denied ? null : field.Id;
         _focusPath = denied ? [] : path;
         _activeWorkflowStage = "configure";
@@ -169,13 +179,23 @@ public partial class ConfigurationEditor
         _statusCode = "answers-changed";
         StateHasChanged();
     }
-    private void ViewChanged(object? sender, EventArgs args) => StateHasChanged();
+    private void ViewChanged(object? sender, EventArgs args)
+    {
+        // Discovery owns its input events and rerenders its own query results.
+        if (!ReferenceEquals(_observedDiscoverySelection, _form!.DiscoverySelection))
+        {
+            _observedDiscoverySelection = _form.DiscoverySelection;
+            return;
+        }
+        StateHasChanged();
+    }
     private void ChangeExperience(ChangeEventArgs args)
     {
         if (args.Value is not string id || !_form!.SelectExperience(id)) return;
         _selectedSection = null;
         _focusField = null;
-        SelectWorkflowStage("configure");
+        _activeWorkflowStage = "configure";
+        _focusWorkflowStage = null;
     }
     private void ChangeImportFormat(ChangeEventArgs args)
     {
@@ -458,6 +478,7 @@ public partial class ConfigurationEditor
         if (!_disposed && ReferenceEquals(form, _form))
         {
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+            IndexSections();
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;
             _activeWorkflowStage = "configure";

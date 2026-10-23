@@ -5,7 +5,6 @@ using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
-using MudBlazor;
 
 public partial class ConfigurationField
 {
@@ -25,7 +24,6 @@ public partial class ConfigurationField
     private ElementReference _addButton;
     private ElementReference _group;
     private ElementReference _control;
-    private MudInput<string>? _input;
     private bool _focusedForRequest;
     private long _observedFocusGeneration;
     private int _focusNewRow = -1;
@@ -34,10 +32,14 @@ public partial class ConfigurationField
     private bool _focusAfterOmit;
     private bool _invalid;
     private bool _disposed;
+    private long _lastInputRevision = -1;
+    private DefinitionFormModel? _rootForm;
+    private DefinitionFieldInput? _rootInput;
+    private string? _controlId;
     private string Error => string.Join(" ", Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
     private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
         diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1));
-    private string ControlId => Form.GetEditorIdentity(Path);
+    private string ControlId => _controlId ??= Form.GetEditorIdentity(Path);
     private string Type => Schema.GetProperty("type").GetString()!;
     private string Title => ConfigurationDiagnosticText.Title(Schema.TryGetProperty("title", out var value) ? value.GetString()! : "Item", Schema.TryGetProperty("id", out var id) ? id.GetString() : null);
     private string? Help => Schema.TryGetProperty("help", out var value) ? value.GetString() : null;
@@ -77,16 +79,8 @@ public partial class ConfigurationField
     private int MaximumItems => Schema.TryGetProperty("maxItems", out var value) ? value.GetInt32() : SetupCompositionLimits.DefaultSequenceEntries;
     private int Count => Value is { ValueKind: JsonValueKind.Array } value ? value.GetArrayLength() : 0;
     private string Text => !Form.CanEdit(Path) ? string.Empty : Path.Count == 1
-        ? Form.Fields.Single(input => input.Definition.Id == Path[0]).Text
+        ? _rootInput!.Text
         : Form.ReadDraftText(Path) ?? (Value is { } value ? Display(value) : string.Empty);
-    private Dictionary<string, object> InputAttributes => new()
-    {
-        ["name"] = ControlId,
-        ["autocomplete"] = Autocomplete,
-        ["spellcheck"] = "false",
-        ["step"] = Type == "integer" ? "1" : "any",
-        ["aria-required"] = Required.ToString().ToLowerInvariant()
-    };
     private string Autocomplete => Form.CanEdit(Path) && Schema.TryGetProperty("credential", out JsonElement credential)
         && credential.GetProperty("kind").GetString() == "password"
         ? credential.GetProperty("acquisition").GetString() switch
@@ -115,7 +109,7 @@ public partial class ConfigurationField
     {
         get
         {
-            var input = Form.Fields.Single(inputField => inputField.Definition.Id == Path[0]);
+            var input = _rootInput!;
             if (!input.TryValue(out JsonElement? supplied) || supplied is not { } value) return null;
             foreach (string segment in Path.Skip(1))
             {
@@ -128,6 +122,12 @@ public partial class ConfigurationField
     }
     protected override void OnParametersSet()
     {
+        _controlId = null;
+        if (!ReferenceEquals(_rootForm, Form) || _rootInput?.Definition.Id != Path[0])
+        {
+            _rootForm = Form;
+            _rootInput = Form.GetFieldEditor(Path[0]).Input;
+        }
         if (!FocusFirstControl || _observedFocusGeneration != FocusGeneration) _focusedForRequest = false;
         _observedFocusGeneration = FocusGeneration;
         _rowKeys.Clear();
@@ -161,11 +161,15 @@ public partial class ConfigurationField
         _invalid = !Form.EditValue(Path, text);
         _ = NotifyValidityAsync();
     }
-    private void EditText(string? text, DefinitionFormModel expectedForm, IReadOnlyList<string> expectedPath, long expectedRevision)
+    private bool EditText(string? text, DefinitionFormModel expectedForm, IReadOnlyList<string> expectedPath, long expectedRevision,
+        bool changeOnly = false)
     {
         if (_disposed || !ReferenceEquals(Form, expectedForm) || Form.InputRevision != expectedRevision
-            || !Path.SequenceEqual(expectedPath)) return;
+            || !Path.SequenceEqual(expectedPath)) return false;
+        if (changeOnly && _lastInputRevision == expectedRevision && Text == text) return false;
         EditText(text);
+        _lastInputRevision = changeOnly ? -1 : Form.InputRevision;
+        return true;
     }
     private Task NotifyValidityAsync() => ValidationChanged.InvokeAsync((ControlId, Path[0], _invalid));
     private void Omit()
@@ -194,16 +198,14 @@ public partial class ConfigurationField
         {
             _focusAfterOmit = false;
             if (Type is "object" or "list") await _group.FocusAsync(preventScroll: true);
-            else if (_input is not null) await _input.FocusAsync();
             else await _control.FocusAsync(preventScroll: true);
         }
         if (_focusObjectChildren) { _focusObjectChildren = false; if (!CanFocus(Schema, Path)) await _group.FocusAsync(preventScroll: true); }
         if (FocusFirstControl && !_focusedForRequest && Form.CanEdit(Path) && Type != "object" && (Type != "list" || Count == 0))
         {
             _focusedForRequest = true;
-            if (Type == "list") await _addButton.FocusAsync(preventScroll: true);
-            else if (_input is not null) await _input.FocusAsync();
-            else await _control.FocusAsync(preventScroll: true);
+            if (Type == "list") await _addButton.FocusAsync();
+            else await _control.FocusAsync();
         }
         if (!_focusAdd) return;
         _focusAdd = false;

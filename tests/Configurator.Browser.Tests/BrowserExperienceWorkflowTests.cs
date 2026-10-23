@@ -4,11 +4,50 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Core.Definitions;
+using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserExperienceWorkflowTests
 {
+    [Test]
+    public async Task QueuedInputFromOneRenderedEditorRetainsEveryAcceptedCharacter()
+    {
+        using var context = BrowserFixture.Context();
+        using var form = new DefinitionFormModel(Definition());
+        var component = context.Render<BrowserCredentialEntryTests.EmittedInputField>(parameters => parameters
+            .Add(item => item.Form, form).Add(item => item.Path, ["options", "host"])
+            .Add(item => item.Schema, form.Definition.Fields[1].Properties[0].Constraints));
+        object callback = component.Instance.CaptureInput();
+        foreach (string text in new[] { "e", "ex", "example.test" })
+            await component.InvokeAsync(() => callback switch
+            {
+                EventCallback<ChangeEventArgs> typed => typed.InvokeAsync(new ChangeEventArgs { Value = text }),
+                EventCallback untyped => untyped.InvokeAsync(new ChangeEventArgs { Value = text }),
+                MulticastDelegate handler => new EventCallbackWorkItem(handler).InvokeAsync(new ChangeEventArgs { Value = text }),
+                _ => throw new InvalidOperationException("input-handler-missing")
+            });
+        await Assert.That(form.InputRevision).IsEqualTo(3);
+        await Assert.That(form.Snapshot().Values["options"].GetProperty("host").GetString()).IsEqualTo("example.test");
+    }
+
+    [Test]
+    public async Task RapidInputThenBlurDoesNotDuplicateTheAcceptedEdit()
+    {
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        foreach (string text in new[] { "e", "ex", "example.test" })
+            await component.Find("[data-field='options.host'] input").InputAsync(new ChangeEventArgs { Value = text });
+        long revision = form.InputRevision;
+        await component.Find("[data-field='options.host'] .configuration-field__input")
+            .ChangeAsync(new ChangeEventArgs { Value = "example.test" });
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values["options"].GetProperty("host").GetString()).IsEqualTo("example.test");
+        await component.Find("[data-field='options.host'] input").InputAsync(new ChangeEventArgs { Value = "example.test" });
+        await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
+    }
+
     [Test]
     public async Task WorkflowSeparatesLocationFromTruthfulRequiredAnswerProgress()
     {
