@@ -13,6 +13,6 @@
 .configuration-discovery__chips button { white-space: normal; overflow-wrap: anywhere; }
 .configuration-discovery__results { list-style: none; padding: 0; }
 .configuration-discovery__results > li { padding-block: var(--isl-space-4); border-block-end: var(--isl-card-border); overflow-wrap: anywhere; }
-.configuration-discovery__result-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--isl-space-3); }
+.configuration-discovery__result-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--isl-space-3); }
 .configuration-discovery__result-heading > strong { min-inline-size: 0; }
 .configuration-discovery__results p { margin-block: var(--isl-space-2); }

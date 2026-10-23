@@ -2,7 +2,7 @@
 .configuration-review li { margin-block: var(--isl-space-2); overflow-wrap: anywhere; }
 .configuration-review__answers { list-style: none; padding: 0; }
 .configuration-review__answers > li { padding-block: var(--isl-space-4); border-block-end: 1px solid var(--isl-color-border); overflow-wrap: anywhere; }
-.configuration-review__answer { display: flex; align-items: center; justify-content: space-between; gap: var(--isl-space-3); }
+.configuration-review__answer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--isl-space-3); }
 .configuration-review__answer > strong { min-inline-size: 0; }
 .configuration-review__answers p { margin-block: var(--isl-space-2); }
 .configuration-review__outputs { padding-inline-start: var(--isl-space-5); overflow-wrap: anywhere; }
