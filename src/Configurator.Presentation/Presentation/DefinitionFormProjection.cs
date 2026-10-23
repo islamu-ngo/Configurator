@@ -5,10 +5,11 @@ using Configurator.Core.Definitions;
 public sealed record DefinitionFormExperience
 {
     internal DefinitionFormExperience(string id, string title, SetupFieldDisclosure initialDisclosure,
-        string navigation, IEnumerable<string> sections)
+        string navigation, IEnumerable<string> sections, string? description)
     {
         Id = id;
         Title = title;
+        Description = description;
         InitialDisclosure = initialDisclosure;
         Navigation = navigation;
         Sections = Array.AsReadOnly(sections.ToArray());
@@ -16,6 +17,7 @@ public sealed record DefinitionFormExperience
 
     public string Id { get; }
     public string Title { get; }
+    public string? Description { get; }
     public SetupFieldDisclosure InitialDisclosure { get; }
     public string Navigation { get; }
     public IReadOnlyList<string> Sections { get; }

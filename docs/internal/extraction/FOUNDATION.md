@@ -97,6 +97,11 @@ Shared experience/disclosure/discovery state has its own notifications and canno
 grant consent, change answers or retire current preparation. Invalid nested drafts,
 literal correction paths, provenance and workspace row identity belong to
 Presentation/Core, rather than independent Browser or native visibility policies.
+An explicit shared disclosure override separates optional detail from authored
+experience selection; null follows the authored level. Visibility and expansion
+use that same effective level. Authored experience/section descriptions remain
+public projection metadata. Correction may explicitly preserve the one current
+discovery query/facets without advancing input revision or granting consent.
 The shared form owns a metadata-only definition index and one current input
 revision's private derived facts. Disclosure/search reuse those facts; selected
 experience order remains a separate dependency of ranked discovery. Read-only

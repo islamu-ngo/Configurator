@@ -9,6 +9,75 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionExperienceProjectionTests
 {
     [Test]
+    public async Task CorrectionCanPreserveDiscoveryWithoutChangingAnswersOrConsent()
+    {
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
+        form.SetDiscoverySelection(new("token", facets:
+            new Dictionary<DefinitionDiscoveryFacet, IReadOnlyList<string>>
+            { [DefinitionDiscoveryFacet.Sensitivity] = ["secret"] }));
+        long revision = form.InputRevision;
+
+        await Assert.That(form.FocusEditor(["enabled"], preserveDiscovery: true)).IsTrue();
+
+        await Assert.That(form.DiscoveryQuery).IsEqualTo("token");
+        await Assert.That(form.DiscoverySelection.Facets[DefinitionDiscoveryFacet.Sensitivity].Single()).IsEqualTo("secret");
+        await Assert.That(form.IsEditorVisible(["enabled"])).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+        await Assert.That(form.CanEdit(["token"])).IsFalse();
+    }
+
+    [Test]
+    public async Task DisclosureOverridePreservesPreparedOutputAndSurvivesAuthoredExperienceChanges()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["presentation"] = JsonNode.Parse("""
+        {"defaultExperience":"guided","sections":[
+          {"id":"connection","title":"Connection","description":"Connection description","fields":["enabled","token"]}],
+         "experiences":[
+          {"id":"guided","title":"Get connected","description":"Experience description","initialDisclosure":"essential",
+           "navigation":"guided","sections":["connection"]},
+          {"id":"complete","title":"All settings","initialDisclosure":"advanced",
+           "navigation":"sections","sections":["connection"]}]}
+        """);
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionSessionPrivacy.BrowserNoSecrets);
+        form.EditValue(["enabled"], "false");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        SetupWorkspaceId.TryCreate("detail-prepared", out SetupWorkspaceId workspaceId);
+        using var workspace = session.CreateWorkspace(workspaceId,
+            new DefinitionPresentationOperation(form.Definition, "config", form.Snapshot()));
+        form.InputChanged += (_, _) => workspace.Deactivate();
+        await workspace.ExecuteAsync(Guid.NewGuid());
+        long revision = form.InputRevision;
+        await Assert.That(form.Experiences.Single(item => item.Id == "guided").Description)
+            .IsEqualTo("Experience description");
+        await Assert.That(form.Sections.Single().Description).IsEqualTo("Connection description");
+
+        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
+        await Assert.That(form.IsEditorExpanded(["token"])).IsTrue();
+        form.SelectExperience("complete");
+        form.SelectExperience("guided");
+        await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
+        form.SetAllSectionsExpanded(true);
+        form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
+        await Assert.That(form.IsEditorVisible(["enabled"])).IsTrue();
+        await Assert.That(form.IsEditorVisible(["token"])).IsFalse();
+        await Assert.That(form.IsEditorExpanded(["token"])).IsFalse();
+        form.SelectExperience("complete");
+        await Assert.That(form.IsEditorVisible(["token"])).IsFalse();
+        form.SetDisclosureOverride(null);
+        await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
+        await Assert.That(form.IsEditorExpanded(["token"])).IsTrue();
+        await Assert.That(form.CanEdit(["token"])).IsFalse();
+        await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserNoSecrets);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(Encoding.UTF8.GetString(workspace.Output.Span)).IsEqualTo("""{"enabled":false}""");
+    }
+
+    [Test]
     public async Task RelevantReviewIncludesActiveWorkAndAncestorsWithoutOmittedOrInactiveMetadata()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();

@@ -133,6 +133,9 @@ public sealed class DefinitionCollectionEditingTests
         string identity = form.GetEditorIdentity(["rows", "1", "settings", "enabled"]);
         form.EditValue(["rows", "1", "settings", "enabled"], "not-a-boolean");
         form.SetAllSectionsExpanded(true);
+        form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
+        await Assert.That(form.IsEditorVisible(["rows", "1", "settings", "enabled"])).IsTrue();
+        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
         form.SetDiscovery("settings");
         form.RemoveListItem(["rows"], 0);
 

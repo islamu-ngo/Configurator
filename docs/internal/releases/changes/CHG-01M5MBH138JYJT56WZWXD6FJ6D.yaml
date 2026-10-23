@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5MBH138JYJT56WZWXD6FJ6D
+Title: "separate detail selection from authored experiences"
+Type: feat
+Scope: definitions
+Summary: "Operators need to change optional detail without changing configuration. Add a view-only disclosure override and expose authored descriptions while preserving drafts, required corrections, input revisions and prepared output."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Detail selection and correction navigation never grant secret consent, modify answers or restore retired output."
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "An explicit optional-detail override is workspace view state; null follows the authored experience."
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Clients can change detail and preserve search during correction while retaining raw drafts, row identities, consent and current prepared output."
