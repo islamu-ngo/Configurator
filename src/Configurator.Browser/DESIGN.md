@@ -57,8 +57,13 @@ Application navigation is a deliberate disclosure, not a second permanent
 sidebar competing with section navigation. Its Menu trigger remains visible
 on desktop and phone; Escape closes the navigation and restores that trigger.
 The compact appbar is a wrapping cluster of identity/navigation, current-workspace
-search and existing appearance controls. It remains sticky during deep editing;
-application navigation opens beneath it as a bounded overlay. Search results overlay the workspace
+search and existing appearance controls. It remains sticky during deep editing
+when the viewport is taller than 30rem. On shorter viewports, including browser
+zoom, the header and expanded application navigation scroll with the document
+so they cannot cover the editor. Open search instead fixes its entry and bounded
+results within that viewport while reserving its normal header space.
+On taller viewports application navigation opens beneath the header as a bounded
+overlay. Search results overlay the workspace
 without moving its edited question. The results region may scroll independently
 because it is a bounded transient overlay, not the form's vertical scroll owner.
 The viewport reserves a stable scrollbar gutter; modal scroll lock does not add
@@ -112,7 +117,10 @@ nested answers and remains distinct from collapsing optional detail.
   shared facets/paging and expose ordinary labeled buttons, not a partial ARIA
   combobox. Search text is transient even when an operator types private text.
    Escape/Close restores the visible query or phone trigger; outside dismissal
-   leaves the clicked destination focused. Explicit correction closes
+   leaves the clicked destination focused.
+  On short viewports an offscreen entry returns focus to the connected control
+  that opened keyboard search, without scrolling the edited question.
+  Explicit correction closes
   results and focuses the exact field/controller/consent destination.
   Register/release and queued input are generation-qualified so an older
   editor cannot clear or retarget its replacement.

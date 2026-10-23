@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5MZG8AVTCVTK0P2TP59S86E
+Title: "keep zoomed questions and keyboard search reachable"
+Type: fix
+Scope: browser
+Summary: "Short viewports let the application bar scroll away from questions while keeping keyboard search and focus return reachable."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: src/Configurator.Browser/DESIGN.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "High browser zoom no longer pins the wrapping header over the edited question. Keyboard search opens within the short viewport and returns focus without scrolling."

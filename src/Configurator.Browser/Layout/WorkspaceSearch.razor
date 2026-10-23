@@ -125,7 +125,7 @@
         if (_focusEntryGeneration == SearchState.Generation)
         {
             _focusEntryGeneration = null;
-            await _module.InvokeVoidAsync("focusEntry", _root);
+            await _module.InvokeVoidAsync("returnFocus", _root, _watchedGeneration);
         }
         if (_focusQueryGeneration == SearchState.Generation && _open && _input is not null)
         {

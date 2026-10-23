@@ -12,6 +12,10 @@
 .navbar__local { display: flex; align-items: flex-start; gap: var(--isl-space-2); margin-block-start: auto; padding: var(--isl-space-6) var(--isl-space-3) var(--isl-space-2); color: var(--isl-color-text-secondary); font-size: .8125rem; }
 .navbar__local p { margin: 0; }
 .navbar__local strong { color: var(--isl-color-text); font-weight: 600; }
+@media (max-height: 30rem) {
+    .navbar-shell { position: relative; }
+    .navbar__sidebar { position: static; max-block-size: none; overflow-y: visible; }
+}
 @media (max-width: 60rem) {
     .navbar { gap: var(--isl-space-2); padding: var(--isl-space-3) var(--isl-space-4); }
     .navbar__brand { font-size: .875rem; }
