@@ -3,7 +3,6 @@ namespace Configurator.Presentation;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
 
 public enum DefinitionAnswerOrigin { Omitted, Defaulted, Imported, Explicit }
@@ -63,7 +62,7 @@ public sealed partial class DefinitionFormModel
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out _, out _) || !CanEdit(path)) return null;
-            return Fields.Single(input => input.Definition.Id == path[0]).DraftText(path);
+            return Fields[_index!.FieldPositions[path[0]]].DraftText(path);
         }
     }
 
@@ -74,10 +73,10 @@ public sealed partial class DefinitionFormModel
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out JsonElement metadata, out _)) return DefinitionAnswerOrigin.Omitted;
-            if (ReadNode(path) is null)
+            if (ReadValue(path) is null)
             {
                 if (metadata.TryGetProperty("default", out _)) return DefinitionAnswerOrigin.Defaulted;
-                DefinitionFieldInput root = Fields.Single(input => input.Definition.Id == path[0]);
+                DefinitionFieldInput root = Fields[_index!.FieldPositions[path[0]]];
                 if (root.Value is null && root.Definition.Default is { } value)
                 {
                     foreach (string segment in path.Skip(1))
@@ -92,7 +91,7 @@ public sealed partial class DefinitionFormModel
                 }
                 return DefinitionAnswerOrigin.Omitted;
             }
-            return Fields.Single(input => input.Definition.Id == path[0]).OriginAt(path);
+            return Fields[_index!.FieldPositions[path[0]]].OriginAt(path);
         }
     }
 
@@ -105,13 +104,14 @@ public sealed partial class DefinitionFormModel
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out _, out _)) throw new ArgumentException("editor-path-invalid", nameof(path));
             static string Encode(string segment) => Convert.ToHexString(Encoding.UTF8.GetBytes(segment));
-            string identity = "field-" + Definition.FamilyId.ToString("N") + "-" + Encode(path[0]);
+            string identity = _index!.RootIdentities[path[0]];
+            if (path.Count == 1) return identity;
             var prefix = new List<string> { path[0] };
             foreach (string segment in path.Skip(1))
             {
-                if (ReadNode(prefix) is JsonArray rows)
+                if (ReadValue(prefix) is { ValueKind: JsonValueKind.Array } rows)
                 {
-                    EnsureRowIdentities(identity, rows.Count);
+                    EnsureRowIdentities(identity, rows.GetArrayLength());
                     identity += "-row-" + _rowIdentities[identity][int.Parse(segment, CultureInfo.InvariantCulture)]
                         .ToString(CultureInfo.InvariantCulture);
                 }
@@ -157,7 +157,7 @@ public sealed partial class DefinitionFormModel
         foreach (JsonElement child in properties.EnumerateArray())
         {
             string[] childPath = [.. path, child.GetProperty("id").GetString()!];
-            if (ReadNode(childPath) is not null) RecordMaterializedDefaults(childPath, child);
+            if (ReadValue(childPath) is not null) RecordMaterializedDefaults(childPath, child);
         }
     }
 
@@ -173,6 +173,7 @@ public sealed partial class DefinitionFormModel
         if (section is not null && !Experiences.Single(item => item.Id == SelectedExperienceId).Sections.Contains(section.Id))
             SelectExperience(Experiences.First(item => item.Sections.Contains(section.Id)).Id);
         DiscoverySelection = new();
+        _discovery = null;
         for (int length = 1; length <= path.Count; length++)
             _promotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
         OnPropertyChanged(nameof(DiscoveryQuery));

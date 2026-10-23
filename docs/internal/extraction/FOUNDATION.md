@@ -97,6 +97,18 @@ Shared experience/disclosure/discovery state has its own notifications and canno
 grant consent, change answers or retire current preparation. Invalid nested drafts,
 literal correction paths, provenance and workspace row identity belong to
 Presentation/Core, rather than independent Browser or native visibility policies.
+The shared form owns a metadata-only definition index and one current input
+revision's private derived facts. Disclosure/search reuse those facts; selected
+experience order remains a separate dependency of ranked discovery. Read-only
+lookup traverses already-owned immutable JSON, never an additional answer tree
+or a reparsed whole-root copy, and invalid roots deny stale collection reads.
+Correction promotion settles after nested edits and before post-lock observers,
+not as a side effect of visibility reads. Shared relevant Review entries retain
+active obligations, attention/deferred/supplied/defaulted work and literal-path
+ancestors; deliberate metadata inspection does not activate answers.
+Revision changes and disposal retire facts and current selection references.
+Managed reference retirement does not promise physical JSON/string erasure;
+workspace-owned prepared-output bytes are separately cleared on invalidation.
 Browser denial takes effect synchronously, retiring every old artifact owner
 before asynchronous cleanup can yield; cleanup cannot restore denied secrets
 or clear replacement output.

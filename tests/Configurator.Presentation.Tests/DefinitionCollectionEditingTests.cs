@@ -9,6 +9,47 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionCollectionEditingTests
 {
     [Test]
+    public async Task InvalidRootDeniesDescendantReadsInsteadOfReusingLastValidRows()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        form.AddListItem(["rows"]);
+        form.EditValue(["rows", "0", "metadata", "name"], "ordinary");
+        _ = form.Projection;
+        _ = form.GetEditorIdentity(["rows", "0", "metadata", "name"]);
+        form.Fields[0].Text = "not-json";
+
+        await Assert.That(form.AnswerOrigin(["rows", "0", "metadata", "name"]))
+            .IsEqualTo(DefinitionAnswerOrigin.Omitted);
+        await Assert.That(form.IsEditorVisible(["rows", "0", "metadata", "name"])).IsFalse();
+        await Assert.That(form.EditValue(["rows", "0", "metadata", "name"], "late")).IsFalse();
+        await Assert.That(form.ReadDraftText(["rows", "0", "metadata", "name"])).IsNull();
+    }
+
+    [Test]
+    public async Task LiteralDottedChildrenRemainDistinctAndSurvivingRowTokensStayStable()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"]![0]!["properties"]![0]!["properties"]![0]!["id"] = "literal.name";
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.AddListItem(["rows"]);
+        form.AddListItem(["rows"]);
+        form.EditValue(["rows", "1", "metadata", "literal.name"], "ordinary");
+        string identity = form.GetEditorIdentity(["rows", "1", "metadata", "literal.name"]);
+        _ = form.Projection;
+        form.SetDiscovery("literal.name");
+        form.RemoveListItem(["rows"], 0);
+
+        await Assert.That(form.GetEditorIdentity(["rows", "0", "metadata", "literal.name"])).IsEqualTo(identity);
+        await Assert.That(form.Snapshot().Values["rows"][0].GetProperty("metadata")
+            .GetProperty("literal.name").GetString()).IsEqualTo("ordinary");
+        await Assert.That(form.FocusEditor(["rows", "0", "metadata", "literal", "name"])).IsFalse();
+        await Assert.That(form.FocusEditor(["rows", "0", "metadata", "literal.name"])).IsTrue();
+        await Assert.That(form.AnswerOrigin(["rows", "0", "metadata", "literal.name"]))
+            .IsEqualTo(DefinitionAnswerOrigin.Explicit);
+    }
+
+    [Test]
     public async Task MaterializedDefaultsAndImportedRowsKeepOriginsAcrossCollectionMutations()
     {
         using var form = new DefinitionFormModel(Definition());

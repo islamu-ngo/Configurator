@@ -16,7 +16,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private List<Action> _notifications = [];
     private int _mutationDepth;
     private long _inputRevision;
-    private DefinitionValidationResult? _validationResult;
+    private DefinitionFormIndex? _index;
+    private DefinitionFormFacts? _facts;
+    private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>>? _orderedEntries;
+    private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>>? _relevantEntries;
+    private Lazy<DefinitionDiscoverySnapshot>? _discovery;
+    private bool _promotionPending;
     private DefinitionFormProjection? _projection;
     private readonly HashSet<string> _promotedPaths = new(StringComparer.Ordinal);
     private readonly Dictionary<string, bool> _sectionExpansion = new(StringComparer.Ordinal);
@@ -45,6 +50,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             : [new DefinitionFormExperience("configure", "Configure", SetupFieldDisclosure.Guided,
                 "sections", Sections.Select(section => section.Id))]);
         SelectedExperienceId = definition.Presentation?.DefaultExperience ?? "configure";
+        _index = new DefinitionFormIndex(definition, Sections, Experiences);
     }
 
     public SetupDefinition Definition { get; }
@@ -62,6 +68,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         if (!Experiences.Any(experience => experience.Id == id)) return false;
         if (SelectedExperienceId == id) return true;
         SelectedExperienceId = id;
+        _orderedEntries = null;
+        _relevantEntries = null;
+        _discovery = null;
         OptionalEditorsExpanded = false;
         _sectionExpansion.Clear();
         _editorExpansion.Clear();
@@ -108,24 +117,17 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!TryMetadata(path, out JsonElement metadata, out _)) return false;
-            DefinitionValidationResult validation = Validate();
-            if (!validation.Fields.Any(state => state.Id == path[0] && state.IsActive)) return false;
-            string[] relative = path.Skip(1).ToArray();
-            bool needsCorrection = validation.Nodes.Any(node => node.FieldId == path[0] &&
-                node.RelativePath.Take(relative.Length).SequenceEqual(relative) &&
-                (node.HasError || node.IsObligation && node.IsMissing)) ||
-                InputDiagnostics.Any(diagnostic => diagnostic.FieldId == path[0] &&
-                    diagnostic.RelativePath.Take(relative.Length).SequenceEqual(relative));
-            string key = GetEditorIdentity(path);
-            if (needsCorrection) _promotedPaths.Add(key);
-            if (needsCorrection || _promotedPaths.Contains(key) || ContainsEssentialDecision(metadata)) return true;
-            if (TryLocalExpansion(path, out bool locallyExpanded))
-                return locallyExpanded || validation.Nodes.Any(node => node.FieldId == path[0] &&
-                    node.RelativePath.Take(relative.Length).SequenceEqual(relative) && node.IsRequired);
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node indexed, out _)) return false;
+            JsonElement metadata = indexed.Metadata;
+            DefinitionFormFacts facts = Facts;
+            if (!facts.IsActive(path[0])) return false;
+            bool needsCorrection = facts.NeedsCorrection(path);
+            if (needsCorrection || indexed.HasEssentialDecision ||
+                _promotedPaths.Count > 0 && _promotedPaths.Contains(GetEditorIdentity(path))) return true;
+            if (_editorExpansion.Count > 0 && TryLocalExpansion(path, out bool locallyExpanded))
+                return locallyExpanded || facts.HasRequiredDescendant(path);
             DefinitionFormExperience experience = Experiences.Single(item => item.Id == SelectedExperienceId);
-            DefinitionFormSection? section = Sections
-                .FirstOrDefault(item => item.Fields.Contains(path[0]));
+            DefinitionFormSection section = _index!.SectionsByField[path[0]];
             if (section is not null && !experience.Sections.Contains(section.Id)) return false;
             bool expanded = OptionalEditorsExpanded;
             if (section is not null && _sectionExpansion.TryGetValue(section.Id, out bool sectionExpanded))
@@ -143,19 +145,48 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    private static bool ContainsEssentialDecision(JsonElement metadata) =>
-        metadata.TryGetProperty("disclosure", out JsonElement disclosure) && disclosure.GetString() == "essential" ||
-        metadata.TryGetProperty("properties", out JsonElement properties) &&
-        properties.EnumerateArray().Any(ContainsEssentialDecision);
-
-    private void OnViewChanged()
+    private void OnViewChanged(bool discoveryOnly = false)
     {
-        _projection = null;
+        _projection = discoveryOnly ? _projection?.WithDiscovery(CurrentDiscovery) : null;
+        _promotionPending = true;
         OnPropertyChanged(nameof(Projection));
         OnPropertyChanged(nameof(VisibleFields));
         OnPropertyChanged(nameof(OptionalEditorsExpanded));
         Notify(() => ViewChanged?.Invoke(this, EventArgs.Empty));
     }
+    internal DefinitionFormFacts Facts => _facts ??= new DefinitionFormFacts(this, _index!,
+        DefinitionValidator.Validate(Definition, Snapshot()));
+
+    internal IReadOnlyList<DefinitionFormSection> OrderedSections =>
+        _index!.ExperienceSections[SelectedExperienceId];
+
+    internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> OrderedEntries =>
+        _orderedEntries ??= OrderEntries(Facts.Entries, OrderedSections);
+
+    private static Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> OrderEntries(
+        Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> entries, IReadOnlyList<DefinitionFormSection> sections)
+    {
+        var order = sections.Select((section, position) => (section.Id, position))
+            .ToDictionary(item => item.Id, item => item.position, StringComparer.Ordinal);
+        return new(() => Array.AsReadOnly(entries.Value
+            .Select(entry => entry.WithSectionOrder(order[entry.SectionId])).ToArray()));
+    }
+
+    internal Lazy<DefinitionDiscoverySnapshot> CurrentDiscovery =>
+        _discovery ??= CreateDiscovery(OrderedEntries, DiscoverySelection);
+
+    private static Lazy<DefinitionDiscoverySnapshot> CreateDiscovery(
+        Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> entries, DefinitionDiscoverySelection selection) =>
+        new(() => DefinitionDiscovery.Search(entries.Value, selection));
+
+    internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> CurrentRelevantEntries =>
+        _relevantEntries ??= SelectRelevantEntries(OrderedEntries, Facts.RelevantPaths, _index!);
+
+    private static Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> SelectRelevantEntries(
+        Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> entries, Lazy<IReadOnlySet<string>> paths, DefinitionFormIndex index) =>
+        new(() => Array.AsReadOnly(entries.Value.Where(entry =>
+            paths.Value.Contains(index.PathKey([entry.FieldId, .. entry.RelativePath]))).ToArray()));
+
     public DefinitionFormProjection Projection
     {
         get
@@ -182,9 +213,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             DiscoverySelection = selection;
+            _discovery = null;
             OnPropertyChanged(nameof(DiscoverySelection));
             OnPropertyChanged(nameof(DiscoveryQuery));
-            OnViewChanged();
+            OnViewChanged(discoveryOnly: true);
         }
     }
 
@@ -196,10 +228,11 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         get
         {
-            var active = Validate().Fields.Where(state => state.IsActive)
-                .Select(state => state.Id).ToHashSet(StringComparer.Ordinal);
-            return Array.AsReadOnly(Fields.Where(input => active.Contains(input.Definition.Id))
-                .SelectMany(input => input.InputDiagnostics).ToArray());
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                return Facts.InputDiagnostics;
+            }
         }
     }
 
@@ -269,7 +302,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (path.Count == 0 || !TryMetadata(path, out _, out _) || value is not null && !CanEdit(path)) return false;
-            DefinitionFieldInput field = Fields.Single(item => item.Definition.Id == path[0]);
+            DefinitionFieldInput field = Fields[_index!.FieldPositions[path[0]]];
             if (path.Count == 1)
             {
                 bool accepted = field.TrySetValue(value, recordOrigin: clearDrafts);
@@ -340,7 +373,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadata(path, out JsonElement metadata, out _) || !CanEdit(path)) return false;
-            DefinitionFieldInput field = Fields.Single(item => item.Definition.Id == path[0]);
+            if (text is not null && Facts.NeedsCorrection(path))
+                for (int length = 1; length <= path.Count; length++)
+                    _promotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
+            DefinitionFieldInput field = Fields[_index!.FieldPositions[path[0]]];
             long before = _inputRevision;
             if (text is null)
             {
@@ -407,7 +443,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!ApplyValue(path, JsonSerializer.SerializeToElement(items), clearDrafts: false)) return false;
             RetainRowOrigins(path, origins);
             string[] addedPath = [.. path, origins.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)];
-            Fields.Single(input => input.Definition.Id == path[0]).RecordOrigin(addedPath, DefinitionAnswerOrigin.Explicit);
+            Fields[_index!.FieldPositions[path[0]]].RecordOrigin(addedPath, DefinitionAnswerOrigin.Explicit);
             if (TryMetadata(addedPath, out JsonElement addedMetadata, out _))
                 RecordMaterializedDefaults(addedPath, addedMetadata);
             return true;
@@ -438,51 +474,61 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 _editorExpansion.Remove(key);
             _promotedPaths.RemoveWhere(key => key == removedIdentity ||
                 key.StartsWith(removedIdentity + "-", StringComparison.Ordinal));
-            Fields.Single(field => field.Definition.Id == path[0]).RemoveItemDrafts(path, index);
+            Fields[_index!.FieldPositions[path[0]]].RemoveItemDrafts(path, index);
             return true;
         }
     }
 
     private JsonNode? ReadNode(IReadOnlyList<string> path)
     {
-        if (path.Count == 0 || Fields.FirstOrDefault(item => item.Definition.Id == path[0]) is not { } field ||
-            !field.TryValue(out JsonElement? value) || value is null) return null;
-        JsonNode? node = JsonNode.Parse(value.Value.GetRawText());
+        return ReadValue(path) is { } value ? JsonNode.Parse(value.GetRawText()) : null;
+    }
+
+    private JsonElement? ReadValue(IReadOnlyList<string> path)
+    {
+        if (path.Count == 0 || !_index!.FieldPositions.TryGetValue(path[0], out int position) ||
+            !Fields[position].TryValue(out JsonElement? supplied) || supplied is not { } value) return null;
         foreach (string segment in path.Skip(1))
-            node = node is JsonObject mapping ? mapping[segment] : node is JsonArray array && int.TryParse(segment, out int row)
-                && row >= 0 && row < array.Count ? array[row] : null;
-        return node;
+            if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty(segment, out JsonElement child))
+                value = child;
+            else if (value.ValueKind == JsonValueKind.Array && int.TryParse(segment, out int row) &&
+                row >= 0 && row < value.GetArrayLength()) value = value[row];
+            else return null;
+        return value.ValueKind == JsonValueKind.Null ? null : value;
     }
 
     internal bool TryMetadata(IReadOnlyList<string> path, out JsonElement metadata, out bool inheritedSecret)
     {
-        metadata = default;
+        bool found = TryMetadataNode(path, out DefinitionFormIndex.Node node, out inheritedSecret);
+        metadata = found ? node.Metadata : default;
+        return found;
+    }
+
+    internal bool TryMetadataNode(IReadOnlyList<string> path, out DefinitionFormIndex.Node node,
+        out bool inheritedSecret)
+    {
+        node = null!;
         inheritedSecret = false;
-        if (path.Count == 0 || Fields.FirstOrDefault(item => item.Definition.Id == path[0]) is not { } field) return false;
-        metadata = field.Definition.Constraints;
+        if (path.Count == 0 || !_index!.Roots.TryGetValue(path[0], out var root)) return false;
+        node = root;
+        if (path.Count == 1) return true;
         var prefix = new List<string> { path[0] };
         foreach (string segment in path.Skip(1))
         {
-            inheritedSecret |= DefinitionSecretPolicy.IsSecret(metadata);
-            if (metadata.GetProperty("type").GetString() == "list")
+            inheritedSecret |= DefinitionSecretPolicy.IsSecret(node.Metadata);
+            if (node.Item is { } item)
             {
                 if (!int.TryParse(segment, System.Globalization.NumberStyles.None,
                     System.Globalization.CultureInfo.InvariantCulture, out int index) ||
                     segment != index.ToString(System.Globalization.CultureInfo.InvariantCulture) ||
-                    ReadNode(prefix) is not JsonArray rows || index < 0 || index >= rows.Count) return false;
-                metadata = JsonSerializer.SerializeToElement(new
-                {
-                    type = metadata.GetProperty("itemType").GetString(),
-                    properties = metadata.TryGetProperty("properties", out JsonElement properties) ? properties : JsonSerializer.SerializeToElement(Array.Empty<object>()),
-                    sensitivity = "public"
-                });
+                    ReadValue(prefix) is not { ValueKind: JsonValueKind.Array } rows ||
+                    index < 0 || index >= rows.GetArrayLength()) return false;
+                node = item;
                 prefix.Add(segment);
                 continue;
             }
-            if (!metadata.TryGetProperty("properties", out JsonElement children)) return false;
-            JsonElement child = children.EnumerateArray().FirstOrDefault(item => item.GetProperty("id").GetString() == segment);
-            if (child.ValueKind == JsonValueKind.Undefined) return false;
-            metadata = child;
+            if (!node.Properties.TryGetValue(segment, out var child)) return false;
+            node = child;
             prefix.Add(segment);
         }
         return true;
@@ -490,16 +536,17 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private bool AllowsValue(SetupFieldDefinition field, string text, JsonElement? candidate)
     {
-        DefinitionFieldInput input = Fields.Single(item => item.Definition.Id == field.Id);
+        string fieldId = field.Id;
+        DefinitionFieldInput input = Fields[_index!.FieldPositions[fieldId]];
         bool fitsBudget = text.Length <= 65_536;
         string? rejection = fitsBudget ? null : "answer-budget-exceeded";
         if (fitsBudget)
         {
             var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (DefinitionFieldInput current in Fields)
-                if (current.Definition.Id != field.Id && current.Value is { } supplied)
-                    values.Add(current.Definition.Id, supplied);
-            if (candidate is { } value) values[field.Id] = value;
+            for (int position = 0; position < Fields.Count; position++)
+                if (_index.FieldIds[position] != fieldId && Fields[position].Value is { } supplied)
+                    values.Add(_index.FieldIds[position], supplied);
+            if (candidate is { } value) values[fieldId] = value;
             try { _ = new SetupAnswerSnapshot(_inputRevision, values); }
             catch (SetupDefinitionException exception)
             {
@@ -522,6 +569,18 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         catch (JsonException) { return false; }
     }
     public IReadOnlyList<DefinitionFieldInput> Fields { get; }
+    /// <summary>Returns the owned root editor and its immutable admitted schema by literal field identity.</summary>
+    public (DefinitionFieldInput Input, JsonElement Schema) GetFieldEditor(string fieldId)
+    {
+        ArgumentNullException.ThrowIfNull(fieldId);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_index!.FieldPositions.TryGetValue(fieldId, out int position))
+                throw new ArgumentException("field-invalid", nameof(fieldId));
+            return (Fields[position], _index.Roots[fieldId].Metadata);
+        }
+    }
     public long InputRevision => _inputRevision;
     public bool HasAnswerBudgetError => Fields.Any(input => input.HasAnswerBudgetError);
     public event EventHandler? InputChanged;
@@ -539,12 +598,11 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         get
         {
-            var active = Validate().Fields
-                .Where(state => state.IsActive)
-                .Select(state => state.Id)
-                .ToHashSet(StringComparer.Ordinal);
-            return Fields.Any(input => active.Contains(input.Definition.Id) &&
-                (input.InputDiagnosticCode is not null || !input.TryValue(out _)));
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                return Facts.HasInputErrors;
+            }
         }
     }
 
@@ -554,7 +612,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            return path.Count > 0 && Fields.Any(field => field.Definition.Id == path[0] && field.HasInputError(path));
+            return path.Count > 0 && _index!.FieldPositions.TryGetValue(path[0], out int position) &&
+                Fields[position].HasInputError(path);
         }
     }
 
@@ -564,10 +623,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (var field in Fields)
+            for (int position = 0; position < Fields.Count; position++)
             {
-                if (field.Value is { } supplied)
-                    values.Add(field.Definition.Id, supplied);
+                if (Fields[position].Value is { } supplied)
+                    values.Add(_index!.FieldIds[position], supplied);
             }
             return new SetupAnswerSnapshot(_inputRevision, values);
         }
@@ -578,7 +637,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            return _validationResult ??= DefinitionValidator.Validate(Definition, Snapshot());
+            return Facts.Validation;
         }
     }
 
@@ -652,8 +711,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
-        _validationResult = null;
+        _facts = null;
+        _orderedEntries = null;
+        _relevantEntries = null;
+        _discovery = null;
         _projection = null;
+        _promotionPending = true;
         checked { _inputRevision++; }
         OnPropertyChanged(nameof(InputRevision));
         OnPropertyChanged(nameof(HasInputErrors));
@@ -681,8 +744,13 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _disposed = true;
             foreach (var field in Fields) field.Clear();
             _rowIdentities.Clear();
-            _validationResult = null;
+            _facts = null;
+            _index = null;
+            _orderedEntries = null;
+            _relevantEntries = null;
+            _discovery = null;
             _projection = null;
+            _promotionPending = false;
             _promotedPaths.Clear();
             _sectionExpansion.Clear();
             _editorExpansion.Clear();
@@ -718,6 +786,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (--_mutationDepth == 0)
             {
+                if (_promotionPending && !_disposed)
+                {
+                    _promotionPending = false;
+                    foreach (string[] path in Facts.PromotionPaths)
+                        if (TryMetadata(path, out _, out _)) _promotedPaths.Add(GetEditorIdentity(path));
+                }
                 notifications = _notifications;
                 _notifications = [];
             }
@@ -907,6 +981,7 @@ public sealed class DefinitionFieldInput : ObservableObject
     }
 
     internal DefinitionAnswerOrigin OriginAt(IReadOnlyList<string> path) =>
+        path.Count == 1 || _origins.Count == 0 ? _origin :
         _origins.Where(existing => path.Take(existing.Path.Length).SequenceEqual(existing.Path))
             .OrderByDescending(existing => existing.Path.Length).Select(existing => existing.Origin)
             .FirstOrDefault(_origin);

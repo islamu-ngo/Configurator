@@ -60,6 +60,59 @@ public sealed class DefinitionDiscoveryEntry
     public IReadOnlyList<string> BindingKeys { get; }
     public int SectionOrder { get; }
     public IReadOnlyList<string> ActiveControllerFields { get; }
+
+    internal DefinitionDiscoveryEntry(DefinitionFormIndex.Node metadata, DefinitionFormSection section,
+        DefinitionNodeState state, bool inputError, bool deferred, DefinitionAnswerOrigin origin,
+        IReadOnlyList<string>? artifacts, IReadOnlyList<string>? bindingKeys, IReadOnlyList<string> controllers)
+    {
+        FieldId = state.FieldId;
+        RelativePath = state.RelativePath;
+        Title = metadata.Title ?? section.Title + " item";
+        SectionId = section.Id;
+        SectionTitle = section.Title;
+        Type = metadata.Type;
+        Sensitivity = state.Sensitivity;
+        IsActive = state.IsActive;
+        IsRequired = state.IsRequired;
+        IsProvided = state.IsProvided;
+        IsReady = state.IsActive && state.IsReady && !inputError;
+        NeedsAttention = state.IsActive && (state.HasError || inputError);
+        IsDeferred = state.IsActive && !inputError && deferred;
+        Origin = origin;
+        SearchTerms = metadata.SearchTerms;
+        Help = metadata.Help;
+        Instructions = metadata.Instructions;
+        OutputArtifactIds = artifacts ?? [];
+        BindingKeys = bindingKeys ?? [];
+        ActiveControllerFields = controllers;
+    }
+
+    private DefinitionDiscoveryEntry(DefinitionDiscoveryEntry current, int sectionOrder)
+    {
+        FieldId = current.FieldId;
+        RelativePath = current.RelativePath;
+        Title = current.Title;
+        SectionId = current.SectionId;
+        SectionTitle = current.SectionTitle;
+        Type = current.Type;
+        Sensitivity = current.Sensitivity;
+        IsActive = current.IsActive;
+        IsRequired = current.IsRequired;
+        IsProvided = current.IsProvided;
+        IsReady = current.IsReady;
+        NeedsAttention = current.NeedsAttention;
+        IsDeferred = current.IsDeferred;
+        Origin = current.Origin;
+        SearchTerms = current.SearchTerms;
+        Help = current.Help;
+        Instructions = current.Instructions;
+        OutputArtifactIds = current.OutputArtifactIds;
+        BindingKeys = current.BindingKeys;
+        SectionOrder = sectionOrder;
+        ActiveControllerFields = current.ActiveControllerFields;
+    }
+
+    internal DefinitionDiscoveryEntry WithSectionOrder(int order) => order == SectionOrder ? this : new(this, order);
 }
 
 /// <summary>A transient query and copied facet selections. Oversized queries reject rather than truncate.</summary>
@@ -130,7 +183,8 @@ public static class DefinitionDiscovery
                 .GroupBy(value => value, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
             // Keep unavailable options visible, including selected values with no remaining matches.
-            IEnumerable<string> options = snapshot.SelectMany(entry => Values(entry, facet)).Order(StringComparer.Ordinal)
+            IEnumerable<string> options = snapshot.SelectMany(entry => Values(entry, facet))
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
                 .Concat(selection.Facets.TryGetValue(facet, out var selected) ? selected.Order(StringComparer.Ordinal) : [])
                 .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal);
             facets.Add(facet, Array.AsReadOnly(options.Select(value =>

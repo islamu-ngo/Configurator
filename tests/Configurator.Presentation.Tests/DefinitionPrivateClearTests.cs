@@ -2,11 +2,107 @@ namespace Configurator.Presentation.Tests;
 
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Core.Definitions;
 
 public sealed class DefinitionPrivateClearTests
 {
     private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(5);
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task WarmedFactsCannotRestoreRevokedSecretsOrOutputAfterLateImport(bool replaceForm)
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"]!.AsArray().Add(JsonNode.Parse("""
+        {"id":"rows","type":"list","itemType":"object","title":"Rows","sensitivity":"public","disclosure":"guided",
+          "properties":[
+            {"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
+            {"id":"password","type":"string","title":"Password","sensitivity":"secret","disclosure":"advanced"}]}
+        """));
+        source["artifacts"]![0]!["projection"]!["members"]!["rows"] =
+            JsonNode.Parse("""{"op":"copy","field":"rows"}""");
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        form.EditValue(["title"], "initial-public");
+        form.EditValue(["password"], "synthetic-private-root");
+        form.SetValue(["rows"], JsonSerializer.SerializeToElement(new[]
+        {
+            new { name = "row-public", password = "synthetic-private-row" }
+        }));
+        form.SetDiscovery("password");
+        _ = form.Projection;
+        string identity = form.GetEditorIdentity(["rows", "0", "name"]);
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        SetupWorkspaceId.TryCreate("old-output", out SetupWorkspaceId oldId);
+        using var workspace = session.CreateWorkspace(oldId,
+            new DefinitionPresentationOperation(definition, "config", form.Snapshot()));
+        await workspace.ExecuteAsync(Guid.NewGuid());
+        ReadOnlyMemory<byte> oldOutput = workspace.Output;
+        await Assert.That(oldOutput.IsEmpty).IsFalse();
+        var pendingRead = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<DefinitionImportResult> import = form.ImportAsync("config", _ => pendingRead.Task);
+
+        bool reentered = false;
+        form.Fields[2].PropertyChanged += (_, args) =>
+        {
+            if (reentered || args.PropertyName != nameof(DefinitionFieldInput.Text)) return;
+            reentered = true;
+            form.EditValue(["title"], "reentrant-public");
+            _ = form.Projection;
+        };
+        EventHandler failing = (_, _) => throw new InvalidOperationException("synthetic-observer");
+        form.InputChanged += failing;
+        form.InputChanged += (_, _) => workspace.Deactivate();
+        AggregateException? failure = null;
+        try { form.SetSecretEntryEnabled(false); }
+        catch (AggregateException exception) { failure = exception; }
+        finally { form.InputChanged -= failing; }
+
+        await Assert.That(failure).IsNotNull();
+        await Assert.That(reentered).IsTrue();
+        await Assert.That(workspace.Output.IsEmpty).IsTrue();
+        await Assert.That(oldOutput.ToArray().All(value => value == 0)).IsTrue();
+        await Assert.That(form.Snapshot().Values.ContainsKey("password")).IsFalse();
+        await Assert.That(form.Snapshot().Values["rows"][0].TryGetProperty("password", out _)).IsFalse();
+        await Assert.That(form.GetEditorIdentity(["rows", "0", "name"])).IsEqualTo(identity);
+        await Assert.That(form.Projection.Entries.Single(entry => entry.FieldId == "password").IsProvided).IsFalse();
+        form.SetSecretEntryEnabled(true);
+        form.EditValue(["title"], "current-public");
+        using var replacement = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        if (replaceForm) form.Dispose();
+        DefinitionFormModel current = replaceForm ? replacement : form;
+        if (replaceForm) current.EditValue(["title"], "replacement-public");
+        SetupWorkspaceId.TryCreate("current-output", out SetupWorkspaceId currentId);
+        using var currentWorkspace = session.CreateWorkspace(currentId,
+            new DefinitionPresentationOperation(definition, "config", current.Snapshot()));
+        await currentWorkspace.ExecuteAsync(Guid.NewGuid());
+        ReadOnlyMemory<byte> currentOutput = currentWorkspace.Output;
+        byte[] late = """{"settings":{"password":"synthetic-late-secret"}}"""u8.ToArray();
+        pendingRead.SetResult(late);
+        DefinitionImportResult result = await import.WaitAsync(SignalTimeout);
+
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.Code).IsEqualTo("import-stale");
+        await Assert.That(late.All(value => value == 0)).IsTrue();
+        await Assert.That(current.Snapshot().Values["title"].GetString())
+            .IsEqualTo(replaceForm ? "replacement-public" : "current-public");
+        await Assert.That(current.Snapshot().Values.ContainsKey("password")).IsFalse();
+        await Assert.That(currentWorkspace.Output.IsEmpty).IsFalse();
+        using (JsonDocument document = JsonDocument.Parse(currentWorkspace.Output))
+        {
+            await Assert.That(document.RootElement.GetProperty("title").GetString())
+                .IsEqualTo(replaceForm ? "replacement-public" : "current-public");
+            await Assert.That(document.RootElement.TryGetProperty("password", out _)).IsFalse();
+        }
+        _ = current.Projection;
+        current.Dispose();
+        currentWorkspace.Dispose();
+        await Assert.That(currentOutput.ToArray().All(value => value == 0)).IsTrue();
+        await Assert.That(() => current.Projection).Throws<ObjectDisposedException>();
+    }
 
     [Test]
     public async Task ClearPreservesPublicRootsAndClearsProtectedRootsInOneRevision()

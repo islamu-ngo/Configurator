@@ -10,6 +10,59 @@ replacement/cancellation. Browser remote retrieval remains runtime JSON only.
 section expansion and discovery publish `ViewChanged`, not `InputChanged`;
 they preserve answer revision, consent and current preparation. Definitions
 without presentation metadata expose one neutral Configure experience.
+
+Each form owns one metadata-only `DefinitionFormIndex` for its pinned definition:
+literal schema children, root positions, section membership and experience order,
+artifact bindings and activation-controller references. List-item schema metadata
+is indexed once, but actual row presence and logical row tokens remain workspace
+state. This index contains no answers, origins, activity or readiness.
+`GetFieldEditor` retrieves the existing owned root editor and schema through that literal-ID
+index. Browser field mounting uses it rather than repeatedly scanning roots and
+decoding definition IDs from JSON. Cached display metadata and frozen binding
+references are shared by internal discovery entries; the public entry constructor
+still snapshots caller-owned collections.
+`DefinitionFormFacts` owns the single current input revision's validation, active
+roots, diagnostics, correction/required paths, origins, progress and discovery
+entries. It retains no second answer tree. Read-only origin, metadata and identity
+traversal uses the already-owned immutable `JsonElement`; an invalid root still
+denies access to its last valid collection rows. Mutable JSON parsing is confined
+to collection commands that actually need a working tree.
+
+Input intent retires facts, ordered entries, discovery and the visible projection.
+Experience changes retire ordered entries and discovery, not answer facts.
+Query/facet changes replace discovery and publish a new view projection while
+reusing its immutable visibility, progress and relevance. Disclosure changes
+derive new visibility and retain discovery. There is one current discovery result, not query
+history or a global cache. Each current ordering derives `SectionOrder` from the
+selected experience, so reused answer facts cannot freeze an earlier ranking.
+These lifetimes preserve the input revision and prepared output on view changes.
+Section progress uses indexed root membership, and experience-order copies share
+their already-owned immutable metadata collections. Discovery matching/facets
+are evaluated on demand by the one current discovery cell. Its factory captures
+only immutable entry and selection snapshots, never the live form, validation
+answer map or editor drafts; an older projection cannot derive newer answers
+when first read after an edit or disposal.
+Entry materialization, ordering and controller frontiers are also deferred:
+mutation captures value-free node facts and origins, while static factory
+methods capture only those snapshots and admitted metadata. Closed discovery
+and Review therefore do not allocate their full entry graphs during typing.
+`Projection.RelevantEntries` supplies the shared unpaged Review policy: active
+required, attention, deferred, supplied or defaulted entries and their literal-path
+ancestors. `Projection.Entries` retains the complete inspectable set, including
+omitted optional and inactive metadata. Clients page these selections without
+re-evaluating activation or suppressing independent correction diagnostics.
+
+The outermost mutation settles nested draft validity, origins and row changes
+before deriving correction promotion and releasing the gate. Property/input/view
+observers therefore see coherent current facts and sticky correction state even
+if nobody rendered the invalid editor before it was corrected. Visibility reads
+do not promote corrections. Deliberate collapse or experience navigation clears
+old promotion; currently invalid/missing work remains reachable. Disposal retires
+index, facts, ordering, discovery and logical identity references without deriving
+fresh facts during notifications. Retiring managed JSON/string references is not
+physical memory zeroization; owned prepared-output bytes retain their separate
+actual zeroization contract.
+
 `DefinitionPresentationOperation` captures the
 definition, artifact ID and input revision for a workspace execution.
 `DefinitionFormModel.ImportAsync` captures the current immutable answer snapshot
@@ -52,8 +105,10 @@ restore private values. It returns `false` only for definitions without any
 protected roots. A client with separate prepared state must still invalidate
 that state in the `false` case. Browser consent revocation remains a distinct
 secret-leaf clear that preserves nonsecret siblings.
-The shared projection promotes active missing obligations, invalid editors
-and their literal ancestors. Corrected editors stay open until deliberate
+The shared projection keeps active missing obligations and invalid editors
+reachable. Editing a missing/invalid path promotes its literal ancestors before
+the edit, while new errors and invalid drafts promote at mutation settlement.
+An unrelated edit does not make every missing obligation sticky. Corrected editors stay open until deliberate
 collapse or experience navigation; optional secrets and consequences do not
 alone force disclosure. `FocusEditor` clears obstructing discovery and expands
 the exact path without granting consent. `SupplyObject`

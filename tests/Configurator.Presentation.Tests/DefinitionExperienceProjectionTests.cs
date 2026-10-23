@@ -3,10 +3,122 @@ namespace Configurator.Presentation.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Core.Definitions;
 
 public sealed class DefinitionExperienceProjectionTests
 {
+    [Test]
+    public async Task RelevantReviewIncludesActiveWorkAndAncestorsWithoutOmittedOrInactiveMetadata()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = JsonNode.Parse("""
+        [{"id":"required","type":"boolean","required":true,"title":"Required","sensitivity":"public","disclosure":"guided"},
+         {"id":"defaulted","type":"boolean","default":false,"title":"Defaulted","sensitivity":"public","disclosure":"guided"},
+         {"id":"omitted","type":"string","title":"Omitted","sensitivity":"public","disclosure":"advanced"},
+         {"id":"parent","type":"object","title":"Parent","sensitivity":"public","disclosure":"guided",
+          "properties":[
+            {"id":"literal.name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
+            {"id":"omitted","type":"string","title":"Omitted child","sensitivity":"public","disclosure":"advanced"}]},
+         {"id":"inactive","type":"string","title":"Inactive","sensitivity":"public","disclosure":"advanced",
+          "activeWhen":{"op":"equals","field":"required","value":true}}]
+        """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.EditValue(["required"], "false");
+        form.EditValue(["parent", "literal.name"], "ordinary");
+        form.EditValue(["inactive"], "retained");
+
+        await Assert.That(form.Projection.RelevantEntries.Count).IsEqualTo(4);
+        await Assert.That(form.Projection.RelevantEntries.Any(entry =>
+            entry.FieldId == "required" && entry.RelativePath.Count == 0)).IsTrue();
+        await Assert.That(form.Projection.RelevantEntries.Any(entry =>
+            entry.FieldId == "defaulted" && entry.Origin == DefinitionAnswerOrigin.Defaulted)).IsTrue();
+        await Assert.That(form.Projection.RelevantEntries.Count(entry => entry.FieldId == "parent")).IsEqualTo(2);
+        await Assert.That(form.Projection.RelevantEntries.Single(entry =>
+            entry.RelativePath.Count > 0).RelativePath.Single()).IsEqualTo("literal.name");
+        await Assert.That(form.Projection.Entries.Count).IsEqualTo(7);
+        await Assert.That(form.Projection.Entries.Single(entry => entry.FieldId == "inactive").IsActive).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task CorrectedOptionalDraftStaysVisibleRegardlessOfInvalidVisibilityReads(bool renderInvalid)
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = JsonNode.Parse("""
+        [{"id":"options","type":"object","title":"Options","sensitivity":"public","disclosure":"guided",
+          "properties":[
+            {"id":"limit","type":"integer","title":"Limit","sensitivity":"public","disclosure":"advanced"}]}]
+        """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        using var form = new DefinitionFormModel(
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        await Assert.That(form.EditValue(["options", "limit"], "-")).IsFalse();
+        if (renderInvalid)
+            await Assert.That(form.IsEditorVisible(["options", "limit"])).IsTrue();
+
+        bool visibleToObserver = false;
+        form.InputChanged += (_, _) => visibleToObserver = form.IsEditorVisible(["options", "limit"]);
+        await Assert.That(form.EditValue(["options", "limit"], "7")).IsTrue();
+
+        await Assert.That(visibleToObserver).IsTrue();
+        await Assert.That(form.IsEditorVisible(["options", "limit"])).IsTrue();
+        await Assert.That(form.Snapshot().Values["options"].GetProperty("limit").GetInt32()).IsEqualTo(7);
+        form.SetEditorExpanded(["options"], false);
+        await Assert.That(form.IsEditorVisible(["options", "limit"])).IsFalse();
+    }
+
+    [Test]
+    public async Task UnreadDiscoveryRetainsItsSnapshotAfterEditsQueryReplacementAndDisposal()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        form.SetDiscovery("enabled");
+        DefinitionFormProjection original = form.Projection;
+
+        form.EditValue(["enabled"], "false");
+        form.SetDiscovery("unmatched-metadata-query");
+        await Assert.That(form.Projection.Matches.Count).IsEqualTo(0);
+        form.Dispose();
+
+        await Assert.That(original.Matches.Count).IsEqualTo(1);
+        await Assert.That(original.Matches[0].Entry.FieldId).IsEqualTo("enabled");
+        await Assert.That(original.Matches[0].Entry.Origin).IsEqualTo(DefinitionAnswerOrigin.Omitted);
+        await Assert.That(original.Matches[0].Entry.IsProvided).IsFalse();
+    }
+
+    [Test]
+    public async Task ViewChangesPreservePreparedBytesButSameValueAndInvalidEditsFenceThem()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        form.EditValue(["enabled"], "false");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        SetupWorkspaceId.TryCreate("prepared", out SetupWorkspaceId workspaceId);
+        using var workspace = session.CreateWorkspace(workspaceId,
+            new DefinitionPresentationOperation(form.Definition, "config", form.Snapshot()));
+        form.InputChanged += (_, _) => workspace.Deactivate();
+        await workspace.ExecuteAsync(Guid.NewGuid());
+        ReadOnlyMemory<byte> output = workspace.Output;
+        long revision = form.InputRevision;
+        form.SetAllSectionsExpanded(true);
+        form.SetDiscovery("enabled");
+        form.FocusEditor(["enabled"]);
+        form.SetAllSectionsExpanded(false);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(Encoding.UTF8.GetString(workspace.Output.Span)).IsEqualTo("""{"enabled":false}""");
+
+        form.EditValue(["enabled"], "false");
+        await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
+        await Assert.That(workspace.Output.IsEmpty).IsTrue();
+        await Assert.That(output.ToArray().All(value => value == 0)).IsTrue();
+        form.EditValue(["enabled"], "not-a-boolean");
+        await Assert.That(form.InputRevision).IsEqualTo(revision + 2);
+        await Assert.That(form.Projection.Progress.Invalid).IsEqualTo(1);
+        await Assert.That(form.Projection.Progress.Ready).IsEqualTo(0);
+    }
+
     [Test]
     public async Task InactiveControllerChainsResolveToActiveQuestionsWithoutChangingAnswers()
     {

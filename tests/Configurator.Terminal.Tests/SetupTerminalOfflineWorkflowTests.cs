@@ -328,6 +328,10 @@ public sealed class SetupTerminalOfflineWorkflowTests
         var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["name"], "sample");
         form.EditValue(["token"], "privateValue");
+        // Seeding required answers is edit intent and promotes corrected editors.
+        // Start the navigation scenario from the authored disclosure instead.
+        form.SelectExperience("complete");
+        form.SelectExperience("guided");
         return form;
     }
 

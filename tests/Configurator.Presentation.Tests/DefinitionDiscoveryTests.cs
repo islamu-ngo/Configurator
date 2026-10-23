@@ -1,9 +1,45 @@
 namespace Configurator.Presentation.Tests;
 
+using System.Text;
 using Configurator.Core.Definitions;
 
 public sealed class DefinitionDiscoveryTests
 {
+    [Test]
+    public async Task WarmDiscoveryUsesCurrentExperienceOrderWithoutChangingAnswerFacts()
+    {
+        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+        {"schemaVersion":1,"familyId":"7d7d448e-f6ba-4860-94dd-5df51cae9578","revision":1,
+         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Order",
+         "entryPoints":["setup"],"locales":["en"],
+         "fields":[
+           {"id":"alpha","type":"boolean","title":"Common","sensitivity":"public","disclosure":"guided"},
+           {"id":"beta","type":"boolean","title":"Common","sensitivity":"public","disclosure":"guided"}],
+         "presentation":{"defaultExperience":"forward","sections":[
+           {"id":"first","title":"First","fields":["alpha"]},
+           {"id":"second","title":"Second","fields":["beta"]}],
+           "experiences":[
+             {"id":"forward","title":"Forward","initialDisclosure":"guided","navigation":"sections","sections":["first","second"]},
+             {"id":"reverse","title":"Reverse","initialDisclosure":"guided","navigation":"sections","sections":["second","first"]}]},
+         "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+           "projection":{"op":"literal","value":{}}}]}
+        """)));
+        form.EditValue(["alpha"], "false");
+        form.SetDiscovery("common");
+        long revision = form.InputRevision;
+        await Assert.That(string.Join(",", form.Projection.Matches.Select(match => match.Entry.FieldId)))
+            .IsEqualTo("alpha,beta");
+        form.SelectExperience("reverse");
+        await Assert.That(string.Join(",", form.Projection.Matches.Select(match => match.Entry.FieldId)))
+            .IsEqualTo("beta,alpha");
+        await Assert.That(form.Projection.Discovery.TotalCount).IsEqualTo(2);
+        await Assert.That(form.Projection.Discovery.Facets[DefinitionDiscoveryFacet.Section]
+            .Single(option => option.Value == "first").Count).IsEqualTo(1);
+        await Assert.That(form.Projection.Entries.Single(entry => entry.FieldId == "alpha").Origin)
+            .IsEqualTo(DefinitionAnswerOrigin.Explicit);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
     [Test]
     public async Task QueryRequiresEveryTokenAcrossPublicMetadata()
     {
