@@ -49,6 +49,7 @@ public partial class ConfigurationEditor
     private bool _disposed;
     private bool _ready;
     private bool _beginPending;
+    private bool _compact;
     private BrowserOfflinePolicy? _offline;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
@@ -70,6 +71,7 @@ public partial class ConfigurationEditor
         _selectedSection = null;
         _focusField = null;
         _pinned = Definition;
+        _compact = false;
         ImportableArtifacts = Definition.Artifacts
             .Where(artifact => DefinitionImport.CanImport(Definition, artifact.Id)).ToArray();
         _ready = false;
@@ -109,12 +111,12 @@ public partial class ConfigurationEditor
 
     private DefinitionFormExperience SelectedExperience => _form!.Experiences.Single(item => item.Id == _form.SelectedExperienceId);
     private SetupArtifactDefinition[] ImportableArtifacts { get; set; } = [];
-    private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields);
+    private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields, string? Description);
     private void IndexSections()
     {
         _observedDiscoverySelection = _form!.DiscoverySelection;
         _editorSections = _form.Sections.ToDictionary(section => section.Id, section =>
-            new EditorSection(section.Id, section.Title, section.Fields),
+            new EditorSection(section.Id, section.Title, section.Fields, section.Description),
             StringComparer.Ordinal);
     }
     private EditorSection[] EditorSections()
@@ -216,6 +218,21 @@ public partial class ConfigurationEditor
             return;
         }
         StateHasChanged();
+    }
+    private void ChangeDetail(ChangeEventArgs args)
+    {
+        switch (args.Value)
+        {
+            case "authored": _form!.SetDisclosureOverride(null); break;
+            case "essential": _form!.SetDisclosureOverride(SetupFieldDisclosure.Essential); break;
+            case "guided": _form!.SetDisclosureOverride(SetupFieldDisclosure.Guided); break;
+            case "advanced": _form!.SetDisclosureOverride(SetupFieldDisclosure.Advanced); break;
+        }
+    }
+    private void ChangeDensity(ChangeEventArgs args)
+    {
+        if (args.Value is not ("compact" or "comfortable")) return;
+        _compact = args.Value is "compact";
     }
     private void ChangeExperience(ChangeEventArgs args)
     {
@@ -507,6 +524,7 @@ public partial class ConfigurationEditor
         if (!_disposed && ReferenceEquals(form, _form))
         {
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+            _compact = false;
             IndexSections();
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;

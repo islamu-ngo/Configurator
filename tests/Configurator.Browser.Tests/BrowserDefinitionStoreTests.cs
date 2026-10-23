@@ -34,7 +34,7 @@ public sealed class BrowserDefinitionStoreTests
     [Test]
     public async Task SnapshotMismatchCannotPublishIntoRegistry()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
@@ -75,7 +75,7 @@ public sealed class BrowserDefinitionStoreTests
     [Test]
     public async Task ConflictingPreviouslyAdmittedRevisionRejectsAfterRegistryRemoval()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
         registry.Replace([]);
         JsonNode changed = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
@@ -94,7 +94,7 @@ public sealed class BrowserDefinitionStoreTests
     [Test]
     public async Task PackagedAssetsRemainReadableOfflineButAreBlockedDuringAnswerCustody()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, false));
@@ -116,7 +116,7 @@ public sealed class BrowserDefinitionStoreTests
     [Test]
     public async Task LateSnapshotCannotAdmitAcrossAnAnswerWorkspaceGeneration()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
@@ -159,7 +159,7 @@ public sealed class BrowserDefinitionStoreTests
     [Test]
     public async Task StoreAdmissionPreservesCoreAuthoredWhitespaceInMetadata()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         JsonNode node = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         node["title"] = " Authored title ";

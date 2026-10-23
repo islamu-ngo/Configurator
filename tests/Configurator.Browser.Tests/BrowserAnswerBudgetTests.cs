@@ -24,7 +24,7 @@ public sealed class BrowserAnswerBudgetTests
         definition["fields"] = fields;
         definition["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"copy","field":"text0"}""");
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         string oversizedPart = "synthetic-budget-canary" + new string('x', 65536 - "synthetic-budget-canary".Length);
         for (int index = 0; index < 17; index++) component.Find($"[data-field='text{index}'] input").Input(oversizedPart);
@@ -56,7 +56,7 @@ public sealed class BrowserAnswerBudgetTests
             });
         definition["artifacts"] = artifacts;
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         component.Find("[data-field='payload'] input").Input(new string('x', 65536));
         component.Find("#prepare-draft").Click();

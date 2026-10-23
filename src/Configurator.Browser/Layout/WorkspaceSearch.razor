@@ -130,7 +130,7 @@
         if (_focusQueryGeneration == SearchState.Generation && _open && _input is not null)
         {
             _focusQueryGeneration = null;
-            await _input.FocusAsync();
+            await _module.InvokeVoidAsync("focusEntry", _root);
         }
     }
     public async ValueTask DisposeAsync()

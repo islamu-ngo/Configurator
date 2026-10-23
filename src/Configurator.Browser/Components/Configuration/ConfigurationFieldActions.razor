@@ -1,0 +1,29 @@
+@using System.Text.Json
+
+<span class="configuration-field-actions">
+    <ConfigurationFieldHelp Schema="Schema" Title="@Title" FieldPath="@string.Join(" / ", Path)"
+                            SecretsEnabled="@SecretsEnabled" GetBindings="GetBindings" />
+    @if (!Required)
+    {
+        <span class="configuration-field-actions__menu" data-field-actions-id="@ControlId">
+            <MudMenu Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" AriaLabel="@("Actions for " + Title)" Disabled="@(!CanEdit)">
+                <MudMenuItem OnClick="() => OnOmit.InvokeAsync()" Disabled="@(!CanEdit)"
+                             data-action="omit" data-omit-owner="@ControlId" role="menuitem" aria-label="@OmissionLabel">@OmissionLabel</MudMenuItem>
+            </MudMenu>
+        </span>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public JsonElement Schema { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyList<string> Path { get; set; } = [];
+    [Parameter, EditorRequired] public string ControlId { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public bool SecretsEnabled { get; set; }
+    [Parameter] public EventCallback OnOmit { get; set; }
+    [Parameter] public Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)>? GetBindings { get; set; }
+    private string OmissionLabel => Schema.GetProperty("type").GetString() is "object" or "list"
+        ? "Omit " + Title + " and nested answers" : "Omit " + Title;
+}

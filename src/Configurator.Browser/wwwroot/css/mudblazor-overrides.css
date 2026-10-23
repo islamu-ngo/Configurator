@@ -1,1 +1,2 @@
-/* No global MudBlazor class overrides are required; use theme parameters and scoped wrappers. */
+/* The stable viewport gutter already reserves scrollbar space during modal scroll lock. */
+body.scroll-locked { padding-inline: 0; }

@@ -2,7 +2,7 @@
 @using System.Globalization
 @using System.Text.Json
 
-<div class="configuration-field" data-field="@string.Join('.', Path)">
+<div class="configuration-field @(Type is "object" or "list" ? "configuration-field--group" : "")" data-field="@string.Join('.', Path)">
     @if (!Form.IsEditorVisible(Path))
     {
         <div class="configuration-field__collapsed">
@@ -23,7 +23,10 @@
     {
         <fieldset @ref="_group" tabindex="-1" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
                   aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())" disabled="@(!canEdit)">
-            <legend>@Title @(required ? "(required)" : "(optional)")</legend>
+            <legend>@Title @(required ? "(required)" : "(optional)")
+                <ConfigurationFieldActions Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required"
+                                           CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled" OnOmit="Omit" GetBindings="InspectorBindings" />
+            </legend>
             @if (HasOptionalChildren)
             {
                 <button type="button" class="button button--secondary configuration-field__disclosure"
@@ -73,89 +76,79 @@
     {
         @if (isSecret && !canEdit)
         {
-            <p class="configuration-field__label"><strong>@Title</strong> <span class="configuration-field__requirement">@(required ? "Required" : "Optional")</span></p>
+            <div class="configuration-field__heading">
+                <p class="configuration-field__label"><strong>@Title</strong> <span class="configuration-field__requirement">@(required ? "Required" : "Optional")</span></p>
+                <ConfigurationFieldActions Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required"
+                                           CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled" OnOmit="Omit" GetBindings="InspectorBindings" />
+            </div>
             <p data-secret-denied>Secret entry is disabled for this workspace. Enable it deliberately above, or complete a downloaded draft locally.</p>
         }
         else
         {
-        <label for="@ControlId">@Title <span class="configuration-field__requirement">@(required ? "Required" : "Optional")</span></label>
+        <div class="configuration-field__heading">
+            <label id="@(ControlId + "-label")" for="@ControlId" @onclick="() => FocusScalarAsync()">@Title <span class="configuration-field__requirement">@(required ? "Required" : "Optional")</span></label>
+            <ConfigurationFieldActions Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required"
+                                       CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled" OnOmit="Omit" GetBindings="InspectorBindings" />
+        </div>
         @if (type is "boolean" or "enum" && !isMasked)
         {
-            <select @ref="_control" id="@ControlId" value="@Selection" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
-                    aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())" aria-required="@required.ToString().ToLowerInvariant()" disabled="@(!canEdit)" @onchange="Edit">
-                <option value="">Not supplied</option>
+            var editForm = Form;
+            var editPath = Path.ToArray();
+            long editRevision = Form.InputRevision;
+            long editControlGeneration = _controlGeneration;
+            <div class="configuration-field__choice">
+            <MudSelect T="string" @ref="_choiceControl" InputId="@ControlId" Value="@Selection" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Disabled="@(!canEdit)" Error="@(_invalid || error.Length > 0)"
+                       ErrorId="@(ControlId + "-error")" HelperId="@(ControlId + "-help")"
+                       ErrorText="@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : error)"
+                       UserAttributes="@(new Dictionary<string, object> { ["aria-required"] = required.ToString().ToLowerInvariant(), ["aria-labelledby"] = ControlId + "-label" })"
+                       ValueChanged="value => { if (Edit(new ChangeEventArgs { Value = value }, editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }">
+                <MudSelectItem T="string" Value="@string.Empty">Not supplied</MudSelectItem>
                 @if (type == "boolean")
                 {
-                    <option value="true">Yes</option><option value="false">No</option>
+                    <MudSelectItem T="string" Value="@("true")">Yes</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("false")">No</MudSelectItem>
                 }
                 else
                 {
                     int choiceIndex = 0;
                     @foreach (JsonElement choice in Schema.GetProperty("choices").EnumerateArray())
                     {
-                        <option value="@ChoiceIdentity(choiceIndex++, choice)">@(Display(choice).Length == 0 ? "Empty string" : Display(choice))</option>
+                        <MudSelectItem T="string" Value="@ChoiceIdentity(choiceIndex++, choice)">@(Display(choice).Length == 0 ? "Empty string" : Display(choice))</MudSelectItem>
                     }
                 }
-            </select>
+            </MudSelect>
+            </div>
         }
         else
         {
             var editForm = Form;
             var editPath = Path.ToArray();
             long editRevision = Form.InputRevision;
-            <div class="configuration-field__input" @oninput="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision)) editRevision = editForm.InputRevision; }"
-                 @onchange="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, changeOnly: true)) editRevision = editForm.InputRevision; }">
-                <input @ref="_control" class="form-control" id="@ControlId" name="@ControlId"
-                       type="@(isMasked ? "password" : "text")"
-                       inputmode="@(type == "integer" ? "numeric" : type == "number" ? "decimal" : "text")"
-                       value="@Text" maxlength="65536" autocomplete="@Autocomplete" spellcheck="false"
-                       aria-required="@required.ToString().ToLowerInvariant()"
-                       aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())"
-                       aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
-                       disabled="@(!canEdit)" />
+            long editControlGeneration = _controlGeneration;
+            <div class="configuration-field__input" @oninput="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }"
+                 @onchange="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration, changeOnly: true)) editRevision = editForm.InputRevision; }">
+                <AppTextField @ref="_textControl" InputId="@ControlId" Value="@Text" Masked="@isMasked"
+                              InputMode="@(type == "integer" ? InputMode.numeric : type == "number" ? InputMode.@decimal : InputMode.text)"
+                              Disabled="@(!canEdit)" Error="@(_invalid || error.Length > 0)" InputAttributes="@(new Dictionary<string, object>
+                              {
+                                  ["name"] = ControlId, ["autocomplete"] = Autocomplete, ["spellcheck"] = "false",
+                                  ["aria-required"] = required.ToString().ToLowerInvariant(),
+                                  ["aria-invalid"] = (_invalid || error.Length > 0).ToString().ToLowerInvariant(),
+                                  ["aria-describedby"] = ControlId + "-help " + ControlId + "-error"
+                              })" ErrorText="@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : error)" />
             </div>
         }
         }
     }
-    @if (!required)
-    {
-        <button type="button" class="button button--secondary" data-action="omit" aria-label="@($"Omit {Title}")"
-                disabled="@(!canEdit)" @onclick="Omit">Omit @Title</button>
-    }
-    <p id="@(ControlId + "-help")" class="configuration-field__help">@Help @Consequence
+    <p id="@(ControlId + "-help")" class="configuration-field__help" hidden="@(!HasHelp)">@Help @Consequence
         @if (isMasked && type == "boolean") { <span>Use true or false.</span> }
         @if (isMasked && type == "enum") { <span>Declared choices: @string.Join(", ", Schema.GetProperty("choices").EnumerateArray().Select(Display)).</span> }
+        @if (InputPurposeHelp is { } purposeHelp) { <span>@purposeHelp</span> }
     </p>
-    @if (InputPurposeHelp is { } purposeHelp)
+    @if (type is "object" or "list" || !canEdit)
     {
-        <p class="configuration-field__help">@purposeHelp</p>
-    }
-    @if (Schema.TryGetProperty("guidance", out JsonElement guidance) &&
-        (guidance.TryGetProperty("instructions", out _) ||
-         guidance.TryGetProperty("links", out JsonElement guidanceLinks) && guidanceLinks.GetArrayLength() > 0))
-    {
-        <details class="configuration-field__guidance">
-            <summary>Help with @Title</summary>
-            @if (guidance.TryGetProperty("instructions", out JsonElement instructions))
-            {
-                <p>@instructions.GetString()</p>
-            }
-            @if (guidance.TryGetProperty("links", out JsonElement links) && links.GetArrayLength() > 0)
-            {
-                <ul>
-                    @foreach (JsonElement link in links.EnumerateArray())
-                    {
-                        <li><a href="@(link.GetProperty("url").GetString())" target="_blank"
-                               rel="noopener noreferrer" referrerpolicy="no-referrer">@link.GetProperty("title").GetString() <span class="sr-only">(new tab)</span></a></li>
-                    }
-                </ul>
-            }
-        </details>
-    }
-    <p id="@(ControlId + "-error")" class="configuration-field__error">@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : error)</p>
-    @if (Schema.TryGetProperty("id", out var identifier))
-    {
-        <details class="configuration-field__key"><summary>Definition key</summary><code>@identifier.GetString()</code></details>
+        <p id="@(ControlId + "-error")" class="configuration-field__error">@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : error)</p>
     }
     }
 </div>

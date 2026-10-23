@@ -1,0 +1,5 @@
+.configuration-field-help { display: inline-flex; flex-shrink: 0; }
+.configuration-field-help ::deep .mud-icon-button { inline-size: 2rem; block-size: 2rem; min-inline-size: 2rem; min-block-size: 2rem; }
+@media (pointer: coarse) {
+    .configuration-field-help ::deep .mud-icon-button { inline-size: 2.75rem; block-size: 2.75rem; }
+}

@@ -1,14 +1,15 @@
 @implements IAsyncDisposable
 @using Configurator.Presentation
 
-<section class="workspace configuration-editor" aria-labelledby="configuration-heading" data-experience="@_form!.SelectedExperienceId">
+<section class="workspace configuration-editor @(_compact ? "configuration-editor--compact" : "")" aria-labelledby="configuration-heading"
+         data-experience="@_form!.SelectedExperienceId" data-density="@(_compact ? "compact" : "comfortable")">
     <header class="configuration-editor__header">
         <h2 @ref="_configureHeading" id="configuration-heading" tabindex="-1">Configuration answers</h2>
         <p id="session-boundary">Answers stay in this tab. Preparation does not change your target.</p>
-        <p class="form-help" data-declared-outputs>Declared files: @string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)). Inclusion depends on the definition's conditions; target validation remains separate.</p>
     </header>
     <details class="configuration-editor__boundary">
         <summary>Privacy and export limits</summary>
+        <p class="form-help" data-declared-outputs>Declared files: @string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)). Inclusion depends on the definition's conditions; target validation remains separate.</p>
         <p>Preparation does not apply configuration or establish target acceptance. Copy and download deliberately release private output.
             The browser cannot guarantee restricted file permissions. Closing or reloading discards this workspace;
             clearing cannot erase files or clipboard contents already exported.</p>
@@ -19,7 +20,8 @@
     }
     <fieldset class="configuration-editor__controls" disabled="@(!_ready)">
         <legend class="sr-only">Local configuration answers</legend>
-        @{ var projection = _form.Projection; var progress = projection.Progress; }
+        @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
+            string? currentSectionId = SelectedSection(viewSections); }
         <nav class="configuration-editor__workflow" aria-label="Configuration workflow">
             <ol>
                 <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == "configure" ? "step" : null)" @onclick='() => SelectWorkflowStage("configure")'><span aria-hidden="true">1</span> Configure</button></li>
@@ -53,13 +55,26 @@
                     </select>
                 </div>
             }
-            <div class="configuration-editor__disclosure">
-                <button type="button" class="button button--secondary" data-action="expand-all-optional"
-                        aria-expanded="@_form.OptionalEditorsExpanded.ToString().ToLowerInvariant()"
-                        @onclick="() => _form.SetAllSectionsExpanded(!_form.OptionalEditorsExpanded)">
-                    @(_form.OptionalEditorsExpanded ? "Restore initial disclosure" : "Show optional settings")
-                </button>
+            <div class="configuration-editor__mode">
+                <label for="configuration-detail">Detail in this profile</label>
+                <select id="configuration-detail" value="@(_form.DisclosureOverride?.ToString().ToLowerInvariant() ?? "authored")" @onchange="ChangeDetail">
+                    <option value="authored">Follow experience</option>
+                    <option value="essential">Essential</option>
+                    <option value="guided">Standard</option>
+                    <option value="advanced">All active</option>
+                </select>
             </div>
+            <div class="configuration-editor__mode">
+                <label for="configuration-density">Density</label>
+                <select id="configuration-density" value="@(_compact ? "compact" : "comfortable")" @onchange="ChangeDensity">
+                    <option value="comfortable">Comfortable</option>
+                    <option value="compact">Compact</option>
+                </select>
+            </div>
+            <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="this workspace" FieldPath="workspace"
+                                    SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                                    ContextTitle="@($"{Definition.Title} / {SelectedExperience.Title}")" Description="@SelectedExperience.Description"
+                                    SectionDescription="@(currentSectionId is null ? null : _editorSections[currentSectionId].Description)" />
             <div class="configuration-editor__consent">
                 <input @ref="_consentControl" id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
                        aria-describedby="session-boundary secret-consent-help" @onchange="ConsentAsync" />
@@ -94,7 +109,7 @@
                 }
             </details>
         }
-        @{ var fieldStates = _form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal); var editorSections = EditorSections();
+        @{ var fieldStates = _form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal); var editorSections = viewSections;
             var sections = editorSections.Where(section => section.Fields.Any(fieldId =>
                 fieldStates[fieldId].IsActive &&
                 (SelectedExperience.Sections.Contains(section.Id) || EditorVisible(fieldId)))).ToArray(); }
@@ -107,8 +122,13 @@
             <div class="configuration-editor__fields">
                 @foreach (var section in sections.Where(item => item.Id == SelectedSection(sections)))
                 {
-                    <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)">
+                    <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)"
+                             aria-describedby="@(string.IsNullOrWhiteSpace(section.Description) ? null : SectionId(section.Id) + "-description")">
                         <h3 @ref="_sectionHeading" id="@SectionId(section.Id)" tabindex="-1">@section.Title</h3>
+                        @if (!string.IsNullOrWhiteSpace(section.Description))
+                        {
+                            <p id="@(SectionId(section.Id) + "-description")" class="configuration-editor__section-description">@section.Description</p>
+                        }
                         @foreach (string fieldId in section.Fields.Where(fieldId => fieldStates[fieldId].IsActive))
                         {
                             var state = fieldStates[fieldId];

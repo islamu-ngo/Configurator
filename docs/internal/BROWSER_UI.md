@@ -105,15 +105,28 @@ destination-focus behavior.
 
 `ConfigurationField` sends parsed typed values through the shared form. An absent
 boolean differs from false, and absent objects/lists differ from empty values.
-Scalar editors use native browser inputs with shared `form-control` styling,
-rather than constructing a component-library input for every disclosed leaf.
-The form still owns parsing and invalid drafts; input/change events use the same
-revision fence, and native focus, input modes and credential autocomplete remain
-explicit.
+`AppTextField` wraps an outlined string-bound MudTextField, including numeric
+drafts and masked credentials. Public enum/boolean leaves use MudSelect with
+distinct absence and admitted-empty identities. The form still owns parsing and
+invalid drafts; raw text input/change and received choice notifications use the
+same form/path/revision/mounted-control generation fence. A callback captured
+before an editor unmount cannot edit its remounted successor. Focus, input modes
+and credential autocomplete remain explicit; no copied answer buffer is added.
 Masked scalar controls inherit sensitive or secret ancestors; secret consent
 still uses the form's edit permission, allowing public siblings to remain
 editable. Authored titles are preserved. Mechanical identifier formatting is
 used only when title equals key, with the exact key available separately.
+
+The independent detail selector delegates to the shared disclosure override.
+Comfortable/Compact changes session-local CSS tokens only. Named field-action
+menus retain explicit omission, including container descendants.
+`ConfigurationFieldHelp` opens `ConfigurationInspector` with admitted public
+schema, authored descriptions and lazily projected value-free output bindings.
+It closes its own dialog on revocation, replacement or disposal and rejects late
+opens. Tooltips contain only short noninteractive labels. Stable scrollbar
+allocation prevents modal geometry shifts; the sticky wrapping appbar keeps
+search reachable during deep editing. Its global shortcut yields to an active
+dialog rather than escaping modal focus custody.
 
 `ConfigurationReview` projects shared diagnostics into value-free explanations
 and correction buttons. The effects region mounts at Review and pages 50 entries

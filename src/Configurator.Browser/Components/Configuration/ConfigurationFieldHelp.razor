@@ -1,0 +1,75 @@
+@implements IDisposable
+@using System.Text.Json
+@inject IDialogService Dialogs
+
+<span class="configuration-field-help">
+    <MudTooltip Text="Guidance and definition details">
+        <MudIconButton Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small"
+                       aria-label="@("Help with " + Title)" data-action="field-help"
+                       OnClick="OpenAsync" />
+    </MudTooltip>
+</span>
+
+@code {
+    [Parameter, EditorRequired] public JsonElement Schema { get; set; }
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string FieldPath { get; set; } = string.Empty;
+    [Parameter] public bool SecretsEnabled { get; set; }
+    [Parameter] public string? ContextTitle { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? SectionDescription { get; set; }
+    [Parameter] public Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)>? GetBindings { get; set; }
+    private IDialogReference? _dialog;
+    private bool _opening;
+    private bool _disposed;
+    private bool? _observedConsent;
+    private string? _observedFieldPath;
+    private long _generation;
+    protected override void OnParametersSet()
+    {
+        if (_observedConsent.HasValue && (_observedConsent != SecretsEnabled || _observedFieldPath != FieldPath))
+        {
+            ++_generation;
+            _dialog?.Close();
+            _dialog = null;
+        }
+        _observedConsent = SecretsEnabled;
+        _observedFieldPath = FieldPath;
+    }
+    private async Task OpenAsync()
+    {
+        if (_disposed || _opening) return;
+        _opening = true;
+        long generation = _generation;
+        try
+        {
+            var parameters = new DialogParameters
+            {
+                [nameof(ConfigurationInspector.Schema)] = Schema,
+                [nameof(ConfigurationInspector.FieldPath)] = FieldPath,
+                [nameof(ConfigurationInspector.ContextTitle)] = ContextTitle,
+                [nameof(ConfigurationInspector.Description)] = Description,
+                [nameof(ConfigurationInspector.SectionDescription)] = SectionDescription
+            };
+            if (GetBindings is not null)
+            {
+                var bindings = GetBindings();
+                parameters[nameof(ConfigurationInspector.OutputArtifactIds)] = bindings.ArtifactIds;
+                parameters[nameof(ConfigurationInspector.BindingKeys)] = bindings.BindingKeys;
+            }
+            var dialog = await Dialogs.ShowAsync<ConfigurationInspector>("Help with " + Title, parameters,
+                new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+            if (_disposed || generation != _generation) dialog.Close();
+            else _dialog = dialog;
+        }
+        finally { _opening = false; }
+    }
+    public void Dispose()
+    {
+        _disposed = true;
+        ++_generation;
+        _dialog?.Close();
+        _dialog = null;
+        GC.SuppressFinalize(this);
+    }
+}

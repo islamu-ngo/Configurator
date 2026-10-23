@@ -57,18 +57,39 @@ Application navigation is a deliberate disclosure, not a second permanent
 sidebar competing with section navigation. Its Menu trigger remains visible
 on desktop and phone; Escape closes the navigation and restores that trigger.
 The compact appbar is a wrapping cluster of identity/navigation, current-workspace
-search and existing appearance controls. Search results overlay the workspace
+search and existing appearance controls. It remains sticky during deep editing;
+application navigation opens beneath it as a bounded overlay. Search results overlay the workspace
 without moving its edited question. The results region may scroll independently
 because it is a bounded transient overlay, not the form's vertical scroll owner.
+The viewport reserves a stable scrollbar gutter; modal scroll lock does not add
+a second body padding compensation or shift the active field.
 No route/hash navigation, docking framework or second answer model is involved.
 
 ## 5. Reusable primitives and states
+
+Workspace detail is Essential, Standard or All active in the selected profile,
+with an explicit Follow experience choice. Comfortable/Compact is session-only
+CSS presentation: field/group gaps and control height change, never font size,
+answers or validation. Coarse-pointer controls retain 44px targets. The toolbar
+keeps authored experience, detail, density and consent distinct. Declared-output
+explanations live in the existing privacy disclosure so the first short-fixture
+question is reachable without scrolling at 1440x900. Optional field omission
+moves into a named row-action menu; omitting a container explicitly names its
+nested answers and remains distinct from collapsing optional detail.
 
 - **AppButton:** existing Mud wrapper, explicit button type, filled primary,
   outlined secondary and text navigation variants. One dominant action per
   workflow region. Preserve hover, pressed, focus, disabled and busy behavior.
 - **AppCard/workspace:** existing outlined surface with semantic headings.
+- **AppTextField:** thin outlined string-bound MudBlazor control, including numeric
+  drafts and masked credentials. The shared form alone parses and retains drafts;
+  bubbling raw input/change events keep current revision and mounted-control fences.
+  Labels, full errors, credential purpose and stable input identity remain explicit.
+  No numeric sanitizer, second answer model or per-character focus operation.
   Separate content with spacing and neutral boundaries, not nested card stacks.
+- **Choice fields:** outlined MudSelect for public enum and nullable boolean
+  values, sharing Core parsing and the mounted-control callback fence. Not supplied,
+  explicit false and admitted empty string remain different values.
 - **Workflow navigation:** a compact ordered Configure/Review/Prepare landmark
   targeting real sections. It describes location, not fabricated readiness.
 - **Section navigation:** title, independently counted required-answer progress,
@@ -80,7 +101,11 @@ No route/hash navigation, docking framework or second answer model is involved.
   `aria-expanded`; required/error ancestors stay reachable. Only the selected
   section mounts editors; the shared form owns drafts and row identity.
 - **Guidance:** inert short help plus deliberate details for instructions and
-  admitted public HTTPS links. External links use no opener/referrer authority.
+  admitted public HTTPS links. A named, keyboard/touch-accessible help button
+  opens the metadata-only inspector in the existing MudBlazor dialog provider;
+  the tooltip contains no interactive links. Dialog Escape/Close restores its
+  trigger, disposal closes only its own dialog, and document layout does not
+  expand beneath the edited question. External links use no opener/referrer authority.
 - **Workspace search:** outlined, immediate metadata search in the appbar with
   a visible label; a named phone entry opens the same search. Only the active
   editor registers its query/actions/results. Results mount on demand, retain

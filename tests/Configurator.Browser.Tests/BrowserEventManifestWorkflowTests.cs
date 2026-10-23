@@ -14,11 +14,11 @@ public sealed class BrowserEventManifestWorkflowTests
     public async Task CompleteEventManifestContainsExactlyTypedTenantRowsAndNoInactiveArtifacts(int count)
     {
         var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("a4bcfaa6-9979-43e5-b1f5-00d552618cdf"));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var module = context.JSInterop.SetupModule("./browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("[data-field='operation'] select").Change("configuration-manifest");
+        await BrowserFixture.NotifyChoiceAsync(component, "operation", "configuration-manifest");
         component.Find("[data-field='configuration-manifest.metadata.name'] input").Input("qa-config");
         component.Find("[data-field='configuration-manifest.spec.instance.settings'] > fieldset > button").Click();
         await Assert.That(component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").GetAttribute("type")).IsEqualTo("password");

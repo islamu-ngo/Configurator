@@ -11,7 +11,7 @@ public sealed class BrowserSourceEntryTests
     [Test]
     public async Task SourceInputsHaveConnectedLabelsAndFormatHelp()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         context.Services.AddSingleton(policy);
         var page = context.Render<Open>();
@@ -34,7 +34,7 @@ public sealed class BrowserSourceEntryTests
     public async Task LocalSourcePickerAdmitsBeforeWorkspaceAndRestoresFocus(string name, bool yaml)
     {
         var registry = new BrowserDefinitionRegistry([]);
-        using var context = BrowserFixture.Context(registry);
+        await using var context = BrowserFixture.Context(registry);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         context.Services.AddSingleton(policy);
         var page = context.Render<Open>();
@@ -56,7 +56,7 @@ public sealed class BrowserSourceEntryTests
     [Arguments("invalid.txt")]
     public async Task InvalidLocalSourceLeavesPickerAvailableWithValueFreeStatus(string name)
     {
-        using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         context.Services.AddSingleton(policy);
         var page = context.Render<Open>();
@@ -71,7 +71,7 @@ public sealed class BrowserSourceEntryTests
     [Test]
     public async Task PublicUrlEntryAdmitsDefinitionAndSharesOnlyPinnedMetadata()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var pwa = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         pwa.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
         pwa.Setup<string[]>("retainedDigests").SetResult([]);
@@ -94,7 +94,7 @@ public sealed class BrowserSourceEntryTests
     [Test]
     public async Task PrivateUrlCanaryRejectsWithoutEchoAndKeepsLocalUploadAvailable()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         context.Services.AddSingleton(policy);
         var page = context.Render<Open>();

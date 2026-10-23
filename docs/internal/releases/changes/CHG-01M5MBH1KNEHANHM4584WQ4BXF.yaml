@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5MBH1KNEHANHM4584WQ4BXF
+Title: "make configuration fields compact with contextual help"
+Type: feat
+Scope: browser
+Summary: "Operators can adjust detail and spacing without losing drafts, open contextual public help without expanding the form, and omit optional answers through named field actions."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Inspectors contain only public metadata. Revocation and replacement close old help; mounted-control generations reject stale edit callbacks."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Detail and density remain transient view state. Shared parsing, absence, masking and preparation authority are retained."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Named help and omission menus replace expanding technical details and repeated omit buttons. Comfortable and Compact adjust spacing, not font size."

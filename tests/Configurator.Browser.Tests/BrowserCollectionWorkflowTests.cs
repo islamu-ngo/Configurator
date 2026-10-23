@@ -23,10 +23,10 @@ public sealed class BrowserCollectionWorkflowTests
               {"id":"inner","type":"object","title":"Inner","sensitivity":"public","disclosure":"guided","properties":[
                 {"id":"count","type":"integer","title":"Inner count","sensitivity":"public","disclosure":"guided"}]}]}
             """));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("retained.test");
         component.Find("[data-field='settings.name'] input").Input("kept");
         string field = nested ? "settings.inner.count" : "settings.count";
@@ -35,9 +35,9 @@ public sealed class BrowserCollectionWorkflowTests
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.HasInputErrors).IsTrue();
         string container = nested ? "settings.inner" : "settings";
-        component.Find($"[data-field='{container}'] > [data-action=omit]").Click();
+        await BrowserFixture.OmitAsync(context, component, container);
         await Assert.That(component.Find($"[data-field='{field}'] input").GetAttribute("value")).IsEqualTo("");
-        await Assert.That(component.Find($"[data-field='{field}'] > .configuration-field__error").TextContent).IsEqualTo("");
+        await Assert.That(component.Find($"[data-field='{field}'] input").GetAttribute("aria-invalid")).IsEqualTo("false");
         if (nested)
         {
             await Assert.That(form.HasInputErrors).IsTrue();
@@ -58,7 +58,7 @@ public sealed class BrowserCollectionWorkflowTests
         document["fields"]!.AsArray().Add(JsonNode.Parse("""
             {"id":"tags","type":"list","title":"Tags","itemType":"string","sensitivity":"public","disclosure":"guided"}
             """));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "example.test" });
@@ -68,7 +68,7 @@ public sealed class BrowserCollectionWorkflowTests
         await component.Find("[data-field='tags.0'] input").InputAsync(new ChangeEventArgs { Value = "erase" });
         await component.Find("[data-field='tags.0'] input").InputAsync(new ChangeEventArgs { Value = "" });
         await Assert.That(form.Snapshot().Values["tags"].GetRawText()).IsEqualTo("""[""]""");
-        await component.Find("[data-field='tags'] > [data-action='omit']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OmitAsync(context, component, "tags");
         await Assert.That(form.Snapshot().Values.ContainsKey("tags")).IsFalse();
         await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("example.test");
     }
@@ -83,7 +83,7 @@ public sealed class BrowserCollectionWorkflowTests
               {"id":"name","type":"string","title":"Tenant name","sensitivity":"public","disclosure":"guided","required":true}]}
             """));
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         string rowsSection = form.Sections.Single(section => section.Fields.Contains("tenants")).Id;
@@ -134,7 +134,7 @@ public sealed class BrowserCollectionWorkflowTests
               {"id":"credential","type":"string","title":"Tenant secret","sensitivity":"secret","disclosure":"guided"}]}
             """));
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         for (int index = 0; index < 3; index++)
         {
@@ -168,10 +168,10 @@ public sealed class BrowserCollectionWorkflowTests
             """{"id":"settings","type":"object","title":"Settings","sensitivity":"sensitive","disclosure":"guided","properties":[{"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"public","disclosure":"guided"}]}"""
         }) definition["fields"]!.AsArray().Add(JsonNode.Parse(field));
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
-        component.Find("[data-field='mode'] select").Change("cluster");
-        component.Find("[data-field='replicas'] select").Change("true");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "cluster");
+        await BrowserFixture.NotifyChoiceAsync(component, "replicas", "true");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("[data-field='count'] input").Input("7");
         component.Find("[data-field='rate'] input").Input("1.25");

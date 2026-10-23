@@ -16,7 +16,7 @@ public sealed class BrowserCredentialEntryTests
     [Arguments("onchange")]
     public async Task ConsentedFillNotificationsUpdateTheActualAnswer(string notification)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='created'] .configuration-field__input")
@@ -33,7 +33,7 @@ public sealed class BrowserCredentialEntryTests
     [Arguments("disposal")]
     public async Task HeldFillCannotCrossWorkspaceInvalidation(string transition)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
         using var replacement = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
         var component = context.Render<EmittedInputField>(parameters => parameters
@@ -88,11 +88,11 @@ public sealed class BrowserCredentialEntryTests
     [Test]
     public async Task DeniedCredentialsHaveNoAnswerBearingInputsAndDisclosureCannotGrantConsent()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         await Assert.That(component.FindAll("[data-field='created'] input")).IsEmpty();
         await Assert.That(component.FindAll("[data-field='existing'] input")).IsEmpty();
-        await component.Find("[data-action='expand-all-optional']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         await Assert.That(component.FindAll("[data-field='issuer'] input")).IsEmpty();
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
     }
@@ -100,10 +100,10 @@ public sealed class BrowserCredentialEntryTests
     [Test]
     public async Task ConsentedPasswordsHaveStableFamilyIdentityAndHonestPurposeHints()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
-        await component.Find("[data-action='expand-all-optional']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         var created = component.Find("[data-field='created'] input");
         var existing = component.Find("[data-field='existing'] input");
         var issuer = component.Find("[data-field='issuer'] input");
@@ -121,7 +121,7 @@ public sealed class BrowserCredentialEntryTests
     [Test]
     public async Task RevocationRemovesControlsAndReconsentCannotRecoverPreviousPrivateValues()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='created'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-manager-value" });

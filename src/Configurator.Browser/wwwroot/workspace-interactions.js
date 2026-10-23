@@ -9,7 +9,8 @@ export function focusEntry(root) {
 export function watch(owner, root, generation) {
     unwatch(generation);
     const keydown = event => {
-        if (!event.isComposing && !event.altKey && (event.ctrlKey || event.metaKey) &&
+        if (!document.querySelector('[role="dialog"]') &&
+            !event.isComposing && !event.altKey && (event.ctrlKey || event.metaKey) &&
             event.key.toLowerCase() === "k") {
             event.preventDefault();
             owner.invokeMethodAsync("OpenAsync", generation);

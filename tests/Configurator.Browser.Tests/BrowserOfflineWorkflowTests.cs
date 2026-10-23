@@ -28,7 +28,7 @@ public sealed class BrowserOfflineWorkflowTests
     [Test]
     public async Task CatalogueLinksEachCompleteAdmittedDefinitionByItsExactDigest()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<Catalogue>();
         await Assert.That(component.FindAll("h1")).Count().IsEqualTo(1);
         await Assert.That(component.Find("a[href^='launch/']").GetAttribute("href"))

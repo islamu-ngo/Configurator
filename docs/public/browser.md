@@ -110,7 +110,9 @@ answers. Object lists use declared row properties and
 bounded add/remove controls; removed rows are excluded from the next output.
 An explicitly supplied empty string, an admitted empty enum choice, `false`,
 zero, `{}` and `[]` are values, not omitted answers. Use the field's explicit
-omission action to remove an explicit answer without clearing its siblings.
+omission action in **Actions for...** to remove an explicit answer without
+clearing its siblings. Boolean choices distinguish Not supplied, Yes and No;
+an admitted empty enum string has its own Empty string choice.
 An admitted definition's default still applies when an answer is absent.
 An untouched blank control or abandoned new list item supplies nothing.
 Changing an answer, even to invalid text or the same value, discards old output
@@ -127,10 +129,15 @@ that fact instead of a percentage; invalid optional input still needs correction
 Section buttons show required answers ready and work needing attention.
 Only the selected section mounts its editors. Switching sections keeps
 your answers, unfinished input and repeated-row identity. Use local **Show optional
-settings** controls inside a structured field, or expand optional settings for
-the whole workspace. Collapsing does not delete supplied values or hide an active
+settings** controls inside a structured field, or choose **Detail in this profile**:
+Follow experience, Essential, Standard or All active. **Density** selects
+Comfortable or Compact spacing for this workspace only. Neither selector changes
+answers, consent, unfinished numeric text or current prepared files.
+Collapsing does not delete supplied values or hide an active
 error. Short help stays near the question; **Help with...** opens the author's
-local instructions and deliberate public documentation links.
+local instructions and deliberate public documentation links. The help dialog
+also exposes the definition path and output bindings without showing answers.
+Close or Escape returns focus to its help button without expanding the form.
 
 Use **Find a setting** in the application bar to find exact definition or output keys,
 question titles, concepts and authored guidance. All search words must match;
