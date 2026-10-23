@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5N10HY1WRPTXK11CVMR45TT
+Title: "preserve phone search geometry and keyboard focus"
+Type: fix
+Scope: browser
+Summary: "Phone search replaces its trigger without growing the header, and closing keyboard search restores its connected invoker."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: src/Configurator.Browser/DESIGN.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Opening phone search retains the header height and document position. Escape and Close restore the connected keyboard invoker; outside dismissal keeps destination focus."

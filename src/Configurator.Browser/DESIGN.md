@@ -116,10 +116,10 @@ nested answers and remains distinct from collapsing optional detail.
   editor registers its query/actions/results. Results mount on demand, retain
   shared facets/paging and expose ordinary labeled buttons, not a partial ARIA
   combobox. Search text is transient even when an operator types private text.
-   Escape/Close restores the visible query or phone trigger; outside dismissal
-   leaves the clicked destination focused.
-  On short viewports an offscreen entry returns focus to the connected control
-  that opened keyboard search, without scrolling the edited question.
+  Escape/Close restores the connected keyboard invoker, or the query/phone
+  trigger for pointer-opened search; outside dismissal leaves the clicked
+  destination focused and clears the old return target. The phone query
+  overlays its retained trigger space without changing header height.
   Explicit correction closes
   results and focuses the exact field/controller/consent destination.
   Register/release and queued input are generation-qualified so an older

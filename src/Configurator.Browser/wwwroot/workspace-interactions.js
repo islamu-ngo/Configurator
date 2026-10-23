@@ -8,9 +8,9 @@ export function focusEntry(root) {
 
 export function returnFocus(root, generation) {
     const previous = listeners.get(generation);
-    const bounds = root.getBoundingClientRect();
-    if ((bounds.bottom <= 0 || bounds.top >= innerHeight) && previous?.returnTarget?.isConnected)
-        previous.returnTarget.focus({ preventScroll: true });
+    const target = previous?.returnTarget?.deref();
+    if (target?.isConnected)
+        target.focus({ preventScroll: true });
     else
         focusEntry(root);
     if (previous) previous.returnTarget = null;
@@ -24,13 +24,15 @@ export function watch(owner, root, generation) {
             event.key.toLowerCase() === "k") {
             event.preventDefault();
             if (!root.contains(document.activeElement))
-                listeners.get(generation).returnTarget = document.activeElement;
+                listeners.get(generation).returnTarget = new WeakRef(document.activeElement);
             owner.invokeMethodAsync("OpenAsync", generation);
         }
     };
     const outside = event => {
-        if (!root.contains(event.target))
+        if (!root.contains(event.target)) {
+            listeners.get(generation).returnTarget = null;
             owner.invokeMethodAsync("DismissAsync", generation);
+        }
     };
     document.addEventListener("keydown", keydown);
     document.addEventListener("pointerdown", outside);

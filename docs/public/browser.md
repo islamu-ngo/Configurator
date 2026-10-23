@@ -148,11 +148,12 @@ AND. Counts ignore only their own group's selections, so alternative options
 stay understandable. Selected filters can be removed individually.
 Ctrl-K or Command-K opens search; on a phone, **Search settings** opens the same
 workspace search. Escape or **Close** dismisses results and returns focus to the
-visible search entry: the query on desktop or **Search settings** on a phone.
+connected control that opened keyboard search. Pointer-opened search returns
+to its query on desktop or **Search settings** on a phone.
 On short viewports, including high browser zoom, the application bar scrolls
 with the document so it cannot cover your question. Keyboard search still opens
-within the viewport; closing it returns focus to your previous control when
-the application bar is offscreen.
+within the viewport. On a phone the query replaces the search button without
+changing the application bar's height or shifting the workspace.
 Clicking outside dismisses results without moving your destination focus.
 The closed result panel does not mount its filters or results. Reopening keeps
 the current query and filters and uses current answers for readiness. Results
