@@ -1,7 +1,4 @@
-.configuration-discovery { margin-block: var(--isl-space-6); padding-block: var(--isl-space-4); border-block: var(--isl-card-border); }
-.configuration-discovery > summary { font-weight: 600; }
-.configuration-discovery__query { display: grid; gap: var(--isl-space-2); margin-block: var(--isl-space-4); max-inline-size: 40rem; }
-.configuration-discovery__query label { font-weight: 600; }
+.configuration-discovery { padding-block: var(--isl-space-2); }
 .configuration-discovery__option { display: flex; align-items: center; gap: var(--isl-space-3); min-block-size: var(--isl-target-min); cursor: pointer; overflow-wrap: anywhere; }
 .configuration-discovery__option input { flex-shrink: 0; inline-size: 1.125rem; block-size: 1.125rem; }
 .configuration-discovery__count { font-variant-numeric: tabular-nums; color: var(--isl-color-text-secondary); }

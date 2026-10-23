@@ -148,7 +148,7 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.Find("[data-field='options.dotted.count'] input").GetAttribute("aria-invalid")).IsEqualTo("true");
         await Assert.That(form.InputDiagnostics.Single().RelativePath.SequenceEqual(["dotted.count"])).IsTrue();
         await Assert.That(form.IsEditorVisible(["options", "dotted.count"])).IsTrue();
-        await Assert.That(form.DiscoveryQuery).IsEqualTo(string.Empty);
+        await Assert.That(form.DiscoveryQuery).IsEqualTo("hostname");
         await Assert.That(component.FindComponents<ConfigurationField>().Single(field => field.Instance.Path.SequenceEqual(["options"]))
             .Instance.FocusPath.SequenceEqual(["options", "dotted.count"])).IsTrue();
         component.Find("[data-field='options.dotted.count'] input").Input("2");

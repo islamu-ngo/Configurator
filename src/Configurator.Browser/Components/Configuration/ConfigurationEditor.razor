@@ -94,7 +94,6 @@
                 }
             </details>
         }
-        <ConfigurationDiscovery Form="_form" Navigate="CorrectField" />
         @{ var fieldStates = _form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal); var editorSections = EditorSections();
             var sections = editorSections.Where(section => section.Fields.Any(fieldId =>
                 fieldStates[fieldId].IsActive &&

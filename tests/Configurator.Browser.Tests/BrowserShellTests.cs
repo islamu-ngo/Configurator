@@ -2,13 +2,89 @@ namespace Configurator.Browser.Tests;
 
 using Bunit;
 using Configurator.Browser.Layout;
+using Configurator.Browser.Components.Configuration;
 using Configurator.Browser.Pages;
 using Configurator.Browser.Services;
+using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 public sealed class BrowserShellTests
 {
+    [Test]
+    public async Task RetiredEditorDisposalLeavesCurrentSearchAndEscapeUsable()
+    {
+        await using var context = BrowserFixture.Context();
+        var shell = context.Render<NavMenu>();
+        var previous = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var search = shell.FindComponent<WorkspaceSearch>();
+        long retiredGeneration = context.Services.GetRequiredService<WorkspaceSearchState>().Generation;
+        var current = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var form = current.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await previous.InvokeAsync(() => previous.Instance.DisposeAsync().AsTask());
+        await search.InvokeAsync(() => search.Instance.OpenAsync(retiredGeneration));
+        await Assert.That(shell.FindAll("[data-discovery-result]")).IsEmpty();
+        shell.Find("#configuration-search").Input("hostname");
+        await Assert.That(shell.FindAll("[data-discovery-result]").Count).IsEqualTo(1);
+        shell.Find(".workspace-search").KeyDown("Escape");
+        await Assert.That(shell.FindAll("[data-discovery-result]")).IsEmpty();
+        await Assert.That(form.DiscoveryQuery).IsEqualTo("hostname");
+        await Assert.That(form.InputRevision).IsEqualTo(0);
+        await Assert.That(form.CanEdit(["credential"])).IsFalse();
+    }
+
+    [Test]
+    public async Task RetiredSearchOwnerCannotClearOrRetargetTheCurrentWorkspace()
+    {
+        using var previousForm = new DefinitionFormModel(BrowserFixture.Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+        using var currentForm = new DefinitionFormModel(BrowserFixture.Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+        currentForm.EditValue(["mode"], "single");
+        var search = new WorkspaceSearchState();
+        object previous = new();
+        object current = new();
+        long previousLease = search.Register(previous, () => previousForm.DiscoveryQuery,
+            previousForm.SetDiscovery, builder => builder.AddContent(0, "Previous public metadata"));
+        long currentLease = search.Register(current, () => currentForm.DiscoveryQuery,
+            currentForm.SetDiscovery, builder => builder.AddContent(0, "Current public metadata"));
+
+        search.Release(previous, previousLease);
+        await Assert.That(search.IsActive).IsTrue();
+        search.Search(currentLease, "hostname");
+        search.Search(previousLease, "credential");
+
+        await Assert.That(search.Query).IsEqualTo("hostname");
+        await Assert.That(currentForm.DiscoveryQuery).IsEqualTo("hostname");
+        await Assert.That(previousForm.DiscoveryQuery).IsEqualTo("");
+        await Assert.That(currentForm.InputRevision).IsEqualTo(1);
+        await Assert.That(currentForm.Snapshot().Values["mode"].GetString()).IsEqualTo("single");
+        await Assert.That(currentForm.CanEdit(["credential"])).IsFalse();
+        search.Release(current, currentLease);
+        await Assert.That(search.IsActive).IsFalse();
+        await Assert.That(search.Content).IsNull();
+        await Assert.That(search.Query).IsEqualTo("");
+    }
+
+    [Test]
+    public async Task RetiredRegistrationCannotReleaseReplacementWithinTheSameEditor()
+    {
+        using var form = new DefinitionFormModel(BrowserFixture.Definition);
+        var search = new WorkspaceSearchState();
+        object editor = new();
+        long previousLease = search.Register(editor, () => form.DiscoveryQuery,
+            form.SetDiscovery, builder => builder.AddContent(0, "Public metadata"));
+        long currentLease = search.Register(editor, () => form.DiscoveryQuery,
+            form.SetDiscovery, builder => builder.AddContent(0, "Replacement metadata"));
+
+        search.Release(editor, previousLease);
+        search.Search(currentLease, "hostname");
+
+        await Assert.That(search.IsActive).IsTrue();
+        await Assert.That(form.DiscoveryQuery).IsEqualTo("hostname");
+        await Assert.That(form.InputRevision).IsEqualTo(0);
+    }
+
     [Test]
     public async Task ShellProvidesNamedRoutesMainSkipAndLocalSourceWithoutStore()
     {
@@ -37,6 +113,9 @@ public sealed class BrowserShellTests
         toggle.Click();
         await Assert.That(component.Find("button").GetAttribute("aria-expanded")).IsEqualTo("true");
         component.Find("nav").KeyDown("Escape");
+        await Assert.That(component.Find("button").GetAttribute("aria-expanded")).IsEqualTo("false");
+        toggle.Click();
+        toggle.KeyDown("Escape");
         await Assert.That(component.Find("button").GetAttribute("aria-expanded")).IsEqualTo("false");
         await Assert.That(context.JSInterop.Invocations.Any(call => call.Identifier == "Blazor._internal.domWrapper.focus")).IsTrue();
     }

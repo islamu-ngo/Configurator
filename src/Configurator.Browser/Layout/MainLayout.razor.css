@@ -1,5 +1,5 @@
 .main-layout { display: flex; flex-direction: column; min-block-size: 100dvh; }
-.main-layout__workspace { flex: 1; display: flex; flex-direction: column; margin-inline-start: var(--isl-shell-sidebar-width); padding-block-start: var(--isl-shell-header-height); min-block-size: 100dvh; min-inline-size: 0; }
+.main-layout__workspace { flex: 1; display: flex; flex-direction: column; min-inline-size: 0; }
 .main-layout__main { flex: 1; inline-size: 100%; max-inline-size: var(--isl-content-width); margin-inline: auto; padding: var(--isl-space-10) var(--isl-space-8); min-inline-size: 0; }
 @media (max-width: 60rem) {
     .main-layout__workspace { margin-inline-start: 0; padding-block-start: 0; min-block-size: 0; }

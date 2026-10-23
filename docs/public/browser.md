@@ -132,14 +132,18 @@ the whole workspace. Collapsing does not delete supplied values or hide an activ
 error. Short help stays near the question; **Help with...** opens the author's
 local instructions and deliberate public documentation links.
 
-Open **Advanced settings and search** to find exact definition or output keys,
+Use **Find a setting** in the application bar to find exact definition or output keys,
 question titles, concepts and authored guidance. All search words must match;
 private answers and prepared contents are never searched. **Filter settings**
 offers sections, requirement, applicability, answer state, sensitivity and
 declared outputs. Options within a group combine with OR; groups combine with
 AND. Counts ignore only their own group's selections, so alternative options
 stay understandable. Selected filters can be removed individually.
-The closed search panel does not mount its controls or results. Reopening keeps
+Ctrl-K or Command-K opens search; on a phone, **Search settings** opens the same
+workspace search. Escape or **Close** dismisses results and returns focus to the
+visible search entry: the query on desktop or **Search settings** on a phone.
+Clicking outside dismisses results without moving your destination focus.
+The closed result panel does not mount its filters or results. Reopening keeps
 the current query and filters and uses current answers for readiness. Results
 are shown 50 at a time; counts and ranking describe the complete selection.
 Changing the query, filters or experience returns to the first page.
@@ -149,8 +153,9 @@ and filters** clears both. No-match recovery offers these same deliberate
 choices. Inactive settings are excluded by default. Including them explains
 their applicability without enabling anything; **Review activation** opens an
 active controlling question. A result's **Configure** action opens its exact
-question or routes a denied secret to consent. Corrections clear obstructing
-search and filters. Searching, filtering and navigation preserve answers,
+question or routes a denied secret to consent. Selecting a result closes the
+panel and focuses the destination while preserving the query and filters.
+Searching, filtering and navigation preserve answers,
 unfinished input, consent and prepared files; none is saved in links or storage.
 
 Review lists active corrections, including

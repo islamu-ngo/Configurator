@@ -67,7 +67,7 @@ public sealed class BrowserConfigurationReviewTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"dependent":"synthetic-file-canary"}"""));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await component.Find("[data-import-correction='dependent']").ClickAsync(new MouseEventArgs());
-        await Assert.That(form.DiscoveryQuery).IsEqualTo("");
+        await Assert.That(form.DiscoveryQuery).IsEqualTo("obstructing-query");
         await Assert.That(form.Snapshot().Values["enabled"].GetBoolean()).IsFalse();
         await Assert.That(form.Snapshot().Values.ContainsKey("dependent")).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);

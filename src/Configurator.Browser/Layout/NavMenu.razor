@@ -1,7 +1,8 @@
 <header class="navbar">
     <a class="navbar__brand" href="" aria-label="Configurator Home"><span aria-hidden="true">IC</span> ISLAMU Configurator</a>
     <button @ref="_toggle" class="navbar__toggle" type="button" aria-label="Toggle navigation"
-            aria-controls="application-navigation" aria-expanded="@(_open ? "true" : "false")" @onclick="Toggle">Menu</button>
+            aria-controls="application-navigation" aria-expanded="@(_open ? "true" : "false")" @onclick="Toggle" @onkeydown="HandleKey">Menu</button>
+    <WorkspaceSearch />
     <ThemeQuickSwitcher />
 </header>
 <nav id="application-navigation" class="navbar__sidebar @(_open ? "navbar__sidebar--open" : "")"

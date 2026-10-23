@@ -54,6 +54,8 @@ public partial class ConfigurationEditor
     private DefinitionValidationResult? _validation;
     private DefinitionDiagnostic? _importDiagnostic;
     private BrowserNavigationState? _navigation;
+    private WorkspaceSearchState? _search;
+    private long _searchLease;
     private Dictionary<string, EditorSection> _editorSections = new(StringComparer.Ordinal);
     private DefinitionDiscoverySelection? _observedDiscoverySelection;
 
@@ -61,6 +63,7 @@ public partial class ConfigurationEditor
     {
         if (ReferenceEquals(_pinned, Definition)) return;
         Invalidate();
+        _search?.Release(this, _searchLease);
         _form?.Dispose();
         _activeWorkflowStage = "configure";
         _returnToReview = false;
@@ -79,6 +82,29 @@ public partial class ConfigurationEditor
         _importArtifact = ImportableArtifacts.FirstOrDefault()?.Id ?? string.Empty;
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         _navigation?.Register(this, Invalidate, DiscardAsync);
+        RegisterSearch();
+    }
+
+    private void RegisterSearch()
+    {
+        _search ??= Services.GetService(typeof(WorkspaceSearchState)) as WorkspaceSearchState;
+        if (_search is null) return;
+        DefinitionFormModel form = _form!;
+        long lease = 0;
+        _searchLease = lease = _search.Register(this, () => form.DiscoveryQuery,
+            query => form.SetDiscovery(query), builder =>
+            {
+                builder.OpenComponent<ConfigurationDiscovery>(0);
+                builder.AddAttribute(1, nameof(ConfigurationDiscovery.Form), form);
+                builder.AddAttribute(2, nameof(ConfigurationDiscovery.Navigate),
+                    EventCallback.Factory.Create<DefinitionDiagnostic>(this, diagnostic =>
+                    {
+                        if (_disposed || !ReferenceEquals(form, _form) || lease != _search.Generation) return;
+                        _search.CompleteNavigation(this, lease);
+                        CorrectField(diagnostic);
+                    }));
+                builder.CloseComponent();
+            });
     }
 
     private DefinitionFormExperience SelectedExperience => _form!.Experiences.Single(item => item.Id == _form.SelectedExperienceId);
@@ -120,7 +146,7 @@ public partial class ConfigurationEditor
         SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId);
         if (field is null) return;
         string[] path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
-        bool focused = _form!.FocusEditor(path);
+        bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
         _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
@@ -177,10 +203,12 @@ public partial class ConfigurationEditor
             : $"Required work changed from {_requiredCount} to {required} answers. Previous output has been discarded.";
         _requiredCount = required;
         _statusCode = "answers-changed";
+        _search?.Refresh(this, _searchLease);
         StateHasChanged();
     }
     private void ViewChanged(object? sender, EventArgs args)
     {
+        _search?.Refresh(this, _searchLease);
         // Discovery owns its input events and rerenders its own query results.
         if (!ReferenceEquals(_observedDiscoverySelection, _form!.DiscoverySelection))
         {
@@ -473,6 +501,7 @@ public partial class ConfigurationEditor
         DefinitionFormModel form = _form!;
         long lease = _offlineLease;
         _ready = false;
+        _search?.Release(this, _searchLease);
         form.Dispose();
         _navigation?.Release(this);
         if (!_disposed && ReferenceEquals(form, _form))
@@ -481,6 +510,7 @@ public partial class ConfigurationEditor
             IndexSections();
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;
+            RegisterSearch();
             _activeWorkflowStage = "configure";
             _requiredCount = _form.Projection.Progress.Required;
             _focusField = null;
@@ -491,6 +521,7 @@ public partial class ConfigurationEditor
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
+        _search?.Release(this, _searchLease);
         _navigation?.Release(this);
         _ready = false;
         long lease = _offlineLease;

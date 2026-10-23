@@ -1,21 +1,7 @@
 @using Configurator.Presentation
 @using Configurator.Core.Definitions
 
-<details class="configuration-discovery" open="@_expanded">
-    <summary @ref="_summary" @onclick="ToggleDisclosureAsync" @onclick:preventDefault="true">Advanced settings and search</summary>
-    @if (_expanded)
-    {
-    <p class="form-help">Search definition keys, labels and guidance, never answers. Filters narrow this list without changing configuration.</p>
-    <div class="configuration-discovery__query">
-        <label for="configuration-search">Find a setting</label>
-        <input class="form-control" id="configuration-search" type="search" value="@Form.DiscoveryQuery" maxlength="256" autocomplete="off" spellcheck="false"
-               aria-describedby="configuration-search-help" @oninput="Search" />
-        <p id="configuration-search-help" class="form-help">All words must match. Up to 256 characters and 16 words.</p>
-        @if (_queryRejected)
-        {
-            <p role="status">Use no more than 256 characters and 16 words.</p>
-        }
-    </div>
+<div class="configuration-discovery">
     <div class="actions">
         <button type="button" class="button button--secondary" data-action="clear-discovery-search" @onclick="ClearQuery">Clear search</button>
         <button type="button" class="button button--secondary" data-action="clear-discovery-filters" @onclick="ClearFilters">Clear filters</button>
@@ -111,50 +97,33 @@
                     disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">Next settings</button>
         </nav>
     }
-    }
-</details>
+</div>
 
 @code {
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public EventCallback<DefinitionDiagnostic> Navigate { get; set; }
     private const int PageSize = 50;
-    private bool _expanded;
-    private ElementReference _summary;
     private DefinitionFormModel? _observedForm;
     private DefinitionDiscoverySelection? _observedSelection;
     private string? _observedExperience;
     private int _page;
     private int PageCount => Math.Max(1, (Form.Projection.Matches.Count + PageSize - 1) / PageSize);
-    private bool _queryRejected;
     protected override void OnParametersSet()
     {
         if (!ReferenceEquals(_observedForm, Form))
         {
             _observedForm = Form;
-            _expanded = false;
-            _queryRejected = false;
         }
         if (!ReferenceEquals(_observedSelection, Form.DiscoverySelection) ||
             _observedExperience != Form.SelectedExperienceId)
             _page = 0;
         _observedSelection = Form.DiscoverySelection;
         _observedExperience = Form.SelectedExperienceId;
-        if (_expanded) _page = Math.Min(_page, PageCount - 1);
+        _page = Math.Min(_page, PageCount - 1);
     }
-    private async Task ToggleDisclosureAsync()
-    {
-        _expanded = !_expanded;
-        if (_expanded) _page = Math.Min(_page, PageCount - 1);
-        else await _summary.FocusAsync(preventScroll: true);
-    }
-    private void Search(ChangeEventArgs args)
-    {
-        try { Form.SetDiscovery(args.Value?.ToString() ?? ""); _queryRejected = false; _page = 0; }
-        catch (ArgumentException) { _queryRejected = true; }
-    }
-    private void ClearQuery() { _queryRejected = false; _page = 0; Form.ClearDiscoveryQuery(); }
+    private void ClearQuery() { _page = 0; Form.ClearDiscoveryQuery(); }
     private void ClearFilters() { _page = 0; Form.ClearDiscoveryFilters(); }
-    private void Reset() { _queryRejected = false; _page = 0; Form.ResetDiscovery(); }
+    private void Reset() { _page = 0; Form.ResetDiscovery(); }
     private void IncludeInactive(ChangeEventArgs args)
     {
         _page = 0;

@@ -3,6 +3,7 @@ namespace Configurator.Browser.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
+using Configurator.Browser.Layout;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -14,13 +15,19 @@ public sealed class BrowserWorkspaceLifecycleTests
     [Test]
     public async Task WarmedDiscoveryAndReviewCannotRestoreRevokedOutputOrHeldImport()
     {
-        using var context = BrowserFixture.Context();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await using var context = BrowserFixture.Context();
+        var layout = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), BrowserFixture.Definition);
+            builder.CloseComponent();
+        }));
+        var component = layout.FindComponent<ConfigurationEditor>();
         await component.Find("[data-field='mode'] select").ChangeAsync(new ChangeEventArgs { Value = "single" });
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-warmed-secret" });
-        await component.Find(".configuration-discovery > summary").ClickAsync(new MouseEventArgs());
+        await layout.Find("#configuration-search").ClickAsync(new MouseEventArgs());
         await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[data-review-path]").Count).IsGreaterThan(0);
         await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());

@@ -1,0 +1,10 @@
+.workspace-search { position: relative; flex: 1 1 18rem; max-inline-size: 34rem; min-inline-size: 0; }
+.workspace-search__entry { min-inline-size: 0; }
+.workspace-search__trigger { display: none; }
+.workspace-search__results { position: absolute; inset-block-start: 100%; inset-inline-end: 0; inline-size: min(44rem, calc(100vw - 2rem)); max-block-size: min(36rem, 70dvh); overflow: auto; overscroll-behavior: contain; background: var(--isl-color-surface); color: var(--isl-color-text); border: var(--isl-card-border); border-radius: var(--isl-radius-md); padding: var(--isl-space-4); box-shadow: var(--mud-elevation-8); }
+.workspace-search__heading { display: flex; align-items: center; justify-content: space-between; gap: var(--isl-space-3); }
+@media (max-width: 40rem) {
+    .workspace-search { flex-basis: 100%; max-inline-size: none; order: 3; }
+    .workspace-search__trigger { display: inline-flex; }
+    .workspace-search:not(.workspace-search--open) .workspace-search__entry { display: none; }
+}

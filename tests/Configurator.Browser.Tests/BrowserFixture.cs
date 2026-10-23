@@ -39,6 +39,7 @@ internal static class BrowserFixture
         context.Services.AddSingleton(registry ?? new BrowserDefinitionRegistry([Definition]));
         context.Services.AddScoped<AppearanceThemeService>();
         context.Services.AddScoped<BrowserNavigationState>();
+        context.Services.AddScoped<WorkspaceSearchState>();
         context.Services.AddMudServices();
         var appearance = context.JSInterop.SetupModule("./browser-appearance.js");
         appearance.Setup<string?>("read", _ => true).SetResult(null);
@@ -46,6 +47,9 @@ internal static class BrowserFixture
         appearance.SetupVoid("write", _ => true).SetVoidResult();
         appearance.SetupVoid("apply", _ => true).SetVoidResult();
         appearance.SetupVoid("unwatch", _ => true).SetVoidResult();
+        var interactions = context.JSInterop.SetupModule("./workspace-interactions.js");
+        interactions.SetupVoid("watch", _ => true).SetVoidResult();
+        interactions.SetupVoid("unwatch", _ => true).SetVoidResult();
         return context;
     }
 

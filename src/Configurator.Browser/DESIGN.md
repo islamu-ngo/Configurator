@@ -53,6 +53,15 @@ scrollbar or fixed action bar covering inputs. Every grid child can shrink
 (`min-inline-size: 0`); primary content must reflow without horizontal scrolling
 at 320/390 pixels, long labels and enlarged text.
 
+Application navigation is a deliberate disclosure, not a second permanent
+sidebar competing with section navigation. Its Menu trigger remains visible
+on desktop and phone; Escape closes the navigation and restores that trigger.
+The compact appbar is a wrapping cluster of identity/navigation, current-workspace
+search and existing appearance controls. Search results overlay the workspace
+without moving its edited question. The results region may scroll independently
+because it is a bounded transient overlay, not the form's vertical scroll owner.
+No route/hash navigation, docking framework or second answer model is involved.
+
 ## 5. Reusable primitives and states
 
 - **AppButton:** existing Mud wrapper, explicit button type, filled primary,
@@ -72,6 +81,16 @@ at 320/390 pixels, long labels and enlarged text.
   section mounts editors; the shared form owns drafts and row identity.
 - **Guidance:** inert short help plus deliberate details for instructions and
   admitted public HTTPS links. External links use no opener/referrer authority.
+- **Workspace search:** outlined, immediate metadata search in the appbar with
+  a visible label; a named phone entry opens the same search. Only the active
+  editor registers its query/actions/results. Results mount on demand, retain
+  shared facets/paging and expose ordinary labeled buttons, not a partial ARIA
+  combobox. Search text is transient even when an operator types private text.
+   Escape/Close restores the visible query or phone trigger; outside dismissal
+   leaves the clicked destination focused. Explicit correction closes
+  results and focuses the exact field/controller/consent destination.
+  Register/release and queued input are generation-qualified so an older
+  editor cannot clear or retarget its replacement.
 - **Answer progress:** real required obligations, missing/invalid/deferred counts
   and no percentage when there are no required answers. Ordinary navigation
   never alters answers or prepared output.

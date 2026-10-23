@@ -1,11 +1,11 @@
 # Browser interface ownership
 
 The static WebAssembly shell owns navigation and appearance. `Layout/MainLayout`
-provides skip navigation, the header, sidebar, main landmark and footer. Home,
+provides skip navigation, the header, application navigation, main landmark and footer. Home,
 Store, Open configuration and Help are route destinations; the configuration
 workspace remains owned by Presentation and the Browser editor.
 
-Below the sidebar breakpoint, navigation expands inline from a named Menu
+At every viewport width, application navigation expands inline from a named Menu
 button. Escape closes it and restores focus to that button. This disclosure
 does not create a modal or trap focus. Skip navigation focuses the main landmark
 without changing the URL, so it cannot discard a live workspace through a
@@ -47,7 +47,7 @@ Shared native text controls explicitly opt into `form-control`; MudBlazor
 continues to own its outlined inputs. Control borders use the input palette,
 while decorative card borders use the divider palette. Normal themes use a
 teal action accent; high-contrast themes retain their monochrome palettes.
-The shell shares header/sidebar dimensions through component tokens. Its main
+The shell uses component spacing tokens without reserving a permanent sidebar. Its main
 column fills the viewport and keeps the footer below content without a fixed
 overlay. Navigation icons are local MudBlazor SVGs with decorative semantics.
 
@@ -80,8 +80,17 @@ answers, unfinished drafts, provenance and logical row identities in the shared
 form, not in retained DOM controls. Active hidden fields still participate in
 shared validation.
 
-`ConfigurationDiscovery` mounts controls and results only after deliberate
-opening. The form retains one current query/facet selection. Ranking and facet
+`Layout/WorkspaceSearch` exposes an outlined MudBlazor query in the appbar and
+mounts `ConfigurationDiscovery` filters/results only after deliberate opening.
+`WorkspaceSearchState` holds owner-qualified delegates and a render fragment,
+not an answer snapshot or a second query. The editor releases its generation
+before replacement, discard or disposal; retired registrations cannot clear or
+search the current editor. `workspace-interactions.js` receives only an element,
+callback reference and generation for Ctrl-K/Command-K and outside dismissal.
+Escape/Close restore the visible query or phone trigger; result selection closes without stealing the
+editor's destination focus. Application navigation and workspace search are
+separate labelled surfaces, not a partial combobox.
+The form retains one current query/facet selection. Ranking and facet
 counts cover the complete shared selection; only the current 50-result page
 mounts. Selection or experience changes reset the page, and answer changes clamp
 it to the current result range. Page navigation does not mutate answers.
