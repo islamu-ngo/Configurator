@@ -1,8 +1,10 @@
 @using Configurator.Presentation
 @using Configurator.Core.Definitions
 
-<details class="configuration-discovery">
-    <summary>Advanced settings and search</summary>
+<details class="configuration-discovery" open="@_expanded">
+    <summary @ref="_summary" @onclick="ToggleDisclosureAsync" @onclick:preventDefault="true">Advanced settings and search</summary>
+    @if (_expanded)
+    {
     <p class="form-help">Search definition keys, labels and guidance, never answers. Filters narrow this list without changing configuration.</p>
     <div class="configuration-discovery__query">
         <label for="configuration-search">Find a setting</label>
@@ -16,7 +18,7 @@
     </div>
     <div class="actions">
         <button type="button" class="button button--secondary" data-action="clear-discovery-search" @onclick="ClearQuery">Clear search</button>
-        <button type="button" class="button button--secondary" data-action="clear-discovery-filters" @onclick="Form.ClearDiscoveryFilters">Clear filters</button>
+        <button type="button" class="button button--secondary" data-action="clear-discovery-filters" @onclick="ClearFilters">Clear filters</button>
         <button type="button" class="button button--secondary" data-action="reset-discovery" @onclick="Reset">Reset search and filters</button>
     </div>
     <label class="configuration-discovery__option">
@@ -66,7 +68,7 @@
         <p>No matching settings. Clear search or filters independently, or include inactive settings to inspect their activation.</p>
     }
     <ul class="configuration-discovery__results">
-        @foreach (var match in Form.Projection.Matches)
+        @foreach (var match in Form.Projection.Matches.Skip(_page * PageSize).Take(PageSize))
         {
             var entry = match.Entry;
             <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
@@ -75,12 +77,12 @@
                     <strong>@entry.Title</strong>
                     @if (entry.IsActive)
                     {
-                        <AppButton Variant="Variant.Text" Color="Color.Default" OnClick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery", entry.FieldId, entry.RelativePath))'
-                                   aria-label="@("Configure " + entry.Title)">Configure</AppButton>
+                        <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery", entry.FieldId, entry.RelativePath))'
+                                aria-label="@("Configure " + entry.Title)">Configure</button>
                     }
                     else if (entry.ActiveControllerFields.Count > 0)
                     {
-                        <AppButton Variant="Variant.Text" Color="Color.Default" OnClick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery-controller", entry.ActiveControllerFields[0]))'>Review activation</AppButton>
+                        <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery-controller", entry.ActiveControllerFields[0]))'>Review activation</button>
                     }
                 </div>
                 <p>@entry.SectionTitle / @(entry.IsActive ? entry.IsRequired ? "Required" : "Optional" : "Inactive; not exported") / @entry.Sensitivity</p>
@@ -99,21 +101,65 @@
             </li>
         }
     </ul>
+    @if (Form.Projection.Matches.Count > PageSize)
+    {
+        <nav class="actions" aria-label="Setting result pages">
+            <button type="button" class="button button--secondary" data-action="discovery-previous"
+                    disabled="@(_page == 0)" @onclick="() => _page--">Previous settings</button>
+            <span role="status">Page @(_page + 1) of @PageCount</span>
+            <button type="button" class="button button--secondary" data-action="discovery-next"
+                    disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">Next settings</button>
+        </nav>
+    }
+    }
 </details>
 
 @code {
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public EventCallback<DefinitionDiagnostic> Navigate { get; set; }
+    private const int PageSize = 50;
+    private bool _expanded;
+    private ElementReference _summary;
+    private DefinitionFormModel? _observedForm;
+    private DefinitionDiscoverySelection? _observedSelection;
+    private string? _observedExperience;
+    private int _page;
+    private int PageCount => Math.Max(1, (Form.Projection.Matches.Count + PageSize - 1) / PageSize);
     private bool _queryRejected;
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_observedForm, Form))
+        {
+            _observedForm = Form;
+            _expanded = false;
+            _queryRejected = false;
+        }
+        if (!ReferenceEquals(_observedSelection, Form.DiscoverySelection) ||
+            _observedExperience != Form.SelectedExperienceId)
+            _page = 0;
+        _observedSelection = Form.DiscoverySelection;
+        _observedExperience = Form.SelectedExperienceId;
+        if (_expanded) _page = Math.Min(_page, PageCount - 1);
+    }
+    private async Task ToggleDisclosureAsync()
+    {
+        _expanded = !_expanded;
+        if (_expanded) _page = Math.Min(_page, PageCount - 1);
+        else await _summary.FocusAsync(preventScroll: true);
+    }
     private void Search(ChangeEventArgs args)
     {
-        try { Form.SetDiscovery(args.Value?.ToString() ?? ""); _queryRejected = false; }
+        try { Form.SetDiscovery(args.Value?.ToString() ?? ""); _queryRejected = false; _page = 0; }
         catch (ArgumentException) { _queryRejected = true; }
     }
-    private void ClearQuery() { _queryRejected = false; Form.ClearDiscoveryQuery(); }
-    private void Reset() { _queryRejected = false; Form.ResetDiscovery(); }
-    private void IncludeInactive(ChangeEventArgs args) =>
+    private void ClearQuery() { _queryRejected = false; _page = 0; Form.ClearDiscoveryQuery(); }
+    private void ClearFilters() { _page = 0; Form.ClearDiscoveryFilters(); }
+    private void Reset() { _queryRejected = false; _page = 0; Form.ResetDiscovery(); }
+    private void IncludeInactive(ChangeEventArgs args)
+    {
+        _page = 0;
         Form.SetDiscoverySelection(new(Form.DiscoveryQuery, args.Value is true, Form.DiscoverySelection.Facets));
+    }
     private bool Selected(DefinitionDiscoveryFacet facet, string value) =>
         Form.DiscoverySelection.Facets.TryGetValue(facet, out var values) && values.Contains(value);
     private void Toggle(DefinitionDiscoveryFacet facet, string value, bool selected)
@@ -124,6 +170,7 @@
         else if (!selected) values.Remove(value);
         if (values.Count == 0) facets.Remove(facet);
         else facets[facet] = values.AsReadOnly();
+        _page = 0;
         Form.SetDiscoverySelection(new(Form.DiscoveryQuery, Form.DiscoverySelection.IncludeInactive, facets));
     }
     private static string FacetTitle(DefinitionDiscoveryFacet facet) => facet switch

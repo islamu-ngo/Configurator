@@ -98,6 +98,8 @@ metadata only; it neither retains answers nor enables secret entry.
 Complete active public and sensitive nonsecret fields using the typed controls.
 The definition's authored experiences and optional-editor expansion change
 disclosure, not answers or validation. Without authored journeys, use Configure.
+Changing the experience keeps keyboard focus on its selector; use the section
+or workflow controls to move to the next task.
 Required work and active errors remain reachable; corrected editors stay open
 until you deliberately collapse or navigate. Optional secrets do not open
 merely because they are secret, and disclosure never grants secret consent.
@@ -137,6 +139,10 @@ offers sections, requirement, applicability, answer state, sensitivity and
 declared outputs. Options within a group combine with OR; groups combine with
 AND. Counts ignore only their own group's selections, so alternative options
 stay understandable. Selected filters can be removed individually.
+The closed search panel does not mount its controls or results. Reopening keeps
+the current query and filters and uses current answers for readiness. Results
+are shown 50 at a time; counts and ranking describe the complete selection.
+Changing the query, filters or experience returns to the first page.
 
 **Clear search** keeps filters; **Clear filters** keeps the query; **Reset search
 and filters** clears both. No-match recovery offers these same deliberate
@@ -149,11 +155,14 @@ unfinished input, consent and prepared files; none is saved in links or storage.
 
 Review lists active corrections, including
 fields in other sections; selecting a correction opens that section and focuses
-the field or affected collection row. Review also offers secret-entry recovery
+the field or affected collection row, scrolling it into view. Review also offers secret-entry recovery
 when a required secret inside a supplied object needs consent. Authored labels
 remain unchanged, and field details expose the exact configuration key.
-Opening Review also shows supplied, defaulted and omitted settings, including
-collapsed optional settings. Values stay masked; provenance, readiness and
+Opening Review shows active required work, corrections, deferred secrets and
+supplied or defaulted settings, including collapsed optional settings. Use the
+separate inspection controls to include omitted optional or inactive settings;
+inspection does not enable them. Effects are shown 50 at a time, while correction
+actions remain independently reachable. Values stay masked; provenance, readiness and
 declared output bindings are separate facts. **Change** opens the exact active
 question, and **Return to review** returns directly without resetting answers.
 Output filenames and declared apply/restart consequences do not prove that

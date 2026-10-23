@@ -12,6 +12,40 @@ using Microsoft.JSInterop;
 public sealed class BrowserWorkspaceLifecycleTests
 {
     [Test]
+    public async Task WarmedDiscoveryAndReviewCannotRestoreRevokedOutputOrHeldImport()
+    {
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await component.Find("[data-field='mode'] select").ChangeAsync(new ChangeEventArgs { Value = "single" });
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-warmed-secret" });
+        await component.Find(".configuration-discovery > summary").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-review-path]").Count).IsGreaterThan(0);
+        await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(1);
+        using var stream = new HeldReadStream("{\"mode\":\"single\",\"hostname\":\"retained.test\",\"credential\":\"synthetic-held-secret\"}"u8.ToArray());
+        Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+        await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+            await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+            await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current.test" });
+        }
+        finally { stream.Release.TrySetResult(); }
+        await reading.WaitAsync(TimeSpan.FromSeconds(5));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
+        await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("current.test");
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+        await Assert.That(component.Markup).DoesNotContain("synthetic-held-secret");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-warmed-secret");
+    }
+
+    [Test]
     public async Task RepeatedEmptyEnumSelectionFencesHeldSecretImport()
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;

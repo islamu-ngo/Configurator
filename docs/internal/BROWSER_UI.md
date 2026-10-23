@@ -74,23 +74,47 @@ layout, tokens and component organization remain repository-owned.
 
 `Components/Configuration/ConfigurationEditor` retains the shared
 `DefinitionFormModel` and workspace operation generations. Browser-owned
-`ConfigurationSection` projections group the shared validated fields; every
-panel remains mounted while inactive panels are hidden. Moving between sections
-therefore preserves both typed answers and temporarily invalid input without
-weakening validation of hidden active fields.
-Controls mount when first visible and remain mounted after being visited;
-never-active controls are omitted so large conditional definitions stay usable.
+`ConfigurationSection` projections group the shared validated fields. Only the
+selected section mounts its editors. Moving between sections preserves typed
+answers, unfinished drafts, provenance and logical row identities in the shared
+form, not in retained DOM controls. Active hidden fields still participate in
+shared validation.
+
+`ConfigurationDiscovery` mounts controls and results only after deliberate
+opening. The form retains one current query/facet selection. Ranking and facet
+counts cover the complete shared selection; only the current 50-result page
+mounts. Selection or experience changes reset the page, and answer changes clamp
+it to the current result range. Page navigation does not mutate answers.
+Query/facet handlers reset their own result page and rerender discovery without
+rerendering unrelated editor sections. Disclosure and experience changes still
+notify the editor normally. Repeated result, effect and correction actions use
+native buttons with the existing shared action styling.
+Experience selection returns to Configure while retaining native selector focus,
+instead of scheduling a heading-focus interop call after mounting the new
+section. Explicit workflow/section navigation and correction retain their
+destination-focus behavior.
 
 `ConfigurationField` sends parsed typed values through the shared form. An absent
 boolean differs from false, and absent objects/lists differ from empty values.
+Scalar editors use native browser inputs with shared `form-control` styling,
+rather than constructing a component-library input for every disclosed leaf.
+The form still owns parsing and invalid drafts; input/change events use the same
+revision fence, and native focus, input modes and credential autocomplete remain
+explicit.
 Masked scalar controls inherit sensitive or secret ancestors; secret consent
 still uses the form's edit permission, allowing public siblings to remain
 editable. Authored titles are preserved. Mechanical identifier formatting is
 used only when title equals key, with the exact key available separately.
 
 `ConfigurationReview` projects shared diagnostics into value-free explanations
-and correction buttons. A correction selects the section and focuses its field
-or the diagnosed collection row. Secret recovery also covers required secret
+and correction buttons. The effects region mounts at Review and pages 50 entries
+at a time. Its default selection includes active required work, corrections,
+deferred secrets and supplied/defaulted entries; separate controls inspect
+omitted optional and inactive metadata without enabling it. Diagnostic correction
+actions are independent of effect paging. A correction selects the section and focuses its field
+or the diagnosed collection row. Explicit field focus permits native scrolling,
+so a correction below a long results list becomes visible rather than merely
+receiving off-screen focus. Secret recovery also covers required secret
 descendants inside optional supplied objects. Draft and complete preparation
 remain distinct; filenames and completion locations come from shared artifacts.
 Reveal, copy and download remain deliberate operations owned by

@@ -11,8 +11,13 @@
                 <li><strong>@artifact.FileName</strong> · @artifact.ApplySemantics · restart: @artifact.Restart</li>
             }
         </ul>
+        <div class="actions">
+            <label><input id="review-include-omitted" type="checkbox" checked="@_includeOmitted" @onchange="IncludeOmitted" /> Inspect omitted optional settings</label>
+            <label><input id="review-include-inactive" type="checkbox" checked="@_includeInactive" @onchange="IncludeInactive" /> Inspect inactive settings (does not enable them)</label>
+        </div>
+        <p data-review-count="@_entries.Count">@_entries.Count settings in this review</p>
         <ul class="configuration-review__answers">
-            @foreach (var entry in Form.Projection.Entries)
+            @foreach (var entry in _entries.Skip(_page * PageSize).Take(PageSize))
             {
                 var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, entry.RelativePath);
                 <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
@@ -21,8 +26,8 @@
                         <strong>@FieldTitle(diagnostic)</strong>
                         @if (entry.IsActive)
                         {
-                            <AppButton Variant="Variant.Text" Color="Color.Default" OnClick="() => ChangeField.InvokeAsync(diagnostic)"
-                                       aria-label="@("Change " + FieldTitle(diagnostic))">Change</AppButton>
+                            <button type="button" class="button button--secondary" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
+                                    aria-label="@("Change " + FieldTitle(diagnostic))">Change</button>
                         }
                     </div>
                     <p>@OriginText(entry.Origin) · @StateText(entry)</p>
@@ -41,6 +46,16 @@
                 </li>
             }
         </ul>
+        @if (_entries.Count > PageSize)
+        {
+            <nav class="actions" aria-label="Review pages">
+                <button type="button" class="button button--secondary" data-action="review-previous"
+                        disabled="@(_page == 0)" @onclick="() => _page--">Previous settings</button>
+                <span role="status">Page @(_page + 1) of @PageCount</span>
+                <button type="button" class="button button--secondary" data-action="review-next"
+                        disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">Next settings</button>
+            </nav>
+        }
     </section>
 }
 
@@ -54,12 +69,12 @@
             <ul>
                 @foreach (var diagnostic in Validation?.Diagnostics ?? [])
                 {
-                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@diagnostic.FieldId" OnClick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</AppButton>
+                    <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
                         <span>@ConfigurationDiagnosticText.Describe(diagnostic.Code)</span></li>
                 }
                 @foreach (DefinitionDiagnostic diagnostic in InvalidFields)
                 {
-                    <li><AppButton Variant="Variant.Text" Color="Color.Default" data-correction="@diagnostic.FieldId" OnClick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</AppButton>
+                    <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
                         <span>@ConfigurationDiagnosticText.Describe("input-type-invalid")</span></li>
                 }
             </ul>
@@ -91,6 +106,58 @@
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     [Parameter] public EventCallback PrepareDraft { get; set; }
+    private const int PageSize = 50;
+    private DefinitionFormModel? _observedForm;
+    private SetupDefinition? _observedDefinition;
+    private IReadOnlyDictionary<string, SetupFieldDefinition> _fieldsById = new Dictionary<string, SetupFieldDefinition>();
+    private string? _observedExperience;
+    private bool _includeOmitted;
+    private bool _includeInactive;
+    private int _page;
+    private IReadOnlyList<DefinitionDiscoveryEntry> _entries = [];
+    private int PageCount => Math.Max(1, (_entries.Count + PageSize - 1) / PageSize);
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_observedDefinition, Definition))
+        {
+            _observedDefinition = Definition;
+            _fieldsById = Definition.Fields.ToDictionary(field => field.Id, StringComparer.Ordinal);
+        }
+        if (!ReferenceEquals(_observedForm, Form))
+        {
+            _observedForm = Form;
+            _includeOmitted = false;
+            _includeInactive = false;
+            _page = 0;
+        }
+        if (_observedExperience != Form?.SelectedExperienceId) _page = 0;
+        _observedExperience = Form?.SelectedExperienceId;
+        SelectEntries();
+    }
+    private void IncludeOmitted(ChangeEventArgs args)
+    {
+        _includeOmitted = args.Value is true;
+        _page = 0;
+        SelectEntries();
+    }
+    private void IncludeInactive(ChangeEventArgs args)
+    {
+        _includeInactive = args.Value is true;
+        _page = 0;
+        SelectEntries();
+    }
+    private void SelectEntries()
+    {
+        if (ShowEffects && Form is not null)
+        {
+            var projection = Form.Projection;
+            var relevant = projection.RelevantEntries.ToHashSet();
+            _entries = projection.Entries.Where(entry => relevant.Contains(entry) ||
+                (entry.IsActive ? _includeOmitted : _includeInactive)).ToArray();
+        }
+        else _entries = [];
+        _page = Math.Min(_page, PageCount - 1);
+    }
     private static string OriginText(DefinitionAnswerOrigin origin) => origin switch
     {
         DefinitionAnswerOrigin.Defaulted => "Authored default",
@@ -105,8 +172,7 @@
         : entry.IsRequired ? "Required answer missing" : "Optional; no supplied answer";
     private string FieldTitle(DefinitionDiagnostic diagnostic)
     {
-        SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => diagnostic.FieldId == item.Id);
-        if (field is null) return "Preparation";
+        if (!_fieldsById.TryGetValue(diagnostic.FieldId, out var field)) return "Preparation";
         var titles = new List<string> { ConfigurationDiagnosticText.Title(field) };
         foreach (string segment in diagnostic.RelativePath)
         {

@@ -105,6 +105,13 @@ preparation; omission uses a distinct editing action. Invalid or rejected edit
 intent invalidates output/import authority even if accepted JSON is unchanged.
 Refresh and untouched navigation do not count as edits.
 
+Closed discovery does not construct its controls/results. Its query and facets
+remain form-owned, and full matching/ranking precedes 50-entry rendering pages.
+Review mounts its effects on request, selecting active obligations/corrections,
+deferred and supplied/defaulted entries by default. Omitted optional and inactive
+inspection are explicit view-only choices. Diagnostics remain reachable outside
+the paged effects. Neither paging nor mounting grants consent or output authority.
+
 Denied secret leaves have no answer-bearing inputs, even when disclosure is
 expanded. Consented controls use family/literal-path identities and stable row
 tokens for both IDs and names. Admitted password purposes map `create` to

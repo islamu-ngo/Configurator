@@ -10,6 +10,43 @@ using Microsoft.AspNetCore.Components.Web;
 public sealed class BrowserConfigurationReviewTests
 {
     [Test]
+    public async Task ReviewPagesActiveObligationsAndInspectsInactiveMetadataDeliberately()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = new JsonArray(Enumerable.Range(0, 61).Select(index => (JsonNode)new JsonObject
+        {
+            ["id"] = $"setting{index:D2}",
+            ["title"] = $"Setting {index:D2}",
+            ["type"] = "string",
+            ["required"] = true,
+            ["sensitivity"] = "public",
+            ["disclosure"] = "advanced"
+        }).ToArray());
+        source["fields"]!.AsArray().Add(JsonNode.Parse("""
+        {"id":"inactive","title":"Inactive","type":"string","sensitivity":"public","disclosure":"advanced",
+         "activeWhen":{"op":"equals","field":"setting00","value":"enabled"}}
+        """));
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        long revision = form.InputRevision;
+        await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-review-count]").GetAttribute("data-review-count")).IsEqualTo("61");
+        await Assert.That(component.FindAll("[data-review-path]").Count).IsEqualTo(50);
+        await Assert.That(component.Find("[data-correction='setting60']")).IsNotNull();
+        await component.Find("[data-action='review-next']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-review-path]").Count).IsEqualTo(11);
+        await component.Find("#review-include-inactive").ChangeAsync(new ChangeEventArgs { Value = true });
+        await Assert.That(component.Find("[data-review-count]").GetAttribute("data-review-count")).IsEqualTo("62");
+        await component.Find("[data-action='review-next']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-review-path='inactive'] button")).IsEmpty();
+        await Assert.That(form.Validate().Fields.Single(field => field.Id == "inactive").IsActive).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
     public async Task InactiveImportRecoveryOpensControllerWithoutActivatingTheImportedField()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
@@ -108,9 +145,11 @@ public sealed class BrowserConfigurationReviewTests
         var review = component.Find("[data-review-effects]");
         await Assert.That(review.OuterHtml).DoesNotContain("synthetic-review-canary");
         await Assert.That(review.QuerySelector("[data-review-path='name']")!.GetAttribute("data-origin")).IsEqualTo("Defaulted");
-        await Assert.That(review.QuerySelector("[data-review-path='note']")!.GetAttribute("data-origin")).IsEqualTo("Omitted");
+        await Assert.That(review.QuerySelector("[data-review-path='note']")).IsNull();
         await Assert.That(review.QuerySelector("[data-review-path='secret']")!.GetAttribute("data-origin")).IsEqualTo("Explicit");
         await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await component.Find("#review-include-omitted").ChangeAsync(new ChangeEventArgs { Value = true });
+        await Assert.That(component.Find("[data-review-path='note']").GetAttribute("data-origin")).IsEqualTo("Omitted");
         await component.Find("[data-review-path='note'] button").ClickAsync(new MouseEventArgs());
         await Assert.That(form.IsEditorVisible(["note"])).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(revision);

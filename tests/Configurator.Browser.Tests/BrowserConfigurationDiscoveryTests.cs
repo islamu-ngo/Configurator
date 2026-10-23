@@ -10,6 +10,54 @@ using Microsoft.AspNetCore.Components.Web;
 public sealed class BrowserConfigurationDiscoveryTests
 {
     [Test]
+    public async Task ClosedDiscoveryUnmountsAndReopensCurrentSelectionWithoutEditingAnswers()
+    {
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(component.FindAll("#configuration-search")).IsEmpty();
+        await component.InvokeAsync(() => form.SetDiscovery("host"));
+        long revision = form.InputRevision;
+        await OpenDiscovery(component);
+        await Assert.That(component.Find("#configuration-search").GetAttribute("value")).IsEqualTo("host");
+        await Assert.That(component.Find("[data-discovery-count]").GetAttribute("data-discovery-count")).IsEqualTo("1");
+        await OpenDiscovery(component);
+        await Assert.That(component.FindAll("[data-discovery-result]")).IsEmpty();
+        await component.InvokeAsync(() => form.SetDiscovery("note"));
+        await OpenDiscovery(component);
+        await Assert.That(component.Find("[data-discovery-result]").GetAttribute("data-discovery-result")).IsEqualTo("note");
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
+    public async Task PagingKeepsFullCountsAndResetsForNewSearch()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["fields"] = new JsonArray(Enumerable.Range(0, 61).Select(index => (JsonNode)new JsonObject
+        {
+            ["id"] = $"setting{index:D2}",
+            ["title"] = $"Setting {index:D2}",
+            ["type"] = "string",
+            ["sensitivity"] = "public",
+            ["disclosure"] = "advanced"
+        }).ToArray());
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        await OpenDiscovery(component);
+        await Assert.That(component.Find("[data-discovery-count]").GetAttribute("data-discovery-count")).IsEqualTo("61");
+        await Assert.That(component.Find("[data-facet='Sensitivity'] [data-option='public']").GetAttribute("data-count")).IsEqualTo("61");
+        await Assert.That(component.FindAll("[data-discovery-result]").Count).IsEqualTo(50);
+        await component.Find("[data-action='discovery-next']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-discovery-result]").Count).IsEqualTo(11);
+        await Assert.That(component.Find("[data-discovery-result]").GetAttribute("data-discovery-result")).IsEqualTo("setting50");
+        await component.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "setting00" });
+        await Assert.That(component.FindAll("[data-discovery-result]").Count).IsEqualTo(1);
+        await Assert.That(component.Find("[data-discovery-result]").GetAttribute("data-discovery-result")).IsEqualTo("setting00");
+    }
+
+    [Test]
     public async Task DiscoveryPreservesPreparedOutputAndAnswerRevision()
     {
         using var context = BrowserFixture.Context();
@@ -19,6 +67,7 @@ public sealed class BrowserConfigurationDiscoveryTests
         await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(1);
         long revision = form.InputRevision;
+        await OpenDiscovery(component);
         await component.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "host" });
         await component.Find("[data-facet='Sensitivity'] [data-option='public'] input").ChangeAsync(new ChangeEventArgs { Value = true });
         await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(1);
@@ -32,6 +81,7 @@ public sealed class BrowserConfigurationDiscoveryTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
+        await OpenDiscovery(component);
         await component.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "HOST_NAME" });
         await Assert.That(component.FindAll("[data-discovery-result]").Count).IsEqualTo(1);
         await Assert.That(component.Find("[data-discovery-result]").GetAttribute("data-discovery-result")).IsEqualTo("host.name");
@@ -47,6 +97,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     {
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        await OpenDiscovery(component);
         await Assert.That(component.Find("[data-facet='Sensitivity'] [data-option='secret']").GetAttribute("data-count")).IsEqualTo("1");
         await component.Find("[data-facet='Sensitivity'] [data-option='secret'] input").ChangeAsync(new ChangeEventArgs { Value = true });
         await Assert.That(component.FindAll("[data-discovery-result]").Count).IsEqualTo(1);
@@ -71,6 +122,7 @@ public sealed class BrowserConfigurationDiscoveryTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
+        await OpenDiscovery(component);
         await component.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "port" });
         await Assert.That(component.FindAll("[data-discovery-result]")).IsEmpty();
         await component.Find("#discovery-include-inactive").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -88,6 +140,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     {
         using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        await OpenDiscovery(component);
         await Assert.That(component.Find("#configuration-search").GetAttribute("spellcheck")).IsEqualTo("false");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() =>
@@ -106,6 +159,9 @@ public sealed class BrowserConfigurationDiscoveryTests
         await Assert.That(context.JSInterop.Invocations.Any(call => call.Arguments.Any(argument =>
             argument?.ToString()?.Contains("synthetic-discovery-private-value", StringComparison.Ordinal) == true))).IsFalse();
     }
+
+    private static Task OpenDiscovery(IRenderedComponent<ConfigurationEditor> component) =>
+        component.Find(".configuration-discovery > summary").ClickAsync(new MouseEventArgs());
 
     private static SetupDefinition Definition()
     {

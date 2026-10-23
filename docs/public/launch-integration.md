@@ -34,6 +34,12 @@ revision or the launch is ambiguous. Entry/locale default to the first declared
 value and select metadata; they do not filter the admitted definition or promise
 translated questions.
 
+Inside a pinned workspace, section, experience, search and Review navigation
+stay in the same document. Search and effect pages change only the local view;
+they do not reload the launch, fetch definitions again or grant secret consent.
+Unfinished input stays in the transient workspace when an editor is unmounted.
+Leaving the workspace still follows the deliberate discard confirmation.
+
 ## Publisher source links
 
 Open configuration also accepts a public definition file URL directly. Optional
