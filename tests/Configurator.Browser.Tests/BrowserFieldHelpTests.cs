@@ -39,15 +39,16 @@ public sealed class BrowserFieldHelpTests
     }
 
     [Test]
-    [Arguments(false)]
-    [Arguments(true)]
-    public async Task ConsentOrWorkspaceReplacementClosesOnlyItsRetiredFieldInspector(bool replace)
+    [Arguments(false, true)]
+    [Arguments(true, true)]
+    [Arguments(true, false)]
+    public async Task ConsentOrWorkspaceReplacementClosesOnlyItsRetiredFieldInspector(bool replace, bool consent)
     {
         await using var context = BrowserFixture.Context();
         var component = RenderWorkspace(context, BrowserFixture.Definition);
         var editor = component.FindComponent<ConfigurationEditor>();
         var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
-        await editor.InvokeAsync(() => form.SetSecretEntryEnabled(true));
+        if (consent) await editor.InvokeAsync(() => form.SetSecretEntryEnabled(true));
         await component.Find("[data-field='hostname'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[role='dialog']").Count).IsEqualTo(1);
         if (replace) editor.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
