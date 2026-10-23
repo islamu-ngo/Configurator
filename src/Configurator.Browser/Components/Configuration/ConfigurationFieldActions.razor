@@ -2,14 +2,31 @@
 
 <span class="configuration-field-actions">
     <ConfigurationFieldHelp Schema="Schema" Title="@Title" FieldPath="@string.Join(" / ", Path)"
-                            SecretsEnabled="@SecretsEnabled" GetBindings="GetBindings" />
+                            SecretsEnabled="@SecretsEnabled" GetBindings="CurrentBindings" />
     @if (!Required)
     {
         <span class="configuration-field-actions__menu" data-field-actions-id="@ControlId">
-            <MudMenu Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" AriaLabel="@("Actions for " + Title)" Disabled="@(!CanEdit)">
-                <MudMenuItem OnClick="() => OnOmit.InvokeAsync()" Disabled="@(!CanEdit)"
-                             data-action="omit" data-omit-owner="@ControlId" role="menuitem" aria-label="@OmissionLabel">@OmissionLabel</MudMenuItem>
-            </MudMenu>
+            @if (_menuRequested)
+            {
+                <MudMenu Disabled="@(!CanEdit)" Open="_menuOpen" OpenChanged="MenuOpenChanged">
+                    <ActivatorContent Context="menu">
+                        <MudIconButton @ref="_menuActivator" Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small"
+                                       aria-label="@("Actions for " + Title)" aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")"
+                                       Disabled="@(!CanEdit)" OnClick="menu.ToggleAsync" />
+                    </ActivatorContent>
+                    <ChildContent>
+                        <MudMenuItem OnClick="() => OnOmit.InvokeAsync()" Disabled="@(!CanEdit)"
+                                     data-action="omit" data-omit-owner="@ControlId" role="menuitem" aria-label="@OmissionLabel">@OmissionLabel</MudMenuItem>
+                    </ChildContent>
+                </MudMenu>
+            }
+            else
+            {
+                <button type="button" class="configuration-field-actions__trigger" aria-label="@("Actions for " + Title)"
+                        aria-haspopup="menu" aria-expanded="false" disabled="@(!CanEdit)" @onclick="OpenMenu">
+                    <MudIcon Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" aria-hidden="true" />
+                </button>
+            }
         </span>
     }
 </span>
@@ -24,6 +41,34 @@
     [Parameter] public bool SecretsEnabled { get; set; }
     [Parameter] public EventCallback OnOmit { get; set; }
     [Parameter] public Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)>? GetBindings { get; set; }
+    private bool _menuRequested;
+    private bool _menuOpen;
+    private bool _focusMenuActivator;
+    private MudIconButton? _menuActivator;
+    private (JsonElement Schema, string ControlId, string Title, string Path, bool Required, bool CanEdit, bool SecretsEnabled, bool MenuRequested, bool MenuOpen) _rendered;
+    private (JsonElement Schema, string ControlId, string Title, string Path, bool Required, bool CanEdit, bool SecretsEnabled, bool MenuRequested, bool MenuOpen) RenderState =>
+        (Schema, ControlId, Title, string.Join(" / ", Path), Required, CanEdit, SecretsEnabled, _menuRequested, _menuOpen);
+    protected override bool ShouldRender() => !_rendered.Equals(RenderState);
+    protected override void OnAfterRender(bool firstRender) => _rendered = RenderState;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusMenuActivator) return;
+        _focusMenuActivator = false;
+        await _menuActivator!.FocusAsync();
+    }
+    private (IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys) CurrentBindings() =>
+        GetBindings?.Invoke() ?? (Array.Empty<string>(), Array.Empty<string>());
+    private void OpenMenu()
+    {
+        _menuRequested = true;
+        _menuOpen = true;
+        _focusMenuActivator = true;
+    }
+    private void MenuOpenChanged(bool open)
+    {
+        _menuOpen = open;
+        if (!open) _focusMenuActivator = true;
+    }
     private string OmissionLabel => Schema.GetProperty("type").GetString() is "object" or "list"
         ? "Omit " + Title + " and nested answers" : "Omit " + Title;
 }

@@ -111,7 +111,8 @@ bounded add/remove controls; removed rows are excluded from the next output.
 An explicitly supplied empty string, an admitted empty enum choice, `false`,
 zero, `{}` and `[]` are values, not omitted answers. Use the field's explicit
 omission action in **Actions for...** to remove an explicit answer without
-clearing its siblings. Boolean choices distinguish Not supplied, Yes and No;
+clearing its siblings. Opening that menu does not change answers. Escape closes
+it and returns focus to its Actions button. Boolean choices distinguish Not supplied, Yes and No;
 an admitted empty enum string has its own Empty string choice.
 An admitted definition's default still applies when an answer is absent.
 An untouched blank control or abandoned new list item supplies nothing.

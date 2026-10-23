@@ -8,9 +8,29 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using MudBlazor;
 
 public sealed class BrowserExperienceWorkflowTests
 {
+    [Test]
+    public async Task UnchangedChoiceRefreshesCurrentCallbackAndRejectsRetiredInput()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        var retired = component.FindComponent<MudSelect<string>>().Instance.ValueChanged;
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current.test" });
+        long revision = form.InputRevision;
+        await component.InvokeAsync(() => retired.InvokeAsync("cluster"));
+        await Assert.That(form.Snapshot().Values["mode"].GetString()).IsEqualTo("single");
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "cluster");
+        await Assert.That(form.Snapshot().Values["mode"].GetString()).IsEqualTo("cluster");
+        await Assert.That(component.FindAll("[data-field='replicas'] div[role='combobox']").Count).IsEqualTo(1);
+    }
+
     [Test]
     [Arguments(false)]
     [Arguments(true)]

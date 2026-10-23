@@ -5,10 +5,53 @@ using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Browser.Layout;
 using Configurator.Core.Definitions;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserFieldHelpTests
 {
+    [Test]
+    public async Task OmissionMenuStaysClosedBetweenEditsAndReopensWithCurrentAnswer()
+    {
+        await using var context = BrowserFixture.Context();
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        source["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "hostname")!["required"] = false;
+        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var component = RenderWorkspace(context, definition);
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        for (int edit = 0; edit < 2; edit++)
+        {
+            await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-" + edit + ".test" });
+            await Assert.That(component.FindAll("[role='menuitem']")).IsEmpty();
+            await Assert.That(component.Find("[data-field='hostname'] button[aria-haspopup='menu']").GetAttribute("aria-expanded")).IsEqualTo("false");
+            long revision = form.InputRevision;
+            var omission = await BrowserFixture.OpenOmissionAsync(context, component, "hostname");
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+            await Assert.That(component.Find("[data-field='hostname'] button[aria-haspopup='menu']").GetAttribute("aria-expanded")).IsEqualTo("true");
+            await omission.ClickAsync(new MouseEventArgs());
+            await Assert.That(form.Snapshot().Values.ContainsKey("hostname")).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task UnchangedFieldActionsReadCurrentBindingDelegate()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = RenderWorkspace(context, BrowserFixture.Definition);
+        var actions = component.FindComponents<ConfigurationFieldActions>()
+            .Single(item => item.Instance.Path.Count == 1 && item.Instance.Path[0] == "hostname");
+        Func<(IReadOnlyList<string>, IReadOnlyList<string>)> previous = () => (new[] { "old-artifact" }, new[] { "OLD_KEY" });
+        Func<(IReadOnlyList<string>, IReadOnlyList<string>)> current = () => (new[] { "current-artifact" }, new[] { "CURRENT_KEY" });
+        actions.Render(parameters => parameters.Add(item => item.GetBindings, previous));
+        actions.Render(parameters => parameters.Add(item => item.GetBindings, current));
+        await actions.Find("[data-action='field-help']").ClickAsync(new MouseEventArgs());
+        var inspector = component.FindComponent<ConfigurationInspector>().Instance;
+        await Assert.That(inspector.OutputArtifactIds.Count).IsEqualTo(1);
+        await Assert.That(inspector.OutputArtifactIds[0]).IsEqualTo("current-artifact");
+        await Assert.That(inspector.BindingKeys.Count).IsEqualTo(1);
+        await Assert.That(inspector.BindingKeys[0]).IsEqualTo("CURRENT_KEY");
+    }
+
     [Test]
     public async Task InspectorNamesItsDialogAndShowsOnlyInertPublicMetadata()
     {
@@ -19,8 +62,8 @@ public sealed class BrowserFieldHelpTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","field":"credential"}}}""");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = RenderWorkspace(context, definition);
-        component.Find("#secret-consent").Change(true);
-        component.Find("[data-field='credential'] input").Input("synthetic-help-private-answer");
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-help-private-answer" });
         await component.Find("[data-field='credential'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
         var dialog = component.Find("[role='dialog']");
         string titleId = dialog.GetAttribute("aria-labelledby")!;

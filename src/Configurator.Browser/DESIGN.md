@@ -86,15 +86,23 @@ nested answers and remains distinct from collapsing optional detail.
   outlined secondary and text navigation variants. One dominant action per
   workflow region. Preserve hover, pressed, focus, disabled and busy behavior.
 - **AppCard/workspace:** existing outlined surface with semantic headings.
-- **AppTextField:** thin outlined string-bound MudBlazor control, including numeric
+- **AppTextField:** thin full-width outlined string-bound MudInput, including numeric
   drafts and masked credentials. The shared form alone parses and retains drafts;
   bubbling raw input/change events keep current revision and mounted-control fences.
   Labels, full errors, credential purpose and stable input identity remain explicit.
+  The wrapper renders its connected scalar error directly, without another field container.
   No numeric sanitizer, second answer model or per-character focus operation.
   Separate content with spacing and neutral boundaries, not nested card stacks.
 - **Choice fields:** outlined MudSelect for public enum and nullable boolean
   values, sharing Core parsing and the mounted-control callback fence. Not supplied,
   explicit false and admitted empty string remain different values.
+  AppSelectField refreshes parameters and revision-bound callbacks even when
+  unchanged visual output is skipped; it retains no additional answer snapshot.
+- **Field actions:** a named native help trigger uses the packaged Mud icon and
+  opens the existing workspace-owned inspector without a per-field tooltip.
+  The omission menu mounts on first use and remains a normal MudMenu afterward.
+  Cold activation and menu close explicitly focus its activator; open state is
+  part of the render signature so `aria-expanded` remains current.
 - **Workflow navigation:** a compact ordered Configure/Review/Prepare landmark
   targeting real sections. It describes location, not fabricated readiness.
 - **Section navigation:** title, independently counted required-answer progress,

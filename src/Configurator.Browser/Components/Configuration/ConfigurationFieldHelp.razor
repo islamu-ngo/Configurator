@@ -3,11 +3,11 @@
 @inject IDialogService Dialogs
 
 <span class="configuration-field-help">
-    <MudTooltip Text="Guidance and definition details">
-        <MudIconButton Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small"
-                       aria-label="@("Help with " + Title)" data-action="field-help"
-                       OnClick="OpenAsync" />
-    </MudTooltip>
+    <button type="button" class="configuration-field-help__trigger"
+            aria-label="@("Help with " + Title)" data-action="field-help"
+            @onclick="OpenAsync">
+        <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />
+    </button>
 </span>
 
 @code {
@@ -24,7 +24,10 @@
     private bool _disposed;
     private bool? _observedConsent;
     private string? _observedFieldPath;
+    private string? _renderedTitle;
     private long _generation;
+    protected override bool ShouldRender() => _renderedTitle != Title;
+    protected override void OnAfterRender(bool firstRender) => _renderedTitle = Title;
     protected override void OnParametersSet()
     {
         if (_observedConsent.HasValue && (_observedConsent != SecretsEnabled || _observedFieldPath != FieldPath))

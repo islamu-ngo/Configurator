@@ -97,7 +97,7 @@
             long editRevision = Form.InputRevision;
             long editControlGeneration = _controlGeneration;
             <div class="configuration-field__choice">
-            <MudSelect T="string" @ref="_choiceControl" InputId="@ControlId" Value="@Selection" Variant="Variant.Outlined"
+            <AppSelectField ChoiceSchema="Schema" @ref="_choiceControl" InputId="@ControlId" Value="@Selection" Variant="Variant.Outlined"
                        Margin="Margin.Dense" Disabled="@(!canEdit)" Error="@(_invalid || error.Length > 0)"
                        ErrorId="@(ControlId + "-error")" HelperId="@(ControlId + "-help")"
                        ErrorText="@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : error)"
@@ -117,7 +117,7 @@
                         <MudSelectItem T="string" Value="@ChoiceIdentity(choiceIndex++, choice)">@(Display(choice).Length == 0 ? "Empty string" : Display(choice))</MudSelectItem>
                     }
                 }
-            </MudSelect>
+            </AppSelectField>
             </div>
         }
         else

@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5NCEV4P02SV1TZNRR2G9NAW
+Title: "reduce configuration field rendering work"
+Type: perf
+Scope: browser
+Summary: "Configuration views avoid unused overlay composition while preserving typed drafts, current callbacks, connected errors and keyboard focus."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Rendering boundaries retain no additional answer snapshot. Current edit callbacks and public help bindings refresh; workspace retirement and consent remain authoritative."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Scalar controls preserve shared parsing and connected errors. Help uses a named lightweight trigger; omission menus mount on first use with explicit activator focus."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Opening Actions does not edit answers. Keyboard navigation, Escape focus return, current-value omission and coarse-pointer targets are preserved."

@@ -105,8 +105,9 @@ destination-focus behavior.
 
 `ConfigurationField` sends parsed typed values through the shared form. An absent
 boolean differs from false, and absent objects/lists differ from empty values.
-`AppTextField` wraps an outlined string-bound MudTextField, including numeric
-drafts and masked credentials. Public enum/boolean leaves use MudSelect with
+`AppTextField` wraps a full-width outlined string-bound MudInput and renders its
+connected scalar error directly, including numeric drafts and masked credentials.
+Public enum/boolean leaves use MudSelect with
 distinct absence and admitted-empty identities. The form still owns parsing and
 invalid drafts; raw text input/change and received choice notifications use the
 same form/path/revision/mounted-control generation fence. A callback captured
@@ -120,10 +121,16 @@ used only when title equals key, with the exact key available separately.
 The independent detail selector delegates to the shared disclosure override.
 Comfortable/Compact changes session-local CSS tokens only. Named field-action
 menus retain explicit omission, including container descendants.
+Each omission menu is instantiated on first use and retained afterward. Its
+custom activator receives focus after cold mounting and after close; the open
+state participates in rendering so its expanded state stays current. Unchanged
+field chrome may skip visual rendering, but current callbacks and help bindings
+still refresh without retaining another answer snapshot.
 `ConfigurationFieldHelp` opens `ConfigurationInspector` with admitted public
 schema, authored descriptions and lazily projected value-free output bindings.
 It closes its own dialog on revocation, replacement or disposal and rejects late
-opens. Tooltips contain only short noninteractive labels. Stable scrollbar
+opens. Its named native trigger retains the packaged Mud icon and focus/target
+rules without precreating a tooltip overlay for every field. Stable scrollbar
 allocation prevents modal geometry shifts; the sticky wrapping appbar keeps
 search reachable during deep editing. Its global shortcut yields to an active
 dialog rather than escaping modal focus custody.

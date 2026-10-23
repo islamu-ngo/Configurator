@@ -12,6 +12,26 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class BrowserShellTests
 {
     [Test]
+    public async Task ClosedSearchReflectsExternalQueryAndCurrentWorkspaceWhenReopened()
+    {
+        await using var context = BrowserFixture.Context();
+        var shell = context.Render<NavMenu>();
+        var editor = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await editor.InvokeAsync(() => form.SetDiscovery("hostname"));
+        await Assert.That(shell.Find("#configuration-search").GetAttribute("value")).IsEqualTo("hostname");
+        await Assert.That(shell.FindAll("[data-discovery-result]")).IsEmpty();
+        await editor.InvokeAsync(() => form.EditValue(["hostname"], "synthetic-local.test"));
+        var search = shell.FindComponent<WorkspaceSearch>();
+        long generation = context.Services.GetRequiredService<WorkspaceSearchState>().Generation;
+        await search.InvokeAsync(() => search.Instance.OpenAsync(generation));
+        await Assert.That(shell.FindAll("[data-discovery-result]").Count).IsEqualTo(1);
+        await Assert.That(form.DiscoveryQuery).IsEqualTo("hostname");
+        await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("synthetic-local.test");
+    }
+
+    [Test]
     public async Task RetiredEditorDisposalLeavesCurrentSearchAndEscapeUsable()
     {
         await using var context = BrowserFixture.Context();
