@@ -497,8 +497,9 @@ internal sealed class ControlledPresentationInvocation
             ?? throw new InvalidOperationException("presentation-outcome-construction-failed");
         if (_completion is null || _trySetResult is null)
             throw new InvalidOperationException("presentation-operation-not-started");
+        ReadOnlyMemory<byte> captured = SetupPresentationModelContract.Property<ReadOnlyMemory<byte>>(outcome, "Output");
         _trySetResult.Invoke(_completion, [outcome]);
-        return SetupPresentationModelContract.Property<ReadOnlyMemory<byte>>(outcome, "Output");
+        return captured;
     }
 }
 
