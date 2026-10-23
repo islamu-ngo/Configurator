@@ -115,6 +115,393 @@ does not control all worker/browser traffic. Physical disconnection is stronger.
 Managed-memory clearing, clipboard and downloads are not forensic-erasure claims. Cross-published native
 RIDs and package tests remain separate from actual-host protected-save evidence.
 
+### Browser interaction qualification (2026-10-22)
+
+The interaction workstream separates one form-owned metadata index, current
+revision facts and current view/discovery selection. Browser mounts discovery
+on request and pages shared search/effect selections after complete ranking.
+The [form computation decision](adr/ADR-browser-form-computation.md) records the
+ownership and notification contract.
+
+The frozen indexed-edit candidate passes the reference-host latency gates;
+see the final inventory and results below. Earlier entries are chronological
+diagnostics, including superseded failures, not accessibility certification.
+Use the static Release publication,
+SDK 10.0.302 and `TMPDIR="$HOME/.cache/agent-tmp"`:
+
+```bash
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:Configuration=Release -p:ConfiguratorOutputRoot="$PWD/artifacts/browser-performance/store" -p:DefinitionStoreSourceRoot="$PWD/store" -verbosity:quiet
+ASPNETCORE_ENVIRONMENT=Development dotnet src/Configurator.Browser.Host/bin/Release/net10.0/Configurator.Browser.Host.dll --urls https://localhost:7444 --webroot "$PWD/artifacts/browser-performance/store/browser/wwwroot"
+```
+
+The untouched Store-enabled baseline is retained under
+`artifacts/browser-performance/baseline`, from source
+`733aba5fceb41ec1c0c6337525ccdee67a8093e0`. Its
+`service-worker-assets.js` SHA-256 is
+`84f5eb9374666906633f7215a114e47bdde563efdf230613a75b4ff260bfdfa5`.
+It is served separately on HTTPS port 7445; the existing user listener is
+untouched. Candidate inventory digests change with each verified repair and
+must be captured again before final sampling.
+
+The actual browser is cached Google Chrome for Testing 151.0.7922.34, launched
+with `--headless --no-first-run --ignore-certificate-errors
+--remote-debugging-port=9224 --user-data-dir=<isolated-synthetic-profile>`.
+The certificate exception is confined to that profile/process; no trust store
+is changed. Existing OmOWright agent tabs/CDP drive trusted input. DOM mutation
+readiness followed by two animation frames records the final requested content,
+not handler completion. PerformanceObserver records long tasks and Event Timing;
+task attribution includes tasks intersecting input dispatch.
+
+Record first-use separately, then five event-complete warmups and every one of
+40 samples per direction/journey at 1x and 4x CPU. Use nearest-rank p50/p95/max;
+do not delete outliers or substitute a spinner for final content. Bind every
+result to package/definition digests, viewport and actual scenario state.
+Private text, queries and artifact bytes do not belong in reports.
+
+An early candidate still took about 1,017-1,107 ms for warmed Event disclosure.
+The Browser adapter repeatedly rebuilt section field membership with linear
+root lookup. After indexing those form-owned references and using keyed field
+states, a diagnostic trusted-frame sample took 31.6 ms. Further indexed root
+reads removed repeated origin scans. These are repair probes, not 40-sample
+acceptance results. Final cold/warm, scale, custody, offline, focus, RTL,
+light/dark and narrow-layout evidence remains required.
+
+The first complete untouched Event-environment disclosure run retained 40
+samples in each direction at 1x. Opening p50/p95/max was
+2,597.1/8,137.2/16,173.3 ms; closing was
+2,636.5/11,196.3/13,435.1 ms. All outliers remain in
+`artifacts/browser-performance/evidence/baseline-event-disclosure-1x.json`.
+Host load average reached 24.40; these are observed workstation results, not
+isolated-device certification. An intermediate candidate met the 100 ms control
+p95 budget (53.3/60.3 ms), but maximum observed feedback exceeded 50 ms.
+That feedback gate remains open; per-field root scans were removed before
+remeasuring, rather than relaxing the budget.
+
+With the per-field references indexed, the served candidate
+`388aa0bab614c4f63f31171123c89c63a4b6dd72c76e110520584e8ac766bfb5`
+recorded disclosure opening p50/p95/max 26.3/32.9/33.0 ms and closing
+23.8/32.2/32.4 ms, with maximum feedback 20.8/16.0 ms and no observed
+long tasks. Review entry p95 was 50.8 ms, but maximum feedback was
+57.9 ms. Discovery retained large outliers (opening max 732.5 ms,
+closing p95 404.8 ms). These failures remain open, not discarded.
+
+During this run, a direct project publication accidentally wrote the sibling
+`store/wwwroot` directory rather than the host's `store/browser/wwwroot`.
+The first evidence labels used that sibling inventory
+`6d8beab269fc976806e0fde260b5ba04f7f0733c08244ae44fddbc7d47b30d07`;
+it was not the served package. The host command and both on-disk inventories
+establish the served identity above. Evidence corrections must retain this
+provenance note. Use the release target shown above for package closure.
+
+Indexing Review's metadata title lookup removed another root scan. The next
+served inventory is
+`65952fb34c65f6c231eb8fb699d4f4a0df51ae146738721a6317d3ceaa5419c0`.
+Its 40-sample 1x runs passed the active budgets: disclosure opening/closing p95
+31.6/31.9 ms, Review entry/return 32.6/32.9 ms, discovery opening/closing
+31.9/31.8 ms. Maximum feedback across these runs was 23.4 ms and no warmed
+long task was observed. At 4x, Review entry/return p95 was 106.0/59.2 ms
+with maximum feedback 121.6/76.5 ms. These cover those named journeys only;
+the remaining matrix, custody and accessibility gates remain open.
+
+The public synthetic scale fixture was admitted through the actual local-file
+browser flow, canonical digest
+`d23cec8f1707dbc30451fb9c4c04f763aaaaa63e1ac31a370a5bc1cd901df486`.
+It has 500 roots and 125 list rows; the mounted discovery reported 1,000
+settings, with 50 results rendered on page 1 of 20. Admission and this
+cardinality observation do not establish latency qualification.
+
+An intermediate candidate inventory after native scalar/action controls, query-local
+rendering and narrow Review wrapping is
+`1bccea5acf0f2f88acf77ff213d1aaa5589a5986263c62e195a3edf9d9d50c8a`.
+Its minimal and scale runs retain all 40 samples per direction:
+
+| Named journey group | Minimal 1x / 4x worst directional p95 | Scale 1x / 4x worst directional p95 |
+| --- | --- | --- |
+| Disclosure, Review and discovery opening/return | 32.7 / 33.0 ms | 32.8 / 110.4 ms |
+| Search and restoring the full selection | 25.9 / 27.4 ms | 28.9 / 144.0 ms |
+
+These runs pass their budgets: maximum 1x feedback is below 50 ms, maximum 4x
+feedback below 200 ms, with no warmed 1x long task over 50 ms. Earlier failed
+inventories and every outlier remain retained. Event, remaining navigation and
+the matched baseline matrix are still being completed; this is not a blanket
+workstream pass.
+
+Published custody evidence on the same native/query-local implementation,
+before the CSS-only Review wrap, is retained in
+`published-native-custody.json`, `published-live-worker-waiting.json` and
+`published-after-update-custody.json`. Rapid typing survived blur; three hidden
+complete artifacts survived view-only actions. Private answer text matched no
+metadata. Deliberate reveal stayed local; revocation removed the secret,
+preview and output, and reconsent restored none. Offline edits produced three
+explicit drafts without reload. One observed page request contained no
+sentinels; no storage writes or worker/MessagePort messages carried answers,
+and IndexedDB was empty. Scans covered 78 active public cache responses and
+156 across both waiting-update generations, with no sentinels.
+
+The update waited without replacing its controller or reloading the live
+workspace; all three drafts remained. After synthetic workspace cleanup and
+owned-tab closure, a new workspace booted with no waiting worker and one public
+cache generation. Actual clipboard/download transfer, screen-reader speech,
+physical mobile and browser UI zoom are not certified. Keyboard focus,
+accessible search naming/status, light 390-pixel and dark RTL 320-pixel layouts
+were inspected; CSS 200% Review reflow is explicitly an emulation.
+
+The final candidate additionally indexes root input/schema mounting, reuses
+canonical root IDs in budget/snapshot traversal, and defers value-free entry
+materialization until a consumer requests it. Static Lazy factories capture
+immutable metadata and value-free states, not the live form or private answer
+map. Final Store inventory is
+`b0763bf07a89688d03c87b10523ec419a355a75e78121f46a9901ae91d767eee`.
+Activation clearing/setting passed at 1x with p95 32.9/42.1 ms, maximum
+feedback 34.8/48.4 ms and no warmed long task; at 4x p95 was 130.6/180.7 ms,
+maximum feedback 151.9/199.6 ms. All 40 samples per direction remain in
+`candidate-event-canonical-root-ids-activation-{1,4}x.json`.
+
+Final-package Event disclosure, Review, discovery and search also passed both
+CPU rates. Worst directional p95 was 32.6 ms for controls and 29.0 ms for
+search at 1x, 60.5/66.5 ms at 4x. Minimal disclosure, Review, discovery,
+search, section, experience and facet selection passed both rates; all 40
+samples per direction and the 4x search outlier remain in the
+`candidate-*-final-b076-*.json` evidence. Scale and the remaining comparison/
+lifecycle matrix are still in progress; these are bounded results.
+The subsequent scale run passed controls, search and section navigation at
+both rates but failed experience-switch acknowledgement: 59.4 ms at 1x and
+221.8 ms at 4x. Final-content p95 remained 54.3/206.9 ms. These failures
+remain in `candidate-scale-final-b076-experience-{1,4}x.json`; meeting p95
+does not waive the feedback ceiling.
+
+The reversed scale experience mounts list rows and nested editors. The field
+template previously recalculated the same logical control identity for every
+ID/help/error reference within one render. Refreshing that metadata identity
+once per parameter application preserves row-token changes without caching
+answers. Its Browser suite passed 182/182 and the release-owner publication
+exited 0 with Store inventory
+`78fd02a00d235e8306dffe3f77429bcd1d13f4d23db86779329581019c227c22`.
+That candidate and the subsequent canonical-section-ID candidate still failed
+the feedback ceiling. The value-free visibility fast paths alone also failed;
+all runs remain recorded. Experience changes additionally retained an
+unnecessary heading-focus request after replacing the section. Actual focus
+was the section H3 rather than the persistent experience selector.
+
+The candidate now retains selector focus on experience changes; explicit
+workflow, section and correction navigation still focus their destinations.
+Inventory
+`07cdcd419b8c22b40e63b8c019ad5ca4b2a942652c77f9f6d82d1dd0566611d0`
+passed both experience directions, retaining 40 measured samples each:
+at 1x worst directional p95 48.7 ms, maximum feedback 49.4 ms and no
+warmed long task; at 4x p95 166.1 ms and maximum feedback 195.5 ms.
+The 200.5 ms final-content maximum remains recorded: the final-content gate
+is p95 <=500 ms at 4x, separately from maximum feedback <=200 ms.
+Focus remained on `configuration-experience`. The same inventory subsequently
+passed scale facets, discovery paging, Review paging, disclosure, Review
+entry/return, discovery opening/return and search at both rates. Full totals
+remain 1,000 settings, including 375 required leaves; Review mounts 50 rows.
+Literal page boundaries were `enabled` and `setting049`. Worst 1x control p95
+was 38.5 ms with maximum feedback 39.1 ms and no warmed long task. At 4x the
+largest facet p95 was 164.4 ms, largest search p95 145.3 ms, and maximum
+feedback across these additional runs was 164.0 ms. Raw first-use, warmups,
+all 40 samples and outliers are in `candidate-scale-selector-focus-*.json`.
+Remaining final-package fidelity and comparison evidence is still required.
+
+Exact-final minimal controls, search, section/experience, facets and ordinary
+answer edits passed at both rates, retaining 40 samples per direction. At 1x
+the largest control p95 was 33.0 ms; ordinary edits p95 was 30.2 ms with maximum
+feedback 13.7 ms. All warmed 1x tasks remained below 50 ms. The retained 4x
+discovery outlier was 135.0 ms final/119.2 ms feedback, within its separate
+4x gates.
+
+`published-final-selector-focus-custody.json` repeats custody on the exact final
+inventory rather than inferring it from earlier packages. Rapid character input
+survived blur. Three complete artifacts survived disclosure and a query matching
+private answer text found no metadata. Deliberate reveal stayed local. Revocation
+removed all secret controls, previews and artifacts; reconsent restored an empty
+secret and no output. Ordinary input survived and three explicit drafts prepared
+offline with unchanged document identity. The scan found no sentinel in 78 cache
+responses, storage, IndexedDB or requests; observed storage writes and worker/
+MessagePort messages were zero. One observed page request contained no sentinel.
+
+`published-final-internal-discard-policy.json` verifies actual Cancel retained
+the ordinary input and all three drafts; Confirm removed the workspace/output.
+Internal history reopened clean defaults with consent off and no output, while
+document time origin stayed unchanged throughout. This cancellation check used
+an isolated policy-aware Chrome 153.0.8010.52 process, not the timing browser:
+the durable CDP transport unconditionally accepts dialogs. Native pointer
+activation and exact dialog/DOM signals avoid a false load wait after Cancel
+or an SPA history action. No private values appear in its report.
+`published-final-abandoned-history.json` uses the timing browser's native
+navigation to the other loopback origin and back. Recovery started a fresh
+realm, with no former ordinary input, secret consent or prepared output.
+
+Final scale inspection reached page 20 of 20 with 50 mounted results, all 1,000
+matches retained and Next disabled; the last root was `list124`. Keyboard
+Enter operated both pager directions. A page-20 nested correction selected
+`section19` and focused `list124.0.label`. Inspection exposed off-screen focus:
+explicit field focus had prevented scrolling. Inventory
+`5964a15218c58b4855523f01837f633610ea975ec986aa9a2ef00a2f06e00fe8`
+permits native scrolling for requested field/empty-list focus. Its Browser
+suite passed 182/182; the actual corrected input was fully visible
+(top 397.3, bottom 447.3 in an 844-pixel viewport), with no horizontal overflow.
+Dark RTL 320-pixel screenshots show the focused control and wrapped Review
+actions; light 390-pixel screenshots show the last discovery page and pager.
+The earlier off-screen screenshot remains evidence of the repaired defect.
+
+Real list editing retained the surviving row token and text after deleting its
+sibling and switching sections. On the focus-fixed package an invalid numeric
+draft survived section remount, stayed invalid and blocked preparation with a
+reachable correction. Searching the declared `list124` key returned three
+matches, removed paging and retained search focus. These checks supplement,
+not replace, the semantic regression suites or unexecuted speech/device tests.
+
+Facet input uses verified native CDP Space dispatch: the installed automation
+checkbox click produced an untrusted event, and its `press('Space')` produced
+an empty key. Neither failed automation attempt counts as a product timing
+sample. Native key dispatch produced trusted click/input/change; sampling
+awaits the resulting complete selection count and frame.
+
+The preceding native closure passed exact-owned no-write formatting, solution Release
+build, 83 Terminal tests and four package tests. Presentation 152/152 and
+Browser 182/182 remain passing affected-owner evidence. Plain inventory is
+`4c915133a55c913989db3bc86158efb0a7c70d0e7315dca52818df51de770ea5`.
+Subsequent metadata/focus changes passed Presentation 152/152 and Browser
+182/182. Final focus-fixed closure again passed owned no-write formatting,
+the solution Release build, Terminal 83/83 (2.447 s), plain publication and
+package 4/4 (0.650 s). Plain inventory is
+`1c040404c3a8df65ce07cb0b2a0afbdf444a947b33994ff250985e749a09b83f`;
+Store inventory is `5964a15218c58b4855523f01837f633610ea975ec986aa9a2ef00a2f06e00fe8`.
+Desktop remained 182/184 (3.511 s), only the independently reproduced failures.
+Final Event controls/search passed both CPU rates, but activation did not:
+activating 1x p95 50.3 ms and maximum feedback 53.2 ms; clearing feedback
+45.8 ms. No warmed 1x long task was observed. All samples remain retained;
+4x candidate activation was not executed after this failed lane. Qualification
+therefore remains open despite passing native closure.
+
+The preserved Event comparison is now complete at both CPU rates. All 40
+samples in each direction, first-use and five warmups remain in the evidence.
+Worst directional p95, in milliseconds:
+
+| Event-environment journey | Untouched baseline 1x / 4x | Focus-fixed candidate 5964 1x / 4x |
+| --- | --- | --- |
+| Disclosure | 11196.3 / 12352.9 | 31.9 / 39.9 |
+| Review entry/return | 1715.1 / 8156.0 | 32.6 / 55.2 |
+| Discovery opening/return | 32.3 / 31.1 | 32.4 / 46.3 |
+| Search/restoring full selection | 3168.1 / 12430.6 | 30.5 / 62.4 |
+| Activation clearing/setting | 3231.5 / 12606.5 | 50.3 / not run after failed 1x feedback |
+
+The first baseline 1x disclosure run includes the previously recorded high
+host-load outliers; no sample was removed or normalized. Baseline native
+discovery opens quickly because its expensive descendants were already mounted,
+not because their construction was free. These comparisons establish the named
+observations, not a universal speedup or a candidate pass while feedback fails.
+Desktop again passed 182 of 184, failing only the two baseline assertions below.
+The combined verification command exits 2 because of that final Desktop run;
+it must not be reported as an entirely green command.
+
+#### Frozen indexed-edit candidate (2026-10-23)
+
+The final Store inventory is
+`58a14e6497c566992e7ec6c862f2f2d47c356deb8cb0d3137675eb9f5699a864`.
+It supersedes the intermediate failed candidate gates above, without deleting
+their samples. Four validated edit/collection paths now use the admitted
+field-position index instead of `Single` scans that decoded every root ID.
+Review relevance prefixes are deferred from immutable value-free entry states;
+field rendering reuses access/metadata reads only within the current render.
+Core evaluation, scheduling and preparation are unchanged.
+
+All 92 directional rows pass the unchanged budgets: 3,680 measured samples,
+five warmups per direction and separate first-use observations. Maximum feedback
+is 47.8 ms at 1x and 183.9 ms at 4x; no warmed 1x long task exceeds 50 ms.
+Worst directional p95, in milliseconds:
+
+| Journey | Final candidate 1x / 4x | Untouched scale baseline 1x / 4x |
+| --- | --- | --- |
+| Event activation | 38.8 / 144.0 | Not a scale journey |
+| Event controls (worst) | 32.8 / 50.7 | Not a scale journey |
+| Event search | 25.3 / 52.5 | Not a scale journey |
+| Minimal controls (worst) | 32.7 / 32.9 | Not a scale journey |
+| Minimal search | 25.8 / 28.9 | Not a scale journey |
+| Minimal ordinary input | 30.5 / 28.7 | Not a scale journey |
+| Scale disclosure | 32.4 / 78.9 | 6135.5 / 24560.5 |
+| Scale Review | 31.8 / 65.2 | 4194.0 / 16801.6 |
+| Scale discovery | 32.6 / 57.9 | 32.9 / 172.8 |
+| Scale search | 31.5 / 119.9 | 6410.7 / 25637.1 |
+| Scale section | 32.0 / 51.7 | 2093.2 / 8733.8 |
+| Scale experience | 44.4 / 158.2 | 7882.3 / 31903.9 |
+| Scale facet | 33.0 / 136.4 | 6205.1 / 24891.8 |
+| Scale discovery page | 33.2 / 68.0 | No baseline pager |
+| Scale Review page | 32.7 / 44.8 | No baseline pager |
+| Scale correction/return | 32.2 / 64.4 | Not sampled |
+
+Minimal baseline ordinary input is 29.4/39.6 ms; the candidate does not make
+every small-form interaction faster. Scale retains all 1,000 matching nodes
+and 375 required leaves while rendering 50 results. Baseline discovery already
+mounted descendants, so its native disclosure timing excludes construction.
+The original scale source/digest and baseline inventory remain unchanged.
+
+Raw artifacts under `artifacts/browser-performance/evidence/` are
+`candidate-{event,minimal,scale}-indexed-edit-final-{scenario}-{rate}x.json`,
+`candidate-event-indexed-edit-lookup-activation-{rate}x.json`,
+`baseline-scale-preserved-{scenario}-{rate}x.json`,
+`baseline-minimal-preserved-navigation-{scenario}-{rate}x.json` and
+`baseline-minimal-preserved-final-ordinary-input-{rate}x.json`.
+`candidate-indexed-edit-final-budget-audit.json` records the row audit.
+Pager samples for the preceding `07cd` inventory remain separately named
+`candidate-scale-selector-focus-*`; final pager evidence has the final prefix.
+Final scale transport/document observations are in
+`candidate-scale-indexed-edit-final-transport.json`.
+
+Sampling was serial, without concurrent builds. Seven completed task-owned
+browser tabs were retired before the final matrix. Earlier host-load outliers
+and failed candidate observations remain retained. Chrome emitted negative
+frame-latency diagnostics between -0.035 and -0.093 ms during the final scale
+run; no sample was discarded in response. These are measurements on the named
+workstation/browser, not certification of other devices or assistive technology.
+Final native/package closure (`mon_4JCRK421H257ZSV6` / `bash_90`) passed
+owned no-write formatting, the solution Release build, Terminal83/83 (2.857 s),
+plain publication and package4/4 (0.590 s). Plain inventory is
+`67a93f64c3344bd446d590465bd02500389bfc357fbfff6862983f573dec1a02`.
+Presentation152/152 (0.693 s) and Browser182/182 (2.323 s) passed for this source.
+Desktop182/184 (2.936 s) again failed only the two independently reproduced
+baseline assertions below; the combined closure command exits2, not zero.
+
+`published-indexed-edit-final-custody.json` binds the frozen inventory to rapid
+secret typing/blur, three complete masked artifacts, view-only preservation,
+deliberate local reveal, revocation clearing previews/output, blank reconsent
+and three offline drafts without reload. It scans78 public cache responses;
+IndexedDB is empty, storage writes and worker/MessagePort messages are zero,
+and the one observed request contains no synthetic answer sentinel. Final
+cleanup disables consent and retires output. Actual clipboard/download transfer
+was not performed. Earlier waiting-worker and cancellation/history evidence
+remains separately inventoried above, rather than falsely relabeled as new runs.
+
+`published-indexed-edit-final-layout.json` and the
+`final-indexed-edit-{correction-dark-rtl-320,review-light-390,review-light-desktop}.png`
+screenshots retain inspected final-package surfaces. The exact nested correction
+`list124.0.label` is visible at top396.9/bottom446.9 in an844-pixel viewport,
+with no horizontal overflow. Review retains1,000 results and mounts50.
+Desktop Review focus settles on its heading. Physical-device, screen-reader
+speech and actual browser UI zoom remain unverified; earlier CSS200% reflow
+is not represented as browser zoom.
+Final collection add/remove and section remount preserve the surviving row's
+control identity and text (`published-indexed-edit-final-row-identity.json`).
+Searching the synthetic ordinary answer returns zero metadata matches and
+retains search focus; final sink inspection still contains no sentinels.
+
+Native/engineering baseline findings are separate:
+
+- Desktop: 182/184 passed; `AtomicImportRejectsConflictAndCommitsOneRevisionWithoutLeakingAnswers`
+  and `OptionalEditorControlRestoresDefaultsWithoutHidingActiveCorrections`
+  failed. Both exact assertions reproduced against an untouched `git archive
+  HEAD` export (0/2 passed), without switching the shared checkout. They remain
+  quarantined; no assertion was weakened.
+- Terminal: all 83 passed after the seeded navigation fixture explicitly
+  restored authored disclosure. Seeding required answers is edit intent under
+  pure correction promotion; the fixture now resets the experience before
+  asserting its authored initial state.
+- The solution-wide no-write format check found existing CLI/Core whitespace
+  and credential-test import ordering outside this change. Owned formatting
+  corrections were applied with native patches, and the exact owned-file format
+  check passed. No diagnostics were suppressed.
+
 ### Browser UI refinement evidence
 
 The screenshot-driven interface refinement on 2026-10-10 corrected the vendor
