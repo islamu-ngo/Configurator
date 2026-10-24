@@ -88,15 +88,15 @@ public sealed class BrowserCollectionWorkflowTests
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         string rowsSection = form.Sections.Single(section => section.Fields.Contains("tenants")).Id;
         string generalSection = form.Sections.Single(section => section.Fields.Contains("hostname")).Id;
-        component.Find("[data-field='hostname'] input").Input("example.test");
-        component.Find($"[data-section='{rowsSection}']").Click();
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "example.test" });
+        await component.Find($"[data-section='{rowsSection}']").ClickAsync(new MouseEventArgs());
         string[] names = ["alpha", "beta", "alpha"];
         for (int index = 0; index < names.Length; index++)
         {
-            component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").Click();
-            component.Find($"[data-field='tenants.{index}.name'] input").Input(names[index]);
+            await component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
+            await component.Find($"[data-field='tenants.{index}.name'] input").InputAsync(new ChangeEventArgs { Value = names[index] });
         }
-        component.Find("#prepare-draft").Click();
+        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
 
         foreach (string selector in new[]
         {
@@ -116,9 +116,9 @@ public sealed class BrowserCollectionWorkflowTests
             await Assert.That(component.Find($"[data-field='tenants.{index}.name'] input").GetAttribute("aria-invalid")).IsEqualTo("false");
         }
         await Assert.That(component.FindAll(".configuration-output")).IsEmpty();
-        component.Find($"[data-section='{generalSection}']").Click();
+        await component.Find($"[data-section='{generalSection}']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll($"[data-section-panel='{rowsSection}']")).IsEmpty();
-        component.Find("[data-correction='tenants']").Click();
+        await component.Find("[data-correction='tenants']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll($"[data-section-panel='{rowsSection}']").Count).IsEqualTo(1);
         await Assert.That(component.Find("[data-field='tenants.2.name'] input").GetAttribute("value")).IsEqualTo("alpha");
     }
