@@ -108,6 +108,12 @@ callbacks by mounted-control generation, and separates session density from
 stored appearance. Owner-qualified application-bar search and contextual public
 metadata inspectors hold no answer snapshots. Their actual runtime limits are
 recorded in Operations; component tests alone do not qualify the surface.
+Admitted `SetupFieldDefinition` instances materialize immutable public field
+identity, display/required/disclosure/sensitivity metadata, defaults, choices,
+condition locations and ordered dependencies once. `DefinitionValidator` still
+evaluates current answer-dependent
+conditions and validates every revision; this metadata does not retain answers
+or introduce a second evaluation authority.
 The shared form owns a metadata-only definition index and one current input
 revision's private derived facts. Disclosure/search reuse those facts; selected
 experience order remains a separate dependency of ranked discovery. Read-only

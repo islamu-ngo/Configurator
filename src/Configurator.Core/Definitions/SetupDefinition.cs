@@ -59,6 +59,32 @@ public sealed class SetupFieldDefinition
     internal SetupFieldDefinition(JsonElement data)
     {
         Data = data.Clone();
+        Id = Data.GetProperty("id").GetString()!;
+        Type = Data.GetProperty("type").GetString()!;
+        Title = Data.GetProperty("title").GetString()!;
+        Required = Data.TryGetProperty("required", out var required) && required.GetBoolean();
+        Default = Data.TryGetProperty("default", out var fallback) ? fallback.Clone() : null;
+        Choices = Array.AsReadOnly(Data.TryGetProperty("choices", out var choices)
+            ? choices.EnumerateArray().Select(item => item.Clone()).ToArray() : []);
+        Sensitivity = EffectiveSensitivity(Data);
+        Disclosure = Text("disclosure") switch
+        {
+            "essential" => SetupFieldDisclosure.Essential,
+            "advanced" => SetupFieldDisclosure.Advanced,
+            _ => SetupFieldDisclosure.Guided
+        };
+        var dependencies = new List<string>();
+        if (Data.TryGetProperty("activeWhen", out var activeWhen))
+        {
+            ActiveWhen = activeWhen;
+            dependencies.AddRange(DefinitionValidator.References(activeWhen));
+        }
+        if (Data.TryGetProperty("requiredWhen", out var requiredWhen))
+        {
+            RequiredWhen = requiredWhen;
+            dependencies.AddRange(DefinitionValidator.References(requiredWhen));
+        }
+        Dependencies = dependencies.AsReadOnly();
         Properties = Array.AsReadOnly(data.TryGetProperty("properties", out var properties)
             ? properties.EnumerateArray().Select(item => new SetupFieldDefinition(item)).ToArray() : []);
         UniqueBy = Array.AsReadOnly(data.TryGetProperty("uniqueBy", out var path)
@@ -68,16 +94,19 @@ public sealed class SetupFieldDefinition
             credential.GetProperty("kind").GetString()!, credential.GetProperty("acquisition").GetString()!) : null;
     }
     internal JsonElement Data { get; }
-    public string Id => Data.GetProperty("id").GetString()!;
-    public string Type => Data.GetProperty("type").GetString()!;
-    public string Title => Data.GetProperty("title").GetString()!;
+    internal IReadOnlyList<string> Dependencies { get; }
+    internal JsonElement? ActiveWhen { get; }
+    internal JsonElement? RequiredWhen { get; }
+    public string Id { get; }
+    public string Type { get; }
+    public string Title { get; }
     public string? Help => Text("help");
     public string? Group => Text("group");
     public string? Format => Text("format");
     public string? Consequence => Text("consequence");
     public DefinitionFieldGuidance? Guidance { get; }
     public DefinitionInputPurpose? InputPurpose { get; }
-    public bool Required => Data.TryGetProperty("required", out var value) && value.GetBoolean();
+    public bool Required { get; }
     public string? ItemType => Text("itemType");
     public int? MinimumItems => Data.TryGetProperty("minItems", out var value) ? value.GetInt32() : null;
     public int? MaximumItems => Data.TryGetProperty("maxItems", out var value) ? value.GetInt32() : null;
@@ -89,17 +118,11 @@ public sealed class SetupFieldDefinition
         "secret" => SetupFieldSensitivity.Secret,
         _ => SetupFieldSensitivity.Sensitive
     };
-    public SetupFieldSensitivity Sensitivity => EffectiveSensitivity(Data);
-    public SetupFieldDisclosure Disclosure => Text("disclosure") switch
-    {
-        "essential" => SetupFieldDisclosure.Essential,
-        "advanced" => SetupFieldDisclosure.Advanced,
-        _ => SetupFieldDisclosure.Guided
-    };
-    public JsonElement? Default => Data.TryGetProperty("default", out var value) ? value.Clone() : null;
+    public SetupFieldSensitivity Sensitivity { get; }
+    public SetupFieldDisclosure Disclosure { get; }
+    public JsonElement? Default { get; }
     public JsonElement? Recommended => Data.TryGetProperty("recommended", out var value) ? value.Clone() : null;
-    public IReadOnlyList<JsonElement> Choices => Array.AsReadOnly(
-        Data.TryGetProperty("choices", out var value) ? value.EnumerateArray().Select(item => item.Clone()).ToArray() : []);
+    public IReadOnlyList<JsonElement> Choices { get; }
     public JsonElement Constraints => Data.Clone();
     public override string ToString() => $"{nameof(SetupFieldDefinition)}:{Id}:{Type}:{Sensitivity}";
     internal string? Text(string name) => Data.TryGetProperty(name, out var value) ? value.GetString() : null;
