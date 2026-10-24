@@ -3,6 +3,8 @@ namespace Configurator.Browser.Tests;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bunit;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserEventManifestWorkflowTests
 {
@@ -19,17 +21,17 @@ public sealed class BrowserEventManifestWorkflowTests
         module.Setup<bool>("copy", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "operation", "configuration-manifest");
-        component.Find("[data-field='configuration-manifest.metadata.name'] input").Input("qa-config");
-        component.Find("[data-field='configuration-manifest.spec.instance.settings'] > fieldset > button").Click();
+        await component.Find("[data-field='configuration-manifest.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "qa-config" });
+        await component.Find("[data-field='configuration-manifest.spec.instance.settings'] > fieldset > button").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").GetAttribute("type")).IsEqualTo("password");
-        component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").Input("true");
+        await component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").InputAsync(new ChangeEventArgs { Value = "true" });
         var tenants = new JsonArray();
-        if (count == 0) component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='supply-list']").Click();
+        if (count == 0) await component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='supply-list']").ClickAsync(new MouseEventArgs());
         for (int index = 0; index < count; index++)
         {
-            component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='add-item']").Click();
-            component.Find($"[data-field='configuration-manifest.tenants.{index}.metadata.name'] input").Input("tenant-" + index);
-            component.Find($"[data-field='configuration-manifest.tenants.{index}.spec.displayName'] input").Input("Tenant " + index);
+            await component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
+            await component.Find($"[data-field='configuration-manifest.tenants.{index}.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "tenant-" + index });
+            await component.Find($"[data-field='configuration-manifest.tenants.{index}.spec.displayName'] input").InputAsync(new ChangeEventArgs { Value = "Tenant " + index });
             tenants.Add(new JsonObject
             {
                 ["metadata"] = new JsonObject { ["name"] = "tenant-" + index },
@@ -42,10 +44,10 @@ public sealed class BrowserEventManifestWorkflowTests
                 }
             });
         }
-        component.Find("#prepare-complete").Click();
+        await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         await Assert.That(component.Find(".configuration-editor__artifact h3").TextContent).IsEqualTo("configuration-manifest.json");
-        component.Find(".configuration-editor__artifact button").Click();
+        await component.Find(".configuration-editor__artifact button").ClickAsync(new MouseEventArgs());
         byte[] bytes = (byte[])module.Invocations.Single(call => call.Identifier == "open").Arguments[2]!;
         using JsonDocument actual = JsonDocument.Parse(bytes);
         JsonNode expected = JsonNode.Parse("""
