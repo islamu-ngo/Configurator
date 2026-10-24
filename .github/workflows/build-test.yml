@@ -92,6 +92,10 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+      - name: Install pinned WebAssembly build tools
+        run: |
+          python3 --version
+          dotnet workload install wasm-tools
       - name: Validate external Action pins
         run: dotnet run .ci/scripts/validate-action-pins.cs -- .github/workflows
       - name: Restore and build explicit destination owners

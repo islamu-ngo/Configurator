@@ -41,7 +41,14 @@ independent. See the [runtime decision](../adr/ADR-cli-command-runtime.md).
 Public authoring custody, discovery/repair, portable skill lifecycle, actual-host
 qualification and installed adoption remain open, not enterprise certification.
 
-`global.json` pins SDK 10.0.302 and Microsoft.Testing.Platform.
+`global.json` pins SDK 10.0.302, the tested WebAssembly workload set and
+Microsoft.Testing.Platform. Browser Release publication uses AOT compilation;
+Debug remains interpreted. CI and the Browser container build install the pinned
+`wasm-tools` workload explicitly, with Python available on Linux builders.
+The Browser project owns the Release setting; no new package reference or
+alternative dependency graph is introduced. The release owner still emits
+component notices and public package metadata. The larger download/cache cost
+and actual runtime evidence belong in Operations.
 `Directory.Build.props` supplies deterministic builds, generated dependency
 locks, strict warnings, .NET analyzers and MIT metadata. There are no inherited
 warning suppressions. `Directory.Packages.props` carries only the product and

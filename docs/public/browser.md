@@ -51,6 +51,10 @@ editing depends on the connection, its latency and server availability.
 Interactive Auto may use Server initially and WebAssembly on subsequent visits.
 That variability does not fit Configurator's consistent local answer boundary.
 
+Release packages use ahead-of-time (AOT) compilation to reduce local interaction
+cost. This increases the initial download and public offline-cache footprint.
+Development builds remain interpreted.
+
 WebAssembly is therefore a data-custody and offline choice, not a claim that it
 always loads faster or is automatically secure. Trusting a provider to deliver
 software and trusting its infrastructure to receive secrets are different
@@ -316,9 +320,12 @@ those browser behaviors. See the
 
 ## Hosting
 
-Build the standalone static package with the repository SDK:
+Build the standalone static package with the repository-pinned SDK and workload
+set. Install the WebAssembly build tools once; Linux builders also need Python 3
+available on `PATH`:
 
 ```bash
+dotnet workload install wasm-tools
 dotnet msbuild eng/configurator/Configurator.Release.proj -target:PublishConfiguratorBrowser -property:Configuration=Release
 ```
 

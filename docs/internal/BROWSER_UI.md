@@ -5,6 +5,13 @@ provides skip navigation, the header, application navigation, main landmark and 
 Store, Open configuration and Help are route destinations; the configuration
 workspace remains owned by Presentation and the Browser editor.
 
+`Configurator.Browser.csproj` owns Release AOT compilation; `global.json` selects
+the SDK and workload set. CI and the Browser container build explicitly provision
+the WebAssembly tools, including Python on Linux. Debug stays interpreted.
+AOT trades a larger public payload/cache for lower managed interaction cost.
+The [public hosting guide](../public/browser.md#hosting) gives the build command;
+[Operations](OPERATIONS.md) records exact package costs and runtime evidence.
+
 At every viewport width, application navigation expands inline from a named Menu
 button. Escape closes it and restores focus to that button. This disclosure
 does not create a modal or trap focus. Skip navigation focuses the main landmark

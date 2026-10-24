@@ -91,6 +91,16 @@ avoid moving the active question when help opens.
 
 ## Consequences and limits
 
+Compile Browser Release packages ahead of time using the SDK and workload set
+pinned in `global.json`. The current-source runtime probe reduced CPU-bound
+interaction costs where metadata reuse and bounded mounting alone did not meet
+the feedback budget. This changes builder prerequisites (`wasm-tools`, plus
+Python 3 on Linux) and increases the public download/cache footprint; it does
+not move evaluation or answers to a server. Debug remains interpreted. CI and
+container builders provision the workload explicitly. Operations records package
+costs, the full final qualification and retained failed candidates; the targeted
+probe alone is not qualification.
+
 These adapters add component lifecycle and rendering costs. Native compiler
 and semantic tests establish typed/privacy/concurrency behavior; actual
 published-browser measurements establish focus, geometry and latency for the

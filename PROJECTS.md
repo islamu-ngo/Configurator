@@ -127,6 +127,11 @@ containers or network I/O to an algorithmic inner-loop test.
 
 ### Phase Exit - Target Project Build & Test
 
+Browser Release publication uses AOT and requires the `wasm-tools` workload
+selected by `global.json`, plus Python 3 on Linux builders. See the
+[Browser hosting guide](docs/public/browser.md#hosting) for setup. Debug remains
+interpreted; the SDK performs AOT compilation during publication.
+
 ```bash
 dotnet build src/Configurator.Core/Configurator.Core.csproj --configuration Release --verbosity quiet
 dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1

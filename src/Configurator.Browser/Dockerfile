@@ -10,8 +10,13 @@ WORKDIR /source
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Restore the Browser graph before copying source so ordinary edits reuse this layer.
 COPY ["global.json", "Directory.Build.props", "Directory.Packages.props", "NuGet.Config", "Configurator.slnx", "./"]
+RUN dotnet workload install wasm-tools
 COPY ["src/Configurator.Core/Configurator.Core.csproj", "src/Configurator.Core/packages.lock.json", "src/Configurator.Core/"]
 COPY ["src/Configurator.Presentation/Configurator.Presentation.csproj", "src/Configurator.Presentation/packages.lock.json", "src/Configurator.Presentation/"]
 COPY ["src/Configurator.Browser/Configurator.Browser.csproj", "src/Configurator.Browser/packages.lock.json", "src/Configurator.Browser/"]
