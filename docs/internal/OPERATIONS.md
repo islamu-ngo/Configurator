@@ -573,6 +573,121 @@ density return also have retained failing feedback outliers. The audit is
 removed or normalized. This is a failed qualification, not an accepted latency
 result or proof that every failure is environmental.
 
+Observer correction, 2026-10-24: `observer-drain-probe.json` exercised eight
+trusted callbacks that intentionally occupied 80 ms. Teardown without
+`PerformanceObserver.takeRecords()` missed all four tested tasks; draining
+queued records detected all four. The measurement adapter now drains before
+disconnecting, without changing timestamps, predicates, sample counts or
+budgets. Earlier zero-long-task results are therefore not evidence that no
+long task occurred. The raw rows and their feedback/p95 results remain retained;
+final long-task qualification requires the corrected observer.
+
+### Committed AOT editor candidate (2026-10-24)
+
+The final product source is `2392c03968be641cb44bd9f32993c4e359d00e69`.
+Its corrective increments are deterministic duplicate-row event completion
+(`3efa33a`), immutable admitted field metadata (`2334137`), bounded connected
+section mounting (`58c24df`) and Release AOT with pinned builder prerequisites
+(`2392c03`). Core 145/145, Presentation 155/155 and Browser 208/208 passed.
+The Release Browser build, 9 Action pins, 87 dependency-policy entries and
+2/2 AgentWorkflow checks passed. Two ReleaseEngineering cases did not pass:
+repository release-input policy and the unchanged loopback GitHub CLI header
+case (`TaskCanceledException`); neither was suppressed.
+
+Both final governed publications completed with exit 0 from this committed
+source, without an AOT command-line override. The roots are
+`artifacts/browser-ui-ux-redesign/final-store` and `final-plain`.
+`BrowserStorePackageTests` passed 4/4 (617 ms); the standalone Browser package
+checks passed 2/2 (443 ms). Store inventory SHA-256 is
+`710a32028c9dfe0bf90e7d2a65e85aba1ee977e937eafad3b1f5f8ac6f0839ea`;
+plain inventory is
+`453831b6fa840fb1f2192eb6b1a18fb3f0d9fa9282795991d0fe44b873722b51`.
+These package checks do not establish runtime qualification.
+
+Final-package startup was observed at the isolated loopback port 5144 and its
+desktop screenshot inspected. The first 76 complete timing directions
+(minimal 44, Event 32) pass their original gates with the corrected observer.
+Every direction retains separate first use, five warmups and 40 trusted samples.
+Event activation feedback maxima are 25.5/22.7 ms at 1x and 112.0/108.3 ms at 4x.
+Recorded 4x long tasks remain in the raw evidence; the no-long-task gate applies
+to warmed 1x. No warmed 1x long task was recorded in these 76 directions.
+Raw files: `final-aot-minimal-raw.json` and `final-aot-event-raw.json`.
+The scale cohort subsequently completed. The final audit has 128 unique complete
+directions: the original 92 and 36 detail/density/help directions. All 128 pass
+their unchanged budgets, including the original search exception and strict
+feedback limits. Maximum final-content p95 is 82.5 ms at 1x and 231.4 ms at 4x;
+maximum feedback is 29.7 ms and 112 ms respectively. No warmed 1x long task was
+recorded. The 4x long tasks remain recorded and are not discarded. Complete
+content includes zero pending mount batches plus the existing frame boundary,
+not merely a loading indicator. See `final-aot-scale-raw.json` and
+`final-aot-matrix-audit.json`; all failed earlier candidates remain retained.
+
+Actual final-package custody revalidation prepared three complete artifacts,
+kept the synthetic secret masked and returned zero metadata-search matches for
+its value. Denied clipboard permission reported `clipboard-unavailable`;
+deliberate permitted copy and reveal contained the expected synthetic content.
+A completed 72-byte download was inspected, then removed. Revocation removed
+secret controls and prepared/revealed output; reconsent started empty.
+Before entry, page observers covered Storage writes, Worker, MessagePort,
+ServiceWorker, IndexedDB writes, fetch and XHR. A passive CDP request listener
+observed only the public `browser-artifacts.js` GET. No sentinel appeared in the
+83 cached public responses, one appearance-storage entry, zero IndexedDB
+databases or observed message/request sinks. This is bounded observation of
+those sinks, not universal coverage of browser APIs. Clipboard was cleared and
+isolated permissions reset. See `final-aot-custody.json`.
+
+The final desktop-light help dialog preserved scroll 408 and the input's exact
+790x44 rectangle; Escape returned to its named invoker. At 390 px, dark,
+forced-colors, RTL and asserted coarse-pointer mode, the help trigger was 44x44,
+the dialog 326x780 with reachable Close, and no horizontal overflow. Search
+preserved header height 196.1875, scroll 1130 and field top 400.484375.
+At 320 px light/LTR, search preserved header height 196.1875, scroll 1281 and
+field top 399.78125, returning focus to the input. Both phone screenshots and the
+desktop screenshot were inspected. See `final-aot-surface.json`.
+An isolated native X11 Chrome window also loaded this final inventory and used
+actual browser 400% zoom, not emulated page scale: viewport 359x214, DPR 4,
+visualViewport scale 1. The edited input remained unobscured at top 85.04296875;
+the short-viewport header scrolled away. Keyboard search preserved scroll 1498.25
+and the exact input rectangle, kept its query inside the viewport and returned
+focus on Escape. Native zoom was reset afterward. The screenshot was inspected;
+`final-aot-native-zoom.json` records the geometry. This does not establish
+physical magnification hardware, screen-reader speech or independent text-only
+zoom qualification.
+
+With the final worker controlling the page and `configuration-rendering.js`
+present in public cache, CDP network-offline emulation followed by a reload
+still rendered the pinned minimal workspace and prepared three draft artifacts.
+Network emulation was restored afterward. `navigator.onLine` remained true, so
+this is the recorded CDP-disabled-network scenario, not an OS connectivity claim.
+See `final-aot-offline.json`.
+
+Timing used Chrome 151.0.7922.34 at 1440x900 on the recorded Ryzen 7 7800X3D
+reference host, sequential workspaces at 1x/4x CPU rates, with no concurrent
+native build. Public minimal/Event digests and the synthetic scale fixture's
+SHA-256 are retained in `final-aot-environment.json`. The final plain package's
+62 framework Brotli siblings total 7,999,831 bytes; this is not measured initial
+network transfer. Published directories occupy 60,047,933 bytes plain and
+60,712,305 bytes with Store, including uncompressed/sibling files and metadata.
+The earlier matched interpreted/AOT payload comparison remains recorded above;
+these governed final totals are not substituted for that matched experiment.
+
+The attempted forward correction to the existing definitions fragment's
+browser group was rejected by the native commit hook with
+`staged_fragment_mutation`. That edit was restored and unstaged. Group validation
+examines all fragments, so supersession cannot correct that group. Its
+mixed-scope failure remains owned workstream release metadata debt alongside
+the eight historical detail markers and unrelated guided-experiences group.
+No hooks were bypassed and no history was rewritten.
+
+Docker publication was not exercised: neither the configured Desktop socket nor
+`/var/run/docker.sock` exists. Native governed publication is the executed route;
+remote CI, physical devices and assistive speech remain unqualified.
+
+### Retained earlier interpreted-package evidence
+
+The following observations belong to their recorded earlier inventories, not
+to the committed AOT candidate above.
+
 Actual final synthetic custody checks prepared three complete artifacts,
 kept the credential masked, found zero metadata-search matches for its value,
 reported denied copy, then exercised deliberate permitted copy, reveal and a

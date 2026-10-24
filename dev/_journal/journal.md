@@ -228,3 +228,35 @@ bespoke target tooling.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; the production state and launch contracts already own the invariant.
+
+[2026-10-24 Europe/Brussels] — Drain queued long-task records before observer teardown
+
+**Context**: Browser editor qualification measured trusted input through rendered
+completion, including warmed main-thread long tasks.
+
+**Symptom / Observation**: A controlled 80 ms trusted callback was absent from
+all four observations using the original teardown. Draining pending records
+detected the long task in all four matching observations.
+
+**Root Cause**: The completion callback disconnected `PerformanceObserver`
+before its queued long-task records were delivered. A zero result described
+an undrained observer, not necessarily an uninterrupted interaction.
+
+**Resolution**: Collect `takeRecords()` before `disconnect()`, retaining delivered
+entries and filtering against the interaction boundary. Preserve the original
+samples, invalidate their zero-long-task interpretation and requalify the final
+package with the corrected observer. The controlled probe and exact old/new
+adapters are retained in task-owned evidence; this is a measurement correction,
+not a product telemetry feature.
+
+**Why This Matters for Future Work**: Validate a performance observer with a
+known positive control before treating absence of entries as acceptance.
+Rendered completion and observer delivery are separate events.
+
+**References**:
+- `docs/internal/OPERATIONS.md`
+- `.omo/evidence/browser-ui-ux-redesign/observer-drain-probe.json`
+- `.omo/evidence/browser-ui-ux-redesign/observer-teardown-correction.json`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; browser qualification owns the measurement protocol.
