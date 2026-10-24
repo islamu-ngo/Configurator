@@ -1,0 +1,9 @@
+.configuration-section-fields__slot { min-inline-size: 0; }
+.configuration-section-fields__placeholder {
+    min-block-size: calc(var(--isl-field-control-height) + var(--isl-target-min));
+    margin-block-end: var(--isl-field-gap);
+    padding-block: var(--isl-label-gap);
+    color: var(--isl-color-text-secondary);
+    border-block-end: var(--isl-card-border);
+}
+.configuration-section-fields__status { color: var(--isl-color-text-secondary); }

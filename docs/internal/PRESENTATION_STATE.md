@@ -32,6 +32,11 @@ index. Browser field mounting uses it rather than repeatedly scanning roots and
 decoding definition IDs from JSON. Cached display metadata and frozen binding
 references are shared by internal discovery entries; the public entry constructor
 still snapshots caller-owned collections.
+`GetListItemMetadata` exposes the index's admitted item shape without serializing
+row answers. Renderers retain responsibility for the enclosing list's inherited
+sensitivity, row title and required state; the normalized item shape is not a
+new sensitivity authority. Row presence and invalid-path checks still use the
+same form, and the accessor does not edit answers or advance their revision.
 `DefinitionFormFacts` owns the single current input revision's validation, active
 roots, diagnostics, correction/required paths, origins, progress and discovery
 entries. It retains no second answer tree. Read-only origin, metadata and identity

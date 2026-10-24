@@ -1,6 +1,7 @@
 # ADR: Browser workspace presentation and contextual help
 
 Date: 2026-10-23
+Updated: 2026-10-24
 Status: Accepted design; runtime qualification and limits belong in
 [Operations](../OPERATIONS.md#browser-custody-and-offline-verification).
 Owners: Presentation and Browser.
@@ -38,6 +39,21 @@ second answer buffer or duplicate blur edit.
 `AppSelectField` applies fresh parameters and callbacks on every update even
 when unchanged parameter-driven visual output can be skipped. Internal popup
 events keep their renders; the adapter retains no second answer snapshot.
+
+Keep current-section mounting separate from answer ownership.
+`ConfigurationSectionFields` retains mounted controls and introduces only
+metadata root-ID sets, a pending count and a mount generation. New roots arrive
+through bounded frame-separated batches; a correction target can mount directly.
+Form replacement, view supersession and disposal fence every awaited continuation.
+Secret denial and output retirement remain synchronous. A local control-only
+channel task separates rendering work without a worker or answer-bearing message.
+DOM completion remains distinct from complete-definition validation/readiness.
+Pass the editor's current section field states into the mounting component,
+instead of rebuilding a second whole-definition lookup there.
+Reuse the form index's admitted item metadata for list rows, with explicit row
+title/required overrides and inherited masking, instead of serializing another
+item schema during every render. Unchanged field output can be skipped without
+skipping parameter delivery or fresh callbacks after an input revision.
 
 Put metadata-only search in the wrapping application bar. `WorkspaceSearchState`
 registers the current editor using an owner and generation; it holds delegates

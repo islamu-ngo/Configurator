@@ -129,15 +129,9 @@
                         {
                             <p id="@(SectionId(section.Id) + "-description")" class="configuration-editor__section-description">@section.Description</p>
                         }
-                        @foreach (string fieldId in section.Fields.Where(fieldId => fieldStates[fieldId].IsActive))
-                        {
-                            var state = fieldStates[fieldId];
-                            var editor = _form.GetFieldEditor(fieldId);
-                            <ConfigurationField @key="editor.Input" Form="_form" Schema="editor.Schema" Path="@(new[] { fieldId })"
-                                                Validation="_validation" RequiredOverride="state.IsRequired"
-                                                FocusFirstControl="@(_focusField == fieldId)" FocusGeneration="_focusGeneration"
-                                                FocusPath="@(_focusField == fieldId ? _focusPath : Array.Empty<string>())" />
-                        }
+                        <ConfigurationSectionFields @key="_form" Form="_form" Fields="@(section.Fields.Select(fieldId => fieldStates[fieldId]).ToArray())"
+                                                    MountCancellation="_mountCancellation.Token" Validation="_validation"
+                                                    FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath" />
                     </section>
                 }
                 @if (SelectedExperience.Navigation == "guided" && sections.Length > 1)

@@ -602,6 +602,21 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             return (Fields[position], _index.Roots[fieldId].Metadata);
         }
     }
+    /// <summary>
+    /// Returns admitted list-item metadata without serializing row answers.
+    /// Row titles, required state and inherited sensitivity remain the renderer's responsibility.
+    /// </summary>
+    public JsonElement GetListItemMetadata(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) || node.Item is null)
+                throw new ArgumentException("field-invalid", nameof(path));
+            return node.Item.Metadata;
+        }
+    }
     public long InputRevision => _inputRevision;
     public bool HasAnswerBudgetError => Fields.Any(input => input.HasAnswerBudgetError);
     public event EventHandler? InputChanged;

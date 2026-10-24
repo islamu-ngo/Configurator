@@ -9,6 +9,26 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionCollectionEditingTests
 {
     [Test]
+    public async Task ListItemMetadataContainsDeclaredShapeButNeverRowAnswers()
+    {
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        long revision = form.InputRevision;
+        JsonElement metadata = form.GetListItemMetadata(["rows"]);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(metadata.GetProperty("type").GetString()).IsEqualTo("object");
+        await Assert.That(metadata.GetProperty("properties")[2].GetProperty("id").GetString()).IsEqualTo("password");
+        await Assert.That(metadata.GetProperty("properties")[2].GetProperty("sensitivity").GetString()).IsEqualTo("secret");
+
+        form.AddListItem(["rows"]);
+        form.EditValue(["rows", "0", "password"], "synthetic-item-answer");
+        await Assert.That(form.Snapshot().Values["rows"][0].GetProperty("password").GetString()).IsEqualTo("synthetic-item-answer");
+        await Assert.That(form.GetListItemMetadata(["rows"]).GetRawText()).DoesNotContain("synthetic-item-answer");
+        form.RemoveListItem(["rows"], 0);
+        await Assert.That(JsonElement.DeepEquals(metadata, form.GetListItemMetadata(["rows"]))).IsTrue();
+        await Assert.That(() => form.GetListItemMetadata(["rows", "0"])).Throws<ArgumentException>();
+    }
+
+    [Test]
     public async Task InvalidRootDeniesDescendantReadsInsteadOfReusingLastValidRows()
     {
         using var form = new DefinitionFormModel(Definition());

@@ -61,8 +61,9 @@
                 @for (int index = 0; index < Count; index++)
                 {
                     int row = index;
-                    <div class="configuration-field__row" @key="_rowKeys[row]">
+                    <div class="configuration-field__row" @key="Form.GetEditorIdentity(Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray())">
                         <ConfigurationField Form="Form" Schema="ItemSchema" Path="@Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray()" Validation="Validation" ValidationChanged="ValidationChanged"
+                                            TitleOverride="@(Title + " item")" RequiredOverride="true"
                                             InheritedSecret="isSecret" InheritedSensitive="isMasked" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && (FocusPath.Count > Path.Count ? FocusPath[Path.Count] == row.ToString(CultureInfo.InvariantCulture) : row == (FocusRow >= 0 ? FocusRow : 0)))" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
                         <button type="button" class="button button--secondary" aria-label="@($"Remove {Title} item {row + 1}")" @onclick="() => Remove(row)">Remove item @(row + 1)</button>
                     </div>

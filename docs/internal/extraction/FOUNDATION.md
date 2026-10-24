@@ -108,6 +108,13 @@ callbacks by mounted-control generation, and separates session density from
 stored appearance. Owner-qualified application-bar search and contextual public
 metadata inspectors hold no answer snapshots. Their actual runtime limits are
 recorded in Operations; component tests alone do not qualify the surface.
+Large Browser sections retain connected controls and progressively mount newly
+editable roots through `ConfigurationSectionFields`. Form identity, operation
+generation and cancellation fence every continuation. Busy state remains until
+all current roots mount; correction may prioritize its destination. This is a
+Browser rendering mechanism, not another evaluator or answer store. List rows
+reuse admitted item metadata while preserving enclosing masking and required
+state; new input revisions still refresh every mounted callback fence.
 Admitted `SetupFieldDefinition` instances materialize immutable public field
 identity, display/required/disclosure/sensitivity metadata, defaults, choices,
 condition locations and ordered dependencies once. `DefinitionValidator` still

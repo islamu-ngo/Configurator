@@ -129,7 +129,12 @@ that fact instead of a percentage; invalid optional input still needs correction
 
 Section buttons show required answers ready and work needing attention.
 Only the selected section mounts its editors. Switching sections keeps
-your answers, unfinished input and repeated-row identity. Use local **Show optional
+your answers, unfinished input and repeated-row identity. Large sections load
+their controls in small batches, with a loading message while settings remain
+to be mounted. Visible controls stay available, and search or correction can
+bring its requested setting into view before unrelated controls finish loading.
+Loading progress does not determine answer readiness or enable secret entry.
+Use local **Show optional
 settings** controls inside a structured field, or choose **Detail in this profile**:
 Follow experience, Essential, Standard or All active. **Density** selects
 Comfortable or Compact spacing for this workspace only. Neither selector changes

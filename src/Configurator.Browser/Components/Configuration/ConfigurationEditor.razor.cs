@@ -38,6 +38,7 @@ public partial class ConfigurationEditor
     private bool _returnToReview;
     private ElementReference _consentControl;
     private long _generation;
+    private CancellationTokenSource _mountCancellation = new();
     private Task _outputRetirement = Task.CompletedTask;
     private long _fileKey;
     private CancellationTokenSource? _readCancellation;
@@ -63,6 +64,7 @@ public partial class ConfigurationEditor
     protected override void OnParametersSet()
     {
         if (ReferenceEquals(_pinned, Definition)) return;
+        InvalidateMounts();
         Invalidate();
         _search?.Release(this, _searchLease);
         _form?.Dispose();
@@ -138,6 +140,8 @@ public partial class ConfigurationEditor
 
     private void SelectWorkflowStage(string stage)
     {
+        InvalidateMounts();
+        _focusField = null;
         _activeWorkflowStage = stage;
         _focusWorkflowStage = stage;
         if (stage == "review") _validation = _form!.Validate();
@@ -151,6 +155,7 @@ public partial class ConfigurationEditor
         bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
+        InvalidateMounts();
         _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
         _focusField = denied ? null : field.Id;
         _focusPath = denied ? [] : path;
@@ -199,6 +204,8 @@ public partial class ConfigurationEditor
 
     private void InputChanged(object? sender, EventArgs args)
     {
+        InvalidateMounts();
+        _focusField = null;
         Invalidate();
         int required = _form!.Projection.Progress.Required;
         _status = required == _requiredCount ? "Answers changed. Previous output has been discarded."
@@ -217,7 +224,15 @@ public partial class ConfigurationEditor
             _observedDiscoverySelection = _form.DiscoverySelection;
             return;
         }
+        InvalidateMounts();
+        _focusField = null;
         StateHasChanged();
+    }
+    private void InvalidateMounts()
+    {
+        _mountCancellation.Cancel();
+        _mountCancellation.Dispose();
+        _mountCancellation = new CancellationTokenSource();
     }
     private void ChangeDetail(ChangeEventArgs args)
     {
@@ -515,6 +530,7 @@ public partial class ConfigurationEditor
     }
     public async Task DiscardAsync()
     {
+        InvalidateMounts();
         DefinitionFormModel form = _form!;
         long lease = _offlineLease;
         _ready = false;
@@ -538,7 +554,10 @@ public partial class ConfigurationEditor
     }
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
         _disposed = true;
+        _mountCancellation.Cancel();
+        _mountCancellation.Dispose();
         _search?.Release(this, _searchLease);
         _navigation?.Release(this);
         _ready = false;

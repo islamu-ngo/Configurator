@@ -7,7 +7,7 @@ const publicAssets = new Set([
     'css/mudblazor-overrides.css', 'css/components.css', 'css/utilities.css',
     'Configurator.Browser.styles.css', 'manifest.webmanifest',
     'pwa-lifecycle.js', 'browser-definition-source.js', 'browser-artifacts.js',
-    'browser-appearance.js', 'browser-store.js', 'workspace-interactions.js',
+    'browser-appearance.js', 'browser-store.js', 'workspace-interactions.js', 'configuration-rendering.js',
     '_content/MudBlazor/MudBlazor.min.css', '_content/MudBlazor/MudBlazor.min.js',
     'icons/configurator-192.svg', 'icons/configurator-512.svg'
 ]);

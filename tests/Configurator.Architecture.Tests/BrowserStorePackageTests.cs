@@ -22,7 +22,7 @@ public sealed class BrowserStorePackageTests
         string[] styles = Directory.GetFiles(Path.Combine(directory, "css"), "*.css", SearchOption.AllDirectories);
         await Assert.That(styles.Length).IsGreaterThan(0);
         foreach (string relative in styles.Select(path => Path.GetRelativePath(directory, path)).Concat(
-            ["_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js", "browser-appearance.js", "browser-store.js"]))
+            ["_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js", "browser-appearance.js", "browser-store.js", "configuration-rendering.js"]))
         {
             await Assert.That(inventory.ContainsKey(relative)).IsTrue().Because(relative);
             string hash = "sha256-" + Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(

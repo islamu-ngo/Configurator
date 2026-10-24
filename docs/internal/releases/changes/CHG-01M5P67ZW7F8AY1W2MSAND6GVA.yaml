@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5P67ZW7F8AY1W2MSAND6GVA
+Title: "mount large configuration sections in bounded batches"
+Type: perf
+Scope: browser
+Summary: "Large sections introduce controls in bounded batches while retaining visible editors, drafts and current callbacks. List rows reuse admitted metadata rather than rebuilding a schema during each render."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Form identity, cancellation and mount generations reject obsolete continuations. Input revisions refresh callbacks, while secret denial and output retirement remain synchronous."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Current section states and admitted item metadata come from the existing shared form. The public frame module carries only a local null control message."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Visible controls remain usable while settings load. Loading completion is distinct from answer readiness and never enables secret entry."

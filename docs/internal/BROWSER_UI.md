@@ -80,6 +80,19 @@ answers, unfinished drafts, provenance and logical row identities in the shared
 form, not in retained DOM controls. Active hidden fields still participate in
 shared validation.
 
+`ConfigurationSectionFields` mounts newly editable roots in bounded batches,
+retaining controls already present. The editor supplies its current section's
+already-evaluated field states; the child does not rebuild a whole-form lookup
+or evaluate answers independently. Its pending count and `aria-busy` describe
+DOM completion, not answer readiness. Current correction targets mount directly;
+unrelated fields continue through the frame boundary. A dedicated mount generation,
+form identity and editor cancellation token reject obsolete continuations after
+input, view changes, replacement or disposal. View-only supersession does not
+consume another synchronous batch. Secret denial and prepared-output retirement
+remain synchronous. `configuration-rendering.js` posts a local null-message task
+from an animation callback; neither answers nor artifacts enter that handoff.
+The module is a required public offline asset.
+
 `Layout/WorkspaceSearch` exposes an outlined MudBlazor query in the appbar and
 mounts `ConfigurationDiscovery` filters/results only after deliberate opening.
 `WorkspaceSearchState` holds owner-qualified delegates and a render fragment,
@@ -117,6 +130,12 @@ Masked scalar controls inherit sensitive or secret ancestors; secret consent
 still uses the form's edit permission, allowing public siblings to remain
 editable. Authored titles are preserved. Mechanical identifier formatting is
 used only when title equals key, with the exact key available separately.
+List rows obtain their immutable item metadata from the shared admitted index,
+not a new JSON serialization on each render. The renderer supplies the row title,
+required state and inherited masking separately. Unchanged parameter updates may
+skip a field tree only while the form, input revision, projection and all
+rendering/focus parameters remain current. Parameter delivery still runs; a new
+input revision always refreshes the revision-fenced callbacks.
 
 The independent detail selector delegates to the shared disclosure override.
 Comfortable/Compact changes session-local CSS tokens only. Named field-action

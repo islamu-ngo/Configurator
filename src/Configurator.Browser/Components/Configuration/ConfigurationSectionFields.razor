@@ -1,0 +1,29 @@
+@implements IAsyncDisposable
+
+<div class="configuration-section-fields" data-configuration-mount
+     data-mount-state="@(Busy ? "pending" : "complete")" data-pending-fields="@PendingCount"
+     aria-busy="@Busy.ToString().ToLowerInvariant()">
+    @foreach (var state in _activeFields)
+    {
+        var editor = Form.GetFieldEditor(state.Id);
+        <div @key="editor.Input" class="configuration-section-fields__slot">
+            @if (!_mountable.Contains(state.Id) || _mounted.Contains(state.Id))
+            {
+                <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
+                                    Validation="Validation" RequiredOverride="state.IsRequired"
+                                    FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
+                                    FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
+            }
+            else
+            {
+                <div class="configuration-section-fields__placeholder" aria-hidden="true">
+                    @ConfigurationDiagnosticText.Title(state.Definition)
+                </div>
+            }
+        </div>
+    }
+</div>
+@if (Busy)
+{
+    <p class="configuration-section-fields__status" role="status">Loading this section's settings. Existing controls remain available.</p>
+}

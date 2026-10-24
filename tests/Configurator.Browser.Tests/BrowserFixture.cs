@@ -55,6 +55,8 @@ internal static class BrowserFixture
         var interactions = context.JSInterop.SetupModule("./workspace-interactions.js");
         interactions.SetupVoid("watch", _ => true).SetVoidResult();
         interactions.SetupVoid("unwatch", _ => true).SetVoidResult();
+        var rendering = context.JSInterop.SetupModule("./configuration-rendering.js");
+        rendering.SetupVoid("nextFrame", _ => true).SetVoidResult();
         return context;
     }
 

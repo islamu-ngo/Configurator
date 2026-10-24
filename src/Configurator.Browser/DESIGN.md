@@ -113,6 +113,11 @@ nested answers and remains distinct from collapsing optional detail.
   and error. Local optional disclosure uses a labeled button with
   `aria-expanded`; required/error ancestors stay reachable. Only the selected
   section mounts editors; the shared form owns drafts and row identity.
+  Large sections mount additional root fields in bounded batches while retaining
+  connected controls. A busy region means editors are still mounting, not that
+  answers are complete. Correction can prioritize its current field. Edits,
+  view changes, replacement and disposal invalidate older continuations; no
+  pending batch may resurrect a retired editor.
 - **Guidance:** inert short help plus deliberate details for instructions and
   admitted public HTTPS links. A named, keyboard/touch-accessible help button
   opens the metadata-only inspector in the existing MudBlazor dialog provider;
