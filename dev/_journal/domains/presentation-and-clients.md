@@ -1,6 +1,6 @@
 # Presentation & Clients Findings
 
-Last Updated: 2026-10-15 Europe/Brussels
+Last Updated: 2026-10-23 Europe/Brussels
 
 Use [journal guidance](../README.md), [the finding template](../FINDING_TEMPLATE.md)
 and [promotion rules](../PROMOTION_RULES.md) for recording and promotion.
@@ -223,3 +223,111 @@ final requested frame rather than timing only event-handler return.
 
 **Promotion Consideration**: The ADR owns the lifetime decision. Retain this as
 the measured debugging lesson; it does not establish device-wide performance.
+
+[2026-10-23 Europe/Brussels] — Sticky search still needs scroll-preserving focus
+
+**Context**: Published-browser qualification of the editor redesign tested
+application-bar search while the operator was deep in a configuration section.
+Search must not move the edited question or navigate the document.
+
+**Symptom / Observation**: Making the wrapping application bar sticky kept
+search visible, but focusing its Mud input still changed document scroll from
+500 to 422 CSS pixels. The edited input moved from top 335.640625 to 413.640625.
+The search opened and received focus, so checking only those states missed the
+geometry failure.
+
+**Root Cause**: A sticky element can remain visible while the focus API still
+permits native scrolling. Layout placement and focus-scroll policy are separate
+mechanisms; successful input focus does not prove that its surrounding document
+stayed put.
+
+**Resolution**: `WorkspaceSearch.OnAfterRenderAsync` delegates its current-owner
+focus request to `workspace-interactions.js` `focusEntry`, which selects the
+visible input or phone trigger and calls `focus({ preventScroll: true })`.
+The published field candidate at commit `2a5c840` retained scroll 500 and
+input top 335.640625 after trusted Ctrl-K. The Browser Release build exited 0,
+and its existing search behavior tests remained passing.
+
+**Why This Matters for Future Work**: Test the active question's exact rectangle
+and document scroll before and after search/help transitions. Focus ownership,
+visibility and geometry each need their own observation; neither a sticky
+header nor aggregate layout-shift measurements substitute for that proof.
+
+**References**:
+
+- `src/Configurator.Browser/Layout/WorkspaceSearch.razor:133`
+- `src/Configurator.Browser/wwwroot/workspace-interactions.js:3`
+- `src/Configurator.Browser/Layout/NavMenu.razor.css:1`
+- `src/Configurator.Browser/DESIGN.md`
+- `docs/internal/adr/ADR-browser-workspace-presentation.md`
+
+**Promotion Consideration**: The workspace ADR and design contract own the
+interaction requirement. Keep this entry as the reproducible debugging lesson,
+not a claim about untested browsers or devices.
+
+[2026-10-23 Europe/Brussels] — Native zoom can turn a wrapping sticky header into an obstruction
+
+**Context**: Final editor qualification used native 400% Chromium zoom in an
+owned X11 display, not CSS zoom or a narrow emulated screenshot.
+
+**Symptom / Observation**: The wrapping header occupied 196.199 CSS pixels of
+a 214 px-high viewport. A centered 44 px input was covered by the sticky header,
+despite no horizontal overflow. Element-at-point confirmed the obstruction.
+
+**Root Cause**: Sticky header height grows as controls wrap while browser zoom
+also reduces available viewport height. Width-only reflow does not guarantee
+that the remaining editor is reachable.
+
+**Resolution**: At max-height 30 rem the header/navigation scroll with the
+document. Open search fixes only its entry/results within the viewport and
+reserves its header space. The current generation stores a focus-return element,
+not a value. Commit `6d964af` retained scroll 1498.25 through open/close at native
+400%, returned focus to the uncovered input, and preserved desktop sticky
+behavior and exact scroll 500/field top 335.640625.
+
+**Why This Matters for Future Work**: Check actual browser zoom, obstruction
+at the focused input, search reachability and focus return as separate
+properties. An emulated narrow viewport alone misses native zoom behavior.
+
+**References**: `src/Configurator.Browser/Layout/NavMenu.razor.css`,
+`src/Configurator.Browser/Layout/WorkspaceSearch.razor.css`,
+`src/Configurator.Browser/wwwroot/workspace-interactions.js`,
+`docs/internal/OPERATIONS.md`.
+
+**Promotion Consideration**: The workspace ADR and Browser design contract now
+own short-height behavior. This finding does not qualify other physical hosts.
+
+[2026-10-23 Europe/Brussels] — Package closure missed stale AOT runtime inputs
+
+**Context**: Browser editor qualification compared an isolated AOT publication
+with the normal interpreted package without changing project defaults.
+
+**Symptom / Observation**: Later interpreted publication and all six package
+checks passed, but actual startup stayed on the loading screen. Runtime console
+reported `MONO interpreter: NIY encountered` in `LocalizationOptions` followed by
+an interpreter assertion. Ordinary native Clean and republication produced the
+same inventory and left AOT intermediates present.
+
+**Root Cause**: The two compiler modes reused generated output directories.
+Changing only the SDK intermediate/output root changed the localization
+payload and restored actual Event controls. This supports stale AOT output as
+the cause; the SDK's internal reuse mechanism was not traced.
+
+**Resolution**: Perform a separate locked restore and publication with matching
+`UseArtifactsOutput=true` and a task-owned `ArtifactsPath`. The first fresh
+publication failed because SDK imports were unavailable during initial
+evaluation; a separate restore before publishing resolved it. Store inventory
+`90ffb31c48c7c28e84d15b8451801550bf6a8c53d3e4dc3f3887aadda5605b3a`
+rendered actual Event controls, and both package suites passed 4/4 and 2/2.
+Exact native commands and runtime limits belong in Operations.
+
+**Why This Matters for Future Work**: Isolate generated outputs before comparing
+compiler modes. Static package completeness cannot establish runtime startup,
+and successful native Clean does not prove that all mode-specific intermediates
+were removed.
+
+**References**: `docs/internal/OPERATIONS.md`,
+`eng/configurator/Configurator.Release.proj:90`, source commit `9a6c357`.
+
+**Promotion Consideration**: Stays in this domain journal as an observed browser
+qualification lesson, not a new project-wide compiler-mode policy.

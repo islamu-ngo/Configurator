@@ -102,6 +102,12 @@ experience selection; null follows the authored level. Visibility and expansion
 use that same effective level. Authored experience/section descriptions remain
 public projection metadata. Correction may explicitly preserve the one current
 discovery query/facets without advancing input revision or granting consent.
+The [workspace presentation decision](../adr/ADR-browser-workspace-presentation.md)
+keeps thin text/choice controls over that shared state, fences retired rendered
+callbacks by mounted-control generation, and separates session density from
+stored appearance. Owner-qualified application-bar search and contextual public
+metadata inspectors hold no answer snapshots. Their actual runtime limits are
+recorded in Operations; component tests alone do not qualify the surface.
 The shared form owns a metadata-only definition index and one current input
 revision's private derived facts. Disclosure/search reuse those facts; selected
 experience order remains a separate dependency of ranked discovery. Read-only
