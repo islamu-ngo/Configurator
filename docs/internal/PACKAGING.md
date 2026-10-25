@@ -1,5 +1,11 @@
 # Configurator packaging ownership
 
+`global.json` selects both the SDK and workload-set versions. Before the first
+restore on a clean SDK installation, `dotnet workload update` initializes the
+pinned manifests, including on native-only and public-data CI jobs. The command
+runs from the repository root so the pin remains authoritative. Browser builders
+add `wasm-tools`; native-only jobs do not install that workload.
+
 `eng/configurator/Configurator.Release.proj` owns native surface/RID admission,
 standalone publication and independent static browser publication. Its default
 `Build` target restores locked development dependencies and builds the selected

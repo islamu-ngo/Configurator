@@ -169,9 +169,15 @@ Install .NET SDK **10.0.302** and run from the repository root. These examples u
 Bash; each publication line is independent, so run only the surface you need.
 Replace `linux-x64` with an admitted RID from the table above when appropriate.
 
+Initialize the workload manifests selected by `global.json` even for native-only
+builds. Installing the SDK alone does not install that pinned workload set.
+Browser publication additionally needs `wasm-tools`, as described in the
+[browser hosting guide](browser.md#hosting).
+
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"
 mkdir -p "$TMPDIR"
+dotnet workload update
 dotnet build eng/configurator/Configurator.Release.proj --configuration Release --verbosity quiet
 
 # Choose one native surface:

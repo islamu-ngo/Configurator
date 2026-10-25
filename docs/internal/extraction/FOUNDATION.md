@@ -42,7 +42,10 @@ Public authoring custody, discovery/repair, portable skill lifecycle, actual-hos
 qualification and installed adoption remain open, not enterprise certification.
 
 `global.json` pins SDK 10.0.302, the tested WebAssembly workload set and
-Microsoft.Testing.Platform. Browser Release publication uses AOT compilation;
+Microsoft.Testing.Platform. Native-only and public-data CI jobs initialize the
+pinned manifests with `dotnet workload update` before restoring projects; SDK
+installation alone does not supply the selected workload set.
+Browser Release publication uses AOT compilation;
 Debug remains interpreted. CI and the Browser container build install the pinned
 `wasm-tools` workload explicitly, with Python available on Linux builders.
 The Browser project owns the Release setting; no new package reference or
