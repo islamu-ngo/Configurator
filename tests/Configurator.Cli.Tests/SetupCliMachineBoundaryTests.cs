@@ -19,8 +19,6 @@ public sealed class SetupCliMachineBoundaryTests
     [Arguments("cancelled", false, false)]
     public async Task PostInstallationFailureRetainsUnverifiedPrefixThroughCancellationAndReceiptFailure(string failure, bool failDelivery, bool bundle)
     {
-        await Assert.That(OperatingSystem.IsLinux()).IsTrue();
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("linux-publication-check-required");
         string directory = Path.Combine(Path.GetTempPath(), "configurator-installed-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         try
@@ -58,8 +56,9 @@ public sealed class SetupCliMachineBoundaryTests
                 new(fixture, writer, new SetupCliProgram.SystemWriter(error), 65_536, 4 * 1024 * 1024)), work.Token)
                 .WaitAsync(TimeSpan.FromSeconds(10));
 
-            await Assert.That(observedInstallation).IsTrue();
-            await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
+            await Assert.That(observedInstallation).IsEqualTo(OperatingSystem.IsLinux());
+            await Assert.That(exit).IsEqualTo(OperatingSystem.IsLinux() || failDelivery
+                ? SetupCliExitCode.Io : SetupCliExitCode.Blocked);
             await Assert.That(output.Attempts).IsEqualTo(1);
             await Assert.That(File.Exists(Path.Combine(directory, "service.yaml"))).IsFalse();
             byte[] receipt = output.ToArray();
@@ -70,19 +69,27 @@ public sealed class SetupCliMachineBoundaryTests
             await Assert.That(text).DoesNotContain("synthetic-post-install-fault");
             using JsonDocument document = JsonDocument.Parse(receipt);
             JsonElement first = document.RootElement.GetProperty("artifacts")[0];
-            await Assert.That(first.GetProperty("writeStatus").GetString()).IsEqualTo("written");
-            await Assert.That(first.GetProperty("installation").GetString()).IsEqualTo("established");
-            await Assert.That(first.GetProperty("verification").GetString()).IsEqualTo("failed");
+            await Assert.That(first.GetProperty("writeStatus").GetString())
+                .IsEqualTo(OperatingSystem.IsLinux() ? "written" : "blocked");
+            await Assert.That(first.GetProperty("installation").GetString())
+                .IsEqualTo(OperatingSystem.IsLinux() ? "established" : "not-established");
+            await Assert.That(first.GetProperty("verification").GetString())
+                .IsEqualTo(OperatingSystem.IsLinux() ? "failed" : "not-attempted");
             if (bundle)
             {
                 JsonElement second = document.RootElement.GetProperty("artifacts")[1];
-                await Assert.That(second.GetProperty("installation").GetString()).IsEqualTo("not-attempted");
+                await Assert.That(second.GetProperty("installation").GetString())
+                    .IsEqualTo(OperatingSystem.IsLinux() ? "not-attempted" : "not-established");
                 await Assert.That(second.GetProperty("verification").GetString()).IsEqualTo("not-attempted");
             }
             await Assert.That(document.RootElement.GetProperty("cleanup").GetString()).IsEqualTo("completed");
             await Assert.That(Encoding.UTF8.GetString(error.ToArray()))
                 .IsEqualTo(failDelivery ? "configurator: result delivery failed\n" : "");
-            if (failure == "replaced")
+            if (!OperatingSystem.IsLinux())
+            {
+                await Assert.That(File.Exists(target)).IsFalse();
+            }
+            else if (failure == "replaced")
             {
                 SetupCliPublicationResult retry = await writer.WriteArtifactAsync(target, SetupArtifactKind.Configuration,
                     "{}"u8.ToArray(), 65_536, CancellationToken.None);
