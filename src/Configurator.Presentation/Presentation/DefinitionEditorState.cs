@@ -41,7 +41,7 @@ public sealed partial class DefinitionFormModel
             DefinitionFormSection section = Sections.Single(item => item.Fields.Contains(path[0]));
             bool all = _sectionExpansion.TryGetValue(section.Id, out bool sectionExpanded)
                 ? sectionExpanded : OptionalEditorsExpanded;
-            return all || Experiences.Single(item => item.Id == SelectedExperienceId).InitialDisclosure == SetupFieldDisclosure.Advanced;
+            return all || EffectiveDisclosure == SetupFieldDisclosure.Advanced;
         }
     }
 
@@ -162,7 +162,7 @@ public sealed partial class DefinitionFormModel
     }
 
     /// <summary>Opens exact literal ancestors for correction without changing answers or granting consent.</summary>
-    public bool FocusEditor(IReadOnlyList<string> path)
+    public bool FocusEditor(IReadOnlyList<string> path, bool preserveDiscovery = false)
     {
         ArgumentNullException.ThrowIfNull(path);
         using var mutation = BeginMutation();
@@ -172,12 +172,15 @@ public sealed partial class DefinitionFormModel
         DefinitionFormSection? section = Sections.FirstOrDefault(item => item.Fields.Contains(path[0]));
         if (section is not null && !Experiences.Single(item => item.Id == SelectedExperienceId).Sections.Contains(section.Id))
             SelectExperience(Experiences.First(item => item.Sections.Contains(section.Id)).Id);
-        DiscoverySelection = new();
-        _discovery = null;
+        if (!preserveDiscovery)
+        {
+            DiscoverySelection = new();
+            _discovery = null;
+            OnPropertyChanged(nameof(DiscoveryQuery));
+            OnPropertyChanged(nameof(DiscoverySelection));
+        }
         for (int length = 1; length <= path.Count; length++)
             _promotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
-        OnPropertyChanged(nameof(DiscoveryQuery));
-        OnPropertyChanged(nameof(DiscoverySelection));
         OnViewChanged();
         return true;
     }

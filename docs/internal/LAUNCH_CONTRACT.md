@@ -99,6 +99,10 @@ consume the shared obligation projection, not an independent Browser counter.
 Missing containers are not misreported as deferrable secret leaves.
 Guidance renders admitted plaintext and deliberately opened public HTTPS links
 with `noopener noreferrer` and `no-referrer`; it adds no fetch or execution path.
+The contextual inspector receives only that public schema, descriptions and
+value-free definition/output keys. It never receives answer or prepared bytes.
+Revocation, workspace replacement and disposal close the owning inspector and
+invalidate late opens. Global search shortcuts yield to an active dialog.
 The shared form owns typed presence separately from display text. Explicit empty
 strings, admitted empty enum choices and empty containers survive import and
 preparation; omission uses a distinct editing action. Invalid or rejected edit

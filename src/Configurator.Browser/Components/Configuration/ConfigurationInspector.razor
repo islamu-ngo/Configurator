@@ -1,0 +1,72 @@
+@using System.Text.Json
+
+<MudDialog>
+    <DialogContent>
+        <div class="configuration-inspector">
+            @if (!string.IsNullOrWhiteSpace(ContextTitle)) { <p><strong>@ContextTitle</strong></p> }
+            @if (!string.IsNullOrWhiteSpace(Description)) { <p data-experience-description>@Description</p> }
+            @if (!string.IsNullOrWhiteSpace(SectionDescription)) { <p data-section-description>@SectionDescription</p> }
+            @if (Schema.ValueKind == JsonValueKind.Object)
+            {
+            @if (Schema.TryGetProperty("help", out var help)) { <p>@help.GetString()</p> }
+            @if (Schema.TryGetProperty("consequence", out var consequence)) { <p>@consequence.GetString()</p> }
+            @if (Schema.TryGetProperty("guidance", out var guidance))
+            {
+                @if (guidance.TryGetProperty("instructions", out var instructions))
+                {
+                    <p data-help-instructions>@instructions.GetString()</p>
+                }
+                @if (guidance.TryGetProperty("links", out var links) && links.GetArrayLength() > 0)
+                {
+                    <ul>
+                        @foreach (var link in links.EnumerateArray())
+                        {
+                            <li><a href="@(link.GetProperty("url").GetString())" target="_blank"
+                                   rel="noopener noreferrer" referrerpolicy="no-referrer">@link.GetProperty("title").GetString()<span class="sr-only"> (new tab)</span></a></li>
+                        }
+                    </ul>
+                }
+            }
+            <dl>
+                <dt>Definition path</dt><dd><code data-definition-path>@FieldPath</code></dd>
+                <dt>Declared type</dt><dd>@Schema.GetProperty("type").GetString()</dd>
+                @if (Schema.TryGetProperty("sensitivity", out var sensitivity))
+                {
+                    <dt>Declared sensitivity</dt><dd>@sensitivity.GetString()</dd>
+                }
+            </dl>
+            }
+            else
+            {
+                <p>Detail changes which optional settings are shown. Required work and active errors remain reachable. Comfortable and Compact change spacing, not answers or validation.</p>
+            }
+            @if (OutputArtifactIds.Count > 0)
+            {
+                <section aria-label="Declared output bindings">
+                    <h3>Declared output bindings</h3>
+                    <p>Artifact IDs: <code>@string.Join(", ", OutputArtifactIds)</code></p>
+                    <ul>
+                        @foreach (string key in BindingKeys) { <li><code data-output-key>@key</code></li> }
+                    </ul>
+                    <p class="form-help">These are declared references, not a guarantee that a conditional output is included.</p>
+                </section>
+            }
+            <p class="form-help">Help contains public definition and interface guidance, never your answers. Preparation does not grant target acceptance or apply permission.</p>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <AppButton Variant="Variant.Outlined" OnClick="Close" aria-label="Close field help">Close</AppButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+    [Parameter] public JsonElement Schema { get; set; }
+    [Parameter] public string FieldPath { get; set; } = string.Empty;
+    [Parameter] public string? ContextTitle { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? SectionDescription { get; set; }
+    [Parameter] public IReadOnlyList<string> OutputArtifactIds { get; set; } = [];
+    [Parameter] public IReadOnlyList<string> BindingKeys { get; set; } = [];
+    private void Close() => Dialog.Close();
+}

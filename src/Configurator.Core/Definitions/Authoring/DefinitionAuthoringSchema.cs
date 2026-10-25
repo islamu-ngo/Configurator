@@ -66,7 +66,8 @@ public static class DefinitionAuthoringSchema
         schema["title"] = "Configurator maintainer authoring v1";
         schema["description"] = "Closed bounded authoring contract; compiler admission enforces exact numbers, sensitivity, identifiers, references, cycles and output shape.";
         schema["$defs"] = new JsonObject { ["field"] = field, ["runtime"] = runtime };
-        return schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
+        return schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+            .Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
     }
 
     private static JsonObject Strings() => new()

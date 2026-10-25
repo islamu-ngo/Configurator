@@ -129,10 +129,43 @@ public static class CandidateCommand
                 .Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)
                 .ToArray();
-            string[] fragments = ReadLinkedFragments(root, linkedChangeIds);
+            string[] fragments = ReadLinkedFragments(root, candidateOid, linkedChangeIds);
             if (fragments.Length != linkedChangeIds.Length)
             {
                 return Reject(output, "candidate_fragment_missing");
+            }
+
+            string[] correctionPaths = RunGit(root, "ls-tree", "-r", "--name-only", candidateOid, "--", "docs/internal/releases/group-corrections")
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Where(path => linkedChangeIds.Contains(Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal))
+                .Order(StringComparer.Ordinal).ToArray();
+            string[] changedCorrections = RunGit(root, "status", "--porcelain", "--untracked-files=all", "--no-renames", "--",
+                "docs/internal/releases/group-corrections").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (changedCorrections.Any(line => line.Length > 3 &&
+                linkedChangeIds.Contains(Path.GetFileNameWithoutExtension(line[3..]), StringComparer.Ordinal)))
+                return Reject(output, "candidate_group_corrections_not_committed");
+            foreach (string id in linkedChangeIds)
+            {
+                string relative = $"docs/internal/releases/group-corrections/{id}.yaml";
+                string path = ResolveChild(root, relative, mustExist: false);
+                if (File.Exists(path) && !correctionPaths.Contains(relative, StringComparer.Ordinal))
+                    return Reject(output, "candidate_group_corrections_not_committed");
+            }
+            var corrections = new List<KeyValuePair<string, string>>();
+            foreach (string relative in correctionPaths)
+            {
+                string id = Path.GetFileNameWithoutExtension(relative);
+                if (relative != $"docs/internal/releases/group-corrections/{id}.yaml")
+                    return Reject(output, "candidate_group_correction_path_invalid");
+                string path = ResolveChild(root, relative, mustExist: true);
+                if (!IsExactCommittedFile(root, candidateOid, path))
+                    return Reject(output, "candidate_group_correction_committed_mismatch");
+                string tree = RunGit(root, "ls-tree", candidateOid, "--", relative);
+                if (!tree.StartsWith("100644 blob ", StringComparison.Ordinal) && !tree.StartsWith("100755 blob ", StringComparison.Ordinal))
+                    return Reject(output, "candidate_group_correction_path_invalid");
+                ArtifactPolicyResult normalized = ReleaseArtifactPolicy.NormalizeText(RunGit(root, "show", $"{candidateOid}:{relative}"));
+                if (!normalized.IsValid || normalized.Bytes is null) return Reject(output, "candidate_group_correction_invalid");
+                corrections.Add(new(id, StrictUtf8.GetString(normalized.Bytes)));
             }
 
             HashSet<string> rangeCommitOids = commitsThroughB
@@ -146,9 +179,10 @@ public static class CandidateCommand
                     .Where(item => rangeCommitOids.Contains(item.First.CommitOid))
                     .OrderBy(item => item.First.CommitOid, StringComparer.Ordinal)
                     .Select(item => item.Second),
+                .. corrections.Select(item => item.Value),
             ];
             VerifiedBaseline? baseline = TryReadBaseline(root, descriptor);
-            ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(releaseYaml, fragments, []);
+            ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(releaseYaml, fragments, [], corrections);
             ReleaseContextValidationResult context = ReleaseContextPolicy.Build(
                 input,
                 commitsThroughB,
@@ -348,14 +382,21 @@ public static class CandidateCommand
         return new BundleDigests(policy, trust, gitCliff);
     }
 
-    private static string[] ReadLinkedFragments(string root, IReadOnlyList<string> linkedChangeIds)
+    private static string[] ReadLinkedFragments(string root, string candidateOid, IReadOnlyList<string> linkedChangeIds)
     {
         string fragmentDirectory = Path.Join(Path.GetFullPath(root), "docs", "internal", "releases", "changes");
         return Directory.Exists(fragmentDirectory)
             ? Directory.EnumerateFiles(fragmentDirectory, "*.yaml", SearchOption.TopDirectoryOnly)
                 .Where(path => linkedChangeIds.Contains(Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal))
                 .Order(StringComparer.Ordinal)
-                .Select(ReadNormalizedText)
+                .Where(path => IsExactCommittedFile(root, candidateOid, path))
+                .Select(path =>
+                {
+                    string relative = Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/');
+                    ArtifactPolicyResult normalized = ReleaseArtifactPolicy.NormalizeText(RunGit(root, "show", $"{candidateOid}:{relative}"));
+                    return normalized.IsValid && normalized.Bytes is not null
+                        ? StrictUtf8.GetString(normalized.Bytes) : throw new IOException();
+                })
                 .ToArray()
             : [];
     }

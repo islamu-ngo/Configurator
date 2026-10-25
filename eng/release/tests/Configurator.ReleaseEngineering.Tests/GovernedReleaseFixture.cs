@@ -39,7 +39,7 @@ internal sealed class GovernedReleaseFixture : IDisposable
     private readonly string executablePath;
     private readonly List<string> clonePaths = [];
 
-    private GovernedReleaseFixture(string objectFormat, bool firstGovernedRelease = false, string? rendererBundle = null, bool categorized = false)
+    private GovernedReleaseFixture(string objectFormat, bool firstGovernedRelease = false, string? rendererBundle = null, bool categorized = false, bool groupCorrection = false)
     {
         ObjectFormat = objectFormat;
         IsFirstGovernedRelease = firstGovernedRelease;
@@ -63,6 +63,8 @@ internal sealed class GovernedReleaseFixture : IDisposable
         CreatePromotionAuthority();
         CreateReleaseAuthority();
         WriteWorkspace();
+        if (groupCorrection)
+            File.AppendAllText(Path.Join(RepositoryPath, "docs/internal/releases/changes/CHG-2026-0001.yaml"), "Group: original-group\n");
         if (categorized) WriteUpgradeFragment();
         WriteBundle(rendererBundle);
 
@@ -99,6 +101,14 @@ internal sealed class GovernedReleaseFixture : IDisposable
         }
 
         AnnotateTag("v1.0.0", Initial, "v1.0.0\n");
+        if (groupCorrection)
+        {
+            string original = File.ReadAllText(Path.Join(RepositoryPath, "docs/internal/releases/changes/CHG-2026-0001.yaml"));
+            string path = Path.Join(RepositoryPath, "docs/internal/releases/group-corrections/CHG-2026-0001.yaml");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "Schema-Version: fragment-group-correction.v1\nChange-Id: CHG-2026-0001\n" +
+                $"Fragment-Sha256: {Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(original)))}\nGroup: corrected-group\n");
+        }
         A = Commit("feat(self-hosting): let attendees correct self-hosting details\n\nChange-Id: CHG-2026-0001");
         B = PrepareAndCommit(FirstVersion, baseTag: "v1.0.0", baseOid: Initial, releaseDate: "2026-08-14");
         FirstTagObject = CloseRelease(FirstVersion, B);
@@ -135,6 +145,7 @@ internal sealed class GovernedReleaseFixture : IDisposable
     public static string SecondReleaseVersion => SecondVersion;
 
     public static GovernedReleaseFixture CreateSha1() => new("sha1");
+    public static GovernedReleaseFixture CreateWithGroupCorrection() => new("sha1", groupCorrection: true);
 
     /// <summary>Builds the Decision 10 topology: a signed non-SemVer baseline plus one first governed release.</summary>
     public static GovernedReleaseFixture CreateFirstGovernedRelease(string objectFormat = "sha1") => new(objectFormat, firstGovernedRelease: true);

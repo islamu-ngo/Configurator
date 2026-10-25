@@ -15,7 +15,7 @@ public sealed class BrowserTemplateReadLifecycleTests
     [Test]
     public async Task RejectedUploadReleasesSelectedFileControl()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         var input = component.FindComponent<InputFile>();
         InputFile selected = input.Instance;
@@ -27,7 +27,7 @@ public sealed class BrowserTemplateReadLifecycleTests
     [Test]
     public async Task RevocationFencesPendingImportIntoLocallyCompiledDefinition()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(new BrowserDefinitionRegistry([]), javascript, policy);
@@ -55,7 +55,7 @@ public sealed class BrowserTemplateReadLifecycleTests
     [Arguments("revoke")]
     public async Task TransitionFencesLateReadAndClearsOwnedBuffer(string transition)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         using var older = new GatedReadStream(OrdinaryArtifact);
         Task pending = component.InvokeAsync(() => component.Instance.LoadAsync(older));
@@ -94,7 +94,7 @@ public sealed class BrowserTemplateReadLifecycleTests
     [Test]
     public async Task ImportSuccessAndFailureBothClearReadBuffer()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         using var stream = new GatedReadStream(OrdinaryArtifact);
         stream.Release.TrySetResult();

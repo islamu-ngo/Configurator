@@ -57,7 +57,7 @@ public sealed class StandalonePackageTests
         foreach (string path in new[] { "index.html", "manifest.webmanifest", "service-worker.js", "service-worker-assets.js",
             "pwa-lifecycle.js", "LICENSE", "THIRD-PARTY-NOTICES.md",
             "css/layers.css", "css/reset.css", "css/base.css", "css/tokens.css", "css/mudblazor-overrides.css",
-            "css/components.css", "css/utilities.css", "browser-appearance.js", "browser-store.js",
+            "css/components.css", "css/utilities.css", "browser-appearance.js", "browser-store.js", "workspace-interactions.js",
             "_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js",
             "contracts/browser-release-capabilities.json", "schemas/setup-definition-v1.schema.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);

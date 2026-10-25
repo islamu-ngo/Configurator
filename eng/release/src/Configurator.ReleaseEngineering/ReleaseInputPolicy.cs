@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
@@ -104,6 +105,11 @@ public static class ReleaseInputPolicy
     private static readonly Regex BaselineRefPattern = new("^changelog-baseline-[0-9]{4}-[0-9]{2}-[0-9]{2}$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
     private static readonly Regex FullOidPattern = new("^(?:[0-9a-f]{40}|[0-9a-f]{64})$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
     private static readonly Regex GroupPattern = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+    private static readonly Regex RestrictedValuePattern = new(
+        @"^\s*restricted\s*$|\[\s*restricted\s*\]|(?<![\p{L}\p{N}_])restricted\s*[:=]|(?<![\p{L}\p{N}_])restricted[\s_-]+(?:details?|credentials?)(?![\p{L}\p{N}_])",
+        RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+    private static readonly Regex RestrictedKeyPattern = new(@"^restricted[\s_-]*details$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+    private static readonly string[] GroupCorrectionKeys = ["Schema-Version", "Change-Id", "Fragment-Sha256", "Group"];
     private static readonly Regex SecretPattern = new("(?:-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|\\bBearer\\s+[A-Za-z0-9._~+/=-]{16,}|\\b(?:gh[pousr]_|github_pat_|glpat-|xox[baprs]-)[A-Za-z0-9_-]{8,}|\\b(?:password|passwd|client_secret|api[_-]?key|(?:access|output)[_-]?token|refresh[_-]?token)\\s*[:=]\\s*\\S+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     private static readonly Regex ProviderIdentityPattern = new("(?:https?://(?:www\\.)?(?:github\\.com|gitlab\\.com|codeberg\\.org|bitbucket\\.org)/\\S+|(?<![\\w@])@[A-Za-z0-9][A-Za-z0-9-]{0,38}(?![\\w-])|\\b(?:workflow|pipeline|job|run)[ _-]?id\\s*[:=]\\s*[0-9]{3,}\\b)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     private static readonly string[] RequiredImpacts = ["breaking", "security", "migration", "configuration", "openapi", "operator"];
@@ -124,13 +130,15 @@ public static class ReleaseInputPolicy
     public static ReleaseInputValidationResult Validate(
         string releaseYaml,
         IEnumerable<string> fragmentYamls,
-        IEnumerable<string> priorSnapshotYamls)
+        IEnumerable<string> priorSnapshotYamls,
+        IEnumerable<KeyValuePair<string, string>>? groupCorrectionYamls = null)
     {
         var diagnostics = new List<string>();
         ReleaseDescriptor? descriptor = ParseDescriptor(releaseYaml, diagnostics);
         List<PublicChangeFragment> fragments = ParseFragments(fragmentYamls, diagnostics);
         ValidateDuplicateIds(fragments, diagnostics);
-        ValidateGroups(fragments, diagnostics);
+        Dictionary<string, string> correctedGroups = ValidateGroupCorrections(fragments, groupCorrectionYamls ?? [], diagnostics);
+        ValidateGroups(fragments, correctedGroups, diagnostics);
         ValidateSupersedes(fragments, diagnostics);
         ValidateSnapshot(fragments, priorSnapshotYamls, diagnostics);
 
@@ -203,7 +211,7 @@ public static class ReleaseInputPolicy
         return new ReleaseDescriptor(version, line, releaseDate, baseStableTag, previousPublishedTag, releaseRange, compatibility, dispositions);
     }
 
-    private static List<PublicChangeFragment> ParseFragments(IEnumerable<string> yamls, List<string> diagnostics)
+    internal static List<PublicChangeFragment> ParseFragments(IEnumerable<string> yamls, List<string> diagnostics)
     {
         var fragments = new List<PublicChangeFragment>();
         if (yamls is null)
@@ -352,9 +360,75 @@ public static class ReleaseInputPolicy
         }
     }
 
-    private static void ValidateGroups(IReadOnlyList<PublicChangeFragment> fragments, List<string> diagnostics)
+    /// <summary>
+    /// Validates append-only, original-snapshot-bound group replacements. The returned map is used
+    /// only by compatibility validation; fragment presentation and commit provenance remain original.
+    /// </summary>
+    internal static Dictionary<string, string> ValidateGroupCorrections(
+        IReadOnlyList<PublicChangeFragment> fragments,
+        IEnumerable<KeyValuePair<string, string>> sources,
+        List<string> diagnostics)
     {
-        foreach (IGrouping<string?, PublicChangeFragment> group in fragments.Where(fragment => !string.IsNullOrWhiteSpace(fragment.Group)).GroupBy(fragment => fragment.Group, StringComparer.Ordinal))
+        var groups = new Dictionary<string, string>(StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        int count = 0;
+        foreach ((string name, string yaml) in sources)
+        {
+            if (++count > MaximumFragments)
+            {
+                diagnostics.Add("group_correction_collection_too_large");
+                break;
+            }
+
+            YamlMappingNode? root = ParseRoot(yaml, "group_correction", diagnostics);
+            if (root is null) continue;
+            int start = diagnostics.Count;
+            if (root.Children.Keys.Any(key => !GroupCorrectionKeys.Contains(Key(key), StringComparer.Ordinal)))
+                diagnostics.Add("group_correction_unknown_key");
+            string schema = Scalar(root, "Schema-Version", "group_correction", diagnostics);
+            string id = Scalar(root, "Change-Id", "group_correction", diagnostics);
+            string diagnosticId = ChangeIdPolicy.IsValid(id) ? id : "unknown";
+            string digest = Scalar(root, "Fragment-Sha256", "group_correction", diagnostics);
+            string group = Scalar(root, "Group", "group_correction", diagnostics);
+            bool scalarFields = root.Children.All(child => child.Key is YamlScalarNode && child.Value is YamlScalarNode);
+            if (root.Children.Count != GroupCorrectionKeys.Length ||
+                !scalarFields ||
+                schema != "fragment-group-correction.v1" || !ChangeIdPolicy.IsValid(id) || name != id ||
+                digest.Length != 64 || digest.Any(character => character is not (>= '0' and <= '9' or >= 'a' and <= 'f')) ||
+                !GroupPattern.IsMatch(group))
+            {
+                diagnostics.Add("group_correction_invalid");
+            }
+
+            if (!seen.Add(id)) diagnostics.Add($"group_correction_duplicate_target:{diagnosticId}");
+            if (ContainsSecretMaterial(yaml) || ContainsProviderIdentity(yaml) || ContainsAmbiguousUnicode(yaml) ||
+                RestrictedValuePattern.IsMatch(NormalizeForMarkerScan(yaml)) || (scalarFields && ContainsRestrictedMarker(root)))
+                diagnostics.Add("group_correction_unsafe_content");
+
+            PublicChangeFragment[] targets = fragments.Where(fragment => fragment.ChangeId == id).Take(2).ToArray();
+            if (targets.Length != 1)
+            {
+                diagnostics.Add($"group_correction_target_invalid:{diagnosticId}");
+            }
+            else
+            {
+                PublicChangeFragment target = targets[0];
+                if (string.IsNullOrWhiteSpace(target.Group) || target.Group == group)
+                    diagnostics.Add($"group_correction_group_invalid:{diagnosticId}");
+                if (Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(target.NormalizedSnapshot))) != digest)
+                    diagnostics.Add($"group_correction_digest_mismatch:{diagnosticId}");
+            }
+
+            if (diagnostics.Count == start) groups.Add(id, group);
+        }
+
+        return groups;
+    }
+
+    internal static void ValidateGroups(IReadOnlyList<PublicChangeFragment> fragments, IReadOnlyDictionary<string, string> corrections, List<string> diagnostics)
+    {
+        foreach (IGrouping<string?, PublicChangeFragment> group in fragments.Where(fragment => !string.IsNullOrWhiteSpace(fragment.Group))
+            .GroupBy(fragment => corrections.TryGetValue(fragment.ChangeId, out string? replacement) ? replacement : fragment.Group, StringComparer.Ordinal))
         {
             if (group.Select(fragment => fragment.Scope).Distinct(StringComparer.Ordinal).Skip(1).Any())
             {
@@ -648,12 +722,13 @@ public static class ReleaseInputPolicy
         if (node is YamlScalarNode scalar)
         {
             string value = NormalizeForMarkerScan(scalar.Value ?? string.Empty);
-            return value.Contains("restricted", StringComparison.Ordinal) || value.Contains("restricted-detail", StringComparison.Ordinal);
+            return RestrictedValuePattern.IsMatch(value);
         }
 
         if (node is YamlMappingNode mapping)
         {
-            return mapping.Children.Any(child => string.Equals(Key(child.Key), "Restricted-Details", StringComparison.OrdinalIgnoreCase) || ContainsRestrictedMarker(child.Value));
+            return mapping.Children.Any(child => RestrictedKeyPattern.IsMatch(NormalizeForMarkerScan(Key(child.Key))) ||
+                ContainsRestrictedMarker(child.Key) || ContainsRestrictedMarker(child.Value));
         }
 
         return node is YamlSequenceNode sequence && sequence.Children.Any(ContainsRestrictedMarker);
@@ -773,7 +848,7 @@ public static class ReleaseInputPolicy
 
     private static bool ContainsAmbiguousUnicode(string value) => value.EnumerateRunes().Any(rune => Rune.GetUnicodeCategory(rune) is UnicodeCategory.Control or UnicodeCategory.Format && rune.Value is not '\r' and not '\n' and not '\t');
 
-    private static string NormalizeForMarkerScan(string value) => value.Replace('\u0455', 's').ToLowerInvariant();
+    private static string NormalizeForMarkerScan(string value) => value.Normalize(NormalizationForm.FormKC).ToLowerInvariant().Replace('\u0455', 's');
 
     private static string NormalizeSnapshot(string yaml) => yaml.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n').TrimEnd() + "\n";
     private static string Key(YamlNode node) => node is YamlScalarNode scalar ? scalar.Value ?? string.Empty : string.Empty;

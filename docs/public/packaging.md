@@ -78,8 +78,9 @@ have no protected writer and reject restricted output.
 
 CI now declares native CLI-owner tests and actual self-contained package
 `doctor --machine` / `--help --machine` smoke checks for Linux x64/Arm64,
-macOS Intel/Arm64 and Windows Server x64. These configured gates are **pending
-actual-host execution evidence**, not a completed support qualification.
+macOS Intel/Arm64 and Windows Server x64. Inspect the passing results for the
+exact commit and runner being qualified; configuring a gate is not execution
+evidence, and one passing build does not qualify every operating-system variant.
 Ubuntu execution does not establish Arch or Debian coverage, Windows Server is
 not Windows 10/11 evidence, and glibc execution does not establish musl coverage.
 Both musl hosts and Windows 10/11 remain explicit pending actual-host checks;
@@ -87,6 +88,10 @@ no emulation or unreviewed container image substitutes for them. Package smoke
 checks alone do not qualify protected export or every CLI workflow.
 
 ## Package contents
+
+Generated schemas and capability contracts use the same LF-normalized JSON
+bytes on every build host, keeping their content hashes independent of the
+host operating system.
 
 Native package directories include `schemas/`, `contracts/`, `dependency-notices/`,
 `LICENSE` and `THIRD-PARTY-NOTICES.md`. The dependency directory retains original
@@ -169,9 +174,15 @@ Install .NET SDK **10.0.302** and run from the repository root. These examples u
 Bash; each publication line is independent, so run only the surface you need.
 Replace `linux-x64` with an admitted RID from the table above when appropriate.
 
+Initialize the workload manifests selected by `global.json` even for native-only
+builds. Installing the SDK alone does not install that pinned workload set.
+Browser publication additionally needs `wasm-tools`, as described in the
+[browser hosting guide](browser.md#hosting).
+
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"
 mkdir -p "$TMPDIR"
+dotnet workload update
 dotnet build eng/configurator/Configurator.Release.proj --configuration Release --verbosity quiet
 
 # Choose one native surface:

@@ -13,29 +13,59 @@ using Microsoft.JSInterop;
 public sealed class BrowserTypedPrivacyTests
 {
     [Test]
-    public async Task EmptyEnumSelectionAndAccessibleOmissionHaveDistinctIdentities()
+    public async Task ChoicePopupsPreserveEmptyStringFalseAndAbsence()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
+        var provider = context.Render<MudBlazor.MudPopoverProvider>();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
             {"id":"emptyChoice","type":"enum","title":"Empty choice","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
-        var options = component.FindAll("[data-field='emptyChoice'] option");
-        await Assert.That(options[0].GetAttribute("value")).IsNotEqualTo(options[1].GetAttribute("value"));
-        await component.Find("[data-field='emptyChoice'] select").ChangeAsync(new ChangeEventArgs { Value = options[1].GetAttribute("value") });
+        Task OpenAsync(string field) => component.InvokeAsync(() => component.FindComponents<ConfigurationField>()
+            .Single(item => string.Join('.', item.Instance.Path) == field).FindComponent<MudBlazor.MudSelect<string>>().Instance.OpenMenu());
+        await OpenAsync("emptyChoice");
+        await provider.FindAll("[role=option]")[1].ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values["emptyChoice"].GetString()).IsEqualTo("");
+        await OpenAsync("emptyChoice");
+        await provider.FindAll("[role=option]")[0].ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values.ContainsKey("emptyChoice")).IsFalse();
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "cluster");
+        await OpenAsync("replicas");
+        await provider.FindAll("[role=option]")[2].ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values["replicas"].GetBoolean()).IsFalse();
+        var control = component.Find("[data-field='replicas'] div[role=combobox]");
+        string labelId = control.GetAttribute("aria-labelledby")!;
+        await Assert.That(component.Find("#" + labelId).TagName).IsEqualTo("LABEL");
+        await OpenAsync("replicas");
+        await provider.FindAll("[role=option]")[0].ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values.ContainsKey("replicas")).IsFalse();
+    }
+
+    [Test]
+    public async Task EmptyEnumSelectionAndAccessibleOmissionHaveDistinctIdentities()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
+            {"id":"emptyChoice","type":"enum","title":"Empty choice","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
+            """)));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        var editor = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["emptyChoice"]));
+        var options = editor.FindComponents<MudBlazor.MudSelectItem<string>>();
+        await Assert.That(options[0].Instance.Value).IsNotEqualTo(options[1].Instance.Value);
+        await BrowserFixture.NotifyChoiceAsync(component, "emptyChoice", options[1].Instance.Value!);
         await Assert.That(form.Snapshot().Values["emptyChoice"].GetRawText()).IsEqualTo("\"\"");
-        var omit = component.Find("[data-field='emptyChoice'] [data-action='omit']");
+        var omit = await BrowserFixture.OpenOmissionAsync(context, component, "emptyChoice");
         await Assert.That(omit.GetAttribute("aria-label")).IsEqualTo("Omit Empty choice");
-        await Assert.That(omit.GetAttribute("type")).IsEqualTo("button");
+        await Assert.That(omit.GetAttribute("role")).IsEqualTo("menuitem");
         await omit.ClickAsync(new MouseEventArgs());
         await Assert.That(form.Snapshot().Values.ContainsKey("emptyChoice")).IsFalse();
-        await Assert.That(component.Find("[data-field='emptyChoice'] select").GetAttribute("value")).IsEqualTo("");
+        await Assert.That(editor.FindComponent<MudBlazor.MudSelect<string>>().Instance.Value).IsEqualTo("");
     }
 
     [Test]
     public async Task NestedSecretOmissionStaysAbsentAndOrdinaryEmptyStringStaysSupplied()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
             {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
               {"id":"ordinary","type":"string","title":"Ordinary setting","sensitivity":"public","disclosure":"guided"},
@@ -45,15 +75,15 @@ public sealed class BrowserTypedPrivacyTests
         await component.Find("[data-field='settings.ordinary'] input").InputAsync(new ChangeEventArgs { Value = "" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values["settings"].GetProperty("ordinary").GetRawText()).IsEqualTo("\"\"");
-        await Assert.That(component.Find("[data-field='settings.secret'] [data-action='omit']").HasAttribute("disabled")).IsTrue();
-        await component.Find("[data-field='settings.ordinary'] [data-action='omit']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-field='settings.secret'] .configuration-field-actions__menu button").HasAttribute("disabled")).IsTrue();
+        await BrowserFixture.OmitAsync(context, component, "settings.ordinary");
         await Assert.That(form.Snapshot().Values["settings"].GetRawText()).IsEqualTo("{}");
     }
 
     [Test]
     public async Task RejectedNestedEditFencesImportBeforeAnyTypedValueExists()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
             {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
               {"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"sensitive","disclosure":"guided"}]}
@@ -72,7 +102,7 @@ public sealed class BrowserTypedPrivacyTests
     [Test]
     public async Task LocallyCompiledNestedSecretsRequireConsentAndRevocationClearsOutput()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(new BrowserDefinitionRegistry([]), javascript, policy);
@@ -96,7 +126,7 @@ public sealed class BrowserTypedPrivacyTests
     [Test]
     public async Task SensitiveChildrenAreMaskedButEditableWithoutSecretConsent()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
             {"id":"settings","type":"object","title":"Settings","sensitivity":"sensitive","disclosure":"guided","properties":[
               {"id":"ordinary","type":"string","title":"Private setting","sensitivity":"public","disclosure":"guided"},
@@ -119,7 +149,7 @@ public sealed class BrowserTypedPrivacyTests
     [Test]
     public async Task TypedFalseAndExplicitEmptyCollectionsRemainDistinctFromAbsence()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
             {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
               {"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"public","disclosure":"guided"},
@@ -127,9 +157,9 @@ public sealed class BrowserTypedPrivacyTests
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
-        component.Find("[data-field='settings.enabled'] select").Change("false");
+        await BrowserFixture.NotifyChoiceAsync(component, "settings.enabled", "false");
         await Assert.That(form.Snapshot().Values["settings"].GetProperty("enabled").GetBoolean()).IsFalse();
-        component.Find("[data-field='settings.enabled'] select").Change("");
+        await BrowserFixture.NotifyChoiceAsync(component, "settings.enabled", "");
         await Assert.That(form.Snapshot().Values["settings"].EnumerateObject().Count()).IsEqualTo(0);
         component.Find("[data-field='settings.names'] [data-action='supply-list']").Click();
         JsonElement settings = form.Snapshot().Values["settings"];
@@ -151,9 +181,9 @@ public sealed class BrowserTypedPrivacyTests
         members.Remove("credential");
         members["settings"] = JsonNode.Parse("""{"op":"copy","field":"settings"}""");
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("[data-field='settings.ordinary'] input").Input("synthetic-ordinary-setting");
         component.Find("#prepare-complete").Click();

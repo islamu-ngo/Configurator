@@ -205,6 +205,16 @@ public static class PublicationInventoryCommand
             "docs/internal/releases/change-id-renames").Split('\n', StringSplitOptions.RemoveEmptyEntries);
         sources.AddRange(renamePaths.Where(path => commits.Contains(Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal))
             .Order(StringComparer.Ordinal).Select(path => new AuthorizedSourceDocument(path, "change-id-rename")));
+        HashSet<string> linkedIds = sources.Where(source => source.Kind == "fragment")
+            .Select(source => Path.GetFileNameWithoutExtension(source.Path)).ToHashSet(StringComparer.Ordinal);
+        string[] correctionPaths = Git(repository, "ls-tree", "-r", "--name-only", target, "--",
+            "docs/internal/releases/group-corrections").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        foreach (string path in correctionPaths.Where(path => linkedIds.Contains(Path.GetFileNameWithoutExtension(path))).Order(StringComparer.Ordinal))
+        {
+            string id = Path.GetFileNameWithoutExtension(path);
+            if (path != $"docs/internal/releases/group-corrections/{id}.yaml") throw new IOException("group_correction_path_invalid");
+            sources.Add(new AuthorizedSourceDocument(path, "fragment-group-correction"));
+        }
         return sources.ToArray();
     }
 

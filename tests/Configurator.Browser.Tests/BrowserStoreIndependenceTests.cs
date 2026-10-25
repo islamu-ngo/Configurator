@@ -35,7 +35,7 @@ public sealed class BrowserStoreIndependenceTests
     public async Task NamesAndTagsFilterInStableOrderAndMetadataIsEscaped()
     {
         var registry = new BrowserDefinitionRegistry([]);
-        using var context = BrowserFixture.Context(registry);
+        await using var context = BrowserFixture.Context(registry);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
         context.Services.AddSingleton(catalog);
@@ -69,7 +69,7 @@ public sealed class BrowserStoreIndependenceTests
     public async Task ConfigureRequiresExplicitRevisionAndCanonicalReviewBeforePinnedLaunch()
     {
         var registry = new BrowserDefinitionRegistry([]);
-        using var context = BrowserFixture.Context(registry);
+        await using var context = BrowserFixture.Context(registry);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
         context.Services.AddSingleton(catalog);

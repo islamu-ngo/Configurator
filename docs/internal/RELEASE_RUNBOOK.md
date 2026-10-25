@@ -26,6 +26,22 @@ renderer acquisition and synthetic fixture selection are explained in the
 [explicit test instructions](../../eng/release/README.md#tests). Passing them
 is not authority to sign or publish.
 
+### Immutable group corrections
+
+Do not edit a committed fragment to repair incompatible group membership.
+Use the [bounded group-correction record](../../eng/release/README.md#correct-immutable-group-membership)
+to bind a replacement group to the original Change-Id and normalized-content
+SHA-256. Only group compatibility uses the replacement; original release
+entries, source snapshots, scopes, impacts and commit identities remain intact.
+The replacement must still satisfy the one-scope group invariant.
+
+Correction records are append-only release inputs. Stage validation rejects
+mutation, deletion and renaming after commitment; preparation and range checks
+reject uncommitted applicable records. Candidate and authorized-inventory
+verification read the same records from the selected committed tree and include
+them in source-document provenance. Corrections cannot repair secret-bearing or
+otherwise invalid fragment content by hiding it.
+
 ## Future governed release flow
 
 1. Review descriptor, summary and linked change fragments.
@@ -218,6 +234,11 @@ APIs. Every successful stable action requires `origin/main` to still equal the
 old OID. Newest moves require fast-forward descent to `B`; already-at-`B` is
 idempotent. Older stable patches emit `no-main-move`; prereleases do not move main.
 
+On Unix, bounded Git verification owns an isolated process group. Timeout
+cleanup passes an explicit `--` between each signal and its negative group
+identifier so the external utility cannot reinterpret the group as an option.
+TERM/KILL cleanup remains limited to that owned group.
+
 ```text
 release_main_verified: action=move-main old=<old-main-oid> new=<full-B-oid> tag=v<version> instruction=update-main-fast-forward
 release_main_verified: action=already-at-target old=<full-B-oid> new=<full-B-oid> tag=v<version> instruction=no-op-main-already-at-release
@@ -265,6 +286,12 @@ never echo restricted paths, values, identities or exception text. After disclos
 authorization, only reviewed public disposition/advisory references cross into
 generation. They must not alias restricted details, secrets, identities or paths
 after Unicode/whitespace normalization.
+
+The public marker gate distinguishes ordinary product descriptions, such as
+restricted output or restricted writes, from reserved classification syntax and
+restricted-detail/credential markers. It normalizes marker keys and scalar
+values consistently. This is not a natural-language confidentiality classifier;
+independent secret, embargo and Unicode checks remain required.
 
 ## Stop and recovery rules
 

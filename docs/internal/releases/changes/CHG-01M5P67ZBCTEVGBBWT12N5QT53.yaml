@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5P67ZBCTEVGBBWT12N5QT53
+Title: "reuse admitted field metadata during validation"
+Type: perf
+Scope: definitions
+Summary: "Local validation reuses immutable field metadata and ordered condition dependencies instead of repeatedly decoding them. Current answers still pass through the same validator and snapshot limits."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/extraction/FOUNDATION.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/extraction/FOUNDATION.md
+    Disposition: documented
+    Detail: "Only admitted public metadata is reused. Answer-dependent conditions and snapshot limits retain their existing owners."
+  Migration:
+    Reference: docs/internal/extraction/FOUNDATION.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/extraction/FOUNDATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/extraction/FOUNDATION.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/extraction/FOUNDATION.md
+    Disposition: documented
+    Detail: "Repeated editing avoids redundant metadata work without changing required answers, validation or declared output."

@@ -11,6 +11,17 @@ section expansion and discovery publish `ViewChanged`, not `InputChanged`;
 they preserve answer revision, consent and current preparation. Definitions
 without presentation metadata expose one neutral Configure experience.
 
+`SetDisclosureOverride` selects Essential, Guided (the Standard UI detail level)
+or Advanced independently of the selected authored experience. A null override
+follows that experience's initial disclosure. Explicit selection survives
+experience changes and resets manual expansion overrides, but never edits
+answers, advances the input revision or changes secret consent. Visibility and
+`IsEditorExpanded` use the same effective disclosure, so the expansion action
+cannot disagree with the fields displayed. Required and invalid descendants
+remain reachable. Authored experience and section descriptions are preserved
+in the shared projection; clients need no new definition vocabulary or
+answer-bearing view model.
+
 Each form owns one metadata-only `DefinitionFormIndex` for its pinned definition:
 literal schema children, root positions, section membership and experience order,
 artifact bindings and activation-controller references. List-item schema metadata
@@ -21,6 +32,11 @@ index. Browser field mounting uses it rather than repeatedly scanning roots and
 decoding definition IDs from JSON. Cached display metadata and frozen binding
 references are shared by internal discovery entries; the public entry constructor
 still snapshots caller-owned collections.
+`GetListItemMetadata` exposes the index's admitted item shape without serializing
+row answers. Renderers retain responsibility for the enclosing list's inherited
+sensitivity, row title and required state; the normalized item shape is not a
+new sensitivity authority. Row presence and invalid-path checks still use the
+same form, and the accessor does not edit answers or advance their revision.
 `DefinitionFormFacts` owns the single current input revision's validation, active
 roots, diagnostics, correction/required paths, origins, progress and discovery
 entries. It retains no second answer tree. Read-only origin, metadata and identity
@@ -110,8 +126,11 @@ reachable. Editing a missing/invalid path promotes its literal ancestors before
 the edit, while new errors and invalid drafts promote at mutation settlement.
 An unrelated edit does not make every missing obligation sticky. Corrected editors stay open until deliberate
 collapse or experience navigation; optional secrets and consequences do not
-alone force disclosure. `FocusEditor` clears obstructing discovery and expands
-the exact path without granting consent. `SupplyObject`
+alone force disclosure. `FocusEditor` clears obstructing discovery by default
+and expands the exact path without granting consent. An explicit
+`preserveDiscovery: true` retains the shared query/facets while promoting the
+destination; this lets an overlay reopen with its previous search selection.
+It does not create another query owner or search answer values. `SupplyObject`
 and `SupplyList` express deliberate container presence through the same bounded
 snapshot and secret-consent gates. An empty object `{}` or list `[]` is distinct
 from an absent answer; supplying an existing container preserves its contents.
@@ -156,7 +175,8 @@ and help; ties use section order and literal path segments. Facets OR within a
 category and AND across categories; counts remove only their own selection.
 Inactive entries require deliberate inclusion and cannot activate an answer.
 Selection/reset operations are transient view mutations. Clearing filters keeps
-the query; clearing search keeps filters; correction clears both.
+the query; clearing search keeps filters; correction clears both unless its
+caller explicitly preserves discovery.
 `ConfigurationDiscovery` renders that shared snapshot inside a deliberate local
 disclosure. Query/facet controls and removable selections call only the form's
 view-state APIs; result navigation delegates typed diagnostics to the editor's

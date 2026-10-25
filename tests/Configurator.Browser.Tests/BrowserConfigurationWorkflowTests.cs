@@ -9,9 +9,9 @@ public sealed class BrowserConfigurationWorkflowTests
     [Test]
     public async Task DraftOrdinaryMissingValueHasConnectedErrorWhileSecretDeferralRemainsValid()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("#prepare-draft").Click();
         var hostname = component.Find("[data-field='hostname'] input");
         string errorId = hostname.Id + "-error";
@@ -27,13 +27,13 @@ public sealed class BrowserConfigurationWorkflowTests
     [Test]
     public async Task DraftAndCompleteUseSharedProjectionAndOnlyExplicitCopyExposesBytes()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var module = context.JSInterop.SetupModule("./browser-artifacts.js");
         module.SetupVoid("open", _ => true).SetVoidResult();
         module.Setup<bool>("copy", _ => true).SetResult(true);
         module.SetupVoid("invalidate", _ => true).SetVoidResult();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#prepare-complete").Click();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
@@ -63,11 +63,11 @@ public sealed class BrowserConfigurationWorkflowTests
     [Test]
     public async Task ClipboardFailureProvidesValueSafeDownloadAlternative()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var module = context.JSInterop.SetupModule("./browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(false);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#prepare-draft").Click();
         component.Find(".configuration-editor__artifact button").Click();

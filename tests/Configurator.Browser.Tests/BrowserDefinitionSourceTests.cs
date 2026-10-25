@@ -47,7 +47,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task LocalAuthoringAdmissionIsPreAnswerAndNeverInvokesNetworkOrStorage()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
@@ -69,7 +69,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task RemoteAuthoringRejectsBeforeAdmissionAndClearsSourceBytes()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
@@ -131,7 +131,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task LocalAdmissionKeepsCanonicalIdentityAndRejectsRevisionConflicts()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
@@ -149,7 +149,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task LocalReadRejectsOverflowAndHostileBytesWithoutPublication()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
@@ -164,7 +164,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task RemoteSelectionPinsCanonicalDigestAndClearsTransportBytes()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
@@ -182,7 +182,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task DigestAndSelectorsRejectBeforeRegistryPublication()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
@@ -201,7 +201,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task LocalReadIgnoringCancellationCannotAdmitAfterInvalidation()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
@@ -219,7 +219,7 @@ public sealed class BrowserDefinitionSourceTests
     [Test]
     public async Task WorkspaceStartingDuringLocalReadRejectsLateDefinitionAdmission()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
@@ -282,7 +282,7 @@ public sealed class BrowserDefinitionSourceTests
         navigation.NavigateTo("/open#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
         var component = context.Render<App>();
         component.FindAll("button").Single(button => button.TextContent == "Open configuration workspace").Click();
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#prepare-draft").Click();
         component.Find(".configuration-editor__artifact button").Click();

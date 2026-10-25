@@ -45,8 +45,12 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+      - name: Initialize pinned workload manifests
+        run: dotnet workload update
       - name: Test only the CLI owner on the native host
         shell: bash
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
           dotnet restore tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --locked-mode
@@ -82,7 +86,7 @@ jobs:
 
   standalone:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout only Configurator
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,6 +96,10 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+      - name: Install pinned WebAssembly build tools
+        run: |
+          python3 --version
+          dotnet workload install wasm-tools
       - name: Validate external Action pins
         run: dotnet run .ci/scripts/validate-action-pins.cs -- .github/workflows
       - name: Restore and build explicit destination owners
@@ -100,6 +108,7 @@ jobs:
           set -euo pipefail
           # Explicit owners do not depend on extraction-time solution registration.
           for project in \
+            src/Configurator.Browser.Host/Configurator.Browser.Host.csproj \
             tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj \
             eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \
             eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj \
@@ -132,6 +141,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/audit
           for project in src/Configurator.*/*.csproj tests/Configurator.*.Tests/*.csproj eng/configurator/*/*.csproj eng/configurator/probes/*/*.csproj eng/agent-workflow/src/*/*.csproj eng/release/src/*/*.csproj; do
+            printf 'Auditing %s\n' "$project"
             dotnet list "$project" package --vulnerable --include-transitive --format json --no-restore > artifacts/audit/current.json
             dotnet run .ci/scripts/validate-nuget-vulnerabilities.cs -- artifacts/audit/current.json
           done

@@ -3,8 +3,10 @@ namespace Configurator.Browser.Components.Configuration;
 using System.Text.Json;
 using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
+using Configurator.Browser.Components.Common;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
+using MudBlazor;
 
 public partial class ConfigurationField
 {
@@ -16,14 +18,15 @@ public partial class ConfigurationField
     [Parameter] public bool InheritedSecret { get; set; }
     [Parameter] public bool InheritedSensitive { get; set; }
     [Parameter] public bool? RequiredOverride { get; set; }
+    [Parameter] public string? TitleOverride { get; set; }
     [Parameter] public bool FocusFirstControl { get; set; }
     [Parameter] public long FocusGeneration { get; set; }
     [Parameter] public int FocusRow { get; set; } = -1;
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
-    private readonly List<string> _rowKeys = [];
     private ElementReference _addButton;
     private ElementReference _group;
-    private ElementReference _control;
+    private MudSelect<string>? _choiceControl;
+    private AppTextField? _textControl;
     private bool _focusedForRequest;
     private long _observedFocusGeneration;
     private int _focusNewRow = -1;
@@ -32,18 +35,69 @@ public partial class ConfigurationField
     private bool _focusAfterOmit;
     private bool _invalid;
     private bool _disposed;
+    private bool _controlMounted;
+    private long _controlGeneration;
     private long _lastInputRevision = -1;
     private DefinitionFormModel? _rootForm;
     private DefinitionFieldInput? _rootInput;
     private string? _controlId;
+    private DefinitionFormModel? _parameterForm;
+    private DefinitionFormProjection? _parameterProjection;
+    private long _parameterInputRevision = -1;
+    private bool _suppressParameterRender;
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        bool Changed<T>(string name, T current) =>
+            parameters.TryGetValue<T>(name, out var supplied) && !EqualityComparer<T>.Default.Equals(current, supplied);
+        bool PathChanged(string name, IReadOnlyList<string> current) =>
+            parameters.TryGetValue<IReadOnlyList<string>>(name, out var supplied) && !current.SequenceEqual(supplied);
+
+        DefinitionFormModel form = parameters.TryGetValue<DefinitionFormModel>(nameof(Form), out var suppliedForm)
+            ? suppliedForm : Form;
+        _suppressParameterRender = ReferenceEquals(_parameterForm, form)
+            && _parameterInputRevision == form.InputRevision
+            && ReferenceEquals(_parameterProjection, form.Projection)
+            && !Changed(nameof(Schema), Schema)
+            && !PathChanged(nameof(Path), Path)
+            && !Changed(nameof(Validation), Validation)
+            && !Changed(nameof(ValidationChanged), ValidationChanged)
+            && !Changed(nameof(InheritedSecret), InheritedSecret)
+            && !Changed(nameof(InheritedSensitive), InheritedSensitive)
+            && !Changed(nameof(RequiredOverride), RequiredOverride)
+            && !Changed(nameof(TitleOverride), TitleOverride)
+            && !Changed(nameof(FocusFirstControl), FocusFirstControl)
+            && !Changed(nameof(FocusGeneration), FocusGeneration)
+            && !Changed(nameof(FocusRow), FocusRow)
+            && !PathChanged(nameof(FocusPath), FocusPath);
+        try
+        {
+            Task updating = base.SetParametersAsync(parameters);
+            _parameterForm = form;
+            _parameterInputRevision = form.InputRevision;
+            _parameterProjection = form.Projection;
+            return updating;
+        }
+        finally
+        {
+            _suppressParameterRender = false;
+        }
+    }
+
+    // Every input revision still renders fresh fenced callbacks. View-only
+    // parameter updates with unchanged projection need no field-tree work.
+    protected override bool ShouldRender() => !_suppressParameterRender;
+
     private string Error => string.Join(" ", Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
     private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
         diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1));
     private string ControlId => _controlId ??= Form.GetEditorIdentity(Path);
     private string Type => Schema.GetProperty("type").GetString()!;
-    private string Title => ConfigurationDiagnosticText.Title(Schema.TryGetProperty("title", out var value) ? value.GetString()! : "Item", Schema.TryGetProperty("id", out var id) ? id.GetString() : null);
+    private string Title => TitleOverride ?? ConfigurationDiagnosticText.Title(Schema.TryGetProperty("title", out var value) ? value.GetString()! : "Item", Schema.TryGetProperty("id", out var id) ? id.GetString() : null);
     private string? Help => Schema.TryGetProperty("help", out var value) ? value.GetString() : null;
     private string? Consequence => Schema.TryGetProperty("consequence", out var value) ? value.GetString() : null;
+    private bool HasHelp => !string.IsNullOrWhiteSpace(Help) || !string.IsNullOrWhiteSpace(Consequence)
+        || InputPurposeHelp is not null || IsMasked && Type is "boolean" or "enum";
     private bool Required => RequiredOverride ?? (Schema.TryGetProperty("required", out var value) && value.GetBoolean());
     private bool HasOptionalChildren => ContainsOptionalProperty(Schema);
     private bool OptionalEditorsExpanded => Form.IsEditorExpanded(Path);
@@ -75,6 +129,7 @@ public partial class ConfigurationField
         }
     }
     private bool IsSecret => InheritedSecret || Schema.TryGetProperty("sensitivity", out var value) && value.GetString() == "secret";
+    private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
     private bool IsMasked => IsSecret || InheritedSensitive || Schema.TryGetProperty("sensitivity", out var value) && value.GetString() == "sensitive";
     private int MaximumItems => Schema.TryGetProperty("maxItems", out var value) ? value.GetInt32() : SetupCompositionLimits.DefaultSequenceEntries;
     private int Count => Value is { ValueKind: JsonValueKind.Array } value ? value.GetArrayLength() : 0;
@@ -97,14 +152,7 @@ public partial class ConfigurationField
             _ => "Use the value already accepted by your target. A password manager may fill or paste it."
         } + " Your password manager has independent custody; clearing this workspace does not clear its vault."
         : null;
-    private JsonElement ItemSchema => JsonSerializer.SerializeToElement(new Dictionary<string, object?>
-    {
-        ["type"] = Schema.GetProperty("itemType").GetString(),
-        ["required"] = true,
-        ["title"] = Title + " item",
-        ["sensitivity"] = Schema.GetProperty("sensitivity").GetString(),
-        ["properties"] = Schema.TryGetProperty("properties", out var value) ? value : (JsonElement?)null
-    });
+    private JsonElement ItemSchema => Form.GetListItemMetadata(Path);
     private JsonElement? Value
     {
         get
@@ -122,6 +170,12 @@ public partial class ConfigurationField
     }
     protected override void OnParametersSet()
     {
+        bool controlMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path) && Type is not ("object" or "list");
+        if (_controlMounted != controlMounted)
+        {
+            _controlMounted = controlMounted;
+            ++_controlGeneration;
+        }
         _controlId = null;
         if (!ReferenceEquals(_rootForm, Form) || _rootInput?.Definition.Id != Path[0])
         {
@@ -130,9 +184,6 @@ public partial class ConfigurationField
         }
         if (!FocusFirstControl || _observedFocusGeneration != FocusGeneration) _focusedForRequest = false;
         _observedFocusGeneration = FocusGeneration;
-        _rowKeys.Clear();
-        for (int row = 0; row < Count; row++)
-            _rowKeys.Add(Form.GetEditorIdentity(Path.Append(row.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray()));
         bool invalid = Form.CanEdit(Path) && Form.HasInputError(Path);
         if (_invalid != invalid)
         {
@@ -140,19 +191,23 @@ public partial class ConfigurationField
             _ = NotifyValidityAsync();
         }
     }
-    private void Edit(ChangeEventArgs args)
+    private bool Edit(ChangeEventArgs args, DefinitionFormModel expectedForm, IReadOnlyList<string> expectedPath,
+        long expectedRevision, long expectedControlGeneration)
     {
+        if (_disposed || !_controlMounted || _controlGeneration != expectedControlGeneration || !ReferenceEquals(Form, expectedForm)
+            || Form.InputRevision != expectedRevision || !Path.SequenceEqual(expectedPath)) return false;
         string selection = args.Value?.ToString() ?? "";
-        if (selection.Length == 0) { Omit(); return; }
+        if (selection.Length == 0) { Omit(); return true; }
         if (HasEmptyChoice)
         {
             if (!int.TryParse(selection, out int index) || index < 0 ||
-                index >= Schema.GetProperty("choices").GetArrayLength()) return;
+                index >= Schema.GetProperty("choices").GetArrayLength()) return false;
             _invalid = !Form.SetValue(Path, Schema.GetProperty("choices")[index]);
             _ = NotifyValidityAsync();
-            return;
+            return true;
         }
         EditText(selection);
+        return true;
     }
     private void EditText(string? suppliedText)
     {
@@ -162,9 +217,9 @@ public partial class ConfigurationField
         _ = NotifyValidityAsync();
     }
     private bool EditText(string? text, DefinitionFormModel expectedForm, IReadOnlyList<string> expectedPath, long expectedRevision,
-        bool changeOnly = false)
+        long expectedControlGeneration, bool changeOnly = false)
     {
-        if (_disposed || !ReferenceEquals(Form, expectedForm) || Form.InputRevision != expectedRevision
+        if (_disposed || !_controlMounted || _controlGeneration != expectedControlGeneration || !ReferenceEquals(Form, expectedForm) || Form.InputRevision != expectedRevision
             || !Path.SequenceEqual(expectedPath)) return false;
         if (changeOnly && _lastInputRevision == expectedRevision && Text == text) return false;
         EditText(text);
@@ -172,6 +227,12 @@ public partial class ConfigurationField
         return true;
     }
     private Task NotifyValidityAsync() => ValidationChanged.InvokeAsync((ControlId, Path[0], _invalid));
+    private (IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys) InspectorBindings()
+    {
+        var entry = Form.Projection.Entries.FirstOrDefault(item => item.FieldId == Path[0]
+            && item.RelativePath.SequenceEqual(Path.Skip(1)));
+        return entry is null ? ([], []) : (entry.OutputArtifactIds.ToArray(), entry.BindingKeys.ToArray());
+    }
     private void Omit()
     {
         if (!Form.EditValue(Path, null)) return;
@@ -198,18 +259,24 @@ public partial class ConfigurationField
         {
             _focusAfterOmit = false;
             if (Type is "object" or "list") await _group.FocusAsync(preventScroll: true);
-            else await _control.FocusAsync(preventScroll: true);
+            else await FocusScalarAsync(preventScroll: true);
         }
         if (_focusObjectChildren) { _focusObjectChildren = false; if (!CanFocus(Schema, Path)) await _group.FocusAsync(preventScroll: true); }
         if (FocusFirstControl && !_focusedForRequest && Form.CanEdit(Path) && Type != "object" && (Type != "list" || Count == 0))
         {
             _focusedForRequest = true;
             if (Type == "list") await _addButton.FocusAsync();
-            else await _control.FocusAsync();
+            else await FocusScalarAsync();
         }
         if (!_focusAdd) return;
         _focusAdd = false;
         await _addButton.FocusAsync(preventScroll: true);
+    }
+    private async Task FocusScalarAsync(bool preventScroll = false)
+    {
+        if (_textControl is not null && (Type is not ("boolean" or "enum") || IsMasked))
+            await _textControl.FocusAsync();
+        else if (_choiceControl is not null) await _choiceControl.FocusAsync();
     }
     private bool CanFocus(JsonElement schema, IReadOnlyList<string> path)
     {

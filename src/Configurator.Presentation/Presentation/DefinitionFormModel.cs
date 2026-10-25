@@ -46,9 +46,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                     group.Select(input => input.Id))).ToArray());
         Experiences = Array.AsReadOnly(definition.Presentation is { } presentation
             ? presentation.Experiences.Select(experience => new DefinitionFormExperience(experience.Id,
-                experience.Title, experience.InitialDisclosure, experience.Navigation, experience.Sections)).ToArray()
+                experience.Title, experience.InitialDisclosure, experience.Navigation, experience.Sections,
+                experience.Description)).ToArray()
             : [new DefinitionFormExperience("configure", "Configure", SetupFieldDisclosure.Guided,
-                "sections", Sections.Select(section => section.Id))]);
+                "sections", Sections.Select(section => section.Id), null)]);
         SelectedExperienceId = definition.Presentation?.DefaultExperience ?? "configure";
         _index = new DefinitionFormIndex(definition, Sections, Experiences);
     }
@@ -58,7 +59,27 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     public IReadOnlyList<DefinitionFormSection> Sections { get; }
     public string SelectedExperienceId { get; private set; }
     public bool OptionalEditorsExpanded { get; private set; }
+    public SetupFieldDisclosure? DisclosureOverride { get; private set; }
     public event EventHandler? ViewChanged;
+
+    /// <summary>Selects optional detail independently of the authored experience without editing answers.</summary>
+    public void SetDisclosureOverride(SetupFieldDisclosure? disclosure)
+    {
+        if (disclosure is { } value && !Enum.IsDefined(value))
+            throw new ArgumentOutOfRangeException(nameof(disclosure));
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (DisclosureOverride == disclosure) return;
+        DisclosureOverride = disclosure;
+        OptionalEditorsExpanded = false;
+        _sectionExpansion.Clear();
+        _editorExpansion.Clear();
+        OnPropertyChanged(nameof(DisclosureOverride));
+        OnViewChanged();
+    }
+
+    private SetupFieldDisclosure EffectiveDisclosure =>
+        DisclosureOverride ?? Experiences.Single(item => item.Id == SelectedExperienceId).InitialDisclosure;
 
     public bool SelectExperience(string id)
     {
@@ -140,8 +161,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                     "advanced" => SetupFieldDisclosure.Advanced,
                     _ => SetupFieldDisclosure.Guided
                 } : SetupFieldDisclosure.Guided;
-            return disclosure == SetupFieldDisclosure.Essential || disclosure <= experience.InitialDisclosure &&
-                (section is null || section.Disclosure <= experience.InitialDisclosure);
+            return disclosure == SetupFieldDisclosure.Essential || disclosure <= EffectiveDisclosure &&
+                (section is null || section.Disclosure <= EffectiveDisclosure);
         }
     }
 
@@ -579,6 +600,21 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!_index!.FieldPositions.TryGetValue(fieldId, out int position))
                 throw new ArgumentException("field-invalid", nameof(fieldId));
             return (Fields[position], _index.Roots[fieldId].Metadata);
+        }
+    }
+    /// <summary>
+    /// Returns admitted list-item metadata without serializing row answers.
+    /// Row titles, required state and inherited sensitivity remain the renderer's responsibility.
+    /// </summary>
+    public JsonElement GetListItemMetadata(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) || node.Item is null)
+                throw new ArgumentException("field-invalid", nameof(path));
+            return node.Item.Metadata;
         }
     }
     public long InputRevision => _inputRevision;

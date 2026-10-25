@@ -41,7 +41,17 @@ independent. See the [runtime decision](../adr/ADR-cli-command-runtime.md).
 Public authoring custody, discovery/repair, portable skill lifecycle, actual-host
 qualification and installed adoption remain open, not enterprise certification.
 
-`global.json` pins SDK 10.0.302 and Microsoft.Testing.Platform.
+`global.json` pins SDK 10.0.302, the tested WebAssembly workload set and
+Microsoft.Testing.Platform. Native-only and public-data CI jobs initialize the
+pinned manifests with `dotnet workload update` before restoring projects; SDK
+installation alone does not supply the selected workload set.
+Browser Release publication uses AOT compilation;
+Debug remains interpreted. CI and the Browser container build install the pinned
+`wasm-tools` workload explicitly, with Python available on Linux builders.
+The Browser project owns the Release setting; no new package reference or
+alternative dependency graph is introduced. The release owner still emits
+component notices and public package metadata. The larger download/cache cost
+and actual runtime evidence belong in Operations.
 `Directory.Build.props` supplies deterministic builds, generated dependency
 locks, strict warnings, .NET analyzers and MIT metadata. There are no inherited
 warning suppressions. `Directory.Packages.props` carries only the product and
@@ -58,6 +68,11 @@ Root configuration applies before solution registration. AgentWorkflow validates
 single-document intent YAML and literal commit paths. ReleaseEngineering owns
 Conventional Commit syntax, scope/trailer validation, bounded release inputs,
 Change-Id allocation, deterministic presentation and signed evidence validation.
+Digest-bound, append-only group corrections repair incompatible membership
+without mutating original fragments, identities, impacts or release entries.
+Candidate and authorized-inventory verification include the applicable committed
+correction documents in source provenance. Reserved classification markers
+remain prohibited independently of ordinary descriptions of restricted output.
 Missing promotion trust rejects signed publication; the project does not embed
 Event's signer list.
 
@@ -97,6 +112,30 @@ Shared experience/disclosure/discovery state has its own notifications and canno
 grant consent, change answers or retire current preparation. Invalid nested drafts,
 literal correction paths, provenance and workspace row identity belong to
 Presentation/Core, rather than independent Browser or native visibility policies.
+An explicit shared disclosure override separates optional detail from authored
+experience selection; null follows the authored level. Visibility and expansion
+use that same effective level. Authored experience/section descriptions remain
+public projection metadata. Correction may explicitly preserve the one current
+discovery query/facets without advancing input revision or granting consent.
+The [workspace presentation decision](../adr/ADR-browser-workspace-presentation.md)
+keeps thin text/choice controls over that shared state, fences retired rendered
+callbacks by mounted-control generation, and separates session density from
+stored appearance. Owner-qualified application-bar search and contextual public
+metadata inspectors hold no answer snapshots. Their actual runtime limits are
+recorded in Operations; component tests alone do not qualify the surface.
+Large Browser sections retain connected controls and progressively mount newly
+editable roots through `ConfigurationSectionFields`. Form identity, operation
+generation and cancellation fence every continuation. Busy state remains until
+all current roots mount; correction may prioritize its destination. This is a
+Browser rendering mechanism, not another evaluator or answer store. List rows
+reuse admitted item metadata while preserving enclosing masking and required
+state; new input revisions still refresh every mounted callback fence.
+Admitted `SetupFieldDefinition` instances materialize immutable public field
+identity, display/required/disclosure/sensitivity metadata, defaults, choices,
+condition locations and ordered dependencies once. `DefinitionValidator` still
+evaluates current answer-dependent
+conditions and validates every revision; this metadata does not retain answers
+or introduce a second evaluation authority.
 The shared form owns a metadata-only definition index and one current input
 revision's private derived facts. Disclosure/search reuse those facts; selected
 experience order remains a separate dependency of ranked discovery. Read-only

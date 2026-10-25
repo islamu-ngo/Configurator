@@ -28,7 +28,7 @@ public sealed class BrowserConfigurationReviewTests
         """));
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
@@ -58,7 +58,7 @@ public sealed class BrowserConfigurationReviewTests
          "activeWhen":{"op":"equals","field":"enabled","value":true}}
         """));
         source["artifacts"]![0]!["projection"]!["members"]!["dependent"] = JsonNode.Parse("""{"op":"copy","field":"dependent"}""");
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -67,7 +67,7 @@ public sealed class BrowserConfigurationReviewTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"dependent":"synthetic-file-canary"}"""));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await component.Find("[data-import-correction='dependent']").ClickAsync(new MouseEventArgs());
-        await Assert.That(form.DiscoveryQuery).IsEqualTo("");
+        await Assert.That(form.DiscoveryQuery).IsEqualTo("obstructing-query");
         await Assert.That(form.Snapshot().Values["enabled"].GetBoolean()).IsFalse();
         await Assert.That(form.Snapshot().Values.ContainsKey("dependent")).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
@@ -79,7 +79,7 @@ public sealed class BrowserConfigurationReviewTests
     [Arguments(false)]
     public async Task RejectedKnownFieldImportOffersValueFreeContextualRecovery(bool conflict)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         if (conflict) await component.InvokeAsync(() => form.EditValue(["name"], "manual-answer"));
@@ -101,7 +101,7 @@ public sealed class BrowserConfigurationReviewTests
     [Test]
     public async Task DeniedSecretImportOffersConsentRecoveryWithoutEnablingOrApplyingIt()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
@@ -119,7 +119,7 @@ public sealed class BrowserConfigurationReviewTests
     [Test]
     public async Task SupportedImportPrecedesManualEntry()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var controls = component.FindAll("input").Select(control => control.Id).ToList();
         int importIndex = controls.IndexOf("artifact-import");
@@ -131,7 +131,7 @@ public sealed class BrowserConfigurationReviewTests
     [Test]
     public async Task ReviewExplainsOriginsWithoutExposingAnswersOrChangingRevision()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() =>
@@ -161,7 +161,7 @@ public sealed class BrowserConfigurationReviewTests
     [Test]
     public async Task UnsupportedInverseDoesNotOfferImport()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));

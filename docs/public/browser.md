@@ -51,6 +51,10 @@ editing depends on the connection, its latency and server availability.
 Interactive Auto may use Server initially and WebAssembly on subsequent visits.
 That variability does not fit Configurator's consistent local answer boundary.
 
+Release packages use ahead-of-time (AOT) compilation to reduce local interaction
+cost. This increases the initial download and public offline-cache footprint.
+Development builds remain interpreted.
+
 WebAssembly is therefore a data-custody and offline choice, not a claim that it
 always loads faster or is automatically secure. Trusting a provider to deliver
 software and trusting its infrastructure to receive secrets are different
@@ -110,7 +114,10 @@ answers. Object lists use declared row properties and
 bounded add/remove controls; removed rows are excluded from the next output.
 An explicitly supplied empty string, an admitted empty enum choice, `false`,
 zero, `{}` and `[]` are values, not omitted answers. Use the field's explicit
-omission action to remove an explicit answer without clearing its siblings.
+omission action in **Actions for...** to remove an explicit answer without
+clearing its siblings. Opening that menu does not change answers. Escape closes
+it and returns focus to its Actions button. Boolean choices distinguish Not supplied, Yes and No;
+an admitted empty enum string has its own Empty string choice.
 An admitted definition's default still applies when an answer is absent.
 An untouched blank control or abandoned new list item supplies nothing.
 Changing an answer, even to invalid text or the same value, discards old output
@@ -126,20 +133,39 @@ that fact instead of a percentage; invalid optional input still needs correction
 
 Section buttons show required answers ready and work needing attention.
 Only the selected section mounts its editors. Switching sections keeps
-your answers, unfinished input and repeated-row identity. Use local **Show optional
-settings** controls inside a structured field, or expand optional settings for
-the whole workspace. Collapsing does not delete supplied values or hide an active
+your answers, unfinished input and repeated-row identity. Large sections load
+their controls in small batches, with a loading message while settings remain
+to be mounted. Visible controls stay available, and search or correction can
+bring its requested setting into view before unrelated controls finish loading.
+Loading progress does not determine answer readiness or enable secret entry.
+Use local **Show optional
+settings** controls inside a structured field, or choose **Detail in this profile**:
+Follow experience, Essential, Standard or All active. **Density** selects
+Comfortable or Compact spacing for this workspace only. Neither selector changes
+answers, consent, unfinished numeric text or current prepared files.
+Collapsing does not delete supplied values or hide an active
 error. Short help stays near the question; **Help with...** opens the author's
-local instructions and deliberate public documentation links.
+local instructions and deliberate public documentation links. The help dialog
+also exposes the definition path and output bindings without showing answers.
+Close or Escape returns focus to its help button without expanding the form.
 
-Open **Advanced settings and search** to find exact definition or output keys,
+Use **Find a setting** in the application bar to find exact definition or output keys,
 question titles, concepts and authored guidance. All search words must match;
 private answers and prepared contents are never searched. **Filter settings**
 offers sections, requirement, applicability, answer state, sensitivity and
 declared outputs. Options within a group combine with OR; groups combine with
 AND. Counts ignore only their own group's selections, so alternative options
 stay understandable. Selected filters can be removed individually.
-The closed search panel does not mount its controls or results. Reopening keeps
+Ctrl-K or Command-K opens search; on a phone, **Search settings** opens the same
+workspace search. Escape or **Close** dismisses results and returns focus to the
+connected control that opened keyboard search. Pointer-opened search returns
+to its query on desktop or **Search settings** on a phone.
+On short viewports, including high browser zoom, the application bar scrolls
+with the document so it cannot cover your question. Keyboard search still opens
+within the viewport. On a phone the query replaces the search button without
+changing the application bar's height or shifting the workspace.
+Clicking outside dismisses results without moving your destination focus.
+The closed result panel does not mount its filters or results. Reopening keeps
 the current query and filters and uses current answers for readiness. Results
 are shown 50 at a time; counts and ranking describe the complete selection.
 Changing the query, filters or experience returns to the first page.
@@ -149,8 +175,9 @@ and filters** clears both. No-match recovery offers these same deliberate
 choices. Inactive settings are excluded by default. Including them explains
 their applicability without enabling anything; **Review activation** opens an
 active controlling question. A result's **Configure** action opens its exact
-question or routes a denied secret to consent. Corrections clear obstructing
-search and filters. Searching, filtering and navigation preserve answers,
+question or routes a denied secret to consent. Selecting a result closes the
+panel and focuses the destination while preserving the query and filters.
+Searching, filtering and navigation preserve answers,
 unfinished input, consent and prepared files; none is saved in links or storage.
 
 Review lists active corrections, including
@@ -293,9 +320,12 @@ those browser behaviors. See the
 
 ## Hosting
 
-Build the standalone static package with the repository SDK:
+Build the standalone static package with the repository-pinned SDK and workload
+set. Install the WebAssembly build tools once; Linux builders also need Python 3
+available on `PATH`:
 
 ```bash
+dotnet workload install wasm-tools
 dotnet msbuild eng/configurator/Configurator.Release.proj -target:PublishConfiguratorBrowser -property:Configuration=Release
 ```
 

@@ -1,11 +1,18 @@
 # Browser interface ownership
 
 The static WebAssembly shell owns navigation and appearance. `Layout/MainLayout`
-provides skip navigation, the header, sidebar, main landmark and footer. Home,
+provides skip navigation, the header, application navigation, main landmark and footer. Home,
 Store, Open configuration and Help are route destinations; the configuration
 workspace remains owned by Presentation and the Browser editor.
 
-Below the sidebar breakpoint, navigation expands inline from a named Menu
+`Configurator.Browser.csproj` owns Release AOT compilation; `global.json` selects
+the SDK and workload set. CI and the Browser container build explicitly provision
+the WebAssembly tools, including Python on Linux. Debug stays interpreted.
+AOT trades a larger public payload/cache for lower managed interaction cost.
+The [public hosting guide](../public/browser.md#hosting) gives the build command;
+[Operations](OPERATIONS.md) records exact package costs and runtime evidence.
+
+At every viewport width, application navigation expands inline from a named Menu
 button. Escape closes it and restores focus to that button. This disclosure
 does not create a modal or trap focus. Skip navigation focuses the main landmark
 without changing the URL, so it cannot discard a live workspace through a
@@ -47,7 +54,7 @@ Shared native text controls explicitly opt into `form-control`; MudBlazor
 continues to own its outlined inputs. Control borders use the input palette,
 while decorative card borders use the divider palette. Normal themes use a
 teal action accent; high-contrast themes retain their monochrome palettes.
-The shell shares header/sidebar dimensions through component tokens. Its main
+The shell uses component spacing tokens without reserving a permanent sidebar. Its main
 column fills the viewport and keeps the footer below content without a fixed
 overlay. Navigation icons are local MudBlazor SVGs with decorative semantics.
 
@@ -80,8 +87,30 @@ answers, unfinished drafts, provenance and logical row identities in the shared
 form, not in retained DOM controls. Active hidden fields still participate in
 shared validation.
 
-`ConfigurationDiscovery` mounts controls and results only after deliberate
-opening. The form retains one current query/facet selection. Ranking and facet
+`ConfigurationSectionFields` mounts newly editable roots in bounded batches,
+retaining controls already present. The editor supplies its current section's
+already-evaluated field states; the child does not rebuild a whole-form lookup
+or evaluate answers independently. Its pending count and `aria-busy` describe
+DOM completion, not answer readiness. Current correction targets mount directly;
+unrelated fields continue through the frame boundary. A dedicated mount generation,
+form identity and editor cancellation token reject obsolete continuations after
+input, view changes, replacement or disposal. View-only supersession does not
+consume another synchronous batch. Secret denial and prepared-output retirement
+remain synchronous. `configuration-rendering.js` posts a local null-message task
+from an animation callback; neither answers nor artifacts enter that handoff.
+The module is a required public offline asset.
+
+`Layout/WorkspaceSearch` exposes an outlined MudBlazor query in the appbar and
+mounts `ConfigurationDiscovery` filters/results only after deliberate opening.
+`WorkspaceSearchState` holds owner-qualified delegates and a render fragment,
+not an answer snapshot or a second query. The editor releases its generation
+before replacement, discard or disposal; retired registrations cannot clear or
+search the current editor. `workspace-interactions.js` receives only an element,
+callback reference and generation for Ctrl-K/Command-K and outside dismissal.
+Escape/Close restore the visible query or phone trigger; result selection closes without stealing the
+editor's destination focus. Application navigation and workspace search are
+separate labelled surfaces, not a partial combobox.
+The form retains one current query/facet selection. Ranking and facet
 counts cover the complete shared selection; only the current 50-result page
 mounts. Selection or experience changes reset the page, and answer changes clamp
 it to the current result range. Page navigation does not mutate answers.
@@ -96,15 +125,41 @@ destination-focus behavior.
 
 `ConfigurationField` sends parsed typed values through the shared form. An absent
 boolean differs from false, and absent objects/lists differ from empty values.
-Scalar editors use native browser inputs with shared `form-control` styling,
-rather than constructing a component-library input for every disclosed leaf.
-The form still owns parsing and invalid drafts; input/change events use the same
-revision fence, and native focus, input modes and credential autocomplete remain
-explicit.
+`AppTextField` wraps a full-width outlined string-bound MudInput and renders its
+connected scalar error directly, including numeric drafts and masked credentials.
+Public enum/boolean leaves use MudSelect with
+distinct absence and admitted-empty identities. The form still owns parsing and
+invalid drafts; raw text input/change and received choice notifications use the
+same form/path/revision/mounted-control generation fence. A callback captured
+before an editor unmount cannot edit its remounted successor. Focus, input modes
+and credential autocomplete remain explicit; no copied answer buffer is added.
 Masked scalar controls inherit sensitive or secret ancestors; secret consent
 still uses the form's edit permission, allowing public siblings to remain
 editable. Authored titles are preserved. Mechanical identifier formatting is
 used only when title equals key, with the exact key available separately.
+List rows obtain their immutable item metadata from the shared admitted index,
+not a new JSON serialization on each render. The renderer supplies the row title,
+required state and inherited masking separately. Unchanged parameter updates may
+skip a field tree only while the form, input revision, projection and all
+rendering/focus parameters remain current. Parameter delivery still runs; a new
+input revision always refreshes the revision-fenced callbacks.
+
+The independent detail selector delegates to the shared disclosure override.
+Comfortable/Compact changes session-local CSS tokens only. Named field-action
+menus retain explicit omission, including container descendants.
+Each omission menu is instantiated on first use and retained afterward. Its
+custom activator receives focus after cold mounting and after close; the open
+state participates in rendering so its expanded state stays current. Unchanged
+field chrome may skip visual rendering, but current callbacks and help bindings
+still refresh without retaining another answer snapshot.
+`ConfigurationFieldHelp` opens `ConfigurationInspector` with admitted public
+schema, authored descriptions and lazily projected value-free output bindings.
+It closes its own dialog on revocation, replacement or disposal and rejects late
+opens. Its named native trigger retains the packaged Mud icon and focus/target
+rules without precreating a tooltip overlay for every field. Stable scrollbar
+allocation prevents modal geometry shifts; the sticky wrapping appbar keeps
+search reachable during deep editing. Its global shortcut yields to an active
+dialog rather than escaping modal focus custody.
 
 `ConfigurationReview` projects shared diagnostics into value-free explanations
 and correction buttons. The effects region mounts at Review and pages 50 entries

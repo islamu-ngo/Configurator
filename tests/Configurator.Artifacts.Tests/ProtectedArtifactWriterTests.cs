@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Configurator.Artifacts;
 using Configurator.Core;
@@ -11,6 +12,17 @@ public sealed class ProtectedArtifactWriterTests
 {
     private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private const string OutputFileName = "output";
+
+    [Test]
+    [Arguments(Architecture.X64, 0xb0000, 0x490002)]
+    [Arguments(Architecture.Arm64, 0x8c000, 0x484002)]
+    public async Task LinuxOpenFlagsMatchTheProcessArchitectureAbi(Architecture architecture, int directory, int anonymousFile)
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("actual-linux-required");
+        var flags = UnixProtectedArtifactWriter.GetOpenFlags(architecture);
+        await Assert.That(flags.Directory).IsEqualTo(directory);
+        await Assert.That(flags.AnonymousFile).IsEqualTo(anonymousFile);
+    }
 
     [Test]
     public async Task RestrictedAndUnknownBytesNeverReachPublicStreams()

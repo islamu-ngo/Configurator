@@ -1,5 +1,32 @@
 # Configurator packaging ownership
 
+`global.json` selects both the SDK and workload-set versions. Before the first
+restore on a clean SDK installation, `dotnet workload update` initializes the
+pinned manifests, including on native-only and public-data CI jobs. The command
+runs from the repository root so the pin remains authoritative. Browser builders
+add `wasm-tools`; native-only jobs do not install that workload.
+
+CI explicitly restores and builds the static Browser host before auditing its
+dependencies with `--no-restore`. The host has no product project references, so
+restoring Browser tests alone does not produce its assets file. Audit logs name
+each project before invoking the SDK, including when the SDK rejects its graph.
+
+Native CLI jobs use the runner-owned temporary directory for their tests.
+macOS system temporary paths can traverse `/var` aliases; source-authoring
+tests must not depend on that alias while the actual loader correctly rejects
+symlinked paths. This changes test placement, not source-admission policy.
+
+The standalone CI job allows 45 minutes for locked builds, three actual Release
+AOT Browser publications and the complete owner suites. The observed pre-test
+stages consumed about 25 minutes on a clean hosted runner; the deadline
+includes the remaining verification rather than changing any test or interaction
+budget.
+
+Definition schema and release capability generators normalize indented JSON to
+LF before writing bytes or computing frozen-contract hashes. Native package
+freshness checks compare those canonical bytes on every host; Windows must not
+introduce CRLF differences into unchanged contracts.
+
 `eng/configurator/Configurator.Release.proj` owns native surface/RID admission,
 standalone publication and independent static browser publication. Its default
 `Build` target restores locked development dependencies and builds the selected

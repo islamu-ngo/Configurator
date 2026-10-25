@@ -1,0 +1,21 @@
+<div class="app-text-field">
+    <MudInput T="string" @ref="_input" Value="@Value" InputId="@InputId"
+                  InputType="@(Masked ? InputType.Password : InputType.Text)" InputMode="@InputMode"
+                  Disabled="@Disabled" Error="@Error" ErrorText="@ErrorText" ErrorId="@(InputId + "-error")" HelperId="@(InputId + "-help")"
+                  MaxLength="65536" Immediate="true" FullWidth="true"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" UserAttributes="@InputAttributes" />
+    <p id="@(InputId + "-error")" class="app-text-field__error" hidden="@(!Error)">@ErrorText</p>
+</div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter, EditorRequired] public string InputId { get; set; } = string.Empty;
+    [Parameter] public bool Masked { get; set; }
+    [Parameter] public InputMode InputMode { get; set; } = InputMode.text;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public string? ErrorText { get; set; }
+    [Parameter] public Dictionary<string, object>? InputAttributes { get; set; }
+    private MudInput<string> _input = null!;
+    public async Task FocusAsync() => await _input.FocusAsync();
+}

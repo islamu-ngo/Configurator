@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Configurator.ReleaseEngineering;
 
@@ -22,6 +24,135 @@ public sealed class ChangeWorkflowCommandTests
         "^CHG-[0-9A-HJKMNP-TV-Z]{26}$",
         RegexOptions.CultureInvariant,
         TimeSpan.FromMilliseconds(100));
+
+    [Test]
+    [Arguments("untracked")]
+    [Arguments("staged")]
+    [Arguments("modified")]
+    [Arguments("deleted")]
+    [Arguments("renamed")]
+    public async Task GroupCorrectionCustodyRejectsUncommittedRangeInputs(string state)
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        repository.CreateBranch("feature");
+        const string id = "CHG-2026-0021";
+        string original = FragmentYaml(id) + "\nGroup: original-group\n";
+        repository.Commit($"docs/internal/releases/changes/{id}.yaml", original,
+            $"feat(self-hosting): publish grouped change\n\nChange-Id: {id}");
+        string path = $"docs/internal/releases/group-corrections/{id}.yaml";
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.Join(repository.Path, path))!);
+        string correction = GroupCorrection(original, id);
+        File.WriteAllText(Path.Join(repository.Path, path), correction);
+        if (state == "staged") repository.Git("add", path);
+        if (state is "modified" or "deleted" or "renamed")
+        {
+            repository.Git("add", path);
+            repository.CommitStaged("chore(release): correct grouping\n\nChangelog: skip\nChangelog-Reason: Correct group compatibility.");
+            if (state == "modified") File.AppendAllText(Path.Join(repository.Path, path), "# changed\n");
+            if (state == "deleted") File.Delete(Path.Join(repository.Path, path));
+            if (state == "renamed") File.Move(Path.Join(repository.Path, path), Path.Join(repository.Path, path + ".moved"));
+        }
+
+        (int code, string output) = repository.Run("preflight-range", TargetOption, TargetBranch);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(output).Contains("change_release_sources_not_committed");
+    }
+
+    [Test]
+    [Arguments("modified")]
+    [Arguments("deleted")]
+    [Arguments("renamed")]
+    public async Task StagedPreflightRejectsCommittedGroupCorrectionMutation(string state)
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        const string id = "CHG-2026-0011";
+        string original = FragmentYaml(id) + "\nGroup: original-group\n";
+        // The synthetic target is committed before a new correction can bind to it.
+        repository.Commit($"docs/internal/releases/changes/{id}.yaml", original, "chore(release): establish grouped fixture");
+        string path = $"docs/internal/releases/group-corrections/{id}.yaml";
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.Join(repository.Path, path))!);
+        repository.Commit(path, GroupCorrection(original, id), "chore(release): record grouping correction");
+        if (state == "modified") File.AppendAllText(Path.Join(repository.Path, path), "# changed\n");
+        if (state == "deleted") File.Delete(Path.Join(repository.Path, path));
+        if (state == "renamed") File.Move(Path.Join(repository.Path, path), Path.Join(repository.Path, path + ".moved"));
+        repository.Git("add", ".");
+
+        (int code, string output) = repository.Run("preflight-staged", TargetOption, TargetBranch);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(output).Contains("staged_group_correction_mutation");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task NewGroupCorrectionRequiresCommittedDigestBoundTarget(bool wrongDigest)
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        const string id = "CHG-2026-0021";
+        string original = FragmentYaml(id) + "\nGroup: original-group\n";
+        string fragmentPath = $"docs/internal/releases/changes/{id}.yaml";
+        if (wrongDigest) repository.Commit(fragmentPath, original, "chore(release): establish grouped fixture");
+        else File.WriteAllText(Path.Join(repository.Path, fragmentPath), original);
+        string path = $"docs/internal/releases/group-corrections/{id}.yaml";
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.Join(repository.Path, path))!);
+        File.WriteAllText(Path.Join(repository.Path, path), GroupCorrection(wrongDigest ? original + "# not committed\n" : original, id));
+        repository.Git("add", ".");
+
+        (int code, _) = repository.Run("preflight-staged", TargetOption, TargetBranch);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
+    }
+
+    [Test]
+    public async Task CommittedGroupCorrectionPreservesOriginalRangeLinkageAndBump()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        repository.CreateBranch("feature");
+        const string id = "CHG-2026-0021";
+        string original = FragmentYaml(id) + "\nGroup: original-group\n";
+        string commit = repository.Commit($"docs/internal/releases/changes/{id}.yaml", original,
+            $"feat(self-hosting): publish grouped change\n\nChange-Id: {id}");
+        string path = $"docs/internal/releases/group-corrections/{id}.yaml";
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.Join(repository.Path, path))!);
+        File.WriteAllText(Path.Join(repository.Path, path), GroupCorrection(original, id));
+        repository.Git("add", path);
+        (int staged, string stagedOutput) = repository.Run("preflight-staged", TargetOption, TargetBranch);
+        await Assert.That(staged).IsEqualTo(Program.Success).Because(stagedOutput);
+        repository.CommitStaged("chore(release): correct grouping\n\nChangelog: skip\nChangelog-Reason: Correct group compatibility.");
+        (int code, string output) = repository.Run("preflight-range", TargetOption, TargetBranch);
+        ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(ReleaseYaml(), [original], [],
+            [new KeyValuePair<string, string>(id, GroupCorrection(original, id))]);
+        ReleaseContextValidationResult context = ReleaseContextPolicy.Build(input,
+            [new ReleaseCommit(commit, $"feat(self-hosting): publish grouped change\n\nChange-Id: {id}")],
+            ReleasePolicy.LoadFromRepositoryRoot(repository.Path));
+
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+        await Assert.That(context.IsValid).IsTrue().Because(string.Join("; ", context.Diagnostics));
+        await Assert.That(context.Context!.Changes.Single().ChangeId).IsEqualTo(id);
+        await Assert.That(context.Context.Changes.Single().Oid).IsEqualTo(commit);
+        await Assert.That(context.Context.Release.MinimumBump).IsEqualTo("minor");
+        await Assert.That(repository.Git("show", $"HEAD:docs/internal/releases/changes/{id}.yaml")).IsEqualTo(original);
+    }
+
+    private static string GroupCorrection(string original, string id) =>
+        $"Schema-Version: fragment-group-correction.v1\nChange-Id: {id}\n" +
+        $"Fragment-Sha256: {Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original.TrimEnd() + "\n")))}\nGroup: corrected-group\n";
+
+    [Test]
+    public async Task RangeIgnoresUnlinkedGroupCorrectionInputs()
+    {
+        using var repository = ChangeRepositoryFixture.Create();
+        repository.CreateBranch("feature");
+        string directory = Path.Join(repository.Path, "docs/internal/releases/group-corrections");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Join(directory, "CHG-2026-9999.yaml"), "not a correction\n");
+
+        (int code, string output) = repository.Run("preflight-range", TargetOption, TargetBranch);
+
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+    }
 
     [Test]
     public async Task CollisionResistantIdsAreSortableAndNeverUseSequentialFormat()

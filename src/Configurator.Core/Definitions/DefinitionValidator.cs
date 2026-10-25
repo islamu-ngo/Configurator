@@ -108,10 +108,9 @@ public static class DefinitionValidator
         void Activate(SetupFieldDefinition field)
         {
             if (active.ContainsKey(field.Id)) return;
-            foreach (string name in new[] { "activeWhen", "requiredWhen" })
-                if (field.Data.TryGetProperty(name, out var condition))
-                    foreach (string reference in References(condition)) Activate(definitions[reference]);
-            bool? activation = field.Data.TryGetProperty("activeWhen", out var expression)
+            foreach (string reference in field.Dependencies)
+                if (!active.ContainsKey(reference)) Activate(definitions[reference]);
+            bool? activation = field.ActiveWhen is { } expression
                 ? EvaluateCondition(expression, effective, draft ? UnknownFields() : null) : true;
             if (activation is null) unresolved.Add(field.Id);
             bool enabled = activation != false;
@@ -125,7 +124,7 @@ public static class DefinitionValidator
                 bool present = effective.TryGetValue(field.Id, out var answer);
                 _ = ValueValid(field.Data, answer, present, missingLeaves, field.Id, false);
                 if (missingLeaves.Count > 0) deferred.Add(field.Id);
-                if (!field.Required && Missing(present, answer) && field.Data.TryGetProperty("requiredWhen", out var requiredWhen)
+                if (!field.Required && Missing(present, answer) && field.RequiredWhen is { } requiredWhen
                     && EvaluateCondition(requiredWhen, effective, UnknownFields()) is null)
                     unresolved.Add(field.Id);
             }
@@ -138,7 +137,7 @@ public static class DefinitionValidator
         foreach (SetupFieldDefinition field in definition.Fields)
         {
             bool enabled = active[field.Id];
-            bool? conditionalRequired = field.Data.TryGetProperty("requiredWhen", out var condition)
+            bool? conditionalRequired = field.RequiredWhen is { } condition
                 ? EvaluateCondition(condition, effective, draft ? UnknownFields() : null) : false;
             if (draft && enabled && !field.Required && conditionalRequired is null
                 && Missing(effective.TryGetValue(field.Id, out var candidate), candidate)) unresolved.Add(field.Id);

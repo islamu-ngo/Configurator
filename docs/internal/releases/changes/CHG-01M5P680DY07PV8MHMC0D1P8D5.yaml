@@ -1,0 +1,30 @@
+Change-Id: CHG-01M5P680DY07PV8MHMC0D1P8D5
+Title: "compile the Release editor ahead of time"
+Type: perf
+Scope: browser
+Summary: "Release publication compiles managed editor code ahead of time to reduce local CPU-bound interaction cost. Explicit pinned builder tools make publication reproducible, at the cost of a larger public payload."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Browser Release publication requires the workload set selected by global.json, wasm-tools and Python 3 on Linux. Debug remains interpreted."
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Compilation changes execution mode, not answer custody. Existing workspace consent and invalidation fences remain authoritative."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "The Browser project owns Release AOT. SDK and workload selection come from global.json; CI and container builders explicitly provision the tools."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Install the pinned workload before publishing and provide Python on Linux builders. Account for the larger initial download and public offline cache."

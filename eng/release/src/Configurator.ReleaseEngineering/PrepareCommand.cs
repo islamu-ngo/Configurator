@@ -52,7 +52,8 @@ public static class PrepareCommand
                 return Reject(output, pinnedObjectsDiagnostic);
             }
 
-            ReleaseCommit[] commits = ReadGitRange(root, descriptor.PreviousPublishedTag, "HEAD");
+            string sourceOid = RunGit(root, "rev-parse", "--verify", "HEAD^{commit}").Trim();
+            ReleaseCommit[] commits = ReadGitRange(root, descriptor.PreviousPublishedTag, sourceOid);
             string[] rangeOids = commits.Select(commit => commit.Oid).ToArray();
             ReleasePolicy policy = ReleasePolicy.LoadFromRepositoryRoot(root);
             ChangeIdRenameLoadResult renameResult = ChangeIdRenamePolicy.Load(root);
@@ -80,8 +81,38 @@ public static class PrepareCommand
                 return Reject(output, "prepare_fragment_missing");
             }
 
+            string[] correctionPaths = RunGit(root, "ls-tree", "-r", "--name-only", sourceOid, "--", "docs/internal/releases/group-corrections")
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Where(path => linkedChangeIds.Contains(Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal))
+                .Order(StringComparer.Ordinal).ToArray();
+            string[] changedCorrections = RunGit(root, "status", "--porcelain", "--untracked-files=all", "--no-renames", "--",
+                "docs/internal/releases/group-corrections").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (changedCorrections.Any(line => line.Length > 3 &&
+                linkedChangeIds.Contains(Path.GetFileNameWithoutExtension(line[3..]), StringComparer.Ordinal)))
+                return Reject(output, "prepare_group_corrections_not_committed");
+            foreach (string id in linkedChangeIds)
+            {
+                string relative = $"docs/internal/releases/group-corrections/{id}.yaml";
+                string path = ResolveChild(root, relative, mustExist: false);
+                if (File.Exists(path) && !correctionPaths.Contains(relative, StringComparer.Ordinal))
+                    return Reject(output, "prepare_group_corrections_not_committed");
+            }
+            var corrections = new List<KeyValuePair<string, string>>();
+            foreach (string path in correctionPaths)
+            {
+                string id = Path.GetFileNameWithoutExtension(path);
+                if (path != $"docs/internal/releases/group-corrections/{id}.yaml")
+                    return Reject(output, "prepare_group_correction_path_invalid");
+                string tree = RunGit(root, "ls-tree", sourceOid, "--", path);
+                if (!tree.StartsWith("100644 blob ", StringComparison.Ordinal) && !tree.StartsWith("100755 blob ", StringComparison.Ordinal))
+                    return Reject(output, "prepare_group_correction_path_invalid");
+                ArtifactPolicyResult normalized = ReleaseArtifactPolicy.NormalizeText(RunGit(root, "show", $"{sourceOid}:{path}"));
+                if (!normalized.IsValid || normalized.Bytes is null) return Reject(output, "prepare_group_correction_invalid");
+                corrections.Add(new(id, StrictUtf8.GetString(normalized.Bytes)));
+            }
+
             VerifiedBaseline? baseline = TryReadBaseline(root, descriptor);
-            ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(releaseYaml, fragments, []);
+            ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(releaseYaml, fragments, [], corrections);
             ReleaseContextValidationResult context = ReleaseContextPolicy.Build(
                 input,
                 commits,

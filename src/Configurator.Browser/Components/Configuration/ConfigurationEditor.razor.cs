@@ -38,6 +38,7 @@ public partial class ConfigurationEditor
     private bool _returnToReview;
     private ElementReference _consentControl;
     private long _generation;
+    private CancellationTokenSource _mountCancellation = new();
     private Task _outputRetirement = Task.CompletedTask;
     private long _fileKey;
     private CancellationTokenSource? _readCancellation;
@@ -49,24 +50,30 @@ public partial class ConfigurationEditor
     private bool _disposed;
     private bool _ready;
     private bool _beginPending;
+    private bool _compact;
     private BrowserOfflinePolicy? _offline;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
     private DefinitionDiagnostic? _importDiagnostic;
     private BrowserNavigationState? _navigation;
+    private WorkspaceSearchState? _search;
+    private long _searchLease;
     private Dictionary<string, EditorSection> _editorSections = new(StringComparer.Ordinal);
     private DefinitionDiscoverySelection? _observedDiscoverySelection;
 
     protected override void OnParametersSet()
     {
         if (ReferenceEquals(_pinned, Definition)) return;
+        InvalidateMounts();
         Invalidate();
+        _search?.Release(this, _searchLease);
         _form?.Dispose();
         _activeWorkflowStage = "configure";
         _returnToReview = false;
         _selectedSection = null;
         _focusField = null;
         _pinned = Definition;
+        _compact = false;
         ImportableArtifacts = Definition.Artifacts
             .Where(artifact => DefinitionImport.CanImport(Definition, artifact.Id)).ToArray();
         _ready = false;
@@ -79,16 +86,39 @@ public partial class ConfigurationEditor
         _importArtifact = ImportableArtifacts.FirstOrDefault()?.Id ?? string.Empty;
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         _navigation?.Register(this, Invalidate, DiscardAsync);
+        RegisterSearch();
+    }
+
+    private void RegisterSearch()
+    {
+        _search ??= Services.GetService(typeof(WorkspaceSearchState)) as WorkspaceSearchState;
+        if (_search is null) return;
+        DefinitionFormModel form = _form!;
+        long lease = 0;
+        _searchLease = lease = _search.Register(this, () => form.DiscoveryQuery,
+            query => form.SetDiscovery(query), builder =>
+            {
+                builder.OpenComponent<ConfigurationDiscovery>(0);
+                builder.AddAttribute(1, nameof(ConfigurationDiscovery.Form), form);
+                builder.AddAttribute(2, nameof(ConfigurationDiscovery.Navigate),
+                    EventCallback.Factory.Create<DefinitionDiagnostic>(this, diagnostic =>
+                    {
+                        if (_disposed || !ReferenceEquals(form, _form) || lease != _search.Generation) return;
+                        _search.CompleteNavigation(this, lease);
+                        CorrectField(diagnostic);
+                    }));
+                builder.CloseComponent();
+            });
     }
 
     private DefinitionFormExperience SelectedExperience => _form!.Experiences.Single(item => item.Id == _form.SelectedExperienceId);
     private SetupArtifactDefinition[] ImportableArtifacts { get; set; } = [];
-    private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields);
+    private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields, string? Description);
     private void IndexSections()
     {
         _observedDiscoverySelection = _form!.DiscoverySelection;
         _editorSections = _form.Sections.ToDictionary(section => section.Id, section =>
-            new EditorSection(section.Id, section.Title, section.Fields),
+            new EditorSection(section.Id, section.Title, section.Fields, section.Description),
             StringComparer.Ordinal);
     }
     private EditorSection[] EditorSections()
@@ -110,6 +140,8 @@ public partial class ConfigurationEditor
 
     private void SelectWorkflowStage(string stage)
     {
+        InvalidateMounts();
+        _focusField = null;
         _activeWorkflowStage = stage;
         _focusWorkflowStage = stage;
         if (stage == "review") _validation = _form!.Validate();
@@ -120,9 +152,10 @@ public partial class ConfigurationEditor
         SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId);
         if (field is null) return;
         string[] path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
-        bool focused = _form!.FocusEditor(path);
+        bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
+        InvalidateMounts();
         _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
         _focusField = denied ? null : field.Id;
         _focusPath = denied ? [] : path;
@@ -171,23 +204,50 @@ public partial class ConfigurationEditor
 
     private void InputChanged(object? sender, EventArgs args)
     {
+        InvalidateMounts();
+        _focusField = null;
         Invalidate();
         int required = _form!.Projection.Progress.Required;
         _status = required == _requiredCount ? "Answers changed. Previous output has been discarded."
             : $"Required work changed from {_requiredCount} to {required} answers. Previous output has been discarded.";
         _requiredCount = required;
         _statusCode = "answers-changed";
+        _search?.Refresh(this, _searchLease);
         StateHasChanged();
     }
     private void ViewChanged(object? sender, EventArgs args)
     {
+        _search?.Refresh(this, _searchLease);
         // Discovery owns its input events and rerenders its own query results.
         if (!ReferenceEquals(_observedDiscoverySelection, _form!.DiscoverySelection))
         {
             _observedDiscoverySelection = _form.DiscoverySelection;
             return;
         }
+        InvalidateMounts();
+        _focusField = null;
         StateHasChanged();
+    }
+    private void InvalidateMounts()
+    {
+        _mountCancellation.Cancel();
+        _mountCancellation.Dispose();
+        _mountCancellation = new CancellationTokenSource();
+    }
+    private void ChangeDetail(ChangeEventArgs args)
+    {
+        switch (args.Value)
+        {
+            case "authored": _form!.SetDisclosureOverride(null); break;
+            case "essential": _form!.SetDisclosureOverride(SetupFieldDisclosure.Essential); break;
+            case "guided": _form!.SetDisclosureOverride(SetupFieldDisclosure.Guided); break;
+            case "advanced": _form!.SetDisclosureOverride(SetupFieldDisclosure.Advanced); break;
+        }
+    }
+    private void ChangeDensity(ChangeEventArgs args)
+    {
+        if (args.Value is not ("compact" or "comfortable")) return;
+        _compact = args.Value is "compact";
     }
     private void ChangeExperience(ChangeEventArgs args)
     {
@@ -470,17 +530,21 @@ public partial class ConfigurationEditor
     }
     public async Task DiscardAsync()
     {
+        InvalidateMounts();
         DefinitionFormModel form = _form!;
         long lease = _offlineLease;
         _ready = false;
+        _search?.Release(this, _searchLease);
         form.Dispose();
         _navigation?.Release(this);
         if (!_disposed && ReferenceEquals(form, _form))
         {
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+            _compact = false;
             IndexSections();
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;
+            RegisterSearch();
             _activeWorkflowStage = "configure";
             _requiredCount = _form.Projection.Progress.Required;
             _focusField = null;
@@ -490,7 +554,11 @@ public partial class ConfigurationEditor
     }
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
         _disposed = true;
+        _mountCancellation.Cancel();
+        _mountCancellation.Dispose();
+        _search?.Release(this, _searchLease);
         _navigation?.Release(this);
         _ready = false;
         long lease = _offlineLease;

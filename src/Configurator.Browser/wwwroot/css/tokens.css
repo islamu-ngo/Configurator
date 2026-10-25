@@ -47,4 +47,9 @@
     --isl-shell-header-height: 5.5rem;
     --isl-shell-sidebar-width: 15rem;
     --isl-content-width: 72rem;
+    --isl-field-gap: var(--isl-space-4);
+    --isl-group-gap: var(--isl-space-7);
+    --isl-section-padding: var(--isl-space-6);
+    --isl-label-gap: var(--isl-space-2);
+    --isl-field-control-height: var(--isl-space-11);
 }

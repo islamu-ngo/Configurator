@@ -1,0 +1,26 @@
+Change-Id: CHG-01M5SYW0YJWFZCVWNXJEZ549GS
+Title: "Portable generated contracts"
+Type: fix
+Scope: definitions
+Summary: "Generate identical schema and capability contract bytes on Windows and Unix build hosts."
+Group: portable-generated-contracts
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/SECURITY_OVERVIEW.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/RELEASE_CHECKLIST.md
+    Disposition: not-applicable

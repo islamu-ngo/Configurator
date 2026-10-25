@@ -236,6 +236,9 @@ public sealed class DesktopShellViewModelTests
         using var shell = CreateShell();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         var form = shell.Workspace.Form!;
+        var name = shell.Workspace.Fields.Single(item => item.Id == "name");
+        name.Text = "Explicit service";
+        name.Text = "Example service";
         long revision = form.InputRevision;
         byte[] conflict = Encoding.UTF8.GetBytes("""{"name":"conflict","owner":{"name":"synthetic-private"}}""");
         await Assert.That(await shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(conflict))).IsFalse();
@@ -249,6 +252,22 @@ public sealed class DesktopShellViewModelTests
         await Assert.That(shell.Status).IsEqualTo("import-ready");
         await Assert.That(accepted.All(value => value == 0) && conflict.All(value => value == 0)).IsTrue();
         await Assert.That(shell.ToString()).DoesNotContain("synthetic-private");
+    }
+
+    [Test]
+    public async Task AtomicImportReplacesPristineDefaultInOneRevision()
+    {
+        using var shell = CreateShell();
+        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        var form = shell.Workspace.Form!;
+        long revision = form.InputRevision;
+        byte[] source = Encoding.UTF8.GetBytes("""{"name":"Imported service"}""");
+
+        await Assert.That(await shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(source))).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
+        await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "name").Text).IsEqualTo("Imported service");
+        await Assert.That(shell.Status).IsEqualTo("import-ready");
+        await Assert.That(source.All(value => value == 0)).IsTrue();
     }
 
     [Test]

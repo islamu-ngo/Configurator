@@ -3,6 +3,7 @@ namespace Configurator.Browser.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
+using Configurator.Browser.Layout;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -14,13 +15,19 @@ public sealed class BrowserWorkspaceLifecycleTests
     [Test]
     public async Task WarmedDiscoveryAndReviewCannotRestoreRevokedOutputOrHeldImport()
     {
-        using var context = BrowserFixture.Context();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("[data-field='mode'] select").ChangeAsync(new ChangeEventArgs { Value = "single" });
+        await using var context = BrowserFixture.Context();
+        var layout = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), BrowserFixture.Definition);
+            builder.CloseComponent();
+        }));
+        var component = layout.FindComponent<ConfigurationEditor>();
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-warmed-secret" });
-        await component.Find(".configuration-discovery > summary").ClickAsync(new MouseEventArgs());
+        await layout.Find("#configuration-search").ClickAsync(new MouseEventArgs());
         await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[data-review-path]").Count).IsGreaterThan(0);
         await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
@@ -51,15 +58,15 @@ public sealed class BrowserWorkspaceLifecycleTests
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         source["fields"]![0]!["choices"]!.AsArray().Insert(0, JsonValue.Create(""));
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("[data-field='mode'] select").Change("0");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "0");
         component.Find("[data-field='hostname'] input").Input("retained.test");
         component.Find("#secret-consent").Change(true);
         using var stream = new HeldReadStream("{\"mode\":\"\",\"hostname\":\"retained.test\",\"credential\":\"repeated-selection-canary\"}"u8.ToArray());
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        try { component.Find("[data-field='mode'] select").Change("0"); }
+        try { await BrowserFixture.NotifyChoiceAsync(component, "mode", "0"); }
         finally { stream.Release.TrySetResult(); }
         await reading.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("value")).IsEqualTo("");
@@ -72,7 +79,7 @@ public sealed class BrowserWorkspaceLifecycleTests
     [Arguments("denial")]
     public async Task EditOrDenialFencesSecretBearingReadCompletion(string transition)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         component.Find("[data-field='hostname'] input").Input("retained.test");
         component.Find("#secret-consent").Change(true);
@@ -102,12 +109,12 @@ public sealed class BrowserWorkspaceLifecycleTests
         second["fileName"] = "second.json";
         source["artifacts"]!.AsArray().Add(second);
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule();
         await using var exportModule = new LifecycleModule();
         context.Services.AddSingleton<IJSRuntime>(new LifecycleJavascript(policyModule, exportModule));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#secret-consent").Change(true);
         component.Find("[data-field='credential'] input").Input("second-artifact-canary");
@@ -137,12 +144,12 @@ public sealed class BrowserWorkspaceLifecycleTests
     [Test]
     public async Task DenialClearsSecretsBeforeHeldCleanupAndPreservesCompetingPublicEdit()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule();
         await using var exportModule = new LifecycleModule();
         context.Services.AddSingleton<IJSRuntime>(new LifecycleJavascript(policyModule, exportModule));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#secret-consent").Change(true);
         component.Find("[data-field='credential'] input").Input("revoked-lifecycle-canary");
@@ -178,7 +185,7 @@ public sealed class BrowserWorkspaceLifecycleTests
     [Arguments(true)]
     public async Task OlderWorkspaceStartCannotUnlockOrDisableCurrentWorkspace(bool replaceDefinition)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule();
         await using var exportModule = new LifecycleModule();
         var javascript = new LifecycleJavascript(policyModule, exportModule);
@@ -204,13 +211,13 @@ public sealed class BrowserWorkspaceLifecycleTests
     [Arguments(true)]
     public async Task DelayedOldExportCleanupCannotEraseNewOutputOrResumeStalePreparation(bool failCleanup)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule();
         await using var exportModule = new LifecycleModule();
         var javascript = new LifecycleJavascript(policyModule, exportModule);
         context.Services.AddSingleton<IJSRuntime>(javascript);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#prepare-draft").Click();
         component.Find(".configuration-editor__artifact button").Click();

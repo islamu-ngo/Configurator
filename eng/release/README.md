@@ -6,6 +6,11 @@ operating instructions restore the reusable original sections from Event
 revision `c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38`. Configurator's integration
 target is `main`.
 
+Unix `verify-main` Git timeouts terminate only the subprocess's isolated process
+group. Signal invocations delimit the negative group identifier with `--`;
+host-specific `kill` option parsing must not widen the cleanup target. See the
+[verification command](../../docs/internal/RELEASE_RUNBOOK.md#stable-main-verification-command).
+
 ## Collision-proof change workflow
 
 New public changes use sortable ULID-style identifiers such as
@@ -89,6 +94,47 @@ reachable from `main`, rejects duplicates inside the feature range, and requires
 an exactly named fragment for every linked ID. Fragments and correction records
 must already be committed at `HEAD`; staged, modified or untracked release
 sources fail closed. These validators do not commit, push, deploy or publish.
+
+### Correct immutable group membership
+
+An existing change fragment remains immutable, including when its original
+`Group` combines different scopes. Correct only that membership with an
+append-only `docs/internal/releases/group-corrections/<Change-Id>.yaml` record.
+The record contains exactly four scalar fields:
+
+- `Schema-Version`: `fragment-group-correction.v1`.
+- `Change-Id`: the existing fragment's identifier, matching the filename.
+- `Fragment-Sha256`: lowercase SHA-256 of the UTF-8 original
+  `NormalizedSnapshot`, using the release input owner's existing newline and
+  trailing-whitespace normalization rather than reserializing YAML.
+- `Group`: a different, nonempty group with the existing bounded group syntax.
+
+The original fragment must already have a group. A correction changes only the
+membership used to check that each effective group has one scope. It does not
+replace fragment content, identifiers, commit linkage, impact declarations or
+release entries. It cannot override another diagnostic, remove a group, form a
+chain or patch another field. Duplicate targets, absent fragments, digest
+mismatches, unknown fields and incompatible corrected groups reject.
+
+Stage new records with their source/test changes and run `preflight-staged`.
+Commit the records before `preflight-range` or release preparation. Committed
+records are immutable; mutation, deletion and renaming reject. Candidate and
+authorized-inventory verification use applicable records from the exact selected
+Git object, include them in deterministic source-document hashes as
+`fragment-group-correction`, and reject worktree-only substitutions.
+
+### Public descriptions and reserved markers
+
+Public descriptions may name restricted output, writes, bundles or byte buffers.
+Those product terms do not classify a fragment as restricted input. The marker
+gate instead rejects the reserved `Restricted-Details` key, standalone or
+bracketed `restricted`, `restricted:` / `restricted=` classification labels, and
+token-delimited restricted detail/credential markers. Case, separator and
+supported confusable normalization apply to markers. Independent embargo,
+secret-material, provider-identity, unknown-key and ambiguous-Unicode checks
+remain enforced; a group correction cannot suppress them.
+
+### Correct a colliding Change-Id
 
 If an immutable commit already has a colliding footer, do not amend or rebase it.
 Bind only that exact full commit object to a generated replacement ID:

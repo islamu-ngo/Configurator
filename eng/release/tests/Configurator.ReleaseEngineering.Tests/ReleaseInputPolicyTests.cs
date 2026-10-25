@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Configurator.ReleaseEngineering;
 
 namespace Configurator.ReleaseEngineering.Tests;
@@ -7,6 +9,162 @@ public sealed class ReleaseInputPolicyTests
 {
     private static readonly string[] DuplicateFragmentDiagnostics = ["fragment_duplicate_change_id:CHG-2026-0001"];
     private static readonly string[] IncompatibleGroupDiagnostics = ["fragment_incompatible_group:self-hosting-upgrade"];
+
+    [Test]
+    [Arguments("Keep restricted byte buffers local.")]
+    [Arguments("Prepare restricted bundles without persistence.")]
+    [Arguments("Clear restricted output after cancellation.")]
+    [Arguments("Use create-only restricted writes.")]
+    public async Task PublicRestrictedCustodyDescriptionsRemainValid(string description)
+    {
+        string fragment = ValidFragmentYaml()
+            .Replace("Attendees use a single credential during check-in.", description, StringComparison.Ordinal)
+            .Replace("Check-in integrations must send credential after upgrading.", description, StringComparison.Ordinal);
+
+        ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [fragment], []);
+
+        await Assert.That(result.IsValid).IsTrue().Because(string.Join("; ", result.Diagnostics));
+    }
+
+    [Test]
+    [Arguments("restricted")]
+    [Arguments("[RESTRICTED]")]
+    [Arguments("Classification restricted: internal")]
+    [Arguments("Classification RESTRICTED=internal")]
+    [Arguments("Includes restricted details.")]
+    [Arguments("Includes RESTRICTED-detail.")]
+    [Arguments("Includes restricted_credentials.")]
+    [Arguments("Includes re\u0455tricted credential.")]
+    [Arguments("Includes RE\u0405TRICTED details.")]
+    [Arguments("［restricted］")]
+    public async Task ReservedRestrictedValueGrammarRejectsNestedMarkers(string marker)
+    {
+        string fragment = ValidFragmentYaml().Replace(
+            "Check-in integrations must send credential after upgrading.",
+            "'" + marker + "'", StringComparison.Ordinal);
+        ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [fragment], []);
+
+        await Assert.That(result.Diagnostics).Contains("fragment_restricted_detail_marker:CHG-2026-0001");
+    }
+
+    [Test]
+    [Arguments("RESTRICTED_DETAILS")]
+    [Arguments("Restricted Details")]
+    [Arguments("Re\u0455tricted-Details")]
+    public async Task ReservedRestrictedMappingKeysRejectAcrossSequences(string key)
+    {
+        string fragment = ValidFragmentYaml() + $"\nExtra:\n  - {key}: ordinary description\n";
+        ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [fragment], []);
+
+        await Assert.That(result.Diagnostics).Contains("fragment_restricted_detail_marker:CHG-2026-0001");
+        await Assert.That(result.Diagnostics).Contains("fragment_unknown_key:CHG-2026-0001:Extra");
+    }
+
+    [Test]
+    public async Task DigestBoundGroupCorrectionPreservesOriginalFragmentsAndSnapshots()
+    {
+        string first = ValidFragmentYaml();
+        string second = first.Replace("CHG-2026-0001", "CHG-2026-0002", StringComparison.Ordinal)
+            .Replace("Scope: self-hosting", "Scope: artifacts", StringComparison.Ordinal);
+        ReleaseInputValidationResult before = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [first, second], [first, second]);
+        ReleaseInputValidationResult after = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [first, second], [first, second],
+            [Correction(second, "CHG-2026-0002", "artifact-upgrade")]);
+
+        await Assert.That(before.Diagnostics).IsEquivalentTo(IncompatibleGroupDiagnostics);
+        await Assert.That(after.IsValid).IsTrue().Because(string.Join("; ", after.Diagnostics));
+        await Assert.That(after.Fragments).IsEquivalentTo(before.Fragments);
+        await Assert.That(after.Fragments.Count).IsEqualTo(2);
+        await Assert.That(after.Fragments[1].Group).IsEqualTo("self-hosting-upgrade");
+        await Assert.That(after.Fragments[1].NormalizedSnapshot).IsEqualTo(second.TrimEnd() + "\n");
+    }
+
+    [Test]
+    [Arguments("digest")]
+    [Arguments("dangling")]
+    [Arguments("duplicate")]
+    [Arguments("unknown")]
+    [Arguments("empty-group")]
+    [Arguments("malformed-group")]
+    [Arguments("empty-id")]
+    [Arguments("unchanged")]
+    [Arguments("ungrouped")]
+    [Arguments("sequence")]
+    [Arguments("schema")]
+    [Arguments("filename")]
+    [Arguments("unsafe")]
+    [Arguments("provider")]
+    [Arguments("unicode")]
+    [Arguments("uppercase-digest")]
+    [Arguments("duplicate-field")]
+    [Arguments("recursive-field")]
+    [Arguments("restricted-comment")]
+    public async Task InvalidGroupCorrectionsNeverChangeAdmission(string attack)
+    {
+        string fragment = ValidFragmentYaml();
+        if (attack == "ungrouped") fragment = fragment.Replace("Group: self-hosting-upgrade\n", "", StringComparison.Ordinal);
+        KeyValuePair<string, string> source = Correction(fragment, "CHG-2026-0001", "corrected-group");
+        string yaml = source.Value;
+        string digestLine = yaml.Split('\n').Single(line => line.StartsWith("Fragment-Sha256:", StringComparison.Ordinal));
+        yaml = attack switch
+        {
+            "digest" => yaml.Replace(digestLine, "Fragment-Sha256: " + new string('0', 64), StringComparison.Ordinal),
+            "uppercase-digest" => yaml.Replace(digestLine, digestLine.ToUpperInvariant(), StringComparison.Ordinal),
+            "dangling" => yaml.Replace("CHG-2026-0001", "CHG-2026-9999", StringComparison.Ordinal),
+            "unknown" => yaml + "Summary: override\n",
+            "empty-group" => yaml.Replace("corrected-group", "''", StringComparison.Ordinal),
+            "malformed-group" => yaml.Replace("corrected-group", "*", StringComparison.Ordinal),
+            "empty-id" => yaml.Replace("CHG-2026-0001", "''", StringComparison.Ordinal),
+            "unchanged" => yaml.Replace("corrected-group", "self-hosting-upgrade", StringComparison.Ordinal),
+            "sequence" => yaml.Replace("Group: corrected-group", "Group: [corrected-group]", StringComparison.Ordinal),
+            "schema" => yaml.Replace("fragment-group-correction.v1", "fragment-group-correction.v2", StringComparison.Ordinal),
+            "unsafe" => yaml + "# password=synthetic-only\n",
+            "provider" => yaml + "# https://github.com/synthetic-owner\n",
+            "unicode" => yaml + "# \u202E hidden marker\n",
+            "duplicate-field" => yaml + "Group: another-group\n",
+            "recursive-field" => yaml.Replace("Group: corrected-group", "Group: &loop [*loop]", StringComparison.Ordinal),
+            "restricted-comment" => yaml + "# restricted credentials\n",
+            _ => yaml,
+        };
+        KeyValuePair<string, string>[] corrections = [new(attack == "filename" ? "CHG-2026-0002" : source.Key, yaml)];
+        if (attack == "duplicate") corrections = [source, source];
+
+        ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [fragment], [], corrections);
+
+        await Assert.That(result.IsValid).IsFalse();
+        await Assert.That(result.Diagnostics.Any(value => value.StartsWith("group_correction_", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(result.Fragments.Single().Group).IsEqualTo(attack == "ungrouped" ? null : "self-hosting-upgrade");
+    }
+
+    [Test]
+    public async Task GroupCorrectionDigestUsesOriginalSnapshotNormalizationNotYamlSerialization()
+    {
+        string original = ValidFragmentYaml();
+        string alternate = original.Replace("\n", "\r\n", StringComparison.Ordinal) + "\r\n   ";
+        ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [alternate], [original],
+            [Correction(original, "CHG-2026-0001", "normalized-group")]);
+
+        await Assert.That(result.IsValid).IsTrue().Because(string.Join("; ", result.Diagnostics));
+        await Assert.That(result.Fragments.Single().NormalizedSnapshot).IsEqualTo(original.TrimEnd() + "\n");
+    }
+
+    [Test]
+    public async Task CorrectionsCannotHideMixedGroupsOrOtherFragmentDiagnostics()
+    {
+        string first = ValidFragmentYaml();
+        string second = first.Replace("CHG-2026-0001", "CHG-2026-0002", StringComparison.Ordinal)
+            .Replace("Scope: self-hosting", "Scope: artifacts", StringComparison.Ordinal);
+        string third = first.Replace("CHG-2026-0001", "CHG-2026-0003", StringComparison.Ordinal)
+            .Replace("Group: self-hosting-upgrade", "Group: corrected-group", StringComparison.Ordinal) + "\nUnexpected: value\n";
+        ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(ValidReleaseYaml(), [first, second, third], [],
+            [Correction(second, "CHG-2026-0002", "corrected-group")]);
+
+        await Assert.That(result.Diagnostics).Contains("fragment_incompatible_group:corrected-group");
+        await Assert.That(result.Diagnostics).Contains("fragment_unknown_key:CHG-2026-0003:Unexpected");
+    }
+
+    private static KeyValuePair<string, string> Correction(string original, string id, string group) => new(id,
+        $"Schema-Version: fragment-group-correction.v1\nChange-Id: {id}\n" +
+        $"Fragment-Sha256: {Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(original.TrimEnd() + "\n")))}\nGroup: {group}\n");
 
     [Test]
     public async Task LowImpactDescriptorCanValidateWithoutFragments()
@@ -49,7 +207,10 @@ public sealed class ReleaseInputPolicyTests
         ReleaseInputValidationResult result = ReleaseInputPolicy.Validate(
             ValidReleaseYaml(),
             fragments,
-            []);
+            [],
+            Directory.GetFiles(Path.Combine(FindRepositoryRoot(), "docs", "internal", "releases", "group-corrections"), "*.yaml")
+                .Order(StringComparer.Ordinal)
+                .Select(path => new KeyValuePair<string, string>(Path.GetFileNameWithoutExtension(path), File.ReadAllText(path))));
 
         await Assert.That(result.IsValid).IsTrue()
             .Because(string.Join("; ", result.Diagnostics));

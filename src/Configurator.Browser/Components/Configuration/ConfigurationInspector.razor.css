@@ -1,0 +1,6 @@
+.configuration-inspector { overflow-wrap: anywhere; }
+.configuration-inspector p { white-space: pre-line; }
+.configuration-inspector ul { padding-inline-start: var(--isl-space-5); }
+.configuration-inspector a { display: inline-block; min-block-size: var(--isl-target-min); }
+.configuration-inspector dt { font-weight: 600; margin-block-start: var(--isl-space-3); }
+.configuration-inspector dd { margin-inline: 0; }

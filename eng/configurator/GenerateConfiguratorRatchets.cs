@@ -84,7 +84,8 @@ outputs["native-release-capabilities.json"] = new JsonObject
 foreach ((string name, JsonObject value) in outputs)
 {
     value["_metadata"] = new JsonObject { ["generatedBy"] = "eng/configurator/GenerateConfiguratorRatchets.cs" };
-    byte[] bytes = Encoding.UTF8.GetBytes(value.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+    byte[] bytes = Encoding.UTF8.GetBytes(value.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+        .Replace("\r\n", "\n", StringComparison.Ordinal) + "\n");
     string path = Path.Combine(outputRoot, name);
     if (args[0] == "--check")
     {

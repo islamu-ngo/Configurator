@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-19 Europe/Brussels
+Last Updated: 2026-10-25 Europe/Brussels
 
 ## Index & Recent
 
@@ -228,3 +228,108 @@ bespoke target tooling.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; the production state and launch contracts already own the invariant.
+
+[2026-10-24 Europe/Brussels] — Drain queued long-task records before observer teardown
+
+**Context**: Browser editor qualification measured trusted input through rendered
+completion, including warmed main-thread long tasks.
+
+**Symptom / Observation**: A controlled 80 ms trusted callback was absent from
+all four observations using the original teardown. Draining pending records
+detected the long task in all four matching observations.
+
+**Root Cause**: The completion callback disconnected `PerformanceObserver`
+before its queued long-task records were delivered. A zero result described
+an undrained observer, not necessarily an uninterrupted interaction.
+
+**Resolution**: Collect `takeRecords()` before `disconnect()`, retaining delivered
+entries and filtering against the interaction boundary. Preserve the original
+samples, invalidate their zero-long-task interpretation and requalify the final
+package with the corrected observer. The controlled probe and exact old/new
+adapters are retained in task-owned evidence; this is a measurement correction,
+not a product telemetry feature.
+
+**Why This Matters for Future Work**: Validate a performance observer with a
+known positive control before treating absence of entries as acceptance.
+Rendered completion and observer delivery are separate events.
+
+**References**:
+- `docs/internal/OPERATIONS.md`
+- `.omo/evidence/browser-ui-ux-redesign/observer-drain-probe.json`
+- `.omo/evidence/browser-ui-ux-redesign/observer-teardown-correction.json`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; browser qualification owns the measurement protocol.
+
+[2026-10-25 Europe/Brussels] - Linux availability does not select a native ABI
+
+**Context**: The first cross-host CLI workflow reached actual publication tests
+after the pinned workload manifests were initialized.
+
+**Symptom / Observation**: Linux x64 passed, but Linux Arm64 failed twelve CLI
+cases involving installation. The post-installation fault callback never ran.
+A literal ABI regression on the x64 workstation expected the Arm64 directory
+flags `573440` but observed the inherited x64 value `720896`.
+
+**Root Cause**: The writer correctly used architecture-independent `statx`, but
+its `open` flag constants were x64-specific. Linux Arm64 assigns different
+directory and no-follow bits, and anonymous-file flags include the directory bit.
+The operating-system availability check could not establish that those values
+matched the executing process.
+
+**Resolution**: Commit `d0fe5d8` selects flags from the process architecture.
+The Artifacts owner passed 48 tests and the CLI owner passed 138 locally:
+
+```bash
+dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress
+dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress
+```
+
+The two literal ABI cases use independent interface requirements; actual-host CI
+remains the separate proof for Arm64 filesystem behavior.
+
+**Why This Matters for Future Work**: A portable executable, successful build,
+or positive capability report does not prove a native ABI. Qualify real
+publication on each claimed architecture and keep interface-value regressions
+alongside filesystem invariants.
+
+**References**:
+- `src/Configurator.Artifacts/UnixProtectedArtifactWriter.cs:15`
+- `tests/Configurator.Artifacts.Tests/ProtectedArtifactWriterTests.cs:16`
+- `docs/internal/PROTECTED_ARTIFACTS.md`
+- Commit: `d0fe5d8`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the protected-output guide owns the ABI and source register.
+
+[2026-10-25 Europe/Brussels] - Negative process-group operands need an option boundary
+
+**Context**: Standalone CI passed native packages and product suites, then twice
+reported a runner shutdown during ReleaseEngineering tests.
+
+**Symptom / Observation**: Both shutdowns occurred about four minutes into that
+suite. The local util-linux host completed the same tests; Ubuntu uses a different
+signal utility. A safe strict-wrapper regression recorded four arguments across
+TERM/KILL calls where six unambiguous arguments were required.
+
+**Root Cause**: `MainCommand` supplied a negative group identifier directly after
+the signal option. That left option parsing ambiguous. The procps maintainers
+document a hazard in this form; no actual broad signal is needed to reproduce
+the missing argument boundary.
+
+**Resolution**: Delimit the owned negative group with `--` before invoking the
+external utility. Keep the isolated group, TERM/KILL order and existing timeout
+and descendant-exit assertions. The regression refuses ambiguous arguments
+before forwarding anything to the native utility, protecting its own host.
+
+**Why This Matters for Future Work**: Treat negative command operands as data,
+not another option. A successful run against one distribution's utility does
+not qualify another implementation's parser.
+
+**References**:
+- `eng/release/src/Configurator.ReleaseEngineering/MainCommand.cs`
+- `eng/release/tests/Configurator.ReleaseEngineering.Tests/ReleaseMainVerificationTests.cs`
+- `docs/internal/OPERATIONS.md#pr-ci-repair-verification-2026-10-25`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; Operations owns source provenance and execution evidence.

@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5MBH1BPTBYNDPHQDBJ69AP6
+Title: "put local setting search in the application bar"
+Type: feat
+Scope: browser
+Summary: "Operators can find settings directly from the application bar. Add lazy metadata-only results, compact application navigation and generation-qualified workspace registration without copying answers or persisting queries."
+Group: browser-ui-ux-redesign
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Search reads definition metadata and value-free readiness, never private answers. Retired registrations cannot retarget the current workspace."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "The current query and facets remain transient form view state; search neither edits configuration nor persists its input."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Find a setting replaces inline advanced search. Menu deliberately opens application navigation; selecting a search result preserves the query and focuses its exact destination."

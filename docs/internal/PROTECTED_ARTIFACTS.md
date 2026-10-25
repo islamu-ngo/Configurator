@@ -6,6 +6,22 @@ The Linux writer uses anonymous-inode preparation and no-replace publication
 instead of exposing a partial private file. Boundary checks reject unsafe or
 changed destinations. Unsupported platforms return a value-safe refusal.
 
+Linux `open` flags follow the process architecture. Arm64 uses different
+`O_DIRECTORY` and `O_NOFOLLOW` values from x64; `O_TMPFILE` includes that
+architecture's directory bit. The native adapter selects the combined directory
+and anonymous-file flags once from `RuntimeInformation.ProcessArchitecture`.
+The descriptor-relative preparation, owner checks, architecture-independent
+`statx` layout and create-only `linkat` sequence remain the same.
+
+The interoperability facts were checked on 2026-10-25 against Linux v6.12,
+commit `adc218676eef25575469234709c2d87185ca223a`, public syscall-interface files
+`arch/arm64/include/uapi/asm/fcntl.h` and `include/uapi/asm-generic/fcntl.h`.
+Only interface identifiers and required numeric values inform the existing
+Configurator-native flag selection; no kernel implementation, comments,
+dependency or asset is transferred. Literal ABI regressions cover both packaged
+architectures independently of the executing process architecture, while real writer tests
+still establish filesystem behavior only on their actual host.
+
 `CommitAsync` returns immutable `ProtectedArtifactCommitResult` facts:
 `Status`, `InstallationEstablished`, `VerificationSucceeded` and `CleanupFailed`.
 Named factories cannot construct a `Written` refusal. `Succeeded` requires an

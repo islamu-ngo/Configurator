@@ -20,12 +20,12 @@ public sealed class LaunchRouteTests
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
         var component = context.Render<App>();
 
-        await Assert.That(component.FindAll("[data-field='metrics.enabled'] select")).IsEmpty();
-        component.Find("[data-field='service.mode'] select").Change("extended");
-        await Assert.That(component.FindAll("[data-field='metrics.enabled'] select")).IsEmpty();
-        component.Find("[data-action='expand-all-optional']").Click();
+        await Assert.That(component.FindAll("[data-field='metrics.enabled'] .configuration-field__choice")).IsEmpty();
+        await BrowserFixture.NotifyChoiceAsync(component, "service.mode", "extended");
+        await Assert.That(component.FindAll("[data-field='metrics.enabled'] .configuration-field__choice")).IsEmpty();
+        component.Find("#configuration-detail").Change("advanced");
         component.Find("[data-section='operations']").Click();
-        component.Find("[data-field='metrics.enabled'] select").Change("true");
+        await BrowserFixture.NotifyChoiceAsync(component, "metrics.enabled", "true");
         await Assert.That(component.FindAll("[data-field='service.credential'] input")).IsEmpty();
         await Assert.That(component.FindAll("input[type=text]")).IsNotEmpty();
         await Assert.That(component.FindAll("a[download]")).IsEmpty();
@@ -88,10 +88,10 @@ public sealed class LaunchRouteTests
 
         await Assert.That(component.Find("[data-digest]").GetAttribute("data-digest"))
             .IsEqualTo(definition.Digest.Value);
-        component.Find("[data-field='operation'] select").Change("environment");
+        await BrowserFixture.NotifyChoiceAsync(component, "operation", "environment");
         await Assert.That(component.FindAll("[data-field]").Count).IsGreaterThan(1);
-        component.Find("[data-field='select.feature.security-config'] select").Change("true");
-        component.Find("[data-action='expand-all-optional']").Click();
+        await BrowserFixture.NotifyChoiceAsync(component, "select.feature.security-config", "true");
+        component.Find("#configuration-detail").Change("advanced");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         string targetSection = form.Sections.Single(section =>
             section.Fields.Contains("env.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION")).Id;
@@ -183,7 +183,7 @@ public sealed class LaunchRouteTests
         var component = context.Render<App>();
         registry.Replace([BrowserFixture.Revision(2)]);
         component.FindComponent<Launch>().Render(parameters => parameters.Add(item => item.FamilyId, BrowserFixture.Family));
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#prepare-draft").Click();
         await Assert.That(component.Find("[data-digest]").GetAttribute("data-digest")).IsEqualTo(first.Digest.Value);
@@ -200,7 +200,7 @@ public sealed class LaunchRouteTests
         var navigation = context.Services.GetRequiredService<NavigationManager>();
         navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
         var component = context.Render<App>();
-        component.Find("[data-field='mode'] select").Change("single");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#prepare-draft").Click();
         registry.Replace([BrowserFixture.Revision(2)]);

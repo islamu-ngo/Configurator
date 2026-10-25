@@ -17,7 +17,7 @@ public sealed class BrowserSecretBoundaryTests
               {"id":"token","type":"string","title":"Token","sensitivity":"secret","disclosure":"guided"}]}
             """));
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("[data-field='profile.name'] input").Input("ordinary-sibling");
         await Assert.That(component.FindAll("[data-field='profile.token'] input")).IsEmpty();
@@ -36,7 +36,7 @@ public sealed class BrowserSecretBoundaryTests
     [Test]
     public async Task SecretEntryDefaultsOffAndConsentRevocationRetainsOrdinarySettings()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
         component.Find("[data-field='hostname'] input").Input("example.test");
@@ -53,7 +53,7 @@ public sealed class BrowserSecretBoundaryTests
     [Test]
     public async Task SecretBearingImportRejectsBeforeConsentWithoutEchoingValues()
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"mode":"single","hostname":"example.test","credential":"synthetic-private-canary"}"""));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
@@ -72,14 +72,15 @@ public sealed class BrowserSecretBoundaryTests
     [Arguments("""{"mode":"cluster","replicas":null}""")]
     public async Task UnknownDuplicateInactiveAndWrongTypedImportedValuesNeverPublishAnswersOrOutput(string text)
     {
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsNotEqualTo("imported");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("private-canary");
-        await Assert.That(component.Find("[data-field='mode'] select").GetAttribute("value")).IsEqualTo("");
+        var mode = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["mode"]));
+        await Assert.That(mode.FindComponent<MudBlazor.MudSelect<string>>().Instance.Value).IsEqualTo("");
     }
 
     [Test]
@@ -93,12 +94,12 @@ public sealed class BrowserSecretBoundaryTests
               {"id":"mode","type":"enum","title":"Mode","sensitivity":"public","disclosure":"guided","choices":["single","cluster"]}]}
             """));
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
-        using var context = BrowserFixture.Context();
+        await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         await Assert.That(component.FindAll("[data-field='private'] input")).IsEmpty();
         component.Find("#secret-consent").Change(true);
         await Assert.That(component.FindAll("[data-field='private'] input")).Count().IsEqualTo(3);
         await Assert.That(component.FindAll("[data-field='private'] input").All(input => input.GetAttribute("type") == "password")).IsTrue();
-        await Assert.That(component.FindAll("[data-field='private'] select")).IsEmpty();
+        await Assert.That(component.FindAll("[data-field='private'] .configuration-field__choice")).IsEmpty();
     }
 }

@@ -502,6 +502,465 @@ Native/engineering baseline findings are separate:
   corrections were applied with native patches, and the exact owned-file format
   check passed. No diagnostics were suppressed.
 
+### Browser editor redesign qualification in progress (2026-10-23)
+
+The current renderer is `9a6c3574d913f69aa1a84eb8d5740efd42dc5ca2`.
+It refreshes revision-bound choice callbacks while skipping unchanged visual
+output, uses a full-width MudInput with a connected scalar error, and mounts
+omission menus on first use. Cold activation and menu close restore activator
+focus; the native help trigger opens the existing workspace-owned inspector.
+The Release Browser build succeeded and the full Browser owner passed 199/199.
+After two test event calls were made explicitly awaited, the affected workflow
+and help classes passed 11/11 in 1199 ms. Native commit hooks passed for the
+renderer and its independent deterministic budget-test increment `b0c9d5b`.
+
+Final interpreted Store/plain publication and the Architecture Release build
+exited 0. Store package tests passed 4/4 (738 ms), and Browser package tests
+passed 2/2 (594 ms). Store inventory SHA-256 is
+`ff55ff80c3308fb9d0528b23bbad73d8a6b3acbb94c9294ac99471100b67dbeb`;
+plain inventory is
+`afd42bff2c290c4b05f0466a49c7a02becf289cda4d0aa04748d680f9cee22a4`.
+These checks establish package closure, not latency acceptance.
+The subsequent runtime check rejected this inventory: after loading the public
+assets, Mono reported `NIY encountered` in `LocalizationOptions` and an
+interpreter assertion. Only the 32 minimal timing rows completed; other lanes
+timed out before sampling. Thus the package is not startup-qualified despite
+passing all six package tests. Native cleaning and isolated interpreted
+republication were required before further qualification; the original failed
+package and `final-startup-failure.json` remain retained.
+
+Ordinary native Clean followed by explicit interpreted publication produced
+the same failing inventory and left AOT intermediates present. A separate
+locked restore and publication using SDK `UseArtifactsOutput=true` with a
+task-owned `ArtifactsPath` isolated all project intermediates. The first
+isolated attempt lacked restored SDK imports and failed `ResolveWasmOutputs`;
+separating restore from the publish evaluation corrected that command sequence.
+The isolated Store inventory is
+`90ffb31c48c7c28e84d15b8451801550bf6a8c53d3e4dc3f3887aadda5605b3a`.
+Its localization payload differs from the rejected package, and actual Event
+controls render without the interpreter assertion. A desktop screenshot was
+inspected. This supports stale AOT-generated output as the startup cause;
+no product change or dependency was needed. Both isolated package gates passed:
+Store 4/4 (800 ms) and Browser package 2/2 (807 ms). Timing must use this isolated
+package, not the earlier inventory or its incomplete matrix.
+
+The isolated candidate now has all 128 complete directional rows: the original
+92 plus 36 detail/density/help rows, each with separate first use, five warmups
+and 40 trusted samples. Four incomplete Event attempts remain retained;
+explicit page activation and settled operation setup allowed complete Event
+lanes without a product change or stitching partial directional samples.
+The final audit applies the original p95 limits to existing rows and S25's
+100/400 ms limits to new transitions, with feedback strictly below 50/200 ms.
+An inherited generic 500 ms metadata value in raw files does not override S25.
+
+All final-content p95 checks pass, but only 110 of 128 rows pass every gate.
+Eighteen fail feedback or warmed 1x long-task limits. Representative maxima:
+
+| Transition | 1x feedback / longest task (ms) | 4x feedback (ms) |
+| --- | --- | --- |
+| Event activation, set | 130.6 / 117 | 696.0 |
+| Event activation, clear | 215.4 / 157 | 375.5 |
+| Scale disclosure, expand | 80.8 / 0 | 265.4 |
+| Scale Inspect, enter | 91.1 / 71 | 440.4 |
+| Scale correction, enter | 246.4 / 232 | 302.8 |
+| Scale correction, return | 149.6 / 85 | 320.3 |
+| Scale detail, expand | 56.4 / 0 | 269.5 |
+
+Minimal search return, scale Review paging, Event Review return and Event
+density return also have retained failing feedback outliers. The audit is
+`isolated-final-matrix-audit.json`; raw samples are in
+`isolated-matrix-*.json` and `isolated-Event-completion-*.json`. No sample was
+removed or normalized. This is a failed qualification, not an accepted latency
+result or proof that every failure is environmental.
+
+Observer correction, 2026-10-24: `observer-drain-probe.json` exercised eight
+trusted callbacks that intentionally occupied 80 ms. Teardown without
+`PerformanceObserver.takeRecords()` missed all four tested tasks; draining
+queued records detected all four. The measurement adapter now drains before
+disconnecting, without changing timestamps, predicates, sample counts or
+budgets. Earlier zero-long-task results are therefore not evidence that no
+long task occurred. The raw rows and their feedback/p95 results remain retained;
+final long-task qualification requires the corrected observer.
+
+### Committed AOT editor candidate (2026-10-24)
+
+The final product source is `2392c03968be641cb44bd9f32993c4e359d00e69`.
+Its corrective increments are deterministic duplicate-row event completion
+(`3efa33a`), immutable admitted field metadata (`2334137`), bounded connected
+section mounting (`58c24df`) and Release AOT with pinned builder prerequisites
+(`2392c03`). Core 145/145, Presentation 155/155 and Browser 208/208 passed.
+The Release Browser build, 9 Action pins, 87 dependency-policy entries and
+2/2 AgentWorkflow checks passed. Two ReleaseEngineering cases did not pass:
+repository release-input policy and the unchanged loopback GitHub CLI header
+case (`TaskCanceledException`); neither was suppressed.
+
+Both final governed publications completed with exit 0 from this committed
+source, without an AOT command-line override. The roots are
+`artifacts/browser-ui-ux-redesign/final-store` and `final-plain`.
+`BrowserStorePackageTests` passed 4/4 (617 ms); the standalone Browser package
+checks passed 2/2 (443 ms). Store inventory SHA-256 is
+`710a32028c9dfe0bf90e7d2a65e85aba1ee977e937eafad3b1f5f8ac6f0839ea`;
+plain inventory is
+`453831b6fa840fb1f2192eb6b1a18fb3f0d9fa9282795991d0fe44b873722b51`.
+These package checks do not establish runtime qualification.
+
+Final-package startup was observed at the isolated loopback port 5144 and its
+desktop screenshot inspected. The first 76 complete timing directions
+(minimal 44, Event 32) pass their original gates with the corrected observer.
+Every direction retains separate first use, five warmups and 40 trusted samples.
+Event activation feedback maxima are 25.5/22.7 ms at 1x and 112.0/108.3 ms at 4x.
+Recorded 4x long tasks remain in the raw evidence; the no-long-task gate applies
+to warmed 1x. No warmed 1x long task was recorded in these 76 directions.
+Raw files: `final-aot-minimal-raw.json` and `final-aot-event-raw.json`.
+The scale cohort subsequently completed. The final audit has 128 unique complete
+directions: the original 92 and 36 detail/density/help directions. All 128 pass
+their unchanged budgets, including the original search exception and strict
+feedback limits. Maximum final-content p95 is 82.5 ms at 1x and 231.4 ms at 4x;
+maximum feedback is 29.7 ms and 112 ms respectively. No warmed 1x long task was
+recorded. The 4x long tasks remain recorded and are not discarded. Complete
+content includes zero pending mount batches plus the existing frame boundary,
+not merely a loading indicator. See `final-aot-scale-raw.json` and
+`final-aot-matrix-audit.json`; all failed earlier candidates remain retained.
+
+Actual final-package custody revalidation prepared three complete artifacts,
+kept the synthetic secret masked and returned zero metadata-search matches for
+its value. Denied clipboard permission reported `clipboard-unavailable`;
+deliberate permitted copy and reveal contained the expected synthetic content.
+A completed 72-byte download was inspected, then removed. Revocation removed
+secret controls and prepared/revealed output; reconsent started empty.
+Before entry, page observers covered Storage writes, Worker, MessagePort,
+ServiceWorker, IndexedDB writes, fetch and XHR. A passive CDP request listener
+observed only the public `browser-artifacts.js` GET. No sentinel appeared in the
+83 cached public responses, one appearance-storage entry, zero IndexedDB
+databases or observed message/request sinks. This is bounded observation of
+those sinks, not universal coverage of browser APIs. Clipboard was cleared and
+isolated permissions reset. See `final-aot-custody.json`.
+
+The final desktop-light help dialog preserved scroll 408 and the input's exact
+790x44 rectangle; Escape returned to its named invoker. At 390 px, dark,
+forced-colors, RTL and asserted coarse-pointer mode, the help trigger was 44x44,
+the dialog 326x780 with reachable Close, and no horizontal overflow. Search
+preserved header height 196.1875, scroll 1130 and field top 400.484375.
+At 320 px light/LTR, search preserved header height 196.1875, scroll 1281 and
+field top 399.78125, returning focus to the input. Both phone screenshots and the
+desktop screenshot were inspected. See `final-aot-surface.json`.
+An isolated native X11 Chrome window also loaded this final inventory and used
+actual browser 400% zoom, not emulated page scale: viewport 359x214, DPR 4,
+visualViewport scale 1. The edited input remained unobscured at top 85.04296875;
+the short-viewport header scrolled away. Keyboard search preserved scroll 1498.25
+and the exact input rectangle, kept its query inside the viewport and returned
+focus on Escape. Native zoom was reset afterward. The screenshot was inspected;
+`final-aot-native-zoom.json` records the geometry. This does not establish
+physical magnification hardware, screen-reader speech or independent text-only
+zoom qualification.
+
+With the final worker controlling the page and `configuration-rendering.js`
+present in public cache, CDP network-offline emulation followed by a reload
+still rendered the pinned minimal workspace and prepared three draft artifacts.
+Network emulation was restored afterward. `navigator.onLine` remained true, so
+this is the recorded CDP-disabled-network scenario, not an OS connectivity claim.
+See `final-aot-offline.json`.
+
+Timing used Chrome 151.0.7922.34 at 1440x900 on the recorded Ryzen 7 7800X3D
+reference host, sequential workspaces at 1x/4x CPU rates, with no concurrent
+native build. Public minimal/Event digests and the synthetic scale fixture's
+SHA-256 are retained in `final-aot-environment.json`. The final plain package's
+62 framework Brotli siblings total 7,999,831 bytes; this is not measured initial
+network transfer. Published directories occupy 60,047,933 bytes plain and
+60,712,305 bytes with Store, including uncompressed/sibling files and metadata.
+The earlier matched interpreted/AOT payload comparison remains recorded above;
+these governed final totals are not substituted for that matched experiment.
+
+The attempted forward correction to the existing definitions fragment's
+browser group was rejected by the native commit hook with
+`staged_fragment_mutation`. That edit was restored and unstaged. Group validation
+examines all fragments, so supersession cannot correct that group. Its
+mixed-scope failure remains owned workstream release metadata debt alongside
+the eight historical detail markers and unrelated guided-experiences group.
+No hooks were bypassed and no history was rewritten.
+
+Docker publication was not exercised: neither the configured Desktop socket nor
+`/var/run/docker.sock` exists. Native governed publication is the executed route;
+remote CI, physical devices and assistive speech remain unqualified.
+
+### PR CI repair verification (2026-10-25)
+
+The first PR run failed before product verification: native and public-data jobs
+lacked the workload set pinned by `global.json`, and the standalone dependency
+audit inspected Browser.Host without restoring its independent graph. The next
+run passed Linux x64 CLI/package and public-data, exposing actual cross-host and
+owner-test failures rather than bypassing them.
+
+Linux Arm64 used x64 `open` flags. A literal ABI regression failed with expected
+directory flags 573440 versus 720896 before `d0fe5d8` selected process-specific
+flags. macOS authoring fixtures encountered system temporary-directory aliases;
+the native job now uses the runner-owned temporary root without relaxing symlink
+admission. Windows bundle fixtures now use native path composition. The real
+post-installation CLI cases retain their Linux assertions and additionally
+require unsupported hosts to refuse without installing output.
+
+The subsequent Windows CLI suite passed all 138 tests, then native publication
+rejected `browser-release-capabilities.json` as stale. Indented JSON used the
+host newline convention. The ratchet writer and both definition-schema owners
+now normalize to LF before byte comparison or hashing, matching the existing
+command-schema contract. Generated outputs remain generator-owned.
+
+After all five native package jobs passed, the standalone runner shut down
+during ReleaseEngineering tests. Its unchanged-commit retry reached a separate
+Browser collection-test race: a row expected to contain `blue` was still empty.
+The collection workflow tests now await input, click and change dispatch before
+re-querying the next control. Existing typed-value, row-identity, omission and
+privacy assertions remain, with an additional rendered-row value assertion.
+No timing delay or product callback-fence change is involved.
+
+The next candidate passed all 208 Browser tests but repeated the runner shutdown
+about four minutes into ReleaseEngineering tests. Investigation found that
+`MainCommand` passed a negative process-group identifier to `kill` without an
+end-of-options delimiter. The local host uses util-linux; procps documents an
+argument-parsing hazard for that form. Cleanup now delimits the owned group with
+`--`, retaining its TERM/KILL sequence and process ownership.
+
+The existing hung-Git regressions use a strict external signal wrapper that
+records arguments and refuses ambiguous operands before invoking the native
+utility. The unmodified helper failed safely with four recorded arguments
+instead of six. Existing timeout, process-exit and descendant-cleanup assertions
+remain. The affected Release test-project build had zero warnings/errors, and
+the complete 468-test suite passed with no failures or skips. The post-fix full
+run is retained in `artifacts/ci-repair/release-signal-fix.log`.
+
+Source register, accessed 2026-10-25:
+[procps issue 354](https://gitlab.com/procps-ng/procps/-/issues/354) supplied only
+the negative-operand ambiguity as a functional fact. A separate implementer
+received a source-free handoff to delimit that operand and used only the
+repository helper; it read no third-party source. Parent AFC/SSO review found
+only the standard command-argument boundary added to existing structure. No
+upstream implementation, prose, dependency or asset was transferred.
+
+The Desktop failures were stale scenarios: imports may replace pristine defaults,
+and corrected editors remain visible until deliberate collapse. Corrected setup
+and additional assertions preserve both contracts. Release-input validation now
+distinguishes reserved confidentiality markers from ordinary public descriptions
+and admits digest-bound group-only corrections. All original fragments remain
+unchanged; committed correction custody and exact-tree candidate/inventory
+provenance are verified rather than exempted.
+
+Local verification used SDK 10.0.302 and
+`TMPDIR="$HOME/.cache/agent-tmp"`. Every row below passed with zero failures and
+zero skips:
+
+| Executed command | Result |
+| --- | --- |
+| `dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 145 --no-progress` | 145 passed |
+| `dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 48 passed |
+| `dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --no-build --verbosity quiet -- --minimum-expected-tests 208 --no-progress` | 208 passed |
+| `dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 138 --no-progress` | 138 passed |
+| `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --no-build --verbosity quiet -- --minimum-expected-tests 185` | 185 passed |
+| `dotnet test --project eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 468 --no-progress` | 468 passed |
+| `dotnet test --project eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 2 passed |
+| `dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 58 passed |
+
+Locked solution restore, Browser.Host Release build, every graph in the exact CI
+dependency-audit enumeration, 9 Action pins and 46 definition-store self-checks
+also passed. The native release owner assembled CLI, Terminal and Desktop Linux
+x64 packages, then all three AOT Browser publication variants used by CI: separate
+Store output, Store in the default destination and a subsequent plain publication
+in that same destination. Architecture checks consumed those actual packages.
+No-write formatting passed for every changed C# file.
+
+After the Windows newline repair, the native definition-schema and ratchet
+generators ran in both `--write` and `--check` modes. Both schema files and all
+three ratchets remained byte-identical to the committed Linux outputs; the
+freshness checks passed. The affected Core Release build had zero warnings and
+errors, and the Core/CLI suites above passed again.
+
+The real CLI executable returned doctor success, displayed help and rejected an
+unknown command with exit 64 and a bounded machine receipt. Its transcript is
+retained locally in `artifacts/ci-repair/manual-cli.log`. The final full release
+run is retained separately in `artifacts/ci-repair/release-owner.log`, avoiding
+the default report's replacement by a later targeted run. An independent gate
+approved code readiness; it did not claim remote completion.
+
+Final cross-host workflow execution was still pending when this record was
+committed. The resulting commit's run results belong to PR #1's Checks tab,
+not this local matrix. This CI repair does not renew browser timing, speech,
+physical-device or native GUI qualification, activate signed publication, or
+close the mandatory redesign follow-ups.
+
+### Retained earlier interpreted-package evidence
+
+The following observations belong to their recorded earlier inventories, not
+to the committed AOT candidate above.
+
+Actual final synthetic custody checks prepared three complete artifacts,
+kept the credential masked, found zero metadata-search matches for its value,
+reported denied copy, then exercised deliberate permitted copy, reveal and a
+completed 96-byte download whose content was inspected. Revocation removed
+artifacts and secret inputs; reconsent started empty. Storage and 82 public
+cache entries contained no sentinel; IndexedDB had no databases. The listed
+storage/worker/port/IDB/fetch/XHR observers were installed before entry.
+A separate passive CDP network observation began before fresh reconsent and
+entry, covered search/preparation/revocation, and observed zero requests.
+Synthetic clipboard content was cleared and isolated permissions reset.
+See `isolated-final-custody.json` and `isolated-final-network.json`; the latter
+does not infer network-body coverage from JavaScript Request serialization.
+
+The final desktop-light help check retained scroll 362 and the input's exact
+790x44 rectangle. Enter opened the named dialog; Escape returned to its
+invoker. In 390px dark-high-contrast RTL, actual coarse-pointer emulation
+(`matchMedia` asserted) produced a 44x44 trigger, a settled 326x780 dialog,
+reachable Close and no horizontal overflow. The first phone observation lacked
+touch emulation and sampled the opening animation; it remains retained rather
+than being presented as the coarse result. Both final screenshots were inspected.
+Physical-device, assistive speech and stakeholder qualification remain absent.
+
+A later nullable MudCheckBox experiment passed 200 Browser cases but was not
+adopted. In balanced 1x activation measurements, its set/clear p95 was
+64.4/64.3 ms versus the retained select's 59.2/54.6 ms. Feedback remained
+72.7/52.9 ms versus 61.6/65.1 ms, and the checkbox set direction had a 69 ms
+long task. Separate first-use, five warmups and all 40 trusted samples per
+direction remain in `nullable-boolean-activation-comparison.json`.
+Actual accessibility inspection also exposed a null-state mismatch: the
+native input reported false in Chromium's accessibility tree despite visual
+Not supplied and `aria-checked=mixed`; setting native `indeterminate` fixed
+that diagnostic state, but did not justify adopting the slower renderer.
+All five experiment source/test diffs were restored to the committed baseline.
+The failed experiment does not establish a defect in the retained select.
+Restoration was verified by an empty diff on all five experiment files.
+The restored suite initially passed 198/199: the manifest workflow queried
+tenant row 2 before its asynchronous add completed. Test-only commit `9c88768`
+awaits the existing input, row, preparation and export tasks without changing
+the zero-to-three-tenant expected JSON or assertions. The final full Browser
+run passed 199/199 in 4008 ms, exit 0. Product source and the retained
+startup-qualified package remain unchanged by that test correction.
+
+An isolated AOT experiment used the already-installed SDK workload without
+changing project or release defaults. It reduced matched mounting costs but
+still failed feedback budgets: at 1x its Inspect feedback maximum was 63 ms
+against 50 ms; at 4x disclosure and Inspect reached 223.5 and 261.3 ms against
+200 ms. The matched interpreted values were 86.1 ms at 1x and 355.2/428.1 ms
+at 4x. All 40 trusted samples per direction, five warmups, first use and outliers
+are retained in `aot-mount-comparison.json` and `aot-mount-4x.json`.
+AOT increased the 90 Brotli assets from 3,910,306 to 7,936,430 bytes and would
+add a release prerequisite, so it was not adopted. Neither experiment qualifies
+latency. The complete interpreted matrix above is the current candidate
+qualification; the historical observations below are not its acceptance.
+
+The primary editor slice implements independent detail, session density,
+metadata search, compact fields and contextual help. This is not whole-program
+UI/UX completion; [mandatory follow-ups](../../dev/backlog/browser-ui-ux-redesign-followups.md)
+remain separate. Qualification is still open.
+
+#### Retained earlier candidate observations
+
+At source `b6838912fede988e48fea9073956381a750bb410`, native Store and
+Store-free publication completed, the Architecture Release build succeeded,
+all four BrowserStorePackageTests passed (572ms), and both Browser package
+tests passed (465 ms). SDK 10.0.302 and the workstation temporary-directory
+override were used. Store asset inventory SHA-256 was
+`4c554d4253fd38901cc9e91fb3a4e3bb2b9ba0d1ed170a40ad4d66020b88193e`;
+Store-free inventory was
+`df59cb6bfc3163e858f185bb6c86505d687db601cc521007bc604cf89220c2c0`.
+Browser semantics have passing evidence for 195 cases, including replacement
+with unchanged consent; this does not prove pointer or layout behavior.
+
+Actual Chromium 151 interaction established 44 px desktop and phone choice
+targets, connected combobox names, modal-aware Ctrl-K, and unchanged document
+scroll 500/edited-field top 335.640625 when opening deep-search. Actual native
+400% browser zoom then exposed an obstruction: the 196.199 CSS-pixel sticky
+header covered the focused field in a 214 px-high viewport. The short-viewport
+correction is committed as `6d964af`. Its final Store inventory is
+`37352a59369eaab4457a2def4789f642f7426b7c9ecd1968a7f318b8894c4c8a`;
+Store-free inventory is
+`7c9966541b2b66c1d895eddfae6a5dd20af164aa75cd1ab6a0f7b5bc2eb93189`.
+Release build/publications exited 0; all 8 affected shell cases passed (1125 ms),
+Store package cases4/4 passed (729ms), and Browser package cases2/2 passed
+(577ms). The first final Browser package invocation omitted the Store-root
+environment variable and failed its Store variant on missing index.html;
+rerunning with both explicit roots passed. No product repair or test weakening
+was needed.
+
+In that package, actual native 400% zoom produced 359x214 CSS pixels at
+devicePixelRatio 4 on the owned 1440 px X11 screen. The field remained uncovered,
+Ctrl-K kept scroll 1498.25 while fixing the entry at y=8 and results at y=72, and
+Escape returned to that field without scrolling. A separate 1440x900 desktop
+check retained sticky navigation, scroll 500 and field top 335.640625; 390 px phone
+emulation retained a 44 px search trigger and no horizontal overflow. Native
+zoom evidence is in `native-zoom-final/`; emulated widths are not native-device
+evidence.
+
+Further final-package observations used only public fixtures and synthetic
+answers: 320 px RTL light high contrast and 390 px dark high contrast retained
+full numeric errors without horizontal overflow. Browser default-font sizing
+changed root text from 16 px to 32 px without overflow at 1440x900. Malformed numeric
+draft text and connected error IDs survived detail/density/help; populated
+collection rows retained exact input IDs and values. Help exposed neither
+draft nor row value, trapped five successive Tab presses and returned focus.
+Actual browser composition marked Ctrl-K `isComposing=true` and kept focus in
+the draft; no-match search retained focus and offered working Clear search.
+Offline edit, density, help and draft preparation retained one navigation
+entry, with each output labelled "Draft — secrets still required."
+
+Deliberate synthetic export exercised denied clipboard permission, successful
+copy after granting permission, an actual completed 92-byte download and reveal.
+Revocation removed output and secret controls; reconsent started empty. A scan
+found zero sentinel hits in storage, 82 public cache entries, IndexedDB,
+captured requests or observed worker/port messages. The synthetic clipboard
+was cleared and isolated permissions reset. See local
+`final-custody-observations.json` for observation ordering and limits.
+
+The single primary gate review then found two search defects in `6d964af`:
+phone opening grew the header, and visible-header Escape lost its keyboard
+invoker. Actual 390 px reproduction measured header 196.1875->248.1875 and
+scroll 1142->1194 (scroll anchoring retained field top 400.484375). Corrective
+commit `5765d07` overlays the retained phone trigger space and prefers a
+connected weak keyboard-invoker reference; outside dismissal clears it.
+Final Store inventory is
+`53f92b31c0f9a57a1d1674345ec1665d2b964d589c690a16147ac39069557e3a`;
+Store-free inventory is
+`3fddbe2bd5dfc11b470118f450f26fe628b8ccdc4e6f0160de5616b6bf459a86`.
+Release publication exited 0, affected shell cases 8/8 passed (919 ms), Store
+package cases4/4 passed (707ms), and Browser package cases2/2 passed (537ms).
+The parent verified the review's fixes without a second reviewer or panel.
+
+On the corrected package, phone 390 px retained header 196.1875, scroll 1142 and
+field top 400.484375 across search; 320 px retained header 196.1875, scroll 1269
+and top 399.78125. Desktop 1440x900 retained scroll 408/top 427.640625. Every
+Escape returned to the keyboard invoker; outside dismissal retained the clicked
+Menu focus, and pointer reopening fell back to the query. Actual native 400%
+retained the earlier uncovered field/search geometry and scroll 1498.25.
+Exact observations are retained in `search-gate-final-observations.json`.
+A further synthetic custody run installed every listed page storage/worker/
+service-worker/port/IndexedDB observer before consent or entry. After search,
+revocation and reconsent, the secret was empty, output absent, and no sentinel
+was found in 82 public cache entries, storage, IndexedDB or the one captured
+request. Clipboard/download implementation did not change; those earlier
+executions remain evidence for their unchanged paths, not new executions.
+
+The gate's S34 test-evidence note was addressed by strengthening the existing
+export lifecycle test: it captures the actual editor-mounted inherited field,
+proves unmount and a different remounted instance, then holds export module
+initialization across revocation, replacement and retired callback release.
+All 5 class cases passed (1179 ms). This strengthens the composed schedule; it
+does not imply that a secret resurrection bug was observed or repaired.
+
+Those earlier timing attempts retain every sample, with first-use separate and
+five warmups plus 40 samples per direction. At that checkpoint, the first 52 of 92
+original rows included failing feedback and activation measurements; scale and
+new presentation transitions were incomplete. The complete128-row result is
+recorded above. A metadata-render suppression experiment worsened measured
+activation and was removed. Under the same heavily loaded host (observed
+load 50.61 on 16 logical cores), the preserved pre-redesign package also failed
+matched activation: p95 352.8/319.3ms and maximum feedback350.6/515.6ms.
+These observations neither qualify latency nor establish redesign causation.
+Budgets and outliers are unchanged; this comparison does not resolve the 18
+current failed gates.
+Local ignored evidence is under `.omo/evidence/browser-ui-ux-redesign/`,
+including `minimal-event-matrix-attempt-1.json`,
+`metadata-chrome-activation-1x.json`,
+`prior-package-matched-activation-1x.json` and
+`native-zoom-400-failure.json`. Physical-device, speech and stakeholder
+acceptance remain unqualified.
+
 ### Browser UI refinement evidence
 
 The screenshot-driven interface refinement on 2026-10-10 corrected the vendor
