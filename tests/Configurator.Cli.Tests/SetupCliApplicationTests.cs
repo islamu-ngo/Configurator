@@ -40,30 +40,32 @@ public sealed class SetupCliApplicationTests
     {
         string[] args = ["--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
             "--input", "answers.json", "--output", "bundle", "--machine"];
+        string configurationPath = Path.Combine("bundle", "service.json");
+        string yamlPath = Path.Combine("bundle", "service.yaml");
         var complete = new CliFixture();
         await Assert.That(await complete.RunAsync(["artifact", "bundle-check", .. args.Where(item => item != "--output" && item != "bundle")]))
             .IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(await complete.RunAsync(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Success);
-        await Assert.That(complete.Files.ContainsKey("bundle/service.json")).IsTrue();
-        await Assert.That(complete.Files.ContainsKey("bundle/service.yaml")).IsTrue();
+        await Assert.That(complete.Files.ContainsKey(configurationPath)).IsTrue();
+        await Assert.That(complete.Files.ContainsKey(yamlPath)).IsTrue();
         await Assert.That(SetupCliMachineContractVerifier.Validate(complete.StandardOutput)).IsEmpty();
         await Assert.That(Encoding.UTF8.GetString(complete.StandardOutput)).DoesNotContain("private-answer-marker");
-        await Assert.That(Encoding.UTF8.GetString(complete.StandardOutput)).DoesNotContain("bundle/");
+        await Assert.That(Encoding.UTF8.GetString(complete.StandardOutput)).DoesNotContain("bundle" + Path.DirectorySeparatorChar);
 
         var conflict = new CliFixture();
-        conflict.Files["bundle/service.yaml"] = "untouched"u8.ToArray();
+        conflict.Files[yamlPath] = "untouched"u8.ToArray();
         await Assert.That(await conflict.RunAsync(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Blocked);
-        await Assert.That(conflict.Files.ContainsKey("bundle/service.json")).IsFalse();
-        await Assert.That(Encoding.UTF8.GetString(conflict.Files["bundle/service.yaml"])).IsEqualTo("untouched");
+        await Assert.That(conflict.Files.ContainsKey(configurationPath)).IsFalse();
+        await Assert.That(Encoding.UTF8.GetString(conflict.Files[yamlPath])).IsEqualTo("untouched");
 
         var blocked = new CliFixture { BundleBlocked = true };
         await Assert.That(await blocked.RunAsync(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Blocked);
-        await Assert.That(blocked.Files.ContainsKey("bundle/service.json")).IsFalse();
+        await Assert.That(blocked.Files.ContainsKey(configurationPath)).IsFalse();
 
         var partial = new CliFixture { BundleFailureAfter = 1 };
         await Assert.That(await partial.RunAsync(["artifact", "bundle-create", .. args])).IsEqualTo(SetupCliExitCode.Io);
-        await Assert.That(partial.Files.ContainsKey("bundle/service.json")).IsTrue();
-        await Assert.That(partial.Files.ContainsKey("bundle/service.yaml")).IsFalse();
+        await Assert.That(partial.Files.ContainsKey(configurationPath)).IsTrue();
+        await Assert.That(partial.Files.ContainsKey(yamlPath)).IsFalse();
         using JsonDocument machine = JsonDocument.Parse(partial.StandardOutput);
         await Assert.That(machine.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString())
             .IsEqualTo("written");
@@ -75,7 +77,7 @@ public sealed class SetupCliApplicationTests
         await Assert.That(await revisionBound.RunAsync("artifact", "bundle-create", "--definition", "definition.json",
             "--artifact", "config", "--artifact", "request", "--input", "answers.json", "--output", "bundle",
             "--machine")).IsEqualTo(SetupCliExitCode.Blocked);
-        await Assert.That(revisionBound.Files.ContainsKey("bundle/service.json")).IsFalse();
+        await Assert.That(revisionBound.Files.ContainsKey(configurationPath)).IsFalse();
     }
 
     [Test]
