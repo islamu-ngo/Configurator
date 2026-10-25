@@ -13,13 +13,21 @@ namespace Configurator.Artifacts;
 internal static partial class UnixProtectedArtifactWriter
 {
     private const int CurrentDirectory = -100;
-    private const int DirectoryNoFollow = 0x10000 | 0x20000 | 0x80000;
-    private const int AnonymousReadWrite = 0x410000 | 0x80000 | 2;
+    private static readonly (int Directory, int AnonymousFile) OpenFlags =
+        GetOpenFlags(RuntimeInformation.ProcessArchitecture);
     private const int EmptyPath = 0x1000;
     private const int NoFollow = 0x100;
     private const int FollowDescriptorLink = 0x400;
     private const uint BasicStats = 0x7ff;
     private const uint OwnerOnly = 0x180;
+
+    /// <summary>Returns the Linux open flags for a packaged process architecture.</summary>
+    internal static (int Directory, int AnonymousFile) GetOpenFlags(Architecture architecture) =>
+        architecture switch
+        {
+            Architecture.Arm64 => (0x4000 | 0x8000 | 0x80000, 0x404000 | 0x80000 | 2),
+            _ => (0x10000 | 0x20000 | 0x80000, 0x410000 | 0x80000 | 2)
+        };
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Staging stream ownership is transferred to the returned ProtectedArtifactPreparation which disposes it.")]
     internal static async Task<ProtectedArtifactPreparation> PrepareAsync(
@@ -42,7 +50,7 @@ internal static partial class UnixProtectedArtifactWriter
             if (existing.HasValue)
                 return ProtectedArtifactPreparation.Rejected(existing.Value);
 
-            int descriptor = OpenAt(parent, ".", AnonymousReadWrite, OwnerOnly);
+            int descriptor = OpenAt(parent, ".", OpenFlags.AnonymousFile, OwnerOnly);
             if (descriptor < 0)
                 return ProtectedArtifactPreparation.Rejected(ProtectedArtifactStatus.IoFailure);
 
@@ -168,7 +176,7 @@ internal static partial class UnixProtectedArtifactWriter
     {
         if (!Path.IsPathFullyQualified(directory))
             return null;
-        int descriptor = OpenRoot("/", DirectoryNoFollow, 0);
+        int descriptor = OpenRoot("/", OpenFlags.Directory, 0);
         if (descriptor < 0)
             return null;
         SafeFileHandle? current = new((IntPtr)descriptor, ownsHandle: true);
@@ -179,7 +187,7 @@ internal static partial class UnixProtectedArtifactWriter
             string[] segments = directory.Split('/', StringSplitOptions.RemoveEmptyEntries);
             for (int index = 0; index < segments.Length; index++)
             {
-                int next = OpenAt(current, segments[index], DirectoryNoFollow, 0);
+                int next = OpenAt(current, segments[index], OpenFlags.Directory, 0);
                 if (next < 0)
                     return null;
                 SafeFileHandle toDispose = current;

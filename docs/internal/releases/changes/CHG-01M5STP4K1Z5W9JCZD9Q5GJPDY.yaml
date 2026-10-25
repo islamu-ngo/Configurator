@@ -1,0 +1,28 @@
+Change-Id: CHG-01M5STP4K1Z5W9JCZD9Q5GJPDY
+Title: "use ARM64 Linux flags for protected publication"
+Type: fix
+Scope: artifacts
+Summary: "Select the Linux open flags for the process architecture so ARM64 publication retains anonymous staging, owner-only verification and create-only installation instead of using x64 flag values."
+Group: native-linux-publication
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/native-output.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Architecture-specific flags retain anonymous staging, descriptor-relative traversal, owner-only verification and create-only publication. Unsupported hosts still refuse without ordinary-file fallback."
+  Migration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/packaging.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/native-output.md
+    Disposition: documented
+    Detail: "Use the Linux package matching the CPU architecture. Actual-host validation remains separate from cross-publication; the protected-save contract and recovery receipts are unchanged."

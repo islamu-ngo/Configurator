@@ -23,6 +23,11 @@ changed targets or missing filesystem guarantees reject publication before
 installation. Cancellation can stop work, but cannot undo an installation that
 has already happened.
 
+Use the Linux package for your CPU architecture. The writer selects that
+architecture's native flags rather than assuming x64 values on Arm64.
+Cross-building a package does not establish protected-save qualification on
+another host; the platform and filesystem checks still apply.
+
 Installation and verification are different facts. A successful create-only
 namespace operation establishes that the prepared file was installed. A later
 inspection can fail or find a different file at that name. The receipt retains
