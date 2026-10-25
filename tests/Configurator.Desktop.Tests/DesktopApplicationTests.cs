@@ -147,12 +147,23 @@ public sealed class DesktopApplicationTests
             bool ready = shell.Workspace.Validate();
             shell.Workspace.Fields.Single(field => field.Id == "note").ClearCommand.Execute(null);
             Dispatcher.UIThread.RunJobs();
-            return (authoredDefaults, shown, invalidShown, ready, restored: !advanced.IsVisible);
+            bool correctedShown = advanced.IsVisible;
+            bool omitted = !shell.Workspace.Form!.Snapshot().Values.ContainsKey("note");
+            bool correctedReady = shell.Workspace.Validate();
+            optional.IsChecked = true;
+            Dispatcher.UIThread.RunJobs();
+            optional.IsChecked = false;
+            Dispatcher.UIThread.RunJobs();
+            return (authoredDefaults, shown, invalidShown, ready, correctedShown, omitted, correctedReady,
+                restored: !advanced.IsVisible);
         });
         await Assert.That(result.authoredDefaults).IsTrue();
         await Assert.That(result.shown).IsTrue();
         await Assert.That(result.invalidShown).IsTrue();
         await Assert.That(result.ready).IsFalse();
+        await Assert.That(result.correctedShown).IsTrue();
+        await Assert.That(result.omitted).IsTrue();
+        await Assert.That(result.correctedReady).IsTrue();
         await Assert.That(result.restored).IsTrue();
     }
 
