@@ -705,6 +705,14 @@ host newline convention. The ratchet writer and both definition-schema owners
 now normalize to LF before byte comparison or hashing, matching the existing
 command-schema contract. Generated outputs remain generator-owned.
 
+After all five native package jobs passed, the standalone runner shut down
+during ReleaseEngineering tests. Its unchanged-commit retry reached a separate
+Browser collection-test race: a row expected to contain `blue` was still empty.
+The collection workflow tests now await input, click and change dispatch before
+re-querying the next control. Existing typed-value, row-identity, omission and
+privacy assertions remain, with an additional rendered-row value assertion.
+No timing delay or product callback-fence change is involved.
+
 The Desktop failures were stale scenarios: imports may replace pristine defaults,
 and corrected editors remain visible until deliberate collapse. Corrected setup
 and additional assertions preserve both contracts. Release-input validation now
@@ -721,6 +729,7 @@ zero skips:
 | --- | --- |
 | `dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 145 --no-progress` | 145 passed |
 | `dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 48 passed |
+| `dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --no-build --verbosity quiet -- --minimum-expected-tests 208 --no-progress` | 208 passed |
 | `dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 138 --no-progress` | 138 passed |
 | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --no-build --verbosity quiet -- --minimum-expected-tests 185` | 185 passed |
 | `dotnet test --project eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 468 --no-progress` | 468 passed |

@@ -27,11 +27,11 @@ public sealed class BrowserCollectionWorkflowTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
-        component.Find("[data-field='hostname'] input").Input("retained.test");
-        component.Find("[data-field='settings.name'] input").Input("kept");
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
+        await component.Find("[data-field='settings.name'] input").InputAsync(new ChangeEventArgs { Value = "kept" });
         string field = nested ? "settings.inner.count" : "settings.count";
-        component.Find($"[data-field='{field}'] input").Input("invalid");
-        if (nested) component.Find("[data-field='settings.count'] input").Input("also-invalid");
+        await component.Find($"[data-field='{field}'] input").InputAsync(new ChangeEventArgs { Value = "invalid" });
+        if (nested) await component.Find("[data-field='settings.count'] input").InputAsync(new ChangeEventArgs { Value = "also-invalid" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.HasInputErrors).IsTrue();
         string container = nested ? "settings.inner" : "settings";
@@ -41,12 +41,12 @@ public sealed class BrowserCollectionWorkflowTests
         if (nested)
         {
             await Assert.That(form.HasInputErrors).IsTrue();
-            component.Find("[data-field='settings.count'] input").Input("2");
+            await component.Find("[data-field='settings.count'] input").InputAsync(new ChangeEventArgs { Value = "2" });
             await Assert.That(form.Snapshot().Values["settings"].GetProperty("name").GetString()).IsEqualTo("kept");
         }
         else await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
         await Assert.That(form.HasInputErrors).IsFalse();
-        component.Find("#prepare-draft").Click();
+        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("retained.test");
     }
@@ -138,14 +138,14 @@ public sealed class BrowserCollectionWorkflowTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         for (int index = 0; index < 3; index++)
         {
-            component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").Click();
-            component.Find($"[data-field='tenants.{index}.name'] input").Input("tenant-" + index);
+            await component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
+            await component.Find($"[data-field='tenants.{index}.name'] input").InputAsync(new ChangeEventArgs { Value = "tenant-" + index });
         }
         string lastIdentity = component.Find("[data-field='tenants.2.name'] input").Id!;
         await Assert.That(component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").HasAttribute("disabled")).IsTrue();
-        component.Find("#secret-consent").Change(true);
-        component.Find("[data-field='tenants.1.credential'] input").Input("removed-row-secret-canary");
-        component.FindAll("[data-field='tenants'] > fieldset > .configuration-field__row > button")[1].Click();
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='tenants.1.credential'] input").InputAsync(new ChangeEventArgs { Value = "removed-row-secret-canary" });
+        await component.FindAll("[data-field='tenants'] > fieldset > .configuration-field__row > button")[1].ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-field='tenants.1.name'] input").Id).IsEqualTo(lastIdentity);
         await Assert.That(component.Find("[data-field='tenants.1.name'] input").GetAttribute("value")).IsEqualTo("tenant-2");
         await Assert.That(component.Markup).DoesNotContain("removed-row-secret-canary");
@@ -172,17 +172,18 @@ public sealed class BrowserCollectionWorkflowTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "cluster");
         await BrowserFixture.NotifyChoiceAsync(component, "replicas", "true");
-        component.Find("[data-field='hostname'] input").Input("example.test");
-        component.Find("[data-field='count'] input").Input("7");
-        component.Find("[data-field='rate'] input").Input("1.25");
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "example.test" });
+        await component.Find("[data-field='count'] input").InputAsync(new ChangeEventArgs { Value = "7" });
+        await component.Find("[data-field='rate'] input").InputAsync(new ChangeEventArgs { Value = "1.25" });
         await Assert.That(component.Find("[data-field='count'] input").GetAttribute("type")).IsEqualTo("text");
         await Assert.That(component.Find("[data-field='count'] input").GetAttribute("inputmode")).IsEqualTo("numeric");
         await Assert.That(component.Find("[data-field='rate'] input").GetAttribute("type")).IsEqualTo("text");
         await Assert.That(component.Find("[data-field='rate'] input").GetAttribute("inputmode")).IsEqualTo("decimal");
-        component.Find("[data-field='tags'] > fieldset > button[data-action='add-item']").Click();
-        component.Find("[data-field='tags.0'] input").Input("blue");
+        await component.Find("[data-field='tags'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-field='tags.0'] input").InputAsync(new ChangeEventArgs { Value = "blue" });
+        await Assert.That(component.Find("[data-field='tags.0'] input").GetAttribute("value")).IsEqualTo("blue");
         await Assert.That(component.Find("[data-field='settings.enabled'] input").GetAttribute("type")).IsEqualTo("password");
-        component.Find("[data-field='settings.enabled'] input").Input("false");
+        await component.Find("[data-field='settings.enabled'] input").InputAsync(new ChangeEventArgs { Value = "false" });
         var values = component.FindComponents<ConfigurationField>()[0].Instance.Form.Snapshot().Values;
         await Assert.That(values["count"].GetInt64()).IsEqualTo(7);
         await Assert.That(values["rate"].GetDecimal()).IsEqualTo(1.25m);
