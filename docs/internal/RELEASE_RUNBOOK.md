@@ -234,6 +234,11 @@ APIs. Every successful stable action requires `origin/main` to still equal the
 old OID. Newest moves require fast-forward descent to `B`; already-at-`B` is
 idempotent. Older stable patches emit `no-main-move`; prereleases do not move main.
 
+On Unix, bounded Git verification owns an isolated process group. Timeout
+cleanup passes an explicit `--` between each signal and its negative group
+identifier so the external utility cannot reinterpret the group as an option.
+TERM/KILL cleanup remains limited to that owned group.
+
 ```text
 release_main_verified: action=move-main old=<old-main-oid> new=<full-B-oid> tag=v<version> instruction=update-main-fast-forward
 release_main_verified: action=already-at-target old=<full-B-oid> new=<full-B-oid> tag=v<version> instruction=no-op-main-already-at-release

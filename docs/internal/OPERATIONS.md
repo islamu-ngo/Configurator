@@ -713,6 +713,29 @@ re-querying the next control. Existing typed-value, row-identity, omission and
 privacy assertions remain, with an additional rendered-row value assertion.
 No timing delay or product callback-fence change is involved.
 
+The next candidate passed all 208 Browser tests but repeated the runner shutdown
+about four minutes into ReleaseEngineering tests. Investigation found that
+`MainCommand` passed a negative process-group identifier to `kill` without an
+end-of-options delimiter. The local host uses util-linux; procps documents an
+argument-parsing hazard for that form. Cleanup now delimits the owned group with
+`--`, retaining its TERM/KILL sequence and process ownership.
+
+The existing hung-Git regressions use a strict external signal wrapper that
+records arguments and refuses ambiguous operands before invoking the native
+utility. The unmodified helper failed safely with four recorded arguments
+instead of six. Existing timeout, process-exit and descendant-cleanup assertions
+remain. The affected Release test-project build had zero warnings/errors, and
+the complete 468-test suite passed with no failures or skips. The post-fix full
+run is retained in `artifacts/ci-repair/release-signal-fix.log`.
+
+Source register, accessed 2026-10-25:
+[procps issue 354](https://gitlab.com/procps-ng/procps/-/issues/354) supplied only
+the negative-operand ambiguity as a functional fact. A separate implementer
+received a source-free handoff to delimit that operand and used only the
+repository helper; it read no third-party source. Parent AFC/SSO review found
+only the standard command-argument boundary added to existing structure. No
+upstream implementation, prose, dependency or asset was transferred.
+
 The Desktop failures were stale scenarios: imports may replace pristine defaults,
 and corrected editors remain visible until deliberate collapse. Corrected setup
 and additional assertions preserve both contracts. Release-input validation now

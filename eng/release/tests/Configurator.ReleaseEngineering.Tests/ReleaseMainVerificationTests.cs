@@ -206,7 +206,17 @@ public sealed class ReleaseMainVerificationTests
         Directory.CreateDirectory(fakeBin);
         string fakeGit = Path.Combine(fakeBin, "git");
         File.WriteAllText(fakeGit, script);
+        string signalArgumentsPath = Path.Combine(repo.Root, fakeBinName + "-signals");
+        string fakeKill = Path.Combine(fakeBin, "kill");
+        File.WriteAllText(fakeKill, $"""
+            #!/bin/sh
+            printf '%s\n' "$@" >> '{signalArgumentsPath}'
+            [ "$#" -eq 3 ] && [ "$2" = -- ] || exit 64
+            exec /bin/kill "$@"
+
+            """);
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(fakeGit, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(fakeKill, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         string? originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
@@ -218,6 +228,14 @@ public sealed class ReleaseMainVerificationTests
             await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
             await Assert.That(output).IsEqualTo("verify_main_failed: release_main_git_failed\n");
             await Assert.That(stopwatch.Elapsed).IsLessThan(TimeSpan.FromSeconds(2));
+            string[] signalArguments = File.ReadAllLines(signalArgumentsPath);
+            await Assert.That(signalArguments).Count().IsEqualTo(6);
+            await Assert.That(signalArguments[0]).IsEqualTo("-TERM");
+            await Assert.That(signalArguments[1]).IsEqualTo("--");
+            await Assert.That(signalArguments[3]).IsEqualTo("-KILL");
+            await Assert.That(signalArguments[4]).IsEqualTo("--");
+            await Assert.That(signalArguments[2]).IsEqualTo(signalArguments[5]);
+            await Assert.That(int.Parse(signalArguments[2], System.Globalization.CultureInfo.InvariantCulture)).IsLessThan(-1);
             int pid = int.Parse(File.ReadAllText(pidPath), System.Globalization.CultureInfo.InvariantCulture);
             await Assert.That(Process.GetProcesses().Any(process => process.Id == pid)).IsFalse();
         }

@@ -6,6 +6,11 @@ operating instructions restore the reusable original sections from Event
 revision `c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38`. Configurator's integration
 target is `main`.
 
+Unix `verify-main` Git timeouts terminate only the subprocess's isolated process
+group. Signal invocations delimit the negative group identifier with `--`;
+host-specific `kill` option parsing must not widen the cleanup target. See the
+[verification command](../../docs/internal/RELEASE_RUNBOOK.md#stable-main-verification-command).
+
 ## Collision-proof change workflow
 
 New public changes use sortable ULID-style identifiers such as

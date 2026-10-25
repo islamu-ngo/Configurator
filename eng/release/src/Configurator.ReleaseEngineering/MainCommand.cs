@@ -349,6 +349,7 @@ public static class MainCommand
         {
             using var kill = new Process { StartInfo = new ProcessStartInfo("kill") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true } };
             kill.StartInfo.ArgumentList.Add(signal);
+            kill.StartInfo.ArgumentList.Add("--");
             kill.StartInfo.ArgumentList.Add($"-{processId}");
             kill.Start();
             kill.WaitForExit(500);

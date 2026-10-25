@@ -301,3 +301,35 @@ alongside filesystem invariants.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; the protected-output guide owns the ABI and source register.
+
+[2026-10-25 Europe/Brussels] - Negative process-group operands need an option boundary
+
+**Context**: Standalone CI passed native packages and product suites, then twice
+reported a runner shutdown during ReleaseEngineering tests.
+
+**Symptom / Observation**: Both shutdowns occurred about four minutes into that
+suite. The local util-linux host completed the same tests; Ubuntu uses a different
+signal utility. A safe strict-wrapper regression recorded four arguments across
+TERM/KILL calls where six unambiguous arguments were required.
+
+**Root Cause**: `MainCommand` supplied a negative group identifier directly after
+the signal option. That left option parsing ambiguous. The procps maintainers
+document a hazard in this form; no actual broad signal is needed to reproduce
+the missing argument boundary.
+
+**Resolution**: Delimit the owned negative group with `--` before invoking the
+external utility. Keep the isolated group, TERM/KILL order and existing timeout
+and descendant-exit assertions. The regression refuses ambiguous arguments
+before forwarding anything to the native utility, protecting its own host.
+
+**Why This Matters for Future Work**: Treat negative command operands as data,
+not another option. A successful run against one distribution's utility does
+not qualify another implementation's parser.
+
+**References**:
+- `eng/release/src/Configurator.ReleaseEngineering/MainCommand.cs`
+- `eng/release/tests/Configurator.ReleaseEngineering.Tests/ReleaseMainVerificationTests.cs`
+- `docs/internal/OPERATIONS.md#pr-ci-repair-verification-2026-10-25`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; Operations owns source provenance and execution evidence.
