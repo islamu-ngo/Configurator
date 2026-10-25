@@ -106,6 +106,7 @@ jobs:
           set -euo pipefail
           # Explicit owners do not depend on extraction-time solution registration.
           for project in \
+            src/Configurator.Browser.Host/Configurator.Browser.Host.csproj \
             tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj \
             eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \
             eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj \
@@ -138,6 +139,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/audit
           for project in src/Configurator.*/*.csproj tests/Configurator.*.Tests/*.csproj eng/configurator/*/*.csproj eng/configurator/probes/*/*.csproj eng/agent-workflow/src/*/*.csproj eng/release/src/*/*.csproj; do
+            printf 'Auditing %s\n' "$project"
             dotnet list "$project" package --vulnerable --include-transitive --format json --no-restore > artifacts/audit/current.json
             dotnet run .ci/scripts/validate-nuget-vulnerabilities.cs -- artifacts/audit/current.json
           done

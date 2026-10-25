@@ -6,6 +6,11 @@ pinned manifests, including on native-only and public-data CI jobs. The command
 runs from the repository root so the pin remains authoritative. Browser builders
 add `wasm-tools`; native-only jobs do not install that workload.
 
+CI explicitly restores and builds the static Browser host before auditing its
+dependencies with `--no-restore`. The host has no product project references, so
+restoring Browser tests alone does not produce its assets file. Audit logs name
+each project before invoking the SDK, including when the SDK rejects its graph.
+
 `eng/configurator/Configurator.Release.proj` owns native surface/RID admission,
 standalone publication and independent static browser publication. Its default
 `Build` target restores locked development dependencies and builds the selected
