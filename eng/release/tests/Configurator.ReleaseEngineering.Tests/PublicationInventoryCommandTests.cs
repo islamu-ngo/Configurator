@@ -8,6 +8,30 @@ namespace Configurator.ReleaseEngineering.Tests;
 public sealed class PublicationInventoryCommandTests
 {
     private static readonly string[] ExpectedPublishedVersions = ["1.1.0", "1.1.1", "2.0.0"];
+
+    [Test]
+    public async Task InventoryProposalIncludesOnlyApplicableCommittedGroupCorrections()
+    {
+        using GovernedReleaseFixture fixture = GovernedReleaseFixture.CreateWithGroupCorrection();
+        RestoreEvidence(fixture);
+        string proposal = Path.Join(fixture.Root, "corrected-proposal");
+        (int code, string output) = Prepare(fixture, EmptyInventory(fixture), "1.1.0", proposal);
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllBytes(Path.Join(proposal, "authorized-inventory.v1.json")));
+        JsonElement entry = document.RootElement.GetProperty("entries")[0];
+        JsonElement[] sources = entry.GetProperty("sourceDocuments").EnumerateArray().ToArray();
+        await Assert.That(entry.GetProperty("targetOid").GetString()).IsEqualTo(fixture.B);
+        await Assert.That(sources.Length).IsEqualTo(2);
+        await Assert.That(sources[0].GetProperty("kind").GetString()).IsEqualTo("fragment");
+        await Assert.That(sources[1].GetProperty("kind").GetString()).IsEqualTo("fragment-group-correction");
+        await Assert.That(sources[1].GetProperty("path").GetString())
+            .IsEqualTo("docs/internal/releases/group-corrections/CHG-2026-0001.yaml");
+        RetainApprovals(fixture, proposal);
+        string repeated = Path.Join(fixture.Root, "corrected-repeat");
+        (code, output) = Prepare(fixture, Path.Join(proposal, "authorized-inventory.v1.json"), "1.1.0", repeated);
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+    }
+
     [Test]
     public async Task SignedReleaseProducesUnsignedProposalAndRepeatHasNoDuplicates()
     {

@@ -68,6 +68,11 @@ Root configuration applies before solution registration. AgentWorkflow validates
 single-document intent YAML and literal commit paths. ReleaseEngineering owns
 Conventional Commit syntax, scope/trailer validation, bounded release inputs,
 Change-Id allocation, deterministic presentation and signed evidence validation.
+Digest-bound, append-only group corrections repair incompatible membership
+without mutating original fragments, identities, impacts or release entries.
+Candidate and authorized-inventory verification include the applicable committed
+correction documents in source provenance. Reserved classification markers
+remain prohibited independently of ordinary descriptions of restricted output.
 Missing promotion trust rejects signed publication; the project does not embed
 Event's signer list.
 

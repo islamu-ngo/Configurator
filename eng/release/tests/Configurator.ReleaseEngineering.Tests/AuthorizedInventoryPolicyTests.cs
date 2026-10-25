@@ -8,6 +8,45 @@ namespace Configurator.ReleaseEngineering.Tests;
 public sealed class AuthorizedInventoryPolicyTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly string[] ImpactNames = ["Breaking", "Security", "Migration", "Configuration", "OpenAPI", "Operator"];
+
+    [Test]
+    public async Task GroupCorrectionInventoryBindsCompleteExactTreeSourceSet()
+    {
+        using var fixture = new InventoryFixture();
+        AuthorizedInventoryEntry entry = fixture.AddRelease("1.2.0", "v1.2", withCorrection: true);
+        AuthorizedInventoryResult valid = fixture.Verify([entry]);
+        await Assert.That(valid.IsValid).IsTrue().Because(string.Join("; ", valid.Diagnostics));
+        await Assert.That(valid.Releases.Single().Fragments.Single().Group).IsEqualTo("original-group");
+        AuthorizedSourceDocument correction = entry.SourceDocuments.Single(source => source.Kind == "fragment-group-correction");
+        await Assert.That(fixture.Verify([entry with
+        {
+            SourceDocuments = entry.SourceDocuments.Where(source => source != correction).ToArray(),
+        }]).IsValid).IsFalse();
+        await Assert.That(fixture.Verify([entry with
+        {
+            SourceDocuments = [.. entry.SourceDocuments.Where(source => source != correction),
+                correction with { Path = "docs/internal/releases/changes/CHG-2026-0001.yaml" }],
+        }]).IsValid).IsFalse();
+
+        // A newer committed replacement cannot substitute for the authorized tree's original record.
+        string path = Path.Join(fixture.Repository, correction.Path);
+        File.WriteAllText(path, File.ReadAllText(path).Replace("corrected-group", "later-group", StringComparison.Ordinal));
+        fixture.Git("add", correction.Path);
+        fixture.Git("commit", "-m", "Replace fixture group outside authorized tree");
+        await Assert.That(fixture.Verify([entry]).IsValid).IsTrue();
+    }
+
+    [Test]
+    public async Task CorrectionCommittedOnlyAfterAuthorizedOidCannotSupplyProvenance()
+    {
+        using var fixture = new InventoryFixture();
+        AuthorizedInventoryEntry entry = fixture.AddRelease("1.2.0", "v1.2", withCorrection: true, includeCorrectionInTree: false);
+        fixture.Git("add", "docs/internal/releases/group-corrections");
+        fixture.Git("commit", "-m", "Record fixture correction after authorized target");
+
+        await Assert.That(fixture.Verify([entry]).IsValid).IsFalse();
+    }
     [Test]
     public async Task DeadlineIncludesAuthorityAndRejectsItsLateSuccess()
     {
@@ -326,18 +365,42 @@ public sealed class AuthorizedInventoryPolicyTests
             Git("config", "user.email", "fixture@example.invalid");
         }
 
-        public AuthorizedInventoryEntry AddRelease(string version, string line)
+        public AuthorizedInventoryEntry AddRelease(string version, string line, bool withCorrection = false, bool includeCorrectionInTree = true)
         {
             string source = $"inputs/{version}";
             string directory = Path.Combine(Repository, source);
             Directory.CreateDirectory(directory);
             const string date = "2026-09-01";
             const string zero = "0000000000000000000000000000000000000000";
+            const string id = "CHG-2026-0001";
+            var documents = new List<AuthorizedSourceDocument>();
+            var sourceTexts = new List<string>();
+            if (withCorrection)
+            {
+                string fragment = $"Change-Id: {id}\nTitle: Public fixture change\nType: feat\nScope: definitions\nSummary: Prepare public definitions.\nGroup: original-group\nSupersedes: []\nImpacts:\n" +
+                    string.Concat(ImpactNames
+                        .Select(impact => $"  {impact}:\n    Reference: docs/public.md\n    Disposition: not-applicable\n"));
+                string correction = $"Schema-Version: fragment-group-correction.v1\nChange-Id: {id}\nFragment-Sha256: {Hash(Encoding.UTF8.GetBytes(fragment))}\nGroup: corrected-group\n";
+                foreach ((string path, string text, string kind) in new[]
+                {
+                    ($"docs/internal/releases/changes/{id}.yaml", fragment, "fragment"),
+                    ($"docs/internal/releases/group-corrections/{id}.yaml", correction, "fragment-group-correction"),
+                })
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.Join(Repository, path))!);
+                    File.WriteAllText(Path.Join(Repository, path), text);
+                    documents.Add(new AuthorizedSourceDocument(path, kind));
+                    sourceTexts.Add(text);
+                    if (kind == "fragment" || includeCorrectionInTree) Git("add", path);
+                }
+            }
             string descriptor = $"Version: {version}\nLine: {line}\nRelease-Date: {date}\nBase-Stable-Tag: v1.0.0\nPrevious-Published-Tag: v1.0.0\nRelease-Range:\n  Base-Ref: v1.0.0\n  Base-Oid: {zero}\n  Previous-Ref: v1.0.0\n  Previous-Oid: {zero}\n";
             descriptor += "Compatibility:\n  - v1\nImpact-Dispositions:\n  breaking: not-applicable\n  security: not-applicable\n  migration: not-applicable\n  configuration: not-applicable\n  openapi: not-applicable\n  operator: not-applicable\n";
             var context = new ReleaseContext(1,
                 new ReleaseContextRelease(version, line, date, "v1.0.0", "v1.0.0", "patch", version.Contains('-') ? "rc" : "stable", !version.Contains('-')),
-                [], new ReleaseContextEvidence(zero, zero, []));
+                withCorrection ? [new ReleaseContextChange("000000000000", zero, id, "feat", "definitions",
+                    "Public fixture change", "Prepare public definitions.", false, false, null)] : [],
+                new ReleaseContextEvidence(zero, zero, []));
             byte[] contextBytes = ReleaseArtifactPolicy.NormalizeJson(JsonSerializer.Serialize(context, JsonOptions)).Bytes!;
             var inputs = new Dictionary<string, byte[]>
             {
@@ -366,11 +429,11 @@ public sealed class AuthorizedInventoryPolicyTests
                 releaseSummarySha256 = Hash(inputs["summary.md"]),
                 releaseContextSha256 = Hash(inputs["release-context.v1.json"]),
                 releaseNotesSha256 = Hash(inputs["release-notes.md"]),
-                releaseFragmentsSha256 = Hash([]),
+                releaseFragmentsSha256 = Hash(Encoding.UTF8.GetBytes(string.Join("\n---\n", sourceTexts))),
             }));
             string evidencePath = $"{version}.json";
             File.WriteAllBytes(Path.Combine(EvidenceRoot, evidencePath), evidence);
-            return new AuthorizedInventoryEntry(version, line, date, tag, target, source, evidencePath, Hash(evidence), true, Hash(Encoding.UTF8.GetBytes($"disclose:{version}:{tag}")), []);
+            return new AuthorizedInventoryEntry(version, line, date, tag, target, source, evidencePath, Hash(evidence), true, Hash(Encoding.UTF8.GetBytes($"disclose:{version}:{tag}")), documents);
         }
 
         public AuthorizedInventoryResult Verify(IReadOnlyList<AuthorizedInventoryEntry> entries, IReadOnlyList<AcceptedReleaseIdentity>? accepted = null, bool supplyAuthority = true, bool complete = true, bool trusted = true)

@@ -10,6 +10,77 @@ namespace Configurator.ReleaseEngineering.Tests;
 public sealed class ReleaseCandidateVerificationTests
 {
     [Test]
+    [Arguments("untracked")]
+    [Arguments("staged")]
+    [Arguments("modified")]
+    [Arguments("deleted")]
+    public async Task CandidateRejectsUncommittedApplicableGroupCorrections(string state)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.CreateWithGroupCorrection();
+        if (state == "modified") File.AppendAllText(fixture.CorrectionPath, "# changed\n");
+        if (state == "deleted") File.Delete(fixture.CorrectionPath);
+        if (state is "untracked" or "staged")
+        {
+            using var plain = CandidateFixture.Create();
+            Directory.CreateDirectory(Path.GetDirectoryName(plain.CorrectionPath)!);
+            File.WriteAllText(plain.CorrectionPath, "Schema-Version: fragment-group-correction.v1\n");
+            if (state == "staged") plain.StageCorrection();
+            (int plainCode, _) = plain.Verify(plain.B);
+            await Assert.That(plainCode).IsEqualTo(Program.ToolchainRejected);
+            return;
+        }
+        (int code, _) = fixture.Verify(fixture.B);
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
+    }
+
+    [Test]
+    public async Task CandidateHashesCommittedCorrectionWithoutChangingOriginalContext()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.CreateWithGroupCorrection();
+        (int code, string output) = fixture.Verify(fixture.B);
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+        using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(fixture.CandidateManifestPath));
+        string expected = fixture.NormalizedFragment + "\n---\n" + File.ReadAllText(fixture.CorrectionPath);
+        await Assert.That(manifest.RootElement.GetProperty("releaseFragmentsSha256").GetString())
+            .IsEqualTo(Sha256(System.Text.Encoding.UTF8.GetBytes(expected)));
+        using JsonDocument context = JsonDocument.Parse(File.ReadAllBytes(fixture.ContextPath));
+        JsonElement change = context.RootElement.GetProperty("changes").EnumerateArray()
+            .Single(value => value.TryGetProperty("changeId", out JsonElement id) && id.GetString() == "CHG-2026-0001");
+        await Assert.That(change.GetProperty("scope").GetString()).IsEqualTo("self-hosting");
+        await Assert.That(change.GetProperty("oid").GetString()).IsEqualTo(fixture.A);
+        await Assert.That(context.RootElement.GetProperty("release").GetProperty("minimumBump").GetString()).IsEqualTo("minor");
+    }
+
+    [Test]
+    public async Task CandidateRejectsCorrectionSubstitutionFromDifferentCommittedTree()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.CreateWithGroupCorrection();
+        fixture.CommitCorrectionSubstitution();
+
+        (int code, _) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    public async Task CandidateIgnoresUnlinkedGroupCorrectionInputs()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        string path = Path.Join(fixture.RepositoryPath, "docs/internal/releases/group-corrections/CHG-2026-9999.yaml");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "not a correction\n");
+
+        (int code, string output) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+    }
+
+    [Test]
     public async Task VerifyCandidateAcceptsExactBAndWritesDeterministicManifestTwice()
     {
         if (OperatingSystem.IsWindows()) return;
@@ -198,7 +269,7 @@ public sealed class ReleaseCandidateVerificationTests
         private readonly string configPath;
         private readonly string executablePath;
 
-        private CandidateFixture(string objectFormat)
+        private CandidateFixture(string objectFormat, bool groupCorrection = false)
         {
             Root = Path.Combine(Path.GetTempPath(), $"islamu-candidate-{Guid.NewGuid():N}");
             RepositoryPath = Path.Combine(Root, "repo");
@@ -220,11 +291,24 @@ public sealed class ReleaseCandidateVerificationTests
             Directory.CreateDirectory(authorityRoot);
             Git("init", $"--object-format={objectFormat}", "--initial-branch=main");
             CreatePromotionAuthority();
+            if (groupCorrection)
+            {
+                WriteFragment();
+                File.AppendAllText(Path.Join(RepositoryPath, "docs/internal/releases/changes/CHG-2026-0001.yaml"), "Group: original-group\n");
+            }
             string previous = Commit("fix(definitions): preserve published event notes");
+            if (groupCorrection)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(CorrectionPath)!);
+                File.WriteAllText(CorrectionPath,
+                    "Schema-Version: fragment-group-correction.v1\nChange-Id: CHG-2026-0001\n" +
+                    $"Fragment-Sha256: {Sha256(System.Text.Encoding.UTF8.GetBytes(NormalizedFragment))}\nGroup: corrected-group\n");
+                previous = Commit("chore(release): correct fixture group\n\nChangelog: skip\nChangelog-Reason: Correct fixture grouping.");
+            }
             Git("-c", "user.name=Release Test", "-c", "user.email=release@example.invalid", "tag", "-a", "v1.0.0", previous, "-m", "v1.0.0");
             A = Commit("feat(self-hosting): let attendees correct self-hosting details\n\nChange-Id: CHG-2026-0001");
             WriteBundle();
-            Prepare();
+            Prepare(groupCorrection);
             Git("add", "docs/internal/releases/1.1.0");
             B = Commit("docs(release): prepare 1.1.0\n\nChangelog: skip\nChangelog-Reason: release metadata commit");
         }
@@ -238,8 +322,17 @@ public sealed class ReleaseCandidateVerificationTests
         public string A { get; }
         public string B { get; }
         public string ObjectFormat { get; }
+        public string CorrectionPath => Path.Join(RepositoryPath, "docs/internal/releases/group-corrections/CHG-2026-0001.yaml");
+        public string NormalizedFragment => File.ReadAllText(Path.Join(RepositoryPath, "docs/internal/releases/changes/CHG-2026-0001.yaml")).TrimEnd() + "\n";
 
         public static CandidateFixture Create() => new("sha1");
+        public static CandidateFixture CreateWithGroupCorrection() => new("sha1", groupCorrection: true);
+        public void StageCorrection() => Git("add", "docs/internal/releases/group-corrections");
+        public void CommitCorrectionSubstitution()
+        {
+            File.WriteAllText(CorrectionPath, File.ReadAllText(CorrectionPath).Replace("corrected-group", "substituted-group", StringComparison.Ordinal));
+            Commit("chore(release): substitute fixture correction\n\nChangelog: skip\nChangelog-Reason: Test exact tree binding.");
+        }
         public static CandidateFixture? CreateSha256OrNull()
         {
             try { return new CandidateFixture("sha256"); }
@@ -298,24 +391,31 @@ public sealed class ReleaseCandidateVerificationTests
 
         public void Dispose() => Directory.Delete(Root, recursive: true);
 
-        private void Prepare()
+        private void Prepare(bool groupCorrection)
         {
             Directory.CreateDirectory(ReleaseDirectory);
             Directory.CreateDirectory(Path.Combine(RepositoryPath, "docs", "internal", "releases", "changes"));
             Directory.CreateDirectory(Path.Combine(RepositoryPath, "eng", "release", "policy"));
-            string previous = Git("rev-list", "--max-parents=0", "HEAD").Trim();
+            string previous = Git("rev-parse", "refs/tags/v1.0.0^{commit}").Trim();
             File.WriteAllText(Path.Combine(ReleaseDirectory, "release.yaml"),
                 $"Version: 1.1.0\nLine: v1.1\nRelease-Date: 2026-08-14\nBase-Stable-Tag: v1.0.0\nPrevious-Published-Tag: v1.0.0\nRelease-Range:\n  Base-Ref: v1.0.0\n  Base-Oid: {previous}\n  Previous-Ref: v1.0.0\n  Previous-Oid: {previous}\nCompatibility:\n  - v1\nImpact-Dispositions:\n  breaking: not-applicable\n  security: not-applicable\n  migration: not-applicable\n  configuration: not-applicable\n  openapi: not-applicable\n  operator: documented\n");
             File.WriteAllText(Path.Combine(ReleaseDirectory, "summary.md"), "Attendees can now correct self-hosting details.\n");
-            File.WriteAllText(Path.Combine(RepositoryPath, "docs", "internal", "releases", "changes", "CHG-2026-0001.yaml"),
-                "Change-Id: CHG-2026-0001\nTitle: Registration worker restart\nType: feat\nScope: self-hosting\nSummary: Attendees can now correct self-hosting details.\nSupersedes: []\nImpacts:\n  Breaking:\n    Reference: docs/internal/releases/README.md\n    Disposition: not-applicable\n  Security:\n    Reference: docs/SECURITY_OVERVIEW.md\n    Disposition: not-applicable\n  Migration:\n    Reference: docs/RELEASE_RUNBOOK.md\n    Disposition: not-applicable\n  Configuration:\n    Reference: docs/CONFIGURATION.md\n    Disposition: not-applicable\n  OpenAPI:\n    Reference: docs/API_CHANGELOG.md\n    Disposition: not-applicable\n  Operator:\n    Reference: docs/RELEASE_RUNBOOK.md\n    Disposition: documented\n    Detail: Restart self-hosting workers after deployment.\n");
+            if (!groupCorrection) WriteFragment();
             File.WriteAllText(Path.Combine(RepositoryPath, "eng", "release", "policy", "release-policy.yaml"),
                 ReleasePolicyYaml);
             File.WriteAllText(Path.Combine(RepositoryPath, "eng", "release", "policy", "scope-registry.yaml"),
                 "schemaVersion: 1\npublicScopes:\n  - definitions\n  - self-hosting\nengineeringScopes:\n  - release\n");
             RewriteManifestAndReceipt();
-            (int exitCode, _) = RunPrepareCommand();
-            if (exitCode != Program.Success) throw new InvalidOperationException("prepare_fixture_failed");
+            (int exitCode, string output) = RunPrepareCommand();
+            if (exitCode != Program.Success) throw new InvalidOperationException("prepare_fixture_failed:" + output);
+        }
+
+        private void WriteFragment()
+        {
+            string path = Path.Join(RepositoryPath, "docs/internal/releases/changes/CHG-2026-0001.yaml");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path,
+                "Change-Id: CHG-2026-0001\nTitle: Registration worker restart\nType: feat\nScope: self-hosting\nSummary: Attendees can now correct self-hosting details.\nSupersedes: []\nImpacts:\n  Breaking:\n    Reference: docs/internal/releases/README.md\n    Disposition: not-applicable\n  Security:\n    Reference: docs/SECURITY_OVERVIEW.md\n    Disposition: not-applicable\n  Migration:\n    Reference: docs/RELEASE_RUNBOOK.md\n    Disposition: not-applicable\n  Configuration:\n    Reference: docs/CONFIGURATION.md\n    Disposition: not-applicable\n  OpenAPI:\n    Reference: docs/API_CHANGELOG.md\n    Disposition: not-applicable\n  Operator:\n    Reference: docs/RELEASE_RUNBOOK.md\n    Disposition: documented\n    Detail: Restart self-hosting workers after deployment.\n");
         }
 
         private (int ExitCode, string Output) RunPrepareCommand()

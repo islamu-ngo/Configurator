@@ -174,13 +174,42 @@ public static class ChangeWorkflowCommand
                 "diff",
                 "--cached",
                 "--name-only",
-                "--diff-filter=M",
+                "--no-renames",
+                "--diff-filter=MDRT",
                 "--",
                 "docs/internal/releases/changes")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (modified.Length != 0)
         {
             throw new ChangeWorkflowException($"staged_fragment_mutation:{modified[0]}");
+        }
+
+        const string correctionsDirectory = "docs/internal/releases/group-corrections";
+        string changedCorrections = RunGit(root, timeout, "diff", "--cached", "--no-renames", "--name-only",
+            "--diff-filter=MDRT", "--", correctionsDirectory);
+        if (!string.IsNullOrWhiteSpace(changedCorrections))
+            throw new ChangeWorkflowException("staged_group_correction_mutation");
+        string[] addedCorrections = RunGit(root, timeout, "diff", "--cached", "--name-only", "--diff-filter=A", "--", correctionsDirectory)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (addedCorrections.Length != 0)
+        {
+            var correctionSources = new List<KeyValuePair<string, string>>();
+            var originals = new List<string>();
+            foreach (string relative in RunGit(root, timeout, "ls-tree", "-r", "--name-only", "HEAD", "--", correctionsDirectory)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries).Concat(addedCorrections).Order(StringComparer.Ordinal))
+            {
+                string id = Path.GetFileNameWithoutExtension(relative);
+                if (relative != $"{correctionsDirectory}/{id}.yaml" || !ChangeIdPolicy.IsValid(id))
+                    throw new ChangeWorkflowException("staged_group_correction_invalid");
+                correctionSources.Add(new(id, RunGit(root, timeout, "show", $"{(addedCorrections.Contains(relative, StringComparer.Ordinal) ? "" : "HEAD")}:{relative}")));
+                if (!TryRunGit(root, timeout, out string original, "show", $"HEAD:docs/internal/releases/changes/{id}.yaml"))
+                    throw new ChangeWorkflowException("staged_group_correction_target_not_committed");
+                originals.Add(original);
+            }
+            var correctionDiagnostics = new List<string>();
+            List<PublicChangeFragment> targets = ReleaseInputPolicy.ParseFragments(originals, correctionDiagnostics);
+            ReleaseInputPolicy.ValidateGroupCorrections(targets, correctionSources, correctionDiagnostics);
+            if (correctionDiagnostics.Count != 0) throw new ChangeWorkflowException(correctionDiagnostics[0]);
         }
 
         ReleasePolicy policy = ReleasePolicy.LoadFromRepositoryRoot(root);
@@ -216,14 +245,13 @@ public static class ChangeWorkflowCommand
         Options options = ParseOptions(args, 1, [TargetOption, "--head"]);
         string target = options.Get(TargetOption) ?? DefaultTarget;
         string head = options.Get("--head") ?? "HEAD";
-        ResolveCommit(root, target, timeout);
-        ResolveCommit(root, head, timeout);
-        EnsureReleaseSourcesClean(root, timeout);
+        string targetOid = ResolveCommit(root, target, timeout);
+        string headOid = ResolveCommit(root, head, timeout);
         ReleasePolicy policy = ReleasePolicy.LoadFromRepositoryRoot(root);
         ChangeIdRenameLoadResult loaded = LoadRenames(root);
 
-        ReleaseCommit[] targetCommits = ReadCommits(root, target, timeout);
-        ReleaseCommit[] rangeCommits = ReadCommits(root, $"{target}..{head}", timeout, reverse: true);
+        ReleaseCommit[] targetCommits = ReadCommits(root, targetOid, timeout);
+        ReleaseCommit[] rangeCommits = ReadCommits(root, $"{targetOid}..{headOid}", timeout, reverse: true);
         foreach (ReleaseCommit commit in rangeCommits)
         {
             CommitPolicyResult evaluated = ChangeIdRenamePolicy.Evaluate(
@@ -239,6 +267,7 @@ public static class ChangeWorkflowCommand
 
         Dictionary<string, string[]> targetOwners = EffectiveOwners(targetCommits, policy, loaded.Renames);
         Dictionary<string, string[]> rangeOwners = EffectiveOwners(rangeCommits, policy, loaded.Renames);
+        EnsureReleaseSourcesClean(root, timeout, rangeOwners.Keys);
 
         foreach ((string id, string[] owners) in rangeOwners)
         {
@@ -252,8 +281,27 @@ public static class ChangeWorkflowCommand
                 throw new ChangeWorkflowException($"change_id_target_collision:{id}");
             }
 
-            ValidateFragmentAtRevision(root, head, id, timeout);
+            ValidateFragmentAtRevision(root, headOid, id, timeout);
         }
+
+        string[] correctionPaths = RunGit(root, timeout, "ls-tree", "-r", "--name-only", headOid, "--", "docs/internal/releases/group-corrections")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Where(path => rangeOwners.ContainsKey(Path.GetFileNameWithoutExtension(path)))
+            .Order(StringComparer.Ordinal).ToArray();
+        var correctionDiagnostics = new List<string>();
+        List<PublicChangeFragment> fragments = ReleaseInputPolicy.ParseFragments(
+            rangeOwners.Keys.Order(StringComparer.Ordinal).Select(id => RunGit(root, timeout, "show", $"{headOid}:docs/internal/releases/changes/{id}.yaml")),
+            correctionDiagnostics);
+        var correctionSources = correctionPaths.Select(path =>
+        {
+            string id = Path.GetFileNameWithoutExtension(path);
+            if (path != $"docs/internal/releases/group-corrections/{id}.yaml")
+                throw new ChangeWorkflowException("group_correction_path_invalid");
+            return new KeyValuePair<string, string>(id, RunGit(root, timeout, "show", $"{headOid}:{path}"));
+        });
+        Dictionary<string, string> correctedGroups = ReleaseInputPolicy.ValidateGroupCorrections(fragments, correctionSources, correctionDiagnostics);
+        ReleaseInputPolicy.ValidateGroups(fragments, correctedGroups, correctionDiagnostics);
+        if (correctionDiagnostics.Count != 0) throw new ChangeWorkflowException(correctionDiagnostics[0]);
 
         output.WriteLine($"change_range_verified: target={target} head={head} commits={rangeCommits.Length} change-ids={rangeOwners.Count}");
         return Program.Success;
@@ -504,32 +552,24 @@ public static class ChangeWorkflowCommand
         }
     }
 
-    private static void EnsureReleaseSourcesClean(string root, TimeSpan timeout)
+    private static void EnsureReleaseSourcesClean(string root, TimeSpan timeout, IEnumerable<string> linkedChangeIds)
     {
         string[] paths =
         [
             "docs/internal/releases/changes",
             "docs/internal/releases/change-id-renames",
+            .. linkedChangeIds.Select(id => $"docs/internal/releases/group-corrections/{id}.yaml"),
         ];
         if (!TryRunGit(
                 root,
                 timeout,
                 out _,
-                "diff",
-                "--quiet",
-                "--",
-                paths[0],
-                paths[1]) ||
+                ["diff", "--quiet", "--", .. paths]) ||
             !TryRunGit(
                 root,
                 timeout,
                 out _,
-                "diff",
-                "--cached",
-                "--quiet",
-                "--",
-                paths[0],
-                paths[1]))
+                ["diff", "--cached", "--quiet", "--", .. paths]))
         {
             throw new ChangeWorkflowException("change_release_sources_not_committed");
         }
@@ -537,12 +577,7 @@ public static class ChangeWorkflowCommand
         string untracked = RunGit(
             root,
             timeout,
-            "ls-files",
-            "--others",
-            "--exclude-standard",
-            "--",
-            paths[0],
-            paths[1]);
+            ["ls-files", "--others", "--", .. paths]);
         if (!string.IsNullOrWhiteSpace(untracked))
         {
             throw new ChangeWorkflowException("change_release_sources_not_committed");

@@ -183,24 +183,44 @@ public static class AuthorizedInventoryPolicy
                     return Invalid("inventory_context_invalid");
 
                 var fragments = new List<string>();
+                var corrections = new List<KeyValuePair<string, string>>();
                 var sourceTexts = new List<string>();
                 var sourcePaths = new HashSet<string>(StringComparer.Ordinal);
+                HashSet<string> correctionIds = context.Changes.Select(change => change.ChangeId).OfType<string>().ToHashSet(StringComparer.Ordinal);
+                string[] expectedCorrectionPaths = GitText(repository, entryCancellationToken, "ls-tree", "-r", "--name-only",
+                    entry.TargetOid, "--", "docs/internal/releases/group-corrections")
+                    .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                    .Where(path => correctionIds.Contains(Path.GetFileNameWithoutExtension(path)))
+                    .Order(StringComparer.Ordinal).ToArray();
+                var observedCorrectionPaths = new List<string>();
                 foreach (AuthorizedSourceDocument source in entry.SourceDocuments)
                 {
-                    if (source is null || (source.Kind != "fragment" && source.Kind != "change-id-rename") || !sourcePaths.Add(source.Path))
+                    if (source is null || (source.Kind != "fragment" && source.Kind != "change-id-rename" && source.Kind != "fragment-group-correction") || !sourcePaths.Add(source.Path))
                         return Invalid("inventory_source_documents_invalid");
+                    if (source.Kind == "fragment-group-correction")
+                    {
+                        string id = Path.GetFileNameWithoutExtension(source.Path);
+                        if (!ChangeIdPolicy.IsValid(id) || source.Path != $"docs/internal/releases/group-corrections/{id}.yaml")
+                            return Invalid("inventory_source_documents_invalid");
+                        observedCorrectionPaths.Add(source.Path);
+                    }
+                    else if (observedCorrectionPaths.Count != 0) return Invalid("inventory_source_documents_invalid");
                     string sourceText = Utf8.GetString(CommittedBlob(repository, entry.TargetOid, source.Path, entryCancellationToken));
                     ArtifactPolicyResult sourceNormalized = ReleaseArtifactPolicy.NormalizeText(sourceText);
                     if (!sourceNormalized.IsValid || sourceNormalized.Bytes is null) return Invalid("inventory_source_documents_invalid");
                     string normalizedText = Utf8.GetString(sourceNormalized.Bytes);
                     sourceTexts.Add(normalizedText);
                     if (source.Kind == "fragment") fragments.Add(normalizedText);
+                    if (source.Kind == "fragment-group-correction")
+                        corrections.Add(new(Path.GetFileNameWithoutExtension(source.Path), normalizedText));
                 }
+                if (!expectedCorrectionPaths.SequenceEqual(observedCorrectionPaths, StringComparer.Ordinal))
+                    return Invalid("inventory_group_correction_set_mismatch");
                 if (Sha256(Utf8.GetBytes(string.Join("\n---\n", sourceTexts))) != Text(fields, "releaseFragmentsSha256"))
                     return Invalid("inventory_fragment_hash_mismatch");
                 // Match candidate verification's release-local fragment set. Prior snapshots enforce
                 // immutability of the same IDs; they do not supply historical reference resolution.
-                ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(Utf8.GetString(descriptorBytes), fragments, []);
+                ReleaseInputValidationResult input = ReleaseInputPolicy.Validate(Utf8.GetString(descriptorBytes), fragments, [], corrections);
                 if (!input.IsValid || input.Descriptor is null) return Invalid("inventory_descriptor_invalid");
                 ReleaseDescriptor descriptor = input.Descriptor;
                 if (descriptor.Version != entry.Version || descriptor.Line != entry.Line ||
