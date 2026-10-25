@@ -11,6 +11,11 @@ dependencies with `--no-restore`. The host has no product project references, so
 restoring Browser tests alone does not produce its assets file. Audit logs name
 each project before invoking the SDK, including when the SDK rejects its graph.
 
+Native CLI jobs use the runner-owned temporary directory for their tests.
+macOS system temporary paths can traverse `/var` aliases; source-authoring
+tests must not depend on that alias while the actual loader correctly rejects
+symlinked paths. This changes test placement, not source-admission policy.
+
 `eng/configurator/Configurator.Release.proj` owns native surface/RID admission,
 standalone publication and independent static browser publication. Its default
 `Build` target restores locked development dependencies and builds the selected

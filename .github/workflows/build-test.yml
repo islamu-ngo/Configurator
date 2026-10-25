@@ -49,6 +49,8 @@ jobs:
         run: dotnet workload update
       - name: Test only the CLI owner on the native host
         shell: bash
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
           dotnet restore tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --locked-mode
