@@ -16,6 +16,12 @@ macOS system temporary paths can traverse `/var` aliases; source-authoring
 tests must not depend on that alias while the actual loader correctly rejects
 symlinked paths. This changes test placement, not source-admission policy.
 
+The standalone CI job allows 45 minutes for locked builds, three actual Release
+AOT Browser publications and the complete owner suites. The observed pre-test
+stages consumed about 25 minutes on a clean hosted runner; the deadline
+includes the remaining verification rather than changing any test or interaction
+budget.
+
 `eng/configurator/Configurator.Release.proj` owns native surface/RID admission,
 standalone publication and independent static browser publication. Its default
 `Build` target restores locked development dependencies and builds the selected
