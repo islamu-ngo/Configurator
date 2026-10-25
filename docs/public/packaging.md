@@ -89,6 +89,10 @@ checks alone do not qualify protected export or every CLI workflow.
 
 ## Package contents
 
+Generated schemas and capability contracts use the same LF-normalized JSON
+bytes on every build host, keeping their content hashes independent of the
+host operating system.
+
 Native package directories include `schemas/`, `contracts/`, `dependency-notices/`,
 `LICENSE` and `THIRD-PARTY-NOTICES.md`. The dependency directory retains original
 package metadata and license/notice files; keep it with the executable.

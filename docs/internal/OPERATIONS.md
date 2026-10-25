@@ -699,6 +699,12 @@ admission. Windows bundle fixtures now use native path composition. The real
 post-installation CLI cases retain their Linux assertions and additionally
 require unsupported hosts to refuse without installing output.
 
+The subsequent Windows CLI suite passed all 138 tests, then native publication
+rejected `browser-release-capabilities.json` as stale. Indented JSON used the
+host newline convention. The ratchet writer and both definition-schema owners
+now normalize to LF before byte comparison or hashing, matching the existing
+command-schema contract. Generated outputs remain generator-owned.
+
 The Desktop failures were stale scenarios: imports may replace pristine defaults,
 and corrected editors remain visible until deliberate collapse. Corrected setup
 and additional assertions preserve both contracts. Release-input validation now
@@ -713,6 +719,7 @@ zero skips:
 
 | Executed command | Result |
 | --- | --- |
+| `dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 145 --no-progress` | 145 passed |
 | `dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 48 passed |
 | `dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 138 --no-progress` | 138 passed |
 | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --no-build --verbosity quiet -- --minimum-expected-tests 185` | 185 passed |
@@ -727,6 +734,12 @@ x64 packages, then all three AOT Browser publication variants used by CI: separa
 Store output, Store in the default destination and a subsequent plain publication
 in that same destination. Architecture checks consumed those actual packages.
 No-write formatting passed for every changed C# file.
+
+After the Windows newline repair, the native definition-schema and ratchet
+generators ran in both `--write` and `--check` modes. Both schema files and all
+three ratchets remained byte-identical to the committed Linux outputs; the
+freshness checks passed. The affected Core Release build had zero warnings and
+errors, and the Core/CLI suites above passed again.
 
 The real CLI executable returned doctor success, displayed help and rejected an
 unknown command with exit 64 and a bounded machine receipt. Its transcript is

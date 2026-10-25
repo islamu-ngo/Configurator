@@ -22,6 +22,11 @@ stages consumed about 25 minutes on a clean hosted runner; the deadline
 includes the remaining verification rather than changing any test or interaction
 budget.
 
+Definition schema and release capability generators normalize indented JSON to
+LF before writing bytes or computing frozen-contract hashes. Native package
+freshness checks compare those canonical bytes on every host; Windows must not
+introduce CRLF differences into unchanged contracts.
+
 `eng/configurator/Configurator.Release.proj` owns native surface/RID admission,
 standalone publication and independent static browser publication. Its default
 `Build` target restores locked development dependencies and builds the selected

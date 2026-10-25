@@ -23,7 +23,8 @@ public static class DefinitionSchema
         properties["artifacts"]!["minItems"] = 1;
         properties["artifacts"]!["maxItems"] = 64;
         AddVocabulary(schema);
-        return schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
+        return schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+            .Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
     }
 
     private static void AddVocabulary(JsonNode node)
