@@ -57,7 +57,8 @@ public sealed class SetupCliMachineBoundaryTests
                 .WaitAsync(TimeSpan.FromSeconds(10));
 
             await Assert.That(observedInstallation).IsEqualTo(OperatingSystem.IsLinux());
-            await Assert.That(exit).IsEqualTo(OperatingSystem.IsLinux() || failDelivery
+            // Scalar write failures are I/O errors; bundles classify rejected preflight as blocked.
+            await Assert.That(exit).IsEqualTo(OperatingSystem.IsLinux() || failDelivery || !bundle
                 ? SetupCliExitCode.Io : SetupCliExitCode.Blocked);
             await Assert.That(output.Attempts).IsEqualTo(1);
             await Assert.That(File.Exists(Path.Combine(directory, "service.yaml"))).IsFalse();
