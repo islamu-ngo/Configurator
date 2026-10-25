@@ -78,8 +78,9 @@ have no protected writer and reject restricted output.
 
 CI now declares native CLI-owner tests and actual self-contained package
 `doctor --machine` / `--help --machine` smoke checks for Linux x64/Arm64,
-macOS Intel/Arm64 and Windows Server x64. These configured gates are **pending
-actual-host execution evidence**, not a completed support qualification.
+macOS Intel/Arm64 and Windows Server x64. Inspect the passing results for the
+exact commit and runner being qualified; configuring a gate is not execution
+evidence, and one passing build does not qualify every operating-system variant.
 Ubuntu execution does not establish Arch or Debian coverage, Windows Server is
 not Windows 10/11 evidence, and glibc execution does not establish musl coverage.
 Both musl hosts and Windows 10/11 remain explicit pending actual-host checks;

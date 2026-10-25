@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-19 Europe/Brussels
+Last Updated: 2026-10-25 Europe/Brussels
 
 ## Index & Recent
 
@@ -260,3 +260,44 @@ Rendered completion and observer delivery are separate events.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; browser qualification owns the measurement protocol.
+
+[2026-10-25 Europe/Brussels] - Linux availability does not select a native ABI
+
+**Context**: The first cross-host CLI workflow reached actual publication tests
+after the pinned workload manifests were initialized.
+
+**Symptom / Observation**: Linux x64 passed, but Linux Arm64 failed twelve CLI
+cases involving installation. The post-installation fault callback never ran.
+A literal ABI regression on the x64 workstation expected the Arm64 directory
+flags `573440` but observed the inherited x64 value `720896`.
+
+**Root Cause**: The writer correctly used architecture-independent `statx`, but
+its `open` flag constants were x64-specific. Linux Arm64 assigns different
+directory and no-follow bits, and anonymous-file flags include the directory bit.
+The operating-system availability check could not establish that those values
+matched the executing process.
+
+**Resolution**: Commit `d0fe5d8` selects flags from the process architecture.
+The Artifacts owner passed 48 tests and the CLI owner passed 138 locally:
+
+```bash
+dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress
+dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress
+```
+
+The two literal ABI cases use independent interface requirements; actual-host CI
+remains the separate proof for Arm64 filesystem behavior.
+
+**Why This Matters for Future Work**: A portable executable, successful build,
+or positive capability report does not prove a native ABI. Qualify real
+publication on each claimed architecture and keep interface-value regressions
+alongside filesystem invariants.
+
+**References**:
+- `src/Configurator.Artifacts/UnixProtectedArtifactWriter.cs:15`
+- `tests/Configurator.Artifacts.Tests/ProtectedArtifactWriterTests.cs:16`
+- `docs/internal/PROTECTED_ARTIFACTS.md`
+- Commit: `d0fe5d8`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the protected-output guide owns the ABI and source register.

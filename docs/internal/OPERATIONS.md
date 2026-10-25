@@ -683,6 +683,64 @@ Docker publication was not exercised: neither the configured Desktop socket nor
 `/var/run/docker.sock` exists. Native governed publication is the executed route;
 remote CI, physical devices and assistive speech remain unqualified.
 
+### PR CI repair verification (2026-10-25)
+
+The first PR run failed before product verification: native and public-data jobs
+lacked the workload set pinned by `global.json`, and the standalone dependency
+audit inspected Browser.Host without restoring its independent graph. The next
+run passed Linux x64 CLI/package and public-data, exposing actual cross-host and
+owner-test failures rather than bypassing them.
+
+Linux Arm64 used x64 `open` flags. A literal ABI regression failed with expected
+directory flags 573440 versus 720896 before `d0fe5d8` selected process-specific
+flags. macOS authoring fixtures encountered system temporary-directory aliases;
+the native job now uses the runner-owned temporary root without relaxing symlink
+admission. Windows bundle fixtures now use native path composition. The real
+post-installation CLI cases retain their Linux assertions and additionally
+require unsupported hosts to refuse without installing output.
+
+The Desktop failures were stale scenarios: imports may replace pristine defaults,
+and corrected editors remain visible until deliberate collapse. Corrected setup
+and additional assertions preserve both contracts. Release-input validation now
+distinguishes reserved confidentiality markers from ordinary public descriptions
+and admits digest-bound group-only corrections. All original fragments remain
+unchanged; committed correction custody and exact-tree candidate/inventory
+provenance are verified rather than exempted.
+
+Local verification used SDK 10.0.302 and
+`TMPDIR="$HOME/.cache/agent-tmp"`. Every row below passed with zero failures and
+zero skips:
+
+| Executed command | Result |
+| --- | --- |
+| `dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 48 passed |
+| `dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 138 --no-progress` | 138 passed |
+| `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --no-build --verbosity quiet -- --minimum-expected-tests 185` | 185 passed |
+| `dotnet test --project eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 468 --no-progress` | 468 passed |
+| `dotnet test --project eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 2 passed |
+| `dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 58 passed |
+
+Locked solution restore, Browser.Host Release build, every graph in the exact CI
+dependency-audit enumeration, 9 Action pins and 46 definition-store self-checks
+also passed. The native release owner assembled CLI, Terminal and Desktop Linux
+x64 packages, then all three AOT Browser publication variants used by CI: separate
+Store output, Store in the default destination and a subsequent plain publication
+in that same destination. Architecture checks consumed those actual packages.
+No-write formatting passed for every changed C# file.
+
+The real CLI executable returned doctor success, displayed help and rejected an
+unknown command with exit 64 and a bounded machine receipt. Its transcript is
+retained locally in `artifacts/ci-repair/manual-cli.log`. The final full release
+run is retained separately in `artifacts/ci-repair/release-owner.log`, avoiding
+the default report's replacement by a later targeted run. An independent gate
+approved code readiness; it did not claim remote completion.
+
+Final cross-host workflow execution was still pending when this record was
+committed. The resulting commit's run results belong to PR #1's Checks tab,
+not this local matrix. This CI repair does not renew browser timing, speech,
+physical-device or native GUI qualification, activate signed publication, or
+close the mandatory redesign follow-ups.
+
 ### Retained earlier interpreted-package evidence
 
 The following observations belong to their recorded earlier inventories, not
