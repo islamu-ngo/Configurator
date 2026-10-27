@@ -12,10 +12,10 @@ Last Updated: 2026-10-27 Europe/Brussels
 - Disposition: plan-aligned
 - Evidence cutoff: 2026-10-27
 - Report review revision: 5
-- Reviewed input: revision 3 promoted plan/tasks with delivered product source through `dcc7617`, compiled/package assurance through `c68ec5f` and the working-tree graduation documents. Activation remains `7428ac597e9099d4953bd9e0cc3c60f581d1ef8a`. Review revision 5 revalidates all seven pairs against delivered scope and actual bounded evidence; historical source, native and review revision 4 bindings remain below.
-- Plan SHA-256: `105de45e75332131e75a40278e72e6932cb313c5c1f8743e909254072ae05b24`
-- Tasks SHA-256: `62b89f8a4a3b29f161a24448ea403cf31dbece8b35ac6add28091a3a02d86fd8`
-- Current backlog binding: the new owned required-duty ledger has a review checkpoint below; no binding to the removed obsolete backlog is active. Historical obsolete backlog SHA-256: `340553f095856ec0b5af9bc7ef2a8cea1e2b528535b186eeadf62102d3876b42`.
+- Reviewed input: final revision 3 plan/tasks with product source through `dcc7617`, compiled/package assurance through `c68ec5f` and committed graduation `c9b2826`. Activation remains `7428ac597e9099d4953bd9e0cc3c60f581d1ef8a`. Review revision 5 revalidates all seven pairs against delivered scope and actual bounded evidence; final native input hashes below supersede execution checkpoints only. Historical source, native and review revision 4 bindings remain preserved.
+- Plan SHA-256: `775ba7f7bc42af68e1d0f330e29b7ea30656f8f4fcba376403e88c6d092d1c11`
+- Tasks SHA-256: `ba5446c6e2425efc582615c980cbd70782a97a32290726f1d066b092fc7f3da2`
+- Current backlog binding: the owned required-duty ledger's final native SHA-256 is `110ec46b03cd455353015d8a1e10bf2ef4b55142b988fd71986ab934a287c1c9`; no binding to the removed obsolete backlog is active. Historical obsolete backlog SHA-256: `340553f095856ec0b5af9bc7ef2a8cea1e2b528535b186eeadf62102d3876b42`.
 - Supersedes: none
 - Implementation approval: the user explicitly continued full follow-up implementation with plan-first progress tracking and existing local phase-commit authority. Review revision 5 is the parent's delivered-scope integration, not a new independent execution or approval. No remote writes, publication or scholarly authority follows from this assessment.
 
@@ -484,8 +484,29 @@ Native `sha256sum` exited0 before the substantive review update:
 | Required-duty ledger checkpoint | `c3d0900c72f6c2831d6c7aa02c32ad2687c8e7af43db57b076fe59e9d2067426` |
 
 These bind the delivered-scope review before final documentation commit/range
-statuses settle. A separate successor binding records final execution metadata
+statuses settled. The successor binding below records final execution metadata
 without inventing completion in advance or changing findings/mitigations.
+
+### Review Revision 5 - Final Delivered Input Binding
+
+After the approved nine-file graduation commit `c9b2826`, native release
+validation passed the nonempty fourteen-commit range from activation with seven
+governed Change-Ids. All original promoted tasks are checked and the plan marks
+its delivered scope complete. Native link validation of the frozen plan/tasks
+passed all six links; `sha256sum` then exited 0 with these exact final inputs:
+
+| Final input | Native SHA-256 |
+| --- | --- |
+| Revision 3 plan | `775ba7f7bc42af68e1d0f330e29b7ea30656f8f4fcba376403e88c6d092d1c11` |
+| Revision 3 tasks | `ba5446c6e2425efc582615c980cbd70782a97a32290726f1d066b092fc7f3da2` |
+| Owned required-duty ledger | `110ec46b03cd455353015d8a1e10bf2ef4b55142b988fd71986ab934a287c1c9` |
+
+This is the explicitly planned report-only successor-binding increment.
+The report is not its own hashed input; final commit/range receipts belong in
+execution context. Context may record that result without changing these frozen
+plan/tasks or reclassifying any finding, mitigation, evidence or required duty.
+The seven program-level pairs remain open with their delivered mapping and
+qualification limits.
 
 ### Historical Review Revision 4 - Promoted Mapping
 
