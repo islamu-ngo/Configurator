@@ -88,6 +88,9 @@ workspace. Leaving an editor through application navigation asks you to discard
 answers and output first. Cancelling keeps editing; confirming clears the old
 workspace before the destination can load. Closing or reloading uses the
 browser's native confirmation where supported.
+If a new workspace starts while an earlier discard is finishing, the earlier
+navigation is cancelled rather than clearing or leaving the new workspace.
+Navigate again to confirm discarding the workspace that is now current.
 
 A publisher source or local-file launch first shows the admitted metadata.
 Local `.json`, `.yaml` and `.yml` files may contain compact maintainer sources

@@ -10,21 +10,23 @@ public sealed class BrowserNavigationState
     public bool IsActive => _owner is not null;
     public event EventHandler? Changed;
 
-    public void Register(object owner, Action invalidate, Func<Task> discard)
+    /// <summary>Returns the exact registration lease, including when the same editor reacquires custody.</summary>
+    public long Register(object owner, Action invalidate, Func<Task> discard)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(invalidate);
         ArgumentNullException.ThrowIfNull(discard);
-        _generation++;
+        long lease = ++_generation;
         _owner = owner;
         _invalidate = invalidate;
         _discard = discard;
         Changed?.Invoke(this, EventArgs.Empty);
+        return lease;
     }
 
-    public void Release(object owner)
+    public void Release(object owner, long lease)
     {
-        if (!ReferenceEquals(owner, _owner)) return;
+        if (!ReferenceEquals(owner, _owner) || lease != _generation) return;
         _generation++;
         _owner = null;
         _invalidate = null;
@@ -42,10 +44,11 @@ public sealed class BrowserNavigationState
         Action invalidate = _invalidate!;
         Func<Task> discard = _discard!;
         invalidate();
+        if (generation != _generation) return false;
         await discard();
-        // Cleanup may have yielded while a newer editor took custody.
-        if (_owner is not null && !ReferenceEquals(owner, _owner)) return false;
-        Release(owner);
+        // Cleanup may have yielded while the same editor registered a new workspace.
+        if (_owner is not null && (!ReferenceEquals(owner, _owner) || generation != _generation)) return false;
+        Release(owner, generation);
         return true;
     }
 }

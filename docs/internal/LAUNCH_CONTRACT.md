@@ -78,8 +78,12 @@ is no proxy, target login or executable definition loader.
 `WorkspaceNavigationGuard` uses Blazor `NavigationLock` and a native browser
 confirmation. Cancel preserves the editor. Confirm invalidates pending work
 synchronously, awaits editor discard and releases custody before route loading.
-Generation checks reject late confirmations aimed at replacement editors;
-old-editor disposal cannot release a newer owner's lease. Group navigation
+Each registration returns an owner-bound lease. Confirmation and post-discard
+checks retain that exact lease, including when the same component starts a new
+workspace. Discard and disposal capture their lease before awaiting retirement
+and release only that registration after cleanup. A replacement workspace
+cancels the older navigation; an old completion cannot release its custody.
+Generation checks also reject late confirmations. Group navigation
 stays within the same mounted editor and does not pass through this route guard.
 
 `ConfigurationEditor` uses `DefinitionFormModel` snapshots and Core validation

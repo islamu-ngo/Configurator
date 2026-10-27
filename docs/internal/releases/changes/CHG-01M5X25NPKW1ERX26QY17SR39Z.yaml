@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5X25NPKW1ERX26QY17SR39Z
+Title: "preserve replacement workspaces during navigation cleanup"
+Type: fix
+Scope: browser
+Summary: "Bind navigation confirmation, discard and release to the exact workspace registration. An older cleanup cannot release or leave a replacement workspace, even when the same component starts it."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Discard and disposal retain their captured registration lease through cleanup. Old navigation and release cannot revoke a newer workspace; callbacks and leases carry no answer copies or new fetch authority."
+  Migration:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "An earlier navigation is cancelled if a replacement workspace starts while its cleanup is pending. Confirm navigation again for the current workspace."

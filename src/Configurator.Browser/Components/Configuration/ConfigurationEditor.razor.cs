@@ -56,6 +56,7 @@ public partial class ConfigurationEditor
     private DefinitionValidationResult? _validation;
     private DefinitionDiagnostic? _importDiagnostic;
     private BrowserNavigationState? _navigation;
+    private long _navigationLease;
     private WorkspaceSearchState? _search;
     private long _searchLease;
     private Dictionary<string, EditorSection> _editorSections = new(StringComparer.Ordinal);
@@ -85,7 +86,7 @@ public partial class ConfigurationEditor
         _form.ViewChanged += ViewChanged;
         _importArtifact = ImportableArtifacts.FirstOrDefault()?.Id ?? string.Empty;
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
-        _navigation?.Register(this, Invalidate, DiscardAsync);
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
         RegisterSearch();
     }
 
@@ -465,7 +466,7 @@ public partial class ConfigurationEditor
     public async Task BeginAsync()
     {
         if (_disposed) return;
-        _navigation?.Register(this, Invalidate, DiscardAsync);
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
         long generation = _generation;
         DefinitionFormModel form = _form!;
         _offline ??= Services.GetService(typeof(BrowserOfflinePolicy)) as BrowserOfflinePolicy;
@@ -533,10 +534,11 @@ public partial class ConfigurationEditor
         InvalidateMounts();
         DefinitionFormModel form = _form!;
         long lease = _offlineLease;
+        long navigationLease = _navigationLease;
+        Task retirement = _outputRetirement;
         _ready = false;
         _search?.Release(this, _searchLease);
         form.Dispose();
-        _navigation?.Release(this);
         if (!_disposed && ReferenceEquals(form, _form))
         {
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
@@ -549,23 +551,26 @@ public partial class ConfigurationEditor
             _requiredCount = _form.Projection.Progress.Required;
             _focusField = null;
         }
-        await InvalidateOutputAsync();
+        await Task.WhenAll(retirement, InvalidateOutputAsync());
         if (_offline is not null) await _offline.EndWorkspaceAsync(lease);
+        _navigation?.Release(this, navigationLease);
     }
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
+        long navigationLease = _navigationLease;
+        Task retirement = _outputRetirement;
         _disposed = true;
         _mountCancellation.Cancel();
         _mountCancellation.Dispose();
         _search?.Release(this, _searchLease);
-        _navigation?.Release(this);
         _ready = false;
         long lease = _offlineLease;
         _form?.Dispose();
         _session.Dispose();
-        await InvalidateOutputAsync();
+        await Task.WhenAll(retirement, InvalidateOutputAsync());
         if (_offline is not null) await _offline.EndWorkspaceAsync(lease);
+        _navigation?.Release(this, navigationLease);
         GC.SuppressFinalize(this);
     }
     private sealed class PreparedArtifact : IAsyncDisposable

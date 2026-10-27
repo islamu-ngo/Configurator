@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Browser.Layout;
+using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -237,6 +238,57 @@ public sealed class BrowserWorkspaceLifecycleTests
         await Assert.That(exportModule.Exposures.Last()).DoesNotContain("old.test");
         if (failCleanup) await Assert.That(component.Markup).Contains("output-cleanup-failed");
         await Assert.That(component.Markup).DoesNotContain("cleanup-fault-canary");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task OlderNavigationCleanupCannotReleaseSameEditorReplacement(bool replaceDefinition)
+    {
+        await using var context = BrowserFixture.Context();
+        await using var policyModule = new LifecycleModule();
+        await using var exportModule = new LifecycleModule();
+        var javascript = new LifecycleJavascript(policyModule, exportModule);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        var navigation = new BrowserNavigationState();
+        context.Services.AddSingleton<IJSRuntime>(javascript);
+        context.Services.AddSingleton(policy);
+        context.Services.AddSingleton(navigation);
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "older-navigation.test" });
+        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
+        await component.Find(".configuration-editor__artifact button").ClickAsync(new MouseEventArgs());
+        exportModule.GateNextInvalidate = true;
+        bool? left = null;
+        Task leaving = component.InvokeAsync(async () =>
+        {
+            left = await navigation.TryLeaveAsync(() => Task.FromResult(true));
+        });
+        try
+        {
+            await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+            if (replaceDefinition)
+                component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
+            else
+                await component.InvokeAsync(component.Instance.BeginAsync);
+            await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+            await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current-navigation.test" });
+            await Assert.That(navigation.IsActive).IsTrue();
+            await Assert.That(policy.IsWorkspaceActive).IsTrue();
+        }
+        finally
+        {
+            exportModule.Release.TrySetResult();
+            await leaving.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+        }
+        await Assert.That(left).IsFalse();
+        await Assert.That(navigation.IsActive).IsTrue();
+        await Assert.That(policy.IsWorkspaceActive).IsTrue();
+        await Assert.That(policy.CanFetchDefinition).IsFalse();
+        await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsFalse();
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("current-navigation.test");
+        await Assert.That(component.Markup).DoesNotContain("older-navigation.test");
     }
 
     private sealed class HeldReadStream(byte[] bytes) : MemoryStream(bytes)
