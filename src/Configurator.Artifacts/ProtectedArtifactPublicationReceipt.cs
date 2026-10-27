@@ -1,11 +1,9 @@
-namespace Configurator.Terminal;
-
-using Configurator.Artifacts;
+namespace Configurator.Artifacts;
 
 /// <summary>Copied file facts for one attempt, independent of answers and current preparation.</summary>
-internal sealed record SetupTerminalPublicationReceipt
+public sealed record ProtectedArtifactPublicationReceipt
 {
-    internal SetupTerminalPublicationReceipt(Guid attemptId, IEnumerable<ProtectedArtifactBundleOutcome> outcomes,
+    public ProtectedArtifactPublicationReceipt(Guid attemptId, IEnumerable<ProtectedArtifactBundleOutcome> outcomes,
         bool isSettled, ProtectedArtifactBundleCompletionCode? completionCode = null, bool cleanupFailed = false,
         bool isUnknown = false, bool failed = false)
     {
@@ -20,12 +18,12 @@ internal sealed record SetupTerminalPublicationReceipt
         Failed = failed;
     }
 
-    internal Guid AttemptId { get; }
-    internal IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes { get; }
-    internal bool IsSettled { get; }
-    internal ProtectedArtifactBundleCompletionCode? CompletionCode { get; }
-    internal bool CleanupFailed { get; }
-    internal bool IsUnknown { get; }
-    internal bool Failed { get; }
-    public override string ToString() => $"{nameof(SetupTerminalPublicationReceipt)}:Settled={IsSettled}:Count={Outcomes.Count}:Unknown={IsUnknown}";
+    public Guid AttemptId { get; }
+    public IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes { get; }
+    public bool IsSettled { get; }
+    public ProtectedArtifactBundleCompletionCode? CompletionCode { get; }
+    public bool CleanupFailed { get; }
+    public bool IsUnknown { get; }
+    public bool Failed { get; }
+    public override string ToString() => $"{nameof(ProtectedArtifactPublicationReceipt)}:Settled={IsSettled}:Count={Outcomes.Count}:Unknown={IsUnknown}";
 }

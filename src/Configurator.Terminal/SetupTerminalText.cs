@@ -9,7 +9,7 @@ internal static class SetupTerminalText
     private static readonly ResourceManager Resources = new(
         "Configurator.Terminal.Resources.SetupTerminalText", typeof(SetupTerminalText).Assembly);
     internal static string Get(string key) => Resources.GetString(key, CultureInfo.CurrentUICulture) ?? key;
-    internal static string FormatReceipt(SetupTerminalPublicationReceipt receipt, int index)
+    internal static string FormatReceipt(ProtectedArtifactPublicationReceipt receipt, int index)
     {
         var result = new SetupTerminalArtifactResult(receipt.Outcomes,
             receipt.CompletionCode ?? ProtectedArtifactBundleCompletionCode.Completed, receipt.CleanupFailed);
@@ -29,7 +29,7 @@ internal static class SetupTerminalText
             + (receipt.CompletionCode is { } code && code != ProtectedArtifactBundleCompletionCode.Completed ? " " + code : string.Empty);
     }
 
-    internal static string FormatClosingReceipt(SetupTerminalPublicationReceipt receipt)
+    internal static string FormatClosingReceipt(ProtectedArtifactPublicationReceipt receipt)
     {
         string state = receipt.IsUnknown || !receipt.IsSettled ? Get("PublicationUnknown")
             : receipt.Failed ? Get("PublicationFailed") : receipt.CompletionCode?.ToString() ?? string.Empty;
@@ -38,7 +38,7 @@ internal static class SetupTerminalText
             + (receipt.CleanupFailed ? " " + Get("PublicationCleanupFailed") : string.Empty);
     }
 
-    private static string FormatOutcome(SetupTerminalPublicationReceipt receipt, int index)
+    private static string FormatOutcome(ProtectedArtifactPublicationReceipt receipt, int index)
     {
         ProtectedArtifactBundleOutcome outcome = receipt.Outcomes[index];
         if (outcome.Result is not { } result)

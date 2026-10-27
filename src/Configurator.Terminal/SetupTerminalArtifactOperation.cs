@@ -38,8 +38,8 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         CancellationToken, Task<SetupTerminalArtifactResult>> _publishBundle;
     private readonly HashSet<string> _selected = new(StringComparer.Ordinal);
     private readonly object _receiptGate = new();
-    private readonly Queue<SetupTerminalPublicationReceipt> _history = new();
-    private SetupTerminalPublicationReceipt? _currentPublication;
+    private readonly Queue<ProtectedArtifactPublicationReceipt> _history = new();
+    private ProtectedArtifactPublicationReceipt? _currentPublication;
     private bool _publishing;
     private string _artifactId;
     private bool _disposed;
@@ -68,12 +68,12 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
     }
 
     internal DefinitionFormModel Form { get; }
-    internal IReadOnlyList<SetupTerminalPublicationReceipt> PublicationHistory
+    internal IReadOnlyList<ProtectedArtifactPublicationReceipt> PublicationHistory
     {
         get { lock (_receiptGate) return Array.AsReadOnly(_history.ToArray()); }
     }
-    internal SetupTerminalPublicationReceipt? CurrentPublication { get { lock (_receiptGate) return _currentPublication; } }
-    internal SetupTerminalPublicationReceipt? LatestPublication
+    internal ProtectedArtifactPublicationReceipt? CurrentPublication { get { lock (_receiptGate) return _currentPublication; } }
+    internal ProtectedArtifactPublicationReceipt? LatestPublication
     {
         get { lock (_receiptGate) return _currentPublication ?? _history.LastOrDefault(); }
     }
@@ -134,7 +134,7 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         try
         {
             SetupTerminalArtifactResult result = await PublishAsync(selected, cancellationToken).ConfigureAwait(false);
-            SetupTerminalPublicationReceipt receipt = SettlePublication(attemptId, result.Outcomes, result.CompletionCode, result.CleanupFailed);
+            ProtectedArtifactPublicationReceipt receipt = SettlePublication(attemptId, result.Outcomes, result.CompletionCode, result.CleanupFailed);
             return new(new SetupTerminalArtifactResult(receipt.Outcomes, receipt.CompletionCode ?? result.CompletionCode,
                 receipt.CleanupFailed), ReadOnlyMemory<byte>.Empty);
         }
@@ -186,11 +186,11 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         _outcomeObserver?.Invoke(outcome);
     }
 
-    private SetupTerminalPublicationReceipt SettlePublication(Guid attemptId,
+    private ProtectedArtifactPublicationReceipt SettlePublication(Guid attemptId,
         IReadOnlyList<ProtectedArtifactBundleOutcome>? outcomes, ProtectedArtifactBundleCompletionCode? completionCode,
         bool cleanupFailed = false, bool failed = false)
     {
-        SetupTerminalPublicationReceipt receipt;
+        ProtectedArtifactPublicationReceipt receipt;
         lock (_receiptGate)
         {
             receipt = new(attemptId, outcomes ?? _currentPublication?.Outcomes ?? [], true, completionCode, cleanupFailed,
@@ -208,9 +208,9 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
                 isUnknown: failed, failed: failed);
             lock (_receiptGate)
             {
-                SetupTerminalPublicationReceipt[] retained = _history.Select(item => item.AttemptId == attemptId ? receipt : item).ToArray();
+                ProtectedArtifactPublicationReceipt[] retained = _history.Select(item => item.AttemptId == attemptId ? receipt : item).ToArray();
                 _history.Clear();
-                foreach (SetupTerminalPublicationReceipt item in retained) _history.Enqueue(item);
+                foreach (ProtectedArtifactPublicationReceipt item in retained) _history.Enqueue(item);
             }
         }
         return receipt;

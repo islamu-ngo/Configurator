@@ -33,7 +33,7 @@ public sealed class SetupTerminalPublicationReceiptTests
         operation.ToggleCurrentArtifact();
         await Assert.That(await operation.PrepareAsync()).IsTrue();
         await Assert.That(async () => await operation.ExecuteAsync(cancellation.Token)).Throws<OperationCanceledException>();
-        SetupTerminalPublicationReceipt receipt = operation.PublicationHistory.Single();
+        ProtectedArtifactPublicationReceipt receipt = operation.PublicationHistory.Single();
         await Assert.That(receipt.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.Cancelled);
         await Assert.That(receipt.Outcomes[0].Result!.InstallationEstablished).IsTrue();
         await Assert.That(receipt.Outcomes[0].Result!.VerificationSucceeded).IsFalse();
@@ -60,7 +60,7 @@ public sealed class SetupTerminalPublicationReceiptTests
             beforePublication: _ => throw new InvalidOperationException("synthetic-private-path"));
         await Assert.That(await operation.PrepareAsync()).IsTrue();
         await Assert.That(async () => await operation.ExecuteAsync(CancellationToken.None)).Throws<InvalidOperationException>();
-        SetupTerminalPublicationReceipt receipt = operation.PublicationHistory.Single();
+        ProtectedArtifactPublicationReceipt receipt = operation.PublicationHistory.Single();
         await Assert.That(receipt.Failed).IsTrue();
         await Assert.That(receipt.IsUnknown).IsTrue();
         await Assert.That(receipt.IsSettled).IsTrue();
@@ -83,7 +83,7 @@ public sealed class SetupTerminalPublicationReceiptTests
             await operation.ExecuteAsync(CancellationToken.None);
             attempts.Add(operation.PublicationHistory[^1].AttemptId);
         }
-        IReadOnlyList<SetupTerminalPublicationReceipt> snapshot = operation.PublicationHistory;
+        IReadOnlyList<ProtectedArtifactPublicationReceipt> snapshot = operation.PublicationHistory;
         await Assert.That(operation.LatestPublication!.AttemptId).IsEqualTo(attempts[^1]);
         await Assert.That(snapshot).Count().IsEqualTo(16);
         await Assert.That(snapshot.Select(item => item.AttemptId).Distinct()).Count().IsEqualTo(16);
@@ -97,7 +97,7 @@ public sealed class SetupTerminalPublicationReceiptTests
         await Assert.That(operation.LatestPublication).IsNull();
         await Assert.That(snapshot).Count().IsEqualTo(16);
         ProtectedArtifactBundleOutcome[] callerOwned = [new("declared", ProtectedArtifactCommitResult.Installed(true))];
-        var receipt = new SetupTerminalPublicationReceipt(Guid.NewGuid(), callerOwned, true);
+        var receipt = new ProtectedArtifactPublicationReceipt(Guid.NewGuid(), callerOwned, true);
         var result = new SetupTerminalArtifactResult(callerOwned);
         callerOwned[0] = new("changed", null);
         await Assert.That(receipt.Outcomes[0].ArtifactId).IsEqualTo("declared");
@@ -151,7 +151,7 @@ public sealed class SetupTerminalPublicationReceiptTests
             operation.ToggleCurrentArtifact();
             await Assert.That(await operation.PrepareAsync()).IsTrue();
             await operation.ExecuteAsync(CancellationToken.None);
-            SetupTerminalPublicationReceipt receipt = operation.PublicationHistory.Single();
+            ProtectedArtifactPublicationReceipt receipt = operation.PublicationHistory.Single();
             await Assert.That(receipt.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.ObserverFailed);
             await Assert.That(receipt.Outcomes[0].Result!.InstallationEstablished).IsTrue();
             await Assert.That(receipt.Outcomes[0].Result!.VerificationSucceeded).IsTrue();
@@ -206,7 +206,7 @@ public sealed class SetupTerminalPublicationReceiptTests
             await execution.WaitAsync(TimeSpan.FromSeconds(5));
             await workspace.WaitForPendingOperationsAsync().WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(operation.PublicationHistory).Count().IsEqualTo(1);
-            SetupTerminalPublicationReceipt receipt = operation.PublicationHistory[0];
+            ProtectedArtifactPublicationReceipt receipt = operation.PublicationHistory[0];
             await Assert.That(receipt.IsSettled).IsTrue();
             await Assert.That(receipt.Outcomes.Count(item => item.Result is { InstallationEstablished: true })).IsEqualTo(prefix);
             await Assert.That(workspace.Output).IsEmpty();

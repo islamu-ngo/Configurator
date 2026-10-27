@@ -97,6 +97,12 @@ when observation or cleanup fails. Unexpected exceptions without an established 
 after cleanup, preserving the original exception and any already observed
 outcomes. Native clients must observe that task; they must not infer rollback.
 
+`Configurator.Artifacts.ProtectedArtifactPublicationReceipt` owns the shared
+immutable attempt facts. Its public constructor defensively copies at most 64
+outcomes and retains installation, verification, completion, cleanup, settlement,
+unknown and failure facts without answers or destination paths. Client owners
+retain their own history, formatting, dispatch and shutdown policy.
+
 Terminal keeps one physical publication active until it settles, independently
 of workspace cancellation and private readiness. Its copied receipts retain the
 newest 16 settled attempts plus the active attempt, with at most 64 declared

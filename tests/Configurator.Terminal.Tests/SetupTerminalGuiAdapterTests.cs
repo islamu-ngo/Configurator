@@ -376,7 +376,7 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task PartialSaveStatusIdentifiesEachCommittedOutputAndManualRecovery()
     {
         using var harness = new Harness(initialize: true);
-        var receipt = new SetupTerminalPublicationReceipt(Guid.NewGuid(),
+        var receipt = new ProtectedArtifactPublicationReceipt(Guid.NewGuid(),
         [
             new("config", ProtectedArtifactCommitResult.Installed(verificationSucceeded: true)),
             new("environment", ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetExists)),

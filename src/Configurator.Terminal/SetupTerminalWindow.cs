@@ -52,7 +52,7 @@ internal sealed class SetupTerminalWindow : Window
     private int _fieldIndex;
     private int _itemIndex;
     private int _outcomeIndex;
-    private SetupTerminalPublicationReceipt? _receipt;
+    private ProtectedArtifactPublicationReceipt? _receipt;
     private int _publicationRefreshQueued;
     private bool _loading;
     private bool _draftEdited;
@@ -596,7 +596,7 @@ internal sealed class SetupTerminalWindow : Window
                 window._operation.MarkPublicationUnknown();
                 window.Status("ShutdownUnknown");
             }
-            SetupTerminalPublicationReceipt? receipt = window._operation.LatestPublication;
+            ProtectedArtifactPublicationReceipt? receipt = window._operation.LatestPublication;
             if (receipt is not null)
                 window._status.Text = (unknown ? SetupTerminalText.Get("ShutdownUnknown") + " " : string.Empty)
                     + SetupTerminalText.FormatClosingReceipt(receipt);
@@ -678,16 +678,16 @@ internal sealed class SetupTerminalWindow : Window
         });
     }
 
-    private IReadOnlyList<SetupTerminalPublicationReceipt> PublicationReceipts()
+    private IReadOnlyList<ProtectedArtifactPublicationReceipt> PublicationReceipts()
     {
-        IReadOnlyList<SetupTerminalPublicationReceipt> history = _operation.PublicationHistory;
+        IReadOnlyList<ProtectedArtifactPublicationReceipt> history = _operation.PublicationHistory;
         return _operation.CurrentPublication is { } current ? [.. history, current] : history;
     }
 
     private void UpdatePublication()
     {
-        IReadOnlyList<SetupTerminalPublicationReceipt> receipts = PublicationReceipts();
-        SetupTerminalPublicationReceipt? receipt = receipts.FirstOrDefault(item => item.AttemptId == _receipt?.AttemptId)
+        IReadOnlyList<ProtectedArtifactPublicationReceipt> receipts = PublicationReceipts();
+        ProtectedArtifactPublicationReceipt? receipt = receipts.FirstOrDefault(item => item.AttemptId == _receipt?.AttemptId)
             ?? (receipts.Count == 0 ? null : receipts[^1]);
         if (receipt is null) return;
         if (_receipt?.AttemptId != receipt.AttemptId) _outcomeIndex = 0;
@@ -711,7 +711,7 @@ internal sealed class SetupTerminalWindow : Window
         RefreshCommands();
     }
 
-    internal void PresentReceipt(SetupTerminalPublicationReceipt receipt)
+    internal void PresentReceipt(ProtectedArtifactPublicationReceipt receipt)
     {
         _receipt = receipt;
         _outcomeIndex = 0;
@@ -720,7 +720,7 @@ internal sealed class SetupTerminalWindow : Window
 
     private void NextAttempt()
     {
-        IReadOnlyList<SetupTerminalPublicationReceipt> receipts = PublicationReceipts();
+        IReadOnlyList<ProtectedArtifactPublicationReceipt> receipts = PublicationReceipts();
         if (receipts.Count == 0) return;
         int index = receipts.ToList().FindIndex(item => item.AttemptId == _receipt?.AttemptId);
         PresentReceipt(receipts[(index + receipts.Count - 1) % receipts.Count]);
