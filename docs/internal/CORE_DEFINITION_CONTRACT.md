@@ -84,6 +84,23 @@ returns `artifact-empty`, never an empty successful preparation. Native
 `Compose` with explicit artifact selection remains strict, including rejection
 of a selected omitted artifact. Adapters do not reproduce this selection logic.
 
+Bundle composition creates one internal `ValidatedComposition` bound to its
+admitted definition, immutable answer snapshot and complete/draft mode. It
+validates once and composes each emitted output once in declared order. No public
+entrypoint accepts caller-supplied trusted validation; single-artifact APIs still
+validate through the same owner. Fatal or aggregate-limit failure disposes the
+whole staged bundle, while draft withholding retains its distinct diagnostics.
+Optional cancellation tokens are observed at validation/projection boundaries
+and before output transfer; native and CLI callers forward their operation token.
+These changed managed signatures require rebuilding compiled Core consumers;
+source callers may still omit the optional token.
+
+The local `Configurator.Core.Preparation` diagnostic listener emits only public
+artifact IDs and a draft-mode boolean when subscribed. Activity-scoped tests
+measure completed validation/composition events independently of mock calls;
+there is no transport, answer payload or retained measurement history.
+See the [single-pass ownership decision](adr/ADR-single-pass-preparation-ownership.md).
+
 `DefinitionImport.Assess` provides a bounded inverse for present, unconditional
 root-object `copy` members in JSON, YAML and dotenv artifacts. Duplicate,
 unknown, transformed, conditional, inactive or conflicting input rejects with

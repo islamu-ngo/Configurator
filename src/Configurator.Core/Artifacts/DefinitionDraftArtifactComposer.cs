@@ -45,22 +45,24 @@ public sealed class DefinitionDraftBundleResult : IDisposable
 public static class DefinitionDraftArtifactComposer
 {
     public static DefinitionDraftArtifactResult Compose(SetupDefinition definition, string artifactId,
-        SetupAnswerSnapshot answers)
+        SetupAnswerSnapshot answers, CancellationToken cancellationToken = default)
     {
         var completions = new List<DefinitionDraftCompletion>();
-        DefinitionArtifactResult result = DefinitionArtifactComposer.ComposeCore(definition, artifactId, answers, true, completions);
+        DefinitionArtifactResult result = DefinitionArtifactComposer.ComposeCore(definition, artifactId, answers, true, completions, cancellationToken);
         return new(result.Artifact, result.Diagnostics, result.Succeeded ? completions : []);
     }
 
     public static DefinitionDraftBundleResult ComposeBundle(SetupDefinition definition,
-        IEnumerable<string> artifactIds, SetupAnswerSnapshot answers)
+        IEnumerable<string> artifactIds, SetupAnswerSnapshot answers, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactIds);
         ArgumentNullException.ThrowIfNull(answers);
+        cancellationToken.ThrowIfCancellationRequested();
         var selected = new HashSet<string>(StringComparer.Ordinal);
         foreach (string id in artifactIds)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (id is null || !selected.Add(id)) return new([], [new("artifact-duplicate", "")], []);
             if (selected.Count > definition.Artifacts.Count) return new([], [new("artifact-limit", "")], []);
         }
@@ -68,6 +70,7 @@ public static class DefinitionDraftArtifactComposer
         if (selected.Any(id => definition.Artifacts.All(item => item.Id != id)))
             return new([], [new("artifact-unknown", "")], []);
 
+        var composition = new DefinitionArtifactComposer.ValidatedComposition(definition, answers, true, cancellationToken);
         var artifacts = new List<DefinitionArtifact>();
         var completions = new List<DefinitionDraftCompletion>();
         var diagnostics = new List<DefinitionDiagnostic>();
@@ -79,7 +82,7 @@ public static class DefinitionDraftArtifactComposer
             {
                 if (!selected.Contains(artifact.Id)) continue;
                 var locations = new List<DefinitionDraftCompletion>();
-                DefinitionArtifactResult result = DefinitionArtifactComposer.ComposeCore(definition, artifact.Id, answers, true, locations);
+                DefinitionArtifactResult result = composition.Compose(artifact.Id, locations);
                 if (!result.Succeeded)
                 {
                     if (result.Diagnostics.All(item => item.Code is "draft-dependency-unresolved" or "artifact-omitted"))
@@ -95,6 +98,7 @@ public static class DefinitionDraftArtifactComposer
                     return new([], [new("bundle-limit", "")], []);
                 completions.AddRange(locations);
             }
+            cancellationToken.ThrowIfCancellationRequested();
             transferred = true;
             return new(artifacts, diagnostics, completions);
         }

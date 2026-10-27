@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5X25NTG1ERW0HD0888PWW07
+Title: "compose prepared bundles once before adoption"
+Type: perf
+Scope: artifacts
+Summary: "Validate each bounded bundle once, compose each emitted artifact once and transfer staged output through disposable presentation adoption without retaining answers or recomposing Browser exports."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Core validation/composition signatures now include optional cancellation tokens. Rebuild compiled managed consumers against the new assembly; source callers may omit the token. Prepared adoption transfers its staged outcome only once."
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Never-started, cancelled and rejected adoptions clear owned buffers. Browser publishes only the complete current-generation staged set, preserving fatal aggregate rejection and bundle-level draft withholding."
+  Migration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Rebuild managed Core consumers. Existing native and CLI operations forward their cancellation token; callers of prepared adoption must dispose the staging owner even when execution never begins."
+  Configuration:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Preparation preserves declared output order and admits no earlier file after a fatal later failure. Drafts still identify deferred secrets or withheld outputs; this change does not certify a responsiveness budget."

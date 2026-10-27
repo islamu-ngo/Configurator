@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.Json;
 using Configurator.Core.Composition;
+using Configurator.Core.Artifacts;
 
 public sealed class SetupFieldState
 {
@@ -85,17 +86,21 @@ public sealed class DefinitionNodeState
 
 public static class DefinitionValidator
 {
-    public static DefinitionValidationResult Validate(SetupDefinition definition, SetupAnswerSnapshot answers)
-        => ValidateCore(definition, answers, draft: false);
+    public static DefinitionValidationResult Validate(SetupDefinition definition, SetupAnswerSnapshot answers,
+        CancellationToken cancellationToken = default)
+        => ValidateCore(definition, answers, draft: false, cancellationToken);
 
     /// <summary>Validates draft answers, deferring only empty or absent secret leaves. Ordinary answer errors remain blocking.</summary>
-    public static DefinitionValidationResult ValidateDraft(SetupDefinition definition, SetupAnswerSnapshot answers)
-        => ValidateCore(definition, answers, draft: true);
+    public static DefinitionValidationResult ValidateDraft(SetupDefinition definition, SetupAnswerSnapshot answers,
+        CancellationToken cancellationToken = default)
+        => ValidateCore(definition, answers, draft: true, cancellationToken);
 
-    private static DefinitionValidationResult ValidateCore(SetupDefinition definition, SetupAnswerSnapshot answers, bool draft)
+    private static DefinitionValidationResult ValidateCore(SetupDefinition definition, SetupAnswerSnapshot answers, bool draft,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(answers);
+        cancellationToken.ThrowIfCancellationRequested();
         var definitions = definition.Fields.ToDictionary(item => item.Id, StringComparer.Ordinal);
         var active = new Dictionary<string, bool>(StringComparer.Ordinal);
         var effective = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -107,6 +112,7 @@ public static class DefinitionValidator
         foreach (SetupFieldDefinition field in definition.Fields) Activate(field);
         void Activate(SetupFieldDefinition field)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (active.ContainsKey(field.Id)) return;
             foreach (string reference in field.Dependencies)
                 if (!active.ContainsKey(reference)) Activate(definitions[reference]);
@@ -136,6 +142,7 @@ public static class DefinitionValidator
         var nodes = new List<DefinitionNodeState>();
         foreach (SetupFieldDefinition field in definition.Fields)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             bool enabled = active[field.Id];
             bool? conditionalRequired = field.RequiredWhen is { } condition
                 ? EvaluateCondition(condition, effective, draft ? UnknownFields() : null) : false;
@@ -161,6 +168,9 @@ public static class DefinitionValidator
             CollectNodes(field.Data, value, present, field.Id, [], enabled, required,
                 relevant: true, SetupFieldSensitivity.Public, nodes);
         }
+        cancellationToken.ThrowIfCancellationRequested();
+        if (DefinitionArtifactComposer.PreparationDiagnostics.IsEnabled("ValidationCompleted"))
+            DefinitionArtifactComposer.PreparationDiagnostics.Write("ValidationCompleted", draft);
         return new(states, diagnostics, effective, deferred, unresolved, nodes);
     }
 

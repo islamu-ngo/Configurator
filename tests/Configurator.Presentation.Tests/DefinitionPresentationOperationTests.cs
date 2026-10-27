@@ -61,7 +61,7 @@ public sealed class DefinitionPresentationOperationTests
             definition, "config", new SetupAnswerSnapshot(7, values));
         values["service.name"] = changed.RootElement;
 
-        SetupPresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
+        using SetupPresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
         var metadata = (DefinitionPreparationMetadata)outcome.CoreResult;
 
         await Assert.That(metadata.Succeeded).IsTrue();
@@ -80,12 +80,26 @@ public sealed class DefinitionPresentationOperationTests
             Definition(), "config",
             new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>()));
 
-        SetupPresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
+        using SetupPresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
         var metadata = (DefinitionPreparationMetadata)outcome.CoreResult;
 
         await Assert.That(metadata.Succeeded).IsFalse();
         await Assert.That(metadata.DiagnosticCodes.Count > 0).IsTrue();
         await Assert.That(outcome.Output.IsEmpty).IsTrue();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task CancelledSingleArtifactPreparationNeverReturnsOutput(bool draft)
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var operation = new DefinitionPresentationOperation(Definition(), "config",
+            new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>()), prepareDraft: draft);
+
+        await Assert.That(async () => { await operation.ExecuteAsync(cancellation.Token); })
+            .Throws<OperationCanceledException>();
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(

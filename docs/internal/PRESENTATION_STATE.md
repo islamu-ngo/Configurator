@@ -11,6 +11,23 @@ section expansion and discovery publish `ViewChanged`, not `InputChanged`;
 they preserve answer revision, consent and current preparation. Definitions
 without presentation metadata expose one neutral Configure experience.
 
+`DefinitionPresentationOperation.Adopt` copies an already admitted Core artifact
+into a disposable `DefinitionPreparedAdoption`, including only that artifact's
+draft completion locations. It retains no answers and performs no composition.
+The caller owns and disposes this staged operation even if a workspace never
+starts it. Execution transfers its outcome once into the existing workspace
+owner; pre-start cancellation/disposal clears staged bytes, while disposal after
+transfer cannot clear the workspace's current output. Existing generations retire
+cancelled, replaced, deactivated and late outcomes.
+
+Browser prepares one complete/draft bundle, adopts each output into a local staged
+list and publishes that list only after every current-generation adoption succeeds.
+Rejection or invalidation disposes all staged workspaces/exports and the Core
+bundle; no earlier output becomes available after a later failure. Bundle-level
+draft withholding diagnostics remain visible even when a particular adopted
+artifact has no deferred secret. This reuses the established outcome owner rather
+than introducing another preparation store.
+
 `SetDisclosureOverride` selects Essential, Guided (the Standard UI detail level)
 or Advanced independently of the selected authored experience. A null override
 follows that experience's initial disclosure. Explicit selection survives

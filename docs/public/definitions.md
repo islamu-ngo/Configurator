@@ -57,6 +57,13 @@ filename hints, not permission to write arbitrary files. Apply/restart metadata
 describes consequences for the operator; the target still validates and applies
 its own configuration.
 
+Multi-file preparation uses one answer snapshot and preserves declared output
+order. A fatal later output or aggregate-size rejection makes no earlier file
+available. Secret-deferred drafts remain incomplete: usable files and withheld
+output diagnostics are reported separately, and complete preparation still
+requires every applicable required setting. Preparing files never applies them
+to a target.
+
 ## Authored journeys and field guidance
 
 Optional `presentation` describes sections and experiences in the public definition.

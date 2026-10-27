@@ -312,52 +312,76 @@ public partial class ConfigurationEditor
             _statusCode = "input-type-invalid";
             return;
         }
-        HashSet<string> admittedArtifacts;
-        if (draft)
+        DefinitionDraftBundleResult? draftBundle = null;
+        DefinitionBundleResult? completeBundle = null;
+        var staged = new List<PreparedArtifact>();
+        try
         {
-            using DefinitionDraftBundleResult bundle = DefinitionDraftArtifactComposer.ComposeBundle(Definition, Definition.Artifacts.Select(item => item.Id), answers);
-            if (bundle.Artifacts.Count == 0 || bundle.Diagnostics.Any(item => item.Code is not ("draft-dependency-unresolved" or "artifact-omitted")))
+            IReadOnlyList<DefinitionArtifact> artifacts;
+            if (draft)
             {
-                _diagnostics.AddRange(bundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
-                _status = "No configuration prepared. Correct required settings or reduce output size.";
-                _statusCode = "preparation-rejected";
-                return;
+                draftBundle = DefinitionDraftArtifactComposer.ComposeBundle(Definition, Definition.Artifacts.Select(item => item.Id), answers);
+                if (draftBundle.Artifacts.Count == 0 || draftBundle.Diagnostics.Any(item => item.Code is not ("draft-dependency-unresolved" or "artifact-omitted")))
+                {
+                    _diagnostics.AddRange(draftBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
+                    _status = "No configuration prepared. Correct required settings or reduce output size.";
+                    _statusCode = "preparation-rejected";
+                    return;
+                }
+                artifacts = draftBundle.Artifacts;
+                _diagnostics.AddRange(draftBundle.Diagnostics.Select(item => item.Code));
             }
-            admittedArtifacts = bundle.Artifacts.Select(item => item.ArtifactId).ToHashSet(StringComparer.Ordinal);
-            _diagnostics.AddRange(bundle.Diagnostics.Select(item => item.Code));
+            else
+            {
+                completeBundle = DefinitionBundleComposer.ComposeActive(Definition, answers);
+                if (!completeBundle.Succeeded)
+                {
+                    _diagnostics.AddRange(completeBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
+                    _status = "No configuration prepared. Correct required settings or reduce output size.";
+                    _statusCode = "preparation-rejected";
+                    return;
+                }
+                artifacts = completeBundle.Artifacts;
+            }
+            if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
+            foreach (DefinitionArtifact artifact in artifacts)
+            {
+                using DefinitionPreparedAdoption operation = DefinitionPresentationOperation.Adopt(artifact, draftBundle?.Completions);
+                SetupWorkspaceId.TryCreate(Guid.NewGuid().ToString("N"), out var workspaceId);
+                var workspace = _session.CreateWorkspace(workspaceId, operation);
+                bool retained = false;
+                try
+                {
+                    workspace.Activate();
+                    await workspace.ExecuteAsync(Guid.NewGuid());
+                    if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
+                    if (workspace.Result is not DefinitionPreparationMetadata { Succeeded: true } metadata)
+                    {
+                        if (workspace.Result is DefinitionPreparationMetadata failure) _diagnostics.AddRange(failure.DiagnosticCodes);
+                        _status = "No configuration prepared. Prepare the current workspace again.";
+                        _statusCode = "preparation-rejected";
+                        return;
+                    }
+                    staged.Add(new PreparedArtifact(metadata, workspace, Javascript));
+                    retained = true;
+                }
+                finally { if (!retained) workspace.Dispose(); }
+            }
+            _prepared.AddRange(staged);
+            staged.Clear();
+            bool incompleteDraft = draft && (_prepared.Any(item => item.Metadata.IsDraft) ||
+                _diagnostics.Contains("draft-dependency-unresolved"));
+            _status = incompleteDraft
+                ? $"Prepared {_prepared.Count} draft artifact(s). Deferred secrets or withheld outputs still require completion."
+                : $"Prepared {_prepared.Count} private artifact(s). Reveal, copy or download each explicitly.";
+            _statusCode = "preparation-ready";
         }
-        else
+        finally
         {
-            using DefinitionBundleResult bundle = DefinitionBundleComposer.ComposeActive(Definition, answers);
-            if (!bundle.Succeeded)
-            {
-                _diagnostics.AddRange(bundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
-                _status = "No configuration prepared. Correct required settings or reduce output size.";
-                _statusCode = "preparation-rejected";
-                return;
-            }
-            admittedArtifacts = bundle.Artifacts.Select(item => item.ArtifactId).ToHashSet(StringComparer.Ordinal);
+            foreach (PreparedArtifact artifact in staged) await artifact.DisposeAsync();
+            draftBundle?.Dispose();
+            completeBundle?.Dispose();
         }
-        foreach (var artifact in Definition.Artifacts)
-        {
-            if (!admittedArtifacts.Contains(artifact.Id)) continue;
-            var operation = new DefinitionPresentationOperation(Definition, artifact.Id, answers, prepareDraft: draft);
-            SetupWorkspaceId.TryCreate(Guid.NewGuid().ToString("N"), out var workspaceId);
-            var workspace = _session.CreateWorkspace(workspaceId, operation);
-            workspace.Activate();
-            await workspace.ExecuteAsync(Guid.NewGuid());
-            if (_disposed || generation != _generation) { workspace.Dispose(); return; }
-            if (workspace.Result is not DefinitionPreparationMetadata { Succeeded: true } metadata)
-            {
-                if (workspace.Result is DefinitionPreparationMetadata failure) _diagnostics.AddRange(failure.DiagnosticCodes);
-                _diagnostics.AddRange(form.Validate().Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
-                workspace.Dispose();
-                continue;
-            }
-            _prepared.Add(new PreparedArtifact(metadata, workspace, Javascript));
-        }
-        _status = _prepared.Count == 0 ? "No configuration prepared. Correct required settings." : $"Prepared {_prepared.Count} private artifact(s). Reveal, copy or download each explicitly.";
-        _statusCode = _prepared.Count == 0 ? "preparation-rejected" : "preparation-ready";
     }
     private async Task CopyAsync(PreparedArtifact artifact)
     {

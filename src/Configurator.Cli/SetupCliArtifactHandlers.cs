@@ -48,7 +48,7 @@ internal static class SetupCliArtifactHandlers
             answers = new(answers.InputRevision, values);
         }
 
-        DefinitionValidationResult validation = DefinitionValidator.Validate(definition, answers);
+        DefinitionValidationResult validation = DefinitionValidator.Validate(definition, answers, cancellationToken);
         if (command.Operation == "import" && !validation.Fields.Any(field =>
             field.Id == command.RevisionField && field.IsActive && field.IsProvided && !field.HasError))
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "revision-projection-required");
@@ -65,7 +65,7 @@ internal static class SetupCliArtifactHandlers
                 [], coverage, readiness)
             { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
         }
-        DefinitionArtifactResult composed = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers);
+        DefinitionArtifactResult composed = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers, cancellationToken);
         if (!composed.Succeeded)
             return SetupCliResults.Failure(SetupCliExitCode.Validation, "artifact-composition-failed", "$.input");
         using DefinitionArtifact output = composed.Artifact!;
@@ -84,7 +84,7 @@ internal static class SetupCliArtifactHandlers
                     return SetupCliResults.Success(coverage: compared);
                 }
                 SetupAnswerSnapshot baseline = await SetupCliIoOperations.AnswersAsync(invocation, command.Baseline!, command.InputRevision, cancellationToken);
-                DefinitionArtifactResult previous = DefinitionArtifactComposer.Compose(definition, artifact.Id, baseline);
+                DefinitionArtifactResult previous = DefinitionArtifactComposer.Compose(definition, artifact.Id, baseline, cancellationToken);
                 if (!previous.Succeeded)
                     return SetupCliResults.Failure(SetupCliExitCode.Validation, "baseline-invalid", "$.baseline");
                 using DefinitionArtifact prior = previous.Artifact!;
@@ -144,7 +144,7 @@ internal static class SetupCliArtifactHandlers
                 : result.Code == "inverse-unsupported" || result.Code == "import-unsupported"
                     ? SetupCliExitCode.Blocked : SetupCliExitCode.Data, result.Code, "$.input");
 
-        DefinitionValidationResult validation = DefinitionValidator.Validate(definition, result.Answers!);
+        DefinitionValidationResult validation = DefinitionValidator.Validate(definition, result.Answers!, cancellationToken);
         var coverage = new SetupCliMachineCoverage(
             validation.Fields.Where(field => field.IsActive && field.IsProvided && !field.HasError)
                 .Select(field => field.Id),
@@ -187,7 +187,7 @@ internal static class SetupCliArtifactHandlers
             && item.ApplySemantics == "import"))
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "import-command-required", "$.artifacts");
         SetupAnswerSnapshot answers = await SetupCliIoOperations.AnswersAsync(invocation, command.Input!, command.InputRevision, cancellationToken);
-        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers);
+        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers, cancellationToken);
         if (!bundle.Succeeded)
             return new(SetupCliExitCode.Validation,
                 bundle.Diagnostics.Select(item => new SetupCliMachineDiagnostic(item.Code, "/input", "error")).ToArray(),

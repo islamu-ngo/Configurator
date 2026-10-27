@@ -383,7 +383,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                 return null;
             }
             if (!operation.IsCurrent || _form.InputRevision != inputRevision) return null;
-            DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(_form.Definition, selection, _form.Snapshot());
+            DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(_form.Definition, selection, _form.Snapshot(), operation.Token);
             if (!bundle.Succeeded)
             {
                 _messenger.Send(new StatusChangedMessage("bundle-invalid:" +

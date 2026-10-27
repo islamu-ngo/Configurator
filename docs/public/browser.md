@@ -262,6 +262,9 @@ endpoint. The bundled definition contains no credential answer.
 Prepare the definition's active artifacts using complete or draft preparation.
 Inactive outputs are withheld. Ordinary validation or aggregate-limit failure
 clears the prepared set; no active artifacts means no successful output.
+Multi-file preparation stages the whole current result before making files
+available. A later failure cannot leave an earlier file ready for export.
+Draft status continues to identify deferred secrets or withheld outputs.
 Output is
 redacted until you deliberately reveal it. **Copy** invokes the clipboard only
 on your action; **Download** creates a short-lived Blob download for the current

@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -10,6 +11,20 @@ namespace Configurator.Core.Tests.Definitions;
 
 public sealed class DefinitionBundleTests
 {
+    [Test]
+    public async Task SelectedOutputsShareOneMeasuredValidationAndEachComposeOnce()
+    {
+        using var activity = new Activity(nameof(SelectedOutputsShareOneMeasuredValidationAndEachComposeOnce));
+        activity.Start();
+        using var measurement = new PreparationMeasurement(activity);
+        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(Definition(3),
+            ["yaml2", "config", "dotenv1"], DefinitionFixture.Answers());
+
+        await Assert.That(bundle.Succeeded).IsTrue();
+        await Assert.That(string.Join(',', measurement.Composed)).IsEqualTo("config,dotenv1,yaml2");
+        await Assert.That(measurement.Validations).IsEqualTo(1);
+    }
+
     [Test]
     public async Task DisposalClearsCoreOwnedRestrictedBytesAndRejectsLaterReads()
     {
@@ -33,7 +48,7 @@ public sealed class DefinitionBundleTests
     public async Task DeclaredFormatsUseOneSnapshotAndDefinitionOrder()
     {
         SetupDefinition definition = Definition(3);
-        DefinitionBundleResult result = DefinitionBundleComposer.Compose(definition,
+        using DefinitionBundleResult result = DefinitionBundleComposer.Compose(definition,
             ["yaml2", "config", "dotenv1"], DefinitionFixture.Answers());
 
         await Assert.That(result.Succeeded).IsTrue();
@@ -42,14 +57,60 @@ public sealed class DefinitionBundleTests
         await Assert.That(Encoding.UTF8.GetString(result.Artifacts[0].Bytes.Span)).IsEqualTo("""{"name":"sample"}""");
         await Assert.That(Encoding.UTF8.GetString(result.Artifacts[1].Bytes.Span)).IsEqualTo("NAME=sample\n");
         await Assert.That(Encoding.UTF8.GetString(result.Artifacts[2].Bytes.Span)).IsEqualTo("\"name\": \"sample\"\n");
-        foreach (DefinitionArtifact artifact in result.Artifacts)
+        string[] digests =
+        [
+            "976cd2d13306ef7b411425368f511318aed70ea05278b4e7559099f7820eaf1b",
+            "a871146e6c5914b69930037c8cf0893b33a209b85d244aa5149c4bccc752e128",
+            "5299f07bd93b982a0900910440867f3915f4bb37a08f28096ca3d9d3e73062d0"
+        ];
+        for (int index = 0; index < result.Artifacts.Count; index++)
         {
+            DefinitionArtifact artifact = result.Artifacts[index];
             await Assert.That(artifact.InputRevision).IsEqualTo(7L);
             await Assert.That(artifact.DefinitionDigest).IsEqualTo(definition.Digest);
-            await Assert.That(artifact.Digest).IsEqualTo(ArtifactDigest.Compute(artifact.Bytes.Span));
+            await Assert.That(artifact.Digest.Value).IsEqualTo(digests[index]);
             await Assert.That(artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
             await Assert.That(artifact.ToString().Contains("sample", StringComparison.Ordinal)).IsFalse();
         }
+    }
+
+    [Test]
+    public async Task OrderedByteOracleRejectsPermutedContents()
+    {
+        using DefinitionBundleResult result = DefinitionBundleComposer.Compose(Definition(3),
+            ["yaml2", "config", "dotenv1"], DefinitionFixture.Answers());
+        byte[] expected = """{"name":"sample"}"""u8.ToArray();
+        await Assert.That(result.Artifacts[0].Bytes.Span.SequenceEqual(expected)).IsTrue();
+        (expected[0], expected[1]) = (expected[1], expected[0]);
+        await Assert.That(result.Artifacts[0].Bytes.Span.SequenceEqual(expected)).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task CancellationAfterFirstComposedOutputAbandonsTheWholeBundle(bool draft)
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var activity = new Activity(nameof(CancellationAfterFirstComposedOutputAbandonsTheWholeBundle));
+        activity.Start();
+        using var measurement = new PreparationMeasurement(activity, _ => cancellation.Cancel());
+        SetupDefinition definition = Definition(3);
+
+        await Assert.That(() =>
+        {
+            if (draft)
+            {
+                using DefinitionDraftBundleResult result = DefinitionDraftArtifactComposer.ComposeBundle(
+                    definition, ["config", "dotenv1", "yaml2"], DefinitionFixture.Answers(), cancellation.Token);
+            }
+            else
+            {
+                using DefinitionBundleResult result = DefinitionBundleComposer.Compose(
+                    definition, ["config", "dotenv1", "yaml2"], DefinitionFixture.Answers(), cancellation.Token);
+            }
+        }).Throws<OperationCanceledException>();
+        await Assert.That(string.Join(',', measurement.Composed)).IsEqualTo("config");
+        await Assert.That(measurement.Validations).IsEqualTo(1);
     }
 
     [Test]
@@ -163,5 +224,44 @@ public sealed class DefinitionBundleTests
         }
         if (count == 64) root["fields"]![0]!["maxLength"] = SetupCompositionLimits.DefaultScalarCharacters;
         return DefinitionFixture.Parse(root.ToJsonString());
+    }
+
+    internal sealed class PreparationMeasurement : IObserver<DiagnosticListener>,
+        IObserver<KeyValuePair<string, object?>>, IDisposable
+    {
+        private readonly Activity _activity;
+        private readonly Action<string>? _composed;
+        private readonly IDisposable _listeners;
+        private readonly List<IDisposable> _subscriptions = [];
+        public PreparationMeasurement(Activity activity, Action<string>? composed = null)
+        {
+            _activity = activity;
+            _composed = composed;
+            _listeners = DiagnosticListener.AllListeners.Subscribe(this);
+        }
+        public int Validations { get; private set; }
+        public List<string> Composed { get; } = [];
+        public void OnNext(DiagnosticListener value)
+        {
+            if (value.Name == "Configurator.Core.Preparation") _subscriptions.Add(value.Subscribe(this));
+        }
+        public void OnNext(KeyValuePair<string, object?> value)
+        {
+            if (!ReferenceEquals(Activity.Current, _activity)) return;
+            if (value.Key == "ValidationCompleted") Validations++;
+            if (value.Key == "ArtifactComposed")
+            {
+                string id = (string)value.Value!;
+                Composed.Add(id);
+                _composed?.Invoke(id);
+            }
+        }
+        public void OnCompleted() { }
+        public void OnError(Exception error) { }
+        public void Dispose()
+        {
+            _listeners.Dispose();
+            foreach (IDisposable subscription in _subscriptions) subscription.Dispose();
+        }
     }
 }

@@ -25,26 +25,29 @@ public sealed class DefinitionBundleResult : IDisposable
 public static class DefinitionBundleComposer
 {
     public static DefinitionBundleResult Compose(SetupDefinition definition, IEnumerable<string> artifactIds,
-        SetupAnswerSnapshot answers)
-        => ComposeCore(definition, artifactIds, answers, skipOmitted: false);
+        SetupAnswerSnapshot answers, CancellationToken cancellationToken = default)
+        => ComposeCore(definition, artifactIds, answers, skipOmitted: false, cancellationToken);
 
     /// <summary>Composes declared active artifacts. Omitted artifacts are skipped; validation and output limits remain strict.</summary>
-    public static DefinitionBundleResult ComposeActive(SetupDefinition definition, SetupAnswerSnapshot answers)
+    public static DefinitionBundleResult ComposeActive(SetupDefinition definition, SetupAnswerSnapshot answers,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        return ComposeCore(definition, definition.Artifacts.Select(item => item.Id), answers, skipOmitted: true);
+        return ComposeCore(definition, definition.Artifacts.Select(item => item.Id), answers, skipOmitted: true, cancellationToken);
     }
 
     private static DefinitionBundleResult ComposeCore(SetupDefinition definition, IEnumerable<string> artifactIds,
-        SetupAnswerSnapshot answers, bool skipOmitted)
+        SetupAnswerSnapshot answers, bool skipOmitted, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactIds);
         ArgumentNullException.ThrowIfNull(answers);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var selected = new HashSet<string>(StringComparer.Ordinal);
         foreach (string id in artifactIds)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (id is null || !selected.Add(id))
                 return new([], [new("artifact-duplicate", "")]);
             if (selected.Count > definition.Artifacts.Count)
@@ -54,6 +57,7 @@ public static class DefinitionBundleComposer
         if (selected.Any(id => definition.Artifacts.All(item => item.Id != id)))
             return new([], [new("artifact-unknown", "")]);
 
+        var composition = new DefinitionArtifactComposer.ValidatedComposition(definition, answers, false, cancellationToken);
         var composed = new List<DefinitionArtifact>(selected.Count);
         long totalBytes = 0;
         bool complete = false;
@@ -62,7 +66,7 @@ public static class DefinitionBundleComposer
             foreach (SetupArtifactDefinition artifact in definition.Artifacts)
             {
                 if (!selected.Contains(artifact.Id)) continue;
-                DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers);
+                DefinitionArtifactResult result = composition.Compose(artifact.Id, []);
                 if (!result.Succeeded)
                 {
                     if (skipOmitted && result.Diagnostics.Count == 1 && result.Diagnostics[0].Code == "artifact-omitted") continue;
@@ -74,6 +78,7 @@ public static class DefinitionBundleComposer
                 if (totalBytes > SetupCompositionLimits.DefaultAggregateSourceBytes)
                     return new([], [new("bundle-limit", "")]);
             }
+            cancellationToken.ThrowIfCancellationRequested();
             if (composed.Count == 0) return new([], [new("artifact-empty", "")]);
             complete = true;
             return new(composed, []);

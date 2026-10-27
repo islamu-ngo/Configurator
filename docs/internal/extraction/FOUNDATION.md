@@ -112,6 +112,13 @@ Shared experience/disclosure/discovery state has its own notifications and canno
 grant consent, change answers or retire current preparation. Invalid nested drafts,
 literal correction paths, provenance and workspace row identity belong to
 Presentation/Core, rather than independent Browser or native visibility policies.
+Preparation now composes a bounded Core bundle once and adopts its emitted
+artifacts through disposable Presentation operations. Browser stages all owners
+before publishing current output; it does not discard and recompose a validated
+bundle. Never-started, stale and rejected adoption storage has an explicit cleanup
+owner. Canonical bytes, aggregate rejection and incomplete draft/withholding
+semantics remain Core contracts. This removes duplicate work without qualifying
+the separate responsive-preparation budget.
 An explicit shared disclosure override separates optional detail from authored
 experience selection; null follows the authored level. Visibility and expansion
 use that same effective level. Authored experience/section descriptions remain

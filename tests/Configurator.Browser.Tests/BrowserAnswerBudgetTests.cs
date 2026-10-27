@@ -1,5 +1,6 @@
 namespace Configurator.Browser.Tests;
 
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
@@ -9,6 +10,33 @@ using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserAnswerBudgetTests
 {
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task PreparingAdoptsEachAdmittedOutputWithoutRecomposingIt(bool draft)
+    {
+        JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        definition["fields"] = JsonNode.Parse("""
+            [{"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"essential","default":"sample"}]
+            """);
+        definition["artifacts"] = JsonNode.Parse("""
+            [{"id":"first","format":"json","fileName":"first.json","applySemantics":"create","restart":"none",
+              "projection":{"op":"object","members":{"name":{"op":"copy","field":"name"}}}},
+             {"id":"second","format":"json","fileName":"second.json","applySemantics":"create","restart":"none",
+              "projection":{"op":"literal","value":{"order":[3,1,4,2]}}}]
+            """);
+        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
+        using var activity = new Activity(nameof(PreparingAdoptsEachAdmittedOutputWithoutRecomposingIt));
+        activity.Start();
+        using var measurement = new ComposedOutputs(activity);
+        await component.Find(draft ? "#prepare-draft" : "#prepare-complete").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(2);
+        await Assert.That(measurement.Artifacts.Count).IsEqualTo(2);
+        await Assert.That(measurement.Artifacts.SequenceEqual(["first", "second"], StringComparer.Ordinal)).IsTrue();
+    }
+
     [Test]
     public async Task AggregateAnswerBudgetKeepsControlsEditableAndReportsValueSafeRejection()
     {
@@ -66,5 +94,35 @@ public sealed class BrowserAnswerBudgetTests
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("preparation-rejected");
         await Assert.That(component.Find("[role=alert]").TextContent).Contains("bundle-limit");
+    }
+
+    private sealed class ComposedOutputs : IObserver<DiagnosticListener>,
+        IObserver<KeyValuePair<string, object?>>, IDisposable
+    {
+        private readonly Activity _activity;
+        private readonly List<IDisposable> _subscriptions = [];
+        private readonly IDisposable _listeners;
+        public ComposedOutputs(Activity activity)
+        {
+            _activity = activity;
+            _listeners = DiagnosticListener.AllListeners.Subscribe(this);
+        }
+        public List<string> Artifacts { get; } = [];
+        public void OnNext(DiagnosticListener value)
+        {
+            if (value.Name == "Configurator.Core.Preparation") _subscriptions.Add(value.Subscribe(this));
+        }
+        public void OnNext(KeyValuePair<string, object?> value)
+        {
+            if (ReferenceEquals(Activity.Current, _activity) && value.Key == "ArtifactComposed")
+                Artifacts.Add((string)value.Value!);
+        }
+        public void OnCompleted() { }
+        public void OnError(Exception error) { }
+        public void Dispose()
+        {
+            _listeners.Dispose();
+            foreach (IDisposable subscription in _subscriptions) subscription.Dispose();
+        }
     }
 }

@@ -163,6 +163,13 @@ values and unresolved secret-dependent conditions fail; draft mode never
 changes strict readiness or fabricates secrets. See the
 [Core contract](CORE_DEFINITION_CONTRACT.md) for owning APIs and bounds.
 
+Browser prepares one Core bundle and stages disposable Presentation adoptions
+before publishing any current output. Each emitted artifact is composed once;
+adoption retains no answers and does not recompose it. A fatal/aggregate failure
+or stale generation disposes the staged set. Draft completion/withholding
+diagnostics remain incomplete-readiness signals even for independently usable
+files.
+
 `BrowserArtifactExport` owns current bytes. Reveal/copy/download are explicit
 actions; the product JS module owns only current transient export handles and
 short-lived Blob URLs. Invalidation clears bytes and revokes capabilities;

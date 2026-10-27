@@ -114,7 +114,7 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         if (Form.HasInputErrors) return Task.FromResult(false);
         var snapshot = Form.Snapshot();
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
-            Form.Definition, SelectedArtifactIds, snapshot);
+            Form.Definition, SelectedArtifactIds, snapshot, cancellationToken);
         if (!bundle.Succeeded || snapshot.InputRevision != Form.InputRevision) return Task.FromResult(false);
         Preparation = new(snapshot.InputRevision, bundle.Artifacts.Count);
         return Task.FromResult(true);
@@ -163,7 +163,7 @@ internal sealed class SetupTerminalArtifactOperation : ISetupPresentationOperati
         var snapshot = Form.Snapshot();
         if (snapshot.InputRevision != prepared.InputRevision)
             return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
-        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(Form.Definition, selected, snapshot);
+        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(Form.Definition, selected, snapshot, cancellationToken);
         if (!bundle.Succeeded || Form.InputRevision != snapshot.InputRevision)
             return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
         if (_beforePublication is not null) await _beforePublication(cancellationToken);

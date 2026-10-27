@@ -1,6 +1,7 @@
 namespace Configurator.Core.Artifacts;
 
 using System.Globalization;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -85,20 +86,52 @@ public sealed class DefinitionArtifactResult
 
 public static class DefinitionArtifactComposer
 {
+    internal static readonly DiagnosticListener PreparationDiagnostics = new("Configurator.Core.Preparation");
+
     public static DefinitionArtifactResult Compose(
-        SetupDefinition definition, string artifactId, SetupAnswerSnapshot answers)
-        => ComposeCore(definition, artifactId, answers, false, []);
+        SetupDefinition definition, string artifactId, SetupAnswerSnapshot answers,
+        CancellationToken cancellationToken = default)
+        => ComposeCore(definition, artifactId, answers, false, [], cancellationToken);
 
     internal static DefinitionArtifactResult ComposeCore(SetupDefinition definition, string artifactId,
-        SetupAnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions)
+        SetupAnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions,
+        CancellationToken cancellationToken = default)
+        => new ValidatedComposition(definition, answers, draft, cancellationToken).Compose(artifactId, completions);
+
+    /// <summary>Owns validation for exactly one definition, answer snapshot and mode; callers cannot supply validation.</summary>
+    internal sealed class ValidatedComposition
     {
-        ArgumentNullException.ThrowIfNull(definition);
+        private readonly SetupDefinition _definition;
+        private readonly SetupAnswerSnapshot _answers;
+        private readonly bool _draft;
+        private readonly CancellationToken _cancellationToken;
+        private readonly DefinitionValidationResult _validation;
+
+        internal ValidatedComposition(SetupDefinition definition, SetupAnswerSnapshot answers, bool draft,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(definition);
+            ArgumentNullException.ThrowIfNull(answers);
+            _definition = definition;
+            _answers = answers;
+            _draft = draft;
+            _cancellationToken = cancellationToken;
+            _validation = draft ? DefinitionValidator.ValidateDraft(definition, answers, cancellationToken)
+                : DefinitionValidator.Validate(definition, answers, cancellationToken);
+        }
+
+        internal DefinitionArtifactResult Compose(string artifactId, List<DefinitionDraftCompletion> completions)
+            => ComposeValidated(_definition, artifactId, _answers, _draft, completions, _validation, _cancellationToken);
+    }
+
+    private static DefinitionArtifactResult ComposeValidated(SetupDefinition definition, string artifactId,
+        SetupAnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions,
+        DefinitionValidationResult validation, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(artifactId);
-        ArgumentNullException.ThrowIfNull(answers);
+        cancellationToken.ThrowIfCancellationRequested();
         SetupArtifactDefinition? artifact = definition.Artifacts.SingleOrDefault(item => item.Id == artifactId);
         if (artifact is null) return new(null, [new("artifact-unknown", "")]);
-        DefinitionValidationResult validation = draft ? DefinitionValidator.ValidateDraft(definition, answers)
-            : DefinitionValidator.Validate(definition, answers);
         if (!validation.IsReady) return new(null, validation.Diagnostics);
         string unresolvedField = "";
         try
@@ -108,6 +141,7 @@ public static class DefinitionArtifactComposer
             var unknown = validation.DeferredFields.Concat(validation.UnresolvedFields).ToHashSet(StringComparer.Ordinal);
             (bool include, JsonNode? output) = Project(artifact.Data.GetProperty("projection"), null, null, null, "", "", 1);
             if (!include) return new(null, [new("artifact-omitted", "")]);
+            cancellationToken.ThrowIfCancellationRequested();
             using JsonDocument document = JsonDocument.Parse(output?.ToJsonString() ?? "null");
             byte[] canonical = DefinitionJson.Canonicalize(document.RootElement);
             byte[]? bytes = null;
@@ -129,6 +163,9 @@ public static class DefinitionArtifactComposer
                 }
                 if (bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
                     throw new SetupDefinitionException("artifact-limit");
+                cancellationToken.ThrowIfCancellationRequested();
+                if (PreparationDiagnostics.IsEnabled("ArtifactComposed"))
+                    PreparationDiagnostics.Write("ArtifactComposed", artifact.Id);
                 return new(new(definition, artifact, answers, bytes), []);
             }
             finally
@@ -141,6 +178,7 @@ public static class DefinitionArtifactComposer
             (bool Include, JsonNode? Node) Project(JsonElement projection, JsonElement? item, int? index,
                 SetupFieldDefinition? itemField, string itemPath, string outputPath, int depth)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (++operations > SetupCompositionLimits.DefaultParserEvents)
                     throw new SetupDefinitionException("projection-limit");
                 if (projection.TryGetProperty("when", out var condition))
@@ -228,6 +266,7 @@ public static class DefinitionArtifactComposer
             (bool, JsonNode?) CopyField(SetupFieldDefinition field, JsonElement? value, string fieldPath,
                 string outputPath, int depth, bool secretAncestor, bool listItem)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 bool secret = secretAncestor || field.DeclaredSensitivity == SetupFieldSensitivity.Secret;
                 string type = listItem ? field.ItemType! : field.Type;
                 if (secret && type is not ("object" or "list") && (!value.HasValue
@@ -270,6 +309,7 @@ public static class DefinitionArtifactComposer
             }
             void Charge(JsonElement value, int depth)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 budget.Node(depth);
                 switch (value.ValueKind)
                 {

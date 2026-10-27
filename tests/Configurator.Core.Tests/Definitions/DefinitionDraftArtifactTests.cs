@@ -1,4 +1,5 @@
 using System.Text;
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Composition;
@@ -8,6 +9,45 @@ namespace Configurator.Core.Tests.Definitions;
 
 public sealed class DefinitionDraftArtifactTests
 {
+    [Test]
+    public async Task DraftBundleRetainsOrderedBytesCompletionsAndWithheldDiagnosticsInOnePass()
+    {
+        JsonNode document = JsonNode.Parse(SecretDefinition().CanonicalBytes.Span)!;
+        document["artifacts"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"independent","format":"json","fileName":"independent.json","applySemantics":"create","restart":"none",
+             "projection":{"op":"literal","value":{"enabled":true}}}
+            """));
+        document["artifacts"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"withheld","format":"json","fileName":"withheld.json","applySemantics":"create","restart":"none",
+             "projection":{"op":"literal","value":true,"when":{"op":"present","field":"service.name"}}}
+            """));
+        document["artifacts"]!.AsArray().Add(JsonNode.Parse("""
+            {"id":"omitted","format":"json","fileName":"omitted.json","applySemantics":"create","restart":"none",
+             "projection":{"op":"omit"}}
+            """));
+        SetupDefinition definition = DefinitionFixture.Parse(document.ToJsonString());
+        using var activity = new Activity(nameof(DraftBundleRetainsOrderedBytesCompletionsAndWithheldDiagnosticsInOnePass));
+        activity.Start();
+        using var measurement = new DefinitionBundleTests.PreparationMeasurement(activity);
+        using DefinitionDraftBundleResult result = DefinitionDraftArtifactComposer.ComposeBundle(
+            definition, ["omitted", "withheld", "independent", "config"], DefinitionFixture.Answers("{}"));
+
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.IsDraft).IsTrue();
+        await Assert.That(string.Join(',', result.Artifacts.Select(item => item.ArtifactId))).IsEqualTo("config,independent");
+        await Assert.That(result.Artifacts[0].Bytes.Span.SequenceEqual("""{"name":""}"""u8)).IsTrue();
+        await Assert.That(result.Artifacts[1].Bytes.Span.SequenceEqual("""{"enabled":true}"""u8)).IsTrue();
+        await Assert.That(result.Artifacts[0].Digest.Value)
+            .IsEqualTo("1390696a77e5d6f4375e9b36450c26bb67e99662fcd31b71cecd8ceda332040e");
+        await Assert.That(result.Completions.Single()).IsEqualTo(new DefinitionDraftCompletion("config", "service.name", "/name"));
+        await Assert.That(string.Join(',', result.Diagnostics.Select(item => item.Code)))
+            .IsEqualTo("draft-dependency-unresolved,artifact-omitted");
+        await Assert.That(result.Diagnostics[0].FieldId).IsEqualTo("service.name");
+        await Assert.That(result.Diagnostics[1].FieldId).IsEqualTo("");
+        await Assert.That(string.Join(',', measurement.Composed)).IsEqualTo("config,independent");
+        await Assert.That(measurement.Validations).IsEqualTo(1);
+    }
+
     [Test]
     public async Task MissingSecretsProduceExplicitPlaceholdersWithoutWeakeningCompleteComposition()
     {
