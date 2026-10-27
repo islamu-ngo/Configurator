@@ -119,6 +119,12 @@ bundle. Never-started, stale and rejected adoption storage has an explicit clean
 owner. Canonical bytes, aggregate rejection and incomplete draft/withholding
 semantics remain Core contracts. This removes duplicate work without qualifying
 the separate responsive-preparation budget.
+Shared editing and view bookkeeping now use internal state collaborators under
+the form's one mutation/notification gate. The index, facts and projection remain
+with that form, and no second answer tree is introduced. Typed controlled
+operations replace behavioral reflection fixtures. Removed workspace input,
+placeholder accessibility and counter APIs require managed consumers to rebuild
+and use actual form edits/status/operation messages.
 An explicit shared disclosure override separates optional detail from authored
 experience selection; null follows the authored level. Visibility and expansion
 use that same effective level. Authored experience/section descriptions remain

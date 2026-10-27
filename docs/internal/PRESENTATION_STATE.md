@@ -28,6 +28,30 @@ draft withholding diagnostics remain visible even when a particular adopted
 artifact has no deferred secret. This reuses the established outcome owner rather
 than introducing another preparation store.
 
+## Form state ownership and API migration
+
+`DefinitionEditingState` holds the existing root inputs, privacy mode, input
+revision and stable row identities. `DefinitionViewState` holds experience,
+disclosure, expansion, promotion and discovery bookkeeping. Neither collaborator
+has a lock, sends notifications or duplicates answers. `DefinitionFormModel`
+retains the sole mutation gate and notification transaction, together with its
+index, facts and projection lifetimes. View-only changes preserve input revision,
+drafts, origins and row identity; observers run after the gate releases.
+
+The former workspace `PublicInput`, `SetPublicInput` and `MaxPublicInputLength`
+scaffold is removed. Embedders edit the real form through literal-path APIs and
+immutable snapshots rather than maintaining a second workspace string.
+`SetupAccessibilityStatus`, `AccessibilityStatus`, `ReceivedCompletionCount`
+and the counter-only `Receive` implementation are also removed. Observe current
+workspace status and operation messages, and derive accessible host feedback from
+those real states. Rebuild managed consumers; no compatibility aliases are kept.
+
+Behavior tests now use typed `ISetupPresentationOperation` fixtures, generation
+allocators and message recipients. Their operation output is captured before a
+held completion is released, so a later fixture edit cannot change the result
+already owned by an invocation. Reflection remains for compiled API-shape checks
+and passive owned-buffer inspection, not as a behavioral adapter.
+
 `SetDisclosureOverride` selects Essential, Guided (the Standard UI detail level)
 or Advanced independently of the selected authored experience. A null override
 follows that experience's initial disclosure. Explicit selection survives

@@ -1,0 +1,28 @@
+Change-Id: CHG-01M5X25NYXTB3E6WA2SAV67MJ7
+Title: "concentrate form state behind one mutation owner"
+Type: refactor
+Scope: architecture
+Summary: "Separate cohesive editing and view bookkeeping under the existing form transaction, use typed behavioral fixtures and remove unused workspace input/accessibility/counter scaffolding."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Remove workspace PublicInput, SetPublicInput, MaxPublicInputLength, AccessibilityStatus, ReceivedCompletionCount, counter-only Receive and SetupAccessibilityStatus. Rebuild managed consumers and use real form input and operation state."
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "The form retains one answer owner, mutation gate and notification authority. Internal collaborators add no independent lock, answer copy or notification path; private clearing and stale-operation fences remain enforced."
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Use literal-path form APIs and immutable snapshots for inputs, and actual workspace status/operation messages for feedback. Typed fixtures capture output before releasing held completion; no compatibility aliases remain."
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable

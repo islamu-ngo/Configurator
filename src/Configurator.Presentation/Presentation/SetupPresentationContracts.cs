@@ -19,11 +19,6 @@ public enum SetupOperationInvalidationReason
     Faulted
 }
 
-public enum SetupAccessibilityStatus
-{
-    NotEvaluated
-}
-
 public interface ISetupPresentationOperation
 {
     Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken);

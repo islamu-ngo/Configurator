@@ -9,6 +9,41 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionCollectionEditingTests
 {
     [Test]
+    public async Task ViewNotificationsPreserveCurrentEditingIdentityAndDrafts()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        form.AddListItem(["rows"]);
+        form.EditValue(["rows", "0", "metadata", "name"], "ordinary");
+        form.EditValue(["rows", "0", "settings", "enabled"], "invalid");
+        string identity = form.GetEditorIdentity(["rows", "0", "settings", "enabled"]);
+        long revision = form.InputRevision;
+        int inputs = 0;
+        int views = 0;
+        form.InputChanged += (_, _) => inputs++;
+        form.ViewChanged += (_, _) =>
+        {
+            views++;
+            if (form.InputRevision != revision || !form.HasInputErrors ||
+                form.ReadDraftText(["rows", "0", "settings", "enabled"]) != "invalid")
+                throw new InvalidOperationException("incoherent-view-transition");
+            _ = Task.Run(() => form.Projection).WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        };
+
+        form.SetDiscovery("settings");
+        form.SetEditorExpanded(["rows", "0"], true);
+        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+
+        await Assert.That(views).IsEqualTo(3);
+        await Assert.That(inputs).IsEqualTo(0);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.GetEditorIdentity(["rows", "0", "settings", "enabled"])).IsEqualTo(identity);
+        await Assert.That(form.AnswerOrigin(["rows", "0", "metadata", "name"]))
+            .IsEqualTo(DefinitionAnswerOrigin.Explicit);
+        await Assert.That(form.Snapshot().Values["rows"][0].GetProperty("metadata")
+            .GetProperty("name").GetString()).IsEqualTo("ordinary");
+    }
+
+    [Test]
     public async Task ListItemMetadataContainsDeclaredShapeButNeverRowAnswers()
     {
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);

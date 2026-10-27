@@ -15,7 +15,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private readonly object _gate = new();
     private List<Action> _notifications = [];
     private int _mutationDepth;
-    private long _inputRevision;
+    private readonly DefinitionEditingState _editing;
+    private readonly DefinitionViewState _view;
     private DefinitionFormIndex? _index;
     private DefinitionFormFacts? _facts;
     private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>>? _orderedEntries;
@@ -23,8 +24,6 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private Lazy<DefinitionDiscoverySnapshot>? _discovery;
     private bool _promotionPending;
     private DefinitionFormProjection? _projection;
-    private readonly HashSet<string> _promotedPaths = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, bool> _sectionExpansion = new(StringComparer.Ordinal);
     private bool _disposed;
 
     public DefinitionFormModel(SetupDefinition definition,
@@ -32,10 +31,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (!Enum.IsDefined(sessionPrivacy)) throw new ArgumentOutOfRangeException(nameof(sessionPrivacy));
-        SessionPrivacy = sessionPrivacy;
         Definition = definition;
-        Fields = Array.AsReadOnly(definition.Fields.Select(field =>
-            new DefinitionFieldInput(field, Edit, (text, value) => AllowsValue(field, text, value), Notify)).ToArray());
+        _editing = new(Array.AsReadOnly(definition.Fields.Select(field =>
+            new DefinitionFieldInput(field, Edit, (text, value) => AllowsValue(field, text, value), Notify)).ToArray()),
+            sessionPrivacy);
         Sections = Array.AsReadOnly(definition.Presentation is { } authored
             ? authored.Sections.Select(section => new DefinitionFormSection(section.Id, section.Title,
                 section.Description, section.Fields, section.Disclosure)).ToArray()
@@ -50,16 +49,16 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 experience.Description)).ToArray()
             : [new DefinitionFormExperience("configure", "Configure", SetupFieldDisclosure.Guided,
                 "sections", Sections.Select(section => section.Id), null)]);
-        SelectedExperienceId = definition.Presentation?.DefaultExperience ?? "configure";
+        _view = new(definition.Presentation?.DefaultExperience ?? "configure");
         _index = new DefinitionFormIndex(definition, Sections, Experiences);
     }
 
     public SetupDefinition Definition { get; }
     public IReadOnlyList<DefinitionFormExperience> Experiences { get; }
     public IReadOnlyList<DefinitionFormSection> Sections { get; }
-    public string SelectedExperienceId { get; private set; }
-    public bool OptionalEditorsExpanded { get; private set; }
-    public SetupFieldDisclosure? DisclosureOverride { get; private set; }
+    public string SelectedExperienceId => _view.SelectedExperienceId;
+    public bool OptionalEditorsExpanded => _view.OptionalEditorsExpanded;
+    public SetupFieldDisclosure? DisclosureOverride => _view.DisclosureOverride;
     public event EventHandler? ViewChanged;
 
     /// <summary>Selects optional detail independently of the authored experience without editing answers.</summary>
@@ -70,10 +69,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using var mutation = BeginMutation();
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (DisclosureOverride == disclosure) return;
-        DisclosureOverride = disclosure;
-        OptionalEditorsExpanded = false;
-        _sectionExpansion.Clear();
-        _editorExpansion.Clear();
+        _view.DisclosureOverride = disclosure;
+        _view.OptionalEditorsExpanded = false;
+        _view.ResetExpansion(clearPromotions: false);
         OnPropertyChanged(nameof(DisclosureOverride));
         OnViewChanged();
     }
@@ -88,14 +86,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!Experiences.Any(experience => experience.Id == id)) return false;
         if (SelectedExperienceId == id) return true;
-        SelectedExperienceId = id;
+        _view.SelectedExperienceId = id;
         _orderedEntries = null;
         _relevantEntries = null;
         _discovery = null;
-        OptionalEditorsExpanded = false;
-        _sectionExpansion.Clear();
-        _editorExpansion.Clear();
-        _promotedPaths.Clear();
+        _view.OptionalEditorsExpanded = false;
+        _view.ResetExpansion(clearPromotions: true);
         OnPropertyChanged(nameof(SelectedExperienceId));
         OnViewChanged();
         return true;
@@ -105,10 +101,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         using var mutation = BeginMutation();
         ObjectDisposedException.ThrowIf(_disposed, this);
-        OptionalEditorsExpanded = expanded;
-        _sectionExpansion.Clear();
-        _editorExpansion.Clear();
-        _promotedPaths.Clear();
+        _view.OptionalEditorsExpanded = expanded;
+        _view.ResetExpansion(clearPromotions: true);
         OnViewChanged();
     }
 
@@ -119,14 +113,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!Experiences.Single(experience => experience.Id == SelectedExperienceId).Sections.Contains(sectionId))
             return false;
-        _sectionExpansion[sectionId] = expanded;
+        _view.SectionExpansion[sectionId] = expanded;
         foreach (string rootId in Sections.Single(section => section.Id == sectionId).Fields)
         {
             string identity = GetEditorIdentity([rootId]);
-            foreach (string key in _editorExpansion.Keys.Where(key => key == identity ||
-                key.StartsWith(identity + "-", StringComparison.Ordinal)).ToArray())
-                _editorExpansion.Remove(key);
-            _promotedPaths.RemoveWhere(key => key == identity || key.StartsWith(identity + "-", StringComparison.Ordinal));
+            _view.ClearEditorExpansion(identity, includeSelf: true);
+            _view.ClearPromotions(identity);
         }
         OnViewChanged();
         return true;
@@ -144,14 +136,14 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!facts.IsActive(path[0])) return false;
             bool needsCorrection = facts.NeedsCorrection(path);
             if (needsCorrection || indexed.HasEssentialDecision ||
-                _promotedPaths.Count > 0 && _promotedPaths.Contains(GetEditorIdentity(path))) return true;
-            if (_editorExpansion.Count > 0 && TryLocalExpansion(path, out bool locallyExpanded))
+                _view.PromotedPaths.Count > 0 && _view.PromotedPaths.Contains(GetEditorIdentity(path))) return true;
+            if (_view.EditorExpansion.Count > 0 && TryLocalExpansion(path, out bool locallyExpanded))
                 return locallyExpanded || facts.HasRequiredDescendant(path);
             DefinitionFormExperience experience = Experiences.Single(item => item.Id == SelectedExperienceId);
             DefinitionFormSection section = _index!.SectionsByField[path[0]];
             if (section is not null && !experience.Sections.Contains(section.Id)) return false;
             bool expanded = OptionalEditorsExpanded;
-            if (section is not null && _sectionExpansion.TryGetValue(section.Id, out bool sectionExpanded))
+            if (section is not null && _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded))
                 expanded = sectionExpanded;
             if (expanded) return true;
             SetupFieldDisclosure disclosure = metadata.TryGetProperty("disclosure", out JsonElement declared)
@@ -219,7 +211,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             }
         }
     }
-    public DefinitionDiscoverySelection DiscoverySelection { get; private set; } = new();
+    public DefinitionDiscoverySelection DiscoverySelection => _view.DiscoverySelection;
     public string DiscoveryQuery => DiscoverySelection.Query;
 
     public void SetDiscovery(string query)
@@ -233,7 +225,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            DiscoverySelection = selection;
+            _view.DiscoverySelection = selection;
             _discovery = null;
             OnPropertyChanged(nameof(DiscoverySelection));
             OnPropertyChanged(nameof(DiscoveryQuery));
@@ -274,7 +266,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public DefinitionSessionPrivacy SessionPrivacy { get; private set; }
+    public DefinitionSessionPrivacy SessionPrivacy => _editing.Privacy;
     public void SetSecretEntryEnabled(bool enabled)
     {
         using (BeginMutation())
@@ -284,7 +276,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             DefinitionSessionPrivacy next = enabled ? DefinitionSessionPrivacy.BrowserSecretsEnabled
                 : DefinitionSessionPrivacy.BrowserNoSecrets;
             if (SessionPrivacy == next) return;
-            SessionPrivacy = next;
+            _editing.Privacy = next;
             if (!enabled)
                 foreach (DefinitionFieldInput field in Fields)
                 {
@@ -396,13 +388,13 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!TryMetadata(path, out JsonElement metadata, out _) || !CanEdit(path)) return false;
             if (text is not null && Facts.NeedsCorrection(path))
                 for (int length = 1; length <= path.Count; length++)
-                    _promotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
+                    _view.PromotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
             DefinitionFieldInput field = Fields[_index!.FieldPositions[path[0]]];
-            long before = _inputRevision;
+            long before = InputRevision;
             if (text is null)
             {
                 bool omitted = SetValue(path, null);
-                if (omitted && _inputRevision == before) OnInputChanged();
+                if (omitted && InputRevision == before) OnInputChanged();
                 return omitted;
             }
             if (path.Count == 1)
@@ -414,7 +406,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 text, metadata, out JsonElement? value) && SetValue(path, value);
             field.SetDraftValidity(path, accepted);
             field.RetainDraft(path, accepted ? null : text);
-            if (_inputRevision == before) OnInputChanged();
+            if (InputRevision == before) OnInputChanged();
             return accepted;
         }
     }
@@ -480,21 +472,14 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             DefinitionAnswerOrigin[] origins = Enumerable.Range(0, items.Count)
                 .Select(row => AnswerOrigin([.. path, row.ToString(System.Globalization.CultureInfo.InvariantCulture)])).ToArray();
             string identity = GetEditorIdentity(path);
-            EnsureRowIdentities(identity, items.Count);
             string removedIdentity = identity + "-row-" +
-                _rowIdentities[identity][index].ToString(System.Globalization.CultureInfo.InvariantCulture);
+                _editing.RowIdentity(identity, items.Count, index).ToString(System.Globalization.CultureInfo.InvariantCulture);
             items.RemoveAt(index);
             if (!ApplyValue(path, JsonSerializer.SerializeToElement(items), clearDrafts: false)) return false;
             RetainRowOrigins(path, origins);
-            _rowIdentities[identity].RemoveAt(index);
-            foreach (string key in _rowIdentities.Keys.Where(key =>
-                key.StartsWith(removedIdentity + "-", StringComparison.Ordinal)).ToArray())
-                _rowIdentities.Remove(key);
-            foreach (string key in _editorExpansion.Keys.Where(key => key == removedIdentity ||
-                key.StartsWith(removedIdentity + "-", StringComparison.Ordinal)).ToArray())
-                _editorExpansion.Remove(key);
-            _promotedPaths.RemoveWhere(key => key == removedIdentity ||
-                key.StartsWith(removedIdentity + "-", StringComparison.Ordinal));
+            _editing.RemoveRow(identity, index, removedIdentity);
+            _view.ClearEditorExpansion(removedIdentity, includeSelf: true);
+            _view.ClearPromotions(removedIdentity);
             Fields[_index!.FieldPositions[path[0]]].RemoveItemDrafts(path, index);
             return true;
         }
@@ -568,7 +553,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 if (_index.FieldIds[position] != fieldId && Fields[position].Value is { } supplied)
                     values.Add(_index.FieldIds[position], supplied);
             if (candidate is { } value) values[fieldId] = value;
-            try { _ = new SetupAnswerSnapshot(_inputRevision, values); }
+            try { _ = new SetupAnswerSnapshot(InputRevision, values); }
             catch (SetupDefinitionException exception)
             {
                 fitsBudget = false;
@@ -589,7 +574,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
         catch (JsonException) { return false; }
     }
-    public IReadOnlyList<DefinitionFieldInput> Fields { get; }
+    public IReadOnlyList<DefinitionFieldInput> Fields => _editing.Fields;
     /// <summary>Returns the owned root editor and its immutable admitted schema by literal field identity.</summary>
     public (DefinitionFieldInput Input, JsonElement Schema) GetFieldEditor(string fieldId)
     {
@@ -617,7 +602,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             return node.Item.Metadata;
         }
     }
-    public long InputRevision => _inputRevision;
+    public long InputRevision => _editing.InputRevision;
     public bool HasAnswerBudgetError => Fields.Any(input => input.HasAnswerBudgetError);
     public event EventHandler? InputChanged;
 
@@ -664,7 +649,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 if (Fields[position].Value is { } supplied)
                     values.Add(_index!.FieldIds[position], supplied);
             }
-            return new SetupAnswerSnapshot(_inputRevision, values);
+            return new SetupAnswerSnapshot(InputRevision, values);
         }
     }
 
@@ -705,7 +690,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!result.Succeeded) return result;
             using (BeginMutation())
             {
-                if (_disposed || cancellationToken.IsCancellationRequested || _inputRevision != original.InputRevision)
+                if (_disposed || cancellationToken.IsCancellationRequested || InputRevision != original.InputRevision)
                     return new(false, null, "import-stale");
                 if (SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)
                 {
@@ -753,7 +738,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         _discovery = null;
         _projection = null;
         _promotionPending = true;
-        checked { _inputRevision++; }
+        _editing.AdvanceRevision();
         OnPropertyChanged(nameof(InputRevision));
         OnPropertyChanged(nameof(HasInputErrors));
         OnPropertyChanged(nameof(HasAnswerBudgetError));
@@ -778,8 +763,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (_disposed) return;
             _disposed = true;
-            foreach (var field in Fields) field.Clear();
-            _rowIdentities.Clear();
+            _editing.Clear();
             _facts = null;
             _index = null;
             _orderedEntries = null;
@@ -787,10 +771,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _discovery = null;
             _projection = null;
             _promotionPending = false;
-            _promotedPaths.Clear();
-            _sectionExpansion.Clear();
-            _editorExpansion.Clear();
-            DiscoverySelection = new();
+            _view.Clear();
             InputChanged = null;
             ViewChanged = null;
         }
@@ -826,7 +807,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 {
                     _promotionPending = false;
                     foreach (string[] path in Facts.PromotionPaths)
-                        if (TryMetadata(path, out _, out _)) _promotedPaths.Add(GetEditorIdentity(path));
+                        if (TryMetadata(path, out _, out _)) _view.PromotedPaths.Add(GetEditorIdentity(path));
                 }
                 notifications = _notifications;
                 _notifications = [];

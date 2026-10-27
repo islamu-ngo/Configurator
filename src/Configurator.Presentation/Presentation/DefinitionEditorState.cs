@@ -9,10 +9,6 @@ public enum DefinitionAnswerOrigin { Omitted, Defaulted, Imported, Explicit }
 
 public sealed partial class DefinitionFormModel
 {
-    private readonly Dictionary<string, List<long>> _rowIdentities = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, bool> _editorExpansion = new(StringComparer.Ordinal);
-    private long _nextRowIdentity;
-
     public bool SetEditorExpanded(IReadOnlyList<string> path, bool expanded)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -20,12 +16,10 @@ public sealed partial class DefinitionFormModel
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!TryMetadata(path, out _, out _)) return false;
         string identity = GetEditorIdentity(path);
-        foreach (string key in _editorExpansion.Keys.Where(key =>
-            key.StartsWith(identity + "-", StringComparison.Ordinal)).ToArray())
-            _editorExpansion.Remove(key);
-        _editorExpansion[identity] = expanded;
+        _view.ClearEditorExpansion(identity, includeSelf: false);
+        _view.EditorExpansion[identity] = expanded;
         if (!expanded)
-            _promotedPaths.RemoveWhere(key => key == identity || key.StartsWith(identity + "-", StringComparison.Ordinal));
+            _view.ClearPromotions(identity);
         OnViewChanged();
         return true;
     }
@@ -39,7 +33,7 @@ public sealed partial class DefinitionFormModel
             if (!TryMetadata(path, out _, out _)) return false;
             if (TryLocalExpansion(path, out bool expanded)) return expanded;
             DefinitionFormSection section = Sections.Single(item => item.Fields.Contains(path[0]));
-            bool all = _sectionExpansion.TryGetValue(section.Id, out bool sectionExpanded)
+            bool all = _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded)
                 ? sectionExpanded : OptionalEditorsExpanded;
             return all || EffectiveDisclosure == SetupFieldDisclosure.Advanced;
         }
@@ -48,7 +42,7 @@ public sealed partial class DefinitionFormModel
     private bool TryLocalExpansion(IReadOnlyList<string> path, out bool expanded)
     {
         for (int length = path.Count; length > 0; length--)
-            if (_editorExpansion.TryGetValue(GetEditorIdentity(path.Take(length).ToArray()), out expanded))
+            if (_view.EditorExpansion.TryGetValue(GetEditorIdentity(path.Take(length).ToArray()), out expanded))
                 return true;
         expanded = false;
         return false;
@@ -111,8 +105,8 @@ public sealed partial class DefinitionFormModel
             {
                 if (ReadValue(prefix) is { ValueKind: JsonValueKind.Array } rows)
                 {
-                    EnsureRowIdentities(identity, rows.GetArrayLength());
-                    identity += "-row-" + _rowIdentities[identity][int.Parse(segment, CultureInfo.InvariantCulture)]
+                    identity += "-row-" + _editing.RowIdentity(identity, rows.GetArrayLength(),
+                        int.Parse(segment, CultureInfo.InvariantCulture))
                         .ToString(CultureInfo.InvariantCulture);
                 }
                 else identity += "-key-" + Encode(segment);
@@ -122,20 +116,10 @@ public sealed partial class DefinitionFormModel
         }
     }
 
-    private void EnsureRowIdentities(string identity, int count)
-    {
-        if (!_rowIdentities.TryGetValue(identity, out List<long>? rows))
-            _rowIdentities.Add(identity, rows = []);
-        while (rows.Count < count) rows.Add(checked(++_nextRowIdentity));
-        if (rows.Count > count) rows.RemoveRange(count, rows.Count - count);
-    }
-
     private void ClearRowIdentities(IReadOnlyList<string> path)
     {
         string identity = GetEditorIdentity(path);
-        foreach (string key in _rowIdentities.Keys.Where(key => key == identity ||
-            key.StartsWith(identity + "-", StringComparison.Ordinal)).ToArray())
-            _rowIdentities.Remove(key);
+        _editing.ClearRows(identity);
     }
 
     private void RetainRowOrigins(IReadOnlyList<string> path, DefinitionAnswerOrigin[] origins)
@@ -174,13 +158,13 @@ public sealed partial class DefinitionFormModel
             SelectExperience(Experiences.First(item => item.Sections.Contains(section.Id)).Id);
         if (!preserveDiscovery)
         {
-            DiscoverySelection = new();
+            _view.DiscoverySelection = new();
             _discovery = null;
             OnPropertyChanged(nameof(DiscoveryQuery));
             OnPropertyChanged(nameof(DiscoverySelection));
         }
         for (int length = 1; length <= path.Count; length++)
-            _promotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
+            _view.PromotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
         OnViewChanged();
         return true;
     }

@@ -3,8 +3,10 @@ namespace Configurator.Presentation.Tests;
 using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Core;
+using Configurator.Core.Definitions;
 
 public sealed class SetupPresentationModelTests
 {
@@ -77,12 +79,12 @@ public sealed class SetupPresentationModelTests
         {
             if (args.PropertyName != nameof(workspace.Generation)) return;
             if (!workspace.IsBusy) throw new InvalidOperationException("incoherent-operation-state");
-            Task.Run(() => workspace.SetPublicInput("reentrant")).WaitAsync(SignalTimeout).GetAwaiter().GetResult();
+            Task.Run(() => workspace.Activate()).WaitAsync(SignalTimeout).GetAwaiter().GetResult();
             observed = true;
         };
         await workspace.ExecuteAsync(Guid.NewGuid());
         await Assert.That(observed).IsTrue();
-        await Assert.That(workspace.PublicInput).IsEqualTo("reentrant");
+        await Assert.That(workspace.IsActive).IsTrue();
     }
 
     [Test]
@@ -392,30 +394,30 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task WorkspaceOwnsAndClearsAcceptedReplacedAndDiscardedOutput()
     {
-        var contract = new SetupPresentationModelContract();
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("private-output", invocationCount: 3);
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation(3);
+        using var workspace = CreateWorkspace(session, "private-output", operation);
         byte[] caller = [11, 22, 33];
         Task first = workspace.ExecuteAsync(Guid.CreateVersion7());
-        await workspace.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
-        ReadOnlyMemory<byte> accepted = workspace.Complete(0, CoreResult(), caller);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        ReadOnlyMemory<byte> accepted = operation.Complete(0, CoreResult(), caller);
         await first.WaitAsync(SignalTimeout);
         caller[0] = 99;
         await Assert.That(accepted.Span.SequenceEqual(new byte[] { 11, 22, 33 })).IsTrue();
 
         Task second = workspace.ExecuteAsync(Guid.CreateVersion7());
-        await workspace.Operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
-        ReadOnlyMemory<byte> replacement = workspace.Complete(1, CoreResult(), new byte[] { 44, 55 });
+        await operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
+        ReadOnlyMemory<byte> replacement = operation.Complete(1, CoreResult(), new byte[] { 44, 55 });
         await second.WaitAsync(SignalTimeout);
         await Assert.That(accepted.Span.SequenceEqual(new byte[] { 0, 0, 0 })).IsTrue();
         await Assert.That(replacement.Span.SequenceEqual(new byte[] { 44, 55 })).IsTrue();
 
         Task third = workspace.ExecuteAsync(Guid.CreateVersion7());
-        await workspace.Operation.Invocations[2].Started.Task.WaitAsync(SignalTimeout);
+        await operation.Invocations[2].Started.Task.WaitAsync(SignalTimeout);
         var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using IDisposable subscription = workspace.SubscribeDiscarded(_ => discarded.TrySetResult());
+        workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
         workspace.Cancel();
-        ReadOnlyMemory<byte> late = workspace.Complete(2, CoreResult(), new byte[] { 66, 77 });
+        ReadOnlyMemory<byte> late = operation.Complete(2, CoreResult(), new byte[] { 66, 77 });
         await third.WaitAsync(SignalTimeout);
         await discarded.Task.WaitAsync(SignalTimeout);
         await Assert.That(late.Span.SequenceEqual(new byte[] { 0, 0 })).IsTrue();
@@ -428,66 +430,70 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task SessionsOwnDistinctMessengersAndNeverCrossTalk()
     {
-        var contract = new SetupPresentationModelContract();
-        using SetupPresentationSessionHandle first = contract.CreateSession();
-        using SetupPresentationSessionHandle second = contract.CreateSession();
-        using PresentationWorkspaceHandle firstRecipient = first.CreateWorkspace("first-recipient");
-        using PresentationWorkspaceHandle secondRecipient = second.CreateWorkspace("second-recipient");
-        using PresentationWorkspaceHandle firstSender = first.CreateWorkspace("first-sender");
-        firstRecipient.Activate();
-        secondRecipient.Activate();
+        var firstMessenger = new WeakReferenceMessenger();
+        var secondMessenger = new WeakReferenceMessenger();
+        using var first = new SetupPresentationSession(firstMessenger);
+        using var second = new SetupPresentationSession(secondMessenger);
+        var firstMessages = new List<SetupOperationSettledMessage>();
+        var secondMessages = new List<SetupOperationSettledMessage>();
+        firstMessenger.Register<SetupOperationSettledMessage>(firstMessages, (_, message) => firstMessages.Add(message));
+        secondMessenger.Register<SetupOperationSettledMessage>(secondMessages, (_, message) => secondMessages.Add(message));
+        var operation = new ControlledPresentationOperation();
+        using var firstSender = CreateWorkspace(first, "first-sender", operation);
 
         Task execution = firstSender.ExecuteAsync(Guid.CreateVersion7());
-        await firstSender.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
-        firstSender.Complete(0, CoreResult(), ReadOnlyMemory<byte>.Empty);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        operation.Complete(0, CoreResult(), ReadOnlyMemory<byte>.Empty);
         await execution.WaitAsync(SignalTimeout);
 
-        await Assert.That(ReferenceEquals(first.Messenger, second.Messenger)).IsFalse();
+        await Assert.That(ReferenceEquals(firstMessenger, secondMessenger)).IsFalse();
         await Assert.That(first.SessionId == second.SessionId).IsFalse();
-        await Assert.That(firstRecipient.ReceivedCompletionCount).IsEqualTo(1);
-        await Assert.That(secondRecipient.ReceivedCompletionCount).IsEqualTo(0);
+        await Assert.That(firstMessages.Count).IsEqualTo(1);
+        await Assert.That(firstMessages[0].SessionId).IsEqualTo(first.SessionId);
+        await Assert.That(secondMessages).IsEmpty();
     }
 
     [Test]
-    public async Task RecipientsObserveOnlyActiveLifetimeAndDeduplicateTypedDelivery()
+    public async Task OnlyAcceptedCompletionPublishesTypedDelivery()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.SettledMessageType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle recipient = session.CreateWorkspace("recipient");
-        object firstGeneration = contract.CreateGeneration(1);
+        var messenger = new WeakReferenceMessenger();
+        using var session = new SetupPresentationSession(messenger);
+        var messages = new List<SetupOperationSettledMessage>();
+        messenger.Register<SetupOperationSettledMessage>(messages, (_, message) => messages.Add(message));
+        var operation = new ControlledPresentationOperation(2);
+        using var workspace = CreateWorkspace(session, "sender", operation);
         Guid operationId = Guid.CreateVersion7();
-
-        session.PublishSettlement("sender", operationId, firstGeneration, "Succeeded");
-        await Assert.That(recipient.ReceivedCompletionCount).IsEqualTo(0);
-
-        recipient.Activate();
-        session.PublishSettlement("sender", operationId, firstGeneration, "Succeeded");
-        session.PublishSettlement("sender", operationId, firstGeneration, "Succeeded");
-        await Assert.That(recipient.ReceivedCompletionCount).IsEqualTo(1);
-
-        recipient.Deactivate();
-        session.PublishSettlement(
-            "sender",
-            Guid.CreateVersion7(),
-            contract.CreateGeneration(2),
-            "Succeeded");
-        await Assert.That(recipient.ReceivedCompletionCount).IsEqualTo(1);
+        Task stale = workspace.ExecuteAsync(operationId);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        Task current = workspace.ExecuteAsync(operationId);
+        await operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
+        var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
+        operation.Complete(0, CoreResult(), new byte[] { 1 });
+        await stale.WaitAsync(SignalTimeout);
+        await discarded.Task.WaitAsync(SignalTimeout);
+        await Assert.That(messages).IsEmpty();
+        operation.Complete(1, CoreResult(), new byte[] { 2 });
+        await current.WaitAsync(SignalTimeout);
+        await Assert.That(messages.Count).IsEqualTo(1);
+        await Assert.That(messages[0].OperationId).IsEqualTo(operationId);
+        await Assert.That(messages[0].Generation).IsEqualTo(new SetupOperationGeneration(2));
+        await Assert.That(messages[0].WorkspaceId).IsEqualTo(workspace.WorkspaceId);
+        await Assert.That(messages[0].Status).IsEqualTo(SetupOperationStatus.Succeeded);
     }
 
     [Test]
     public async Task CancellationWinsOnlyAfterValueFreeInvalidationAndLateCompletionIsDiscarded()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.InvalidationEventArgsType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("cancel-wins");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation();
+        using var workspace = CreateWorkspace(session, "cancel-wins", operation);
         Task execution = workspace.ExecuteAsync(Guid.CreateVersion7());
-        ControlledPresentationInvocation invocation = workspace.Operation.Invocations[0];
+        ControlledPresentationInvocation invocation = operation.Invocations[0];
         await invocation.Started.Task.WaitAsync(SignalTimeout);
         var invalidated = new TaskCompletionSource<EventArgs>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        using IDisposable subscription = workspace.SubscribeInvalidated(args =>
+        using IDisposable subscription = SubscribeInvalidated(workspace, args =>
         {
             if (invocation.Cancelled.Task.IsCompleted)
                 invalidated.TrySetException(new InvalidOperationException(
@@ -499,7 +505,7 @@ public sealed class SetupPresentationModelTests
         workspace.Cancel();
         EventArgs signal = await invalidated.Task.WaitAsync(SignalTimeout);
         await invocation.Cancelled.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, CoreResult(), new byte[] { 3 });
+        operation.Complete(0, CoreResult(), new byte[] { 3 });
         await execution.WaitAsync(SignalTimeout);
 
         await AssertValueFreeSignal(signal);
@@ -511,21 +517,20 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task SettlementWinsBeforeLaterCancellationAndRetainsOwnedOutcome()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.WorkspaceType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("settlement-wins");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation();
+        using var workspace = CreateWorkspace(session, "settlement-wins", operation);
         object result = CoreResult();
         byte[] buffer = [5, 8, 13, 21];
         ReadOnlyMemory<byte> region = new(buffer, 1, 2);
         Task execution = workspace.ExecuteAsync(Guid.CreateVersion7());
-        ControlledPresentationInvocation invocation = workspace.Operation.Invocations[0];
+        ControlledPresentationInvocation invocation = operation.Invocations[0];
         await invocation.Started.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, result, region);
+        operation.Complete(0, result, region);
         await execution.WaitAsync(SignalTimeout);
         var invalidated = new TaskCompletionSource<EventArgs>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        using IDisposable subscription = workspace.SubscribeInvalidated(
+        using IDisposable subscription = SubscribeInvalidated(workspace,
             args => invalidated.TrySetResult(args));
 
         workspace.Cancel();
@@ -539,96 +544,90 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task ReplacementInvalidatesBeforeCancellingRetainedOperation()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.InvalidationEventArgsType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("replacement", 2);
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation(2);
+        using var workspace = CreateWorkspace(session, "replacement", operation);
         Task stale = workspace.ExecuteAsync(Guid.CreateVersion7());
-        ControlledPresentationInvocation first = workspace.Operation.Invocations[0];
+        ControlledPresentationInvocation first = operation.Invocations[0];
         await first.Started.Task.WaitAsync(SignalTimeout);
         var invalidated = OrderedInvalidationSignal(workspace, first);
 
         Task current = workspace.ExecuteAsync(Guid.CreateVersion7());
         await invalidated.Signal.Task.WaitAsync(SignalTimeout);
         await first.Cancelled.Task.WaitAsync(SignalTimeout);
-        await workspace.Operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, CoreResult(), new byte[] { 1 });
+        await operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
+        operation.Complete(0, CoreResult(), new byte[] { 1 });
         await stale.WaitAsync(SignalTimeout);
-        workspace.Complete(1, CoreResult(), new byte[] { 2 });
+        operation.Complete(1, CoreResult(), new byte[] { 2 });
         await current.WaitAsync(SignalTimeout);
 
-        await Assert.That(workspace.GenerationValue).IsEqualTo(2);
+        await Assert.That(workspace.Generation.Value).IsEqualTo(2);
         invalidated.Subscription.Dispose();
     }
 
     [Test]
-    public async Task DeactivationInvalidatesBeforeCancellationAndUnregistersRecipient()
+    public async Task DeactivationInvalidatesBeforeCancellationAndDeniesLateOutput()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.InvalidationEventArgsType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("deactivation");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation();
+        using var workspace = CreateWorkspace(session, "deactivation", operation);
         workspace.Activate();
         Task execution = workspace.ExecuteAsync(Guid.CreateVersion7());
-        ControlledPresentationInvocation invocation = workspace.Operation.Invocations[0];
+        ControlledPresentationInvocation invocation = operation.Invocations[0];
         await invocation.Started.Task.WaitAsync(SignalTimeout);
         var invalidated = OrderedInvalidationSignal(workspace, invocation);
 
         workspace.Deactivate();
         await invalidated.Signal.Task.WaitAsync(SignalTimeout);
         await invocation.Cancelled.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, CoreResult(), ReadOnlyMemory<byte>.Empty);
+        operation.Complete(0, CoreResult(), ReadOnlyMemory<byte>.Empty);
         await execution.WaitAsync(SignalTimeout);
-        session.PublishSettlement(
-            "sender",
-            Guid.CreateVersion7(),
-            contract.CreateGeneration(9),
-            "Succeeded");
-
-        await Assert.That(workspace.ReceivedCompletionCount).IsEqualTo(0);
+        await workspace.WaitForPendingOperationsAsync().WaitAsync(SignalTimeout);
+        await Assert.That(workspace.IsActive).IsFalse();
+        await Assert.That(workspace.Result).IsNull();
+        await Assert.That(workspace.Output).IsEmpty();
         invalidated.Subscription.Dispose();
     }
 
     [Test]
     public async Task DisposalInvalidatesBeforeCancellationAndIsIdempotent()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.InvalidationEventArgsType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("disposal");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation();
+        using var workspace = CreateWorkspace(session, "disposal", operation);
         workspace.Activate();
         Task execution = workspace.ExecuteAsync(Guid.CreateVersion7());
-        ControlledPresentationInvocation invocation = workspace.Operation.Invocations[0];
+        ControlledPresentationInvocation invocation = operation.Invocations[0];
         await invocation.Started.Task.WaitAsync(SignalTimeout);
         var invalidated = OrderedInvalidationSignal(workspace, invocation);
 
         workspace.Dispose();
         await invalidated.Signal.Task.WaitAsync(SignalTimeout);
         await invocation.Cancelled.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, CoreResult(), new byte[] { 5 });
+        operation.Complete(0, CoreResult(), new byte[] { 5 });
         await execution.WaitAsync(SignalTimeout);
         workspace.Dispose();
 
         await Assert.That(workspace.Result).IsNull();
-        await Assert.That(workspace.ReceivedCompletionCount).IsEqualTo(0);
+        await Assert.That(workspace.IsActive).IsFalse();
         invalidated.Subscription.Dispose();
     }
 
     [Test]
     public async Task DuplicateSettlementsRaceAtBarrierAndCommitPublishRefreshDiscardExactlyOnce()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.WorkspaceType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("settlement-race", 2);
-        using PresentationWorkspaceHandle recipient = session.CreateWorkspace("observer");
-        recipient.Activate();
+        var messenger = new WeakReferenceMessenger();
+        using var session = new SetupPresentationSession(messenger);
+        var operation = new ControlledPresentationOperation(2);
+        using var workspace = CreateWorkspace(session, "settlement-race", operation);
+        var messages = new List<SetupOperationSettledMessage>();
+        messenger.Register<SetupOperationSettledMessage>(messages, (_, message) => messages.Add(message));
         Guid operationId = Guid.CreateVersion7();
         Task staleExecution = workspace.ExecuteAsync(operationId);
-        await workspace.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
         Task currentExecution = workspace.ExecuteAsync(operationId);
-        await workspace.Operation.Invocations[0].Cancelled.Task.WaitAsync(SignalTimeout);
-        await workspace.Operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
+        await operation.Invocations[0].Cancelled.Task.WaitAsync(SignalTimeout);
+        await operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
         object staleResult = CoreResult();
         object currentResult = CoreResult();
         int resultRefreshes = 0;
@@ -636,18 +635,19 @@ public sealed class SetupPresentationModelTests
         int discards = 0;
         var discarded = new TaskCompletionSource<EventArgs>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        using IDisposable propertySubscription = workspace.SubscribePropertyChanged((_, args) =>
+        PropertyChangedEventHandler propertyHandler = (_, args) =>
         {
             if (args.PropertyName == "Result")
                 Interlocked.Increment(ref resultRefreshes);
-        });
+        };
+        workspace.PropertyChanged += propertyHandler;
         EventHandler commandHandler = (_, _) => Interlocked.Increment(ref commandRefreshes);
         workspace.ExecuteCommand.CanExecuteChanged += commandHandler;
-        using IDisposable discardSubscription = workspace.SubscribeDiscarded(args =>
+        workspace.CompletionDiscarded += (_, args) =>
         {
             Interlocked.Increment(ref discards);
             discarded.TrySetResult(args);
-        });
+        };
         using var barrier = new Barrier(2);
 
         Task[] contenders =
@@ -656,13 +656,13 @@ public sealed class SetupPresentationModelTests
             {
                 if (!barrier.SignalAndWait(SignalTimeout))
                     throw new TimeoutException("settlement-barrier-timeout");
-                workspace.Complete(0, staleResult, new byte[] { 3 });
+                operation.Complete(0, staleResult, new byte[] { 3 });
             }),
             Task.Run(() =>
             {
                 if (!barrier.SignalAndWait(SignalTimeout))
                     throw new TimeoutException("settlement-barrier-timeout");
-                workspace.Complete(1, currentResult, new byte[] { 7 });
+                operation.Complete(1, currentResult, new byte[] { 7 });
             })
         ];
         await Task.WhenAll(contenders).WaitAsync(SignalTimeout);
@@ -670,44 +670,42 @@ public sealed class SetupPresentationModelTests
         EventArgs discard = await discarded.Task.WaitAsync(SignalTimeout);
 
         await Assert.That(ReferenceEquals(workspace.Result, currentResult)).IsTrue();
-        await Assert.That(recipient.ReceivedCompletionCount).IsEqualTo(1);
+        await Assert.That(messages.Count).IsEqualTo(1);
         await Assert.That(resultRefreshes).IsEqualTo(1);
         await Assert.That(commandRefreshes).IsEqualTo(1);
         await Assert.That(discards).IsEqualTo(1);
         await AssertValueFreeSignal(discard);
         workspace.ExecuteCommand.CanExecuteChanged -= commandHandler;
+        workspace.PropertyChanged -= propertyHandler;
     }
 
     [Test]
     public async Task BoundedAllocatorReachesFinalGenerationThenTerminatesRetainedCompletion()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.RequireProductType("ISetupOperationGenerationAllocator");
-        using SetupPresentationSessionHandle session = contract.CreateSession(
-            long.MaxValue - 1,
-            long.MaxValue,
-            null);
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("exhaustion", 3);
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger(),
+            new ControlledGenerationAllocator(long.MaxValue - 1, long.MaxValue, null));
+        var operation = new ControlledPresentationOperation(3);
+        using var workspace = CreateWorkspace(session, "exhaustion", operation);
         Task penultimate = workspace.ExecuteAsync(Guid.CreateVersion7());
-        await workspace.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
         Task retainedFinal = workspace.ExecuteAsync(Guid.CreateVersion7());
-        await workspace.Operation.Invocations[0].Cancelled.Task.WaitAsync(SignalTimeout);
-        await workspace.Operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, CoreResult(), new byte[] { 1 });
+        await operation.Invocations[0].Cancelled.Task.WaitAsync(SignalTimeout);
+        await operation.Invocations[1].Started.Task.WaitAsync(SignalTimeout);
+        operation.Complete(0, CoreResult(), new byte[] { 1 });
         await penultimate.WaitAsync(SignalTimeout);
         Guid sessionId = session.SessionId;
 
         Task terminated = workspace.ExecuteAsync(Guid.CreateVersion7());
         await terminated.WaitAsync(SignalTimeout);
-        await workspace.Operation.Invocations[1].Cancelled.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(1, CoreResult(), new byte[] { 9 });
+        await operation.Invocations[1].Cancelled.Task.WaitAsync(SignalTimeout);
+        operation.Complete(1, CoreResult(), new byte[] { 9 });
         await retainedFinal.WaitAsync(SignalTimeout);
 
-        await Assert.That(workspace.GenerationValue).IsEqualTo(long.MaxValue);
+        await Assert.That(workspace.Generation.Value).IsEqualTo(long.MaxValue);
         await Assert.That(workspace.IsTerminated).IsTrue();
         await Assert.That(session.IsTerminated).IsTrue();
         await Assert.That(session.SessionId).IsEqualTo(sessionId);
-        await Assert.That(workspace.Operation.Invocations[2].Started.Task.IsCompleted).IsFalse();
+        await Assert.That(operation.Invocations[2].Started.Task.IsCompleted).IsFalse();
         await Assert.That(workspace.Result).IsNull();
         await Assert.That(workspace.Output).IsEmpty();
     }
@@ -715,19 +713,16 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task AllocatorDuplicateOrDecreaseTerminatesInsteadOfWrappingOrReseeding()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.RequireProductType("ISetupOperationGenerationAllocator");
-        await AssertInvalidAllocationTerminates(contract, 41);
-        await AssertInvalidAllocationTerminates(contract, 40);
+        await AssertInvalidAllocationTerminates(41);
+        await AssertInvalidAllocationTerminates(40);
     }
 
     [Test]
     public async Task CompletionMessagesAreImmutableTypedAndValueFree()
     {
-        var contract = new SetupPresentationModelContract();
-        Type message = contract.SettledMessageType;
-        Type generation = contract.RequireProductType("SetupOperationGeneration");
-        Type workspaceId = contract.RequireProductType("SetupWorkspaceId");
+        Type message = typeof(SetupOperationSettledMessage);
+        Type generation = typeof(SetupOperationGeneration);
+        Type workspaceId = typeof(SetupWorkspaceId);
         PropertyInfo[] properties = message.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
         await Assert.That(message.IsSealed).IsTrue();
@@ -744,50 +739,45 @@ public sealed class SetupPresentationModelTests
     }
 
     [Test]
-    public async Task ToolkitGeneratedPropertyRaisesBehavioralNotification()
+    public async Task FormInputNotificationObservesAcceptedRevision()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.WorkspaceType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("notification");
-        var changed = new TaskCompletionSource<string?>(
+        using var form = new DefinitionFormModel(PublicDefinition());
+        var changed = new TaskCompletionSource<long>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        using IDisposable subscription = workspace.SubscribePropertyChanged((_, args) =>
-            changed.TrySetResult(args.PropertyName));
+        form.InputChanged += (_, _) => changed.TrySetResult(form.Snapshot().InputRevision);
 
-        bool accepted = workspace.SetPublicInput("public-title");
-        string? property = await changed.Task.WaitAsync(SignalTimeout);
+        bool accepted = form.EditValue(["title"], "public-title");
+        long revision = await changed.Task.WaitAsync(SignalTimeout);
 
         await Assert.That(accepted).IsTrue();
-        await Assert.That(property).IsEqualTo("PublicInput");
-        await Assert.That(workspace.PublicInput).IsEqualTo("public-title");
+        await Assert.That(revision).IsEqualTo(1);
+        await Assert.That(form.Snapshot().Values["title"].GetString()).IsEqualTo("public-title");
     }
 
     [Test]
     public async Task AsyncCommandsRefreshEligibilityExecuteAndCancelThroughPublicBehavior()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.WorkspaceType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("commands");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation();
+        using var workspace = CreateWorkspace(session, "commands", operation);
         Guid operationId = Guid.CreateVersion7();
-        object execute = workspace.ExecuteCommand;
+        IAsyncRelayCommand execute = workspace.ExecuteCommand;
 
-        await Assert.That(execute.GetType().GetInterfaces().Any(type =>
-            type.FullName == "CommunityToolkit.Mvvm.Input.IAsyncRelayCommand")).IsTrue();
         await Assert.That(workspace.ExecuteCommand.CanExecute(operationId)).IsTrue();
         await Assert.That(workspace.CancelCommand.CanExecute(null)).IsFalse();
 
         workspace.ExecuteCommand.Execute(operationId);
-        await workspace.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
         await Assert.That(workspace.IsBusy).IsTrue();
         await Assert.That(workspace.ExecuteCommand.CanExecute(operationId)).IsFalse();
         await Assert.That(workspace.CancelCommand.CanExecute(null)).IsTrue();
 
         workspace.CancelCommand.Execute(null);
-        await workspace.Operation.Invocations[0].Cancelled.Task.WaitAsync(SignalTimeout);
-        Task executionTask = (Task)SetupPresentationModelContract.Property(execute, "ExecutionTask");
+        await operation.Invocations[0].Cancelled.Task.WaitAsync(SignalTimeout);
+        Task executionTask = execute.ExecutionTask!;
         await executionTask.WaitAsync(SignalTimeout);
+        operation.Complete(0, CoreResult(), ReadOnlyMemory<byte>.Empty);
+        await workspace.WaitForPendingOperationsAsync().WaitAsync(SignalTimeout);
         await Assert.That(workspace.IsBusy).IsFalse();
         await Assert.That(workspace.ExecuteCommand.CanExecute(operationId)).IsTrue();
         await Assert.That(workspace.CancelCommand.CanExecute(null)).IsFalse();
@@ -796,17 +786,16 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task CoreResultAndReadOnlyMemoryProjectWithOwnedBytes()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.RequireProductType("SetupPresentationOutcome");
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("core-projection");
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var operation = new ControlledPresentationOperation();
+        using var workspace = CreateWorkspace(session, "core-projection", operation);
         object coreResult = CoreResult();
         byte[] backing = [2, 3, 5, 7, 11];
         ReadOnlyMemory<byte> bytes = new(backing, 1, 3);
 
         Task execution = workspace.ExecuteAsync(Guid.CreateVersion7());
-        await workspace.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, coreResult, bytes);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        operation.Complete(0, coreResult, bytes);
         await execution.WaitAsync(SignalTimeout);
 
         await Assert.That(ReferenceEquals(workspace.Result, coreResult)).IsTrue();
@@ -816,11 +805,10 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task GenerationTypeFlowsEndToEndWithoutPrimitiveIdentity()
     {
-        var contract = new SetupPresentationModelContract();
-        Type generation = contract.RequireProductType("SetupOperationGeneration");
-        Type workspace = contract.WorkspaceType;
-        Type message = contract.SettledMessageType;
-        Type allocator = contract.RequireProductType("ISetupOperationGenerationAllocator");
+        Type generation = typeof(SetupOperationGeneration);
+        Type workspace = typeof(SetupPresentationWorkspace);
+        Type message = typeof(SetupOperationSettledMessage);
+        Type allocator = typeof(ISetupOperationGenerationAllocator);
 
         await Assert.That(workspace.GetProperty("Generation")?.PropertyType).IsEqualTo(generation);
         await Assert.That(message.GetProperty("Generation")?.PropertyType).IsEqualTo(generation);
@@ -837,111 +825,63 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task WorkspaceIdentityIsNamedBoundedAndValidated()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.RequireProductType("SetupWorkspaceId");
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        int maximum = session.WorkspaceIdMaxLength();
+        int maximum = SetupWorkspaceId.MaxLength;
 
         await Assert.That(maximum).IsGreaterThan(0);
         await Assert.That(maximum).IsLessThanOrEqualTo(256);
-        await Assert.That(session.TryCreateWorkspaceId("bounded-workspace", out object? accepted)).IsTrue();
-        await Assert.That(accepted).IsNotNull();
-        await Assert.That(session.TryCreateWorkspaceId(string.Empty, out _)).IsFalse();
-        await Assert.That(session.TryCreateWorkspaceId("   ", out _)).IsFalse();
-        await Assert.That(session.TryCreateWorkspaceId(new string('w', maximum + 1), out _)).IsFalse();
+        await Assert.That(SetupWorkspaceId.TryCreate("bounded-workspace", out SetupWorkspaceId accepted)).IsTrue();
+        await Assert.That(accepted.Value).IsEqualTo("bounded-workspace");
+        await Assert.That(SetupWorkspaceId.TryCreate(string.Empty, out _)).IsFalse();
+        await Assert.That(SetupWorkspaceId.TryCreate("   ", out _)).IsFalse();
+        await Assert.That(SetupWorkspaceId.TryCreate(new string('w', maximum + 1), out _)).IsFalse();
     }
 
     [Test]
     public async Task DynamicCanaryAppearsOnlyAsExplicitlyAcceptedPublicEditValue()
     {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.WorkspaceType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("canary-surface");
+        using var form = new DefinitionFormModel(PublicDefinition());
         string canary = $"{Guid.CreateVersion7():N}-{Guid.NewGuid():N}";
-        await Assert.That(workspace.SetPublicInput(canary)).IsTrue();
-        await Assert.That(workspace.PublicInput).IsEqualTo(canary);
-
-        var observed = new List<string>();
-        foreach (object owner in new[] { session.Session, workspace.Workspace })
-        {
-            observed.Add(owner.ToString() ?? string.Empty);
-            foreach (PropertyInfo property in owner.GetType().GetProperties(
-                BindingFlags.Public | BindingFlags.Instance))
-            {
-                if (owner == workspace.Workspace && property.Name == "PublicInput")
-                    continue;
-                if (property.GetIndexParameters().Length != 0 || property.GetMethod is null)
-                    continue;
-                try
-                {
-                    object? value = property.GetValue(owner);
-                    observed.Add(value?.ToString() ?? string.Empty);
-                }
-                catch (TargetInvocationException exception)
-                {
-                    observed.Add(exception.InnerException?.Message ?? exception.Message);
-                }
-            }
-        }
-
-        string oversized = string.Concat(
-            Enumerable.Repeat(canary, workspace.MaxPublicInputLength + 1));
-        Exception? error = null;
-        try
-        {
-            _ = workspace.SetPublicInput(oversized);
-        }
-        catch (Exception exception)
-        {
-            error = exception;
-        }
-        observed.Add(error?.Message ?? string.Empty);
-        observed.Add(error?.ToString() ?? string.Empty);
-
-        await Assert.That(observed.Any(value => value.Contains(canary, StringComparison.Ordinal))).IsFalse();
-        await Assert.That(contract.PublicPresentationTypes().SelectMany(type =>
+        await Assert.That(form.EditValue(["title"], canary)).IsTrue();
+        await Assert.That(form.Snapshot().Values["title"].GetString()).IsEqualTo(canary);
+        form.SetDiscovery(canary);
+        await Assert.That(form.Projection.Matches).IsEmpty();
+        await Assert.That(form.EditValue(["title"], new string('x', 65_537))).IsFalse();
+        await Assert.That(form.InputDiagnostics.Count).IsEqualTo(1);
+        await Assert.That(form.InputDiagnostics[0].Code).IsEqualTo("answer-budget-exceeded");
+        await Assert.That(form.InputDiagnostics[0].ToString()).DoesNotContain(canary);
+        await Assert.That(form.ToString()).DoesNotContain(canary);
+        await Assert.That(typeof(SetupPresentationWorkspace).Assembly.GetExportedTypes().SelectMany(type =>
             type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
                 | BindingFlags.DeclaredOnly)).Any(property => ForbiddenSensitiveName(property.Name))).IsFalse();
     }
 
-    [Test]
-    public async Task SharedPresentationReportsOnlyTargetAgnosticAccessibilityStatus()
-    {
-        var contract = new SetupPresentationModelContract();
-        _ = contract.WorkspaceType;
-        using SetupPresentationSessionHandle session = contract.CreateSession();
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace("accessibility");
-
-        await Assert.That(workspace.AccessibilityStatus).IsEqualTo("NotEvaluated");
-    }
-
     private static async Task AssertInvalidAllocationTerminates(
-        SetupPresentationModelContract contract,
         long invalid)
     {
-        using SetupPresentationSessionHandle session = contract.CreateSession(41, invalid);
-        using PresentationWorkspaceHandle workspace = session.CreateWorkspace($"invalid-{invalid}", 2);
+        using var session = new SetupPresentationSession(new WeakReferenceMessenger(),
+            new ControlledGenerationAllocator(41, invalid));
+        var operation = new ControlledPresentationOperation(2);
+        using var workspace = CreateWorkspace(session, $"invalid-{invalid}", operation);
         Task first = workspace.ExecuteAsync(Guid.CreateVersion7());
-        await workspace.Operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
-        workspace.Complete(0, CoreResult(), ReadOnlyMemory<byte>.Empty);
+        await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
+        operation.Complete(0, CoreResult(), ReadOnlyMemory<byte>.Empty);
         await first.WaitAsync(SignalTimeout);
 
         await workspace.ExecuteAsync(Guid.CreateVersion7()).WaitAsync(SignalTimeout);
 
-        await Assert.That(workspace.GenerationValue).IsEqualTo(41);
+        await Assert.That(workspace.Generation.Value).IsEqualTo(41);
         await Assert.That(workspace.IsTerminated).IsTrue();
-        await Assert.That(workspace.Operation.Invocations[1].Started.Task.IsCompleted).IsFalse();
+        await Assert.That(operation.Invocations[1].Started.Task.IsCompleted).IsFalse();
     }
 
     private static (TaskCompletionSource<EventArgs> Signal, IDisposable Subscription)
         OrderedInvalidationSignal(
-            PresentationWorkspaceHandle workspace,
+            SetupPresentationWorkspace workspace,
             ControlledPresentationInvocation invocation)
     {
         var signal = new TaskCompletionSource<EventArgs>(
             TaskCreationOptions.RunContinuationsAsynchronously);
-        IDisposable subscription = workspace.SubscribeInvalidated(args =>
+        IDisposable subscription = SubscribeInvalidated(workspace, args =>
         {
             if (invocation.Cancelled.Task.IsCompleted)
                 signal.TrySetException(new InvalidOperationException(
@@ -951,6 +891,31 @@ public sealed class SetupPresentationModelTests
         });
         return (signal, subscription);
     }
+
+    private static SetupPresentationWorkspace CreateWorkspace(SetupPresentationSession session,
+        string id, ISetupPresentationOperation operation)
+    {
+        if (!SetupWorkspaceId.TryCreate(id, out SetupWorkspaceId workspaceId))
+            throw new InvalidOperationException("invalid-test-workspace");
+        return session.CreateWorkspace(workspaceId, operation);
+    }
+
+    private static CallbackSubscription SubscribeInvalidated(SetupPresentationWorkspace workspace,
+        Action<SetupOperationInvalidatedEventArgs> observer)
+    {
+        EventHandler<SetupOperationInvalidatedEventArgs> handler = (_, args) => observer(args);
+        workspace.Invalidated += handler;
+        return new CallbackSubscription(() => workspace.Invalidated -= handler);
+    }
+
+    private static SetupDefinition PublicDefinition() => SetupDefinitionCodec.ParseJson("""
+        {"schemaVersion":1,"familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
+         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example",
+         "entryPoints":["setup"],"locales":["en"],
+         "fields":[{"id":"title","type":"string","title":"Title","sensitivity":"public","disclosure":"guided"}],
+         "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+           "projection":{"op":"object","members":{"title":{"op":"copy","field":"title"}}}}]}
+        """u8.ToArray());
 
     private static async Task AssertValueFreeSignal(EventArgs signal)
     {

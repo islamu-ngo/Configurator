@@ -5,11 +5,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 
-public sealed partial class SetupPresentationWorkspace : ObservableRecipient,
-    IRecipient<SetupOperationSettledMessage>, IDisposable
+public sealed partial class SetupPresentationWorkspace : ObservableRecipient, IDisposable
 {
     private readonly object _gate = new();
-    private readonly HashSet<SettlementIdentity> _received = [];
     private readonly HashSet<OperationLifetime> _pending = [];
     private readonly ISetupPresentationOperation _operation;
     private readonly SetupPresentationSession _session;
@@ -23,8 +21,6 @@ public sealed partial class SetupPresentationWorkspace : ObservableRecipient,
     private bool _isBusy;
     private ReadOnlyMemory<byte> _output;
     private object? _result;
-    private string _publicInput = string.Empty;
-    private int _receivedCompletionCount;
 
     internal SetupPresentationWorkspace(SetupPresentationSession session, IMessenger messenger,
         SetupWorkspaceId workspaceId, ISetupPresentationOperation operation) : base(messenger)
@@ -37,16 +33,12 @@ public sealed partial class SetupPresentationWorkspace : ObservableRecipient,
 
     public event EventHandler<SetupCompletionDiscardedEventArgs>? CompletionDiscarded;
     public event EventHandler<SetupOperationInvalidatedEventArgs>? Invalidated;
-    public int MaxPublicInputLength => 4096;
     public SetupWorkspaceId WorkspaceId { get; }
-    public SetupAccessibilityStatus AccessibilityStatus => SetupAccessibilityStatus.NotEvaluated;
     public SetupOperationGeneration Generation { get { lock (_gate) return _generation; } }
     public bool IsBusy { get { lock (_gate) return _isBusy; } }
     public bool IsTerminated { get { lock (_gate) return _isTerminated; } }
     public ReadOnlyMemory<byte> Output { get { lock (_gate) return _output; } }
     public object? Result { get { lock (_gate) return _result; } }
-    public string PublicInput { get { lock (_gate) return _publicInput; } }
-    public int ReceivedCompletionCount { get { lock (_gate) return _receivedCompletionCount; } }
 
     public void Activate()
     {
@@ -59,20 +51,6 @@ public sealed partial class SetupPresentationWorkspace : ObservableRecipient,
     }
 
     public void Deactivate() => Invalidate(SetupOperationInvalidationReason.Deactivated, preserveResult: false);
-
-    public bool SetPublicInput(string value)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-        if (value.Length > MaxPublicInputLength) return false;
-        lock (_gate)
-        {
-            if (_disposed || _isTerminated) return false;
-            if (_publicInput == value) return true;
-            _publicInput = value;
-        }
-        OnPropertyChanged(nameof(PublicInput));
-        return true;
-    }
 
     [RelayCommand(CanExecute = nameof(CanExecuteOperation))]
     public async Task ExecuteAsync(Guid operationId)
@@ -156,17 +134,6 @@ public sealed partial class SetupPresentationWorkspace : ObservableRecipient,
     public Task WaitForPendingOperationsAsync()
     {
         lock (_gate) return Task.WhenAll(_pending.Select(operation => operation.Completion));
-    }
-
-    public void Receive(SetupOperationSettledMessage message)
-    {
-        if (message.SessionId != _session.SessionId || message.WorkspaceId == WorkspaceId) return;
-        lock (_gate)
-        {
-            if (_disposed || _isTerminated || !_received.Add(new(message.OperationId, message.Generation))) return;
-            _receivedCompletionCount++;
-        }
-        OnPropertyChanged(nameof(ReceivedCompletionCount));
     }
 
     internal void TerminateFromSession() =>
@@ -417,7 +384,6 @@ public sealed partial class SetupPresentationWorkspace : ObservableRecipient,
         }
     }
 
-    private readonly record struct SettlementIdentity(Guid OperationId, SetupOperationGeneration Generation);
     private readonly record struct State(object? Result, ReadOnlyMemory<byte> Output, bool IsBusy, bool IsTerminated, bool IsActive);
 
     [Flags]
