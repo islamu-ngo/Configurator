@@ -75,6 +75,10 @@ and secret-entry preference above the guided sections. **Prepare complete
 configuration** validates all required settings; **Prepare draft** defers
 missing secrets for local completion. Optional artifact import has a separate
 section below preparation. Help and source links remain available in the footer.
+Answer entry starts only after the public app is prepared and browser custody
+is acknowledged. If either step is incomplete or rejected, answer controls,
+artifact import and preparation stay unavailable; opening a definition alone
+does not bypass that boundary.
 
 The appearance controls offer system, light, dark and high-contrast palettes,
 and automatic, left-to-right or right-to-left direction. Only these bounded

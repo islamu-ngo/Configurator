@@ -13,6 +13,7 @@ using Microsoft.JSInterop;
 public partial class ConfigurationEditor
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
+    [Inject] private BrowserOfflinePolicy Offline { get; set; } = null!;
     [Inject] private IServiceProvider Services { get; set; } = null!;
     [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
     private SetupDefinition? _pinned;
@@ -51,7 +52,6 @@ public partial class ConfigurationEditor
     private bool _ready;
     private bool _beginPending;
     private bool _compact;
-    private BrowserOfflinePolicy? _offline;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
     private DefinitionDiagnostic? _importDiagnostic;
@@ -282,10 +282,11 @@ public partial class ConfigurationEditor
 
     private async Task PrepareAsync(bool draft)
     {
+        if (_disposed || !_ready) return;
         DefinitionFormModel form = _form!;
         long generation = _generation + 1;
         await InvalidateOutputAsync();
-        if (_disposed || generation != _generation || !ReferenceEquals(form, _form)) return;
+        if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
         _activeWorkflowStage = "prepare";
         SetupAnswerSnapshot answers;
         try { answers = form.Snapshot(); }
@@ -401,10 +402,11 @@ public partial class ConfigurationEditor
     }
     public async Task LoadAsync(Stream stream)
     {
+        if (_disposed || !_ready) return;
         DefinitionFormModel form = _form!;
         long generation = _generation + 1;
         await InvalidateOutputAsync();
-        if (_disposed || generation != _generation || !ReferenceEquals(form, _form)) return;
+        if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
         var cancellation = new CancellationTokenSource();
         _readCancellation = cancellation;
         byte[] buffer = new byte[1024 * 1024 + 1];
@@ -418,10 +420,10 @@ public partial class ConfigurationEditor
                 if (read == 0) break;
                 length += read;
             }
-            if (_disposed || generation != _generation || cancellation.IsCancellationRequested) return;
+            if (_disposed || !_ready || generation != _generation || cancellation.IsCancellationRequested) return;
             if (length > 1024 * 1024) { _status = "Import rejected: maximum size is 1 MiB."; _statusCode = "import-too-large"; return; }
             var result = await form.ImportAsync(_importArtifact, _ => Task.FromResult<ReadOnlyMemory<byte>>(buffer.AsMemory(0, length)), cancellation.Token);
-            if (_disposed || !ReferenceEquals(form, _form) || generation != _generation && !result.Succeeded) return;
+            if (_disposed || !_ready || !ReferenceEquals(form, _form) || generation != _generation && !result.Succeeded) return;
             _importDiagnostic = result.Diagnostic;
             _status = result.Succeeded ? "Artifact imported into this local workspace." : result.Code switch
             {
@@ -466,24 +468,32 @@ public partial class ConfigurationEditor
     public async Task BeginAsync()
     {
         if (_disposed) return;
+        _ready = false;
+        Invalidate();
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
         long generation = _generation;
         DefinitionFormModel form = _form!;
-        _offline ??= Services.GetService(typeof(BrowserOfflinePolicy)) as BrowserOfflinePolicy;
-        if (_offline is not null) await _offline.InitializeAsync();
+        await Offline.InitializeAsync();
         if (_disposed || generation != _generation) return;
-        ValueTask<bool> beginning = _offline?.BeginWorkspaceAsync() ?? ValueTask.FromResult(true);
-        long lease = _offline?.WorkspaceGeneration ?? 0;
+        ValueTask<bool> beginning = Offline.BeginWorkspaceAsync();
+        long lease = Offline.WorkspaceGeneration;
         bool ready = await beginning;
         if (_disposed || generation != _generation || !ReferenceEquals(form, _form)
-            || _offline is not null && lease != _offline.WorkspaceGeneration)
+            || lease != Offline.WorkspaceGeneration)
         {
-            if (_offline is not null) await _offline.EndWorkspaceAsync(lease);
+            await Offline.EndWorkspaceAsync(lease);
             return;
         }
         _ready = ready;
-        if (_ready) _offlineLease = lease;
-        if (!_ready) { _status = "Offline app preparation is incomplete. Finish loading public app assets before entering answers."; _statusCode = "app-preparation-incomplete"; }
+        if (_ready)
+        {
+            _offlineLease = lease;
+            _status = form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled
+                ? "Secret entry enabled for this workspace. Values remain masked."
+                : "Supply ordinary settings. Secret entry is disabled.";
+            _statusCode = "workspace-ready";
+        }
+        else { _status = "Offline app preparation is incomplete. Finish loading public app assets before entering answers."; _statusCode = "app-preparation-incomplete"; }
         if (!_disposed) StateHasChanged();
     }
     public void Invalidate() => _ = InvalidateOutputAsync();
@@ -552,7 +562,7 @@ public partial class ConfigurationEditor
             _focusField = null;
         }
         await Task.WhenAll(retirement, InvalidateOutputAsync());
-        if (_offline is not null) await _offline.EndWorkspaceAsync(lease);
+        await Offline.EndWorkspaceAsync(lease);
         _navigation?.Release(this, navigationLease);
     }
     public async ValueTask DisposeAsync()
@@ -569,7 +579,7 @@ public partial class ConfigurationEditor
         _form?.Dispose();
         _session.Dispose();
         await Task.WhenAll(retirement, InvalidateOutputAsync());
-        if (_offline is not null) await _offline.EndWorkspaceAsync(lease);
+        await Offline.EndWorkspaceAsync(lease);
         _navigation?.Release(this, navigationLease);
         GC.SuppressFinalize(this);
     }

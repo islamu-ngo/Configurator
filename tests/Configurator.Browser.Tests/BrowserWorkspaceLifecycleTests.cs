@@ -9,10 +9,87 @@ using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.JSInterop;
 
 public sealed class BrowserWorkspaceLifecycleTests
 {
+    [Test]
+    public async Task MissingCustodyPolicyCannotCreateAnAnswerWorkspace()
+    {
+        await using var context = BrowserFixture.Context();
+        context.Services.RemoveAll<BrowserOfflinePolicy>();
+        await Assert.That(() => context.Render<ConfigurationEditor>(
+            parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition)))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task PendingPublicPreparationCannotReadAnswerImports()
+    {
+        await using var context = BrowserFixture.Context();
+        await using var policyModule = new LifecycleModule { GateNextInitialize = true };
+        await using var exportModule = new LifecycleModule();
+        var javascript = new LifecycleJavascript(policyModule, exportModule);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        context.Services.AddSingleton<IJSRuntime>(javascript);
+        context.Services.AddSingleton(policy);
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        try
+        {
+            await policyModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+            await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+            using var input = new MemoryStream("""{"mode":"single","hostname":"pending-custody.test"}"""u8.ToArray());
+            await component.InvokeAsync(() => component.Instance.LoadAsync(input));
+            await Assert.That(input.Position).IsEqualTo(0);
+            await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+        }
+        finally { policyModule.Release.TrySetResult(); }
+    }
+
+    [Test]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    public async Task RejectedPreparationOrCustodyCannotReadAnswerImports(bool appPrepared, bool accepted)
+    {
+        await using var context = BrowserFixture.Context();
+        await using var policyModule = new LifecycleModule { AppPrepared = appPrepared, AcceptWorkspace = accepted };
+        await using var exportModule = new LifecycleModule();
+        var javascript = new LifecycleJavascript(policyModule, exportModule);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        context.Services.AddSingleton<IJSRuntime>(javascript);
+        context.Services.AddSingleton(policy);
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+        using var input = new MemoryStream("""{"mode":"single","hostname":"rejected-custody.test"}"""u8.ToArray());
+        await component.InvokeAsync(() => component.Instance.LoadAsync(input));
+        await Assert.That(input.Position).IsEqualTo(0);
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+    }
+
+    [Test]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    public async Task QueuedPreparationCannotBypassRejectedCustody(bool appPrepared, bool accepted)
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        source["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "mode")!["default"] = "single";
+        source["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "hostname")!["default"] = "blocked-preparation.test";
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        await using var policyModule = new LifecycleModule { AppPrepared = appPrepared, AcceptWorkspace = accepted };
+        await using var exportModule = new LifecycleModule();
+        var javascript = new LifecycleJavascript(policyModule, exportModule);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        context.Services.AddSingleton<IJSRuntime>(javascript);
+        context.Services.AddSingleton(policy);
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+        // Exercise a queued callback, not a new native click on a disabled control.
+        await component.Find("#prepare-draft").TriggerEventAsync("onclick", new MouseEventArgs());
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+    }
+
     [Test]
     public async Task WarmedDiscoveryAndReviewCannotRestoreRevokedOutputOrHeldImport()
     {
@@ -317,6 +394,9 @@ public sealed class BrowserWorkspaceLifecycleTests
 
     private sealed class LifecycleModule : IJSObjectReference
     {
+        internal bool AppPrepared { get; init; } = true;
+        internal bool AcceptWorkspace { get; init; } = true;
+        internal bool GateNextInitialize { get; set; }
         internal bool GateNextBegin { get; set; }
         internal bool GateNextInvalidate { get; set; }
         internal bool GateNextOpen { get; set; }
@@ -351,8 +431,10 @@ public sealed class BrowserWorkspaceLifecycleTests
                     _sessions[id] = (generation, identifier == "open" ? ((byte[])args[2]!).ToArray() : null);
                 }
             }
-            if (identifier == "beginWorkspace" && GateNextBegin || identifier == "invalidate" && GateNextInvalidate)
+            if (identifier == "initialize" && GateNextInitialize ||
+                identifier == "beginWorkspace" && GateNextBegin || identifier == "invalidate" && GateNextInvalidate)
             {
+                GateNextInitialize = false;
                 GateNextBegin = false;
                 GateNextInvalidate = false;
                 Started.TrySetResult();
@@ -373,8 +455,8 @@ public sealed class BrowserWorkspaceLifecycleTests
                     exposed = true;
                 }
             }
-            object? result = identifier == "initialize" ? new BrowserOfflineState(true, true, true)
-                : identifier == "beginWorkspace" ? true
+            object? result = identifier == "initialize" ? new BrowserOfflineState(AppPrepared, AppPrepared, true)
+                : identifier == "beginWorkspace" ? AcceptWorkspace
                 : identifier is "copy" or "download" or "reveal" ? exposed : null;
             return result is null ? default! : (TValue)result;
         }

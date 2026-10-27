@@ -74,6 +74,15 @@ is no proxy, target login or executable definition loader.
 
 ## Transient answer and output boundary
 
+`ConfigurationEditor` requires the registered `BrowserOfflinePolicy`; missing
+wiring fails component construction rather than granting readiness. Public app
+preparation and the current workspace's custody acknowledgment must both succeed
+before answer entry. Starting again revokes older operation eligibility. Import
+and preparation handlers also refuse unready work before consuming input or
+composing output, including queued callbacks; disabled markup is not their only
+authority check. Ordinary component fixtures use the real policy with explicit
+deterministic public-module responses, not an absent-policy success path.
+
 `BrowserNavigationState` retains only current-editor callbacks, never answers.
 `WorkspaceNavigationGuard` uses Blazor `NavigationLock` and a native browser
 confirmation. Cancel preserves the editor. Confirm invalidates pending work

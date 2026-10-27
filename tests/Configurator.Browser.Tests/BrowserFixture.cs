@@ -43,6 +43,7 @@ internal static class BrowserFixture
         context.Services.AddSingleton(registry ?? new BrowserDefinitionRegistry([Definition]));
         context.Services.AddScoped<AppearanceThemeService>();
         context.Services.AddScoped<BrowserNavigationState>();
+        context.Services.AddScoped<BrowserOfflinePolicy>();
         context.Services.AddScoped<WorkspaceSearchState>();
         context.Services.AddSingleton(new PopoverHost());
         context.Services.AddMudServices();
@@ -52,6 +53,10 @@ internal static class BrowserFixture
         appearance.SetupVoid("write", _ => true).SetVoidResult();
         appearance.SetupVoid("apply", _ => true).SetVoidResult();
         appearance.SetupVoid("unwatch", _ => true).SetVoidResult();
+        var offline = context.JSInterop.SetupModule("./pwa-lifecycle.js");
+        offline.Setup<BrowserOfflineState>("initialize", _ => true).SetResult(new BrowserOfflineState(true, true, true));
+        offline.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
+        offline.SetupVoid("endWorkspace", _ => true).SetVoidResult();
         var interactions = context.JSInterop.SetupModule("./workspace-interactions.js");
         interactions.SetupVoid("watch", _ => true).SetVoidResult();
         interactions.SetupVoid("unwatch", _ => true).SetVoidResult();

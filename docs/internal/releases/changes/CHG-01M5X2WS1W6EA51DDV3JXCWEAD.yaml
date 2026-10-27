@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5X2WS1W6EA51DDV3JXCWEAD
+Title: "require browser custody preparation before editing"
+Type: fix
+Scope: privacy
+Summary: "Require the real browser custody policy before enabling answer entry. Missing wiring cannot silently succeed; incomplete public preparation and rejected custody acknowledgment deny import and queued preparation as well as rendered controls."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Readiness requires successful public preparation and the current custody acknowledgment. Starting again invalidates older output/import eligibility; denied handlers do not read answer files or compose output."
+  Migration:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Answer entry, import and preparation remain unavailable when public app preparation or custody acknowledgment is incomplete or rejected. Selecting a definition does not grant readiness."
