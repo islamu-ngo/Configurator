@@ -152,7 +152,7 @@ No religious-legal decision is needed for the bounded MVP. Escalate unclear comp
 | E03 | `docs/public/browser.md`, `docs/public/native-output.md`, `docs/public/packaging.md`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/PROTECTED_ARTIFACTS.md`: current public transfer, Linux-only protected-save and advertised package limits. |
 | E04 | `dev/active/universal-configurator.md`, sections on semantic definitions, data-only admission, output kinds and MVP sequencing: user-owned strategy direction, not implemented behavior. |
 | E05 | `islamic-value-sensitive-design/workstreams/i-vsd-configurator-extraction.md`: historical extraction findings and bounded verification evidence. |
-| E06 | `dev/active/expand.md`: user-owned testing/scenario expansion idea, explicitly outside the configuration-preparation MVP proposed here. |
+| E06 | `docs/internal/RFC-automated-agent-testing-and-ephemeral-instances.md`: user-owned testing/scenario expansion idea, explicitly outside the configuration-preparation MVP proposed here. |
 | E07 | `dev/active/go-to-market.md` executive judgment: independent maintainer-owned definitions and optional discovery as strategy, not current publisher authority. |
 | E08 | `dev/active/universal-mvp/universal-mvp-plan.md` §§3, 5–6, 9–10; `universal-mvp-tasks.md` Phases 1–2, 4–6, 9; and `universal-mvp-context.md` review state, as bound by the three SHA-256 values in Review Metadata. These establish S1.2a raw-resource/canonical identity, S2.4 bundle preflight/partial outcomes, S3/S4 host/browser boundaries, Grafana candidate/clean-room gates and owned work; they are planned safeguards, not execution evidence. |
 

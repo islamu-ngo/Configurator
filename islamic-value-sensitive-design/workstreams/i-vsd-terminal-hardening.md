@@ -171,7 +171,7 @@ No unresolved provider-responsibility decision blocks review of the revised corr
 
 | ID | Evidence | Level and limit |
 | --- | --- | --- |
-| E01 | [Terminal CTO review](../../docs/internal/TERMINAL_CTO_REVIEW.md), source revision and executed observations | Implementation traceability and local probes; not stakeholder/operational certification. |
+| E01 | [Terminal CTO review](../../docs/internal/reports/TERMINAL_CTO_REVIEW.md), source revision and executed observations | Implementation traceability and local probes; not stakeholder/operational certification. |
 | E02 | `DefinitionFormModel`, `SetupTerminalFieldEditor`, `SetupTerminalWindow`, `SetupTerminalApplication` | Shared custody, presence, draft and local interaction source. |
 | E03 | `SetupPresentationWorkspace`, `SetupTerminalArtifactOperation` | Generation, fault and cleanup source plus audit probes. |
 | E04 | `ProtectedArtifactBundlePublisher`, `ProtectedArtifactWriter`, `UnixProtectedArtifactWriter` | Native protected/create-only and partial-prefix contract; Linux audit proof only. |

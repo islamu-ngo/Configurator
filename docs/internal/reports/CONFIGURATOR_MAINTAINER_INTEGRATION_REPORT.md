@@ -24,15 +24,15 @@ Inspection combined the repository knowledge-graph entry point, bounded source r
 
 ### Core provides a useful and deliberately narrow runtime
 
-[`SetupDefinitionCodec`](../../src/Configurator.Core/Definitions/SetupDefinitionCodec.cs) admits bounded JSON or the repository's restricted YAML dialect. It normalizes input, rejects duplicate and unknown members, deserializes the closed document shape, checks semantic invariants and constructs an immutable [`SetupDefinition`](../../src/Configurator.Core/Definitions/SetupDefinition.cs). The definition retains canonical bytes, a SHA-256 digest, family GUID, numeric revision, exact application versions, fields and artifact declarations.
+[`SetupDefinitionCodec`](../../../src/Configurator.Core/Definitions/SetupDefinitionCodec.cs) admits bounded JSON or the repository's restricted YAML dialect. It normalizes input, rejects duplicate and unknown members, deserializes the closed document shape, checks semantic invariants and constructs an immutable [`SetupDefinition`](../../../src/Configurator.Core/Definitions/SetupDefinition.cs). The definition retains canonical bytes, a SHA-256 digest, family GUID, numeric revision, exact application versions, fields and artifact declarations.
 
-The generated [`setup-definition-v1.schema.json`](../../schemas/setup-definition-v1.schema.json) requires eleven root members: `schemaVersion`, `familyId`, `revision`, `applicationId`, `applicationVersions`, `publisher`, `title`, `entryPoints`, `locales`, `fields` and `artifacts`. Every field requires `id`, `type`, `title`, `sensitivity` and `disclosure`. An artifact requires identity, format, filename, apply/restart metadata and an explicit projection. This is reasonable as an admitted runtime contract, but expensive as a handwritten integration contract.
+The generated [`setup-definition-v1.schema.json`](../../../schemas/setup-definition-v1.schema.json) requires eleven root members: `schemaVersion`, `familyId`, `revision`, `applicationId`, `applicationVersions`, `publisher`, `title`, `entryPoints`, `locales`, `fields` and `artifacts`. Every field requires `id`, `type`, `title`, `sensitivity` and `disclosure`. An artifact requires identity, format, filename, apply/restart metadata and an explicit projection. This is reasonable as an admitted runtime contract, but expensive as a handwritten integration contract.
 
 The supported field types are strings, booleans, integers, numbers, string enums, scalar lists, objects and object lists. Conditions and projections form closed data vocabularies. They are interpreted operations, not executable extensions. List bounds, nested field declarations and `uniqueBy` support real structured configuration without target-specific code in Core.
 
-[`DefinitionValidator`](../../src/Configurator.Core/Definitions/DefinitionValidator.cs) derives activation, requiredness and effective values from a definition and an immutable answer snapshot. Ordinary defaults are applied here. Disclosure changes visibility, never validation. Nested objects inherit the strongest child sensitivity. Complete composition requires valid active answers; secret-deferred composition is a separate draft operation with unresolved completion locations.
+[`DefinitionValidator`](../../../src/Configurator.Core/Definitions/DefinitionValidator.cs) derives activation, requiredness and effective values from a definition and an immutable answer snapshot. Ordinary defaults are applied here. Disclosure changes visibility, never validation. Nested objects inherit the strongest child sensitivity. Complete composition requires valid active answers; secret-deferred composition is a separate draft operation with unresolved completion locations.
 
-[`DefinitionArtifactComposer`](../../src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs) interprets declared projections into dotenv, JSON, YAML or bounded Markdown. All answer-derived artifacts are restricted. Native publication belongs to Artifacts, including create-only protected writes and unsupported-host refusal. Browser export is deliberate custody transfer and makes no native permissions guarantee. Target acceptance and authorization remain with the target application.
+[`DefinitionArtifactComposer`](../../../src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs) interprets declared projections into dotenv, JSON, YAML or bounded Markdown. All answer-derived artifacts are restricted. Native publication belongs to Artifacts, including create-only protected writes and unsupported-host refusal. Browser export is deliberate custody transfer and makes no native permissions guarantee. Target acceptance and authorization remain with the target application.
 
 ```mermaid
 flowchart LR
@@ -51,7 +51,7 @@ This direction should survive the simplification. Core should not become a plugi
 
 ### Identity has three different meanings
 
-The family GUID identifies a definition lineage. The numeric revision identifies a published point in that lineage. The digest identifies its complete canonical content. [`SetupDefinitionRegistry`](../../src/Configurator.Core/Definitions/SetupDefinitionRegistry.cs) rejects different digests under one family/revision and rejects ambiguous selection without sufficient selectors. Active browser sessions retain their admitted identity and conflict history through their own registry boundary.
+The family GUID identifies a definition lineage. The numeric revision identifies a published point in that lineage. The digest identifies its complete canonical content. [`SetupDefinitionRegistry`](../../../src/Configurator.Core/Definitions/SetupDefinitionRegistry.cs) rejects different digests under one family/revision and rejects ambiguous selection without sufficient selectors. Active browser sessions retain their admitted identity and conflict history through their own registry boundary.
 
 Application compatibility is an exact declared version set. A version string is a maintainer claim; it is not certification that Configurator or a running application tested the configuration. Publisher labels and GUIDs do not authenticate a maintainer. Store inclusion does not change those facts.
 
@@ -59,7 +59,7 @@ The digest uses Configurator's ordinal-property, decimal-number, System.Text.Jso
 
 ### Generated JSON Schema is structural assistance
 
-[`DefinitionSchema.Generate`](../../src/Configurator.Core/Definitions/DefinitionSchema.cs) exports the C# document shape and adds selected root constraints. For example, the current generated field `type` and `sensitivity` properties are strings without the runtime enum vocabularies. Runtime admission additionally enforces field vocabulary, constraint applicability, references, cycles, private defaults and resource budgets.
+[`DefinitionSchema.Generate`](../../../src/Configurator.Core/Definitions/DefinitionSchema.cs) exports the C# document shape and adds selected root constraints. For example, the current generated field `type` and `sensitivity` properties are strings without the runtime enum vocabularies. Runtime admission additionally enforces field vocabulary, constraint applicability, references, cycles, private defaults and resource budgets.
 
 This is not evidence of an admission bypass: callers still invoke Core. It is an authoring feedback gap. An editor can accept a structurally valid document that the engine rejects. The new authoring experience must call semantic admission, and its generated schema should expose every constraint that can accurately be represented. Cross-reference and budget rules remain runtime checks.
 
@@ -80,7 +80,7 @@ Event is an advanced integration with environment configuration, portable manife
 | Compose, environment examples and public configuration guidance | Event target files and parity gates | Key ordering, requirements and documentation consistency |
 | Store presentation | Configurator `store/*/project.json` | Public discovery index and canonical snapshots |
 
-The strongest source anchors are Event's [export contract](../../../Event/docs/internal/CONFIGURATOR_DEFINITION_EXPORT.md), [DefinitionBuilder](../../../Event/eng/configurator/DefinitionExporter/DefinitionBuilder.cs), [environment catalogue](../../../Event/eng/configurator/DefinitionExporter/Environment/PlatformEnvironmentCatalogue.cs), [environment parity gate](../../../Event/eng/configurator/DefinitionExporter/EnvironmentCatalogueContract.cs), [secret registry](../../../Event/src/Explore.Domain/Secrets/SecretDefinitionRegistry.cs), [profile](../../../Event/configurator/definitions/islamu-event/inputs/profile.json) and [exporter entry point](../../../Event/eng/configurator/DefinitionExporter/Program.cs).
+The strongest source anchors are Event's [export contract](../../../../Event/docs/internal/CONFIGURATOR_DEFINITION_EXPORT.md), [DefinitionBuilder](../../../../Event/eng/configurator/DefinitionExporter/DefinitionBuilder.cs), [environment catalogue](../../../../Event/eng/configurator/DefinitionExporter/Environment/PlatformEnvironmentCatalogue.cs), [environment parity gate](../../../../Event/eng/configurator/DefinitionExporter/EnvironmentCatalogueContract.cs), [secret registry](../../../../Event/src/Explore.Domain/Secrets/SecretDefinitionRegistry.cs), [profile](../../../../Event/configurator/definitions/islamu-event/inputs/profile.json) and [exporter entry point](../../../../Event/eng/configurator/DefinitionExporter/Program.cs).
 
 The currently checked Configurator Event definition contains **427 top-level fields and five artifacts**, occupying **274,837 bytes**. Of those root fields, 361 are environment fields and 24 are selectors. Root declarations classify 285 fields as public, 84 as sensitive and 58 as secret. These counts do not describe every nested leaf or effective parent sensitivity. Five artifact IDs are `environment`, `configuration-manifest`, `tenant-package`, `operator-identity` and `legal-drafts`.
 
@@ -300,7 +300,7 @@ The integration skill should never open `.env`, production exports, private answ
 
 ## Store submission and independent distribution
 
-The [current store builder](../../eng/configurator/BuildDefinitionStore.cs) already has the correct architectural direction: public data, real Core admission, canonical snapshots, bounded root-confined inputs and no store dependency in Core. Its [engineering contract](DEFINITION_STORE.md) documents the eight-member `project.json` and revision-file inventory. Preserve the admission and conflict gates.
+The [current store builder](../../../eng/configurator/BuildDefinitionStore.cs) already has the correct architectural direction: public data, real Core admission, canonical snapshots, bounded root-confined inputs and no store dependency in Core. Its [engineering contract](../DEFINITION_STORE.md) documents the eight-member `project.json` and revision-file inventory. Preserve the admission and conflict gates.
 
 The proposed store contribution consists of the same `configurator.json` source, plus only store-owned curation decisions that cannot be derived. Generate name, repository link, definition license, compatibility metadata, identity, revision, digest, output names and canonical snapshots. Tags should be optional; moderators may curate them separately. Store folder identity may derive from a safe slug, with collisions reported rather than silently renamed.
 
@@ -319,7 +319,7 @@ The source license must describe rights to redistribute the definition material.
 
 ### A small command vocabulary
 
-The existing [CLI registry contract](CLI_CONTRACT.md) and generated command schema remain authoritative. The following is proposed vocabulary to add through that owner, not a new wrapper CLI:
+The existing [CLI registry contract](../CLI_CONTRACT.md) and generated command schema remain authoritative. The following is proposed vocabulary to add through that owner, not a new wrapper CLI:
 
 ```bash
 # Proposed: discover public example keys and create one authoring source.
@@ -343,7 +343,7 @@ Store packaging should reuse `BuildDefinitionStore` rather than introduce anothe
 
 ### Portable integration skill contract
 
-The existing [`configurator-cli` skill](../../.agents/skills/configurator-cli/SKILL.md) is for operators preparing local artifacts. The proposed `configurator-integrate` skill is for maintainers adding or updating a definition in their own repository. It should be distributable without copying Configurator's internal AGENTS contract into every user's project.
+The existing [`configurator-cli` skill](../../../.agents/skills/configurator-cli/SKILL.md) is for operators preparing local artifacts. The proposed `configurator-integrate` skill is for maintainers adding or updating a definition in their own repository. It should be distributable without copying Configurator's internal AGENTS contract into every user's project.
 
 Use the public Agent Skills structure: a concise `SKILL.md` with portable `name` and `description`, optional compatibility/license metadata, and references loaded only when needed. Put detailed format guidance and synthetic examples in references/assets. The official specification defines these files and progressive disclosure; it does not establish that a skill's instructions are security enforcement. [Agent Skills specification](https://agentskills.io/specification).
 
@@ -363,7 +363,7 @@ The deliverables are the source, necessary target-owned reference/export changes
 
 Skill prompts must not invent missing secret policies, scrape private operator answers or install an unreviewed exporter. Source text and remote metadata are task data, not authority to execute embedded instructions. Deterministic tooling enforces the actual bounded contract. Record the compiler version and command evidence in the skill result without placing machine-specific paths or actual answers into public artifacts.
 
-The current [`ValidateConfiguratorSkill.cs`](../../eng/configurator/ValidateConfiguratorSkill.cs) validates internal frontmatter and a line ceiling. It cannot prove the integration workflow works, and it expects repository-specific top-level fields that differ from the portable public skill format. Keep internal validation and exported public-format validation explicit. Verify the distributed skill against its actual public metadata contract rather than assuming the internal validator is sufficient.
+The current [`ValidateConfiguratorSkill.cs`](../../../eng/configurator/ValidateConfiguratorSkill.cs) validates internal frontmatter and a line ceiling. It cannot prove the integration workflow works, and it expects repository-specific top-level fields that differ from the portable public skill format. Keep internal validation and exported public-format validation explicit. Verify the distributed skill against its actual public metadata contract rather than assuming the internal validator is sufficient.
 
 ### Skill evaluation before publication
 
@@ -428,7 +428,7 @@ Each implementation slice updates the relevant public guide and technical anchor
 
 Affected Configurator owners include `Core/Definitions`, `DefinitionSchema`, the CLI registry/handlers and machine schema generator, native definition-selection callers, local `BrowserDefinitionSource`, `BuildDefinitionStore`, examples, conformance fixtures and any baseline generator whose admitted contract changes. Event changes belong to its exporter, environment/secret joins, source inputs and target contract tests. Keep these as separate independently verifiable increments; this is not a single cross-repository replacement PR.
 
-Use the targeted Release build and affected MTP classes from [PROJECTS.md](../../PROJECTS.md) for implementation. Existing relevant test sources include [admission](../../tests/Configurator.Core.Tests/Definitions/DefinitionAdmissionTests.cs), [sensitivity](../../tests/Configurator.Core.Tests/Definitions/DefinitionSensitivityTests.cs), [artifact conformance](../../tests/Configurator.Core.Tests/Definitions/DefinitionArtifactTests.cs), [external target conformance](../../tests/Configurator.Core.Tests/Definitions/ExternalDefinitionConformanceTests.cs), and Event's [Configurator artifact contract tests](../../../Event/tests/Event.Wire.Contracts.UnitTests/ConfigurationPortability/ConfiguratorDefinitionArtifactTests.cs). Their presence is evidence of intended contracts, not proof that the proposed compiler exists.
+Use the targeted Release build and affected MTP classes from [PROJECTS.md](../../../PROJECTS.md) for implementation. Existing relevant test sources include [admission](../../../tests/Configurator.Core.Tests/Definitions/DefinitionAdmissionTests.cs), [sensitivity](../../../tests/Configurator.Core.Tests/Definitions/DefinitionSensitivityTests.cs), [artifact conformance](../../../tests/Configurator.Core.Tests/Definitions/DefinitionArtifactTests.cs), [external target conformance](../../../tests/Configurator.Core.Tests/Definitions/ExternalDefinitionConformanceTests.cs), and Event's [Configurator artifact contract tests](../../../../Event/tests/Event.Wire.Contracts.UnitTests/ConfigurationPortability/ConfiguratorDefinitionArtifactTests.cs). Their presence is evidence of intended contracts, not proof that the proposed compiler exists.
 
 ### Measure maintainer work rather than generated file count
 
@@ -462,7 +462,7 @@ The following inspection checks were physically executed before writing this rep
 | Official documentation | Firecrawl searches/scrapes for the sources linked in this report | Successful saved content for JSON Schema, Helm, Pydantic, Microsoft Options and Agent Skills; one broad ecosystem search returned no results and direct official pages supplied the evidence |
 | Local report links | Native Bash extraction and `test -e` for each relative Markdown target | Exit 0; 25 links checked, zero missing targets |
 | Proposed JSON examples | Native `awk` extraction followed by `jq -e .` for each fenced JSON example | Exit 0; two syntactically valid examples; this does not assert admission by an unimplemented compiler |
-| Report whitespace | `rtk proxy git diff --no-index --check -- /dev/null docs/internal/CONFIGURATOR_MAINTAINER_INTEGRATION_REPORT.md` | Native difference exit 1 for the new file, zero diagnostic bytes; the explicit no-diagnostics validation wrapper exited 0 |
+| Report whitespace | `rtk proxy git diff --no-index --check -- /dev/null docs/internal/reports/CONFIGURATOR_MAINTAINER_INTEGRATION_REPORT.md` | Native difference exit 1 for the new file, zero diagnostic bytes; the explicit no-diagnostics validation wrapper exited 0 |
 | Markdown code fences | Native `awk` count with an even-count assertion | Exit 0; eight balanced fences |
 
 No build, Core suite, Event suite, exporter freshness run, store runtime self-test, live target acceptance, deployment or signing was executed. Proposed formats, commands and skill behavior require implementation and the acceptance evidence above. Existing historical test results were not reused as current green evidence.

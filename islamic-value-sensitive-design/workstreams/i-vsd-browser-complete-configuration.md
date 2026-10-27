@@ -121,7 +121,7 @@ Bounded independent privacy/source review and published offline/cache checks com
 
 - E01: explicit user request for one-link, self-sufficient browser setup and voluntary secret/offline modes.
 - E02: `AGENTS.md`, matching intents, `PROJECTS.md`, `AI_REVIEW.md`, Quick Reference, path rules and Foundation at the commit above.
-- E03: `docs/public/browser.md`, `docs/public/launch-integration.md`, `docs/internal/LAUNCH_CONTRACT.md`, and the supplied `docs/internal/ISLAMU_CONFIGURATOR_AND_EVENT_READINESS_REPORT.md`.
+- E03: `docs/public/browser.md`, `docs/public/launch-integration.md`, `docs/internal/LAUNCH_CONTRACT.md`, and the supplied `docs/internal/reports/ISLAMU_CONFIGURATOR_AND_EVENT_READINESS_REPORT.md`.
 - E04: `dev/active/universal-configurator.md` browser secret/artifact/offline headings; `dev/active/go-to-market.md` direct source handoff and voluntary browser-secret headings. Both are user-owned and preserved.
 - E05: Core definition codec/validator/composer, shared form/workspace contracts, browser editor/template and affected test owners; independently counted 432 top-level Event fields: 285 public, 89 sensitive, 58 secret; 48 public enum/boolean choices.
 - E06: native restricted-output and shared generation/owned-buffer contracts; existing browser boundary/lifecycle tests inspected, not run.

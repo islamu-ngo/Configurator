@@ -194,7 +194,7 @@ public authoring/runtime definitions from private answer workspaces, and package
 production from native host/protected-save qualification; historical transfer and
 review reports remain evidence, not current product guarantees.
 
-The [Terminal CTO review](../TERMINAL_CTO_REVIEW.md) records the point-in-time
+The [Terminal CTO review](../reports/TERMINAL_CTO_REVIEW.md) records the point-in-time
 2026-10-14 assessment of terminal interaction, security, maintainability and
 qualification, with executed checks and reproduced failures. It is an
 assessment, not a replacement for the client or shared-state contracts.

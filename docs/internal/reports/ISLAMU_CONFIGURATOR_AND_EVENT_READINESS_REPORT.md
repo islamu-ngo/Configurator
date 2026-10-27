@@ -1,9 +1,9 @@
 # ISLAMU Configurator Core & Event Integration Readiness Report
 
 > **Target Audience:** Maintainers, Architects, and Integrators  
-> **Repository:** [`ISLAMU/Configurator`](file:///home/amir/ISLAMU/Github/Configurator) & [`ISLAMU/Event`](file:///home/amir/ISLAMU/Github/Event)  
+> **Repository:** [`ISLAMU/Configurator`](../../../) & [`ISLAMU/Event`](../../../../Event)  
 > **Evaluation Date:** October 2026  
-> **Source Documents Inspected:** All documentation under [`docs/`](file:///home/amir/ISLAMU/Github/Configurator/docs), [`examples/`](file:///home/amir/ISLAMU/Github/Configurator/examples), and [`Event/configurator/`](file:///home/amir/ISLAMU/Github/Event/configurator)
+> **Source Documents Inspected:** All documentation under [`docs/`](../../), [`examples/`](../../../examples), and [`Event/configurator/`](../../../../Event/configurator)
 
 ---
 
@@ -11,9 +11,9 @@
 
 | Question | Verdict | Summary / Rationale |
 |---|---|---|
-| **Is `Configurator.Core` implemented & ready?** | **YES (Complete & Verified)** | [`Configurator.Core`](file:///home/amir/ISLAMU/Github/Configurator/src/Configurator.Core) is fully implemented, passes all 75 unit/invariant tests, and has 0 dependencies on Event, databases, or network runtimes. |
+| **Is `Configurator.Core` implemented & ready?** | **YES (Complete & Verified)** | [`Configurator.Core`](../../../src/Configurator.Core) is fully implemented, passes all 75 unit/invariant tests, and has 0 dependencies on Event, databases, or network runtimes. |
 | **Can a link to the deployed Blazor WebApp be the direct configuration experience for Event?** | **NO (By Architectural Design)** | Per Invariant 4 (Private-to-Public Boundary), the browser accepts **only public enum/boolean choices** (48 fields out of 432). All 384 secrets, strings, and sensitive fields have **no inputs in the browser**. The browser outputs a partial public template, never full `.env` or manifests. |
-| **Are the configuration manifest schemas and projections working?** | **YES (Fully Working)** | [`configuration-manifest-v1alpha2.schema.json`](file:///home/amir/ISLAMU/Github/Event/schemas/configuration-manifest-v1alpha2.schema.json) in Event and [`setup-definition-v1.schema.json`](file:///home/amir/ISLAMU/Github/Configurator/schemas/setup-definition-v1.schema.json) in Configurator are fully valid. The projection matches host expectation vectors byte-for-byte. |
+| **Are the configuration manifest schemas and projections working?** | **YES (Fully Working)** | [`configuration-manifest-v1alpha2.schema.json`](../../../../Event/schemas/configuration-manifest-v1alpha2.schema.json) in Event and [`setup-definition-v1.schema.json`](../../../schemas/setup-definition-v1.schema.json) in Configurator are fully valid. The projection matches host expectation vectors byte-for-byte. |
 | **Is `examples/islamu-event` fully ready?** | **YES (For Fixed Reference Shape)** | All 5 artifact vectors (`environment.env`, `configuration-manifest.json`, `tenant-package.json`, `operator-identity.json`, `legal-drafts.json`) pass strict bit-exact verification. However, it materializes a finite 2-tenant reference shape. Dynamic cardinality requires exporter re-generation. |
 | **What is missing to put a link in Event's README?** | **Deployment & Framing** | 1) A deployed static web host (e.g. Cloudflare Pages) with SPA routing fallback; 2) Accurate user documentation explaining that the web link creates a **public preset template**, while full deployment configuration requires the native CLI/Terminal tool to supply credentials. |
 
@@ -21,7 +21,7 @@
 
 ## 2. Architecture & Capabilities of `Configurator.Core`
 
-[`Configurator.Core`](file:///home/amir/ISLAMU/Github/Configurator/src/Configurator.Core) is a self-contained, offline-first configuration evaluation and artifact preparation engine. It operates with zero target runtime dependencies (no database, no HTTP APIs, no Aspire, no wire DTOs).
+[`Configurator.Core`](../../../src/Configurator.Core) is a self-contained, offline-first configuration evaluation and artifact preparation engine. It operates with zero target runtime dependencies (no database, no HTTP APIs, no Aspire, no wire DTOs).
 
 ```mermaid
 flowchart TD
@@ -44,12 +44,12 @@ flowchart TD
 ### Key Technical Pillars in Core:
 
 1. **Deterministic Canonical Identity:**
-   - Definitions are admitted through [`SetupDefinitionCodec`](file:///home/amir/ISLAMU/Github/Configurator/src/Configurator.Core/Definitions/SetupDefinitionCodec.cs).
+   - Definitions are admitted through [`SetupDefinitionCodec`](../../../src/Configurator.Core/Definitions/SetupDefinitionCodec.cs).
    - Core computes an ordinal, decimal-normalized SHA-256 digest covering the entire admitted document. Family GUIDs and publisher labels provide identity names, but the **computed digest** provides tamper-evident binding.
 2. **Immutable Answer Workspaces:**
-   - [`SetupAnswerSnapshot`](file:///home/amir/ISLAMU/Github/Configurator/src/Configurator.Core/Definitions/SetupAnswerSnapshot.cs) isolates user inputs with generational revision tracking to guarantee thread-safe, stale-free evaluations.
+   - [`SetupAnswerSnapshot`](../../../src/Configurator.Core/Definitions/SetupDefinition.cs) isolates user inputs with generational revision tracking to guarantee thread-safe, stale-free evaluations.
 3. **Declarative Projection Engine:**
-   - [`DefinitionArtifactComposer`](file:///home/amir/ISLAMU/Github/Configurator/src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs) supports formats: `dotenv`, `json`, `yaml`, and `markdown`.
+   - [`DefinitionArtifactComposer`](../../../src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs) supports formats: `dotenv`, `json`, `yaml`, and `markdown`.
    - Projection operations include: `literal`, `copy`, `object`, `list`, `repeat` (bounded iteration), `index`, and `omit`.
    - Cycle detection and finite recursion limits prevent infinite loops.
 4. **Strict Security Boundaries:**
@@ -60,7 +60,7 @@ flowchart TD
 
 ## 3. The Blazor WebApp Experience vs. ISLAMU Event Reality
 
-A critical misunderstanding to avoid is assuming that the Blazor WebAssembly app ([`Configurator.Browser`](file:///home/amir/ISLAMU/Github/Configurator/src/Configurator.Browser)) can serve as the **direct, standalone setup wizard** for ISLAMU Event.
+A critical misunderstanding to avoid is assuming that the Blazor WebAssembly app ([`Configurator.Browser`](../../../src/Configurator.Browser)) can serve as the **direct, standalone setup wizard** for ISLAMU Event.
 
 ### Why the Blazor WebApp Cannot Do Full Event Configuration:
 
@@ -120,27 +120,27 @@ sequenceDiagram
 ### A. Schemas Status
 
 1. **ISLAMU Event Manifest Schema:**
-   - Path: [`Event/schemas/configuration-manifest-v1alpha2.schema.json`](file:///home/amir/ISLAMU/Github/Event/schemas/configuration-manifest-v1alpha2.schema.json)
+   - Path: [`Event/schemas/configuration-manifest-v1alpha2.schema.json`](../../../../Event/schemas/configuration-manifest-v1alpha2.schema.json)
    - Status: **Fully working and valid JSON Schema (Draft 2020-12)**. Governs `$schema`, `apiVersion`, `kind`, `metadata`, and `spec` (instance settings, legal documents, and tenants).
 2. **ISLAMU Event Tenant Package Schema:**
-   - Path: [`Event/schemas/tenant-configuration-package-v1alpha2.schema.json`](file:///home/amir/ISLAMU/Github/Event/schemas/tenant-configuration-package-v1alpha2.schema.json)
+   - Path: [`Event/schemas/tenant-configuration-package-v1alpha2.schema.json`](../../../../Event/schemas/tenant-configuration-package-v1alpha2.schema.json)
    - Status: **Fully working and valid**.
 3. **Configurator Definition Schema:**
-   - Path: [`Configurator/schemas/setup-definition-v1.schema.json`](file:///home/amir/ISLAMU/Github/Configurator/schemas/setup-definition-v1.schema.json)
+   - Path: [`Configurator/schemas/setup-definition-v1.schema.json`](../../../schemas/setup-definition-v1.schema.json)
    - Status: **Fresh and verified**. Enforces the structure of setup definitions admitted by Configurator Core.
 4. **Configurator CLI Command Schema:**
-   - Path: [`Configurator/schemas/islamu-configurator-command-v1.schema.json`](file:///home/amir/ISLAMU/Github/Configurator/schemas/islamu-configurator-command-v1.schema.json)
+   - Path: [`Configurator/schemas/islamu-configurator-command-v2.schema.json`](../../../schemas/islamu-configurator-command-v2.schema.json)
    - Status: **Fresh and verified**. Enforces machine envelopes for the CLI.
 
 ### B. Manifest Projection in `examples/islamu-event`
 
-In [`examples/islamu-event/`](file:///home/amir/ISLAMU/Github/Configurator/examples/islamu-event):
-- Definition: [`setup-definition.json`](file:///home/amir/ISLAMU/Github/Configurator/examples/islamu-event/setup-definition.json) (Family: `a4bcfaa6-9979-43e5-b1f5-00d552618cdf`, Revision: `4`, Canonical Digest: `33661343436560b8004903d6efe569c6e3342d278f3fae6e9df49fad9e0e65bf`).
-- Tested Inputs: [`answers/configuration-manifest.json`](file:///home/amir/ISLAMU/Github/Configurator/examples/islamu-event/answers/configuration-manifest.json).
-- Generated Output: [`expected/configuration-manifest.json`](file:///home/amir/ISLAMU/Github/Configurator/examples/islamu-event/expected/configuration-manifest.json).
+In [`examples/islamu-event/`](../../../examples/islamu-event):
+- Definition: [`definition.json`](../../../examples/islamu-event/definition.json) (Family: `a4bcfaa6-9979-43e5-b1f5-00d552618cdf`, Revision: `4`, Canonical Digest: `33661343436560b8004903d6efe569c6e3342d278f3fae6e9df49fad9e0e65bf`).
+- Tested Inputs: [`answers/configuration-manifest.json`](../../../examples/islamu-event/answers/configuration-manifest.json).
+- Generated Output: [`expected/configuration-manifest.json`](../../../examples/islamu-event/expected/configuration-manifest.json).
 
 **Verification Evidence:**
-- [`ExternalDefinitionConformanceTests.cs`](file:///home/amir/ISLAMU/Github/Configurator/tests/Configurator.Core.Tests/Definitions/ExternalDefinitionConformanceTests.cs) passes with **100% byte equality** across all five artifacts.
+- [`ExternalDefinitionConformanceTests.cs`](../../../tests/Configurator.Core.Tests/Definitions/ExternalDefinitionConformanceTests.cs) passes with **100% byte equality** across all five artifacts.
 - Running `DefinitionExporter --check` from Event validates that Event's host parser agrees with the generated outputs:
   ```text
   definition-current:family=a4bcfaa6-9979-43e5-b1f5-00d552618cdf:revision=4:digest=33661343436560b8004903d6efe569c6e3342d278f3fae6e9df49fad9e0e65bf:fields=432:artifacts=5
@@ -161,7 +161,7 @@ While the engine and reference schemas are fully functioning, four key gaps exis
 - **The Consequence:** An administrator cannot arbitrarily add 3, 5, or 10 tenants through this specific setup definition. Preparing a deployment with different tenant cardinality requires running Event's `DefinitionExporter --export` to emit a new definition revision with the desired field structure.
 
 ### Gap 3: Native Protected Save is Linux x64-Only
-- **The Issue:** Native restricted writes ([`IProtectedArtifactWriter`](file:///home/amir/ISLAMU/Github/Configurator/src/Configurator.Artifacts/IProtectedArtifactWriter.cs)) enforce `0600` owner-only create-only semantics using Linux anonymous inodes and atomic linking.
+- **The Issue:** Native restricted writes ([`ProtectedArtifactWriter`](../../../src/Configurator.Artifacts/ProtectedArtifactWriter.cs)) enforce `0600` owner-only create-only semantics using Linux anonymous inodes and atomic linking.
 - **The Consequence:** On Windows or macOS developer workstations, the native CLI refuses to write configuration files and fails closed. Operators must run the CLI on Linux (or inside a Linux container/WSL2).
 
 ### Gap 4: Documentation / User Expectation Gap in Event README
@@ -172,7 +172,7 @@ While the engine and reference schemas are fully functioning, four key gaps exis
 
 ## 6. How to Put the Link in `Event/README.md` (Checklist)
 
-To place a working link in `/home/amir/ISLAMU/Github/Event/README.md`, follow these steps:
+To place a working link in `Event/README.md`, follow these steps:
 
 ### Step 1: Deploy `Configurator.Browser`
 Publish and deploy the Blazor WASM client to your static hosting provider:
@@ -197,7 +197,7 @@ https://<configurator-origin>/launch/a4bcfaa6-9979-43e5-b1f5-00d552618cdf?appVer
 
 ### Step 3: Recommended Framing in `Event/README.md`
 
-Replace lines 100–111 in [`Event/README.md`](file:///home/amir/ISLAMU/Github/Event/README.md#L100-L111) with clear two-tier guidance:
+Replace lines 100–111 in [`Event/README.md`](../../../../Event/README.md#L100-L111) with clear two-tier guidance:
 
 ```markdown
 ### ⚙️ Configuration Preparation
