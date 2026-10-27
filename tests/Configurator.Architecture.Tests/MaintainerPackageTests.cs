@@ -11,10 +11,9 @@ namespace Configurator.Architecture.Tests;
 public sealed class MaintainerPackageTests
 {
     [Test]
-    public async Task InstalledLinuxCliValidatesAndCreatesProtectedArtifactWithoutOverwriting()
+    public async Task InstalledCliValidatesAndEnforcesHostProtectedCreateContract()
     {
-        if (!OperatingSystem.IsLinux()) return;
-        string package = Path.Combine(ReleaseTestPaths.PackageRoot, "cli/linux-x64");
+        string package = ReleaseTestPaths.NativeCliPackage;
         string directory = Path.Combine(Path.GetTempPath(), "configurator-installed-cli-" + Guid.NewGuid().ToString("N"));
         await Assert.That(Path.GetRelativePath(ReleaseTestPaths.Root, directory)
             .StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)).IsTrue();
@@ -27,8 +26,9 @@ public sealed class MaintainerPackageTests
                 Directory.CreateDirectory(Path.Combine(installed, Path.GetRelativePath(package, source)));
             foreach (string source in Directory.EnumerateFiles(package, "*", SearchOption.AllDirectories))
                 File.Copy(source, Path.Combine(installed, Path.GetRelativePath(package, source)));
-            string executable = Path.Combine(installed, "islamu-configurator");
-            File.SetUnixFileMode(executable, File.GetUnixFileMode(Path.Combine(package, "islamu-configurator")));
+            string executable = Path.Combine(installed, ReleaseTestPaths.CliExecutableName);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(executable, File.GetUnixFileMode(Path.Combine(package, ReleaseTestPaths.CliExecutableName)));
 
             string workspace = Path.Combine(directory, "workspace");
             Directory.CreateDirectory(workspace);
@@ -57,15 +57,24 @@ public sealed class MaintainerPackageTests
             string[] create = ["artifact", "create", "--definition", "definition.json", "--artifact", "config",
                 "--input", "answers.json", "--output", "service.json", "--machine"];
             var written = await ReleaseTestPaths.RunInDirectory(workspace, executable, create);
+            if (!OperatingSystem.IsLinux())
+            {
+                await AssertInstalledReceipt(written, "create", 74, "blocked", expected);
+                await Assert.That(File.Exists(artifact)).IsFalse();
+                await Assert.That(Directory.GetFiles(workspace).Length).IsEqualTo(2);
+                Console.WriteLine($"COHORT installed-protected-create unsupported-refusal-verified rid={ReleaseTestPaths.NativeCliRid}");
+                return;
+            }
             await AssertInstalledReceipt(written, "create", 0, "written", expected);
-            await Assert.That(await File.ReadAllBytesAsync(artifact)).IsEquivalentTo(expected);
+            await Assert.That((await File.ReadAllBytesAsync(artifact)).SequenceEqual(expected)).IsTrue();
             await Assert.That(File.GetUnixFileMode(artifact)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
 
             await File.WriteAllTextAsync(answers, """{"service.name":"synthetic-replacement"}""");
             var conflict = await ReleaseTestPaths.RunInDirectory(workspace, executable, create);
             await AssertInstalledReceipt(conflict, "create", 74, "conflict", """{"name":"synthetic-replacement"}"""u8.ToArray());
-            await Assert.That(await File.ReadAllBytesAsync(artifact)).IsEquivalentTo(expected);
+            await Assert.That((await File.ReadAllBytesAsync(artifact)).SequenceEqual(expected)).IsTrue();
             await Assert.That(File.GetUnixFileMode(artifact)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            Console.WriteLine($"COHORT installed-protected-create executed-create-and-conflict rid={ReleaseTestPaths.NativeCliRid}");
         }
         finally
         {
@@ -97,6 +106,10 @@ public sealed class MaintainerPackageTests
         await Assert.That(output.GetProperty("sensitivity").GetString()).IsEqualTo("restricted");
         await Assert.That(output.GetProperty("digest").GetString()).IsEqualTo(ReleaseTestPaths.Hash(expectedArtifact));
         await Assert.That(output.GetProperty("writeStatus").GetString()).IsEqualTo(writeStatus);
+        await Assert.That(output.GetProperty("installation").GetString())
+            .IsEqualTo(operation == "validate" ? "not-applicable" : writeStatus == "written" ? "established" : "not-established");
+        await Assert.That(output.GetProperty("verification").GetString())
+            .IsEqualTo(operation == "validate" ? "not-applicable" : writeStatus == "written" ? "succeeded" : "not-attempted");
         await Assert.That(result.Output.Contains("synthetic-", StringComparison.Ordinal)).IsFalse();
         await Assert.That(result.Output.Contains("configurator-installed-cli-", StringComparison.Ordinal)).IsFalse();
     }
@@ -104,8 +117,8 @@ public sealed class MaintainerPackageTests
     [Test]
     public async Task PublishedCliCompilesOneSourceWithoutStoreAndRetainsImmutableRelease()
     {
-        string package = Path.Combine(ReleaseTestPaths.PackageRoot, "cli/linux-x64");
-        string executable = Path.Combine(package, "islamu-configurator");
+        string package = ReleaseTestPaths.NativeCliPackage;
+        string executable = Path.Combine(package, ReleaseTestPaths.CliExecutableName);
         foreach (string relative in new[] { "schemas/configurator-authoring-v1.schema.json",
             "skills/configurator-integrate/SKILL.md", "skills/configurator-integrate/resources/authoring.md",
             "skills/configurator-integrate/resources/schema-import.md", "skills/configurator-integrate/resources/store-contribution.md" })

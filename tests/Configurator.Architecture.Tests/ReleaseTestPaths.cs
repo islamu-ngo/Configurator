@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace Configurator.Architecture.Tests;
@@ -10,6 +11,9 @@ internal static class ReleaseTestPaths
         ?? Path.Combine(Root, "artifacts/configurator");
     internal static string StorePackageRoot => Environment.GetEnvironmentVariable("CONFIGURATOR_STORE_PACKAGE_ROOT")
         ?? Path.Combine(Root, "artifacts/configurator-with-store");
+    internal static string NativeCliRid => RuntimeInformation.RuntimeIdentifier;
+    internal static string NativeCliPackage => Path.Combine(PackageRoot, "cli", NativeCliRid);
+    internal static string CliExecutableName => OperatingSystem.IsWindows() ? "islamu-configurator.exe" : "islamu-configurator";
     internal static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
     internal static async Task<(int ExitCode, string Output)> Run(string executable, params string[] arguments)

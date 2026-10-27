@@ -77,22 +77,15 @@ jobs:
         run: |
           set -euo pipefail
           dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=cli -p:ConfiguratorRid=${{ matrix.rid }} -verbosity:minimal
-      - name: Smoke the actual package doctor and help entrypoints
+      - name: Validate actual native package machine contracts
         shell: bash
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           set -euo pipefail
-          executable="$PWD/artifacts/configurator/cli/${{ matrix.rid }}/islamu-configurator"
-          if [[ '${{ matrix.rid }}' == 'win-x64' ]]; then executable="$executable.exe"; fi
-          # Check real package exits and output streams; CLI owner tests validate JSON semantics.
-          for command in doctor help; do
-            if [[ "$command" == doctor ]]; then arguments=(doctor --machine); else arguments=(--help --machine); fi
-            expected=0
-            if [[ "$command" == doctor && '${{ matrix.rid }}' != linux-* ]]; then expected=4; fi
-            if "$executable" "${arguments[@]}" > "$RUNNER_TEMP/cli-$command.json" 2> "$RUNNER_TEMP/cli-$command.stderr"; then actual=0; else actual=$?; fi
-            test "$actual" -eq "$expected"
-            test -s "$RUNNER_TEMP/cli-$command.json"
-            test ! -s "$RUNNER_TEMP/cli-$command.stderr"
-          done
+          dotnet run .ci/scripts/validate-cli-package.cs -- \
+            --package-directory "artifacts/configurator/cli/${{ matrix.rid }}" \
+            --expected-rid '${{ matrix.rid }}'
       - name: Retain unsigned native CLI validation package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -178,6 +171,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          dotnet run .ci/scripts/validate-cli-package.cs -- --self-test
+          dotnet run .ci/scripts/validate-cli-package.cs -- --package-directory artifacts/configurator/cli/linux-x64 --expected-rid linux-x64
           dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
           overall=0
           for project in tests/Configurator.*.Tests/*.csproj \

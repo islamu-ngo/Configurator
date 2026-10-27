@@ -10,7 +10,11 @@ public sealed class SetupCliProgramTests
     [Test]
     public async Task TerminalStdinRejectsWithoutWaitingForEof()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!OperatingSystem.IsLinux())
+        {
+            Console.WriteLine("COHORT terminal-stdin unexecuted requires-linux-script; protected-create refusal is checked separately");
+            return;
+        }
         using var files = new NativeFixture();
         string[] command = [Path.Combine(AppContext.BaseDirectory, "Configurator.Cli"),
             "artifact", "validate", "--definition", files.Definition,
@@ -29,7 +33,11 @@ public sealed class SetupCliProgramTests
     [Test]
     public async Task RegularFileStdinAndStdoutPreserveArtifactAndReceipt()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!OperatingSystem.IsLinux())
+        {
+            Console.WriteLine("COHORT shell-file-redirection unexecuted requires-linux-shell; protected-create refusal is checked separately");
+            return;
+        }
         using var files = new NativeFixture();
         string artifactPath = Path.Combine(Path.GetDirectoryName(files.Input)!, "service ' config.json");
         string receiptPath = Path.Combine(Path.GetDirectoryName(files.Input)!, "receipt ' result.json");
@@ -43,8 +51,8 @@ public sealed class SetupCliProgramTests
         await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(result.StandardOutput).IsEmpty();
         await Assert.That(result.StandardError).IsEmpty();
-        await Assert.That(await File.ReadAllBytesAsync(artifactPath))
-            .IsEquivalentTo("""{"enabled":true,"name":"private-answer-marker"}"""u8.ToArray());
+        await Assert.That((await File.ReadAllBytesAsync(artifactPath))
+            .SequenceEqual("""{"enabled":true,"name":"private-answer-marker"}"""u8.ToArray())).IsTrue();
         byte[] receipt = await File.ReadAllBytesAsync(receiptPath);
         await Assert.That(SetupCliMachineContractVerifier.Validate(receipt)).IsEmpty();
         await Assert.That(receipt.Count(value => value == (byte)'\n')).IsEqualTo(1);
@@ -64,7 +72,11 @@ public sealed class SetupCliProgramTests
     [Arguments("TERM", false, true)]
     public async Task SignalDuringBoundedStdinReadPreservesFinalDelivery(string signalName, bool repeated, bool brokenOutput)
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!OperatingSystem.IsLinux())
+        {
+            Console.WriteLine($"COHORT signal-{signalName} repeated={repeated} brokenOutput={brokenOutput} unexecuted requires-linux-signals");
+            return;
+        }
         using var files = new NativeFixture();
         var info = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "Configurator.Cli"))
         {
@@ -212,11 +224,19 @@ public sealed class SetupCliProgramTests
                 await Assert.That(refusal.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString()).IsEqualTo("conflict");
                 await Assert.That(refusal.RootElement.GetProperty("artifacts")[0].GetProperty("installation").GetString()).IsEqualTo("not-established");
                 await Assert.That(refusal.RootElement.GetProperty("artifacts")[0].GetProperty("verification").GetString()).IsEqualTo("not-attempted");
-                await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(original);
+                await Assert.That((await File.ReadAllBytesAsync(target)).SequenceEqual(original)).IsTrue();
                 await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([target]);
             }
             else
+            {
+                using JsonDocument refusal = JsonDocument.Parse(result.StandardOutput);
+                JsonElement artifact = refusal.RootElement.GetProperty("artifacts")[0];
+                await Assert.That(artifact.GetProperty("writeStatus").GetString()).IsEqualTo("blocked");
+                await Assert.That(artifact.GetProperty("installation").GetString()).IsEqualTo("not-established");
+                await Assert.That(artifact.GetProperty("verification").GetString()).IsEqualTo("not-attempted");
                 await Assert.That(Directory.GetFileSystemEntries(directory)).IsEmpty();
+                Console.WriteLine("COHORT protected-create unsupported-refusal-verified");
+            }
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

@@ -250,12 +250,74 @@ GitHub-hosted labels:
 Each native lane restores locked CLI-owner dependencies, runs only
 `Configurator.Cli.Tests` with a nonempty-test guard, publishes the actual
 self-contained CLI package through `PublishConfigurator`, then executes that
-package's doctor and root-help machine entrypoints. Smoke assertions require
-successful exits, nonempty stdout and empty stderr; they do not parse JSON with
-shell text matching or claim full package-schema verification. The CLI-owner
-suite covers machine JSON semantics separately. Existing pinned checkout,
+package's doctor, root-help, read-only validation and protected-create machine
+entrypoints through the native validator below. The standalone Linux package
+gate runs the same validator and its self-tests. Source-owner tests are not
+evidence for an actual packaged executable.
+Existing pinned checkout,
 setup-dotnet and upload-artifact Actions are reused, with no new dependency,
 Action, container image, publication credential or dispatch.
+
+### Actual CLI package contract validation
+
+Run from the repository root with SDK 10.0.302 and the native package for the
+current host. This tool does not publish or regenerate shared contracts:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet run .ci/scripts/validate-cli-package.cs -- --self-test
+dotnet run .ci/scripts/validate-cli-package.cs -- --package-directory artifacts/configurator/cli/linux-x64 --expected-rid linux-x64
+```
+
+Use the matching package directory and RID on each configured runner. The
+expected RID must equal `RuntimeInformation.RuntimeIdentifier`; cross-published
+files do not become native evidence. The tool records executable, package
+contract and packaged/current command-schema SHA-256 identities, checks schema
+byte freshness, and executes the packaged `doctor --machine`, `--help --machine`
+and `artifact validate --machine` entrypoints. Validation uses a temporary
+synthetic definition/answer workspace, verifies its inputs remain unchanged and
+requires no output file. No owner-source execution substitutes for these calls.
+
+Each receipt must be one LF-terminated UTF-8 object, without BOM, CR, terminal
+controls, stderr or more than 65,536 bytes. The checkout-owned command v2 schema
+enforces required fields, closed nested objects, duplicate-key rejection, types,
+enum/constant vocabulary, string/array/numeric bounds and patterns. Additional
+checks bind invocation, process/receipt exit, status/completion, diagnostics
+accounting, root help commands and ordered artifact bytes/digests to the expected
+operation. Restricted artifact installation/verification facts remain separate
+from target acceptance (`unassessed`) and result delivery (`attempt`).
+
+Linux executes protected create and an existing-file conflict, verifies exact
+bytes and owner-only mode, and proves the conflict did not overwrite the file.
+macOS/Windows must execute create and return I/O exit 74 with a blocked,
+not-established, not-attempted receipt and no artifact. This is an executed
+unsupported-operation refusal, not a successful protected save. A missing native
+package, stale schema, malformed receipt or failed command fails qualification.
+All independent cohorts still run after an individual cohort fails.
+
+`CLI_PACKAGE_COHORT` lines report each outcome; `CLI_PACKAGE_RESULT` and the tool
+exit report aggregate success/failure. Reports contain bounded facts, not raw
+subprocess output or workspace paths. Parser self-tests cover accepted and
+hostile envelopes but do not qualify any package or host. The architecture
+package test invokes the same tool for the current host through
+`ReleaseTestPaths.NativeCliPackage`; `CONFIGURATOR_PACKAGE_ROOT` can select the
+package root. Installed maintainer checks also select that native RID and
+exercise unsupported create refusal rather than returning silently.
+
+Linux-only CLI source cohorts (PTY stdin, shell redirection, POSIX signals and
+native installed-prefix faults) explicitly report `unexecuted` on other hosts.
+Their absence is not a pass for those scenarios. Cross-host source tests still
+exercise protected-create refusal; actual packaged refusal remains its separate
+gate. Do not remove or skip required host-neutral checks to obtain a green lane.
+
+Workflow configuration, local package execution and remote runner results remain
+separate evidence. The final local Linux CLI package passed all five validator
+cohorts after the CLI authoring changes; the final architecture/package suite
+is recorded separately in [Operations](OPERATIONS.md#cross-platform-quality-program-qualification-2026-10-27).
+An older local package can establish only its printed identity and observed
+cohort outcomes; a stale failure is not repaired by relabelling it current or by
+running source tests. Republish through the release owner and rerun the tool
+against the final inputs before making a final package claim.
 
 The five lanes are **configured, awaiting actual-host results**. No CI run was
 dispatched as part of this increment. Musl x64/Arm64 execution, separate

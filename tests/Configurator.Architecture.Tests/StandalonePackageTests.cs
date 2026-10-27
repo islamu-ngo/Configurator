@@ -41,11 +41,19 @@ public sealed class StandalonePackageTests
         await Assert.That(files.Where(path => Path.GetExtension(path) is ".dll" or ".pdb"
             || Path.GetFileName(path).StartsWith("Event.", StringComparison.Ordinal)
             || Path.GetFileName(path).Contains("Tests", StringComparison.Ordinal))).IsEmpty();
-        if (surface == "cli")
-        {
-            var result = await ReleaseTestPaths.Run(Path.Combine(directory, executable), "--help");
-            await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.Output);
-        }
+    }
+
+    [Test]
+    public async Task NativeCliPackageExecutesClosedMachineContractsOnCurrentHost()
+    {
+        var result = await ReleaseTestPaths.RunInDirectory(ReleaseTestPaths.Root, "dotnet", "run",
+            ".ci/scripts/validate-cli-package.cs", "--",
+            "--package-directory", ReleaseTestPaths.NativeCliPackage,
+            "--expected-rid", ReleaseTestPaths.NativeCliRid);
+        Console.WriteLine(result.Output);
+        await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.Output);
+        await Assert.That(result.StandardError).IsEmpty();
+        await Assert.That(result.Output).Contains("CLI_PACKAGE_RESULT passed failedCohorts=0");
     }
 
     [Test]

@@ -87,6 +87,33 @@ Both musl hosts and Windows 10/11 remain explicit pending actual-host checks;
 no emulation or unreviewed container image substitutes for them. Package smoke
 checks alone do not qualify protected export or every CLI workflow.
 
+### Check a built CLI package
+
+Maintainers with the repository and its pinned SDK can validate the actual native
+package from the repository root:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet run .ci/scripts/validate-cli-package.cs -- --self-test
+dotnet run .ci/scripts/validate-cli-package.cs -- --package-directory artifacts/configurator/cli/linux-x64 --expected-rid linux-x64
+```
+
+Select the current host's RID and package directory, not a cross-published
+executable. The tool reports package hashes, executes machine doctor/help and
+read-only validation using synthetic inputs, and parses closed command v2
+receipts with bounded output and matching exit codes. Linux also checks protected
+create and refusal to overwrite an existing file. macOS/Windows must actually
+refuse protected create without leaving a file; that result does not enable
+protected export. The tool needs the SDK; running the package normally does not.
+
+Any failed cohort or stale packaged schema makes the tool fail. Self-tests only
+check the parser. An older local package's result qualifies only that exact
+identity, not later source changes. Final packages must be republished and
+rechecked after authoring changes. CI uses this validator for its configured
+native CLI matrix and Linux package gate; configuration alone does not establish
+an actual runner result. Other-host, musl and Windows-client
+qualification limits above remain in effect.
+
 ## Package contents
 
 Generated schemas and capability contracts use the same LF-normalized JSON
