@@ -1,28 +1,27 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
-using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Configurator.Core.Definitions;
+using Configurator.Desktop.Resources;
 using Configurator.Presentation;
 
 /// <summary>
-/// Owns one editor node. Roots subscribe to the shared form; descendants commit through their root.
-/// Dispose roots before replacing or disposing the shared form.
+/// Projects native binding and focus state. The factory coordinates refresh; the form owns all answers and drafts.
 /// </summary>
 public abstract class FieldViewModel : ObservableObject, IDisposable
 {
     private static readonly string[] ConstraintNames = ["minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems"];
     private string _text = string.Empty;
     private bool _provided;
-    private bool _structuredInvalid;
     private bool _hasError;
     private bool _isVisible = true;
     private bool _isRequired;
-    private bool _synchronizing;
+    private bool _editing;
     private int _focusRequestVersion;
+    private int _supplyFocusRequestVersion;
     private DefinitionFormModel? _form;
     private DefinitionFieldInput? _input;
     private FieldViewModel? _root;
@@ -35,6 +34,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         RequiresMasking = parent?.RequiresMasking == true || HasNonPublicSchema(schema);
         _isRequired = listItem || schema.TryGetProperty("required", out var required) && required.GetBoolean();
         ClearCommand = new RelayCommand(Clear, () => !IsDisposed);
+        SupplyCommand = new RelayCommand(Supply, () => !IsDisposed && IsContainer);
         UseRecommendedCommand = new RelayCommand(UseRecommended, () => !IsDisposed && HasRecommended);
         RemoveCommand = new RelayCommand(() =>
         {
@@ -47,13 +47,20 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public bool IsListItem { get; }
     protected bool IsDisposed { get; private set; }
     protected bool IsProvided => _provided;
-    protected bool IsStructuredInvalid => _structuredInvalid;
     protected FieldViewModel Root => _root ?? this;
+    protected DefinitionFormModel Form => Root._form!;
     internal virtual IEnumerable<FieldViewModel> Descendants => [];
-    public string Id => Schema.GetProperty("id").GetString()!;
-    public string Title => Schema.GetProperty("title").GetString()!;
+    internal string EditorIdentity { get; set; } = string.Empty;
+    public string Id => IsListItem ? "item" : Schema.GetProperty("id").GetString()!;
+    public string Title => IsListItem ? $"{Parent!.Title} item" : Schema.GetProperty("title").GetString()!;
     public string Name => Title;
-    public string ClearName => $"Clear {Title}";
+    public string ClearLabel => DesktopActionText.ClearLabel;
+    public string ClearName => DesktopActionText.ClearName(Title);
+    public string ClearHelp => DesktopActionText.ClearHelp;
+    public string SupplyLabel => DesktopActionText.SupplyLabel;
+    public string SupplyName => DesktopActionText.SupplyName(Title);
+    public string SupplyHelp => DesktopActionText.SupplyHelp;
+    public bool IsContainer => this is ObjectFieldViewModel or ListFieldViewModel;
     public string RecommendedName => $"Use recommended value for {Title}";
     public string RemoveItemName => $"Remove item from {Parent?.Title ?? Title}";
     public string Help => ReadMetadata("help");
@@ -75,36 +82,29 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public string ErrorText => HasError ? "A valid value is required. Check the declared type and constraints."
         : IsRequired ? "Required" : "Optional";
     public int FocusRequestVersion => _focusRequestVersion;
+    public int SupplyFocusRequestVersion => _supplyFocusRequestVersion;
     public IRelayCommand ClearCommand { get; }
+    public IRelayCommand SupplyCommand { get; }
     public IRelayCommand UseRecommendedCommand { get; }
     public IRelayCommand RemoveCommand { get; }
 
-    /// <summary>Scalar editor text; structured nodes serialize declared descendants, never raw JSON controls.</summary>
+    /// <summary>Native draft text; every deliberate edit goes to the shared literal path.</summary>
     public string Text
     {
         get => _text;
         set
         {
             value ??= string.Empty;
-            if (IsDisposed || _text == value) return;
-            if (this is ObjectFieldViewModel or ListFieldViewModel)
-            {
-                if (TryParseStructured(value, out var parsed)) Load(parsed);
-                else
-                {
-                    _provided = true;
-                    _structuredInvalid = true;
-                    SetProperty(ref _text, value);
-                }
-            }
-            else
+            if (IsDisposed || _editing || _text == value || Root._form is null) return;
+            _editing = true;
+            try
             {
                 SetProperty(ref _text, value);
                 _provided = true;
                 NotifyValue();
+                Form.EditValue(FullPath(), value);
             }
-            Parent?.MarkProvided();
-            Commit();
+            finally { _editing = false; }
         }
     }
 
@@ -113,11 +113,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _root = this;
         _form = form;
         _input = input;
-        input.PropertyChanged += InputChanged;
-        form.InputChanged += FormChanged;
-        form.ViewChanged += FormChanged;
-        LoadInput();
-        Refresh();
+        AdoptRoot(this);
     }
 
     internal void AdoptRoot(FieldViewModel root)
@@ -128,61 +124,22 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
 
     internal virtual void Load(JsonElement? value)
     {
+        if (_editing) return;
         _provided = value is not null;
         SetProperty(ref _text, value is { } supplied ? Display(supplied) : string.Empty, nameof(Text));
         NotifyValue();
     }
 
-    internal virtual bool TryValue(out JsonElement? value)
-    {
-        value = null;
-        if (!_provided) return true;
-        return DefinitionScalarEditing.TryParse(Schema.GetProperty("type").GetString()!, Text, Schema, out value);
-    }
-
     protected virtual void NotifyValue() { }
-    protected void SetStructuredText(JsonElement? value)
-    {
-        _structuredInvalid = false;
-        _provided = value is not null;
-        SetProperty(ref _text, value?.GetRawText() ?? string.Empty, nameof(Text));
-    }
     internal void MarkProvided()
     {
-        _structuredInvalid = false;
         _provided = true;
-        Parent?.MarkProvided();
     }
+    // Choice controls load their selected typed value before committing this one path.
     protected void Commit()
     {
-        if (IsDisposed) return;
-        FieldViewModel root = _root ?? this;
-        if (root._input is null || root._synchronizing) return;
-        root._synchronizing = true;
-        try
-        {
-            bool accepted;
-            if (root.TryValue(out var value)) accepted = root._form!.SetValue([root.Id], value);
-            else
-            {
-                root._input.Text = root is ObjectFieldViewModel or ListFieldViewModel ? "invalid" : root.Text;
-                accepted = root._input.InputDiagnosticCode != "answer-budget-exceeded";
-            }
-            if (!accepted) root.LoadInput();
-            else root.UpdateStructuredText();
-        }
-        finally { root._synchronizing = false; }
-        root.Refresh();
-    }
-
-    private void UpdateStructuredText()
-    {
-        foreach (var child in Descendants) child.UpdateStructuredText();
-        if (this is ObjectFieldViewModel or ListFieldViewModel)
-        {
-            bool valid = TryValue(out var value);
-            SetProperty(ref _text, valid ? value?.GetRawText() ?? string.Empty : "invalid", nameof(Text));
-        }
+        if (IsDisposed || Root._form is null) return;
+        Form.EditValue(FullPath(), _provided ? _text : null);
     }
 
     /// <summary>Signals the View focus bridge; structured nodes route to the first visible descendant.</summary>
@@ -194,7 +151,12 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             first.RequestFocus();
             return;
         }
-        SignalFocus();
+        if (IsContainer && (this is not ListFieldViewModel list || !list.AddItemCommand.CanExecute(null)))
+        {
+            _supplyFocusRequestVersion++;
+            OnPropertyChanged(nameof(SupplyFocusRequestVersion));
+        }
+        else SignalFocus();
     }
 
     protected void SignalFocus()
@@ -204,21 +166,46 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(FocusRequestVersion));
     }
 
-    /// <summary>Re-evaluates activation, requiredness, errors and disclosure without replacing editor instances.</summary>
-    public void Refresh()
+    /// <summary>Projects one settled root and its literal diagnostics without replacing surviving editors.</summary>
+    internal void Refresh(SetupFieldState state, IReadOnlyList<DefinitionDiagnostic> diagnostics)
     {
-        if (IsDisposed) return;
-        if (_form is not null && _input is not null)
+        if (IsDisposed || _input is null) return;
+        // A malformed root denies stale collection projection, but its own raw correction text remains available.
+        bool valid = _input.TryValue(out JsonElement? value);
+        if (!valid) value = null;
+        RefreshNode([Id], value, state.IsActive, diagnostics);
+        IsRequired = state.IsRequired;
+        HasError |= state.IsActive && state.HasError;
+        if (!_editing)
         {
-            SetupFieldState state = _form.Validate().Fields.Single(field => field.Id == Id);
-            IsRequired = state.IsRequired;
-            HasError = state.IsActive && (state.HasError || _input.InputDiagnosticCode is not null || !_input.TryValue(out _));
+            SetProperty(ref _text, _input.Text, nameof(Text));
+            NotifyValue();
         }
-        if (Root._form is { } form)
+    }
+
+    private void RefreshNode(IReadOnlyList<string> path, JsonElement? value, bool active,
+        IReadOnlyList<DefinitionDiagnostic> diagnostics)
+    {
+        Load(value);
+        IsVisible = Form.IsEditorVisible(path);
+        HasError = active && (Form.HasInputError(path) || diagnostics.Any(diagnostic =>
+            diagnostic.FieldId == path[0] && diagnostic.RelativePath.Count >= path.Count - 1 &&
+            diagnostic.RelativePath.Take(path.Count - 1).SequenceEqual(path.Skip(1))));
+        if (!IsContainer && !_editing && Form.ReadDraftText(path) is { } draft)
         {
-            IReadOnlyList<string> path = FullPath();
-            IsVisible = form.IsEditorVisible(path);
-            RefreshChildren(form, path, HasError);
+            SetProperty(ref _text, draft, nameof(Text));
+            _provided = true;
+            NotifyValue();
+        }
+        foreach (var child in Descendants)
+        {
+            int row = this is ListFieldViewModel list ? list.Items.IndexOf(child) : -1;
+            IReadOnlyList<string> childPath = [.. path, row >= 0
+                ? row.ToString(CultureInfo.InvariantCulture) : child.Id];
+            JsonElement? childValue = value is { ValueKind: JsonValueKind.Object } mapping &&
+                mapping.TryGetProperty(child.Id, out var property) ? property
+                : value is { ValueKind: JsonValueKind.Array } items && row >= 0 ? items[row] : null;
+            child.RefreshNode(childPath, childValue, active, diagnostics);
         }
         OnPropertyChanged(nameof(ErrorText));
         OnPropertyChanged(nameof(HasProtectedDescendants));
@@ -227,75 +214,29 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         RemoveCommand.NotifyCanExecuteChanged();
     }
 
-    private IReadOnlyList<string> FullPath() => Parent is null ? [Id]
+    protected IReadOnlyList<string> FullPath() => Parent is null ? [Id]
         : [.. Parent.FullPath(), Parent is ListFieldViewModel list
             ? list.Items.IndexOf(this).ToString(CultureInfo.InvariantCulture) : Id];
-
-    private void RefreshChildren(DefinitionFormModel form, IReadOnlyList<string> path, bool rootError)
-    {
-        foreach (var child in Descendants)
-        {
-            IReadOnlyList<string> childPath = [.. path, this is ListFieldViewModel list
-                ? list.Items.IndexOf(child).ToString(CultureInfo.InvariantCulture) : child.Id];
-            child.HasError = rootError;
-            child.IsVisible = form.IsEditorVisible(childPath);
-            child.RefreshChildren(form, childPath, rootError);
-            child.OnPropertyChanged(nameof(ErrorText));
-        }
-    }
 
     private void Clear()
     {
         if (IsDisposed) return;
-        Load(IsListItem && Schema.GetProperty("type").GetString() == "string"
-            ? JsonSerializer.SerializeToElement("") : null);
-        Commit();
+        if (IsListItem && Schema.GetProperty("type").GetString() == "string")
+            Form.EditValue(FullPath(), "");
+        else Form.SetValue(FullPath(), null);
         RequestFocus();
     }
     private void UseRecommended()
     {
         if (IsDisposed || !HasRecommended) return;
-        Load(Schema.GetProperty("recommended"));
-        Parent?.MarkProvided();
-        Commit();
+        Form.SetValue(FullPath(), Schema.GetProperty("recommended"));
         RequestFocus();
     }
-    private void InputChanged(object? sender, PropertyChangedEventArgs args)
+    private void Supply()
     {
-        if (_synchronizing || IsDisposed || args.PropertyName != nameof(DefinitionFieldInput.Text)) return;
-        LoadInput();
-        Refresh();
-    }
-    private void FormChanged(object? sender, EventArgs args)
-    {
-        if (!_synchronizing && !IsDisposed) Refresh();
-    }
-    private void LoadInput()
-    {
-        if (_input is null) return;
-        if (_input.TryValue(out var value)) Load(value);
-        else
-        {
-            Load(null);
-            SetProperty(ref _text, _input.Text, nameof(Text));
-            _provided = true;
-            _structuredInvalid = this is ObjectFieldViewModel or ListFieldViewModel;
-        }
-        AdoptRoot(this);
-    }
-    private bool TryParseStructured(string text, out JsonElement? value)
-    {
-        value = null;
-        if (text.Length == 0) return true;
-        try
-        {
-            using var document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 32 });
-            JsonValueKind expected = this is ObjectFieldViewModel ? JsonValueKind.Object : JsonValueKind.Array;
-            if (document.RootElement.ValueKind != expected) return false;
-            value = document.RootElement.Clone();
-            return true;
-        }
-        catch (JsonException) { return false; }
+        if (IsDisposed) return;
+        bool supplied = this is ObjectFieldViewModel ? Form.SupplyObject(FullPath()) : Form.SupplyList(FullPath());
+        if (supplied) RequestFocus();
     }
     private string ReadMetadata(string name) => Schema.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
     private static bool HasNonPublicSchema(JsonElement schema) =>
@@ -307,18 +248,13 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     {
         if (IsDisposed) return;
         IsDisposed = true;
-        if (_input is not null) _input.PropertyChanged -= InputChanged;
-        if (_form is not null)
-        {
-            _form.InputChanged -= FormChanged;
-            _form.ViewChanged -= FormChanged;
-        }
         foreach (var child in Descendants) child.Dispose();
         _form = null;
         _input = null;
         _root = null;
         _text = string.Empty;
         ClearCommand.NotifyCanExecuteChanged();
+        SupplyCommand.NotifyCanExecuteChanged();
         UseRecommendedCommand.NotifyCanExecuteChanged();
         GC.SuppressFinalize(this);
     }

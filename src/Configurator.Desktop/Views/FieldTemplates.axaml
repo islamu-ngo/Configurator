@@ -25,8 +25,11 @@
     <StackPanel Spacing="4">
       <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" Spacing="6">
-        <Button Content="_Clear" Command="{Binding ClearCommand}"
-                AutomationProperties.Name="{Binding ClearName}" AutomationProperties.HelpText="Clear this field" />
+        <Button Content="{Binding SupplyLabel}" Command="{Binding SupplyCommand}" IsVisible="{Binding IsContainer}"
+                AutomationProperties.Name="{Binding SupplyName}" AutomationProperties.HelpText="{Binding SupplyHelp}"
+                local:FocusBehavior.Request="{Binding SupplyFocusRequestVersion}" />
+        <Button Content="{Binding ClearLabel}" Command="{Binding ClearCommand}"
+                AutomationProperties.Name="{Binding ClearName}" AutomationProperties.HelpText="{Binding ClearHelp}" />
         <Button Content="_Use recommended value" Command="{Binding UseRecommendedCommand}" IsVisible="{Binding HasRecommended}"
                 AutomationProperties.Name="{Binding RecommendedName}" AutomationProperties.HelpText="Use the declared recommended value" />
       </StackPanel>

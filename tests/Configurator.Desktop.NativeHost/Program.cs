@@ -4,7 +4,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -17,6 +19,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
@@ -32,7 +35,8 @@ internal static class Program
         "D09-edit-cancel-stale-import", "D10-value-free-feedback-retry",
         "D12-event-one-tenant", "D12-event-two-tenants", "D12-event-three-tenants",
         "D09-close-disposes-workspace", "D14-physical-settlement-receipt",
-        "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force"
+        "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force",
+        "D18-shared-editing-presence-localized-actions"
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
@@ -58,6 +62,10 @@ internal static class Program
             return Reject("expected-rid-mismatch");
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY")))
             return Reject("native-x11-display-required");
+        string culture = Environment.GetEnvironmentVariable("CONFIGURATOR_NATIVE_UI_CULTURE") ?? "en";
+        if (culture is not ("en" or "ar")) return Reject("native-ui-culture-invalid");
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture;
 
         // A stalled startup or UI dispatcher must also fail within a bounded wall-clock interval.
         var elapsed = Stopwatch.StartNew();
@@ -89,6 +97,7 @@ internal static class Program
                             schemaVersion = 1,
                             rid = "linux-x64",
                             backend = "X11",
+                            uiCulture = CultureInfo.CurrentUICulture.Name,
                             runtime = RuntimeInformation.FrameworkDescription,
                             durationMilliseconds = elapsed.Elapsed.TotalMilliseconds,
                             requiredChecks = RequiredChecks,
@@ -207,7 +216,7 @@ internal static class Program
             })
             {
                 Select(window, shell, id);
-                Click(Named<Button>(window, "Clear Service name"));
+                Click(Named<Button>(window, DesktopActionText.ClearName("Service name")));
                 await FlushAsync();
                 string path = Path.Combine(directory, file);
                 await File.WriteAllTextAsync(path, content);
@@ -306,6 +315,10 @@ internal static class Program
             Click(window.GetControl<Button>("Cancel"));
             Pass();
 
+            _currentCheck = "D18-shared-editing-presence-localized-actions";
+            await SharedEditingAsync();
+            Pass();
+
             for (int count = 1; count <= 3; count++)
             {
                 _currentCheck = count switch { 1 => "D12-event-one-tenant", 2 => "D12-event-two-tenants", _ => "D12-event-three-tenants" };
@@ -332,6 +345,81 @@ internal static class Program
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static async Task SharedEditingAsync()
+    {
+        string culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        using var shell = PublicationShell((_, _, _) =>
+            Task.FromResult(ProtectedArtifactCommitResult.Installed(true)));
+        var window = new MainWindow { DataContext = shell };
+        try
+        {
+            window.Show();
+            var source = JsonNode.Parse(await File.ReadAllBytesAsync(
+                Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")))!;
+            source["fields"] = JsonNode.Parse("""
+                [{"id":"empty.object","title":"Empty object","type":"object","properties":[],"sensitivity":"public","disclosure":"essential"},
+                 {"id":"empty.list","title":"Empty list","type":"list","itemType":"string","maxItems":0,"sensitivity":"public","disclosure":"essential"},
+                 {"id":"rows.part","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
+                  "default":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}],
+                  "properties":[
+                    {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
+                    {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}]
+                """);
+            source["artifacts"] = JsonNode.Parse("""
+                [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+                  "projection":{"op":"literal","value":{}}}]
+                """);
+            Require(shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString())), "editing-definition");
+            await FlushAsync();
+            var form = shell.Workspace.Form!;
+            long revision = form.InputRevision;
+            shell.Workspace.OptionalEditorsExpanded = true;
+            shell.Workspace.OptionalEditorsExpanded = false;
+            await FlushAsync();
+            Require(form.InputRevision == revision && !form.Snapshot().Values.ContainsKey("empty.object") &&
+                !form.Snapshot().Values.ContainsKey("empty.list"), "browsing-supplied-answer");
+            foreach (FieldViewModel field in shell.Workspace.Fields.Take(2))
+            {
+                Button[] buttons = window.GetLogicalDescendants().OfType<Button>()
+                    .Where(button => ReferenceEquals(button.DataContext, field)).ToArray();
+                Button supply = buttons.Single(button => ReferenceEquals(button.Command, field.SupplyCommand));
+                Button clear = buttons.Single(button => ReferenceEquals(button.Command, field.ClearCommand));
+                Require(Equals(supply.Content, DesktopActionText.SupplyLabel) &&
+                    Equals(clear.Content, DesktopActionText.ClearLabel), "localized-labels-" + culture);
+                Require(AutomationProperties.GetName(supply) == DesktopActionText.SupplyName(field.Title) &&
+                    AutomationProperties.GetName(clear) == DesktopActionText.ClearName(field.Title), "localized-names-" + culture);
+                Require(AutomationProperties.GetHelpText(supply) == DesktopActionText.SupplyHelp &&
+                    AutomationProperties.GetHelpText(clear) == DesktopActionText.ClearHelp, "localized-help-" + culture);
+                Click(supply);
+                await FlushAsync();
+                Require(supply.IsFocused && form.Snapshot().Values[field.Id].GetRawText() ==
+                    (field is ObjectFieldViewModel ? "{}" : "[]"), "empty-presence-or-focus");
+                Click(clear);
+                await FlushAsync();
+                Require(supply.IsFocused && !form.Snapshot().Values.ContainsKey(field.Id), "clear-presence-or-focus");
+            }
+            var list = (ListFieldViewModel)shell.Workspace.Fields[2];
+            var survivor = (ObjectFieldViewModel)list.Items[1];
+            TextBox count = window.GetLogicalDescendants().OfType<TextBox>()
+                .Single(control => ReferenceEquals(control.DataContext, survivor.Children[0]));
+            Require(count.Focus(), "row-focus");
+            count.Text = "unfinished-number";
+            await FlushAsync();
+            Require(survivor.Children[0].HasError && !survivor.Children[1].HasError, "sibling-error-leak");
+            Require(form.RemoveListItem(["rows.part"], 0), "row-removal");
+            await FlushAsync();
+            Require(ReferenceEquals(list.Items.Single(), survivor) && count.IsFocused &&
+                count.Text == "unfinished-number", "survivor-draft-or-focus");
+            await CaptureAsync(window, "shared-editing-" + culture);
+            count.Text = "4";
+            await FlushAsync();
+            Require(shell.Workspace.Validate() &&
+                form.Snapshot().Values["rows.part"].GetRawText() == """[{"count.part":4,"note.part":"second"}]""",
+                "corrected-row");
+        }
+        finally { window.Close(); }
     }
 
     private static async Task CloseLifecycleAsync()

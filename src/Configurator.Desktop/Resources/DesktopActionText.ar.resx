@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="SupplyLabel" xml:space="preserve"><value>_توفير</value></data>
+  <data name="SupplyName" xml:space="preserve"><value>توفير {0}</value></data>
+  <data name="SupplyHelp" xml:space="preserve"><value>توفير هذه الحاوية مع الحفاظ على محتوياتها الحالية والقيم الافتراضية المعلنة.</value></data>
+  <data name="ClearLabel" xml:space="preserve"><value>_مسح</value></data>
+  <data name="ClearName" xml:space="preserve"><value>مسح {0}</value></data>
+  <data name="ClearHelp" xml:space="preserve"><value>عدم توفير هذه الإجابة. يُعاد عنصر القائمة النصي إلى نص فارغ؛ استخدم إزالة العنصر لحذف صفه.</value></data>
+</root>

@@ -45,6 +45,13 @@ decimal notation. Boolean and enum fields have selection controls, including an
 unset option. Object fields expose their named child controls. Scalar and object
 lists have **Add item** and **Remove item** actions; object rows expose their
 declared child fields. You do not need to edit JSON.
+Use **Supply** on an object or list to deliberately provide it, including an
+empty object or a list that allows no items. Supplying it again keeps its
+contents. Browsing alone leaves it absent; **Clear** removes that container.
+Adding or editing a child uses the shared path editor rather than replacing
+every sibling. One invalid child is marked for correction without marking
+healthy siblings invalid. Its unfinished text remains available while you edit
+other children or remove another list row; surviving rows retain their controls.
 Declared defaults are loaded, and public recommendations can be selected
 explicitly. Protected inputs are masked, including descendants of an object
 whose nested fields raise its sensitivity. Protected boolean and enum values
@@ -56,6 +63,10 @@ use **Clear** or **Not supplied** to omit the answer. Declared defaults still
 apply to absent answers. Untouched blank controls
 and view refresh do not create answers. The workspace scrolls vertically so
 fields, artifact actions and status remain reachable in a shorter window.
+For a string list item, **Clear** supplies an empty string; **Remove item**
+removes the row. Supply/Clear labels and their accessibility text follow the
+existing UI culture with neutral and Arabic resources. This is limited action
+translation, not a language selector or complete Arabic Desktop support.
 
 **Experience** selects a definition-authored journey, or the neutral Configure
 experience when none is declared. **Optional editors** expands optional settings;

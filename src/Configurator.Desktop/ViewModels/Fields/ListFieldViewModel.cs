@@ -1,10 +1,9 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.Input;
-using Configurator.Presentation;
 
 public sealed class ListFieldViewModel : FieldViewModel
 {
@@ -26,58 +25,51 @@ public sealed class ListFieldViewModel : FieldViewModel
 
     internal override void Load(JsonElement? value)
     {
-        foreach (var item in _items) item.Dispose();
-        _items.Clear();
-        if (value is { ValueKind: JsonValueKind.Array } array)
-            foreach (var item in array.EnumerateArray()) _items.Add(CreateItem(item));
-        SetStructuredText(value);
+        int count = value is { ValueKind: JsonValueKind.Array } array ? array.GetArrayLength() : 0;
+        IReadOnlyList<string> path = FullPath();
+        string[] identities = Enumerable.Range(0, count)
+            .Select(index => Form.GetEditorIdentity([.. path, index.ToString(CultureInfo.InvariantCulture)])).ToArray();
+        var existing = _items.ToDictionary(item => item.EditorIdentity, StringComparer.Ordinal);
+        var retained = identities.ToHashSet(StringComparer.Ordinal);
+        for (int index = _items.Count - 1; index >= 0; index--)
+            if (!retained.Contains(_items[index].EditorIdentity))
+            {
+                _items[index].Dispose();
+                _items.RemoveAt(index);
+            }
+        for (int index = 0; index < count; index++)
+        {
+            if (existing.TryGetValue(identities[index], out var item))
+            {
+                int previous = _items.IndexOf(item);
+                if (previous != index) _items.Move(previous, index);
+            }
+            else
+            {
+                _items.Add(CreateItem(identities[index]));
+                if (index != _items.Count - 1) _items.Move(_items.Count - 1, index);
+            }
+        }
+        base.Load(value);
         NotifyCommands();
     }
-    private FieldViewModel CreateItem(JsonElement value)
+    private FieldViewModel CreateItem(string identity)
     {
-        string type = Schema.GetProperty("itemType").GetString()!;
-        var metadata = new JsonObject
-        {
-            ["id"] = "item",
-            ["title"] = $"{Title} item",
-            ["type"] = type,
-            ["sensitivity"] = RequiresMasking ? "secret" : "public",
-            ["disclosure"] = "guided"
-        };
-        if (type == "object") metadata["properties"] = JsonNode.Parse(Schema.GetProperty("properties").GetRawText());
-        var item = FormFieldFactory.Project(JsonSerializer.SerializeToElement(metadata), this, true);
-        item.Load(value);
+        var item = FormFieldFactory.Project(Form.GetListItemMetadata(FullPath()), this, true);
+        item.EditorIdentity = identity;
         item.AdoptRoot(Root);
         return item;
     }
     private void AddItem()
     {
         if (!AddItemCommand.CanExecute(null)) return;
-        string type = Schema.GetProperty("itemType").GetString()!;
-        JsonElement value = type == "object" ? DefinitionCollectionItem.CreateObject(Schema)
-            : type switch
-            {
-                "string" => JsonSerializer.SerializeToElement(""),
-                "boolean" => JsonSerializer.SerializeToElement(false),
-                _ => JsonSerializer.SerializeToElement(0)
-            };
-        var item = CreateItem(value);
-        _items.Add(item);
-        MarkProvided();
-        Commit();
-        NotifyCommands();
-        item.RequestFocus();
+        if (Form.AddListItem(FullPath())) Items.Last().RequestFocus();
     }
     private void RemoveItem(FieldViewModel? item)
     {
         if (item is null || !RemoveItemCommand.CanExecute(item)) return;
         int index = _items.IndexOf(item);
-        _items.RemoveAt(index);
-        item.Dispose();
-        MarkProvided();
-        Commit();
-        NotifyCommands();
-        RequestAddFocus();
+        if (Form.RemoveListItem(FullPath(), index)) RequestAddFocus();
     }
     public void RequestAddFocus() => SignalFocus();
     private void NotifyCommands()
@@ -85,19 +77,5 @@ public sealed class ListFieldViewModel : FieldViewModel
         AddItemCommand.NotifyCanExecuteChanged();
         RemoveItemCommand.NotifyCanExecuteChanged();
         foreach (var item in Items) item.RemoveCommand.NotifyCanExecuteChanged();
-    }
-    internal override bool TryValue(out JsonElement? value)
-    {
-        value = null;
-        if (IsStructuredInvalid) return false;
-        if (!IsProvided) return true;
-        var values = new List<JsonElement>();
-        foreach (var item in Items)
-        {
-            if (!item.TryValue(out var supplied) || supplied is null) return false;
-            values.Add(supplied.Value);
-        }
-        value = JsonSerializer.SerializeToElement(values);
-        return true;
     }
 }

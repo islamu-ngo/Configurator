@@ -73,7 +73,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
             _form.InputChanged -= InputChanged;
             _form.ViewChanged -= ViewChanged;
         }
-        foreach (FieldViewModel field in _fields) field.Dispose();
+        _factory.Dispose();
         _form?.Dispose();
         _form = form;
         if (form is not null)
@@ -88,7 +88,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         OnPropertyChanged(nameof(Experiences));
         OnPropertyChanged(nameof(SelectedExperience));
         OnPropertyChanged(nameof(OptionalEditorsExpanded));
-        RefreshFields();
+        NotifyFieldState();
         ValidateCommand.NotifyCanExecuteChanged();
         _messenger.Send(new FormWorkspaceChangedMessage(form));
     }
@@ -96,12 +96,11 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private void InputChanged(object? sender, EventArgs args)
     {
         _messenger.Send(new FormInputsChangedMessage());
-        RefreshFields();
+        NotifyFieldState();
     }
 
-    private void RefreshFields()
+    private void NotifyFieldState()
     {
-        foreach (FieldViewModel field in _fields) field.Refresh();
         OnPropertyChanged(nameof(FirstError));
         OnPropertyChanged(nameof(FirstVisible));
     }
@@ -110,7 +109,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     {
         OnPropertyChanged(nameof(SelectedExperience));
         OnPropertyChanged(nameof(OptionalEditorsExpanded));
-        RefreshFields();
+        NotifyFieldState();
     }
 
     public bool Validate()
@@ -125,17 +124,17 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         {
             DefinitionValidationResult result = Form.Validate();
             bool ready = result.IsReady && !Form.HasInputErrors;
-            RefreshFields();
+            NotifyFieldState();
             _messenger.Send(new StatusChangedMessage(ready ? "validation-ready" : "validation-invalid:" +
                 string.Join(",", result.Diagnostics.Select(item => $"{item.FieldId}:{item.Code}")
-                    .Concat(Form.Fields.Where(item => !item.TryValue(out _))
+                    .Concat(Form.Fields.Where(item => item.InputDiagnosticCode is not null || !item.TryValue(out _))
                         .Select(item => $"{item.Definition.Id}:input-invalid")))));
             if (!ready) FirstError?.RequestFocus();
             return ready;
         }
         catch (SetupDefinitionException exception)
         {
-            RefreshFields();
+            NotifyFieldState();
             FirstError?.RequestFocus();
             _messenger.Send(new StatusChangedMessage($"validation-invalid:{exception.Code}"));
             return false;

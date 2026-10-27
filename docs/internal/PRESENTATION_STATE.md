@@ -222,6 +222,19 @@ validation enforce item bounds/structure/uniqueness; stale operations cannot
 restore a removed row. Browser exports are deliberately local copy/download
 through the adapter, with no dependency on native protected writers.
 
+Desktop field viewmodels project bindings and focus only. Their scalar and
+container/list actions invoke the shared literal-path commands; no descendant
+serialization or invalid-root sentinel replaces the form's accepted values,
+retained drafts or origins. Shared diagnostics mark the affected leaf and its
+containers, not healthy siblings. The workspace-owned field factory performs
+one refresh pass from a current root-state lookup, rather than independent
+root subscriptions plus a workspace pass. List bindings reconcile shared
+logical row tokens so surviving controls and correction drafts retain their
+identity. Explicit Supply and Clear preserve container presence versus absence;
+navigation and projection refresh are not answer edits. See the
+[Desktop adapter](DESKTOP_CLIENT.md#editing-and-presentation-flow) for native
+action resources and the separate surface-qualification boundary.
+
 The existing session/workspace model allocates generations, invalidates old
 work on edit, deactivation, cancellation and disposal, and rejects late results.
 Published `DefinitionPreparationMetadata` contains identifiers, digests and

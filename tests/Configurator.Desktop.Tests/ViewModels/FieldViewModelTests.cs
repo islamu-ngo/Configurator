@@ -15,13 +15,155 @@ using Configurator.Presentation;
 public sealed class FieldViewModelTests
 {
     [Test]
+    public async Task ImportedSiblingsAndRetainedDraftSurviveAnUnrelatedImportAndPathEdit()
+    {
+        var source = JsonNode.Parse(DesktopApplicationTests.Definition())!.AsObject();
+        source["fields"] = JsonNode.Parse("""
+            [{"id":"settings.part","title":"Settings","type":"object","sensitivity":"public","disclosure":"essential",
+              "properties":[
+                {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
+                {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]},
+             {"id":"other.part","title":"Other","type":"string","sensitivity":"public","disclosure":"essential"}]
+            """);
+        source["artifacts"] = JsonNode.Parse("""
+            [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+              "projection":{"op":"object","members":{"settings":{"op":"copy","field":"settings.part"},"other":{"op":"copy","field":"other.part"}}}}]
+            """);
+        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
+        var settings = (ObjectFieldViewModel)fields[0];
+        var count = settings.Children[0];
+        var note = settings.Children[1];
+        var imported = await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(
+            """{"settings":{"count.part":2,"note.part":"imported"}}"""u8.ToArray()));
+        await Assert.That(imported.Succeeded).IsTrue();
+        count.Text = "unfinished-number";
+        imported = await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(
+            """{"other":"unrelated"}"""u8.ToArray()));
+        await Assert.That(imported.Succeeded).IsTrue();
+        await Assert.That(ReferenceEquals(settings.Children[0], count)).IsTrue();
+        await Assert.That(count.Text).IsEqualTo("unfinished-number");
+        note.Text = "changed";
+        await Assert.That(form.ReadDraftText(["settings.part", "count.part"])).IsEqualTo("unfinished-number");
+        await Assert.That(form.AnswerOrigin(["settings.part", "count.part"])).IsEqualTo(DefinitionAnswerOrigin.Imported);
+        await Assert.That(form.AnswerOrigin(["settings.part", "note.part"])).IsEqualTo(DefinitionAnswerOrigin.Explicit);
+        await Assert.That(form.AnswerOrigin(["other.part"])).IsEqualTo(DefinitionAnswerOrigin.Imported);
+        await Assert.That(form.Snapshot().Values["settings.part"].GetRawText())
+            .IsEqualTo("""{"count.part":2,"note.part":"changed"}""");
+    }
+
+    [Test]
+    public async Task InvalidNestedDraftDoesNotPoisonHealthySiblingOrAcceptedSnapshot()
+    {
+        using var form = Form("""
+            {"id":"settings.part","title":"Settings","type":"object","sensitivity":"public","disclosure":"essential",
+             "default":{"count.part":2,"note.part":"healthy"},
+             "properties":[
+               {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
+               {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}
+            """);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
+        try
+        {
+            var settings = (ObjectFieldViewModel)fields.Single();
+            var count = settings.Children[0];
+            var note = settings.Children[1];
+            count.Text = "unfinished-number";
+            await Assert.That(count.HasError).IsTrue();
+            await Assert.That(note.HasError).IsFalse();
+            await Assert.That(form.ReadDraftText(["settings.part", "count.part"])).IsEqualTo("unfinished-number");
+            await Assert.That(form.Snapshot().Values["settings.part"].GetRawText())
+                .IsEqualTo("""{"count.part":2,"note.part":"healthy"}""");
+            note.Text = "changed";
+            await Assert.That(count.Text).IsEqualTo("unfinished-number");
+            await Assert.That(form.HasInputErrors).IsTrue();
+            await Assert.That(form.Snapshot().Values["settings.part"].GetRawText())
+                .IsEqualTo("""{"count.part":2,"note.part":"changed"}""");
+            await Assert.That(form.AnswerOrigin(["settings.part", "count.part"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
+            await Assert.That(form.AnswerOrigin(["settings.part", "note.part"])).IsEqualTo(DefinitionAnswerOrigin.Explicit);
+            count.Text = "3";
+            await Assert.That(form.HasInputErrors).IsFalse();
+            await Assert.That(note.HasError).IsFalse();
+        }
+        finally { Dispose(fields); }
+    }
+
+    [Test]
+    public async Task SharedRowRemovalKeepsSurvivorEditorDraftIdentityAndOrigins()
+    {
+        using var form = Form("""
+            {"id":"rows.part","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
+             "default":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}],
+             "properties":[
+               {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
+               {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}
+            """);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
+        try
+        {
+            var list = (ListFieldViewModel)fields.Single();
+            var survivor = (ObjectFieldViewModel)list.Items[1];
+            var count = survivor.Children[0];
+            string identity = form.GetEditorIdentity(["rows.part", "1"]);
+            count.Text = "unfinished-number";
+            await Assert.That(form.RemoveListItem(["rows.part"], 0)).IsTrue();
+            await Assert.That(ReferenceEquals(list.Items.Single(), survivor)).IsTrue();
+            await Assert.That(form.GetEditorIdentity(["rows.part", "0"])).IsEqualTo(identity);
+            await Assert.That(count.Text).IsEqualTo("unfinished-number");
+            survivor.Children[1].Text = "changed";
+            await Assert.That(form.ReadDraftText(["rows.part", "0", "count.part"])).IsEqualTo("unfinished-number");
+            await Assert.That(form.AnswerOrigin(["rows.part", "0", "count.part"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
+            await Assert.That(form.AnswerOrigin(["rows.part", "0", "note.part"])).IsEqualTo(DefinitionAnswerOrigin.Explicit);
+            await Assert.That(form.Snapshot().Values["rows.part"].GetRawText())
+                .IsEqualTo("""[{"count.part":2,"note.part":"changed"}]""");
+        }
+        finally { Dispose(fields); }
+    }
+
+    [Test]
+    public async Task SharedContainerPresenceRefreshDoesNotSupplyUntouchedSiblings()
+    {
+        using var form = Form("""
+            {"id":"settings","title":"Settings","type":"object","sensitivity":"public","disclosure":"essential",
+             "properties":[
+               {"id":"empty.object","title":"Empty object","type":"object","properties":[],"sensitivity":"public","disclosure":"essential"},
+               {"id":"empty.list","title":"Empty list","type":"list","itemType":"string","maxItems":0,"sensitivity":"public","disclosure":"essential"}]}
+            """);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
+        try
+        {
+            var settings = (ObjectFieldViewModel)fields.Single();
+            long revision = form.InputRevision;
+            form.SetAllSectionsExpanded(true);
+            settings.Children[0].ClearCommand.Execute(null);
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+            await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
+            await Assert.That(form.SupplyObject(["settings", "empty.object"])).IsTrue();
+            await Assert.That(form.Snapshot().Values["settings"].GetRawText()).IsEqualTo("""{"empty.object":{}}""");
+            await Assert.That(form.SupplyList(["settings", "empty.list"])).IsTrue();
+            await Assert.That(JsonElement.DeepEquals(form.Snapshot().Values["settings"],
+                JsonSerializer.Deserialize<JsonElement>("""{"empty.object":{},"empty.list":[]}"""))).IsTrue();
+            settings.Children[0].ClearCommand.Execute(null);
+            await Assert.That(form.Snapshot().Values["settings"].GetRawText()).IsEqualTo("""{"empty.list":[]}""");
+            settings.ClearCommand.Execute(null);
+            await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
+        }
+        finally { Dispose(fields); }
+    }
+
+    [Test]
     public async Task OptionalAdvancedSecretDoesNotOpenBecauseItIsProtected()
     {
         using var form = Form("""
             {"id":"token","title":"Token","type":"string","sensitivity":"secret","disclosure":"advanced",
              "consequence":"Acquire a token only if this optional integration is needed."}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             await Assert.That(fields.Single().IsVisible).IsFalse();
@@ -44,7 +186,8 @@ public sealed class FieldViewModelTests
             {"id":"rows.list","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
              "properties":[{"id":"value.part","title":"Value","type":"string","maxLength":2,"sensitivity":"secret","disclosure":"advanced"}]}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var list = (ListFieldViewModel)fields.Single();
@@ -63,7 +206,8 @@ public sealed class FieldViewModelTests
             await Assert.That(secondValue.IsVisible).IsTrue();
             await Assert.That(form.Snapshot().Values["rows.list"].GetArrayLength()).IsEqualTo(1);
             secondValue.Text = "ok";
-            await Assert.That(secondValue.IsVisible).IsFalse();
+            // Shared correction promotion stays reachable until deliberate collapse.
+            await Assert.That(secondValue.IsVisible).IsTrue();
             long revision = form.InputRevision;
             form.SetAllSectionsExpanded(true);
             await Assert.That(secondValue.IsVisible).IsTrue();
@@ -81,13 +225,14 @@ public sealed class FieldViewModelTests
         using var form = Form("""
             {"id":"value","title":"Value","type":"enum","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var field = (EnumFieldViewModel)fields.Single();
             long before = form.InputRevision;
             form.SetAllSectionsExpanded(true);
-            field.Refresh();
+            factory.Refresh();
             await Assert.That(form.InputRevision).IsEqualTo(before);
             await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
             field.SelectedIndex = 2;
@@ -95,7 +240,7 @@ public sealed class FieldViewModelTests
             await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
             before = form.InputRevision;
             form.SetAllSectionsExpanded(false);
-            field.Refresh();
+            factory.Refresh();
             await Assert.That(form.InputRevision).IsEqualTo(before);
             field.ClearCommand.Execute(null);
             await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
@@ -109,13 +254,14 @@ public sealed class FieldViewModelTests
         using var form = Form("""
             {"id":"value","title":"Value","type":"string","default":"","sensitivity":"public","disclosure":"guided"}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             FieldViewModel field = fields.Single();
             long before = form.InputRevision;
             form.SetAllSectionsExpanded(true);
-            field.Refresh();
+            factory.Refresh();
             await Assert.That(form.InputRevision).IsEqualTo(before);
             await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
             field.Text = "erase";
@@ -131,7 +277,8 @@ public sealed class FieldViewModelTests
     public async Task FactoryProjectsEveryDeclaredType()
     {
         using var form = Form();
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             await Assert.That(fields.Select(field => field.GetType()).ToArray()).IsEquivalentTo(
@@ -154,7 +301,8 @@ public sealed class FieldViewModelTests
         using var form = Form($$"""
             {"id":"value","title":"Protected","help":"Declared help","type":"{{type}}","sensitivity":"sensitive","disclosure":"guided"{{extra}}}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var field = fields.Single();
@@ -181,7 +329,8 @@ public sealed class FieldViewModelTests
             {"id":"rows","title":"Rows","type":"list","itemType":"object","sensitivity":"secret","disclosure":"guided",
              "properties":[{"id":"count","title":"Count","type":"integer","sensitivity":"public","disclosure":"guided"}]}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var list = (ListFieldViewModel)fields.Single();
@@ -204,7 +353,8 @@ public sealed class FieldViewModelTests
                {"id":"age","title":"Age","type":"integer","recommended":7,"sensitivity":"public","disclosure":"guided"},
                {"id":"mode","title":"Mode","type":"enum","choices":["first","second"],"sensitivity":"public","disclosure":"guided"}]}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var owner = (ObjectFieldViewModel)fields.Single();
@@ -224,7 +374,8 @@ public sealed class FieldViewModelTests
             {"id":"value","title":"Value","type":"integer","sensitivity":"public","disclosure":"guided",
              "minimum":1,"maximum":9,"recommended":4}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var field = fields.Single();
@@ -248,7 +399,8 @@ public sealed class FieldViewModelTests
     public async Task ExpansionRestoresAuthoredDefaultsAndKeepsActiveCorrectionsReachable()
     {
         using var form = Form();
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var note = fields.Single(field => field.Id == "note");
@@ -256,7 +408,7 @@ public sealed class FieldViewModelTests
             await Assert.That(fields.Single(field => field.Id == "mode").IsVisible).IsTrue();
             await Assert.That(fields.Single(field => field.Id == "owner").IsVisible).IsTrue();
             form.Fields.Single(input => input.Definition.Id == "note").Text = "too-long-note";
-            note.Refresh();
+            factory.Refresh();
             await Assert.That(note.HasError).IsTrue();
             await Assert.That(note.IsVisible).IsTrue();
             await Assert.That(note.ErrorText.Contains("too-long-note", StringComparison.Ordinal)).IsFalse();
@@ -284,11 +436,13 @@ public sealed class FieldViewModelTests
                {"id":"note","title":"Note","type":"string","sensitivity":"public","disclosure":"guided"},
                {"id":"nested","title":"Nested","type":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[]}]}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var obj = (ObjectFieldViewModel)fields.Single();
             await Assert.That(form.Fields.Single().Text).IsEmpty();
+            obj.SupplyCommand.Execute(null);
             obj.Children.Single(field => field.Id == "mode").Text = "two";
             using var json = JsonDocument.Parse(form.Fields.Single().Text);
             await Assert.That(json.RootElement.GetProperty("count").GetInt32()).IsEqualTo(2);
@@ -316,7 +470,8 @@ public sealed class FieldViewModelTests
                {"id":"enabled","title":"Enabled","type":"boolean","default":false,"sensitivity":"public","disclosure":"guided"},
                {"id":"aliases","title":"Aliases","type":"list","itemType":"string","required":true,"sensitivity":"public","disclosure":"guided"}]}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var list = (ListFieldViewModel)fields.Single();
@@ -346,7 +501,8 @@ public sealed class FieldViewModelTests
     public async Task DisposalDetachesInputAndPreventsRetiredEdits()
     {
         using var form = Form();
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         var name = fields.Single(field => field.Id == "name");
         Dispose(fields);
         form.Fields[0].Text = "later";
@@ -361,7 +517,8 @@ public sealed class FieldViewModelTests
         using var form = Form("""
             {"id":"note","title":"Note","type":"string","sensitivity":"public","disclosure":"essential","minLength":1,"maxLength":8}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var note = fields.Single();
@@ -378,7 +535,8 @@ public sealed class FieldViewModelTests
         using var form = Form("""
             {"id":"rows","title":"Rows","type":"list","itemType":"integer","minItems":1,"maxItems":2,"sensitivity":"public","disclosure":"guided"}
             """);
-        var fields = new FormFieldFactory().Create(form);
+        using var factory = new FormFieldFactory();
+        var fields = factory.Create(form);
         try
         {
             var list = (ListFieldViewModel)fields.Single();
@@ -420,7 +578,8 @@ public sealed class FieldViewModelTests
                 form.Fields.Single().Text = """
                     {"name":"synthetic-answer","mode":"synthetic-choice","enabled":true,"count":42,"ratio":0.5}
                     """;
-                var fields = new FormFieldFactory().Create(form);
+                using var factory = new FormFieldFactory();
+                var fields = factory.Create(form);
                 var window = new Window { Content = new ContentControl { Content = fields.Single() } };
                 try
                 {

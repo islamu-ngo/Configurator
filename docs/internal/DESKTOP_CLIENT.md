@@ -56,16 +56,34 @@ operations:
 input revision, validation, and cloned snapshots. Desktop's `FormFieldFactory`
 projects inputs into string, enum, numeric, boolean, object and list viewmodels.
 Compiled `DataTemplate` bindings render native inputs and recursive collections
-from that tree. Structured viewmodels serialize their local values into the shared typed input; the operator
-does not edit JSON. An untouched blank nested control remains absent, so it
-cannot create a false conflict during existing-file import. An invalid child
-scalar invalidates the whole structured input rather than silently omitting it.
+from those binding/focus projections; they are not another semantic answer tree.
+Scalar drafts use `EditValue` with literal path segments, recommendations use
+`SetValue`, and list actions use `AddListItem` / `RemoveListItem`. The form retains
+invalid nested drafts beside the last accepted values. Literal shared diagnostics
+identify the failing leaf without assigning its error to healthy siblings.
+Dots in field IDs are not path separators. Preparation still rejects active
+invalid drafts; a retained accepted snapshot does not imply readiness.
+
+Object and list **Supply** actions call `SupplyObject` / `SupplyList`.
+They deliberately represent `{}` / `[]`, including childless objects and
+zero-capacity lists, and preserve existing contents when supplied again.
+Browsing and refreshing leave absence unchanged. **Clear** removes the selected
+path without reconstructing siblings; clearing an absent nested path does not
+materialize its ancestors. String list-item Clear retains an empty string row;
+Remove item deletes the row. Declared default fallback remains shared policy.
+List projections reconcile the form's value-free logical row tokens, retaining
+surviving viewmodels, controls, drafts and per-path provenance across sibling
+edits/removal and unrelated imports.
 
 `MainWindow` declaratively hosts fields in an `ItemsControl`. Bindings update
 visibility, errors and values without rebuilding the form on each keystroke.
-Field synchronization distinguishes model refresh from operator edits so that
-imported controls cannot create a second answer revision or invalidate a
-successfully imported status afterward.
+The workspace-owned `FormFieldFactory` coordinates the single field refresh
+subscription for input and view changes. Each pass obtains one current root-state
+lookup and groups shared diagnostics before refreshing existing projections.
+Roots do not also subscribe to shared input/property events. Workspace message
+notifications do not run another field pass. The factory detaches and disposes
+projections before form replacement; imported controls cannot create another
+answer revision or invalidate a successfully imported status afterward.
 Essential mode is a desktop narrowing of Guided: it retains required, invalid,
 protected, consequential, and essentially disclosed active fields. Advanced
 shows all active fields. Shared Core validation always sees all answers,
@@ -79,6 +97,13 @@ shortcuts bind to commands through native key bindings. Validation focuses error
 list mutation preserves usable focus through declarative focus requests and a
 view-owned focus behavior. The RTL switch binds FlowDirection. Headless control
 tests check actual focus and key routing, not just label/property presence.
+New Supply and touched Clear labels, automation names and help come from
+`Resources/DesktopActionText` through `ResourceManager` and `CurrentUICulture`.
+Neutral and exact Arabic resources cover these actions only. The RTL switch
+changes layout, not culture; there is no new language selector or complete
+Desktop translation claim. Childless/zero-capacity containers have a reachable
+Supply focus destination even when there is no editable descendant or enabled
+Add item action.
 Selection buttons return focus after cancellation/failure; successful intake
 focuses the first visible field. Closing disposes the shell, fencing outstanding
 selection as well as private saves. Code-behind contains initialization and
@@ -180,11 +205,15 @@ dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Test
 ```
 
 The focused suite exercises real Avalonia headless controls, nested and list
-editing, focus/keyboard routing, disclosure-independent readiness, generic
+editing, literal leaf errors, explicit empty-container presence, surviving row
+control identity/focus, imported/defaulted sibling origins, exact Arabic action
+resources and rendered shipped-copy equality, disclosure-independent readiness, generic
 artifact formats, definition pinning/reload, unsafe names, protected metadata,
 buffer clearing, consumptive saves, cancellation, stale completion, and the
 actual Linux create-only writer through the shell. Parent-owned final visual QA
 and screenshots remain separate from this unit's headless verification.
+These checks do not establish normal/minimum-size native keyboard operation,
+translation quality or native assistive-technology qualification.
 
 See the [public workflow](../public/desktop.md) and
 [Core definition contract](CORE_DEFINITION_CONTRACT.md).
@@ -193,9 +222,10 @@ See the [public workflow](../public/desktop.md) and
 
 `tests/Configurator.Desktop.NativeHost` initializes the actual App/classic
 lifetime on the main thread, checks the X11 platform handle and Linux x64 RID,
-and requires all seventeen distinct named scenarios, including
+and requires all eighteen distinct named scenarios, including
 `D14-physical-settlement-receipt`, `D15-close-drain-settles`,
-`D16-close-deadline-unknown` and `D17-close-stay-force`. Each async action subscribes
+`D16-close-deadline-unknown`, `D17-close-stay-force` and
+`D18-shared-editing-presence-localized-actions`. Each async action subscribes
 before triggering and has a bounded timeout; startup/shutdown also has a
 watchdog. Its synthetic generic definition and actual Event definition exercise
 independent outputs, supported imports, invalid nested values, inactive bundle
@@ -203,6 +233,19 @@ selection, create-only permissions/conflicts/recovery, private sinks and close.
 Event cases enter declared fields for one/two/three tenants and check required
 manifest identity and nested objects. They do not imply arbitrary document
 editing, a supported inverse for the manifest projection or target acceptance.
+
+The shared-editing increment passed 209 Desktop MTP cases and all eighteen
+actual X11 guards in separate English and Arabic startup UI-culture cohorts.
+Set the harness-only `CONFIGURATOR_NATIVE_UI_CULTURE` to `en` or `ar` before
+launch; this selects touched Supply/Clear resources, not a product language
+switch. A mid-run async culture change did not govern existing dispatcher
+binding contexts, so the native qualification uses fresh process cultures.
+D18 verifies omission versus deliberate empty containers, leaf-only errors,
+surviving row/control focus and shipped action labels/names/help. Inspected
+960x800 and 600x540 light/dark captures live under
+`.tmp/cross-platform-quality-desktop-editing/{en,ar}`. This is real native
+control evidence, not screen-reader speech, complete translation, or an
+isolated published-package run.
 
 The MVVM refactor qualification passed thirteen checks on Linux x64/X11 and
 173 Desktop MTP cases on 2026-10-11. Earlier direct Artifacts boundary
@@ -216,7 +259,7 @@ the verification boundary. No new release platform or installer is admitted.
 Synthetic visual evidence can be captured with:
 
 ```bash
-xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 17 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
+xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 18 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
 ```
 
 The harness captures loaded/edited workspaces at 960x800 and the 600x540 minimum,

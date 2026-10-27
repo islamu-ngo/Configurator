@@ -1,5 +1,6 @@
 namespace Configurator.Desktop.Tests;
 
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -14,6 +15,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
@@ -23,6 +25,127 @@ public sealed class DesktopApplicationTests
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<Configurator.Desktop.App>()
             .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = true });
+
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task ShippedContainerActionsSupplyAndClearEmptyValuesWithoutBrowsingEdits(string culture)
+    {
+        var result = await InWindow(window =>
+        {
+            CultureInfo previous = CultureInfo.CurrentUICulture;
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+            try
+            {
+                var source = JsonNode.Parse(Definition())!.AsObject();
+                source["fields"] = JsonNode.Parse("""
+                    [{"id":"empty.object","title":"Empty object","type":"object","properties":[],"sensitivity":"public","disclosure":"essential"},
+                     {"id":"empty.list","title":"Empty list","type":"list","itemType":"string","maxItems":0,"sensitivity":"public","disclosure":"essential"}]
+                    """);
+                source["artifacts"] = JsonNode.Parse("""
+                    [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+                      "projection":{"op":"literal","value":{}}}]
+                    """);
+                var shell = (DesktopShellViewModel)window.DataContext!;
+                shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                var form = shell.Workspace.Form!;
+                long before = form.InputRevision;
+                shell.Workspace.OptionalEditorsExpanded = true;
+                shell.Workspace.OptionalEditorsExpanded = false;
+                Dispatcher.UIThread.RunJobs();
+                bool untouched = before == form.InputRevision && form.Snapshot().Values.Count == 0;
+                bool shippedCopy = true;
+                bool present = true;
+                bool cleared = true;
+                bool focused = true;
+                foreach (var field in shell.Workspace.Fields)
+                {
+                    var buttons = window.GetLogicalDescendants().OfType<Button>()
+                        .Where(button => ReferenceEquals(button.DataContext, field)).ToArray();
+                    var supply = buttons.Single(button => ReferenceEquals(button.Command, field.SupplyCommand));
+                    var clear = buttons.Single(button => ReferenceEquals(button.Command, field.ClearCommand));
+                    shippedCopy &= Equals(supply.Content, DesktopActionText.SupplyLabel) &&
+                        AutomationProperties.GetName(supply) == DesktopActionText.SupplyName(field.Title) &&
+                        AutomationProperties.GetHelpText(supply) == DesktopActionText.SupplyHelp &&
+                        Equals(clear.Content, DesktopActionText.ClearLabel) &&
+                        AutomationProperties.GetName(clear) == DesktopActionText.ClearName(field.Title) &&
+                        AutomationProperties.GetHelpText(clear) == DesktopActionText.ClearHelp;
+                    Click(supply);
+                    Dispatcher.UIThread.RunJobs();
+                    focused &= supply.IsFocused;
+                    present &= form.Snapshot().Values[field.Id].GetRawText() ==
+                        (field is ObjectFieldViewModel ? "{}" : "[]");
+                    long suppliedRevision = form.InputRevision;
+                    Click(supply);
+                    Dispatcher.UIThread.RunJobs();
+                    present &= form.InputRevision == suppliedRevision;
+                    Click(clear);
+                    Dispatcher.UIThread.RunJobs();
+                    cleared &= !form.Snapshot().Values.ContainsKey(field.Id);
+                    focused &= supply.IsFocused;
+                }
+                return (untouched, shippedCopy, present, cleared, focused);
+            }
+            finally { CultureInfo.CurrentUICulture = previous; }
+        });
+        await Assert.That(result.untouched).IsTrue();
+        await Assert.That(result.shippedCopy).IsTrue();
+        await Assert.That(result.present).IsTrue();
+        await Assert.That(result.cleared).IsTrue();
+        await Assert.That(result.focused).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task SharedEditsAndDisclosureRetainTheFocusedSurvivingRowControl()
+    {
+        var result = await InWindow(window =>
+        {
+            var source = JsonNode.Parse(Definition())!.AsObject();
+            source["fields"] = JsonNode.Parse("""
+                [{"id":"rows.part","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
+                  "default":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}],
+                  "properties":[
+                    {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
+                    {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}]
+                """);
+            source["artifacts"] = JsonNode.Parse("""
+                [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+                  "projection":{"op":"literal","value":{}}}]
+                """);
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var list = (ListFieldViewModel)shell.Workspace.Fields.Single();
+            var survivor = (ObjectFieldViewModel)list.Items[1];
+            TextBox count = window.GetLogicalDescendants().OfType<TextBox>()
+                .Single(control => ReferenceEquals(control.DataContext, survivor.Children[0]));
+            count.Focus();
+            count.Text = "unfinished-number";
+            Dispatcher.UIThread.RunJobs();
+            bool held = count.IsFocused;
+            shell.Workspace.Form!.RemoveListItem(["rows.part"], 0);
+            shell.Workspace.OptionalEditorsExpanded = true;
+            shell.Workspace.OptionalEditorsExpanded = false;
+            Dispatcher.UIThread.RunJobs();
+            var current = window.GetLogicalDescendants().OfType<TextBox>()
+                .Single(control => ReferenceEquals(control.DataContext, survivor.Children[0]));
+            held &= ReferenceEquals(count, current) && current.IsFocused && current.Text == "unfinished-number";
+            bool errors = survivor.Children[0].HasError && !survivor.Children[1].HasError;
+            current.Text = "4";
+            Dispatcher.UIThread.RunJobs();
+            return (held, errors, ready: shell.Workspace.Validate(),
+                answer: shell.Workspace.Form.Snapshot().Values["rows.part"].GetRawText());
+        });
+        await Assert.That(result.held).IsTrue();
+        await Assert.That(result.errors).IsTrue();
+        await Assert.That(result.ready).IsTrue();
+        await Assert.That(result.answer).IsEqualTo("""[{"count.part":4,"note.part":"second"}]""");
+    }
 
     [Test]
     [NotInParallel]
