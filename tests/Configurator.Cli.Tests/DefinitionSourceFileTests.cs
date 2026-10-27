@@ -5,6 +5,42 @@ namespace Configurator.Cli.Tests;
 public sealed class DefinitionSourceFileTests
 {
     [Test]
+    [Arguments(0)]
+    [Arguments(4 * 1024 * 1024 + 1)]
+    public async Task NativeSourceBoundsKeepClosedDiagnosticWithoutPrivatePath(int length)
+    {
+        using var files = new DefinitionTestDirectory();
+        string path = files.Path("synthetic-private-source.yaml");
+        await File.WriteAllBytesAsync(path, new byte[length]);
+        try
+        {
+            await DefinitionSourceFiles.ReadAsync(path, CancellationToken.None);
+            throw new InvalidOperationException("out-of-bound-source-admitted");
+        }
+        catch (DefinitionFileException exception)
+        {
+            await Assert.That(exception.Code).IsEqualTo("definition-source-bound");
+            await Assert.That(exception.Message).DoesNotContain(path);
+        }
+    }
+
+    [Test]
+    public async Task NativeSourceAtExactBoundRetainsByteOrderAndCallerOwnership()
+    {
+        using var files = new DefinitionTestDirectory();
+        string path = files.Path("configurator.yaml");
+        byte[] expected = new byte[4 * 1024 * 1024];
+        expected[0] = 7;
+        expected[1] = 3;
+        expected[^1] = 9;
+        await File.WriteAllBytesAsync(path, expected);
+        byte[] actual = await DefinitionSourceFiles.ReadAsync(path, CancellationToken.None);
+        await Assert.That(actual.AsSpan().SequenceEqual(expected)).IsTrue();
+        actual[0] = 0;
+        await Assert.That((await File.ReadAllBytesAsync(path))[0]).IsEqualTo((byte)7);
+    }
+
+    [Test]
     public async Task DiscoveryRejectsAmbiguityAndExplicitSelectionWins()
     {
         using var files = new DefinitionTestDirectory();

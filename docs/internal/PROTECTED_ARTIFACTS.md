@@ -44,6 +44,26 @@ after edits, and disposes its owned output buffers. A stale operation cannot
 publish into the current workspace. Native adapters decide the destination;
 definition filename hints grant no filesystem authority.
 
+## Bounded native input lifetime
+
+`BoundedFileInput` is the native assembly's disposable byte owner for local
+definition and import acquisition. Its path or caller-supplied opener selects
+file authority; the helper supplies no admission or trust policy. Open, initial
+length, read and final length checks execute on the worker, not the calling UI
+owner. Empty, oversized, growing or truncated input rejects. Each current native
+caller supplies its existing 4 MiB per-file bound.
+
+Cancellation does not abandon a blocking open/read/disposal task or clear storage
+still in use. The returned task settles only after physical stream disposal;
+rejected storage clears before that task completes. Successful storage remains
+owned until the consumer disposes it. Desktop definition/import and Terminal
+import retain their existing generation and physical-operation fences, so late
+bytes cannot become current. The shared form clears consumed import memory
+before Desktop's busy lease ends; outer input disposal clears the remaining
+owned allocation. CLI source acquisition returns its existing caller-owned copy
+after clearing the helper owner. Public source and private answer-import policy
+remain distinct, and Browser has no reference to this native helper.
+
 `DefinitionBundleComposer` selects declared artifact IDs and returns all outputs
 in definition order from one immutable answer snapshot. It returns no artifacts
 if a later projection fails or the sum of rendered bytes exceeds the 4 MiB

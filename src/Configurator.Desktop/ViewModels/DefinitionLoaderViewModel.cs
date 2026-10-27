@@ -1,6 +1,5 @@
 namespace Configurator.Desktop.ViewModels;
 
-using System.Security.Cryptography;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -95,7 +94,6 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "load", cancellationToken);
         if (operation is null) return false;
         string path = DefinitionPath;
-        byte[] source = [];
         try
         {
             string extension = Path.GetExtension(path).ToLowerInvariant();
@@ -104,27 +102,15 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
                 _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation));
                 return false;
             }
-            await using Stream stream = _openRead(path);
-            if (stream.Length > ProtectedArtifactWriter.MaximumBytes)
-            {
-                _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation));
-                return false;
-            }
-            source = new byte[ProtectedArtifactWriter.MaximumBytes + 1];
-            int count = 0;
-            while (count < source.Length)
-            {
-                int read = await stream.ReadAsync(source.AsMemory(count), operation.Token);
-                if (read == 0) break;
-                count += read;
-            }
+            using BoundedFileInput source = await BoundedFileInput.ReadAsync(() => _openRead(path),
+                ProtectedArtifactWriter.MaximumBytes, operation.Token);
             if (!operation.IsCurrent) return false;
-            if (count > ProtectedArtifactWriter.MaximumBytes)
-            {
-                _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation));
-                return false;
-            }
-            return Admit(source.AsMemory(0, count), extension is ".yaml" or ".yml");
+            return Admit(source.Bytes, extension is ".yaml" or ".yml");
+        }
+        catch (InvalidDataException)
+        {
+            _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation));
+            return false;
         }
         catch (OperationCanceledException)
         {
@@ -135,10 +121,6 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         {
             _messenger.Send(new StatusChangedMessage("definition-unreadable", operation.Generation));
             return false;
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(source);
         }
     }
 

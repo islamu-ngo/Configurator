@@ -175,6 +175,16 @@ streams clear borrowed buffers in their own await/finally scope before releasing
 the lease. A boundary that ignores cancellation keeps the busy gate closed
 without retaining current preparation or admitting late answers.
 
+Definition and local import acquisition use the native `BoundedFileInput`
+owner, with the existing 4 MiB per-file limit and separate admission rules.
+Blocking open/stat/read runs off the dispatcher. Changed lengths, oversize and
+empty inputs reject without adopting partial data. Cancellation retains the
+physical task until stream disposal/clearing and the existing generation fence
+rejects late results. The shared form clears consumed import bytes before the
+busy-release notification; disposing the bounded owner clears its whole storage.
+Controlled actual-dispatcher open/stat/read tests cover responsiveness separately
+from helper-only bounds tests.
+
 The publisher forwards the bundle writer's real outcome observer and retains
 immutable `ProtectedArtifactPublicationReceipt` facts independently of generation:
 at most 16 settled attempts plus one active attempt, each with at most 64 declared

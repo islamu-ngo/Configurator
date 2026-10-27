@@ -22,6 +22,10 @@ dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \
 Definitions accept the compact [maintainer source](integrate-your-tool.md) with
 `$schema: urn:islamu:configurator:authoring:v1` or compiled `schemaVersion: 1`
 runtime data. `.yaml` and `.yml` files use bounded YAML; other extensions use JSON.
+Public definition source files are limited to 4 MiB each; empty, oversized or
+length-changing reads reject with a safe source-bound diagnostic. Native
+acquisition preserves the command's explicit source authority and clears its
+temporary storage after the caller receives its own copy.
 Answers are a JSON object whose property names are definition field IDs, for
 example `{"service.name":"my-service"}`. Answers are never command-line values.
 For ordinary artifact operations, the input is an answer workspace. Generic

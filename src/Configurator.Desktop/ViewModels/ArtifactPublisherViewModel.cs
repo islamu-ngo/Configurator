@@ -30,7 +30,6 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     private long _preparedBundleInputRevision;
     private readonly HashSet<string> _selectedArtifactIds = new(StringComparer.Ordinal);
     private IReadOnlyList<ArtifactSelectionViewModel> _artifactSelections = [];
-    private byte[]? _importBytes;
     private readonly object _receiptGate = new();
     private readonly Queue<ProtectedArtifactPublicationReceipt> _publicationHistory = new();
     private DesktopPublicationOperation? _publication;
@@ -436,25 +435,20 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     }
 
     [RelayCommand(CanExecute = nameof(CanImport))]
-    public Task<bool> ImportFileAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> ImportFileAsync(CancellationToken cancellationToken = default)
     {
         string path = ExistingFilePath;
-        return ImportAsync(async token =>
+        BoundedFileInput? input = null;
+        try
+        {
+            return await ImportAsync(async token =>
             {
-                await using Stream stream = _openImport(path);
-                if (stream.Length > ProtectedArtifactWriter.MaximumBytes) throw new IOException("source-limit");
-                byte[] source = new byte[ProtectedArtifactWriter.MaximumBytes + 1];
-                _importBytes = source;
-                int count = 0;
-                while (count < source.Length)
-                {
-                    int read = await stream.ReadAsync(source.AsMemory(count), token);
-                    if (read == 0) break;
-                    count += read;
-                }
-                if (count > ProtectedArtifactWriter.MaximumBytes) throw new IOException("source-limit");
-                return source.AsMemory(0, count);
+                input = await BoundedFileInput.ReadAsync(() => _openImport(path),
+                    ProtectedArtifactWriter.MaximumBytes, token);
+                return input.Bytes;
             }, cancellationToken);
+        }
+        finally { input?.Dispose(); }
     }
 
     public async Task<bool> ImportAsync(Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
@@ -483,15 +477,10 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             _messenger.Send(new StatusChangedMessage(result.Code, operation.Generation));
             return false;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
             _messenger.Send(new StatusChangedMessage("import-unreadable", operation.Generation));
             return false;
-        }
-        finally
-        {
-            if (_importBytes is not null) CryptographicOperations.ZeroMemory(_importBytes);
-            _importBytes = null;
         }
     }
 

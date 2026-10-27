@@ -2,6 +2,8 @@ namespace Configurator.Desktop.Tests.ViewModels;
 
 using System.Text;
 using System.Text.Json.Nodes;
+using Avalonia.Headless;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
@@ -13,6 +15,167 @@ using Configurator.Desktop.ViewModels.Fields;
 
 public sealed class DesktopShellViewModelTests
 {
+    [Test]
+    public async Task NativeImportClearsOwnedStorageBeforeReleasingThePhysicalBusyLease()
+    {
+        byte[] bytes = """{"name":"imported-before-settlement"}"""u8.ToArray();
+        using var stream = new ChangedInputStream(bytes, bytes.Length);
+        using var shell = DesktopTestContext.Root(openImport: _ => stream);
+        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        shell.Publisher.ExistingFilePath = "synthetic.json";
+        bool? clearedAtRelease = null;
+        shell.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(shell.IsBusy) && !shell.IsBusy)
+                clearedAtRelease = stream.Borrowed.Length > 0 && stream.Borrowed.ToArray().All(value => value == 0);
+        };
+        await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
+        await Assert.That(clearedAtRelease).IsEqualTo(true);
+        await Assert.That(shell.Workspace.Form!.Snapshot().Values["name"].GetString())
+            .IsEqualTo("imported-before-settlement");
+    }
+
+    [Test]
+    [Arguments(true, -1)]
+    [Arguments(false, -1)]
+    [Arguments(true, 1)]
+    [Arguments(false, 1)]
+    [Arguments(true, 4 * 1024 * 1024)]
+    [Arguments(false, 4 * 1024 * 1024)]
+    public async Task ChangedOrOversizedNativeInputCannotReachDesktopAdmission(bool definition, int lengthOffset)
+    {
+        byte[] bytes = definition ? DesktopApplicationTests.Definition() : """{"name":"late-import"}"""u8.ToArray();
+        using var stream = new ChangedInputStream(bytes, bytes.Length + (long)lengthOffset);
+        using var shell = DesktopTestContext.Root(openDefinition: definition ? _ => stream : null,
+            openImport: definition ? null : _ => stream);
+        if (!definition) shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        shell.Loader.DefinitionPath = "synthetic-private.json";
+        shell.Publisher.ExistingFilePath = "synthetic-private.json";
+        bool accepted = definition ? await shell.Loader.LoadDefinitionAsync() : await shell.Publisher.ImportFileAsync();
+        await Assert.That(accepted).IsFalse();
+        await Assert.That(shell.Status).IsEqualTo(definition ? "definition-invalid:source-limit" : "import-unreadable");
+        await Assert.That(stream.Borrowed.ToArray().All(value => value == 0)).IsTrue();
+        if (definition) await Assert.That(shell.Workspace.Form).IsNull();
+        else await Assert.That(shell.Workspace.Form!.Snapshot().Values["name"].GetString()).IsEqualTo("Example service");
+    }
+
+    private sealed class ChangedInputStream(byte[] bytes, long reportedLength) : MemoryStream(bytes)
+    {
+        public override long Length => reportedLength;
+        internal Memory<byte> Borrowed { get; private set; }
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (Position == 0) Borrowed = buffer;
+            return base.ReadAsync(buffer, cancellationToken);
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(true, "open")]
+    [Arguments(false, "open")]
+    [Arguments(true, "stat")]
+    [Arguments(false, "stat")]
+    [Arguments(true, "read")]
+    [Arguments(false, "read")]
+    public async Task NativeAcquisitionKeepsDispatcherResponsiveAndDrainsCancelledInput(bool definition, string boundary)
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopApplicationTests));
+        byte[] bytes = definition ? DesktopApplicationTests.Definition() : """{"name":"late-import"}"""u8.ToArray();
+        using var stream = new AcquisitionStream(bytes, boundary);
+        var responsive = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        DesktopShellViewModel? shell = null;
+        Task? pending = null;
+        try
+        {
+            pending = session.Dispatch(async () =>
+            {
+                Stream Open(string _)
+                {
+                    if (boundary == "open") stream.Hold();
+                    return stream;
+                }
+                shell = DesktopTestContext.Root(openDefinition: definition ? Open : null,
+                    openImport: definition ? null : Open);
+                if (!definition) shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+                shell.Loader.DefinitionPath = "synthetic.json";
+                shell.Publisher.ExistingFilePath = "synthetic.json";
+                Task<bool> acquiring = definition ? shell.Loader.LoadDefinitionAsync() : shell.Publisher.ImportFileAsync();
+                await stream.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (!Dispatcher.UIThread.CheckAccess()) throw new InvalidOperationException("not-ui-owner");
+                    shell.Cancel();
+                    if (!shell.IsBusy || shell.ActiveCompletion.IsCompleted)
+                        throw new InvalidOperationException("physical-read-retired-early");
+                    if (boundary == "read" && !stream.Borrowed.Span[..bytes.Length].SequenceEqual(bytes))
+                        throw new InvalidOperationException("borrowed-read-cleared-early");
+                    responsive.TrySetResult();
+                });
+                await Assert.That(await acquiring).IsFalse();
+                await Assert.That(shell.IsBusy).IsFalse();
+                if (definition) await Assert.That(shell.Workspace.Form).IsNull();
+                else await Assert.That(shell.Workspace.Form!.Snapshot().Values["name"].GetString())
+                    .IsEqualTo("Example service");
+                return true;
+            }, CancellationToken.None);
+            await stream.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await responsive.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+        finally
+        {
+            stream.Release.TrySetResult();
+            try
+            {
+                if (pending is not null) await pending.WaitAsync(TimeSpan.FromSeconds(10));
+                await Assert.That(stream.CloseCount).IsEqualTo(1);
+                await Assert.That(stream.Borrowed.ToArray().All(value => value == 0)).IsTrue();
+            }
+            finally
+            {
+                await session.Dispatch(() => { shell?.Dispose(); return true; }, CancellationToken.None);
+                await Task.Run(session.Dispose);
+            }
+        }
+    }
+
+    private sealed class AcquisitionStream(byte[] bytes, string boundary) : MemoryStream(bytes)
+    {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal Memory<byte> Borrowed { get; private set; }
+        internal int CloseCount { get; private set; }
+        internal void Hold()
+        {
+            Entered.TrySetResult();
+            Release.Task.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        }
+        public override long Length
+        {
+            get
+            {
+                if (boundary == "stat") Hold();
+                return base.Length;
+            }
+        }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            int count = await base.ReadAsync(buffer, CancellationToken.None);
+            if (count != 0 && boundary == "read")
+            {
+                Borrowed = buffer;
+                Entered.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+            }
+            return count;
+        }
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) CloseCount++;
+            base.Dispose(disposing);
+        }
+    }
+
     [Test]
     public async Task DefinitionIntakePopulatesOnlyItsOwnMessengerWorkspace()
     {

@@ -2,6 +2,7 @@ namespace Configurator.Terminal;
 
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using Configurator.Artifacts;
 using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
@@ -14,7 +15,8 @@ internal sealed class SetupTerminalImportOperation : IDisposable
 {
     private readonly object _gate = new();
     private readonly DefinitionFormModel _form;
-    private readonly Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>> _read;
+    private readonly Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>>? _read;
+    private readonly Func<string, Stream> _openRead;
     private readonly Action<Action> _dispatch;
     private Attempt? _active;
     private long _generation;
@@ -22,11 +24,14 @@ internal sealed class SetupTerminalImportOperation : IDisposable
     private Task _completion = Task.CompletedTask;
 
     internal SetupTerminalImportOperation(DefinitionFormModel form, Action<Action> dispatch,
-        Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>>? read = null)
+        Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>>? read = null,
+        Func<string, Stream>? openRead = null)
     {
         _form = form;
         _dispatch = dispatch;
-        _read = read ?? ReadFileAsync;
+        _read = read;
+        _openRead = openRead ?? (path => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+            4096, FileOptions.Asynchronous | FileOptions.SequentialScan));
     }
 
     internal event EventHandler<SetupTerminalImportResult>? Settled;
@@ -67,8 +72,17 @@ internal sealed class SetupTerminalImportOperation : IDisposable
         var result = new SetupTerminalImportResult(true, false, "import-failed");
         try
         {
-            // File open/stat and injected native reads may block before their first asynchronous suspension.
-            attempt.Bytes = await Task.Run(() => _read(path, attempt.Token), attempt.Token).ConfigureAwait(false);
+            if (_read is null)
+            {
+                attempt.Input = await BoundedFileInput.ReadAsync(() => _openRead(path),
+                    SetupCompositionLimits.DefaultAggregateSourceBytes, attempt.Token).ConfigureAwait(false);
+                attempt.Bytes = attempt.Input.Bytes;
+            }
+            else
+            {
+                // Injected external readers may also block before their first asynchronous suspension.
+                attempt.Bytes = await Task.Run(() => _read(path, attempt.Token), attempt.Token).ConfigureAwait(false);
+            }
             if (attempt.Bytes.Length is < 1 or > SetupCompositionLimits.DefaultAggregateSourceBytes)
                 throw new InvalidDataException();
             lock (_gate)
@@ -94,6 +108,7 @@ internal sealed class SetupTerminalImportOperation : IDisposable
         finally
         {
             Clear(attempt.Bytes);
+            attempt.Input?.Dispose();
             attempt.Bytes = ReadOnlyMemory<byte>.Empty;
             Task cancellation;
             lock (_gate)
@@ -163,32 +178,6 @@ internal sealed class SetupTerminalImportOperation : IDisposable
         catch (Exception exception) when (exception is NotInitializedException or ObjectDisposedException) { return false; }
     }
 
-    internal static async Task<ReadOnlyMemory<byte>> ReadFileAsync(string path, CancellationToken token)
-    {
-        byte[] bytes = [];
-        try
-        {
-            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-                4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            if (stream.Length is < 1 or > SetupCompositionLimits.DefaultAggregateSourceBytes)
-                throw new InvalidDataException();
-            bytes = new byte[(int)stream.Length];
-            await stream.ReadExactlyAsync(bytes, token).ConfigureAwait(false);
-            byte[] extra = new byte[1];
-            try
-            {
-                if (await stream.ReadAsync(extra, token).ConfigureAwait(false) != 0) throw new InvalidDataException();
-            }
-            finally { CryptographicOperations.ZeroMemory(extra); }
-            return bytes;
-        }
-        catch
-        {
-            CryptographicOperations.ZeroMemory(bytes);
-            throw;
-        }
-    }
-
     private static void Clear(ReadOnlyMemory<byte> bytes)
     {
         if (MemoryMarshal.TryGetArray(bytes, out ArraySegment<byte> storage))
@@ -227,6 +216,7 @@ internal sealed class SetupTerminalImportOperation : IDisposable
         internal CancellationTokenSource Source { get; } = new();
         internal CancellationToken Token { get; }
         internal Task Cancellation { get; set; } = Task.CompletedTask;
+        internal BoundedFileInput? Input { get; set; }
         internal bool Retiring { get; set; }
         internal bool Applying { get; set; }
         internal ReadOnlyMemory<byte> Bytes { get; set; }

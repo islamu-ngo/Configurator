@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5X2WVYA7JXRMX1CM6TCCCVZ
+Title: "retain bounded native reads until physical settlement"
+Type: fix
+Scope: artifacts
+Summary: "Share bounded native acquisition without blocking the UI owner or clearing storage while physical I/O still consumes it. Preserve separate public-source and private-import admission, current per-file limits and safe stale-result rejection."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Cancellation retains the observed physical task through stream disposal and rejected-buffer clearing. Existing operation generations deny late adoption; native protected saving and Browser closure remain unchanged."
+  Migration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Native definition/import reads retain the 4 MiB per-file limit, reject empty or length-changing input and keep interactive owners responsive. Cancellation denies late answers while physical cleanup drains."

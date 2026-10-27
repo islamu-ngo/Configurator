@@ -91,6 +91,10 @@ unknown key, conflicting answer, invalid field, or edited form rejects the
 whole import. Markdown and complex projections cannot be imported. A successful
 import refreshes the form and focuses the first visible field. Private values
 remain local and do not appear in operation status.
+Local definition/import files are limited to 4 MiB each. Opening and reading do
+not block the UI owner; empty, oversized or length-changing input is rejected.
+Cancellation denies late results immediately, while the existing physical read
+finishes cleanup before another operation takes its place.
 
 For multiple outputs, check the declared files under **Bundle outputs**, choose
 **Prepare bundle**, then **Save protected bundle**. The selection and current

@@ -72,6 +72,9 @@ Arabic resources follow the process UI culture.
    results cannot replace your newer work. A second import, preparation or save
    waits until the existing read finishes cleanup. Review imported answers in the
    masked editor before continuing.
+   Each local definition/import file remains bounded to 4 MiB. Empty,
+   oversized or length-changing input rejects; cancellation retains cleanup
+   ownership rather than abandoning a read that can still finish.
 4. Validate fields reports value-free codes and field identifiers. Cycle artifact
    shows its declared filename, format, apply semantics and restart guidance.
    Inspecting another artifact preserves preparation; changing the selected

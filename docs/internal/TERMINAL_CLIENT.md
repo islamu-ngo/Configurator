@@ -136,6 +136,16 @@ explicit clearing, close, disposal and handled termination signals. Navigating
 between fields clears the transient editor, not the masked multi-field answer
 set. Immutable Core snapshots/.NET strings are not claimed to be zeroizable.
 
+Native definition and import reads share `BoundedFileInput` in the existing
+Artifacts assembly. Each file retains its 4 MiB limit; the registry still admits
+at most 4,096 definition files, with no new aggregate registry budget. Definition
+selection completes synchronously before UI creation while its native acquisition
+runs on the worker. Interactive imports keep the event owner available during
+open/stat/read, retain the physical task through cancellation/disposal and clear
+owned storage only after consumption. Length changes, empty/oversized input and
+late cancelled results cannot replace answers. The removed local `ReadFileAsync`
+is not retained as a compatibility alias.
+
 Save tasks have an explicit completion observer; propagated workspace faults
 produce a value-free failure status. Close, framework quit and signal requests immediately cancel
 through the thread-safe request-only workspace/import seams and clear the locked

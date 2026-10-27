@@ -1,7 +1,6 @@
 namespace Configurator.Terminal;
 
-using System.Security.Cryptography;
-using Configurator.Core;
+using Configurator.Artifacts;
 using Configurator.Core.Definitions;
 
 internal sealed record SetupTerminalDefinitionSelection(
@@ -22,23 +21,14 @@ internal sealed record SetupTerminalDefinitionSelection(
 
     private static SetupDefinition ReadDefinition(string path)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        if (stream.Length is <= 0 or > 4 * 1024 * 1024)
-            throw new InvalidOperationException("definition-limit");
-        byte[] bytes = new byte[(int)stream.Length];
-        try
+        using BoundedFileInput input = BoundedFileInput.ReadAsync(path, 4 * 1024 * 1024)
+            .GetAwaiter().GetResult();
+        return System.IO.Path.GetExtension(path).ToLowerInvariant() switch
         {
-            stream.ReadExactly(bytes);
-            if (stream.ReadByte() != -1)
-                throw new InvalidOperationException("definition-changed");
-            return System.IO.Path.GetExtension(path).ToLowerInvariant() switch
-            {
-                ".json" => SetupDefinitionSourceCodec.ParseJson(bytes),
-                ".yaml" or ".yml" => SetupDefinitionSourceCodec.ParseYaml(bytes),
-                _ => throw new InvalidOperationException("definition-format")
-            };
-        }
-        finally { CryptographicOperations.ZeroMemory(bytes); }
+            ".json" => SetupDefinitionSourceCodec.ParseJson(input.Bytes),
+            ".yaml" or ".yml" => SetupDefinitionSourceCodec.ParseYaml(input.Bytes),
+            _ => throw new InvalidOperationException("definition-format")
+        };
     }
 
     internal static bool TryParse(string[] arguments, out SetupTerminalDefinitionSelection? selection)

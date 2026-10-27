@@ -23,6 +23,14 @@ runtime bytes and a computed digest. `SetupDefinitionSourceCodec.ParseJson/Parse
 selects authoring only for that discriminator, runtime only for `schemaVersion`,
 and rejects conflicting/unknown discriminators. There is no parser fallback.
 
+The CLI's concrete public-source adapter uses `BoundedFileInput` for worker-owned
+open/stat/read with its existing 4 MiB per-file bound. Empty input, changed length
+and oversize map to `definition-source-bound`; errors do not reveal file content
+or private paths. The adapter still selects and checks source paths and returns
+a caller-owned byte copy after clearing bounded storage. Sharing byte acquisition
+does not grant command handlers ambient filesystem authority or merge public
+authoring policy with private artifact import.
+
 Project requires `id` and `name`; publisher defaults to name. Optional description,
 credential-free HTTPS repository and explicit definition license carry distribution
 metadata. Local use does not require store metadata. Identity requires a nonempty

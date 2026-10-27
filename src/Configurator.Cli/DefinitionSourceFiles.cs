@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Configurator.Artifacts;
 
 namespace Configurator.Cli;
 
@@ -28,20 +29,14 @@ internal static class DefinitionSourceFiles
     {
         cancellationToken.ThrowIfCancellationRequested();
         path = SafePath(path);
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192,
-            FileOptions.Asynchronous | FileOptions.SequentialScan);
-        if (stream.Length is < 1 or > MaximumBytes) throw new DefinitionFileException("definition-source-bound");
-        using var buffer = new MemoryStream();
-        byte[] chunk = new byte[8192];
-        int read;
-        while ((read = await stream.ReadAsync(chunk.AsMemory(0, Math.Min(chunk.Length, MaximumBytes - (int)buffer.Length + 1)),
-            cancellationToken).ConfigureAwait(false)) != 0)
+        try
         {
-            if (buffer.Length + read > MaximumBytes) throw new DefinitionFileException("definition-source-bound");
-            buffer.Write(chunk, 0, read);
+            using BoundedFileInput input = await BoundedFileInput.ReadAsync(path, MaximumBytes, cancellationToken)
+                .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return input.Bytes.ToArray();
         }
-        cancellationToken.ThrowIfCancellationRequested();
-        return buffer.ToArray();
+        catch (InvalidDataException) { throw new DefinitionFileException("definition-source-bound"); }
     }
 
     internal static async ValueTask<bool> CreateAsync(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical,

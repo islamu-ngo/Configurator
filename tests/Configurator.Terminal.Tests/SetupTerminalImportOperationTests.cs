@@ -14,6 +14,198 @@ using global::Terminal.Gui.Views;
 public sealed class SetupTerminalImportOperationTests
 {
     [Test]
+    [Arguments(-1)]
+    [Arguments(1)]
+    [Arguments(4 * 1024 * 1024)]
+    public async Task ChangedOrOversizedNativeImportRejectsBeforeOwnerAdmission(int lengthOffset)
+    {
+        using var owner = new ControlledTerminalSynchronizationContext();
+        using var form = new DefinitionFormModel(TerminalDefinitionFixture.Definition());
+        using var stream = new ChangedInputStream(lengthOffset);
+        using var operation = new SetupTerminalImportOperation(form, owner.Dispatch, openRead: _ => stream);
+        var settled = new TaskCompletionSource<SetupTerminalImportResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        operation.Settled += (_, result) => settled.TrySetResult(result);
+        await owner.InvokeAsync(() =>
+        {
+            if (!operation.Start("synthetic-private.json", "config")) throw new InvalidOperationException("import-not-started");
+        });
+        SetupTerminalImportResult result = await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await operation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.Code).IsEqualTo("import-size-invalid");
+        await Assert.That(stream.Borrowed.ToArray().All(value => value == 0)).IsTrue();
+        await owner.InvokeAsync(() =>
+        {
+            if (form.Snapshot().Values.ContainsKey("name")) throw new InvalidOperationException("changed-input-admitted");
+        });
+    }
+
+    private sealed class ChangedInputStream(int lengthOffset) : MemoryStream("""{"name":"late-native"}"""u8.ToArray())
+    {
+        public override long Length => base.Length + lengthOffset;
+        internal Memory<byte> Borrowed { get; private set; }
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (Position == 0) Borrowed = buffer;
+            return base.ReadAsync(buffer, cancellationToken);
+        }
+    }
+
+    [Test]
+    public async Task RegistryRejectsTheFirstCountOverflowBeforeReadingAnyCandidate()
+    {
+        string directory = Directory.CreateTempSubdirectory("terminal-registry-count-").FullName;
+        try
+        {
+            for (int index = 0; index < 4097; index++)
+                File.WriteAllBytes(Path.Combine(directory, $"{index}.json"), []);
+            var selection = new SetupTerminalDefinitionSelection(directory,
+                Guid.Parse("69cdb122-41d2-4fab-9b82-7929a889c726"));
+            try
+            {
+                selection.Load();
+                throw new InvalidDataException("registry-count-overflow-admitted");
+            }
+            catch (InvalidOperationException exception)
+            {
+                await Assert.That(exception.Message).IsEqualTo("registry-limit");
+            }
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Test]
+    [Arguments("open")]
+    [Arguments("stat")]
+    [Arguments("read")]
+    public async Task NativeInputCancellationLeavesOwnerResponsiveUntilPhysicalCleanup(string boundary)
+    {
+        using var owner = new ControlledTerminalSynchronizationContext();
+        using var stream = new NativeInputStream(boundary);
+        using var form = new DefinitionFormModel(TerminalDefinitionFixture.Definition());
+        using var operation = new SetupTerminalImportOperation(form, owner.Dispatch, openRead: _ =>
+        {
+            if (boundary == "open") stream.Hold();
+            return stream;
+        });
+        var settled = new TaskCompletionSource<SetupTerminalImportResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        operation.Settled += (_, result) => settled.TrySetResult(result);
+        try
+        {
+            await owner.InvokeAsync(() =>
+            {
+                if (!operation.Start("synthetic-native.json", "config"))
+                    throw new InvalidOperationException("import-not-started");
+            }).WaitAsync(TimeSpan.FromSeconds(5));
+            await stream.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await owner.InvokeAsync(() =>
+            {
+                operation.RequestCancellationAsync();
+                form.Fields.Single(field => field.Definition.Id == "name").Text = "current-answer";
+                if (!operation.IsBusy || operation.Completion.IsCompleted)
+                    throw new InvalidOperationException("physical-input-retired-early");
+                if (boundary == "read" && !stream.Borrowed.Span[..stream.Input.Length].SequenceEqual(stream.Input))
+                    throw new InvalidOperationException("physical-input-cleared-early");
+            }).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { stream.Release.TrySetResult(); }
+        await operation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        SetupTerminalImportResult result = await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(result.IsCurrent || result.Succeeded).IsFalse();
+        await Assert.That(stream.CloseCount).IsEqualTo(1);
+        await Assert.That(stream.Borrowed.ToArray().All(value => value == 0)).IsTrue();
+        await owner.InvokeAsync(() =>
+        {
+            if (form.Snapshot().Values["name"].GetString() != "current-answer")
+                throw new InvalidOperationException("stale-native-input-applied");
+        });
+    }
+
+    [Test]
+    public async Task NativeImportUsesSharedAcquisitionAndAdmitsOnlyOnOwner()
+    {
+        using var owner = new ControlledTerminalSynchronizationContext();
+        using var form = new DefinitionFormModel(TerminalDefinitionFixture.Definition());
+        using var stream = new MemoryStream("""{"name":"native-answer","token":"synthetic-private"}"""u8.ToArray());
+        using var operation = new SetupTerminalImportOperation(form, owner.Dispatch, openRead: _ => stream);
+        int changedOn = 0;
+        form.InputChanged += (_, _) => changedOn = Environment.CurrentManagedThreadId;
+        var settled = new TaskCompletionSource<SetupTerminalImportResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        operation.Settled += (_, result) => settled.TrySetResult(result);
+        await owner.InvokeAsync(() =>
+        {
+            if (!operation.Start("synthetic-native.json", "config")) throw new InvalidOperationException("import-not-started");
+        });
+        SetupTerminalImportResult result = await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await operation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(changedOn).IsEqualTo(owner.OwnerThreadId);
+        await owner.InvokeAsync(() =>
+        {
+            if (form.Snapshot().Values["name"].GetString() != "native-answer")
+                throw new InvalidOperationException("native-import-not-applied");
+        });
+    }
+
+    [Test]
+    public async Task RegistryKeepsPerFileBoundsRatherThanAddingAggregateAdmission()
+    {
+        string directory = Directory.CreateTempSubdirectory("terminal-native-registry-").FullName;
+        try
+        {
+            string definition = TerminalDefinitionFixture.Json;
+            // Three individually admitted sources exceed 4 MiB together.
+            string padding = new(' ', 1500000);
+            for (int revision = 1; revision <= 3; revision++)
+                await File.WriteAllTextAsync(Path.Combine(directory, $"{revision}.json"),
+                    definition.Replace("\"revision\":1", $"\"revision\":{revision}", StringComparison.Ordinal) + padding);
+            var selection = new SetupTerminalDefinitionSelection(directory,
+                Guid.Parse("69cdb122-41d2-4fab-9b82-7929a889c726"), "1.0");
+            await Assert.That(selection.Load().Revision).IsEqualTo(3);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    private sealed class NativeInputStream(string boundary)
+        : MemoryStream("""{"name":"late-native-answer","token":"synthetic-private"}"""u8.ToArray())
+    {
+        internal byte[] Input { get; } = """{"name":"late-native-answer","token":"synthetic-private"}"""u8.ToArray();
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal Memory<byte> Borrowed { get; private set; }
+        internal int CloseCount { get; private set; }
+        internal void Hold()
+        {
+            Entered.TrySetResult();
+            Release.Task.WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult();
+        }
+        public override long Length
+        {
+            get
+            {
+                if (boundary == "stat") Hold();
+                return base.Length;
+            }
+        }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            int count = await base.ReadAsync(buffer, CancellationToken.None);
+            if (count != 0 && boundary == "read")
+            {
+                Borrowed = buffer;
+                Entered.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+            }
+            return count;
+        }
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) CloseCount++;
+            base.Dispose(disposing);
+        }
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     public async Task ImportCommandReturnsAndAnotherOwnerActionRunsWhileReadIsSuspended(bool blockedOpen)
