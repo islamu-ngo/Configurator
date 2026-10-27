@@ -1,191 +1,159 @@
-# Desktop configuration preparation
+# Desktop Configuration App
 
-Configurator Desktop is an offline Avalonia application. It reads an explicitly
-selected local JSON or YAML setup definition and creates new protected files.
-There is no built-in target, network connection, plugin execution, or apply step.
+Configurator Desktop is an offline graphical application built with Avalonia UI. It guides operators through configuring self-hosted applications and generates production-ready configuration files (`.env`, JSON, YAML).
 
-Local `.json`, `.yaml` and `.yml` files can contain either a compact maintainer
-source (`$schema: urn:islamu:configurator:authoring:v1`) or an expanded runtime
-definition. The extension selects syntax; the shared engine compiles and admits
-the source before creating the form. The canonical identity matches the CLI and
-Terminal without requiring a definition store.
-See the [definition guide](definitions.md) for source authoring.
+Everything runs locally on your workstation. The desktop client makes no network calls, contains no background telemetry, and requires no target application credentials or remote access.
 
-## Start and load
+---
 
-For x86_64 Arch Linux, use the native
-[pacman development package](packaging.md#arch-linux-development-package).
-It provides the `islamu-configurator-desktop` command and desktop menu entry in
-X11 and Wayland/XWayland sessions without an external .NET runtime.
+## Installation & Launch
 
-Run from the Configurator checkout:
+On x86_64 Arch Linux, install the native [pacman development package](packaging.md#arch-linux-development-package). It provides the `islamu-configurator-desktop` binary and desktop application launcher for X11 and Wayland sessions without requiring an external .NET runtime.
+
+To launch from a local source repository:
 
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"
-dotnet run --project src/Configurator.Desktop/Configurator.Desktop.csproj --configuration Release -- /absolute/path/setup.json /absolute/path/output-directory
+dotnet run --project src/Configurator.Desktop/Configurator.Desktop.csproj \
+  --configuration Release -- /path/to/setup.json /path/to/output-directory
 ```
 
-Both arguments are optional. With no arguments, use **Choose definition…** to
-select and load a local file, or enter its path and choose **Load definition**.
-With one argument, the definition loads on opening;
-the initial output directory is the current directory. The second argument
-selects an existing output directory. Do not supply credentials as arguments.
+Command-line arguments are optional:
+- **No arguments:** Click **Choose definition…** to select a definition file, or enter its path and click **Load definition**.
+- **One argument:** Automatically loads the specified definition file on launch.
+- **Two arguments:** Loads the definition and sets the target output directory.
 
-The loaded title, application, publisher, family, revision, and computed SHA-256
-pin appear above the form. Publisher metadata does not prove trust. Changing the
-source file does not silently change the admitted definition: explicitly reload
-to adopt a new revision. A failed reload clears the previous form and preparation.
-See the [definition contract](../internal/CORE_DEFINITION_CONTRACT.md) for the
-bounded data format.
+The application bar displays the loaded definition's title, application ID, publisher, family UUID, revision number, and computed SHA-256 digest pin. Changing the definition file on disk does not alter the running workspace; select **Reload** to explicitly admit an updated revision.
 
-## Edit and check
+---
 
-String and numeric fields have ordinary input boxes; numbers use invariant
-decimal notation. Boolean and enum fields have selection controls, including an
-unset option. Object fields expose their named child controls. Scalar and object
-lists have **Add item** and **Remove item** actions; object rows expose their
-declared child fields. You do not need to edit JSON.
-Use **Supply** on an object or list to deliberately provide it, including an
-empty object or a list that allows no items. Supplying it again keeps its
-contents. Browsing alone leaves it absent; **Clear** removes that container.
-Adding or editing a child uses the shared path editor rather than replacing
-every sibling. One invalid child is marked for correction without marking
-healthy siblings invalid. Its unfinished text remains available while you edit
-other children or remove another list row; surviving rows retain their controls.
-Declared defaults are loaded, and public recommendations can be selected
-explicitly. Protected inputs are masked, including descendants of an object
-whose nested fields raise its sensitivity. Protected boolean and enum values
-use masked entry instead of a popup that could disclose their choices.
-Protected booleans accept `true` or `false`; protected enums accept their
-declared value. Imported/default empty strings and admitted empty enum choices
-remain supplied values. Erasing a string after editing supplies an empty string;
-use **Clear** or **Not supplied** to omit the answer. Declared defaults still
-apply to absent answers. Untouched blank controls
-and view refresh do not create answers. The workspace scrolls vertically so
-fields, artifact actions and status remain reachable in a shorter window.
-For a string list item, **Clear** supplies an empty string; **Remove item**
-removes the row. Supply/Clear labels and their accessibility text follow the
-existing UI culture with neutral and Arabic resources. This is limited action
-translation, not a language selector or complete Arabic Desktop support.
+## Desktop GUI Layout
 
-**Experience** selects a definition-authored journey, or the neutral Configure
-experience when none is declared. **Optional editors** expands optional settings;
-turning it off restores authored defaults. Missing required work and active
-errors remain reachable, and corrected editors stay open until deliberate
-collapse or navigation. Optional secrets do not force disclosure. View changes
-preserve answers and preparation; inactive fields do not participate in output.
-Help, grouping, type constraints, and declared consequences accompany the inputs.
+The desktop interface organizes controls into intuitive navigation, form editing, and output staging panels:
 
-Choose **Validate** to check the current answers and focus the first invalid
-visible field. Choose **Prepare artifact** after selecting any declared artifact
-ID. JSON, YAML, dotenv, and Markdown are all supported through the same workflow.
-The artifact format, apply semantics, and restart consequence are shown; these are
-metadata about the eventual consumer, not permission to modify a running system.
-Preparation shows only metadata and a digest, not a preview of protected bytes.
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  ISLAMU Configurator Desktop                                 [ _ ][ □ ][ X ] │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  Definition: Minimal Self-Hosted v1.0.0    Digest: sha256:7f83b1a2...        │
+│  Definition Path: [/path/to/setup.json                ] [Choose definition…] │
+│  Output Folder:   [/path/to/output-dir                ] [Choose folder…    ] │
+├──────────────────────────────────────┬───────────────────────────────────────┤
+│  Configuration Workspace             │  Guidance & Details                   │
+│                                      │                                       │
+│  Experience: [ Recommended        ▼] │  Field: service.name                  │
+│  [x] Show optional settings          │  Type: string                         │
+│                                      │  Requirement: Required                │
+│  ▼ General Settings                  │                                       │
+│    Service Domain:                   │  Fully qualified domain name for this │
+│    [ api.example.com               ] │  service deployment.                  │
+│                                      │                                       │
+│    Database Password:                │  Consequence:                         │
+│    [ •••••••••••••••••             ] │  Stored securely in .env as           │
+│                                      │  DB_PASSWORD.                         │
+│  ▼ Advanced Clustering               │                                       │
+│    Container: [Supply] [Clear]       │                                       │
+│    Nodes: [Add item] [Remove item]   │                                       │
+├──────────────────────────────────────┴───────────────────────────────────────┤
+│  Declared Outputs: [x] .env   [x] service.json                               │
+│  [Validate Answers]   [Prepare Bundle]   [Save New Protected File]           │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  Status: All required fields valid • Ready to prepare bundle                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
 
-To reuse supported values, select a declared JSON, YAML, or dotenv artifact,
-use **Choose import…** to select and import a local file, or enter its path and
-choose **Import existing file**.
-The file must match a simple declared field mapping and current answers; an
-unknown key, conflicting answer, invalid field, or edited form rejects the
-whole import. Markdown and complex projections cannot be imported. A successful
-import refreshes the form and focuses the first visible field. Private values
-remain local and do not appear in operation status.
-Local definition/import files are limited to 4 MiB each. Opening and reading do
-not block the UI owner; empty, oversized or length-changing input is rejected.
-Cancellation denies late results immediately, while the existing physical read
-finishes cleanup before another operation takes its place.
+---
 
-For multiple outputs, check the declared files under **Bundle outputs**, choose
-**Prepare bundle**, then **Save protected bundle**. The selection and current
-answers are checked for complete composition before saving becomes available.
-An empty or inactive selection must be corrected and prepared again; conflicting
-declared file names reject definition admission. Editing an answer or destination discards
-it. The capability notice shows whether this host can save protected files.
+## Keyboard Shortcuts
 
-## Save safely
+Navigate quickly using native keyboard controls:
 
-Use **Choose folder…** to select an existing output directory, or enter its path,
-then choose a new file name. Cancelling or an unavailable native picker preserves
-answers and prepared output. Remote locations are refused; typed local paths
-remain available. File names admit ASCII
-letters, digits, dots, underscores, and hyphens, up to 128 characters; path
-separators, parent-directory paths, and standard-output targets are rejected.
-Choose **Save new protected file**. Linux uses the shared create-only writer,
-which publishes owner-read/write-only files and refuses existing targets,
-unsafe targets, or changed filesystem authority. There is no overwrite action.
-Unsupported platforms cannot save protected output and have no ordinary-file,
-clipboard, console, or public-download fallback.
+| Shortcut | Action |
+| --- | --- |
+| `Tab` | Move focus forward to the next field, control, or button |
+| `Shift + Tab` | Move focus backward to the previous field, control, or button |
+| `Ctrl + O` | Focus the definition file path input |
+| `Ctrl + Enter` | Prepare the currently selected artifact or bundle |
+| `Escape` | Cancel active background operation or discard prepared bundle |
+| `Alt + <Letter>` | Activate button matching the underlined access key |
+| `RTL Toggle` | Switch layout direction between left-to-right and right-to-left |
 
-Every answer-derived artifact is restricted, even when all inputs are public.
-Saving consumes the preparation on success, rejection, or cancellation. Edit an
-answer, output destination, file name, definition path, or artifact selection,
-and the preparation is discarded. Prepare again before another save.
-**Cancel / discard preparation** cancels pending work and drops prepared output;
-a late completion cannot restore it.
+---
 
-An installed file and a successfully verified file are different outcomes.
-`save-installed-unverified` means installation happened but the immediate
-post-installation check failed; do not treat it as "nothing written" or assume
-the file is safe to use. `cleanup-failed` is independent and cannot undo an
-installation. Review these files manually before retrying. Successful
-verification is historical evidence, not a guarantee of current integrity.
+## Configuration & Form Editing
 
-A bundle checks every destination before writing any file. If a destination
-already exists, nothing is overwritten: resolve the conflict and prepare again.
-If a later write or verification fails, status lists the declared files already
-installed, their verification and cleanup outcomes, and the unattempted files.
-Review installed-but-unverified files before using them or choosing a recovery.
-Keep verified files; select only the remaining
-outputs and prepare again. Configurator does not roll back committed files or
-apply them to the target application.
+### Form Controls
 
-Cancellation or edits still fence stale status updates and discard preparation.
-They do not retract an established installation. **Publication facts** retains the
-latest attempt, and **Previous publication attempts** retains the newest 16
-settled attempts independently of answers, plus the running attempt. The history
-shows declared artifact IDs and installation, verification and cleanup facts,
-never private content or destination paths. A pending outcome is unknown, not
-proof that nothing was written.
+Fields dynamically render native controls matching their declared types:
+- **Strings and Numbers:** Ordinary text inputs validating invariant decimal formatting.
+- **Booleans and Enums:** Dropdown selectors or radio groups, including an explicit unset choice.
+- **Protected Secrets:** Password-masked controls. Protected booleans and enums use masked inputs instead of open dropdowns to avoid leaking values.
+- **Explicit Omission:** Empty strings (`""`) and admitted empty enum choices are valid explicit values. To leave a setting unconfigured, choose **Clear** or **Not supplied** so declared defaults apply.
 
-Cancellation immediately denies stale actions. If native work ignores
-cancellation, its borrowed storage remains intact until the consumer and cleanup
-finish; only then is it cleared and another operation allowed. Definition reads
-and imports follow the same rule and cannot admit late answers after disposal.
+### Container Management
 
-## Close while work is pending
+Structured configuration objects and lists provide explicit lifecycle controls:
 
-Closing the window requests cancellation and waits responsively for the native
-consumer and cleanup. If they settle within two seconds, the window closes
-normally. If not, it stays open and reports the outcome as unknown. Known
-publication facts remain visible; unknown never means that no file was written.
+- **Objects:** Click **Supply** to include an object container, even if empty (`{}`). Browsing empty child fields does not create the object. Click **Clear** to omit the container completely.
+- **Lists:** Click **Add item** to append a new item row; click **Remove item** to delete the selected row.
+- **Independent Child Validation:** Editing or correcting one child field does not invalidate healthy sibling fields. Unfinished drafts remain preserved while navigating between containers.
 
-Choose **Stay open** to withdraw the close request and keep the window available.
-Cancellation remains requested, and another operation stays disabled until the
-current consumer settles. Choose **Force close** only deliberately: it closes
-despite the unknown outcome. Forced process termination cannot guarantee memory
-erasure, rollback or that no write occurred. Inspect uncertain destinations
-before retrying. If work settles while the close request is still active, normal
-closure completes without another click.
+### Journeys and Disclosure
 
-## Keyboard
+Setup definitions can organize configuration into guided experiences:
 
-Tab and Shift+Tab traverse native controls in form order. Button access keys
-follow the underlined labels. Ctrl+O focuses the definition path, Ctrl+Enter
-prepares the artifact, and Escape cancels/discards. Loading focuses the first
-visible field; validation focuses the first invalid one; adding a list item
-focuses its editor, and removing it returns focus to **Add item**.
-The right-to-left switch changes layout direction without changing answers.
-Native selection returns focus to its button on cancellation or failure;
-successful loading/import focuses the first visible field. Status includes a
-value-free next step. Close decisions have named, keyboard-reachable controls;
-the deadline focuses **Stay open**. Closing discards preparation and fences
-pending work without confusing cancellation with physical completion.
+- **Experience Selector:** Switch between authored journeys (e.g., *Recommended*, *Production*) or neutral *Configure*.
+- **Optional Editors:** Toggle **Optional editors** to reveal advanced settings. Turning it off restores authored defaults without discarding entered values.
+- **Error Visibility:** Missing required answers and active validation errors remain visible and accessible regardless of the active journey.
 
-## Current qualification limits
+### Validation and Preparation
 
-Linux x64 has verified native control and protected-write checks. Windows and
-macOS protected saving and installers remain planned. Native harness checks do
-not establish screen-reader compliance, every desktop environment, installed
-packages or the complete published-app workflow. Those independent qualification
-gates must pass before packaging/support claims expand.
+Before generating files, verify answers and bundle readiness:
+
+1. **Validate Answers:** Evaluates all field constraints and automatically moves focus to the first invalid visible field.
+2. **Select Artifacts:** Choose individual declared artifacts or check multiple outputs under **Bundle outputs**.
+3. **Prepare Artifact / Bundle:** Staging validates full bundle composition, formats templates, and displays output digests without revealing secret plaintext.
+
+### Importing Existing Files
+
+Reuse existing settings by importing local `.json`, `.yaml`, or `.env` files:
+
+1. Select a declared artifact format.
+2. Click **Choose import…** or enter a file path and click **Import existing file**.
+3. The engine parses the file (up to 4 MiB) and maps top-level fields to matching definition questions.
+
+> [!NOTE]
+> Imports must match simple declared field mappings. Conflicting answers, unknown keys, or invalid types reject the entire import cleanly, leaving your current workspace unchanged.
+
+---
+
+## Protected Saving
+
+### Linux Protected Save Contract
+
+> [!IMPORTANT]
+> **Linux Protected Save Contract (`0600`):**
+> On Linux x64, Configurator writes configuration files using a native create-only writer with owner-only (`0600`) permissions. Existing files are never overwritten. Protected saving fails closed on unsupported platforms without plain-file fallback.
+
+To publish files safely:
+1. Click **Choose folder…** to select an existing directory, then enter a target filename (up to 128 characters: letters, numbers, dots, dashes, underscores).
+2. Click **Save new protected file** or **Save protected bundle**.
+3. The writer verifies that no target files exist before committing any file to disk.
+
+### Understanding Publication Outcomes
+
+The desktop client separates installation from verification:
+- `installation-established`: The file was successfully written with restricted permissions.
+- `save-installed-unverified`: The file was created, but immediate post-installation verification failed. Inspect the file manually before using it.
+- `cleanup-failed`: Temporary writer resources could not be cleanly released, but written files remain valid.
+
+If a failure occurs during a multi-file bundle save, previously written files are kept intact. Review the **Publication facts** panel for individual artifact outcomes, then correct remaining items and prepare again.
+
+---
+
+## Window Closure & Pending Tasks
+
+Closing the window while background reads or writes are active triggers cooperative cancellation:
+- **Automatic Settlement:** The window waits up to two seconds for active disk operations to finish before exiting cleanly.
+- **Stay Open:** If operations are still running after the deadline, choose **Stay open** to keep the window accessible while work settles.
+- **Force Close:** Choose **Force close** to terminate immediately. If forced, check target directories manually to inspect any partially written files.

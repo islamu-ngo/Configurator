@@ -1,131 +1,167 @@
-# Local terminal preparation
+# Terminal User Interface (TUI)
 
-The terminal uses an explicitly selected local JSON or YAML definition. It has
-no built-in Event target, network API, sign-in or remote apply operation.
+Configurator Terminal provides a fast, full-featured Terminal User Interface (TUI) powered by Terminal.Gui v2. It prepares production-ready configuration files locally from an admitted setup definition, without requiring network access, background daemons, or remote target connectivity.
 
-Local files may contain a compact maintainer source with
-`$schema: urn:islamu:configurator:authoring:v1` or an expanded runtime definition.
-The file extension selects JSON or YAML syntax. The shared engine compiles and
-admits compact sources before any answers are collected, producing the same
-canonical identity as the standalone CLI. No definition store is required.
-See the [definition guide](definitions.md) for source authoring.
+All inputs and intermediate states are processed strictly in local memory. Sensitive values are masked during editing and never logged to stdout, command history, or external services.
+
+---
+
+## Prerequisites & Viewport Requirements
+
+> [!IMPORTANT]
+> **Terminal Viewport Requirements:**
+> - **Minimum Content Viewport:** 80 columns × 26 rows.
+> - **Minimum Outer Terminal Frame:** 82 columns × 28 rows (Linux terminal frame).
+> - **Recommended Viewport:** 110 columns × 36 rows to keep all field guidance, container lists, and action buttons comfortably visible without clipping.
+
+Run Configurator Terminal interactively in a standard terminal emulator. Standard input and output redirection (`<`, `>`, `|`) is refused for interactive sessions. To run noninteractive validations or scripts, use the [CLI](cli.md) instead.
+
+---
+
+## Launching the Terminal
+
+Start the terminal client by pointing to a local definition file or an admitted definition registry:
 
 ```bash
-dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release -- --definition examples/minimal-self-hosted/setup-definition.json
-dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release -- --registry /path/to/definitions --family 69cdb122-41d2-4fab-9b82-7929a889c726 --app-version 1.0
+# Launch with an explicit definition file (JSON or YAML)
+dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj \
+  --configuration Release -- --definition examples/minimal-self-hosted/setup-definition.json
+
+# Launch from an admitted definition registry by family and version
+dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj \
+  --configuration Release -- --registry /path/to/definitions \
+  --family 69cdb122-41d2-4fab-9b82-7929a889c726 --app-version 1.0
 ```
 
-Use your actual definition path. Registry directories contain local `.json`,
-`.yaml` or `.yml` definitions. A family with several revisions needs an explicit
-compatible application version; unversioned ambiguity fails closed. Publisher
-and family metadata are identifiers, not proof of trust. The definition is frozen
-for the session; close and relaunch to select another.
+Local definition files can contain either a compact maintainer source (`$schema: urn:islamu:configurator:authoring:v1`) or an expanded runtime definition. The engine compiles and admits compact sources before any answers are collected, generating canonical identities identical to the CLI and Desktop clients. See the [definition guide](definitions.md) for authoring details.
 
-Run interactively without redirecting stdin, stdout or stderr; redirected startup
-is refused. `--help` can still be printed noninteractively. Use the [CLI](cli.md)
-for pipes, scripts and machine-readable output.
-The application needs an 80-column by 26-row content viewport; the qualified
-Linux terminal frame needed at least 82 by 28 outer cells to expose editing.
-Use a larger window, such as 110 by 36, to keep all guidance visible. Complete
-minimum-viewport and assistive-technology qualification remains separate.
-Tab and Shift+Tab move focus;
-Enter activates buttons. Underlined button shortcuts are available. English and
-Arabic resources follow the process UI culture.
+> [!NOTE]
+> Definitions are frozen for the duration of the session. If you edit the definition source on disk, close and relaunch the terminal to load the updated revision.
 
-1. Navigate fields with Previous/Next; use Apply field to commit the current
-   input. Strings, booleans, integers, decimal numbers and declared enum choices
-   retain their types. Cycle choice advances from the value currently visible;
-   correct an invalid draft before cycling. Object and list containers have
-   Supply container and Clear container actions. Supply deliberately includes
-   the container, including an empty object or list; Clear omits it and checks
-   requiredness again. Browsing blank object properties leaves an omitted object
-    omitted. Object properties remain separate editable fields. Scalar fields
-    offer **Omit value** to remove the answer explicitly. Supplied empty strings
-    and admitted empty enum choices remain values; omission is a separate action.
-    Declared defaults still apply to absent answers.
-   Lists use Previous item, Next/add item, Add item and Remove item. When capacity
-   remains, the position after the last item is the new-item position. Leave an
-   empty new-item draft to skip adding it, including for boolean and numeric
-    lists. Deliberately choosing **Add item** supplies a typed item, including an
-    empty string item; editing and then erasing that string retains its presence.
-    At the item limit, a notice explains the bound and existing items stay
-   editable; field navigation remains available even when no items are allowed.
-   To delete an existing item, press Remove item twice. Navigating or editing
-   cancels the confirmation. Selection then moves to the next item, the previous
-   item when deleting the last row, or the empty container.
-2. Experience cycles the definition's authored journeys, or neutral Configure.
-   Optional-editor expansion reveals optional settings; restoring defaults uses
-   the selected journey's disclosure. Missing required work and active errors
-   remain reachable. View changes preserve answers and preparation; activation
-   and validation stay governed by Core. Rejected correction text stays available
-   when optional editors or the experience change, including nested fields and
-   the selected list item. Correct it before applying or navigating; the previous
-   accepted answer remains unchanged until the correction is accepted. Private
-   correction text stays masked and is not restored after private state is cleared.
-3. To prefill supported answers, cycle to the matching declared artifact, enter
-   the path to an existing local file in Import file, and press Import selected
-   artifact. Directly copied JSON, YAML and dotenv object fields are supported;
-   transformed or ambiguous mappings and conflicting existing answers are
-   rejected without changing the form. The path field clears when reading starts.
-   Reading leaves the terminal responsive. Editing an answer, changing the import
-   path or artifact target, or clearing private state cancels that import; late
-   results cannot replace your newer work. A second import, preparation or save
-   waits until the existing read finishes cleanup. Review imported answers in the
-   masked editor before continuing.
-   Each local definition/import file remains bounded to 4 MiB. Empty,
-   oversized or length-changing input rejects; cancellation retains cleanup
-   ownership rather than abandoning a read that can still finish.
-4. Validate fields reports value-free codes and field identifiers. Cycle artifact
-   shows its declared filename, format, apply semantics and restart guidance.
-   Inspecting another artifact preserves preparation; changing the selected
-   output set requires preparing again.
-   The first output starts selected. Toggle output selects or deselects the
-   current artifact; the label shows how many declared outputs are selected.
-   At least one output must be selected. Prepare artifact validates the current
-   answer revision and selected bundle without displaying its contents. No
-   legal-validity or target acceptance claim is made.
-5. Save protected creates selected outputs under their declared filenames in the
-   working directory. Existing files are never overwritten. All answer-derived
-   output is private, even when its fields are labelled public. Protected saving
-   uses the Linux writer, with actual-host evidence on Linux x64 only; Arm/musl
-   qualification remains pending and macOS/Windows protected saves fail closed.
-   The result counts established installations, separately from verification.
-   Tab to the read-only status field and use Left/Right or Home/End to inspect
-   its full text. For multiple outputs, use Next output result to review each
-   artifact ID and outcome. `installation-established` means the file was
-   installed at the publication point; `verification-failed` means its immediate
-   post-installation check did not succeed. Neither successful verification nor
-   installation guarantees the destination's current integrity. If a later file
-   fails,
-   earlier created files remain: review them in the working directory and decide
-   how to clean up or retry. Configurator does not delete or overwrite them.
-   Save history cycles through the newest 16 attempts, including cancelled or
-   failed saves. Each attempt shows its own artifact outcomes. Editing or Clear
-   private state keeps this history for the session without restoring answers or
-   readiness; closing the session discards it. A result still marked unknown
-   must not be treated as proof that no file was created. Cleanup or observation
-   failure is reported alongside known file outcomes, including installed but
-   unverified files. Do not assume such a file is absent or safe to use: review
-   it manually before retrying. A verification failure stops later outputs;
-   cleanup failure never changes an established installation into "not written".
-   While a save is still finishing, another import, preparation or save waits
-   for its cleanup.
+---
 
-Editing a field or changing output selection invalidates readiness immediately.
-Field navigation clears
-the transient editor buffer; protected answers remain in the masked form so
-multiple fields can be completed. Clear private state removes all protected
-answers and readiness while keeping public fields. Close and handled termination
-signals cancel pending work and clear private state. Closing waits up to two
-seconds for cleanup while the terminal continues processing events, then exits.
-If work remains unresolved, the closing status says its outcome is unknown;
-created files may remain and must be reviewed before retrying. Cancellation does
-not undo a file already created. Disposal detaches UI callbacks; read cleanup can
-finish while the process remains alive. After a save, prepare again to save
-another bundle.
+## TUI Layout
 
-Private fields block clipboard, context-menu and undo/redo operations. No answers
-are accepted on the command line, printed to stdout or repeated in diagnostics.
-`--help` prints only public usage. Screen-reader, braille, RTL shaping, terminal
-scrollback and erasure of immutable .NET strings after Core handoff are not
-verified guarantees.
+The terminal interface organizes configuration into distinct navigation, editing, guidance, and action regions:
+
+```text
+┌─────────────────────────── ISLAMU Configurator TUI ───────────────────────────┐
+│ Definition: Minimal Self-Hosted v1.0.0      Digest: sha256:7f83b1a2...        │
+├──────────────────────────────────────┬────────────────────────────────────────┤
+│ Configuration Fields                 │ Guidance & Consequence                 │
+│                                      │                                        │
+│ [*] Service Domain Name              │ Fully qualified domain name where      │
+│     [ api.example.com              ] │ this service will receive traffic.     │
+│                                      │ Type: string (FQDN)                    │
+│ [ ] Enable TLS Termination           │ Requirement: Mandatory                 │
+│     ( ) Yes   (*) No                 │                                        │
+│                                      │ Consequence:                           │
+│ [ ] Admin Password (Secret)          │ Stored in .env as SERVICE_PASSWORD.    │
+│     [ •••••••••••••••••            ] │ Value is masked during editing.        │
+│                                      │                                        │
+│ Containers & Lists:                  │                                        │
+│   [Supply container] [Clear]         │                                        │
+│   [Previous item]    [Next/add]      │                                        │
+│   [Add item]         [Remove item]   │                                        │
+├──────────────────────────────────────┴────────────────────────────────────────┤
+│ [Experience: Recommended ▼]  [Cycle choice]  [Apply field]  [Omit value]      │
+│ [Validate fields]  [Cycle artifact]  [Prepare artifact]  [Save protected]     │
+├───────────────────────────────────────────────────────────────────────────────┤
+│ Status: Ready to prepare • 3 of 3 required fields completed                   │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Keyboard Shortcuts
+
+The TUI is designed for swift, keyboard-driven navigation:
+
+| Key / Combination | Scope | Action |
+| --- | --- | --- |
+| `Tab` | Navigation | Move focus forward to the next field, control, or button |
+| `Shift + Tab` | Navigation | Move focus backward to the previous field, control, or button |
+| `Enter` | Actions | Activate the currently focused button or action |
+| `Space` | Inputs | Toggle boolean switches, radio buttons, or cycle enum choices |
+| `Alt + <Letter>` | Global | Jump directly to buttons with underlined access keys |
+| `Left` / `Right` | Status & History | Pan through long status messages or history details |
+| `Home` / `End` | Status & History | Jump to the beginning or end of status text |
+| `Remove item` (twice) | List Management | Confirm removal of the selected list item |
+
+---
+
+## Workflow & Features
+
+### Form Navigation and Field Editing
+
+Move between fields using `Tab` and `Shift + Tab`, or use **Previous field** and **Next field** buttons. When modifying an input, press **Apply field** to commit your draft. 
+
+Fields enforce strict typing based on the setup definition:
+- **Strings, Numbers, and Decimals:** Invariant decimal formatting is validated on commit.
+- **Booleans and Enums:** Use **Cycle choice** to advance choices sequentially. If an invalid draft is typed, correct it before cycling.
+- **Explicit Omission:** Use **Omit value** to remove an answer completely. Empty strings (`""`) and admitted empty enum options remain explicit values; omission is an independent action.
+- **Defaults:** Authored defaults automatically apply to any unsupplied, non-mandatory fields.
+
+Protected secrets are masked on screen. Secret draft buffers exist only while focused; navigating away flushes the transient editing buffer.
+
+### Working with Objects and Lists
+
+Structured fields require explicit lifecycle management:
+
+- **Objects:** Use **Supply container** to include an object container, even if empty (`{}`). Browsing blank properties does not create the object. Use **Clear container** to explicitly omit it and re-evaluate field requirements.
+- **Lists:** Navigate rows with **Previous item** and **Next/add item**. When list capacity allows, the slot past the last row becomes a new-item slot.
+- **Adding Items:** Leaving a new-item slot empty skips adding it. Activating **Add item** commits the typed item, including empty strings.
+- **Double-Press Delete:** To prevent accidental data loss, removing an item requires pressing **Remove item** twice. Navigating away or editing any field cancels the pending deletion.
+
+### Journeys and Disclosure Levels
+
+Definitions can author tailored configuration journeys (e.g., *Recommended*, *Advanced*, *Minimal*):
+
+- **Experience Selector:** Cycle through authored journeys or use the neutral **Configure** experience.
+- **Optional Settings:** Toggle optional editor expansion to inspect advanced settings. Collapsing the view restores authored defaults without discarding entered values.
+- **Persistent Errors:** Active validation errors and required fields remain accessible regardless of the selected journey.
+- **Preserved Drafts:** Rejected input text is preserved when switching views, allowing you to correct mistakes without starting over.
+
+### Prefilling and Importing Existing Files
+
+You can prefill answers by importing existing local `.json`, `.yaml`, or `.env` files:
+
+1. Use **Cycle artifact** to select the target declared artifact.
+2. Enter the path to your existing configuration file in **Import file**.
+3. Activate **Import selected artifact**.
+
+```text
+Local File (.env / JSON / YAML) ──> Structural Ingestion (≤ 4 MiB) ──> Form Answers
+```
+
+Imports support direct top-level copy mappings. If an import file contains unknown keys, conflicting answers, or syntax errors, the entire import is rejected cleanly without altering your current form answers. The import path field clears immediately when reading begins, and any manual edit during an import cancels the stale operation.
+
+### Saving and Verifying Configuration
+
+Once answers are completed, verify and export your configuration bundle:
+
+1. **Validate Fields:** Activate **Validate fields** to check all field constraints and dependencies. Diagnostics display value-free codes and field paths.
+2. **Select Artifacts:** Use **Cycle artifact** to review declared filenames, formats, and restart instructions. Toggle individual outputs with **Toggle output**. At least one artifact must be selected.
+3. **Prepare Artifact:** Activate **Prepare artifact** to stage the output bundle. The TUI validates complete composition and calculates cryptographic digests without displaying secret bytes.
+4. **Save Protected:** Activate **Save protected** to create files in the current working directory.
+
+> [!IMPORTANT]
+> **Create-Only Protection (Linux x64):**
+> On Linux, Configurator writes files using a strict create-only native writer with owner-only (`0600`) permissions. Existing files are never overwritten. If an output file already exists, resolve the conflict or choose a different directory before retrying.
+
+Outputs distinguish between two independent milestones:
+- `installation-established`: The file was securely written to the publication path.
+- `verification-failed`: An immediate post-write integrity check failed.
+
+Configurator never deletes or rolls back previously written files. If a later file in a multi-artifact bundle fails, earlier installed files remain safely on disk. Review them in the working directory before re-running.
+
+Use **Save history** to cycle through the 16 most recent save attempts to inspect artifact outcomes and error codes.
+
+---
+
+## Session Termination & Privacy
+
+To protect sensitive configuration data:
+- **Clear Private State:** Removes all entered secrets and invalidates prepared bundles while preserving non-sensitive public settings.
+- **Closing the Session:** Exiting or sending termination signals (`SIGINT`, `SIGTERM`) flushes private memory buffers and detaches UI callbacks.
+- **Graceful Shutdown:** Configurator waits up to two seconds for active disk operations to finish before exiting. If an operation cannot be verified before exit, status indicates an unknown outcome so you can inspect destination files manually.

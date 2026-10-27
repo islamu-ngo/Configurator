@@ -1,81 +1,150 @@
 ---
-description: "Discover explicit public definition revisions or contribute a project without making the store a runtime dependency."
+description: "Discover public configuration definitions in the browser catalog or contribute your application to the bundled definition store."
 ---
 
-# Public definition store
+# Public Definition Store
 
-The optional Store lists public configuration definitions bundled with a
-Configurator browser package. Choose a project and an explicit definition
-revision, then review its declared application versions, entry points, locales
-and output filenames before starting. A definition revision identifies the
-configuration document; it is separate from the application version it declares.
-Publisher labels, repository links and store inclusion are provenance claims,
-not publisher authentication or compatibility certification. The target
-application still validates and authorizes any eventual application of output.
+The Definition Store is an optional, reviewed catalog of configuration definitions bundled directly into the ISLAMU Configurator web client.
 
-The Store loads when you visit it before working with answers. If it is missing,
-empty or unavailable, Home and Open remain usable. Open accepts a local JSON
-or YAML source, compiled runtime JSON or an independent public HTTPS runtime
-definition link. The browser keeps answers
-transient and asks before discarding an active workspace; changing the store
-does not upgrade a definition already admitted into a workspace.
+It allows operators to discover and configure popular self-hosted applications with a single click, completely offline, without needing to author or download raw definition files manually.
 
-Browser packages may include selected public store content. Opening discovery
-or reviewing a revision caches only its public bytes for later offline use.
-Offline discovery is available for content already opened; unavailable optional
-files do not prevent the app's local workflow from becoming ready.
-Retaining a separately opened definition is a separate deliberate choice;
-neither public cache contains answers or prepared artifacts. See
-[browser guidance](browser.md) for secret-entry consent and deliberate export.
+---
 
-## Propose a project
+## How Store Bundling Works
 
-Anyone may submit a pull request adding an ordinary project folder to
-[`store/`](../../store/README.md). Maintain one `configurator.yaml`,
-`configurator.yml` or `configurator.json`, declaring a public repository,
-description and the license applicable to distributing the definition. The
-same source works with the independent compiler described in
-[integrate your tool](integrate-your-tool.md); joining the store is optional.
-The builder derives canonical identity, names, digests, versions and output
-metadata instead of requiring a second handwritten inventory.
+Definitions contributed to the repository are validated, compiled, and bundled into the static browser application at build time:
 
-Use the existing [neutral source](../../store/minimal-self-hosted/configurator.yaml).
-The folder normally follows the project's lowercase ID, replacing dot,
-underscore and hyphen separators with single hyphens. Optional store-owned
-`curation.json` holds tags or a justified folder-slug exception. It cannot change
-the project, license, revision or history authority. Its vocabulary has a
-generated [curation schema](../../schemas/definition-store-curation-v1.schema.json).
+```mermaid
+flowchart LR
+    SRC["store/ folder<br/>• configurator.yaml<br/>• curation.json<br/>• releases/*.json"] --> BUILD["BuildDefinitionStore.cs<br/>(Validates constraints & schemas)"]
+    BUILD --> ASSETS["wwwroot/definition-store/<br/>• index.json<br/>• releases/ snapshots"]
+    ASSETS --> PWA["Bundled Browser PWA<br/>(Cached locally for offline discovery)"]
 
-Submit only public data and material you have permission to distribute. Never
-include saved answers, real credentials or populated private defaults. Secret
-field declarations are permitted for later local entry. Reviewers verify rights
-and public-data suitability; automated validation alone cannot prove ownership
-or discover every private fact in text. No account, rating or install hook is
-part of this format.
-
-Run these commands from the repository root using its pinned .NET SDK:
-
-```bash
-dotnet run eng/configurator/BuildDefinitionStore.cs -- --self-test
-dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output .tmp/definition-store --write
-dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output .tmp/definition-store --check
+    style SRC fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style BUILD fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style ASSETS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style PWA fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
-Generation admits every input before writing output and reports value-free
-failure codes. Generated schema, index and snapshots are owned by the builder.
-`--write` also creates any missing current `releases/<revision>.json` without
-overwriting historical files; `--check` requires them to exist. Keep these
-generated releases in the contribution. For edits, revise the source against
-its previous canonical release and compile a new revision. Never edit published
-snapshots or reuse an existing family/revision for changed content.
+1. **Repository Sources:** Maintainers store human-readable definitions in `store/<project-slug>/`.
+2. **Compilation:** The store builder validates schema adherence, checks revision immutability, and generates search manifests.
+3. **PWA Bundling:** The resulting index and immutable revision snapshots are packaged into the browser's static assets.
+4. **Offline Browsing:** The browser client caches the catalog, allowing full search and configuration even when disconnected from the internet.
 
-Pull-request validation checks every retained revision and its project binding
-against an inventory generated from a separately checked-out pinned target
-commit. The workflow supplies `--baseline <inventory> --require-baseline`;
-contributors cannot bypass retention by deleting their release files. Local
-validation without that option proves source admission and freshness, while
-the trusted baseline proves preservation of previously accepted history.
+---
 
-Store packaging is an explicit option on the browser publishing target. An
-ordinary package does not require the source folder. See
-[packaging](packaging.md) and the [store source contract](../internal/DEFINITION_STORE.md).
+## Discovering Definitions in the Browser Client
+
+When you open the Configurator WebAssembly application:
+
+1. **Access the Store Tab:** Click **Store** in the main navigation bar.
+2. **Search and Filter:** Search applications by name, keywords, or curated category tags (e.g. `monitoring`, `database`, `proxy`).
+3. **Inspect Application Details:** Review the project's publisher, source repository, supported application versions, and generated configuration files (`.env`, JSON, YAML).
+4. **Choose a Revision:** Select the exact definition revision that matches your target deployment version.
+5. **Start Configuration:** Click **Configure** to open an interactive workspace pinned to that canonical definition.
+
+> [!NOTE]
+> The store is entirely optional. If you run a custom or private Configurator build without a bundled store, the **Open** tab remains fully operational for loading local files or deep-link URLs.
+
+---
+
+## Proposing a Project to the Store
+
+Anyone may submit a pull request to add an open-source application to the official store catalog under [`store/`](../../store/README.md).
+
+### 1. Directory Structure
+
+Each application lives in a dedicated subdirectory named after the project slug:
+
+```text
+store/example-service/
+├── configurator.yaml      # Maintainer authoring source
+├── curation.json          # Optional: tags and search metadata
+└── releases/
+    └── 1.json             # Generated canonical runtime definition
+```
+
+### 2. Curation Metadata (`curation.json`)
+
+To add search tags or specify a custom slug, include an optional `curation.json` adhering to the [curation schema](../../schemas/definition-store-curation-v1.schema.json):
+
+```json
+{
+  "schemaVersion": 1,
+  "tags": [
+    "monitoring",
+    "metrics",
+    "dashboard"
+  ],
+  "slug": "example-service",
+  "slugReason": "Matches standard upstream container image name"
+}
+```
+
+- **`schemaVersion`**: Must be `1`.
+- **`tags`**: Up to 16 unique lowercase alphanumeric tags (max 32 characters each).
+- **`slug` & `slugReason`**: If the directory name differs from the project ID in `configurator.yaml`, explain the reason in `slugReason` (16–512 characters).
+
+---
+
+## Contributor Step-by-Step Workflow
+
+Follow these steps to contribute a new definition:
+
+### Step 1: Author Your Source
+
+Create your `store/<project-slug>/configurator.yaml` following the authoring standards in [Integrate Your Tool](integrate-your-tool.md).
+
+> [!IMPORTANT]
+> Definitions must describe only public, non-sensitive configuration templates. Never commit real passwords, private API keys, or proprietary internal hostnames.
+
+### Step 2: Validate and Compile the Store
+
+Run the definition store builder tool from the repository root:
+
+```bash
+# Verify internal builder rules
+dotnet run eng/configurator/BuildDefinitionStore.cs -- --self-test
+
+# Compile missing releases and write catalog snapshots
+dotnet run eng/configurator/BuildDefinitionStore.cs -- \
+  --source store \
+  --output .tmp/definition-store \
+  --write
+
+# Verify that all releases are valid and committed
+dotnet run eng/configurator/BuildDefinitionStore.cs -- \
+  --source store \
+  --output .tmp/definition-store \
+  --check
+```
+
+The `--write` command generates `store/<project-slug>/releases/1.json`. This compiled file must be committed along with your source YAML.
+
+### Step 3: Run Pull Request Validation
+
+Push your changes to a branch and open a pull request on GitHub. CI automatically validates your PR against the baseline commit:
+- Verifies that all YAML and JSON files conform to their respective schemas.
+- Ensures existing historical releases have not been modified or deleted.
+- Verifies that new revisions correctly increment the revision integer.
+
+---
+
+## Store Contribution Checklist
+
+Before opening your pull request, verify that:
+
+- [ ] The directory name in `store/<slug>` contains only lowercase letters, numbers, and hyphens.
+- [ ] `configurator.yaml` specifies an open-source `project.definitionLicense` (e.g. `MIT`, `Apache-2.0`).
+- [ ] `project.repository` is an absolute HTTPS URL to the public upstream repository.
+- [ ] Every secret field is classified as `sensitivity: secret` and has no default value.
+- [ ] Generated `releases/<revision>.json` was created using `BuildDefinitionStore.cs --write` and is included in the git commit.
+- [ ] `BuildDefinitionStore.cs --check` succeeds locally with zero errors.
+
+---
+
+## Where to Go Next
+
+- **Authoring details?** Read the comprehensive [Definitions Reference](definitions.md).
+- **Maintainer lifecycle?** See [Integrate Your Tool](integrate-your-tool.md).
+- **Packaging the store?** Learn how to build store assets in [Packaging](packaging.md).

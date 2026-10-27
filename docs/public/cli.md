@@ -1,427 +1,389 @@
-# Command-line configurator
+# Command-Line Interface (CLI)
 
-`islamu-configurator` is an offline preparation tool. It never contacts or applies
-changes to a target application. Supply a local admitted definition explicitly;
-there is no built-in Event catalogue or old command alias.
+`islamu-configurator` is a high-performance, offline command-line tool. It reads declarative setup definitions and answer workspaces to deterministically validate and prepare configuration artifacts (`.env`, JSON, YAML).
 
-For a first run with checked synthetic files, start with
-[Prepare a configuration offline](getting-started.md). This page is the command
-reference: jump to [complete usage](#complete-usage),
-[help without inputs](#help-without-operational-inputs),
-[maintainer definitions](#maintainer-definitions),
-[input and confidentiality](#input-output-and-confidentiality), or
-[machine results and exit codes](#machine-contract-and-exit-codes).
+The CLI is designed for headless servers, automation pipelines, and CI/CD workflows. It never contacts target servers or administers running systems.
 
-```bash
-dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- --help
-dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \
-  artifact create --definition definition.json --artifact config \
-  --input answers.json --output service.json --machine
-```
+> [!NOTE]
+> **Getting Started:** If you are running Configurator for the first time with synthetic example files, see the [Prepare a configuration offline](getting-started.md) guide.
 
-Definitions accept the compact [maintainer source](integrate-your-tool.md) with
-`$schema: urn:islamu:configurator:authoring:v1` or compiled `schemaVersion: 1`
-runtime data. `.yaml` and `.yml` files use bounded YAML; other extensions use JSON.
-Public definition source files are limited to 4 MiB each; empty, oversized or
-length-changing reads reject with a safe source-bound diagnostic. Native
-acquisition preserves the command's explicit source authority and clears its
-temporary storage after the caller receives its own copy.
-Answers are a JSON object whose property names are definition field IDs, for
-example `{"service.name":"my-service"}`. Answers are never command-line values.
-For ordinary artifact operations, the input is an answer workspace. Generic
-projections are not necessarily reversible. Existing host manifests, identity
-exports and legal drafts must be represented as declared object/list fields by
-their target-owned definition. The target remains responsible for integrity and
-full semantic acceptance of its exported/imported formats.
+---
 
-Ordinary `artifact` and `env` operations also accept `--answers PATH`. With that
-option, `--input` is an existing projected artifact and `--answers` is its answer
-workspace proof. The CLI recomposes using the admitted definition and rejects a
-projection mismatch. JSON/YAML compare bounded parsed documents, dotenv compares
-parsed key/value entries, and Markdown compares exact bytes. Formatting then
-publishes the composer's canonical rendering. YAML proof uses Core's closed
-mapping-document normalizer; non-mapping YAML proof is rejected. Such projections
-can still be prepared directly from an answer workspace. Without this proof the CLI cannot
-infer omitted/transformed answers or claim host acceptance of arbitrary artifacts.
+## Invocation Basics & Confidentiality
+
+The CLI operates in two mutually exclusive output modes:
+- `--text`: Human-readable terminal output formatted using Spectre.Console.
+- `--machine`: Emits exactly one machine-readable UTF-8 JSON envelope to stdout (max 64 KiB), followed by a single newline.
 
 ```bash
-islamu-configurator artifact open --definition definition.json --artifact config \
-  --input service.json --answers answers.json --machine
+# Display human help
+islamu-configurator --help
+
+# Generate a configuration file with machine receipt
+islamu-configurator artifact create \
+  --definition setup.json \
+  --artifact config \
+  --input answers.json \
+  --output service.json \
+  --machine
 ```
 
-## Complete usage
+### Confidentiality & Secret Handling
 
-All commands accept `--machine`, `--text` or `--help`. Machine and text are mutually
-exclusive. Spectre is the sole command grammar: value options accept both
-`--option value` and `--option=value`, and `-` is an ordinary value for admitted
-stdin/stdout options. `--` ends option parsing; it does not turn later tokens into
-options or admit positional operands where none are declared. Commands and option
-names are strictly case sensitive. Singleton options cannot repeat; bundle selection
-uses repeated `--artifact`. There are no framework-owned `cli` or `export` routes.
-An invocation admits at most 256 argument tokens and 32,768 aggregate UTF-8 bytes,
-counting one separator byte per token;
-each argument is at most 4,096 characters. Artifact IDs retain their stricter
-128-character bound.
+All answer-derived configuration output is **restricted**, even if individual fields are marked public. The CLI guarantees:
+- **No Answers on stdout:** Generated configuration files are never written to standard output. Only public metadata (such as `catalogue list`) may use `--output -` in text mode.
+- **No Answers in Arguments:** Answers cannot be passed as command-line arguments or ambient environment variables. They must be supplied via a local file or redirected standard input (`--input -`).
+- **Value-Free Diagnostics:** Error messages contain structural RFC 6901 JSON pointers and diagnostic codes, never private user input or credential plaintext.
 
-| Command | Required options | Optional options |
-| --- | --- | --- |
-| `catalogue list` | `--definition PATH`, `--output PATH` | `--dry-run` |
-| `catalogue show` | `--definition PATH`, `--key ID`, `--output PATH` | `--dry-run` |
-| `catalogue describe` | `--definition PATH`, `--key ID`, `--output PATH` | `--dry-run` |
-| `env render` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `env validate` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--input-revision NUMBER` |
-| `artifact create` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `artifact open` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--input-revision NUMBER` |
-| `artifact validate` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--input-revision NUMBER` |
-| `artifact format` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `artifact diff` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--baseline PATH` | `--input-revision NUMBER` |
-| `artifact coverage` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--input-revision NUMBER` |
-| `artifact export` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `artifact import` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH`, `--expected-revision REVISION`, `--revision-field ID` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `artifact check-existing` | `--definition PATH`, `--artifact ID`, `--input PATH` | `--answers PATH`, `--input-revision NUMBER` |
-| `artifact prefill` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--answers PATH`, `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `artifact bundle-check` | `--definition PATH`, repeated `--artifact ID`, `--input PATH` | `--input-revision NUMBER` |
-| `artifact bundle-create` | `--definition PATH`, repeated `--artifact ID`, `--input PATH`, `--output DIRECTORY` | `--input-revision NUMBER`, `--dry-run` |
-| `artifact preview` | `--definition PATH`, `--artifact ID`, `--input PATH`, `--output PATH` | `--input-revision NUMBER`, `--format FORMAT`, `--dry-run` |
-| `doctor` | none | none |
-| `definition init` | `--project-id ID`, `--name NAME`, `--application-version VERSION` | `--root DIRECTORY`, `--output PATH`, `--format yaml\|json`, `--from-env-example PATH`, `--from-schema PATH`, `--accept-bounded-semantics` |
-| `definition init` (fork) | `--fork-from PATH`, `--output PATH` | `--format yaml\|json` (must match source) |
-| `definition check` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH` |
-| `definition build` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH`, `--output PATH`, `--id-map PATH` |
-| `definition revise` | `--output NEW_PATH` when content changes | `--source PATH`, `--root DIRECTORY`, `--against PATH` |
+> [!IMPORTANT]
+> **Linux Protected Save Contract (`0600`):**
+> On Linux x64, the CLI uses a native create-only writer to publish files with owner-only (`0600`) permissions. Existing files are never overwritten. On unsupported hosts or unsafe targets, file writes fail closed.
 
-`--dry-run` replaces the output requirement. It validates and composes but
-publishes no file. `--input-revision` is a nonnegative Int64 workspace revision
-(default `0`), distinct from the definition revision and target expected revision.
-`--format` asserts the selected artifact's declared format, one of `json`,
-`yaml`, `dotenv`, `markdown`; it cannot override a projection's format.
-Select another declared artifact ID for another format. `env` requires an
-artifact declared as `dotenv`.
+---
 
-### Help without operational inputs
+## Command Reference
 
-Root, family and leaf `--help` require no definition, answers or output destination
-and perform no input reads. Human help uses Spectre's standard layout on stdout.
-Human failures go to stderr; text is rendered literally, not interpreted as markup.
+The CLI uses strict, case-sensitive option parsing:
 
-```bash
-islamu-configurator --machine --help
-islamu-configurator artifact --machine --help
-islamu-configurator artifact create --machine --help
-```
-
-Machine help uses the same single result envelope with a typed `help` object:
-`scope` is `root`, `branch` or `leaf`; `commandPath` lists the selected command
-segments; `commands` lists public child commands; and `options` lists objects with
-`name`, `requiresValue` and `repeatable`. The view comes from Spectre's command
-model, not parsed human help. The envelope route is `cli`/`help` at the root,
-the selected family/`help` at a branch, and the actual family/operation at a leaf.
-Root `cli` is a result identifier, not an invocable command. Help does not emit a
-successful compiler handshake or prove a definition was checked or built.
-
-### Maintainer definitions
-
-`definition init` creates a public YAML source by default, generates its family
-identity once and starts revision 1. JSON offers the same capabilities. The exact
-target application version is mandatory; it is independent of the definition
-revision. An empty source is a starting point: add the application's real fields
-and outputs before distributing it. `--from-env-example` reads only declared keys
-into string fields, with conservative sensitivity and no copied defaults or values.
-Review types, privacy and output behavior. `--from-schema` uses the
-[bounded schema importer](integrate-your-tool.md#reuse-a-public-json-schema).
-
-Without `--source`, check/build/revise discover exactly one `configurator.yaml`,
-`configurator.yml` or `configurator.json` in `--root` (default current directory).
-Multiple candidates reject. Explicit `--source` selects that file alone. Check is
-read-only and compilation does not allocate identities. Build creates canonical
-public JSON at `dist/configurator/revisions/<revision>.json` relative to the source
-directory, or `--output`; identical existing bytes are accepted, conflicting bytes
-reject. Generated output cannot replace a source or use a discovery filename.
-`--id-map` optionally creates a public logical-field-key to runtime-ID map.
-Build prepares the canonical definition and optional ID map before committing
-them in order. This is not a transaction: an ID-map failure does not undo an
-already published canonical definition. Inspect each output's machine write status.
-
-```bash
-islamu-configurator definition init --project-id example.service \
-  --name "Example Service" --application-version 1.0.0 --machine
-islamu-configurator definition check --machine
-islamu-configurator definition build --machine
-```
-
-Once a canonical revision exists at the default anchor, check and build reject
-changed content under that revision. After editing the source, `definition revise`
-compares with that anchor or `--against` and increments once only if canonical
-content changed. The anchor must have the same family and current revision;
-missing/mismatched anchors and overflow reject. Revision changes preserve source
-comments, Unicode, BOM and line endings in a separate create-only candidate:
-
-```bash
-islamu-configurator definition revise --output candidates/configurator.next.yaml --machine
-```
-
-The candidate must use the same JSON/YAML format and cannot be the source, an
-existing file, a discovery filename or a symlink destination. The original source
-is never overwritten, so a concurrent editor save survives. Unchanged canonical
-content produces no candidate; changed content without `--output` is refused.
-Review the candidate before deliberately adopting it as your source. Build
-remains a separate operation.
-For a separately located release, use `check --against PATH` or `build --against PATH`
-to bind that explicit anchor; an explicitly named missing anchor rejects.
-An explicit anchor cannot replace conflicting history already present at the
-default recorded revision path, including during `revise`.
-`init --fork-from source.yaml --output fork/configurator.yaml` explicitly creates
-a new family at revision 1 and leaves the original unchanged.
-
-Source edits use a create-only sibling `.configurator.lock`, a same-directory
-temporary file and an immediate original-digest check before replacement. Existing
-locks, symlinks and changed originals reject; stale locks are never automatically
-removed. External editors can still race the final replacement window. These are
-public source operations, separate from the protected answer writer below.
-
-`open` admits an answer workspace and prepares its selected projection without
-publishing. `validate` checks field rules and whether the projection can be
-rendered. `coverage` reports active provided fields and missing required fields.
-`diff` composes candidate and baseline answer workspaces and compares canonical
-artifact bytes: the selected artifact contributes one covered count when identical
-or one missing count when different. Difference is not a validation failure.
-`create`, `format` and `export` publish the definition's canonical rendering.
-`preview` uses exactly that rendering and protected output, not terminal display.
-These are preparation operations, not target commands.
-
-`import` prepares an import-request artifact, never an API request. The artifact
-must declare `applySemantics: "import"`. `--expected-revision` is `absent` or a
-lowercase 64-character SHA-256 revision. `--revision-field` must name a declared
-string field copied unconditionally into a top-level object member of the selected
-projection. It must remain active, provided and valid. The option is injected into
-that field; a conflicting input value rejects. Definitions that cannot preserve
-this explicit revision reject with `revision-projection-required`; no invented
-host wrapper, implicit revision or integrity claim is added.
-Import-semantic artifacts cannot be published through `create`, `format`,
-`export`, `preview` or `env render`; those routes reject with
-`import-command-required` rather than bypassing explicit revision binding.
-
-`check-existing` assesses a local dotenv, JSON or YAML file through a selected
-definition projection. `prefill` performs the same check and writes a restricted
-JSON answer workspace. Only present top-level output keys with unconditional
-`copy` mappings can be read back; unknown, duplicate, conditional, transformed,
-inactive, invalid or conflicting values reject the whole import. Optional
-`--answers` supplies current answers for conflict detection; without it the
-workspace starts empty. `--input-revision` labels that current workspace and a
-successful prefill advances it by one. Missing fields remain unanswered, so a
-successful check or prefill does not mean the configuration is ready for a host.
-These operations are separate from revision-bound `artifact import` and the
-`--answers` recomposition proof on ordinary operations.
-
-```bash
-islamu-configurator artifact check-existing --definition definition.json \
-  --artifact config --input service.json --machine
-islamu-configurator artifact prefill --definition definition.json \
-  --artifact config --input service.json --output prefilled-answers.json --machine
-```
-
-`bundle-check` composes multiple declared artifacts from one answer workspace
-without writing them. `bundle-create` prepares all selected destinations in the
-output directory before writing any, then creates them in definition order.
-Pass each artifact ID with its own `--artifact`, at most 64 IDs. The former CSV
-`--artifacts` option is removed, with no alias. Existing files and unsupported
-protected-save hosts block the write. A later race or I/O failure may leave an earlier file written; the
-machine result reports each artifact as `written`, `conflict`, `blocked`,
-`failed`, `not-attempted` or `unknown` and exits unsuccessfully. `unknown` means
-publication could not be established, not that nothing was written. An earlier
-`written` result survives a later publication or cleanup failure. Inspect those
-statuses before retrying, including after an unexpected failure. If publication or
-cleanup could not be established, the result says `unknown`, not that nothing
-happened. Neither command accepts an artifact with import semantics;
-use revision-bound `artifact import` for that artifact. `--dry-run` checks
-composition only and does not reserve or inspect destinations.
-
-```bash
-islamu-configurator artifact bundle-check --definition definition.json \
-  --artifact config --artifact environment --input answers.json --machine
-islamu-configurator artifact bundle-create --definition definition.json \
-  --artifact config --artifact environment --input answers.json --output ./prepared --machine
-```
-
-Catalogue output is structural metadata only: ID, type, sensitivity, required
-flag, disclosure, and (for `describe`) presence of activation, required-condition,
-default and recommendation metadata. It excludes answer values, titles, help,
-defaults and choices. `doctor` checks native protected-writer availability and
-the compiled machine-schema authority; it does not certify filesystem targets
-or a host application.
-
-## Input, output and confidentiality
-
-`--definition` must be a local file, never stdin or a URL fetch. `--input -`,
-`--baseline -` and `--answers -` explicitly read stdin; only one may consume stdin
-in an invocation. Stdin must be redirected from a pipe or file. Terminal stdin
-rejects with exit 74 without waiting for input; this noninteractive CLI has no
-prompt or terminal-entry mode.
-Answer output is create-only. On Linux, native publication proves owner-only file
-protection; unsupported platforms or unsafe targets fail closed. There is no
-plain file fallback. An existing output remains unchanged.
-
-All answer-derived bytes are **restricted**, even when every field is declared
-public. They never reach stdout. `--output -` is allowed only for public catalogue
-metadata in text mode; human status goes to stderr in that case. In machine mode
-stdout is reserved for one result envelope. Dry runs cannot authorize restricted
-stdout. Diagnostics contain fixed codes and structural paths, not input values, raw
-exceptions or filesystem paths. Answers enter only through explicit bounded files
-or redirected stdin, never arguments or ambient environment variables. The CLI
-does not enumerate ambient environment names or values. Filenames and declared
-IDs are not rejected merely for containing words such as `secret`, `token` or
-`password`; bounded grammar, definition admission and protected-output rules still
-apply. Do not put actual private values in filenames or identifiers. File inputs
-retain the 4 MiB byte limit and depth 32. This pre-release contract intentionally
-replaces ambient-name and substring filtering without backward-compatibility
-adapters.
-
-### Cooperative cancellation
-
-Ctrl+C, or SIGTERM on Unix, requests cancellation of the current invocation.
-Reads and protected publication observe that request cooperatively; cancellation
-does not undo a committed file. Repeated signals do not append another receipt.
-The CLI releases owned input buffers and native preparations, then makes its one
-final delivery attempt with a separate bounded lifetime so the cancelled work
-token does not itself prevent a receipt.
-
-Cancellation exits 130 unless an earlier operation or cleanup failure already
-determines the result. Final delivery failure takes precedence and exits 74.
-Inspect per-artifact installation, verification and cleanup independently of the
-exit code. An established installation survives later verification failure,
-cancellation or receipt-delivery failure. It does not prove the destination still
-contains the expected file. Check destinations before retrying an interrupted
-write; existing files are never overwritten automatically.
-
-Cancellation is not a rollback or erasure guarantee. Bounded parsing need not stop
-immediately, and a non-cancellable native call, forced kill or OS crash may prevent
-cleanup or a final receipt. Clearing owned byte buffers does not erase immutable
-JSON or string allocations.
-
-Linux process tests qualify cancellation during redirected pipe reads (Ctrl+C,
-SIGTERM and repeated SIGTERM), including final-delivery failure with broken
-stdout. Regular-file stdin/stdout redirection is qualified for successful
-publication and receipt delivery, not interruption of a stalled filesystem call.
-These checks do not establish equivalent signal behavior on other hosts.
-
-## Machine contract and exit codes
-
-With a healthy output channel, `--machine` emits exactly one UTF-8 JSON object,
-one trailing LF, no BOM or ANSI, and no additional framework diagnostics. The
-entire receipt, including LF, is at most 65,536 UTF-8 bytes. `schemaVersion` is
-`islamu-configurator-command/v2`, replacing v1 without a compatibility envelope.
-The authoritative schema is generated from the compiled registry by
-`Configurator.CommandSchemaGenerator` at
-`schemas/islamu-configurator-command-v2.schema.json`. Definition authoring and
-runtime schemas remain v1.
-
-The closed envelope identifies the invocation (commandFamily, operation, mode),
-status, exit category/code and dry-run intent. It separates these outcome facts:
-
-- `completion`: whether the local operation completed or failed.
-- `preparation`: local preparation state, or `null` when unassessed.
-- `targetAcceptance`: always `unassessed`; no target was contacted.
-- `cleanup`: independent of established writes; cleanup can fail after publication.
-- `delivery`: `attempt`, not an acknowledgment that the recipient received these bytes.
-
-`artifacts` retains every selected output's full `id`, kind, mediaType, established
-digest, sensitivity, pathIntent, writeStatus, installation and verification. No output repeats coverage or
-readiness lists, and no artifact body is included. Kinds are `catalogue`,
-`definition-artifact`, `answer-snapshot`, `doctor-report`, `authoring-source`,
-`compiled-definition`, `logical-id-map`; sensitivities are `public`, `restricted`.
-Successful `definition check` and `definition build` additionally report
-`authoringContractVersion: 1` and `runtimeSchemaVersion: 1`. A downstream compiler
-handoff must verify those versions, the envelope version, successful exit and the
-compiled file's digest before installation. The chosen output path is supplied by
-the caller and is not echoed in the machine envelope.
-
-For native file output, interpret the independent facts together:
-
-| Situation | `installation` | `verification` | `writeStatus` |
+| Command | Required Options | Optional Options | Description |
 | --- | --- | --- | --- |
-| Planned or not reached | `not-attempted` | `not-attempted` | `planned` or `not-attempted` |
-| Refused before installation | `not-established` | `not-attempted` | `conflict`, `blocked` or `failed` |
-| Installed and immediately verified | `established` | `succeeded` | `written` |
-| Installed but verification failed or was interrupted | `established` | `failed` | `written` |
-| No reliable outcome available | `unknown` | `unknown` | `unknown` |
+| `catalogue list` | `--definition`, `--output` | `--dry-run` | List all declared field keys and structural metadata |
+| `catalogue show` | `--definition`, `--key`, `--output` | `--dry-run` | Inspect metadata for a single declared field |
+| `catalogue describe` | `--definition`, `--key`, `--output` | `--dry-run` | Inspect detailed activation and constraint metadata |
+| `env render` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run` | Render a declared dotenv artifact from answers |
+| `env validate` | `--definition`, `--artifact`, `--input` | `--input-revision` | Validate answer compatibility for a dotenv artifact |
+| `artifact create` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Generate a declared configuration artifact |
+| `artifact open` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Validate answers and stage output without writing |
+| `artifact validate` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Verify answer constraints against schema rules |
+| `artifact format` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Publish canonical formatting for an existing artifact |
+| `artifact diff` | `--definition`, `--artifact`, `--input`, `--baseline` | `--input-revision`, `--answers` | Compare candidate answers against a baseline |
+| `artifact coverage` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Report provided vs missing required fields |
+| `artifact export` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Publish artifact using canonical output writer |
+| `artifact import` | `--definition`, `--artifact`, `--input`, `--output`, `--expected-revision`, `--revision-field` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Prepare an import artifact with explicit revision binding |
+| `artifact check-existing` | `--definition`, `--artifact`, `--input` | `--answers`, `--input-revision` | Verify if a local file can be reverse-mapped to answers |
+| `artifact prefill` | `--definition`, `--artifact`, `--input`, `--output` | `--answers`, `--input-revision`, `--format`, `--dry-run` | Ingest local configuration into a JSON answer workspace |
+| `artifact bundle-check` | `--definition`, repeated `--artifact`, `--input` | `--input-revision` | Validate multi-artifact bundle readiness |
+| `artifact bundle-create` | `--definition`, repeated `--artifact`, `--input`, `--output` | `--input-revision`, `--dry-run` | Create all bundle artifacts in the target directory |
+| `artifact preview` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run` | Validate and write protected preview output |
+| `doctor` | *(none)* | *(none)* | Check system writer availability and schema status |
+| `definition init` | `--project-id`, `--name`, `--application-version` | `--root`, `--output`, `--format`, `--from-env-example`, `--from-schema` | Initialize a new maintainer definition |
+| `definition check` | *(none)* | `--source`, `--root`, `--against` | Verify maintainer source syntax and canonical hash |
+| `definition build` | *(none)* | `--source`, `--root`, `--against`, `--output`, `--id-map` | Compile maintainer source into distribution JSON |
+| `definition revise` | `--output` *(when changed)* | `--source`, `--root`, `--against` | Increment revision if source contents changed |
 
-`written` alone is not verification or overall success. Installation records the
-successful create-only namespace operation before inspection; verification is
-only the immediate follow-up check, never a promise of continued integrity. An
-unverified installation fails the operation and stops later bundle outputs, even
-when cancellation follows. Cleanup remains independent. Public stdout delivery,
-read-only artifacts and public authoring-file writes use `not-applicable` for both
-native facts: stream delivery or ordinary authoring writes cannot establish native
-protected-save guarantees. Consumers must read the explicit fields; there is no
-status-only compatibility interpretation.
+---
 
-Root `coverage` contains exact `coveredCount`, `missingCount` and `detailDigest`;
-`readiness` reports state and missing/blocked counts, not full key arrays.
-Successful local preparation reports `host-validation-required`, not host acceptance.
-Diagnostics contain fixed code/severity and an RFC 6901 structural `path`, not a
-filesystem path. Optional numeric `line` and Unicode-scalar `column` are one-based;
-`byteOffset` is zero-based in the original UTF-8 source. These slots do not promise
-complete source-location reporting or automatic authoring repair.
+## Command Examples
 
-At most 16 diagnostic examples are inline, sharing an 8,192-byte optional-detail
-budget with any requested page. `diagnosticsTotal` and `diagnosticsOmitted` are
-exact; omitted examples do not turn a failed operation into success. To inspect
-more, use the read-only detail interface below, not a repeated write command.
+### Catalogue Inspection
 
-The CLI sizes the mandatory receipt before publication. A broken stdout can still
-leave no JSON or a partial line after files were written. There is only one delivery
-attempt: no appended fallback envelope. Exit 74 and a best-effort fixed stderr code
-signal transport failure, not rollback. Check destinations before any retry.
-
-### Read-only detail pages
-
-Only `definition check`, `artifact validate`, `artifact check-existing` and
-`artifact bundle-check` accept `--detail diagnostics|coverage`, `--offset NUMBER`,
-`--limit NUMBER` and `--expected-detail-digest DIGEST`. Offset is 0–2,048 (default
-0); limit is 1–32 (default 16). These queries retain ordinary validation exit
-semantics and never publish files.
-
-Start at offset 0 and read `detail.digest`, `detail.total` and the returned
-`detail.diagnostics` or `detail.coverage` entries. Advance by the number actually
-returned, not the requested limit: the byte budget may shorten a page. Every
-noninitial page requires `--expected-detail-digest` from the preceding view;
-a changed view rejects with `detail-digest-mismatch`.
+Inspect definition structure without supplying answers:
 
 ```bash
-islamu-configurator artifact validate --definition definition.json --artifact config \
-  --input answers.json --detail coverage --offset 0 --limit 16 --machine
-# If 16 entries were returned and more remain, substitute the returned digest:
-islamu-configurator artifact validate --definition definition.json --artifact config \
-  --input answers.json --detail coverage --offset 16 --limit 16 \
-  --expected-detail-digest '<returned-digest>' --machine
+# List all declared fields to a JSON catalogue
+islamu-configurator catalogue list \
+  --definition setup.json \
+  --output catalogue.json \
+  --machine
+
+# Describe constraints and activations for a specific field
+islamu-configurator catalogue describe \
+  --definition setup.json \
+  --key service.port \
+  --output field-details.json \
+  --machine
 ```
 
-The SHA-256 digest binds the sanitized structural view to its public definition,
-operation, artifact selection and status facts. It is not a hash of private answers.
-Value changes that leave that view unchanged need not invalidate continuation.
+### Environment Operations (dotenv)
 
-| Exit | Category | Meaning |
+Render or validate `.env` format artifacts declared in the definition:
+
+```bash
+# Validate answers for a declared environment artifact
+islamu-configurator env validate \
+  --definition setup.json \
+  --artifact environment \
+  --input answers.json \
+  --machine
+
+# Render the .env file to disk
+islamu-configurator env render \
+  --definition setup.json \
+  --artifact environment \
+  --input answers.json \
+  --output .env \
+  --machine
+```
+
+### Artifact Operations
+
+Prepare, validate, diff, and generate application artifacts:
+
+```bash
+# Create a single protected configuration artifact
+islamu-configurator artifact create \
+  --definition setup.json \
+  --artifact config \
+  --input answers.json \
+  --output service.json \
+  --machine
+
+# Prefill answers by ingesting an existing service.json file
+islamu-configurator artifact prefill \
+  --definition setup.json \
+  --artifact config \
+  --input existing-service.json \
+  --output prefilled-answers.json \
+  --machine
+
+# Compare candidate answers against a baseline
+islamu-configurator artifact diff \
+  --definition setup.json \
+  --artifact config \
+  --input candidate-answers.json \
+  --baseline baseline-answers.json \
+  --machine
+
+# Prepare an import artifact with explicit revision binding
+islamu-configurator artifact import \
+  --definition setup.json \
+  --artifact import-spec \
+  --input answers.json \
+  --output import.json \
+  --expected-revision 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4 \
+  --revision-field target_revision \
+  --machine
+
+# Atomically generate a multi-artifact bundle
+islamu-configurator artifact bundle-create \
+  --definition setup.json \
+  --artifact config \
+  --artifact environment \
+  --input answers.json \
+  --output ./prepared \
+  --machine
+```
+
+### Authoring Maintainer Definitions
+
+Create, validate, compile, and increment setup definition sources:
+
+```bash
+# Initialize a new maintainer definition
+islamu-configurator definition init \
+  --project-id example.service \
+  --name "Example Service" \
+  --application-version 1.0.0 \
+  --format yaml
+
+# Check local source validity against canonical build
+islamu-configurator definition check --machine
+
+# Compile canonical runtime distribution JSON
+islamu-configurator definition build --machine
+
+# Increment revision after source edits
+islamu-configurator definition revise \
+  --output candidates/configurator.next.yaml \
+  --machine
+```
+
+### System Doctor
+
+Check environment capabilities, native writer availability, and schema authority:
+
+```bash
+islamu-configurator doctor --machine
+```
+
+---
+
+## Machine Contract (`--machine`)
+
+In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v2` schema. It provides deterministic, structured facts about operation results, file publication, and validation diagnostics.
+
+### 1. Successful Artifact Creation
+
+```json
+{
+  "schemaVersion": "islamu-configurator-command/v2",
+  "invocation": {
+    "commandFamily": "artifact",
+    "operation": "create",
+    "mode": "machine"
+  },
+  "status": "success",
+  "exitCategory": "success",
+  "exitCode": 0,
+  "dryRun": false,
+  "completion": "completed",
+  "preparation": "ready",
+  "targetAcceptance": "unassessed",
+  "cleanup": "completed",
+  "delivery": "attempt",
+  "diagnosticsTotal": 0,
+  "diagnosticsOmitted": 0,
+  "detailDigest": "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0",
+  "diagnostics": [],
+  "artifacts": [
+    {
+      "id": "config",
+      "kind": "definition-artifact",
+      "mediaType": "application/json",
+      "digest": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
+      "sensitivity": "restricted",
+      "pathIntent": "output",
+      "writeStatus": "written",
+      "installation": "established",
+      "verification": "succeeded"
+    }
+  ],
+  "coverage": {
+    "coveredCount": 14,
+    "missingCount": 0,
+    "detailDigest": "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0"
+  },
+  "readiness": {
+    "state": "ready",
+    "missingCount": 0,
+    "blockedCount": 0
+  }
+}
+```
+
+### 2. Validation Failure with Diagnostics
+
+When validation fails, diagnostics include fixed error codes, RFC 6901 structural paths, and source locations:
+
+```json
+{
+  "schemaVersion": "islamu-configurator-command/v2",
+  "invocation": {
+    "commandFamily": "artifact",
+    "operation": "validate",
+    "mode": "machine"
+  },
+  "status": "validation",
+  "exitCategory": "validation",
+  "exitCode": 2,
+  "dryRun": false,
+  "completion": "failed",
+  "preparation": "incomplete",
+  "targetAcceptance": "unassessed",
+  "cleanup": "completed",
+  "delivery": "attempt",
+  "diagnosticsTotal": 1,
+  "diagnosticsOmitted": 0,
+  "detailDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "diagnostics": [
+    {
+      "code": "field-required-missing",
+      "path": "/database/password",
+      "severity": "error",
+      "line": 4,
+      "column": 5,
+      "byteOffset": 82
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "config",
+      "kind": "definition-artifact",
+      "mediaType": "application/json",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sensitivity": "restricted",
+      "pathIntent": "output",
+      "writeStatus": "not-attempted",
+      "installation": "not-attempted",
+      "verification": "not-attempted"
+    }
+  ],
+  "coverage": {
+    "coveredCount": 8,
+    "missingCount": 1,
+    "detailDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "readiness": {
+    "state": "incomplete",
+    "missingCount": 1,
+    "blockedCount": 0
+  }
+}
+```
+
+### 3. Paginated Detail Query
+
+Query detailed coverage or diagnostics using pagination options (`--detail coverage --offset 0 --limit 16`):
+
+```json
+{
+  "schemaVersion": "islamu-configurator-command/v2",
+  "invocation": {
+    "commandFamily": "artifact",
+    "operation": "validate",
+    "mode": "machine"
+  },
+  "status": "success",
+  "exitCategory": "success",
+  "exitCode": 0,
+  "dryRun": false,
+  "completion": "completed",
+  "preparation": "ready",
+  "targetAcceptance": "unassessed",
+  "cleanup": "completed",
+  "delivery": "attempt",
+  "diagnosticsTotal": 0,
+  "diagnosticsOmitted": 0,
+  "detailDigest": "9b12c8a34ef018293a4b5c6d7e8f90123456789abcdef0123456789abcdef01",
+  "detail": {
+    "kind": "coverage",
+    "offset": 0,
+    "limit": 2,
+    "total": 2,
+    "digest": "9b12c8a34ef018293a4b5c6d7e8f90123456789abcdef0123456789abcdef01",
+    "diagnostics": [],
+    "coverage": [
+      {
+        "id": "service.name",
+        "state": "covered"
+      },
+      {
+        "id": "database.port",
+        "state": "covered"
+      }
+    ]
+  },
+  "diagnostics": [],
+  "artifacts": [],
+  "coverage": {
+    "coveredCount": 2,
+    "missingCount": 0,
+    "detailDigest": "9b12c8a34ef018293a4b5c6d7e8f90123456789abcdef0123456789abcdef01"
+  },
+  "readiness": {
+    "state": "ready",
+    "missingCount": 0,
+    "blockedCount": 0
+  }
+}
+```
+
+---
+
+## Exit Codes & Status Categories
+
+The CLI uses standard, predictable POSIX-compatible exit codes:
+
+| Exit Code | Category | Meaning |
 | --- | --- | --- |
-| 0 | success | Local operation completed; host acceptance still required |
-| 2 | validation | Declared field/projection validation failed |
-| 3 | incomplete | Required answer values missing |
-| 4 | blocked | Privacy, revision or unsupported protected-host boundary |
-| 64 | usage | Invalid arguments, missing options or incompatible format |
-| 65 | data | Malformed definition/answer document or admission failure |
-| 70 | internal | Unexpected invariant/framework failure |
-| 74 | io | Bounded read, protected publication or output-stream failure |
-| 130 | cancelled | Cooperative cancellation, unless an earlier failure or failed delivery takes precedence |
+| `0` | `success` | Operation completed successfully |
+| `2` | `validation` | Field validation or projection constraints failed |
+| `3` | `incomplete` | Required answer fields are missing |
+| `4` | `blocked` | Action blocked by privacy constraint, missing consent, or unsupported host |
+| `64` | `usage` | Invalid command-line arguments or syntax error |
+| `65` | `data` | Malformed JSON/YAML or definition admission rejection |
+| `70` | `internal` | Unexpected internal engine failure |
+| `74` | `io` | I/O failure (file bounds exceeded, protected write blocked, or stdout broken) |
+| `130` | `cancelled` | Operation cancelled cooperatively via `SIGINT` (`Ctrl+C`) or `SIGTERM` |
 
-Old `manifest`, `tenant-package`, `portability`, `legal`, `catalog` and `tui`
-families are not aliases. Event workflows use Event-owned definitions and
-artifact IDs; Event's backend still owns acceptance and authorization.
-
-Public authoring custody hardening, richer installed discovery/repair and portable
-skill lifecycle remain deferred. The requested modern-platform target is .NET 10
-on Linux glibc/musl x64/arm64, macOS x64/arm64 and Windows 10/11 x64; Windows 7 is
-explicitly unsupported. [Package admission](packaging.md) and actual-host
-qualification are distinct; the full expanded host matrix is not qualified.
-Restricted-save qualification remains Linux-only: this request does not add
-non-Linux protected writers. Actual-host qualification and installed adoption
-evidence remain open. The bounded receipt contract is not enterprise certification
-or proof of complete adoption.
+For advanced authoring and schema guidelines, see the [Authoring Integration Guide](integrate-your-tool.md) and [Packaging Guide](packaging.md).

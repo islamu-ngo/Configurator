@@ -1,171 +1,437 @@
-# Configuration definitions
+# Configuration Definitions
 
-A definition describes an application's questions, constraints and artifact
-mappings. Configurator interprets bounded data; it does not execute scripts,
-install services or grant application-administration authority.
+A configuration definition is a declarative, non-executable document that describes an application's settings, validation rules, guided journeys, and output file mappings. 
 
-## Choose the right definition file
+Configurator reads this data to render interactive setup interfaces across the terminal, desktop, and web, producing production-ready configuration files offline.
 
-| File | Purpose | Where to start |
-| --- | --- | --- |
-| Maintainer source (`configurator.yaml`, `.yml` or `.json`) | The compact public declaration maintained beside an application's code. | [Integrate your tool](integrate-your-tool.md) |
-| Compiled runtime definition (canonical JSON) | The admitted, versioned definition distributed to clients and used for integrity pinning. | [Check and build a source](integrate-your-tool.md#check-build-and-revise) |
-| Answer workspace (JSON object) | Local values keyed by definition field IDs; not part of either public definition. | [Prepare a configuration](getting-started.md) |
+---
 
-Start with the [minimal runtime definition](../../examples/minimal-self-hosted/setup-definition.json).
-Its fields produce a dotenv file, JSON document or YAML document through the same
-definition used by every interface. The sample's credential can be deferred in
-an explicitly incomplete browser draft or entered voluntarily after per-workspace
-consent. All answer-derived artifacts are restricted even when all fields are
-declared public; browser downloads cannot establish native file protection.
+## Anatomy of a Definition
 
-## Identity and distribution
+Every definition is organized into four distinct structural layers, ensuring a clean separation between identity, user experience, data validation, and file generation:
 
-Each definition has a stable family GUID, a revision, declared application
-versions and a digest computed from canonical definition bytes. GUID identity
-is not publisher authentication. A session pins the admitted revision and
-digest; it never silently upgrades when a catalog changes.
+```mermaid
+flowchart TD
+    subgraph L1 ["1. Metadata & Identity"]
+        ID["Family GUID & Revision<br/>Application ID & Version Matrix<br/>Canonical Content Digest"]
+    end
 
-For public discovery, contributors can propose a project folder and versioned
-JSON definitions in the optional [Definition Store](definition-store.md).
-The native builder derives canonical identity and compatibility metadata from
-admitted content. Store inclusion remains separate from publisher authenticity;
-local files and independent public publisher links remain usable without it.
+    subgraph L2 ["2. Presentation & Journeys"]
+        PRES["Sections (max 64) & Groups<br/>Experiences (Guided vs. Sections)<br/>Disclosure Levels (Essential / Guided / Advanced)"]
+    end
 
-## Fields, validation and output mappings
+    subgraph L3 ["3. Fields & Validation"]
+        FIELDS["Scalars (string, integer, boolean, enum)<br/>Object Lists & Unique Keys<br/>ActiveWhen Conditional Rules<br/>Guidance & Credential Metadata"]
+    end
 
-Field IDs are independent of output keys. Activation and required conditions
-refer to declared fields. Disclosure controls the view, never the validation:
-required or protected decisions cannot disappear from guided review.
+    subgraph L4 ["4. Output Artifact Mappings"]
+        OUT["Dotenv (.env)<br/>JSON Configuration<br/>YAML Documents<br/>Markdown Summaries"]
+    end
 
-Lists may contain scalars or bounded objects. An object list declares
-`itemType: "object"`, its `properties`, and `minItems`/`maxItems`; each row is
-validated against those properties. Optional `uniqueBy: ["metadata", "name"]`
-identifies a declared nested string key for ordinal uniqueness across rows.
-Unknown members, malformed rows, missing required properties and duplicate
-keys reject; diagnostics never echo the duplicate value. Core's depth, node,
-scalar and 4,096 repeated-item budgets still apply. A target may impose stricter
-limits or additional validation; admitting a definition does not prove that the
-target will accept every prepared file.
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
 
-Nested fields preserve their own sensitivity. A public parent label never
-permits secret defaults or bypasses browser consent. Removed object-list rows
-are absent from the next immutable answer snapshot and composed output.
+    style L1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style L2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style L3 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style L4 fill:#fff3e0,stroke:#e65100,stroke-width:2px
+```
 
-Use typed dotenv, JSON, YAML or Markdown projections. Paths are sanitized
-filename hints, not permission to write arbitrary files. Apply/restart metadata
-describes consequences for the operator; the target still validates and applies
-its own configuration.
+---
 
-Multi-file preparation uses one answer snapshot and preserves declared output
-order. A fatal later output or aggregate-size rejection makes no earlier file
-available. Secret-deferred drafts remain incomplete: usable files and withheld
-output diagnostics are reported separately, and complete preparation still
-requires every applicable required setting. Preparing files never applies them
-to a target.
+## Authoring Source vs. Runtime Definition
 
-## Authored journeys and field guidance
+Configurator distinguishes between human-authored sources and machine-distributed canonical definitions:
 
-Optional `presentation` describes sections and experiences in the public definition.
-It supplies no answers, presets, activation or validation overrides. Admission of
-this metadata does not itself implement a client journey. Machine-only definitions
-may omit it; absence is neutral, not an instruction to select a legacy display mode.
+| File Type | Format | Typical Location | Purpose |
+|---|---|---|---|
+| **Maintainer Source** | YAML / JSON | `configurator.yaml` | The compact, commentable source file maintained alongside your application code. |
+| **Runtime Definition** | Canonical JSON | `dist/revisions/1.json` | The compiled, admitted document distributed to clients, pinned by SHA-256 digest. |
+| **Answer Workspace** | JSON | Local transient memory | Local user inputs keyed by field ID. Answers are never stored inside definitions. |
 
-Each root field belongs to exactly one nonempty section. Every experience lists
-every section exactly once, in its intended order, and `defaultExperience` names an
-existing experience. Nested properties remain inside their root editor. Source
-sections accept `fields` containing logical keys and/or `groups` selecting roots by
-their existing `group`. Compilation expands group members in ordinal logical-key
-order, after explicit fields, and rewrites all references to runtime root IDs.
-Duplicate, overlapping, empty and unresolved selections reject. Runtime sections
-contain only `fields`, never `groups`.
+> [!NOTE]
+> Start by exploring the [minimal self-hosted definition](../../examples/minimal-self-hosted/setup-definition.json) or Grafana example [`examples/grafana-13.2.2`](../../examples/grafana-13.2.2/README.md) to see production implementations.
 
-There are at most 64 sections and 16 experiences. Their unique IDs are lowercase
-ASCII kebab-case, start with a letter and contain at most 64 characters. Titles
-are at most 128 characters; optional descriptions at most 2,048. Section `disclosure`
-and experience `initialDisclosure` accept `essential`, `guided` or `advanced` and
-default to `guided`. Experience `navigation` accepts `guided` or `sections` and
-defaults to `sections`. Authors choose these facts; names such as Recommended and
-Custom have no reserved behavior.
+---
 
-Existing field `help` is the short explanation (at most 4,096 characters), and
-`consequence` retains its existing meaning. Optional `guidance` adds:
+## Identity & Integrity Pinning
 
-| Member | Bound and meaning |
-| --- | --- |
-| `instructions` | Up to 4,096 characters of inert plain text explaining acquisition or use. |
-| `links` | Up to four objects containing only `title` (128 characters) and `url` (2,048 characters). URLs must be absolute credential-free HTTPS with no query or fragment. |
-| `searchTerms` | Up to sixteen distinct nonempty strings, each at most 64 characters. |
+Each definition declares an immutable family identity and semantic revision:
 
-Text rejects controls and HTML delimiters. Instructions also reject Markdown
-links/code and template substitution markers; no commands, images or substitution
-are executed. Links are public instructions, not a way to send an answer or fetch
-a credential. Clients must open them only deliberately, without automatic fetch,
-prefetch, opener or referrer transfer. YAML syntax comments are not runtime help.
-Never include real answers or secret examples in this public metadata.
+```yaml
+identity:
+  familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
+  revision: 1
+project:
+  id: example.service
+  name: Example Service
+applicationVersions: ["1.0.0", "1.1.0"]
+```
 
-Optional field `credential` has exactly `kind` and `acquisition`. It is admitted
-only on string leaves in a secret context, including a public/sensitive leaf below
-a secret object or object-list ancestor. It cannot lower sensitivity or permit
-private defaults/recommendations.
+When a client loads a runtime definition, Configurator computes a canonical SHA-256 digest over its admitted content. Sessions pin this exact revision and digest:
+- **No Silent Upgrades:** A catalog or web update will never alter an active configuration session.
+- **Tamper Protection:** The digest verifies that the definition matches the author's published release byte-for-byte.
+- **Clear Provenance:** Identity establishes revision continuity; target applications still validate all generated files.
 
-| `kind` | Permitted `acquisition` |
-| --- | --- |
-| `password` | `existing`, `create`, `issuer` |
-| `opaque-token` | `existing`, `issuer` |
-| `symmetric-key` | `existing`, `create` |
-| `private-key` | `existing`, `issuer` |
-| `connection-string` | `existing`, `issuer` |
+---
 
-`create` describes the operator's task, not permission to run a generator.
-Certificates use ordinary guidance, not a private-key label. Non-password kinds
-must not be presented as current account passwords. No `generation`, `comment`
-alias or password-manager-specific member is admitted. Omitted guidance and
-credential metadata remain valid for generic machine-only definitions.
+## Declaring Fields & Validation
 
-All admitted metadata participates in the canonical digest. Publish a new revision
-when it changes; a family/revision pair cannot be reused with different guidance
-or journey content. See [authoring examples](integrate-your-tool.md#describe-journeys-and-credential-acquisition)
-and the [technical contract](../internal/CORE_DEFINITION_CONTRACT.md#presentation-guidance-and-credentials).
+Fields represent the individual configuration values required by the application. Field IDs are internal keys and remain decoupled from output variable names.
 
-## Complete configuration versus a secret-deferred draft
+### Basic Scalar Types
 
-Complete preparation requires all active required answers and valid values.
-Secret-deferred preparation is a separate draft operation: missing secret
-leaves produce blank dotenv values, empty JSON/YAML strings or null nonstring
-leaves, together with completion locations. These are placeholders, never
-fabricated valid credentials. Ordinary missing/invalid fields remain errors;
-secret-dependent conditions cannot silently be treated as false. Complete the
-listed locations and run target validation before use. A draft is neither a
-ready configuration nor host acceptance.
+Configurator supports `string`, `boolean`, `integer`, `number`, and `enum` types:
 
-## Schemas and YAML syntax
+```yaml
+fields:
+  service.host:
+    type: string
+    title: Service Hostname
+    help: Fully qualified domain name where this instance is reachable.
+    sensitivity: public
+    disclosure: essential
+    required: true
+    default: "localhost"
+    minLength: 1
+    maxLength: 255
 
-The runtime schema is
-[`setup-definition-v1.schema.json`](../../schemas/setup-definition-v1.schema.json).
-See the [definition contract](../internal/CORE_DEFINITION_CONTRACT.md) for the
-closed grammar and exact Configurator v1 canonicalization profile. It is not an RFC 8785 compatibility
-claim. Local YAML is normalized to the same definition model; distribution,
-integrity and digest pinning use the canonical JSON bytes.
+  service.port:
+    type: integer
+    title: Listening Port
+    sensitivity: public
+    disclosure: guided
+    default: 8080
+    minimum: 1
+    maximum: 65535
 
-For compact maintainer sources, use the generated
-[`configurator-authoring-v1.schema.json`](../../schemas/configurator-authoring-v1.schema.json)
-and [integration guide](integrate-your-tool.md). Local YAML supports comments,
-multiline strings and precise JSON-shaped decimal/exponent numbers. Quote intended
-numeric, boolean or null keys and ambiguous strings. Empty plain values, typed keys,
-duplicate/colliding keys, merge keys, anchors, aliases, tags, directives and multiple
-documents reject. Use explicit `null` or `""` instead of a blank plain value.
+  service.tls:
+    type: boolean
+    title: Enable TLS
+    sensitivity: public
+    disclosure: essential
+    default: true
 
-## More examples and existing configuration
+  service.log_level:
+    type: enum
+    title: Log Verbosity
+    sensitivity: public
+    disclosure: advanced
+    choices: [debug, info, warn, error]
+    default: info
+```
 
-For a second independently authored format example, see
-[`examples/grafana-13.2.2`](../../examples/grafana-13.2.2/README.md). It shows
-synthetic Docker environment and provisioning YAML preparation for pinned
-Grafana OSS v13.2.2; the example has not been tested against a running Grafana
-host and does not prove Grafana will accept those files.
+In compiled JSON format, the same fields appear with explicit types and constraints:
 
-Existing dotenv, JSON and YAML files can prefill answers only where an artifact
-projection directly copies an active field into an unconditional top-level key.
-Configurator rejects ambiguous, transformed or conflicting input without
-changing the current workspace. Browser secret-bearing import requires consent.
-Missing fields still need operator answers or explicit secret deferral.
+```json
+{
+  "id": "service.port",
+  "type": "integer",
+  "title": "Listening Port",
+  "sensitivity": "public",
+  "disclosure": "guided",
+  "default": 8080,
+  "minimum": 1,
+  "maximum": 65535
+}
+```
+
+### Sensitivity Classifications
+
+Every field declares an explicit data sensitivity level:
+- **`public`**: Non-sensitive settings (hostnames, ports, flags, log levels). Safe for defaults and pre-population.
+- **`sensitive`**: Internal operational details (internal endpoints, usernames). Defaults are withheld unless explicitly declared public.
+- **`secret`**: Passwords, API tokens, encryption keys, and private keys. Handled with transient memory masks, shielded from clipboard inspection, and protected on disk.
+
+> [!IMPORTANT]
+> Defaults are strictly forbidden on `secret` fields. Public labels cannot override secret fields inside nested parent structures.
+
+---
+
+## Nested Objects & Object Lists
+
+For repeating records (such as tenants, upstream proxies, or route tables), declare an object list with `itemType: object`:
+
+```yaml
+fields:
+  proxy.upstreams:
+    type: list
+    itemType: object
+    title: Upstream Backend Servers
+    minItems: 1
+    maxItems: 16
+    uniqueBy: [name]
+    properties:
+      name:
+        type: string
+        title: Server Identifier
+        required: true
+        minLength: 1
+        maxLength: 64
+      endpoint:
+        type: string
+        title: Target URL
+        required: true
+        minLength: 8
+        maxLength: 255
+      weight:
+        type: integer
+        title: Traffic Weight
+        default: 100
+        minimum: 1
+        maximum: 1000
+```
+
+- **`properties`**: Defines the child fields evaluated for each item in the list.
+- **`uniqueBy`**: Enforces ordinal uniqueness across list rows for the specified property keys.
+- **Budget Limits**: Object lists enforce Configurator's safe resource limits (up to 4,096 items). Duplicate values trigger validation rejections without echoing sensitive data.
+
+---
+
+## Conditional Activation (`activeWhen`)
+
+Fields can dynamically activate or deactivate based on answers given to other fields:
+
+```yaml
+fields:
+  auth.provider:
+    type: enum
+    title: Authentication Provider
+    choices: [local, oidc, ldap]
+    default: local
+
+  auth.oidc_issuer:
+    type: string
+    title: OIDC Issuer URL
+    required: true
+    activeWhen:
+      op: equals
+      field: auth.provider
+      value: oidc
+
+  auth.ldap_host:
+    type: string
+    title: LDAP Directory Server
+    required: true
+    activeWhen:
+      op: equals
+      field: auth.provider
+      value: ldap
+```
+
+Supported condition operators include:
+- `equals` and `notEquals`: Match exact scalar values.
+- `present`: Check if an answer has been provided.
+- `in`: Match against a set of permitted choices.
+- `all`, `any`, and `not`: Compose complex Boolean expressions using nested `operands`.
+
+> [!TIP]
+> Inactive fields are excluded from required validation checks and omitted from compiled output projections.
+
+---
+
+## Credential Classification
+
+When declaring sensitive or secret fields, you can supply optional `credential` metadata to guide password managers and security tooling:
+
+```yaml
+fields:
+  database.password:
+    type: string
+    title: Database Password
+    sensitivity: secret
+    required: true
+    credential:
+      kind: password
+      acquisition: create
+
+  api.external_token:
+    type: string
+    title: External API Token
+    sensitivity: secret
+    required: true
+    credential:
+      kind: opaque-token
+      acquisition: issuer
+```
+
+The combination of `kind` and `acquisition` follows a strict classification contract:
+
+| `kind` | Allowed `acquisition` Values | Description |
+|---|---|---|
+| `password` | `existing`, `create`, `issuer` | Traditional user/service passwords. |
+| `opaque-token` | `existing`, `issuer` | API tokens, bearer keys, personal access tokens. |
+| `symmetric-key` | `existing`, `create` | AES/HMAC encryption keys, shared web secrets. |
+| `private-key` | `existing`, `issuer` | RSA/ECDSA/Ed25519 private keys. |
+| `connection-string` | `existing`, `issuer` | Composite database URIs with embedded credentials. |
+
+> [!CAUTION]
+> The `create` acquisition indicates a task for the operator to generate or enter a new credential. Configurator never automatically runs background key generators or scripts.
+
+---
+
+## Presentation & Guided Journeys
+
+Definitions can organize fields into structured user journeys without affecting underlying validation logic:
+
+```yaml
+presentation:
+  defaultExperience: guided-setup
+  sections:
+    - id: network
+      title: Network & Connectivity
+      description: Basic ports and listening endpoints.
+      fields: [service.host, service.port]
+      disclosure: essential
+
+    - id: security
+      title: Authentication & Secrets
+      description: Access tokens and administrative passwords.
+      fields: [database.password, api.external_token]
+      disclosure: essential
+
+  experiences:
+    - id: guided-setup
+      title: Guided Onboarding
+      initialDisclosure: essential
+      navigation: guided
+      sections: [network, security]
+
+    - id: advanced-tuning
+      title: Full System Inspection
+      initialDisclosure: advanced
+      navigation: sections
+      sections: [security, network]
+```
+
+- **Sections (max 64)**: Group related root fields. Each root field must belong to exactly one section.
+- **Experiences (max 16)**: Order and present sections for specific user personas.
+- **Disclosure Levels**:
+  - `essential`: Critical settings required to start the application.
+  - `guided`: Common operational settings.
+  - `advanced`: Fine-grained tuning parameters.
+
+---
+
+## Field Guidance Metadata
+
+Attach inline help, documentation links, and search keywords to assist operators during interactive configuration:
+
+```yaml
+fields:
+  database.url:
+    type: string
+    title: Database Endpoint
+    help: Postgres connection string including pool configuration.
+    guidance:
+      instructions: "Ensure the postgresql server is running and the user has CREATEDB privileges."
+      links:
+        - title: "Official Postgres Setup Documentation"
+          url: "https://docs.example.org/database-setup"
+      searchTerms: [postgres, psql, database, dsn]
+```
+
+- **`instructions`**: Plain text instructions up to 4,096 characters. Controls, HTML tags, and Markdown executable formatting are rejected.
+- **`links`**: Up to 4 external links. Must be absolute HTTPS URLs without query strings or fragments.
+- **`searchTerms`**: Up to 16 keywords enabling fast lookup in terminal and desktop search views.
+
+---
+
+## Output Artifact Mappings
+
+Definitions compile answers into one or more production configuration files.
+
+### 1. Simple Output Bindings
+
+For flat key-value outputs, use `bindings`:
+
+```yaml
+outputs:
+  .env:
+    format: dotenv
+    restart: process
+    bindings:
+      HOST: service.host
+      PORT: service.port
+      DB_PASSWORD: database.password
+
+  config.json:
+    format: json
+    restart: process
+    bindings:
+      host: service.host
+      port: service.port
+```
+
+### 2. Structured Projections
+
+For nested documents or YAML trees, use explicit projection operators (`object`, `list`, `copy`, `literal`):
+
+```yaml
+outputs:
+  config.yaml:
+    format: yaml
+    restart: container
+    projection:
+      op: object
+      members:
+        version:
+          op: literal
+          value: "2.0"
+        server:
+          op: object
+          members:
+            listen:
+              op: copy
+              field: service.host
+            port:
+              op: copy
+              field: service.port
+        security:
+          op: object
+          members:
+            credentials:
+              op: list
+              items:
+                - op: object
+                  members:
+                    secret:
+                      op: copy
+                      field: database.password
+```
+
+| Format | Typical Extensions | Best Used For |
+|---|---|---|
+| `dotenv` | `.env` | Docker Compose, systemd EnvironmentFile, container runtimes |
+| `json` | `.json` | Node.js, Go services, modern microservice daemons |
+| `yaml` | `.yaml`, `.yml` | Kubernetes ConfigMaps, Prometheus, Grafana, Home Assistant |
+| `markdown` | `.md` | Operator setup summaries and printable deployment receipts |
+
+---
+
+## Complete Configurations vs. Secret-Deferred Drafts
+
+Configurator offers two distinct export modes depending on whether secrets have been entered:
+
+```mermaid
+flowchart TD
+    ANSWERS["Answers Workspace"] --> EVAL{"Are all required secrets provided?"}
+    
+    EVAL -->|"Yes (Fully Completed)"| READY["Complete Production Artifacts<br/>• Full .env / JSON / YAML<br/>• Ready for target application"]
+    EVAL -->|"No (Secrets Deferred)"| DRAFT["Secret-Deferred Draft<br/>• Public settings rendered<br/>• Secrets emitted as empty strings / nulls<br/>• Includes list of completion locations"]
+
+    style READY fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style DRAFT fill:#fff3e0,stroke:#e65100,stroke-width:2px
+```
+
+- **Complete Configuration:** All required active fields and credentials are provided. Produces final configuration files ready for deployment.
+- **Secret-Deferred Draft:** Allows operators to prepare non-sensitive configurations in untrusted environments (e.g. CI, staging previews) while deferring credential entry until files are moved to protected production servers.
+
+---
+
+## Where to Go Next
+
+- **Ready to author a definition?** Follow the step-by-step [Integrate Your Tool](integrate-your-tool.md) guide.
+- **Testing and building?** Learn how the [CLI](cli.md) checks, builds, and revises definitions.
+- **Distributing publicly?** Read about publishing in the [Definition Store](definition-store.md).

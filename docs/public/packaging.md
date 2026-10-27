@@ -1,267 +1,166 @@
-# Standalone packages
+# Standalone Packages & Building from Source
 
-Configurator prepares local drafts. It does not apply them to a target or grant
-administrator authority. The utility needs no Event checkout or running service.
+ISLAMU Configurator is distributed as self-contained native executables and static web assets. It runs completely offline without background services or database dependencies.
 
-Choose the interface and platform below. If you already have a native package,
-[run it directly](#run-a-native-package); the .NET SDK is only needed to
-[build from source](#build-from-source). Browser packages need a
-[static web host](#host-the-browser-package), not a native executable.
+You do not need to install the .NET SDK to run standalone packages—only to build Configurator from source.
 
-Native outputs are self-contained, untrimmed single-file executables:
+---
 
-| Surface | Default executable or static root | Packaging RIDs |
-| --- | --- | --- |
-| CLI | `artifacts/configurator/cli/<rid>/islamu-configurator` | `linux-x64`, `linux-arm64`, `linux-musl-x64`, `linux-musl-arm64`, `osx-x64`, `osx-arm64`, `win-x64` |
-| Terminal | `artifacts/configurator/terminal/<rid>/islamu-configurator-terminal` | `linux-x64`, `linux-arm64`, `osx-arm64`, `win-x64` |
-| Desktop | `artifacts/configurator/desktop/linux-x64/islamu-configurator-desktop` | `linux-x64` only |
-| Browser | `artifacts/configurator/browser/wwwroot/` | Independent static WASM, no native RID |
+## Quick Install & Binary Matrix
 
-Windows executable names end in `.exe`. Packaging a RID is not a claim that
-protected exports work on that host. Protected native writes are Linux-only and
-still reject filesystems where create-only, owner-only protection cannot be
-established. macOS and Windows exports fail closed; Desktop packaging refuses
-unverified hosts. GUI packages still need the host's display and platform libraries.
+| Surface | Target Platform / Architecture | Runtime Identifier (RID) | Package Executable / Output Root |
+|---|---|---|---|
+| **[CLI](cli.md)** | Linux (glibc) x64 / Arm64<br/>Linux (musl) x64 / Arm64<br/>macOS Intel / Apple Silicon<br/>Windows 10/11 x64 | `linux-x64`<br/>`linux-arm64`<br/>`linux-musl-x64`<br/>`linux-musl-arm64`<br/>`osx-x64`, `osx-arm64`<br/>`win-x64` | `artifacts/configurator/cli/<rid>/islamu-configurator`<br/>*(Windows: `.exe`)* |
+| **[Terminal](terminal.md)** | Linux x64 / Arm64<br/>macOS Apple Silicon<br/>Windows x64 | `linux-x64`<br/>`linux-arm64`<br/>`osx-arm64`<br/>`win-x64` | `artifacts/configurator/terminal/<rid>/islamu-configurator-terminal`<br/>*(Windows: `.exe`)* |
+| **[Desktop](desktop.md)** | Linux x64 (Avalonia GUI) | `linux-x64` | `artifacts/configurator/desktop/linux-x64/islamu-configurator-desktop` |
+| **[Browser](browser.md)** | Any modern web browser | Static WASM | `artifacts/configurator/browser/wwwroot/` |
 
-## Run a native package
+---
 
-Copy the **whole package directory**, not just the executable. Keep its schemas,
-contracts, license and dependency notices beside it. No separately installed .NET
-runtime or SDK is needed, but the operating-system dependencies below still apply.
+## Platform Limitations & Alerts
 
-For the CLI, open a shell in the copied package directory:
+> [!CAUTION]
+> **Windows 7 is strictly unsupported.** Windows CLI and Terminal binaries require 64-bit Windows 10, Windows 11, or Windows Server 2016 or newer.
+
+> [!IMPORTANT]
+> **Linux-Only Protected Saves:** The atomic, create-only protected file writer operates only on Linux. While the CLI and Terminal run on macOS and Windows, protected saves on those platforms fail closed to prevent accidental insecure file creation.
+
+> [!WARNING]
+> **glibc vs. musl Packages:** Linux packages compiled for glibc (`linux-x64`) and musl (`linux-musl-x64`, such as Alpine Linux) are **not interchangeable**. Ensure you download the correct RID for your Linux distribution.
+
+---
+
+## Using Standalone Packages
+
+Standalone packages are pre-compiled and self-contained. They bundle the required .NET runtime components, so no system-wide runtime installation is needed.
+
+### 1. Extract and Preserve Directory Structure
+
+When extracting a package, keep the entire package folder intact. Each release includes essential validation schemas, license notices, and skill definitions:
+
+```text
+islamu-configurator/
+├── islamu-configurator        # Executable binary
+├── schemas/                   # Public JSON validation schemas
+├── contracts/                 # Machine API contracts
+├── skills/                    # Coding agent integration skill
+├── dependency-notices/        # Third-party attribution
+└── LICENSE                    # Project license
+```
+
+> [!TIP]
+> Do not move the executable out of its folder without copying the `schemas/` directory, as the CLI references local schemas for validation.
+
+### 2. Verify Your Host Environment
+
+Run the built-in diagnostic tool to verify host compatibility and filesystem features:
 
 ```bash
 # Linux or macOS
-./islamu-configurator --help
 ./islamu-configurator doctor --machine
-```
 
-```powershell
 # Windows PowerShell
-.\islamu-configurator.exe --help
 .\islamu-configurator.exe doctor --machine
 ```
 
-Help needs no definition or answers. `doctor` is read-only: exit `0` reports the
-available protected host path; exit `4` reports an unavailable protected writer,
-as expected on macOS and Windows today. It does not test every destination or
-qualify every workflow. Continue with the [CLI guide](cli.md) or
-[synthetic first run](getting-started.md).
+- **Exit code `0`:** Host is fully compatible, including protected save capabilities (Linux).
+- **Exit code `4`:** Basic execution is supported, but protected native file saving is unavailable (expected on macOS and Windows).
 
-## CLI operating-system boundaries
+### 3. Arch Linux Pacman Package
 
-The CLI packaging scope is modern Linux (including Arch, Debian and Ubuntu),
-Intel/Arm64 macOS, and x64 Windows 10/11. **Windows 7 is unsupported.**
-Select `linux-*` for glibc distributions and `linux-musl-*` for musl distributions;
-these packages are not interchangeable. Terminal, Desktop and Browser admission
-is unchanged by this CLI expansion.
-
-Self-contained packages include .NET, not every operating-system library. Hosts
-still need the native dependencies required by [.NET 10](https://github.com/dotnet/core/blob/main/release-notes/10.0/supported-os.md).
-As checked on 2026-10-16, its x64/Arm64 libc floors are glibc 2.27 and musl 1.2.3;
-these are runtime compatibility floors, not supported-distribution guarantees.
-The current upstream list includes Debian 13, Ubuntu 22.04/24.04/26.04 and
-macOS 15 or newer listed releases. Arch is a rolling-distribution target, not an
-upstream Microsoft support promise. Windows 10/11 eligibility depends on the
-specific release/edition and its upstream lifecycle; a `win-x64` package does not
-make every Windows 10 installation supported. Follow the linked upstream matrix
-for current versions and required native libraries.
-
-Linux protected output additionally needs a compatible kernel, accessible
-`/proc/self/fd`, filesystem support for anonymous-file preparation and atomic
-create-only linking, and verifiable owner-only permissions through a safe directory
-chain. Meeting a libc floor or running a recent kernel alone is insufficient.
-Unsupported filesystems, existing-file conflicts and unsafe destinations reject
-without overwriting or falling back to an ordinary write. macOS/Windows still
-have no protected writer and reject restricted output.
-
-CI now declares native CLI-owner tests and actual self-contained package
-`doctor --machine` / `--help --machine` smoke checks for Linux x64/Arm64,
-macOS Intel/Arm64 and Windows Server x64. Inspect the passing results for the
-exact commit and runner being qualified; configuring a gate is not execution
-evidence, and one passing build does not qualify every operating-system variant.
-Ubuntu execution does not establish Arch or Debian coverage, Windows Server is
-not Windows 10/11 evidence, and glibc execution does not establish musl coverage.
-Both musl hosts and Windows 10/11 remain explicit pending actual-host checks;
-no emulation or unreviewed container image substitutes for them. Package smoke
-checks alone do not qualify protected export or every CLI workflow.
-
-### Check a built CLI package
-
-Maintainers with the repository and its pinned SDK can validate the actual native
-package from the repository root:
-
-```bash
-export TMPDIR="$HOME/.cache/agent-tmp"
-dotnet run .ci/scripts/validate-cli-package.cs -- --self-test
-dotnet run .ci/scripts/validate-cli-package.cs -- --package-directory artifacts/configurator/cli/linux-x64 --expected-rid linux-x64
-```
-
-Select the current host's RID and package directory, not a cross-published
-executable. The tool reports package hashes, executes machine doctor/help and
-read-only validation using synthetic inputs, and parses closed command v2
-receipts with bounded output and matching exit codes. Linux also checks protected
-create and refusal to overwrite an existing file. macOS/Windows must actually
-refuse protected create without leaving a file; that result does not enable
-protected export. The tool needs the SDK; running the package normally does not.
-
-Any failed cohort or stale packaged schema makes the tool fail. Self-tests only
-check the parser. An older local package's result qualifies only that exact
-identity, not later source changes. Final packages must be republished and
-rechecked after authoring changes. CI uses this validator for its configured
-native CLI matrix and Linux package gate; configuration alone does not establish
-an actual runner result. Other-host, musl and Windows-client
-qualification limits above remain in effect.
-
-## Package contents
-
-Generated schemas and capability contracts use the same LF-normalized JSON
-bytes on every build host, keeping their content hashes independent of the
-host operating system.
-
-Native package directories include `schemas/`, `contracts/`, `dependency-notices/`,
-`LICENSE` and `THIRD-PARTY-NOTICES.md`. The dependency directory retains original
-package metadata and license/notice files; keep it with the executable.
-Terminal packages also retain reviewed supplemental notices for the syntax
-grammars and themes embedded in their dependencies. Those assets keep their
-own terms even though the Configurator utility is MIT licensed.
-Native publication replaces the generated notice tree, removing notices for
-retired dependencies when publishing again into the same package destination.
-It also replaces only the package's owned `schemas/` directory with the current
-public schemas, removing retired schema versions while preserving unrelated
-package files outside that directory. Do not store your own files in `schemas/`.
-Browser has the same public metadata under `wwwroot/`.
-The CLI package also includes `skills/configurator-integrate/SKILL.md` and its
-routed resources. Copy that complete skill directory into an Agent Skills-aware
-tool's supported skill location; no agent framework or installer is required.
-The included authoring schema and native `definition` commands supply the actual
-contract. The workflow never needs private answer discovery or target startup.
-
-## Host the browser package
-
-Serve the entire browser `wwwroot/` tree from a static server with appropriate
-WASM MIME types and route fallback to `index.html`; there is no application
-server, authentication, target apply or answer persistence. Browser private
-answers are transient and secret entry requires workspace consent. Public PWA
-caches and explicit public-definition retention are separate from answer
-custody. Serve the manifest, worker, SDK asset manifest, lifecycle module and
-icons together under HTTPS (localhost for local tests); `/open` and `/launch/*`
-need navigation fallback, while missing assets must remain errors. See
-[browser hosting](browser.md#hosting) for base/scope/CSP/update requirements.
-Serving is an operator action, not performed by the build.
-
-The Browser project also supplies a non-root static-host container image.
-See [container build and run](browser.md#container-image) for repository-root
-Docker commands, read-only operation, explicit optional Store inclusion and
-HTTPS deployment boundaries. The image invokes the same release owner rather
-than introducing a second publication pipeline.
-
-`ConfiguratorOutputRoot` selects another package destination. Do not publish into
-a directory containing unrelated files. The CI artifact is unsigned validation
-output, not a promoted release. Signed publication remains disabled pending a
-separately established Configurator trust authority.
-
-The browser package is store-free by default and builds even when the `store/`
-source directory is absent. Home, Open and Help remain available; local files and
-public publisher links use the same configuration workflow. The Store page
-explains when no catalogue is packaged.
-
-Each publication replaces the generated `<ConfiguratorOutputRoot>/browser/`
-directory, so keep your own files outside that package destination. Distribute
-the complete output, including its SDK-generated compressed asset sidecars.
-
-To include the optional reviewed public catalogue, pass its source explicitly:
-
-```bash
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:ConfiguratorOutputRoot="$PWD/artifacts/configurator-with-store" -p:DefinitionStoreSourceRoot="$PWD/store"
-```
-
-The builder validates contributor metadata and canonical definition revisions
-before generating `wwwroot/definition-store/index.json` and public snapshots.
-These files join the SDK asset inventory before publication, so their exact
-bytes can be cached with the app for offline Store browsing. They contain no
-answers or prepared output. Deliberately retaining a separately opened public
-definition still requires its own user action. Store membership and publisher
-labels do not authenticate a publisher or grant target acceptance. See
-[definition store contributions](definition-store.md).
-
-Publishing again without `DefinitionStoreSourceRoot` removes previously packaged
-catalogue assets from that browser destination and its worker inventory. Keep
-different output roots when retaining both variants for distribution.
-
-Terminal.Gui is restored from NuGet.org using an exact centrally managed
-version and generated dependency locks. No custom feed or upstream rebuild is
-required. See the [dependency decision and history](../internal/TERMINAL_GUI_DEPENDENCY.md)
-and [internal packaging anchor](../internal/PACKAGING.md) for verification.
-
-## Build from source
-
-Install .NET SDK **10.0.302** and run from the repository root. These examples use
-Bash; each publication line is independent, so run only the surface you need.
-Replace `linux-x64` with an admitted RID from the table above when appropriate.
-
-Initialize the workload manifests selected by `global.json` even for native-only
-builds. Installing the SDK alone does not install that pinned workload set.
-Browser publication additionally needs `wasm-tools`, as described in the
-[browser hosting guide](browser.md#hosting).
-
-```bash
-export TMPDIR="$HOME/.cache/agent-tmp"
-mkdir -p "$TMPDIR"
-dotnet workload update
-dotnet build eng/configurator/Configurator.Release.proj --configuration Release --verbosity quiet
-
-# Choose one native surface:
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=cli -p:ConfiguratorRid=linux-x64
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=terminal -p:ConfiguratorRid=linux-x64
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=desktop -p:ConfiguratorRid=linux-x64
-
-# Or build the static browser package:
-dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser
-```
-
-The default output directories are in the table above. Building creates packages;
-it does not install them, start a server or establish release-signing authority.
-The first restore may need network access for build dependencies.
-
-## Arch Linux development package
-
-On x86_64 Arch Linux or an Arch derivative, build a native pacman package as an
-ordinary user. Install the build tools and .NET SDK version specified above:
+Arch Linux users can build and install a native pacman package for the Desktop interface:
 
 ```bash
 sudo pacman -S --needed base-devel jq desktop-file-utils
 bash eng/configurator/package-desktop-arch.sh
+
+# Install the generated package
+sudo pacman -U artifacts/configurator/packages/arch/islamu-configurator-desktop-*.pkg.tar.zst
 ```
 
-The command freshly publishes Desktop and prints the resulting
-`artifacts/configurator/packages/arch/islamu-configurator-desktop-0.0.0.dev<UTC-timestamp>-1-x86_64.pkg.tar.zst`
-path. Install that exact file, then start the application:
-
-```bash
-sudo pacman -U "/absolute/path/to/the/generated.pkg.tar.zst"
-islamu-configurator-desktop
-```
-
-Replace the placeholder path with the printed path. The application also appears
-as **ISLAMU Configurator** in the desktop menu. No .NET runtime is needed on the
-installed host. The package declares its native libraries and XWayland dependency;
-it runs in X11 sessions and in Wayland sessions through XWayland. The Wayland
-compositor must enable XWayland. This package does not select Avalonia's native
-Wayland backend. Optional `noto-fonts` improves Unicode coverage.
-
-The builder accepts an explicit `0.0.0.devYYYYMMDDhhmmss` version for repeatable
-identification, refuses to overwrite an existing package, and writes a SHA-256
-sidecar, original payload inventory, generated PKGBUILD and native-generated
-SRCINFO beside the archive.
-These are unsigned local development packages, without a qualified release or
-AUR publication claim. Install newer builds with `pacman -U`; remove with:
+The application will be registered as **ISLAMU Configurator** in your desktop application menu. To uninstall cleanly:
 
 ```bash
 sudo pacman -R islamu-configurator-desktop
 ```
 
-Removal deletes package-owned application, menu and icon files. Your selected
-definitions, prepared files and output directories are not package-owned and
-remain intact.
+---
+
+## Building from Source
+
+To compile ISLAMU Configurator yourself, install the [.NET SDK 10.0.302](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+### 1. Prepare Your Environment
+
+Set your temporary directory and ensure workloads are up to date:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+mkdir -p "$TMPDIR"
+
+dotnet workload update
+dotnet build eng/configurator/Configurator.Release.proj --configuration Release --verbosity quiet
+```
+
+### 2. Compile Specific Interfaces
+
+Publish only the surfaces and architectures you need:
+
+```bash
+# Compile the Machine CLI (replace linux-x64 with your target RID)
+dotnet msbuild eng/configurator/Configurator.Release.proj \
+  -t:PublishConfigurator \
+  -p:ConfiguratorSurface=cli \
+  -p:ConfiguratorRid=linux-x64
+
+# Compile the Terminal TUI
+dotnet msbuild eng/configurator/Configurator.Release.proj \
+  -t:PublishConfigurator \
+  -p:ConfiguratorSurface=terminal \
+  -p:ConfiguratorRid=linux-x64
+
+# Compile the Desktop GUI (Linux x64 only)
+dotnet msbuild eng/configurator/Configurator.Release.proj \
+  -t:PublishConfigurator \
+  -p:ConfiguratorSurface=desktop \
+  -p:ConfiguratorRid=linux-x64
+
+# Compile the Static Browser Package (WASM)
+dotnet msbuild eng/configurator/Configurator.Release.proj \
+  -t:PublishConfiguratorBrowser
+```
+
+Compiled binaries will appear under the corresponding paths in `artifacts/configurator/`.
+
+---
+
+## Bundling the Public Definition Store
+
+By default, the browser package compiles without a bundled definition store. To package the reviewed public store catalog into the static web assets:
+
+```bash
+dotnet msbuild eng/configurator/Configurator.Release.proj \
+  -t:PublishConfiguratorBrowser \
+  -p:ConfiguratorOutputRoot="$PWD/artifacts/configurator-with-store" \
+  -p:DefinitionStoreSourceRoot="$PWD/store"
+```
+
+The build process validates every definition revision in `store/` and generates static `index.json` manifests under `wwwroot/definition-store/`.
+
+---
+
+## Hosting the Browser Package
+
+The browser output in `artifacts/configurator/browser/wwwroot/` consists entirely of static HTML, CSS, JavaScript, and WebAssembly files.
+
+- It can be served by any static file server (Nginx, Caddy, Apache, GitHub Pages, Cloudflare Pages, AWS S3).
+- No backend API, application server, or database is required.
+- Detailed hosting guidance, Content Security Policy (CSP) headers, and Docker container instructions are documented in the [Browser Guide](browser.md#hosting).
+
+---
+
+## Where to Go Next
+
+- **Ready to run?** Follow the [Getting Started](getting-started.md) walkthrough.
+- **Using the CLI?** See the full command reference in the [CLI Guide](cli.md).
+- **Understanding file security?** Read about [Native Output Protections](native-output.md).

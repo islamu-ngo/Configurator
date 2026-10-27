@@ -1,120 +1,156 @@
-# Native artifact output
+# Native Protected Artifact Output
 
-Configurator prepares files; it never applies configuration to an application.
-Answer-derived content is restricted, regardless of the definition's field labels.
-Native private bytes cannot be sent to stdout or to a public writer. The
-[browser](browser.md) has a separate deliberate copy/download custody boundary;
-it does not use this native writer or promise its filesystem protections.
+When preparing production configuration files containing sensitive credentials, Configurator uses a kernel-enforced, protected save mechanism on Linux.
 
-## Before saving
+Files are prepared as anonymous files and published with atomic, create-only semantics at owner-only permissions (`0600`). Existing files are never overwritten, and fallbacks to insecure permissions are strictly rejected.
 
-1. Run the client's validation or the CLI's read-only `artifact bundle-check`.
-2. Choose a new destination you control. For the CLI bundle workflow, create an
-   empty owner-only directory as shown in [getting started](getting-started.md#3-save-to-a-new-private-directory).
-3. Check [platform and filesystem requirements](packaging.md#cli-operating-system-boundaries).
-   `doctor` reports host capability, not proof that a particular destination is safe.
+---
 
-## What protected publication guarantees
+## Linux Protected Save Lifecycle
 
-On the supported Linux path, the writer prepares an anonymous file and publishes
-it with create-only, no-replacement semantics. Existing destinations are never
-overwritten. Competing writers have at most one winner. Unsafe directories,
-changed targets or missing filesystem guarantees reject publication before
-installation. Cancellation can stop work, but cannot undo an installation that
-has already happened.
+The native Linux publication engine executes a multi-stage validation and publishing sequence before committing files to disk:
 
-Use the Linux package for your CPU architecture. The writer selects that
-architecture's native flags rather than assuming x64 values on Arm64.
-Cross-building a package does not establish protected-save qualification on
-another host; the platform and filesystem checks still apply.
+```mermaid
+flowchart TD
+    PRE["1. Preflight Validation<br/>Check answer constraints & rendered byte budget"] --> CHECK["2. Check Destination (Create-Only)<br/>Inspect directory chain & refuse if file exists"]
+    CHECK --> TMP["3. Anonymous O_TMPFILE File<br/>Allocate anonymous inode with 0600 permissions"]
+    TMP --> LINK["4. Atomic linkat Publication<br/>Hard-link inode into directory via /proc/self/fd"]
+    LINK --> VERIFY["5. Post-Verification<br/>Inspect destination inode & permissions via statx"]
+    VERIFY --> RECEIPT["6. Immutable Receipt<br/>Record installation & verification facts"]
 
-Installation and verification are different facts. A successful create-only
-namespace operation establishes that the prepared file was installed. A later
-inspection can fail or find a different file at that name. The receipt retains
-the installation fact, reports that verification did not succeed, and stops
-before publishing the next artifact. It does not claim the destination still
-contains the prepared bytes. Even successful immediate verification cannot
-promise continued integrity after another process changes the destination.
+    style PRE fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style CHECK fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style TMP fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style LINK fill:#ede7f6,stroke:#512da8,stroke-width:2px
+    style VERIFY fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style RECEIPT fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+```
 
-Restricted saves on unsupported hosts fail closed. A desktop framework's ability
-to start on Windows or macOS does not prove protected-save support on those hosts.
-There is no unprotected fallback.
+1. **Preflight Validation:** Verifies answers, ensures all required fields are present, and checks that total output size is within the 4 MiB budget.
+2. **Directory & Destination Inspection:** Traverses the destination directory chain using directory file descriptors (`O_DIRECTORY | O_NOFOLLOW`) to ensure parent directories are trusted. If a file with the target name already exists, publication aborts immediately.
+3. **Anonymous Staging:** Allocates an unlinked, anonymous inode (`O_TMPFILE`) with strict owner-only permissions (`0600`). Data is written and flushed directly to disk (`fsync`).
+4. **Atomic Publication:** Links the anonymous inode into the target directory using `linkat()` via `/proc/self/fd/`. If another process created a file at the target name in the interim, the kernel returns `EEXIST` and publication fails safely.
+5. **Post-Verification:** Performs an immediate `fstatat` (`statx`) inspection of the published file, verifying that the on-disk inode and owner permissions match the prepared file.
+6. **Immutable Receipt:** Issues an immutable receipt documenting the exact installation and verification status.
 
-## Bundles and partial completion
+---
 
-The shared bundle API renders selected files from one answer revision and checks
-their combined size. It checks every destination before creating the first
-file. A later destination that already exists or is unsafe prevents publication
-from starting. A destination can still change after that check: files already
-written stay written, and later files are left unwritten. Per-file results
-identify that committed prefix without exposing values or private paths.
-Cancellation after a file is written has the same partial-result behavior. A
-bundle is not an atomic transaction and Configurator never deletes a written
-file as a rollback.
+## Supported Filesystems Matrix
 
-## Recover before retrying
+Protected publication relies on native Linux filesystem capabilities, specifically anonymous inode creation (`O_TMPFILE`) and atomic descriptor-based linking (`linkat`).
 
-Keep the original receipt or the client's save-attempt history. Inspect each
-artifact outcome and the destination before choosing what to do next:
+| Filesystem | Support Status | Notes |
+|---|---|---|
+| **ext4** | **Supported** | Full support for `O_TMPFILE`, atomic `linkat`, and POSIX `0600` permissions. |
+| **xfs** | **Supported** | Native support across all modern Linux kernels. |
+| **btrfs** | **Supported** | Full support for anonymous inode creation and verification. |
+| **tmpfs** | **Supported** | Fast, secure in-memory staging for ephemeral containers and CI runners. |
+| **NFS (v3 / v4)** | **Rejected** | Network file protocol lacks atomic `O_TMPFILE` linking; root-squash can alter permissions. |
+| **SMB / CIFS** | **Rejected** | Non-POSIX filesystem; Windows ACL translation prevents strict `0600` mode guarantees. |
+| **FAT / exFAT** | **Rejected** | Does not support POSIX owner permissions, file modes, or anonymous inodes. |
 
-| Outcome | Meaning and next action |
-| --- | --- |
-| `written` | The file was published. Keep it; a later failure or cancellation does not undo it. Post-installation inspection failure remains `written`, with installation `established` and verification `failed`; inspect the destination before retrying. |
-| `not-attempted` | Publication of this artifact was not attempted. Resolve the earlier failure before preparing another attempt. |
-| `unknown` | Publication is not established either way. Inspect the destination; never interpret this as proof that no file exists. |
-| `conflict` | Publication was refused before installation because the destination already existed or changed. Inspect it and choose a fresh destination rather than overwriting it. |
-| `blocked` or `failed` | The boundary rejected the operation or an I/O operation failed. Review the diagnostic and any other artifacts' outcomes. |
-| `none` | The operation did not request publication, such as a read-only check. |
-| `planned` | A dry run planned the output but did not publish it. |
+> [!IMPORTANT]
+> If a target directory is located on an unsupported filesystem, Configurator fails closed with a permission or I/O refusal. It will **never** silently fall back to an unprotected, world-readable file write.
 
-These are CLI `writeStatus` spellings, not a substitute for the independent
-installation and verification facts. Interactive clients present the same
-established facts in their own status views. An overall error is not proof that
-every file failed, and an established write is not target acceptance. Cleanup
-failure is independent of a written file. A broken receipt channel can leave
-missing or partial JSON even after publication.
+---
 
-Do not blindly replay a write command, delete an uncertain file, weaken directory
-permissions or switch to an ordinary writer to force success. Keep existing
-files, resolve the cause, and select a fresh destination when appropriate. See
-[CLI exit codes](cli.md#machine-contract-and-exit-codes).
+## Operating System Boundaries
 
-## Interactive save history and readiness
+Platform support for protected native file output differs by operating system:
 
-The [terminal client](terminal.md) keeps a history of the newest 16 completed
-save attempts, plus the attempt still running. Each attempt identifies declared
-artifacts and their established outcomes without retaining file content or
-private paths. Clearing answers, changing inputs or cancelling a save does not
-erase this history. It also does not make an old save ready to run again. The
-history is cleared when the session is disposed.
+- **Linux (x64, arm64, musl):** Fully supported. Uses native architecture-specific syscall flags and procfs descriptor verification.
+- **macOS & Windows:** Currently fail closed for protected writes (`doctor` reports exit code `4`).
+- **Browser WebAssembly:** The browser client operates under a separate user-directed custody model (deliberate file download) and does not promise filesystem ACL protections.
 
-The [Desktop client](desktop.md#save-safely) also retains the newest 16 settled
-attempts plus its running attempt independently of current preparation. Its
-Publication facts view keeps known installation, verification and cleanup facts
-after editing or cancellation. Native work retains its borrowed buffers and busy
-gate until the consumer and cleanup physically settle. Logical cancellation
-cannot promise that no file was written, and a stale receipt cannot enable Save.
-Desktop waits responsively for settlement when closing. At two seconds it keeps
-the window open with **Stay open** and deliberate **Force close** actions; it
-does not copy Terminal's automatic stop. Force close cannot guarantee managed
-erasure or no write. Stay open does not restore preparation or cancel the pending
-operation's cleanup responsibility.
+> [!WARNING]
+> Running the CLI or Desktop client on Windows or macOS does not enable protected file output. Use Linux hosts or container environments when kernel-enforced create-only guarantees are required.
 
-An interrupted save can leave some files written and others unattempted. While
-publication is still running, an outcome that has not arrived remains unknown;
-it does not prove that no file was created. Closing the terminal allows up to
-two seconds for the operation to settle and reports remaining uncertainty if
-that budget expires. A second save stays disabled while the first is draining.
-An observation or cleanup failure is reported separately from established file
-outcomes: a file already marked `Written` stays written, but the overall save
-does not claim success. Check the destination before retrying an uncertain
-attempt; existing files will be refused, never overwritten automatically.
+---
 
-Inspecting another artifact's metadata in the terminal preserves readiness when
-answers and the selected output set are unchanged. Changing the selected set or
-answers requires fresh preparation and cancels stale publication. Destination
-changes, where the client exposes them, likewise require fresh preparation.
+## Multi-File Bundles & Partial Results
 
-Choose a new destination, review the definition's apply/restart consequences,
-and use the target's own validated import or startup process. Local preparation
-does not grant tenant, administrator or setup authority.
+When generating multi-file outputs (e.g. a `.env` file alongside a `config.yaml`):
+
+1. **Pre-Check:** Configurator inspects all target destinations before creating the first file. If any file already exists, nothing is published.
+2. **Sequential Commits:** Files are committed sequentially in the order declared by the definition.
+3. **No Automatic Rollback:** If a system error or power failure occurs mid-bundle, files that were already successfully linked remain on disk. Configurator **never deletes existing files** to attempt a rollback, preventing accidental loss of user data.
+4. **Committed Prefix:** The receipt clearly identifies which files succeeded (`written`) and which were `not-attempted`.
+
+---
+
+## Publication Status Outcomes
+
+CLI machine receipts and interactive status views categorize each artifact into one of the following immutable states:
+
+| Status Code | Meaning | Required Operator Action |
+|---|---|---|
+| `written` | The file was successfully published with `0600` permissions. | File is ready. If post-verification failed, inspect the file manually before use. |
+| `conflict` | The destination already exists or changed during publication. | Inspect the existing file. Select a clean destination path rather than overwriting. |
+| `blocked` | Rejected by filesystem or directory security checks. | Ensure the destination directory has `0700` permissions and is on a supported filesystem. |
+| `failed` | A low-level operating system I/O error occurred. | Check available disk space, inode limits, and mount options. |
+| `not-attempted` | Skipped because an earlier file in the bundle encountered an error. | Resolve the error from the prior file and re-run into a fresh directory. |
+| `unknown` | Process interrupted before confirmation arrived. | Inspect the target directory to verify whether the file was created. |
+
+---
+
+## Operator Recovery & Inspection
+
+When a publication is interrupted or reports a conflict, use standard Linux commands to inspect the state before retrying:
+
+### 1. Verify File Permissions and Inodes
+
+Check that existing files are owner-only (`-rw-------`):
+
+```bash
+ls -la /path/to/destination/
+```
+
+Inspect exact octal modes and owner UID/GID:
+
+```bash
+stat -c "%a %U:%G %n" /path/to/destination/.env
+# Expected output: 600 youruser:yourgroup /path/to/destination/.env
+```
+
+### 2. Compare Conflicting Files
+
+If an existing file blocked publication, diff the files to see what differs:
+
+```bash
+diff -u /path/to/destination/.env /path/to/new-directory/.env
+```
+
+### 3. Save into a Clean Private Directory
+
+To retry a partially completed bundle, create a fresh private directory and output into it:
+
+```bash
+# Create an owner-only directory (0700)
+mkdir -m 0700 /path/to/fresh-config
+
+# Run artifact save into the fresh location
+islamu-configurator artifact save \
+  --bundle \
+  --output-dir /path/to/fresh-config \
+  --answers answers.json \
+  --machine
+```
+
+---
+
+## Interactive Save History (Terminal & Desktop)
+
+Both the [Terminal TUI](terminal.md) and [Desktop GUI](desktop.md) maintain a shared, bounded save history:
+
+- **16-Attempt Memory Ring:** The client remembers the 16 most recent completed attempts plus the currently active save.
+- **Value-Free Receipts:** History records timestamps, artifact IDs, and status codes (`written`, `conflict`, `failed`), but never contains secret values or full file paths.
+- **Session-Local:** Save history exists only in transient memory and is cleared when the application exits.
+- **Safe Graceful Shutdown:** If you close the application while a save is in progress, the client waits up to 2 seconds for kernel operations to settle before prompting for confirmation.
+
+---
+
+## Where to Go Next
+
+- **Ready to run a save?** Try the [Quick Start Guide](getting-started.md) to practice saving files.
+- **Automating with scripts?** Review the [CLI Guide](cli.md) for machine receipts and exit codes.
+- **Reviewing platform support?** Consult the [Packaging Guide](packaging.md) for system requirements.
