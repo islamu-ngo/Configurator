@@ -349,6 +349,8 @@ internal sealed class SetupTerminalWindow : Window
             if (_slot is not null)
             {
                 string text = SetupTerminalFieldEditor.Read(_slot, _itemIndex);
+                _draftValid = !_operation.Form.HasInputError(_slot.IsList
+                    ? [.. _slot.FullPath, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)] : _slot.FullPath);
                 if (_slot.RequiresMasking && text.Length > 0) _masked.TryReplaceSensitiveInput(text);
                 else if (!_slot.RequiresMasking) _value.Text = text;
             }

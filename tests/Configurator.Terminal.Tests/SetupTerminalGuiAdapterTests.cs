@@ -82,6 +82,186 @@ public sealed class SetupTerminalGuiAdapterTests
 
     [Test]
     [NotInParallel]
+    [Arguments("scalar", false)]
+    [Arguments("nested", false)]
+    [Arguments("list", false)]
+    [Arguments("scalar", true)]
+    [Arguments("nested", true)]
+    [Arguments("list", true)]
+    public async Task DisclosureChangesRestoreExactRejectedDraftWithoutChangingAnswers(string shape, bool masked)
+    {
+        string accepted = shape switch
+        {
+            "nested" => """{"leaf":7,"sibling":"kept"}""",
+            "list" => "[7,9]",
+            _ => "7"
+        };
+        using var form = new DefinitionFormModel(CorrectionDefinition(shape, masked));
+        if (masked)
+        {
+            using var value = System.Text.Json.JsonDocument.Parse(accepted);
+            form.SetValue(["value"], value.RootElement);
+        }
+        DefinitionAnswerOrigin origin = masked ? DefinitionAnswerOrigin.Explicit : DefinitionAnswerOrigin.Defaulted;
+        using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
+        string[] path = shape switch
+        {
+            "nested" => ["value", "leaf"],
+            "list" => ["value", "1"],
+            _ => ["value"]
+        };
+        if (shape == "nested") harness.Window.MoveField(1);
+        if (shape == "list")
+            harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("NextItem"))
+                .InvokeCommand(Command.Accept);
+        string identity = form.GetEditorIdentity(path);
+        string draft = masked ? shape == "list" ? "9x" : "7x" : "  not-an-integer  ";
+        if (masked)
+        {
+            harness.Window.MaskedInput.SetFocus();
+            await Assert.That(harness.Window.MaskedInput.NewKeyDownEvent(new Key('x'))).IsTrue();
+        }
+        else harness.Window.PublicInput.Text = draft;
+        await Assert.That(harness.Window.CommitField()).IsFalse();
+        long revision = form.InputRevision;
+        DefinitionAnswerOrigin rejectedOrigin = form.AnswerOrigin(path);
+
+        foreach (Action change in new Action[]
+            { harness.Window.ToggleOptionalEditors, harness.Window.ToggleOptionalEditors, harness.Window.CycleExperience })
+        {
+            await harness.ChangeView(change);
+            byte[] bytes = masked ? harness.Secret.CopyUtf8Bytes() : [];
+            try
+            {
+                await Assert.That(masked ? System.Text.Encoding.UTF8.GetString(bytes) : harness.Window.PublicInput.Text)
+                    .IsEqualTo(draft);
+            }
+            finally { System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes); }
+            if (masked)
+            {
+                await Assert.That(harness.Window.MaskedInput.Text).DoesNotContain(draft);
+                await Assert.That(harness.Window.PublicInput.Text).IsEmpty();
+            }
+            await Assert.That(harness.Window.CommitField()).IsFalse();
+            await Assert.That(form.ReadDraftText(path)).IsEqualTo(draft);
+            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo(accepted);
+            await Assert.That(form.Snapshot().Values["after"].GetString()).IsEqualTo("untouched");
+            await Assert.That(form.AnswerOrigin(path)).IsEqualTo(rejectedOrigin);
+            await Assert.That(form.AnswerOrigin(["after"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
+            await Assert.That(form.GetEditorIdentity(path)).IsEqualTo(identity);
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+        }
+
+        if (masked) harness.Window.MaskedInput.TryReplaceSensitiveInput("11");
+        else harness.Window.PublicInput.Text = "11";
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.ReadDraftText(path)).IsNull();
+        await Assert.That(form.AnswerOrigin(path)).IsEqualTo(DefinitionAnswerOrigin.Explicit);
+        await Assert.That(form.AnswerOrigin(["after"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
+        await Assert.That(form.GetEditorIdentity(path)).IsEqualTo(identity);
+        if (shape == "list")
+        {
+            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("[7,11]");
+            await Assert.That(form.AnswerOrigin(["value", "0"])).IsEqualTo(origin);
+        }
+        if (shape == "nested")
+        {
+            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("""{"leaf":11,"sibling":"kept"}""");
+            await Assert.That(form.AnswerOrigin(["value", "sibling"])).IsEqualTo(origin);
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task DisclosureChangesLeaveUntouchedAppendSlotsAbsent(bool existingItem)
+    {
+        using var form = new DefinitionFormModel(EditingDefinition("""
+            {"id":"items","title":"Items","type":"list","itemType":"integer","sensitivity":"public","disclosure":"guided"}
+            """));
+        if (existingItem)
+        {
+            using var items = System.Text.Json.JsonDocument.Parse("[7]");
+            form.SetValue(["items"], items.RootElement);
+        }
+        using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
+        if (existingItem)
+            harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("NextItem"))
+                .InvokeCommand(Command.Accept);
+        long revision = form.InputRevision;
+        await harness.ChangeView(harness.Window.ToggleOptionalEditors);
+        await harness.ChangeView(harness.Window.ToggleOptionalEditors);
+        await Assert.That(harness.Window.PublicInput.Text).IsEmpty();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.Snapshot().Values.ContainsKey("items")).IsEqualTo(existingItem);
+        if (existingItem) await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[7]");
+        await Assert.That(form.ReadDraftText(["items", existingItem ? "1" : "0"])).IsNull();
+        await Assert.That(form.EditValue(["items", "40"], "invalid")).IsFalse();
+        await Assert.That(form.ReadDraftText(["items", "40"])).IsNull();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task DisclosureChangesCannotRestoreSecretListDraftAfterCustodyRevocation()
+    {
+        using var form = new DefinitionFormModel(CorrectionDefinition("list", true),
+            DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        using var items = System.Text.Json.JsonDocument.Parse("[7,9]");
+        form.SetValue(["value"], items.RootElement);
+        using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
+        harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("NextItem"))
+            .InvokeCommand(Command.Accept);
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("synthetic-invalid")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsFalse();
+        await Assert.That(form.ReadDraftText(["value", "1"])).IsEqualTo("synthetic-invalid");
+        form.SetSecretEntryEnabled(false);
+        await harness.ChangeView(harness.Window.ToggleOptionalEditors);
+        await Assert.That(harness.Secret.Count).IsEqualTo(0);
+        await Assert.That(harness.Window.MaskedInput.Text).IsEmpty();
+        await Assert.That(harness.Window.PublicInput.Text).IsEmpty();
+        await Assert.That(form.ReadDraftText(["value", "1"])).IsNull();
+        await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
+        form.SetSecretEntryEnabled(true);
+        await harness.ChangeView(harness.Window.CycleExperience);
+        await Assert.That(harness.Secret.Count).IsEqualTo(0);
+        await Assert.That(form.ReadDraftText(["value", "1"])).IsNull();
+        await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
+    }
+
+    private static SetupDefinition CorrectionDefinition(string shape, bool masked)
+    {
+        string field = shape switch
+        {
+            "nested" => """
+                "type":"object","default":{"leaf":7,"sibling":"kept"},"properties":[
+                  {"id":"leaf","title":"Leaf","type":"integer","sensitivity":"public","disclosure":"guided"},
+                  {"id":"sibling","title":"Sibling","type":"string","sensitivity":"public","disclosure":"guided"}]
+                """,
+            "list" => "\"type\":\"list\",\"itemType\":\"integer\",\"default\":[7,9]",
+            _ => "\"type\":\"integer\",\"default\":7"
+        };
+        var source = System.Text.Json.Nodes.JsonNode.Parse(EditingDefinition($$"""
+            {"id":"value","title":"Value","sensitivity":"public","disclosure":"guided",{{field}}},
+            {"id":"after","title":"After","type":"string","default":"untouched","sensitivity":"public","disclosure":"guided"}
+            """).CanonicalBytes.Span)!.AsObject();
+        if (masked)
+        {
+            source["fields"]![0]!.AsObject().Remove("default");
+            source["fields"]![0]!["sensitivity"] = "secret";
+        }
+        source["presentation"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultExperience":"guided","sections":[{"id":"settings","title":"Settings","fields":["value","after"]}],
+             "experiences":[
+              {"id":"guided","title":"Guided","initialDisclosure":"guided","navigation":"guided","sections":["settings"]},
+              {"id":"complete","title":"Complete","initialDisclosure":"advanced","navigation":"sections","sections":["settings"]}]}
+            """);
+        return SetupDefinitionCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(source.ToJsonString()));
+    }
+
+    [Test]
+    [NotInParallel]
     [Arguments(0)]
     [Arguments(1)]
     public async Task FullListNavigationNeverEntersAnUncommittableAppend(int maximum)
@@ -633,6 +813,14 @@ public sealed class SetupTerminalGuiAdapterTests
         internal void DrainCallbacks()
         {
             while (_dispatch.Reader.TryRead(out Action? callback)) callback();
+        }
+        internal async Task ChangeView(Action change)
+        {
+            DrainCallbacks();
+            Task<Action> dispatched = _dispatch.Reader.ReadAsync().AsTask();
+            change();
+            (await dispatched.WaitAsync(TimeSpan.FromSeconds(5)))();
+            DrainCallbacks();
         }
         internal async Task CompleteImport()
         {

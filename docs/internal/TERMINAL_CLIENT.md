@@ -52,6 +52,15 @@ when that location disappears. Confirmation/status text contains no answer value
 Private editors hold bullets only in `TextField.Text`; clearable character
 buffers hold the input. Clipboard/context/history commands are blocked.
 
+Optional-editor and experience changes dispatch back to the window owner before
+refreshing the selected editor. `SetupTerminalFieldEditor.Read` first asks
+`DefinitionFormModel.ReadDraftText` for the exact scalar or selected list-item
+path, then falls back to committed content. The shared custody fence controls
+draft access; the window restores protected text only into its existing masked
+buffer and retains the path's invalid state until correction. View changes do
+not edit accepted answers, origins or row identities. Denied drafts stay cleared,
+and reading an untouched or nonexistent append position does not supply an item.
+
 The artifact cursor cycles admitted outputs; a separate keyboard button toggles
 each output in the selected set. At least one must be selected. `PrepareAsync`
 checks `DefinitionBundleComposer` over one immutable answer snapshot, then keeps
@@ -169,5 +178,17 @@ TMPDIR="$HOME/.cache/agent-tmp" dotnet build src/Configurator.Terminal/Configura
 TMPDIR="$HOME/.cache/agent-tmp" dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release -- --minimum-expected-tests 1
 ```
 
-The parent workstream owns solution registration and final real-terminal QA.
-This unit does not start the interactive app during intermediate implementation.
+The correction slice was additionally exercised through the actual published
+Linux x64 executable in an owned PTY. At 110x36 outer cells, a rejected public
+integer draft survived optional-editor and experience changes. A rejected
+protected integer retained two masked cells through those changes and resizing;
+Clear private state removed them. No output was saved; normal close returned the
+window's no-successful-save disposition, exit 4.
+
+The viewport guard measures the content area: an 80x26 outer PTY hid editing,
+while 82x28 exposed the controls. The near-minimum footer still clipped part of
+the limitation text, so this is not full minimum-layout, locale or AT
+qualification. Those obligations remain in the Terminal hardening follow-up.
+Safe synthetic evidence is retained at
+`.tmp/cross-platform-quality-terminal-drafts/qualification.json`; the parent
+workstream still owns solution-wide and additional-host assurance.

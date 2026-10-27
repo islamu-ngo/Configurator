@@ -54,6 +54,9 @@ internal sealed class SetupTerminalFieldEditor
     internal static string Read(Slot slot, int listIndex = 0)
     {
         if (slot.IsObject || slot.IsObjectList) return string.Empty;
+        string[] path = slot.IsList
+            ? [.. slot.FullPath, listIndex.ToString(CultureInfo.InvariantCulture)] : slot.FullPath;
+        if (slot.Form.ReadDraftText(path) is { } draft) return draft;
         JsonNode? value = Node(slot);
         if (slot.IsList)
             value = value is JsonArray array && listIndex >= 0 && listIndex < array.Count ? array[listIndex] : null;

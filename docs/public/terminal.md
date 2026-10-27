@@ -24,7 +24,11 @@ for the session; close and relaunch to select another.
 Run interactively without redirecting stdin, stdout or stderr; redirected startup
 is refused. `--help` can still be printed noninteractively. Use the [CLI](cli.md)
 for pipes, scripts and machine-readable output.
-Use a terminal of at least 80 columns and 26 rows. Tab and Shift+Tab move focus;
+The application needs an 80-column by 26-row content viewport; the qualified
+Linux terminal frame needed at least 82 by 28 outer cells to expose editing.
+Use a larger window, such as 110 by 36, to keep all guidance visible. Complete
+minimum-viewport and assistive-technology qualification remains separate.
+Tab and Shift+Tab move focus;
 Enter activates buttons. Underlined button shortcuts are available. English and
 Arabic resources follow the process UI culture.
 
@@ -53,7 +57,11 @@ Arabic resources follow the process UI culture.
    Optional-editor expansion reveals optional settings; restoring defaults uses
    the selected journey's disclosure. Missing required work and active errors
    remain reachable. View changes preserve answers and preparation; activation
-   and validation stay governed by Core.
+   and validation stay governed by Core. Rejected correction text stays available
+   when optional editors or the experience change, including nested fields and
+   the selected list item. Correct it before applying or navigating; the previous
+   accepted answer remains unchanged until the correction is accepted. Private
+   correction text stays masked and is not restored after private state is cleared.
 3. To prefill supported answers, cycle to the matching declared artifact, enter
    the path to an existing local file in Import file, and press Import selected
    artifact. Directly copied JSON, YAML and dotenv object fields are supported;
