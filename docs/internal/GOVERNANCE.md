@@ -97,6 +97,53 @@ data. Public caches contain no answers or output. No sibling Event checkout, bac
 running service is a build input. The [project map](../../PROJECTS.md) owns
 project references and protected paths.
 
+`StandaloneArchitectureTests` checks the exact first-party assembly-reference
+set in each of the eight authored runtime owners, including the static host.
+The sets are deliberate
+contracts, not a discovered inventory of whatever happens to build:
+
+| Compiled owner | Complete allowed `Configurator.*` references |
+|---|---|
+| Core | None |
+| Artifacts | Core |
+| Presentation | Core |
+| CLI | Core, Artifacts |
+| Terminal | Core, Artifacts, Presentation |
+| Desktop | Core, Artifacts, Presentation |
+| Browser | Core, Presentation |
+| Browser.Host | None |
+
+Core owns the definition contracts without depending on adapters. Artifacts
+adds protected native writes over Core; Presentation adds shared workspace
+behavior without native writer authority. CLI consumes Core and Artifacts
+directly, not the interactive Presentation owner. Terminal and Desktop consume
+all three shared owners, including compiled Core references reached through
+transitive project references. Browser consumes only the browser-safe pair;
+its separate native-framework exclusion remains enforced. No client may depend
+on another client. The optional static Browser host remains transport
+infrastructure, with no configuration-engine or native-artifact reference
+authority. Its separate empty set prevents a future hosting change from silently
+adding another engine or writer owner.
+
+The guard rejects both extra and missing first-party references. Its canaries
+persist synthetic assemblies in memory with fields typed to real first-party
+contracts, then pass their PE metadata through the same verifier as product
+assemblies. Each owner has an accepted allowed-only control and a forbidden
+repository-local edge: Core to Artifacts, Artifacts to Presentation,
+Presentation to Artifacts, CLI to Presentation, Terminal or Desktop to CLI,
+and Browser or Browser.Host to Artifacts. The negative assertion requires the specific rejected
+edge, so an unrelated failure cannot satisfy it. No source text or class-name
+inventory supplies the boundary evidence.
+
+This assembly-edge policy does not remove the deliberate Linux directory-source
+acquisition exception inside Core's composition owner. The existing Core guard
+qualifies I/O calls by reviewed assembly and exact
+`Configurator.Core.Composition` namespace; its separate public-contract checks
+remain authoritative. This is not permission for a native Artifacts dependency,
+arbitrary ambient I/O, or a claim that the directory path is browser portable.
+Relocation remains a focused follow-up. Compiled edge checks also do not prove
+published package closure; that gate runs separately against actual publications.
+
 Local preparation never grants a host's apply or admin authority. Keep the
 definition/runtime boundary in the
 [ADR](adr/ADR-definition-runtime-boundary.md), admission contract in
