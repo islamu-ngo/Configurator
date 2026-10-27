@@ -12,16 +12,27 @@ function clear(session) {
 window.addEventListener("configurator-custody-abandoned", () => {
     for (const session of sessions.values()) {
         clear(session);
-        session.generation = Number.MAX_SAFE_INTEGER;
     }
+    sessions.clear();
 });
 
+export function register(id) {
+    if (document.getElementById("app")?.inert || sessions.has(id)) return;
+    sessions.set(id, { generation: 0 });
+}
+
+export function release(id) {
+    const session = sessions.get(id);
+    if (!session) return;
+    clear(session);
+    sessions.delete(id);
+}
+
 export function invalidate(id, generation) {
-    const session = sessions.get(id) ?? { generation: 0 };
-    if (generation < session.generation) return;
+    const session = sessions.get(id);
+    if (!session || generation < session.generation) return;
     clear(session);
     session.generation = generation;
-    sessions.set(id, session);
 }
 
 export function open(id, generation, bytes) {
@@ -29,13 +40,15 @@ export function open(id, generation, bytes) {
         bytes.fill?.(0);
         return;
     }
-    const session = sessions.get(id) ?? { generation: 0 };
-    if (generation < session.generation) return;
+    const session = sessions.get(id);
+    if (!session || generation < session.generation) {
+        bytes.fill?.(0);
+        return;
+    }
     if (generation === session.generation && session.bytes) return;
     clear(session);
     session.generation = generation;
     session.bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-    sessions.set(id, session);
 }
 
 function current(id, generation) {

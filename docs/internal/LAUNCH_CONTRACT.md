@@ -175,6 +175,15 @@ normalized `.env` to `env.txt`. Operator guidance requires checking/renaming the
 saved name to the target's declared filename; the adapter cannot guarantee
 browser/OS filename preservation.
 
+Export sessions register explicitly on the first deliberate exposure. Unknown
+IDs cannot open output; invalidation retains a revoked generation while exposure
+may still be in flight. Managed retirement clears bytes immediately, observes
+those exposure tasks and releases the JS session only after a delayed open/copy
+cannot reopen it. Terminal release removes its map entry instead of retaining
+unbounded tombstones. An import arriving after disposal never registers and
+disposes its own module reference. Abandonment clears all session bytes and
+entries. This does not retract data already handed to the clipboard or a download.
+
 ## PWA and hosting boundary
 
 `BrowserOfflinePolicy` mediates pre-answer asset preparation, explicit admitted

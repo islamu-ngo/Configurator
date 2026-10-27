@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5X2WSV5R79HHKTWD7RZV0PB
+Title: "retire browser export sessions without reopening stale output"
+Type: fix
+Scope: privacy
+Summary: "Register export sessions explicitly, reject unknown or retired openings, revoke bytes immediately and reclaim settled session metadata after in-flight exposure can no longer reopen output."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Late module imports never register after managed disposal. Invalidation clears bytes and previews; retirement observes outstanding exposure before removing the session entry. Abandonment clears all entries."
+  Migration:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Repeated prepare/clear cycles release retired export handles. Delayed actions cannot reopen retired output, but clearing cannot retract clipboard contents or completed downloads."

@@ -268,6 +268,10 @@ on your action; **Download** creates a short-lived Blob download for the current
 artifact. Clipboard failures leave download available and do not silently send
 data elsewhere. Edits, clear, consent revocation, definition replacement and
 disposal invalidate output and revoke download capabilities.
+Retired export sessions also release their internal handles after pending exposure
+finishes. A delayed reveal/copy cannot reopen retired output, and repeated
+prepare/clear cycles do not retain a history of export sessions. Clearing this
+workspace cannot retract bytes already copied or downloaded.
 
 Every answer-derived file is **restricted**, even if its source fields are
 labelled public. A browser download cannot guarantee `0600` permissions,

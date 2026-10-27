@@ -91,6 +91,47 @@ public sealed class BrowserExportLifecycleTests
     }
 
     [Test]
+    public async Task RetiredOpenedSessionIsReleasedExactlyOnce()
+    {
+        var javascript = new GatedJavascript();
+        await using var module = new RecordingModule();
+        javascript.Release.TrySetResult(module);
+        await using var export = new BrowserArtifactExport(javascript);
+        export.SetOutput("synthetic-retired-export"u8.ToArray());
+        _ = await export.CopyAsync();
+        await export.DisposeAsync();
+        await export.DisposeAsync();
+        await Assert.That(module.RegistrationCount).IsEqualTo(1);
+        await Assert.That(module.ReleaseCount).IsEqualTo(1);
+        await Assert.That(module.Disposed).IsTrue();
+    }
+
+    [Test]
+    public async Task DisposalRevokesBytesBeforeHeldOpeningSettlesAndThenReleasesSession()
+    {
+        var javascript = new GatedJavascript();
+        await using var module = new RecordingModule { HoldOpening = true };
+        javascript.Release.TrySetResult(module);
+        await using var export = new BrowserArtifactExport(javascript);
+        export.SetOutput("synthetic-held-opening"u8.ToArray());
+        Task<bool> exposure = export.CopyAsync();
+        await module.OpeningStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Task retirement = export.DisposeAsync().AsTask();
+        try
+        {
+            await Assert.That(export.HasOutput).IsFalse();
+            await Assert.That(module.OpeningBytes!.All(value => value == 0)).IsTrue();
+            await Assert.That(retirement.IsCompleted).IsFalse();
+            await Assert.That(module.ReleaseCount).IsEqualTo(0);
+        }
+        finally { module.OpeningRelease.TrySetResult(); }
+        await Assert.That(await exposure.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
+        await retirement.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(module.ReleaseCount).IsEqualTo(1);
+        await Assert.That(module.Disposed).IsTrue();
+    }
+
+    [Test]
     public async Task CleanupFaultStillDisposesModuleAndCannotExposeRetiredBytes()
     {
         var javascript = new GatedJavascript();
@@ -158,14 +199,28 @@ public sealed class BrowserExportLifecycleTests
     private sealed class RecordingModule : IJSObjectReference
     {
         internal int PrivateOpeningCount { get; private set; }
+        internal int RegistrationCount { get; private set; }
+        internal int ReleaseCount { get; private set; }
+        internal bool HoldOpening { get; init; }
+        internal byte[]? OpeningBytes { get; private set; }
+        internal TaskCompletionSource OpeningStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource OpeningRelease { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal bool Disposed { get; private set; }
         internal bool FailInvalidation { get; set; }
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
-            if (identifier == "invalidate" && FailInvalidation) return ValueTask.FromException<TValue>(new InvalidOperationException("synthetic-cleanup-fault"));
-            if (identifier == "open") PrivateOpeningCount++;
-            return ValueTask.FromResult(default(TValue)!);
+            if (identifier == "invalidate" && FailInvalidation) throw new InvalidOperationException("synthetic-cleanup-fault");
+            if (identifier == "register") RegistrationCount++;
+            if (identifier == "release") ReleaseCount++;
+            if (identifier == "open")
+            {
+                PrivateOpeningCount++;
+                OpeningBytes = (byte[])args![2]!;
+                OpeningStarted.TrySetResult();
+                if (HoldOpening) await OpeningRelease.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            }
+            return default!;
         }
         public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
     }
