@@ -172,13 +172,18 @@ When selecting a separate release location, `check --against prior.json` and
 `build --against prior.json` explicitly bind its family, revision and digest.
 
 After a semantic edit, `check` and `build` reject reuse of the default recorded
-revision. Run `definition revise --machine`, or supply `--against prior.json` for
-an explicitly selected anchor, then build the new revision. An unchanged canonical
+revision. Run `definition revise --output candidates/configurator.next.yaml --machine`,
+or also supply `--against prior.json` for an explicitly selected anchor. Review
+and deliberately adopt the candidate before building the new revision, or build
+it using an explicit `--source`. An unchanged canonical
 document, including comments/format-only edits, does not advance. Revision updates
 preserve all other source text, including comments, Unicode, BOM and newlines.
-The original digest and a sibling mutation lock detect changed inputs and
-concurrent tool edits. Existing locks require investigation; no stale lock is
-deleted automatically. External editors can race the final replacement window.
+The candidate must have the same source format and a new, non-source,
+non-discovery destination. Existing files and symlink paths reject. The command
+never replaces the input source, so concurrent editor saves remain intact.
+Changed content requires `--output`; unchanged content creates no candidate.
+This workflow does not claim filesystem compare-and-swap or captured-handle
+authority.
 
 Use `definition init --fork-from configurator.yaml --output other/configurator.yaml`
 only for a deliberate new family. It preserves the original source. Family labels

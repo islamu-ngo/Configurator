@@ -88,7 +88,7 @@ each argument is at most 4,096 characters. Artifact IDs retain their stricter
 | `definition init` (fork) | `--fork-from PATH`, `--output PATH` | `--format yaml\|json` (must match source) |
 | `definition check` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH` |
 | `definition build` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH`, `--output PATH`, `--id-map PATH` |
-| `definition revise` | none | `--source PATH`, `--root DIRECTORY`, `--against PATH` |
+| `definition revise` | `--output NEW_PATH` when content changes | `--source PATH`, `--root DIRECTORY`, `--against PATH` |
 
 `--dry-run` replaces the output requirement. It validates and composes but
 publishes no file. `--input-revision` is a nonnegative Int64 workspace revision
@@ -154,7 +154,18 @@ changed content under that revision. After editing the source, `definition revis
 compares with that anchor or `--against` and increments once only if canonical
 content changed. The anchor must have the same family and current revision;
 missing/mismatched anchors and overflow reject. Revision changes preserve source
-comments, Unicode, BOM and line endings. Build remains a separate operation.
+comments, Unicode, BOM and line endings in a separate create-only candidate:
+
+```bash
+islamu-configurator definition revise --output candidates/configurator.next.yaml --machine
+```
+
+The candidate must use the same JSON/YAML format and cannot be the source, an
+existing file, a discovery filename or a symlink destination. The original source
+is never overwritten, so a concurrent editor save survives. Unchanged canonical
+content produces no candidate; changed content without `--output` is refused.
+Review the candidate before deliberately adopting it as your source. Build
+remains a separate operation.
 For a separately located release, use `check --against PATH` or `build --against PATH`
 to bind that explicit anchor; an explicitly named missing anchor rejects.
 An explicit anchor cannot replace conflicting history already present at the

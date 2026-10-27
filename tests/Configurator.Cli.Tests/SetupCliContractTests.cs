@@ -9,7 +9,7 @@ public sealed class SetupCliContractTests
     public async Task GeneratedSchemaIsClosedBoundedDeterministicAndRegistryOwned()
     {
         byte[] first = SetupCliCommandSchemaMetadata.GenerateSchema();
-        await Assert.That(SetupCliCommandSchemaMetadata.GenerateSchema()).IsEquivalentTo(first);
+        await Assert.That(SetupCliCommandSchemaMetadata.GenerateSchema().AsSpan().SequenceEqual(first)).IsTrue();
         JsonObject schema = SetupCliMachineContractVerifier.ParseSchema(first);
         await Assert.That(SetupCliMachineContractVerifier.InspectSchema(schema)).IsEmpty();
         await Assert.That(schema["_metadata"]!["commands"]!.AsArray().Select(node => node!["name"]!.GetValue<string>()))

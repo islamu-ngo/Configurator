@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using Configurator.Artifacts;
-
 namespace Configurator.Cli;
 
 internal sealed class DefinitionFileException(string code) : Exception(code)
@@ -25,43 +22,7 @@ internal static class DefinitionSourceFiles
         return SafePath(found[0]);
     }
 
-    internal static async ValueTask<byte[]> ReadAsync(string path, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        path = SafePath(path);
-        try
-        {
-            using BoundedFileInput input = await BoundedFileInput.ReadAsync(path, MaximumBytes, cancellationToken)
-                .ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            return input.Bytes.ToArray();
-        }
-        catch (InvalidDataException) { throw new DefinitionFileException("definition-source-bound"); }
-    }
-
-    internal static async ValueTask<bool> CreateAsync(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        using PreparedArtifact prepared = PrepareCreate(path, bytes, acceptIdentical);
-        await prepared.StageAsync(cancellationToken).ConfigureAwait(false);
-        return await prepared.CommitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    internal static async ValueTask ReplaceAsync(string path, ReadOnlyMemory<byte> original, ReadOnlyMemory<byte> replacement,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        using PreparedArtifact prepared = PrepareReplace(path, original, replacement);
-        await prepared.StageAsync(cancellationToken).ConfigureAwait(false);
-        await prepared.CommitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    internal static PreparedArtifact PrepareCreate(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical) =>
-        new(path, bytes, acceptIdentical, null);
-
-    internal static PreparedArtifact PrepareReplace(string path, ReadOnlyMemory<byte> original, ReadOnlyMemory<byte> replacement) =>
-        new(path, replacement, false, original);
+    internal static PreparedArtifact PrepareCreate(string path, ReadOnlyMemory<byte> bytes) => new(path, bytes);
 
     /// <summary>Separates staging, publication and cleanup so established writes can be recorded before cleanup.</summary>
     internal sealed class PreparedArtifact : IDisposable
@@ -69,20 +30,14 @@ internal static class DefinitionSourceFiles
         private readonly string _path;
         private readonly string _temporary;
         private readonly ReadOnlyMemory<byte> _bytes;
-        private readonly ReadOnlyMemory<byte>? _original;
-        private readonly bool _acceptIdentical;
-        private FileStream? _mutationLock;
         private bool _staged;
-        private bool _acceptedIdentical;
         private bool _disposed;
 
-        internal PreparedArtifact(string path, ReadOnlyMemory<byte> bytes, bool acceptIdentical, ReadOnlyMemory<byte>? original)
+        internal PreparedArtifact(string path, ReadOnlyMemory<byte> bytes)
         {
             _path = SafePath(path);
             CheckBytes(bytes);
             _bytes = bytes;
-            _original = original;
-            _acceptIdentical = acceptIdentical;
             _temporary = Path.Combine(Path.GetDirectoryName(_path)!, ".configurator-" + Guid.NewGuid().ToString("N") + ".tmp");
         }
 
@@ -91,72 +46,34 @@ internal static class DefinitionSourceFiles
             cancellationToken.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_staged) throw new InvalidOperationException("definition-already-staged");
-            if (_original is null && _acceptIdentical && File.Exists(_path)
-                && (await ReadAsync(_path, cancellationToken).ConfigureAwait(false)).AsSpan().SequenceEqual(_bytes.Span))
-            {
-                _acceptedIdentical = true;
-                _staged = true;
-                return;
-            }
-            if (_original is not null)
-            {
-                try { _mutationLock = new FileStream(SafePath(_path + ".configurator.lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None); }
-                catch (IOException) { throw new DefinitionFileException("definition-source-locked"); }
-            }
-            else
-            {
-                string directory = Path.GetDirectoryName(_path)!;
-                Directory.CreateDirectory(directory);
-                SafePath(directory);
-            }
+            string directory = Path.GetDirectoryName(_path)!;
+            Directory.CreateDirectory(directory);
+            SafePath(directory);
             await WriteTemporaryAsync(_temporary, _bytes, cancellationToken).ConfigureAwait(false);
             _staged = true;
         }
 
-        internal async ValueTask<bool> CommitAsync(CancellationToken cancellationToken)
+        internal ValueTask<bool> CommitAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!_staged) throw new InvalidOperationException("definition-not-staged");
-            if (_acceptedIdentical && !File.Exists(_path)) throw new DefinitionFileException("definition-output-conflict");
-            if (_original is { } original)
-            {
-                byte[] current = await ReadAsync(_path, cancellationToken).ConfigureAwait(false);
-                if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(current), SHA256.HashData(original.Span)))
-                    throw new DefinitionFileException("definition-source-changed");
-            }
-            else if (File.Exists(_path))
-            {
-                if (_acceptIdentical && (await ReadAsync(_path, cancellationToken).ConfigureAwait(false)).AsSpan().SequenceEqual(_bytes.Span)) return false;
-                throw new DefinitionFileException("definition-output-conflict");
-            }
+            if (File.Exists(_path)) throw new DefinitionFileException("definition-output-conflict");
             SafePath(_path);
             cancellationToken.ThrowIfCancellationRequested();
-            try { File.Move(_temporary, _path, _original is not null); }
-            catch (IOException) when (_original is null && File.Exists(_path))
+            try { File.Move(_temporary, _path); }
+            catch (IOException) when (File.Exists(_path))
             {
                 throw new DefinitionFileException("definition-output-conflict");
             }
-            return true;
+            return ValueTask.FromResult(true);
         }
 
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
-            try
-            {
-                if (File.Exists(_temporary)) File.Delete(_temporary);
-            }
-            finally
-            {
-                if (_mutationLock is not null)
-                {
-                    _mutationLock.Dispose();
-                    _mutationLock = null;
-                    File.Delete(_path + ".configurator.lock");
-                }
-            }
+            if (File.Exists(_temporary)) File.Delete(_temporary);
         }
     }
 

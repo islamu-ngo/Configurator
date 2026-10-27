@@ -18,8 +18,11 @@ internal static class SetupCliDefinitionHandlers
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (command.Operation == "init") return await InitializeAsync(command, invocation, ledger, cancellationToken).ConfigureAwait(false);
-            string source = DefinitionSourceFiles.Discover(command.Root ?? ".", command.Source);
-            byte[] bytes = await DefinitionSourceFiles.ReadAsync(source, cancellationToken).ConfigureAwait(false);
+            ISetupCliAuthoringFiles files = invocation.Io.AuthoringFiles;
+            int maximumBytes = invocation.Io.MaximumBytes;
+            string source = await files.DiscoverSourceAsync(command.Root ?? ".", command.Source, cancellationToken).ConfigureAwait(false);
+            using SetupCliInputBuffer input = await files.ReadAsync(source, maximumBytes, cancellationToken).ConfigureAwait(false);
+            ReadOnlyMemory<byte> bytes = input.Bytes;
             bool yaml = IsYaml(source);
             DefinitionAuthoringDocument document = Parse(bytes, yaml, cancellationToken);
             SetupDefinition definition = DefinitionAuthoringCompiler.Compile(document);
@@ -28,24 +31,28 @@ internal static class SetupCliDefinitionHandlers
             if (command.Operation == "revise")
             {
                 string priorPath = command.Against ?? anchor;
-                if (!File.Exists(priorPath)) throw new DefinitionFileException("definition-anchor-missing");
-                SetupDefinition prior = SetupDefinitionCodec.ParseJson(await DefinitionSourceFiles.ReadAsync(priorPath, cancellationToken).ConfigureAwait(false));
+                if (!await files.ExistsAsync(priorPath, cancellationToken).ConfigureAwait(false)) throw new DefinitionFileException("definition-anchor-missing");
+                using SetupCliInputBuffer priorInput = await files.ReadAsync(priorPath, maximumBytes, cancellationToken).ConfigureAwait(false);
+                SetupDefinition prior = SetupDefinitionCodec.ParseJson(priorInput.Bytes);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (prior.FamilyId != definition.FamilyId || prior.Revision != definition.Revision)
                     throw new DefinitionFileException("definition-anchor-identity");
-                await VerifyAnchorAsync(anchor, prior, false, cancellationToken).ConfigureAwait(false);
+                await VerifyAnchorAsync(files, maximumBytes, anchor, prior, false, cancellationToken).ConfigureAwait(false);
                 if (prior.Digest == definition.Digest) return Receipt("authoring-source", yaml, bytes, "none", definition.Digest.Value);
                 if (definition.Revision == long.MaxValue) throw new DefinitionFileException("definition-revision-overflow");
+                if (string.IsNullOrEmpty(command.Output)) return SetupCliResults.Failure(SetupCliExitCode.Usage, "output-required");
+                RejectSourceDestination(source, command.Output);
+                if (IsYaml(command.Output) != yaml) return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-source-format");
                 byte[] revised = DefinitionAuthoringIdentityEditor.UpdateRevision(bytes, yaml, definition.Revision + 1);
                 SetupDefinition revisedDefinition = DefinitionAuthoringCompiler.Compile(Parse(revised, yaml, cancellationToken));
                 cancellationToken.ThrowIfCancellationRequested();
                 SetupCliCommandResult revisedResult = Receipt("authoring-source", yaml, revised, "not-attempted", revisedDefinition.Digest.Value);
                 ledger.Plan(invocation, command, revisedResult);
-                using DefinitionSourceFiles.PreparedArtifact replacement = DefinitionSourceFiles.PrepareReplace(source, bytes, revised);
-                return await PublishAsync([replacement], revisedResult, ledger, cancellationToken).ConfigureAwait(false);
+                using ISetupCliPublicFilePreparation candidate = files.PrepareCreate(command.Output, revised, maximumBytes, false);
+                return await PublishAsync([candidate], revisedResult, ledger, cancellationToken).ConfigureAwait(false);
             }
-            await VerifyAnchorAsync(anchor, definition, false, cancellationToken).ConfigureAwait(false);
-            if (command.Against is not null) await VerifyAnchorAsync(command.Against, definition, true, cancellationToken).ConfigureAwait(false);
+            await VerifyAnchorAsync(files, maximumBytes, anchor, definition, false, cancellationToken).ConfigureAwait(false);
+            if (command.Against is not null) await VerifyAnchorAsync(files, maximumBytes, command.Against, definition, true, cancellationToken).ConfigureAwait(false);
             if (command.Operation == "check")
                 return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input");
             string destination = command.Output ?? anchor;
@@ -75,8 +82,8 @@ internal static class SetupCliDefinitionHandlers
             }
             SetupCliCommandResult result = SetupCliResults.Success(artifacts) with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
             ledger.Plan(invocation, command, result);
-            using DefinitionSourceFiles.PreparedArtifact canonical = DefinitionSourceFiles.PrepareCreate(destination, definition.CanonicalBytes, true);
-            using DefinitionSourceFiles.PreparedArtifact? idMap = command.IdMap is null ? null : DefinitionSourceFiles.PrepareCreate(command.IdMap, map!, true);
+            using ISetupCliPublicFilePreparation canonical = files.PrepareCreate(destination, definition.CanonicalBytes, maximumBytes, true);
+            using ISetupCliPublicFilePreparation? idMap = command.IdMap is null ? null : files.PrepareCreate(command.IdMap, map!, maximumBytes, true);
             return await PublishAsync(idMap is null ? [canonical] : [canonical, idMap], result, ledger, cancellationToken).ConfigureAwait(false);
         }
         catch (DefinitionFileException exception) { return ledger.Preserve(SetupCliResults.Failure(SetupCliExitCode.Data, exception.Code, "$.source")); }
@@ -94,21 +101,23 @@ internal static class SetupCliDefinitionHandlers
         SetupCliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
         string root = command.Root ?? ".";
+        ISetupCliAuthoringFiles files = invocation.Io.AuthoringFiles;
+        int maximumBytes = invocation.Io.MaximumBytes;
         if (command.ForkFrom is not null)
         {
             if (command.Output is null || command.FromSchema is not null || command.FromEnvExample is not null)
                 return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-fork-options");
-            byte[] original = await DefinitionSourceFiles.ReadAsync(command.ForkFrom, cancellationToken).ConfigureAwait(false);
+            using SetupCliInputBuffer original = await files.ReadAsync(command.ForkFrom, maximumBytes, cancellationToken).ConfigureAwait(false);
             bool yaml = IsYaml(command.ForkFrom);
             if (command.Format is not null && command.Format != (yaml ? "yaml" : "json") || IsYaml(command.Output) != yaml)
                 return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-source-format");
             RejectSourceDestination(command.ForkFrom, command.Output, false);
-            byte[] fork = DefinitionAuthoringIdentityEditor.Fork(original, yaml, Guid.NewGuid());
+            byte[] fork = DefinitionAuthoringIdentityEditor.Fork(original.Bytes, yaml, Guid.NewGuid());
             SetupDefinition definition = DefinitionAuthoringCompiler.Compile(Parse(fork, yaml, cancellationToken));
             cancellationToken.ThrowIfCancellationRequested();
             SetupCliCommandResult forkResult = Receipt("authoring-source", yaml, fork, "not-attempted", definition.Digest.Value);
             ledger.Plan(invocation, command, forkResult);
-            using DefinitionSourceFiles.PreparedArtifact preparedFork = DefinitionSourceFiles.PrepareCreate(command.Output, fork, false);
+            using ISetupCliPublicFilePreparation preparedFork = files.PrepareCreate(command.Output, fork, maximumBytes, false);
             return await PublishAsync([preparedFork], forkResult, ledger, cancellationToken).ConfigureAwait(false);
         }
         if (command.ProjectId is null || command.ProjectName is null || command.ApplicationVersion is null)
@@ -120,20 +129,25 @@ internal static class SetupCliDefinitionHandlers
         string format = command.Format ?? (command.Output is null || IsYaml(command.Output) ? "yaml" : "json");
         if (format is not ("yaml" or "json")) return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-source-format");
         string output = command.Output ?? Path.Combine(root, format == "yaml" ? "configurator.yaml" : "configurator.json");
-        if (command.Output is null && SourceNames.Any(name => File.Exists(Path.Combine(root, name))))
-            throw new DefinitionFileException("definition-output-conflict");
+        if (command.Output is null)
+            foreach (string name in SourceNames)
+                if (await files.ExistsAsync(Path.Combine(root, name), cancellationToken).ConfigureAwait(false))
+                    throw new DefinitionFileException("definition-output-conflict");
         if (IsYaml(output) != (format == "yaml")) return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-source-format");
         JsonObject fields = new();
         IReadOnlyList<string> differences = [];
         if (command.FromSchema is not null)
         {
-            DefinitionSchemaImportResult imported = await DefinitionSchemaSourceFiles.ImportAsync(command.FromSchema,
-                command.AcceptBoundedSemantics, cancellationToken).ConfigureAwait(false);
+            DefinitionSchemaImportResult imported = await DefinitionSchemaSourceFiles.ImportAsync(files, maximumBytes,
+                command.FromSchema, command.AcceptBoundedSemantics, cancellationToken).ConfigureAwait(false);
             fields = JsonNode.Parse(imported.Fields.GetRawText())!.AsObject();
             differences = imported.Differences;
         }
         else if (command.FromEnvExample is not null)
-            fields = EnvironmentKeys(await DefinitionSourceFiles.ReadAsync(command.FromEnvExample, cancellationToken).ConfigureAwait(false), cancellationToken);
+        {
+            using SetupCliInputBuffer example = await files.ReadAsync(command.FromEnvExample, maximumBytes, cancellationToken).ConfigureAwait(false);
+            fields = EnvironmentKeys(example.Bytes, cancellationToken);
+        }
         JsonObject source = new()
         {
             ["$schema"] = DefinitionAuthoringCodec.SchemaId,
@@ -152,17 +166,17 @@ internal static class SetupCliDefinitionHandlers
         SetupCliCommandResult result = Receipt("authoring-source", format == "yaml", bytes, "not-attempted", compiled.Digest.Value) with
         { Diagnostics = differences.Select(code => new SetupCliMachineDiagnostic(code, "$.schema", "warning")).ToArray() };
         ledger.Plan(invocation, command, result);
-        using DefinitionSourceFiles.PreparedArtifact preparedSource = DefinitionSourceFiles.PrepareCreate(output, bytes, false);
+        using ISetupCliPublicFilePreparation preparedSource = files.PrepareCreate(output, bytes, maximumBytes, false);
         return await PublishAsync([preparedSource], result, ledger, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<SetupCliCommandResult> PublishAsync(DefinitionSourceFiles.PreparedArtifact[] prepared,
+    private static async Task<SetupCliCommandResult> PublishAsync(ISetupCliPublicFilePreparation[] prepared,
         SetupCliCommandResult result, SetupCliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
         bool cleanupFailed = false;
         try
         {
-            foreach (DefinitionSourceFiles.PreparedArtifact artifact in prepared)
+            foreach (ISetupCliPublicFilePreparation artifact in prepared)
                 await artifact.StageAsync(cancellationToken).ConfigureAwait(false);
             for (int index = 0; index < prepared.Length; index++)
             {
@@ -185,7 +199,7 @@ internal static class SetupCliDefinitionHandlers
         }
         finally
         {
-            foreach (DefinitionSourceFiles.PreparedArtifact artifact in prepared)
+            foreach (ISetupCliPublicFilePreparation artifact in prepared)
             {
                 try { artifact.Dispose(); }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { cleanupFailed = true; }
@@ -195,12 +209,12 @@ internal static class SetupCliDefinitionHandlers
         return ledger.Preserve(cleanupFailed ? SetupCliResults.Failure(SetupCliExitCode.Io, "definition-cleanup-failed", "$.source") : result);
     }
 
-    private static JsonObject EnvironmentKeys(byte[] bytes, CancellationToken cancellationToken)
+    private static JsonObject EnvironmentKeys(ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var fields = new JsonObject();
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        string text = new UTF8Encoding(false, true).GetString(bytes);
+        string text = new UTF8Encoding(false, true).GetString(bytes.Span);
         foreach (string line in text.Split('\n'))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -244,16 +258,18 @@ internal static class SetupCliDefinitionHandlers
         }
     }
 
-    private static async ValueTask VerifyAnchorAsync(string anchor, SetupDefinition definition, bool required,
+    private static async ValueTask VerifyAnchorAsync(ISetupCliAuthoringFiles files, int maximumBytes,
+        string anchor, SetupDefinition definition, bool required,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!File.Exists(anchor))
+        if (!await files.ExistsAsync(anchor, cancellationToken).ConfigureAwait(false))
         {
             if (required) throw new DefinitionFileException("definition-anchor-missing");
             return;
         }
-        SetupDefinition prior = SetupDefinitionCodec.ParseJson(await DefinitionSourceFiles.ReadAsync(anchor, cancellationToken).ConfigureAwait(false));
+        using SetupCliInputBuffer input = await files.ReadAsync(anchor, maximumBytes, cancellationToken).ConfigureAwait(false);
+        SetupDefinition prior = SetupDefinitionCodec.ParseJson(input.Bytes);
         cancellationToken.ThrowIfCancellationRequested();
         if (prior.FamilyId != definition.FamilyId || prior.Revision != definition.Revision || prior.Digest != definition.Digest)
             throw new DefinitionFileException("definition-revision-conflict");
@@ -261,9 +277,11 @@ internal static class SetupCliDefinitionHandlers
 
     private static void RejectSourceDestination(string source, string destination, bool rejectDiscoveryCandidates = true)
     {
-        string path = DefinitionSourceFiles.SafePath(destination);
-        if (path == DefinitionSourceFiles.SafePath(source)
-            || rejectDiscoveryCandidates && SourceNames.Contains(Path.GetFileName(path), StringComparer.Ordinal))
+        if (destination == "-") throw new DefinitionFileException("definition-local-file-required");
+        string path = Path.GetFullPath(destination);
+        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (path.Equals(Path.GetFullPath(source), comparison)
+            || rejectDiscoveryCandidates && SourceNames.Any(name => name.Equals(Path.GetFileName(path), comparison)))
             throw new DefinitionFileException("definition-output-source-conflict");
     }
 

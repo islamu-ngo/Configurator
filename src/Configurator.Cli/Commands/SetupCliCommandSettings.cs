@@ -234,3 +234,14 @@ internal sealed class BundleOutputSettings : BundleInputSettings
 }
 
 internal sealed class DoctorSettings : SetupCliCommandSettings;
+
+internal sealed class DefinitionCandidateSettings : DefinitionSourceSettings
+{
+    [CommandOption("--output <PATH>")]
+    public string? Output { get; set; }
+
+    protected override string? ValidateValues() => base.ValidateValues() ?? ValidateOutput(Output);
+
+    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+        base.Bind(family, operation, invocationMode) with { Output = Output };
+}

@@ -1,0 +1,30 @@
+Change-Id: CHG-01M5X25P35112R9G53XM2YC5QD
+Title: "write revised definitions to explicit candidates"
+Type: feat
+Scope: cli
+Summary: "Publish changed definition revisions as explicit separate create-only candidates and require invocation-scoped public authoring authority for every discovery, read, existence and staged-publication route."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Changed definition revise operations require --output NEW_PATH and never replace the input source. SetupCliIo construction requires ISetupCliAuthoringFiles; obsolete concrete replacement/read wrappers are removed without compatibility aliases."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Authoring handlers have no ambient filesystem fallback, including schema-reference reads. Existing source, conflicting output, discovery aliases and link destinations reject. Concurrent editor saves remain untouched; captured-handle/root authority is not claimed."
+  Migration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "Choose a separate same-format candidate with --output, review and deliberately adopt it, then build explicitly. Embedders supply the required public-file capability. No mutation lock or source-replacement path remains."
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "The changed revision requires an explicit separate candidate destination. Unchanged canonical content remains a no-op and creates no candidate."
+  OpenAPI:
+    Reference: schemas/islamu-configurator-command-v2.schema.json
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "BOM, comments, Unicode and line endings are preserved in the revised candidate. The original source is never overwritten, including during a concurrent editor save."

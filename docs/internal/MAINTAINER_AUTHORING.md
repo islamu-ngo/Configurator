@@ -147,8 +147,12 @@ See [public integration](../public/integrate-your-tool.md),
 
 `DefinitionCommands` registers init/check/build/revise through the existing Spectre
 registry/preflight and closed machine envelope. `SetupCliDefinitionHandlers` owns
-scaffolding, compilation and canonical revision comparison; source operations use
-`DefinitionSourceFiles`, never the protected answer writer. Initialization requires
+scaffolding, compilation and canonical revision comparison; every source discovery,
+read, existence and staged-publication route, including schema references, uses
+the required invocation `ISetupCliAuthoringFiles` capability. `SetupCliIo`
+requires this authority explicitly; Program supplies `PublicDefinitionFiles`
+and ordinary non-authoring fixtures reject it. There is no ambient fallback.
+The native staged-file owner is not the protected answer writer. Initialization requires
 project ID/name and an exact application version, or an explicit fork source/new
 destination. Environment scaffolding extracts only keys and retains no example
 values. YAML is default; JSON has identical capability.
@@ -160,6 +164,9 @@ identical existing bytes and rejects conflicts. Existing default anchors bind
 family/revision/digest even when a build selects another destination. Revise requires
 a matching prior canonical family/current revision; semantic differences increment
 once, overflow rejects and unchanged canonical content leaves the source untouched.
+A changed revision requires a separate create-only `--output` candidate with the
+same source format. The original source is never replaced, including if an editor
+saves after the initial read. Review/adoption and a later build are separate actions.
 Fork allocates a new family/revision 1 in a new destination.
 Check/build accept `--against` for a separately located canonical anchor and reject
 an explicitly named missing anchor.
@@ -167,10 +174,13 @@ Default recorded history is verified independently of the supplied anchor; an
 explicit prior cannot substitute different content under an already recorded revision.
 
 Public source paths reject symlinks in any ancestor. Create-only public writes use
-same-directory temporary files and no-overwrite rename. Revision edits create a
-sibling mutation lock, validate the replacement, compare the immediately read
-original digest and atomically rename; no stale lock deletion or filesystem CAS
-claim is made. Generated outputs cannot replace sources/discovery candidates.
+same-directory temporary files and no-overwrite rename. Revision candidates use
+that same create-only boundary; source replacement helpers, mutation locks and
+legacy fixed-ceiling read wrappers are removed after caller migration.
+Identical-file acceptance is bounded by the current invocation in the public
+capability, not a second native read policy. Generated outputs cannot replace
+sources/discovery candidates. This path-based boundary does not establish
+captured-handle/root authority or filesystem CAS; that remains a separate required gate.
 Optional logical-ID maps contain only public semantic keys and IDs. Machine diagnostics
 contain bounded codes/structural paths, never source scalars or filesystem paths.
 Successful check/build adds authoringContractVersion=1/runtimeSchemaVersion=1 for

@@ -46,7 +46,7 @@ internal static class SetupCliProgram
             using Stream standardError = OpenStandardStream(2, errorHandle, errorFileHandle);
             var writer = new SystemWriter(standardOutput);
             var error = new SystemWriter(standardError);
-            var io = new SetupCliIo(new SystemInput(inputHandle), writer, error, 65_536, 4 * 1024 * 1024);
+            var io = new SetupCliIo(new SystemInput(inputHandle), writer, error, new PublicDefinitionFiles(), 65_536, 4 * 1024 * 1024);
             SetupCliInvocation invocation;
             try
             {

@@ -53,7 +53,7 @@ public sealed class SetupCliMachineBoundaryTests
                     "--input", "answers.json", "--output", target, "--machine"];
             SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(
                 arguments, SetupCliMode.Machine,
-                new(fixture, writer, new SetupCliProgram.SystemWriter(error), 65_536, 4 * 1024 * 1024)), work.Token)
+                new(fixture, writer, new SetupCliProgram.SystemWriter(error), CliFixture.RejectingAuthoringFiles, 65_536, 4 * 1024 * 1024)), work.Token)
                 .WaitAsync(TimeSpan.FromSeconds(10));
 
             await Assert.That(observedInstallation).IsEqualTo(OperatingSystem.IsLinux());
@@ -112,7 +112,11 @@ public sealed class SetupCliMachineBoundaryTests
     [Arguments(true)]
     public async Task UnexpectedBundleCommitFaultRetainsRealNativeWrittenPrefix(bool cleanupFails)
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!OperatingSystem.IsLinux())
+        {
+            Console.WriteLine($"COHORT native-written-prefix cleanupFails={cleanupFails} unexecuted requires-linux-protected-writer; unsupported refusal executes in PostInstallationFailureRetainsUnverifiedPrefixThroughCancellationAndReceiptFailure");
+            return;
+        }
         string directory = Path.Combine(Path.GetTempPath(), "configurator-prefix-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         try
@@ -124,7 +128,7 @@ public sealed class SetupCliMachineBoundaryTests
             SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(
                 ["artifact", "bundle-create", "--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
                     "--input", "answers.json", "--output", directory, "--machine"], SetupCliMode.Machine,
-                new(fixture, writer, new SetupCliProgram.SystemWriter(error), 65_536, 4 * 1024 * 1024)))
+                new(fixture, writer, new SetupCliProgram.SystemWriter(error), CliFixture.RejectingAuthoringFiles, 65_536, 4 * 1024 * 1024)))
                 .WaitAsync(TimeSpan.FromSeconds(10));
 
             string target = Path.Combine(directory, "service.json");
@@ -254,7 +258,7 @@ public sealed class SetupCliMachineBoundaryTests
         var writer = new FailingWriter(prefix);
         var error = new FailingWriter(0);
         SetupCliExitCode exit = await new SetupCliApplication().RunAsync(new(["doctor", "--machine"], SetupCliMode.Machine,
-            new(new CliFixture(), writer, error, 65_536, 4 * 1024 * 1024)));
+            new(new CliFixture(), writer, error, CliFixture.RejectingAuthoringFiles, 65_536, 4 * 1024 * 1024)));
         await Assert.That(exit).IsEqualTo(SetupCliExitCode.Io);
         await Assert.That(writer.Attempts).IsEqualTo(1);
         await Assert.That(error.Attempts).IsEqualTo(1);
@@ -379,7 +383,7 @@ public sealed class SetupCliMachineBoundaryTests
     private static Task<SetupCliExitCode> RunArtifactAsync(CliFixture fixture, PublicationWriter writer, int budget = 65_536) =>
         new SetupCliApplication().RunAsync(new(["artifact", "create", "--definition", "definition.json", "--artifact", "config",
             "--input", "answers.json", "--output", "prepared.json", "--machine"], SetupCliMode.Machine,
-            new(fixture, writer, writer, budget, 4 * 1024 * 1024)));
+            new(fixture, writer, writer, CliFixture.RejectingAuthoringFiles, budget, 4 * 1024 * 1024)));
 
     private sealed class FaultingSecondCommitWriter(bool cleanupFails) : IProtectedArtifactWriter
     {

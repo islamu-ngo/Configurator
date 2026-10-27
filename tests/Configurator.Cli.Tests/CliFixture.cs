@@ -43,13 +43,16 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
     internal int MaximumRead { get; private set; }
     internal bool BundleBlocked { get; set; }
     internal int? BundleFailureAfter { get; set; }
+    internal static ISetupCliAuthoringFiles RejectingAuthoringFiles { get; } = new RejectingFiles();
+    internal ISetupCliAuthoringFiles AuthoringFiles { get; set; } = RejectingAuthoringFiles;
+    internal int MaximumBytes { get; set; } = 4 * 1024 * 1024;
 
     internal async Task<SetupCliExitCode> RunAsync(params string[] arguments)
     {
         StandardOutput = [];
         StandardError = [];
         return await new SetupCliApplication().RunAsync(new(arguments, SetupCliMode.Text,
-            new(this, this, new ErrorWriter(this), 65_536, 4 * 1024 * 1024)));
+            new(this, this, new ErrorWriter(this), AuthoringFiles, 65_536, MaximumBytes)));
     }
 
     internal Task<SetupCliExitCode> ArtifactAsync(string operation, string artifact = "config", params string[] options) =>
@@ -150,5 +153,17 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes,
             Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken) =>
             throw new IOException();
+    }
+
+    private sealed class RejectingFiles : ISetupCliAuthoringFiles
+    {
+        public ValueTask<string> DiscoverSourceAsync(string root, string? source, CancellationToken cancellationToken) =>
+            throw new UnauthorizedAccessException();
+        public ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken) =>
+            throw new UnauthorizedAccessException();
+        public ValueTask<bool> ExistsAsync(string path, CancellationToken cancellationToken) =>
+            throw new UnauthorizedAccessException();
+        public ISetupCliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical) =>
+            throw new UnauthorizedAccessException();
     }
 }

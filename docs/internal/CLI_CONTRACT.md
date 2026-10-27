@@ -50,6 +50,17 @@ machine mode never scrapes human help or emits its formatting.
 
 ### Bounded operation execution
 
+`SetupCliIo` requires separate `ISetupCliAuthoringFiles` authority in addition
+to private artifact I/O and safe output writers. Program explicitly constructs
+`PublicDefinitionFiles`; embedders must supply the capability and non-authoring
+fixtures reject access. All definition discovery, bounded reads, existence checks
+and staging, including schema-reference reads, cross this invocation boundary.
+No source handler falls back to ambient `File`/`Directory` or concrete helpers.
+Public preparation separates stage, commit and disposal. Changed `definition
+revise` output is a separate create-only candidate; source bytes are never
+replaced. This grants neither captured-handle/root authority nor target apply
+permission.
+
 `SetupCliIoOperations` reads bounded bytes, admits a local definition using
 `SetupDefinitionCodec`, rejects duplicate answer properties and snapshots JSON
 answers with `SetupAnswerSnapshot`. `SetupCliArtifactHandlers` uses

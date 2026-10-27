@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "definitionSchemaSha256": "221cfed34260f9dbd6ae34a91412b9b9228f6e46ec8de8691b60911d48658ae7",
   "authoringSchemaSha256": "b03e6ac353e5b4367088172b4e96272154be33342b89c49722bbeb72d87ab56b",
-  "commandSchemaSha256": "550201fabe58ba700fa97fdea572eedb40a6e958569ede15eef1934b7289e1a6",
+  "commandSchemaSha256": "89c955bce60411c1ce30396a5070e141cc44fbe585cf8d4003780d7099db7e41",
   "commandFamilies": [
     "catalogue",
     "artifact",

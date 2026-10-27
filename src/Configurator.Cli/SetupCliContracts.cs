@@ -13,6 +13,22 @@ public interface ISetupCliInput
     ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken);
 }
 
+/// <summary>Supplies an invocation's public authoring authority, independently of private answer I/O.</summary>
+public interface ISetupCliAuthoringFiles
+{
+    ValueTask<string> DiscoverSourceAsync(string root, string? source, CancellationToken cancellationToken);
+    ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken);
+    ValueTask<bool> ExistsAsync(string path, CancellationToken cancellationToken);
+    ISetupCliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical);
+}
+
+/// <summary>Separates staging, create-only publication and cleanup for truthful ordered receipts.</summary>
+public interface ISetupCliPublicFilePreparation : IDisposable
+{
+    ValueTask StageAsync(CancellationToken cancellationToken);
+    ValueTask<bool> CommitAsync(CancellationToken cancellationToken);
+}
+
 public interface ISetupCliWriter
 {
     ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken);
@@ -34,11 +50,12 @@ public sealed record SetupCliPublicationResult(IReadOnlyList<SetupCliPublication
 public sealed record SetupCliIo
 {
     public SetupCliIo(ISetupCliInput input, ISetupCliWriter output, ISetupCliWriter error,
-        int maximumOutputBytes, int maximumBytes)
+        ISetupCliAuthoringFiles authoringFiles, int maximumOutputBytes, int maximumBytes)
     {
         Input = input ?? throw new ArgumentNullException(nameof(input));
         Output = output ?? throw new ArgumentNullException(nameof(output));
         Error = error ?? throw new ArgumentNullException(nameof(error));
+        AuthoringFiles = authoringFiles ?? throw new ArgumentNullException(nameof(authoringFiles));
         if (maximumOutputBytes is < 1 or > 65_536 || maximumBytes is < 1 or > 4 * 1024 * 1024)
             throw new ArgumentOutOfRangeException(nameof(maximumBytes));
         MaximumOutputBytes = maximumOutputBytes;
@@ -47,6 +64,7 @@ public sealed record SetupCliIo
     public ISetupCliInput Input { get; }
     public ISetupCliWriter Output { get; }
     public ISetupCliWriter Error { get; }
+    public ISetupCliAuthoringFiles AuthoringFiles { get; }
     public int MaximumOutputBytes { get; }
     public int MaximumBytes { get; }
     public override string ToString() => $"{nameof(SetupCliIo)}:OutputBytes={MaximumOutputBytes}:Bytes={MaximumBytes}";

@@ -501,6 +501,7 @@
               "--limit",
               "--machine",
               "--offset",
+              "--output",
               "--root",
               "--source",
               "--text"

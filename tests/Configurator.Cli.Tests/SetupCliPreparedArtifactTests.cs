@@ -16,7 +16,8 @@ public sealed class SetupCliPreparedArtifactTests
         await Assert.That(Encoding.UTF8.GetString(output.ToArray())).IsEqualTo("[]");
         await Assert.That(publication.Outcomes[0].Result).IsNull();
         await Assert.That(publication.Outcomes[0].DeliveredToStandardOutput).IsTrue();
-        var invocation = new SetupCliInvocation([], SetupCliMode.Machine, new(new CliFixture(), writer, writer, 65_536, 4 * 1024 * 1024));
+        var invocation = new SetupCliInvocation([], SetupCliMode.Machine,
+            new(new CliFixture(), writer, writer, CliFixture.RejectingAuthoringFiles, 65_536, 4 * 1024 * 1024));
         var command = new SetupCliCommand("catalogue", "list", true, false, false, null, null, null, "-", null, null);
         SetupCliCommandResult planned = SetupCliResults.Success([SetupCliResults.Artifact("catalogue", "application/json",
             "[]"u8.ToArray(), "public", "stdout", "not-attempted")]);

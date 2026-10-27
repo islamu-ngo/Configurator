@@ -9,7 +9,7 @@ internal static class DefinitionCommands
         SetupCliCommandRegistry.Operation<DefinitionInitSettings>("init"),
         SetupCliCommandRegistry.Operation<DefinitionSourceSettings>("check"),
         SetupCliCommandRegistry.Operation<DefinitionBuildSettings>("build"),
-        SetupCliCommandRegistry.Operation<DefinitionReviseSettings>("revise"));
+        SetupCliCommandRegistry.Operation<DefinitionCandidateSettings>("revise"));
 }
 
 internal class DefinitionSourceSettings : SetupCliCommandSettings
@@ -57,8 +57,6 @@ internal sealed class DefinitionBuildSettings : DefinitionSourceSettings
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with { Output = Output, IdMap = IdMap };
 }
-
-internal sealed class DefinitionReviseSettings : DefinitionSourceSettings;
 
 internal sealed class DefinitionInitSettings : SetupCliCommandSettings
 {
