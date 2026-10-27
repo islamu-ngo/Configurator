@@ -1443,6 +1443,127 @@ those product owners did not change. Local publication is package build evidence
 not installed runtime qualification, signing, deployment or target acceptance.
 See the [ownership ADR](adr/ADR-cross-platform-quality-ownership.md).
 
+## Cross-platform quality program qualification (2026-10-27)
+
+The promoted program delivered its Browser, native editing, shared preparation,
+form, acquisition and CLI corrections on top of the native ownership checkpoint
+above. Product source settled at `dcc7617`; subsequent assurance commits do not
+change runtime behavior. The [ownership ADR](adr/ADR-cross-platform-quality-ownership.md)
+explains control/data flow; the [required-duty ledger](../../dev/backlog/cross-platform-quality-required-followups.md)
+preserves obligations outside this delivery. No remote CI, deployment, signing
+or new protection host was activated.
+
+### Final owner and wiring evidence
+
+All commands used SDK 10.0.302, Linux x64 and
+`TMPDIR="$HOME/.cache/agent-tmp"`. Final locked solution restore and
+`dotnet build Configurator.slnx --configuration Release --verbosity quiet`
+exited 0; the build reported 2.2 seconds. Current source-owner passes were
+retained rather than repeated after documentation/assurance-only edits:
+
+| Owner | Passed | Failed / skipped | Evidence scope |
+| --- | ---: | --- | --- |
+| Core | 150 | 0 / 0 | Canonical composition, aggregate admission, cancellation and independent output vectors |
+| Presentation | 167 | 0 / 0 | One form gate, typed controlled fixtures, ownership transfer and never-started disposal |
+| Artifacts | 65 | 0 / 0 | Physical storage, immutable receipts and protected create-only behavior |
+| CLI | 171 | 0 / 0 | Explicit authoring capability, candidates, concurrent editor preservation and command v2 |
+| Terminal | 101 | 0 / 0 | Correction drafts, bounded acquisition and retained native facts |
+| Desktop | 222 | 0 / 0 | Shared leaf/presence/focus behavior, acquisition, settlement and close |
+| Browser | 233 | 0 / 0 | Exact leases, mandatory policy, reconnect, export retirement and single-pass adoption |
+| Architecture | 69 | 0 / 0 | Final actual publications, installed CLI fixture and eight compiled owner boundaries; 17.591 seconds |
+
+The final gate reviewer approved with no blockers and moderate overall
+confidence, while noting that a later focused six-case run had overwritten
+Desktop's default report. The parent then executed only the full Desktop lane
+again with `--no-build --maximum-parallel-tests 1 --report-trx`,
+unique native results and the safe evidence tool. All 222 passed, exit 0;
+runner duration 4.331 seconds and TRX duration 4,016.5619 milliseconds are different
+clocks. The validated unique receipt is
+`.tmp/cross-platform-quality-final-owner-evidence/Configurator.Desktop-linux-x64-final-full-desktop-20261027.json`;
+it records 222 passed, zero failed/skipped, empty diagnostics and unmeasured
+coverage. The six-case file is not cited as a full-suite report. The reviewer
+did not rerun checks; its original evidence limit remains historical in
+`.omo/evidence/cross-platform-quality-promoted-gate-review.md`.
+
+Owner commands use `dotnet test --project tests/Configurator.<Owner>.Tests/Configurator.<Owner>.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1`.
+Desktop concurrency was restricted to one test. The final Architecture command ran
+after all publications, not against a historical package. Focused compiled
+boundary controls passed 26/26; forbidden-edge mutation controls demonstrate
+rejection, including the existing static host's empty first-party set.
+The native acquisition post-correction mutation removed worker dispatch and
+caused four open/stat failures with two read cases passing; exact restoration
+passed 6/6 in 790 ms. This is not historical pre-fix Red.
+
+Actual dynamic coverage retained the complete current Core 150 and Presentation
+167 suites: Core 3,223/3,815 class-line entries and 2,745/3,687 branches;
+Presentation 1,699/1,771 and 1,192/1,346. Safe owner/run JSON resides in the
+local `phase12-safe` temporary evidence directory. The [Testing anchor](TESTING.md#initial-collection-and-resolved-core-instrumentation-prerequisite)
+records the installed legacy `libxml2.so.2` collector prerequisite and exact
+dynamic settings. No test, compiled guard or warning was excluded. Ordinary
+owner passes are not coverage evidence; these measured runs are. Later CLI
+work changed no Core/Presentation product source. No global threshold or
+mutation score is claimed.
+
+### Final packages and actual surfaces
+
+Serial `PublishConfigurator` runs for `cli`, `terminal` and `desktop` with
+`ConfiguratorRid=linux-x64` exited 0. Serial `PublishConfiguratorBrowser`
+published the separate Store root, default Store root, then default store-free
+root; the final package suite checked stale-asset removal. Source-owned command
+schema and all three ratchets passed their native freshness checks.
+
+The current CLI validator executed all five cohorts successfully: schema
+freshness, doctor, help, read-only validation and protected-create/conflict.
+Its self-test accepted two and rejected 42 hostile envelopes. CI uses this same
+tool for every configured native CLI lane and the Linux package gate; remote
+matrix results remain unexecuted here. Package identities are SHA-256:
+
+| Final payload | Identity |
+| --- | --- |
+| CLI executable | `9d41dd6e5f214f82ec87043eb9c9e41fe8c640c6f7a90619d865f3917b2d72c8` |
+| CLI package contract | `cdedc5af534fdf0789cd03ebc2d68ad96c30c4dc14a178621c4335f92ff90259` |
+| Packaged/current command schema | `89c955bce60411c1ce30396a5070e141cc44fbe585cf8d4003780d7099db7e41` |
+| Terminal executable | `530b3b427fd40aed155562ea53292abaeffa2c30f34cc40886279a65532a90f5` |
+| Desktop executable | `86826ae305c2f9257b9fa3bc31e20bfa005a0959b208d30873340bf11332d01f` |
+| Final Browser asset manifest | `15797408fb996080919609817563dedaea58407a3021b85e903b9793a899d116` |
+
+| Scenario | Observed result and local artifact |
+| --- | --- |
+| Browser exact registration and mandatory denied/rejected/retry initialization | Passed actual published cohorts; `.tmp/cross-platform-quality-browser-registration/qualification.json` and `cross-platform-quality-browser-policy/qualification.json` |
+| Actual native reconnect, public admission, active-custody denial and listener release | Passed without internal reload; `.tmp/cross-platform-quality-browser-connectivity/qualification.json` |
+| Shipped export module late-open denial, held-copy revocation and metadata reclamation | 200 cycles, peak 1/final 0 entries; `.tmp/cross-platform-quality-browser-export/qualification.json` |
+| Single-pass drafts, complete rejection, retry/reveal/clear and deliberate download | Three redacted incomplete drafts; complete rejection yields zero outputs; independently validated JSON download 82 bytes, digest `87bb6f312597ca2d42c011e8fada46266e5df7572e30c243048364064a563595`; `.tmp/cross-platform-quality-browser-adoption/qualification.json` |
+| Final Browser package at fresh loopback origin 5199 | Three incomplete/redacted drafts and immediate clear; disabled answer fieldset; no horizontal overflow at 1440x900/390x844; directly inspected session images and `.tmp/cross-platform-quality-final-surfaces/qualification.json` |
+| Published Terminal correction/clear/keyboard close | Final 110x36 PTY retained rejected public correction across experience change; clear status observed; Tab/Enter close exits 4 because no save occurred. Earlier protected draft/disclosure/resize cohort retains its own identity in `.tmp/cross-platform-quality-terminal-drafts/qualification.json` |
+| Final real X11 lifetime/editing/close guards | All 18 required names completed; 7,669.0392 ms; `.tmp/cross-platform-quality-final-native/en/qualification.json`; normal/minimum light/dark captures inspected. Earlier separate en/ar runs establish exact touched resources, not whole translation |
+| Published Desktop keyboard intake/edit/close | Local synthetic definition loaded via Tab/Enter, rejected leaf retained with its diagnostic and untouched sibling; ordinary close exits 0. `.tmp/cross-platform-quality-final-desktop/{start,loaded,invalid-leaf}.png` |
+
+The final X11 command built `tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj`
+in Release, then ran it with `CONFIGURATOR_NATIVE_UI_CULTURE=en`,
+`--expected-rid linux-x64 --minimum-expected-checks 18 --capture-directory "$PWD/.tmp/cross-platform-quality-final-native/en"`.
+The required-name set, not the minimum alone, determines success.
+
+Earlier Browser semantic cohorts bind asset manifest
+`14ee82b9ea6b6c09c7c4da91bd83a0c62ef737b0fd368d6df034d1978b0ec314`;
+the final smoke supplements those unchanged-source passes without relabelling
+their identity. A stale origin's pinned worker and an initial download oracle
+failure caused by appending to a default remain recorded. Correcting the origin
+and selecting/replacing the synthetic input fixed the qualification setup, not
+the product. Early DOM clear proves immediate denial, not settled worker custody.
+All task-owned views, static host and native apps were closed afterward.
+
+Safe evidence self-tests, action pins and dependency closure remain separate
+engineering checks. Final AgentWorkflow2/2 and ReleaseEngineering468/468 passed,
+and the evidence sanitizer passed all18 synthetic vectors. Action pins11 and
+dependency policy95 closure pairs passed without changing action/dependency
+versions. No raw answer/download content was copied into reports.
+Unqualified duties remain explicit: full responsive preparation and compound
+roots, aggregate registry budgets, captured CLI handles/root exclusion, the Core
+directory-I/O exception, complete Terminal viewport/locale/AT, wider Desktop
+accessibility, other native hosts/installers, remote CI and first-party
+publication authority. No broad performance, accessibility, erasure or
+whole-product certification follows from these scoped passes.
+
 ## Full Project Test List
 
 ### Desktop readiness evidence

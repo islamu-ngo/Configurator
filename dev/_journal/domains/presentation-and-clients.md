@@ -373,3 +373,183 @@ and [execution evidence](../../../docs/internal/OPERATIONS.md#native-ownership-q
 **Promotion Consideration**: The ADR and native guides own the delivered lifetime
 contract. New hosts, installed payloads, human AT and deferred program slices
 retain their separate qualification owners.
+
+[2026-10-27 Europe/Brussels] - Exact navigation leases outlive component identity
+
+**Context**: Cross-platform quality corrected Browser navigation while retaining
+the shared workspace's independent physical lifetime.
+
+**Symptom / Observation**: The same component reacquired a workspace during held
+discard cleanup. Owner-only release could remove the new registration; replacing
+an outstanding retirement with an empty cleanup task could also report completion
+too early.
+
+**Root Cause**: Component identity, registration generation and physical resource
+retirement are three different lifetimes. A stale-result generation denies
+readiness but does not finish outstanding cleanup.
+
+**Resolution**: Capture exact registration leases across confirmation/discard/
+release and observe captured plus current retirement. Commit `dc3c20d` retains
+navigation 9/9 and lifecycle 13/13 evidence, distinct from actual Browser proof.
+The earlier native cancellation entry remains the physical-buffer lesson.
+
+**Why This Matters for Future Work**: A same-owner replacement is an adversarial
+case, not just a different-component navigation. Never release today's capability
+using yesterday's cleanup, or call logical revocation physical settlement.
+
+**References**: `src/Configurator.Browser/Services/BrowserNavigationState.cs`,
+`src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs`,
+[ownership ADR](../../../docs/internal/adr/ADR-cross-platform-quality-ownership.md).
+
+**Promotion Consideration**: The ADR owns the lifetime decision; retain this
+entry as the reusable same-owner race lesson.
+
+[2026-10-27 Europe/Brussels] - Rejected corrections are not accepted answer origins
+
+**Context**: Native adapters project the shared literal-path editor rather than
+own independent semantic answers.
+
+**Symptom / Observation**: Terminal disclosure/experience/resize could reconstruct
+a scalar from the accepted value and lose its rejected correction. Desktop also
+needed shared presence and leaf errors rather than root-only approximations.
+
+**Root Cause**: Accepted answer/origin and correction draft represent different
+facts. A render refresh cannot infer the latter from the former.
+
+**Resolution**: Terminal reads the exact current path's draft before its committed
+value; masked storage and clear retain their separate custody rules (`b4ec7ca`).
+Desktop consumes shared path mutations/presence/diagnostics through one refresh
+coordinator (`f364a7a`). Published correction/clear and X11 en/ar touched-action
+checks passed, without full viewport/translation/AT qualification.
+
+**Why This Matters for Future Work**: Preserve a rejected correction across
+view-only changes without calling it an accepted answer, changing its origin or
+cloning the answer tree. Viewport and accessible interaction remain real-surface
+proof obligations even when the shared semantics pass.
+
+**References**: [Presentation state](../../../docs/internal/PRESENTATION_STATE.md),
+[Terminal contract](../../../docs/internal/TERMINAL_CLIENT.md),
+[required followups](../../backlog/cross-platform-quality-required-followups.md).
+
+**Promotion Consideration**: Contracts and ADR own the behavior; retain the
+distinction as a reusable adapter lesson.
+
+[2026-10-27 Europe/Brussels] - Single-pass bundles still need never-started disposal
+
+**Context**: Browser removed temporary bundle composition followed by per-output
+recomposition in `4d71fde`.
+
+**Symptom / Observation**: Independent rendered measurement observed four
+compositions for two outputs before correction and two ordered compositions after.
+An adopted operation could hold private bytes before any workspace executed it.
+
+**Root Cause**: Validation reuse is safe only inside the exact bundle authority;
+execution-only disposal omits staged operations that are rejected before start.
+
+**Resolution**: Core keeps validation internal to definition/snapshot/mode.
+Browser stages disposable Presentation adoptions and publishes only after
+aggregate admission/current-generation checks. Never-started, failed and stale
+owners retire bytes; transfer occurs once. Core 150/Presentation 167/Browser 233
+passed in retained evidence, with independent byte/digest/draft/aggregate oracles.
+
+**Why This Matters for Future Work**: Removed duplicate work is not bounded
+main-thread work. Capture, encoding/hash, copies, adoption and erasure still need
+the separate responsive-preparation proof.
+
+**References**: [single-pass ADR](../../../docs/internal/adr/ADR-single-pass-preparation-ownership.md),
+[responsive preparation P](../../backlog/browser-interaction-performance-followups.md).
+
+**Promotion Consideration**: Already represented by the single-pass ADR; keep
+this observed ownership/measurement lesson rather than duplicate its contract.
+
+[2026-10-27 Europe/Brussels] - Controlled fixtures must capture output before release
+
+**Context**: Shared form decomposition migrated behavioral reflection adapters
+to typed operation/generation/message fixtures in `17b0f3a`.
+
+**Symptom / Observation**: A held completion allows later fixture edits. Reading
+fixture output only after release can make an earlier invocation return newer
+bytes, concealing an ownership or stale-generation bug.
+
+**Root Cause**: The fixture's mutable state is not the operation's captured
+result. Blocking delivery must not defer the snapshot being asserted.
+
+**Resolution**: Typed operations capture output before awaiting their controlled
+completion gate, then release the already-owned result. Existing stale-result
+and ordered-byte assertions remain; retained Presentation 167/167 passed.
+Reflection stays for actual compiled shape/passive buffer inspection.
+
+**Why This Matters for Future Work**: Subscribe and capture before triggering or
+releasing asynchronous work. A mock that changes the ownership order can make
+an integration regression impossible to observe.
+
+**References**: [form state and typed fixtures](../../../docs/internal/PRESENTATION_STATE.md#form-state-ownership-and-api-migration),
+commit `17b0f3a`.
+
+**Promotion Consideration**: Keep as the reusable fixture lesson; no new generic
+test framework or prose-pinning assertion is required.
+
+[2026-10-27 Europe/Brussels] - Collector success requires a real measured report
+
+**Context**: Safe evidence work (`8f9803a`) enabled actual selected-owner coverage
+while preserving the compiled guards and complete suites.
+
+**Symptom / Observation**: Static instrumentation conflicted with an unchanged
+compiled architecture guard. Dynamic collection then produced an empty profiler
+report until the installed legacy `libxml2.so.2` ABI was supplied through the
+run's library path. No tests/guards were excluded or dependencies installed.
+
+**Root Cause**: Instrumentation mode and the profiler's native load dependencies
+are distinct from test execution success. Passing tests alone prove no coverage.
+
+**Resolution**: Use the existing dynamic configuration and installed ABI, then
+validate actual measured assembly/run identity and safe reports. Retained Core 150
+measured 3,223/3,815 lines and 2,745/3,687 branches; Presentation 167 measured
+1,699/1,771 lines and 1,192/1,346 branches. Initial Presentation 155 is historical.
+Raw artifacts remain local; safe evidence omits free-form values/private paths.
+
+**Why This Matters for Future Work**: Fix the collection environment rather than
+excluding guards or reporting an empty file as zero/success. Final settled-input
+suitability and retained evidence publication remain parent-owned gates.
+
+**References**: `.ci/scripts/coverage.config`, `.ci/scripts/prepare-test-evidence.cs`,
+[retained evidence contract](../../../PROJECTS.md#retained-test-and-coverage-evidence),
+commit `8f9803a`.
+
+**Promotion Consideration**: Operational environment details belong in Operations;
+retain the distinction between execution and measured evidence here.
+
+[2026-10-27 Europe/Brussels] - Mutation and source passes are not historical package proof
+
+**Context**: Final native acquisition and actual Browser/CLI qualification
+checked the boundaries that source suites cannot execute.
+
+**Symptom / Observation**: Removing worker dispatch after the acquisition fix
+produced four open/stat failures and two asynchronous-read passes. Restoring
+the exact source passed 6/6 in 790 ms. An old Browser origin ran its pinned old
+worker; a historical CLI package rejected stale schema/receipt facts.
+
+**Root Cause**: A post-correction mutation is a negative control, not a recovered
+pre-fix Red. Source correctness and candidate identity are separate from the
+module/binary actually loaded by a host.
+
+**Resolution**: Retain the mutation as such (`7cf690c`); qualify the current Browser
+module on a fresh origin. Its actual export module completed 200 cycles with
+peak 1/final 0 live entries. The actual current CLI binary subsequently passed all
+five parser cohorts. Final package/architecture/surface gates remain distinct.
+The Browser's first download oracle failure was retained: trusted insertion
+appended to a default; selecting/replacing produced the independently validated
+82-byte successor. A helper click required scrolling to the actual control.
+
+**Why This Matters for Future Work**: Verify loaded candidate identity, visible
+control state and independent output oracles before attributing helper failures
+to product code. Preserve failed attempts; never relabel them to create Red
+history or infer installed/other-host support.
+
+**References**: `src/Configurator.Artifacts/BoundedFileInput.cs`,
+`.ci/scripts/validate-cli-package.cs`,
+[ownership evidence limits](../../../docs/internal/adr/ADR-cross-platform-quality-ownership.md#evidence-and-graduation-limits),
+[Operations](../../../docs/internal/OPERATIONS.md).
+
+**Promotion Consideration**: Keep the reusable evidence-attribution lesson here;
+Operations owns exact commands and final qualification identities.

@@ -1,15 +1,17 @@
 # Browser interaction performance - Required followup slices
 
-Last Updated: 2026-10-22 Europe/Brussels
+Last Updated: 2026-10-27 Europe/Brussels
 
-Status: required deferred scope, not implemented, approved or qualified.
+Status: required deferred responsiveness/compound-root and H/Q scope;
+single-pass preparation and disposable adoption are delivered, not full P qualification.
 Owner: Core/Presentation/Browser maintainers for P; hosting maintainer for H;
 qualification maintainer for Q. Actual people are not assigned by this review.
 Origin: CTO right-sizing of browser-interaction-performance R2 at product
 `733aba5fceb41ec1c0c6337525ccdee67a8093e0`.
 Primary slice: [form computation decision](../../docs/internal/adr/ADR-browser-form-computation.md).
 The R3 interaction implementation and reference-host qualification are complete;
-the slices below remain required and unimplemented.
+the remaining outcomes below stay required. The 2026-10-27 graduation annotation
+distinguishes delivered ownership work from unmeasured responsiveness.
 
 ## Delivery Boundary
 
@@ -57,14 +59,37 @@ storage, public caches, worker messages, logs or evidence.
 the public scheduling asset admitted before answers. Updates never replace a live
 workspace. Local preparation never grants target acceptance/apply authority.
 
-### Verified Defect And Unresolved Boundaries
+### Historical Defect, Delivered Correction And Unresolved Boundaries
 
-Browser `ConfigurationEditor.razor.cs:210,236-267` snapshots, composes a temporary
-bundle, disposes it and recomposes each admitted artifact through operations.
+The original audit at Browser `ConfigurationEditor.razor.cs:210,236-267` found
+snapshot/temporary bundle composition followed by per-artifact recomposition.
 The separate preparation evidence audit confirmed per-artifact validation too.
-These are source facts, not measured CPU attribution.
+Those line locators are historical source evidence, not current defect locations
+or measured CPU attribution.
 
-The following work is not bounded merely by an `Advance(workQuota)` API:
+Cross-platform quality `4d71fde` delivered one internally validated Core bundle
+and disposable prepared Presentation adoption, with current-generation aggregate
+publication. It removed duplicate validation/composition; independent rendered
+measurement changed from four compositions for two outputs to two ordered
+compositions. Never-started adoption disposal, one-shot transfer and bundle draft
+withholding are delivered, not pending P features. See the
+[single-pass ADR](../../docs/internal/adr/ADR-single-pass-preparation-ownership.md)
+and [cross-platform ownership ADR](../../docs/internal/adr/ADR-cross-platform-quality-ownership.md).
+
+The actual Browser candidate
+`14ee82b9ea6b6c09c7c4da91bd83a0c62ef737b0fd368d6df034d1978b0ec314`
+has scoped adoption/export/custody proof: three redacted incomplete drafts,
+incomplete complete-mode rejection with zero outputs, retry/reveal/clear and an
+independently validated 82-byte JSON download without content logs. Actual export
+module 200-cycle peak 1/final 0 metadata retirement is also proven. These establish
+semantics and retirement, not the latency budgets below. The fresh origin
+qualified the current module after an old origin retained its pinned worker.
+The first input/default oracle failure was retained, not relabeled a product
+failure. Parent final current-candidate smoke and evidence reconciliation remain.
+
+The following work is not bounded merely by single-pass composition/adoption or
+an `Advance(workQuota)` API. Original audit locators below remain historical
+traceability; refresh actual owners before activating P:
 
 - `SetupDefinition.cs:139-157`: snapshot canonicalization, parse and clone before
   preparation starts.
@@ -85,7 +110,8 @@ through denying or clearing protected output to obtain a better timing.
 
 ### Retained Architecture And Alternatives
 
-One preparation-specific Core `DefinitionPreparationSession` owns admitted
+Retained P design hypothesis, not an admitted API: one preparation-specific Core
+`DefinitionPreparationSession` would own admitted
 definition, immutable answers, bounded requested outputs and complete/draft mode.
 Proposed methods: `Advance(workQuota)`, single terminal `TakeResult()`, synchronous
 `Dispose()` clearing partial/unclaimed buffers. No JS, scheduler, trusted-
@@ -100,13 +126,14 @@ canonical identity, limits and complete/draft semantics. Draft bundles may carry
 valid artifacts and withholding diagnostics while `Succeeded` is false; do not
 reduce terminal state to a misleading success Boolean.
 
-Owned prepared-output adoption into `DefinitionPresentationOperation` must be
-disposable before execution, create the existing owned-copy outcome, clear
-temporary buffers in `finally`, and preserve both workspace operation-generation
+Owned prepared-output adoption into `DefinitionPresentationOperation` is now
+delivered: disposable before execution, it creates the existing owned-copy outcome,
+clears temporary buffers in `finally`, and preserves both workspace operation-generation
 and Browser editor-generation fences. Metadata is value-free; buffers are not.
 Never-started, cancelled, rejected, stale, accepted and disposed owners each have
 one retirement path. No borrowed retained view or asynchronous erasure is admitted.
-The unchanged copying seam cannot be called bounded without the proof above.
+The delivered copying seam cannot be called bounded without the proof above.
+Reuse it rather than reimplement adoption under P.
 
 Browser owns scheduling and truthful idle/preparing/cancelled/failed/ready states.
 Proposed `BrowserPreparationScheduler` / `browser-scheduling.js` carry no private
@@ -139,7 +166,9 @@ provisional product budgets, not achieved results.
 
 ### P Paths, Sequence And Commit Outcomes
 
-Re-baseline exact ownership before execution. Original bounded path inventory:
+Re-baseline exact ownership before execution. Original bounded path inventory
+below is historical planning, not an instruction to recreate delivered bundle/
+adoption work or an admission of the proposed bounded evaluator:
 
 - Core Definitions: existing `DefinitionValidator.cs`, `DefinitionJson.cs`; new
   `DefinitionEvaluation.cs`.
@@ -229,3 +258,37 @@ Retain source-free official research references in the active plan's research
 register. Canonical behavior, consent and erasure are current product invariants,
 not backward-compatibility obligations. New dependencies/provenance or authority
 changes need their own admission, not permission inferred from this backlog.
+
+## Maximum Compound-Root Mount Qualification
+
+Required owner: Presentation/Browser. Existing flat-root and list-row evidence
+does not bound mounting one maximum admitted object/list-object subtree.
+Recursive child controls can concentrate work inside one root even when root
+batches are bounded. This is a measurement obligation, not a proven current
+regression or approval for a renderer/evaluator rewrite.
+
+Exercise admitted deep/wide compounds and lists through disclosure, activation,
+correction focus, editing and relevant view changes, using the actual published
+candidate and requested final frame. Preserve logical row identity, focus,
+correction drafts, origins, native callback fences and one answer/evaluation
+owner. Full-content completion requires no pending mount batches; a spinner or
+acknowledgement alone is not completion.
+
+Keep existing control p95 <=100 ms at 1x / <=400 ms at 4x, strict feedback
+<50 ms / <200 ms and no warmed 1x long task >50 ms. Preserve the existing search
+exception as a distinct criterion, and retain P's separate near-limit input/
+cancel <=100/<=200 ms budget. Record first-use separately and retain all samples/
+outliers. Measure before selecting any bounded renderer change; do not relax
+budgets, reset batching on density changes, blanket-convert native controls or
+introduce a generic scheduler/cache to obtain green.
+
+## Graduation Cross-References
+
+The [required quality ledger](cross-platform-quality-required-followups.md)
+retains P/compound-root, registry aggregate entry/byte/history budgets and
+broader host/AT/publication obligations without importing ignored local histories.
+Connectivity refresh, mandatory custody, exact navigation leases and export
+retirement are delivered cross-platform corrections, not reasons to mark all
+P/H/Q or production-v1 gates complete. [Operations](../../docs/internal/OPERATIONS.md)
+owns exact executed commands/candidate evidence; the parent owns final workstream
+qualification and I-VSD integration.

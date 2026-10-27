@@ -225,7 +225,28 @@ post-inspection; CLI and native UI receipts retain that fact after verification
 failure without promising continued destination integrity or rollback. The
 [protected-artifact contract](../PROTECTED_ARTIFACTS.md) owns these invariants and
 the direct result/machine-contract replacement; the change does not qualify new
-hosts or resolve the separately tracked Desktop operation-buffer settlement risk.
+hosts. The subsequent native ownership slice resolved Desktop's operation-buffer
+settlement risk: the physical consumer owns storage until settlement, while
+stale installation facts remain separately inspectable and a close deadline
+offers a deliberate unknown-outcome decision.
+
+The [cross-platform ownership decision](../adr/ADR-cross-platform-quality-ownership.md)
+connects that native foundation to exact Browser registration/custody/export
+lifetimes, faithful native correction editing, single-pass preparation, shared
+form state, bounded acquisition and explicit CLI authoring candidates. Core
+remains the semantic authority, Presentation the one answer/mutation authority
+and Artifacts the native I/O owner. CLI authoring capability is invocation-bound;
+it does not claim captured filesystem authority. The optional static host owns
+no configuration engine or answers.
+
+[Program qualification](../OPERATIONS.md#cross-platform-quality-program-qualification-2026-10-27)
+separates current owner suites, measured coverage, actual packages and exercised
+surfaces from broader support. The [required-duty ledger](../../../dev/backlog/cross-platform-quality-required-followups.md)
+retains preparation responsiveness, compound-root/resource budgets, captured
+authoring handles/root exclusion, locale/AT, directory-source portability,
+additional hosts/installers and first-party publication authority. Graduating
+the delivered mechanisms does not waive those obligations or confer target
+acceptance, signing or deployment authority.
 
 Engineering changes run engineering tests only. Generic release tests use local
 inert workflow/script fixtures; the verified fixture closure requires no Event
