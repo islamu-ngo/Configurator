@@ -13,6 +13,8 @@ public sealed class BrowserOfflineWorkflowTests
         using var context = new BunitContext();
         var module = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         module.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, false));
+        module.Setup<long>("subscribeConnectivity", _ => true).SetResult(1L);
+        module.SetupVoid("unsubscribeConnectivity", 1L).SetVoidResult();
         module.Setup<byte[]?>("readDefinition", BrowserFixture.Definition.Digest.Value)
             .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);

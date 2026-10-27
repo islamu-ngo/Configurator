@@ -8,6 +8,8 @@ using Microsoft.JSInterop;
 public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposable
 {
     private IJSObjectReference? _module;
+    private DotNetObjectReference<BrowserOfflinePolicy>? _reference;
+    private long? _connectivitySubscription;
     private Task? _initialization;
     private bool _appPrepared;
     private bool _disposed;
@@ -37,8 +39,18 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
             _appPrepared = state.AppPrepared;
             OfflineReady = state.AppPrepared && state.OfflineReady;
             IsOffline = !state.Online;
+            _reference = DotNetObjectReference.Create(this);
+            _connectivitySubscription = await module.InvokeAsync<long>("subscribeConnectivity", _reference);
         }
         catch (JSException) { _appPrepared = false; OfflineReady = false; }
+    }
+
+    /// <summary>Observes connection eligibility only; online status does not prove remote reachability or release custody.</summary>
+    [JSInvokable]
+    public void ConnectivityChanged(bool online)
+    {
+        if (_disposed) return;
+        IsOffline = !online;
     }
 
     public async ValueTask<bool> BeginWorkspaceAsync()
@@ -123,8 +135,21 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
     {
         if (_disposed) return;
         _disposed = true;
-        if (IsWorkspaceActive) await EndWorkspaceAsync();
-        if (_module is not null) await _module.DisposeAsync();
+        try
+        {
+            if (IsWorkspaceActive) await EndWorkspaceAsync();
+            if (_initialization is not null) await _initialization;
+            if (_module is not null)
+            {
+                if (_connectivitySubscription is { } subscription)
+                {
+                    try { await _module.InvokeVoidAsync("unsubscribeConnectivity", subscription); }
+                    catch (JSException) { }
+                }
+                await _module.DisposeAsync();
+            }
+        }
+        finally { _reference?.Dispose(); }
     }
 }
 

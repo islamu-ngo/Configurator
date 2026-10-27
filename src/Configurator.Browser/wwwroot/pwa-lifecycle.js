@@ -9,6 +9,31 @@ let offlineReady = false;
 let generation = 0;
 const appAssets = new Set();
 let abandoned = false;
+const connectivitySubscriptions = new Map();
+let nextConnectivitySubscription = 0;
+
+export function subscribeConnectivity(reference) {
+    const subscription = ++nextConnectivitySubscription;
+    const notify = () => {
+        if (abandoned || !connectivitySubscriptions.has(subscription)) return;
+        // A queued notification can outlive managed disposal; it carries no workspace data.
+        reference.invokeMethodAsync('ConnectivityChanged', navigator.onLine).catch(() => {});
+    };
+    connectivitySubscriptions.set(subscription, notify);
+    window.addEventListener('online', notify);
+    window.addEventListener('offline', notify);
+    // The cached app-preparation result may predate this subscription.
+    notify();
+    return subscription;
+}
+
+export function unsubscribeConnectivity(subscription) {
+    const notify = connectivitySubscriptions.get(subscription);
+    if (!notify) return;
+    connectivitySubscriptions.delete(subscription);
+    window.removeEventListener('online', notify);
+    window.removeEventListener('offline', notify);
+}
 
 export function canFetchDefinition() {
     return !abandoned && navigator.onLine && !workspaceActive;

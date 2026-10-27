@@ -187,6 +187,14 @@ eight canonical documents and re-admits/checks each digest on read. Updates wait
 and cannot reload an active workspace. Browser-managed worker update checks
 remain a platform limitation; physical disconnection provides stronger silence.
 
+The public lifecycle module subscribes to browser online/offline events and
+notifies `BrowserOfflinePolicy` with a boolean only. Subscription immediately
+resamples connectivity after cached initialization; queued callbacks cannot
+mutate a disposed policy, and disposal removes even a late-returning subscription.
+Reconnection permits clean-entry source retrieval without a reload, but never
+overrides live workspace custody. Browser online status is eligibility, not proof
+that a remote host is reachable; normal bounded-fetch diagnostics still apply.
+
 Serve the entire published `wwwroot` via a secure context, with SPA fallback
 for `/launch/*` and `/open`, correct WASM MIME types and asset failures distinct
 from HTML navigation. Base path, worker scope and manifest must agree. CSP

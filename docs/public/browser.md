@@ -313,6 +313,10 @@ compose and export locally. Answers are not retained: reopening starts a new
 empty workspace.
 Offline operation and live answer work block application remote-definition
 fetches. Starting another definition deliberately ends the current workspace.
+The app observes connection changes: reconnecting makes clean-entry source
+loading eligible again without reloading the page, while an active answer
+workspace still blocks remote-definition loading. Being online does not promise
+that a particular source is reachable; ordinary source errors still apply.
 Worker updates wait rather than reload or replace a live workspace; close
 active work in all tabs before taking an update.
 
