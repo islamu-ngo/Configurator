@@ -22,7 +22,7 @@ ISLAMU Configurator prepares application-owned configuration artifacts, while th
 [![Documentation][docs-shield]][official-docs-link]
 [![Donate via Stripe][stripe-shield]][stripe-donation-link]
 
-[**Documentation**](docs/README.md) · [**Roadmap**][roadmap-link] · [**Quickstart**](#quick-start-for-developers--contributors) · [**Packaging**](docs/public/packaging.md) · [**Developer Guide**](#-documentation-for-developers--contributors) · [**Sponsor**](#-sponsors)
+[**Documentation**](docs/README.md) · [**Roadmap**][roadmap-link] · [**Quickstart**](#quick-start-for-developers--contributors) · [**Packaging**](docs/public/packaging.md) · [**Developer Guide**](#-2-internal-engineering-specifications-for-developers--contributors) · [**Sponsor**](#-sponsors)
 
 </div>
 
@@ -207,14 +207,19 @@ ISLAMU Configurator maintains a deliberate separation between **Public Adopter D
 
 > 📖 **Documentation Hub:** Visit [docs/README.md](docs/README.md) for the repository guides. No separate hosted Configurator documentation portal is claimed.
 
-* **[CLI](docs/public/cli.md)** — Machine operations, answer workspaces and deterministic envelopes.
-* **[Terminal](docs/public/terminal.md)** — Keyboard-driven native preparation.
+* **[Overview & Mental Model](docs/public/overview.md)** — What Configurator is, how the 3-step model works, and interface comparisons.
+* **[Quickstart](docs/public/getting-started.md)** — Step-by-step walkthrough preparing configuration offline.
+* **[Glossary](docs/public/glossary.md)** — Plain-language definitions for all domain concepts.
+* **[CLI Reference](docs/public/cli.md)** — Machine operations, answer workspaces and deterministic envelopes.
+* **[Terminal](docs/public/terminal.md)** — Keyboard-driven native preparation with Terminal.Gui.
 * **[Desktop](docs/public/desktop.md)** — Avalonia forms and protected saves.
 * **[Browser Configuration](docs/public/browser.md)** — Transient complete preparation, secret-deferred drafts, deliberate exports and static PWA hosting.
 * **[Launch Integration](docs/public/launch-integration.md)** — Family/version/entry/locale/digest selection.
 * **[Definitions](docs/public/definitions.md)** — Data-only target definition authoring.
 * **[Native Output](docs/public/native-output.md)** — Restricted artifacts and host limits.
 * **[Packaging](docs/public/packaging.md)** — Independent native packages and static WASM output.
+* **[Troubleshooting](docs/public/troubleshooting.md)** — Diagnostics, recovery steps, and platform limitations.
+* **[Comparison](docs/public/comparison.md)** — Architectural comparison with RunTipi, Backstage, Umbrel, Portainer, and Helm.
 
 ---
 
@@ -224,6 +229,9 @@ For developers contributing code, architecture reviewers, and AI agents, use the
 
 | Engineering Concern | Authoritative In-Repository Markdown File | What You Will Learn |
 |---|---|---|
+| **Vision & Core Goals** | [VISION_AND_APPROACH.md](docs/internal/VISION_AND_APPROACH.md) | The configuration experience problem, 7 core goals, and product boundaries. |
+| **Design Alternatives** | [DESIGN_ALTERNATIVES.md](docs/internal/DESIGN_ALTERNATIVES.md) | Structured record of adopted, considered, and rejected architectural attempts. |
+| **Architecture Overview** | [ARCHITECTURE.md](docs/internal/ARCHITECTURE.md) | Mermaid component diagrams, data flow pipeline, and layer dependency rules. |
 | **Developer Mental Model** | [PROJECTS.md](PROJECTS.md) | Actual project ownership and targeted commands. |
 | **Global Project Invariants** | [QUICK_REFERENCE.md](docs/internal/QUICK_REFERENCE.md) | Offline authority, privacy and engineering constraints. |
 | **Clean Architecture** | [Runtime ADR](docs/internal/adr/ADR-definition-runtime-boundary.md) | Core → Artifacts/Presentation → adapters, without Event assemblies. |
