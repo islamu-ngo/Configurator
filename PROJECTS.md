@@ -77,6 +77,44 @@ Select tests by the changed behavior, not by the number of files. These scopes
 are not promises of measured latency. No Event database, API or provider matrix
 belongs to an offline Configurator verification run.
 
+### Retained test and coverage evidence
+
+`.ci/scripts/prepare-test-evidence.cs` owns bounded safe TRX/Cobertura
+publication. Its native checks are:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet run .ci/scripts/prepare-test-evidence.cs -- --self-test
+dotnet run .ci/scripts/validate-action-pins.cs -- .github/workflows
+dotnet restore tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --locked-mode
+dotnet restore tests/Configurator.Presentation.Tests/Configurator.Presentation.Tests.csproj --locked-mode
+dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
+```
+
+Self-tests prove the tool's synthetic safety/exit contract, not coverage.
+The existing action-pin parser expects the workflow directory, not repository
+root. The Core/Presentation test projects privately reference the centrally
+pinned official MTP collector 18.9.0. Native restore promotes it to direct in
+their locks and central-transitive in the other eight TUnit test locks
+(Architecture, Artifacts, Browser, CLI, Desktop, Terminal, AgentWorkflow and
+ReleaseEngineering). Versions and hashes stay unchanged. No collector dependency
+enters a product project or package.
+
+The build/test workflow retains unique owner/RID/source-run-attempt JSON reports
+even on failure. Raw logs/TRX/coverage remain private. Only Core/Presentation
+request coverage; other owners explicitly report `unmeasured`. The
+[testing guide](docs/internal/TESTING.md#safe-retained-owner-reports) owns the
+collection command, schema meanings and dependency provenance.
+
+Initial Linux x64 Core and Presentation measurements are validated. The checked-in
+`.ci/scripts/coverage.config` selects dynamic managed instrumentation so
+Core's compiled image and its unchanged ambient-authority guard are preserved.
+This workstation's initially empty dynamic report came from a missing profiler
+ABI prerequisite, resolved using an already installed native library.
+See the [measurements and prerequisite](docs/internal/TESTING.md#initial-collection-and-resolved-core-instrumentation-prerequisite).
+Final workstream evidence must use settled source inputs; local measurements do
+not prove remote uploads or other hosts.
+
 ---
 
 ## 4. Protected Paths (Explicit Task Authority Required)
@@ -159,10 +197,13 @@ Desktop native qualification runs separately from MTP/headless tests:
 
 ```bash
 dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet
-dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 17
+dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 18
 ```
 
-Its seventeen required named scenarios reject missing/wrong native backend,
+Its eighteen required named scenarios retain all seventeen prior guards and add
+`D18-shared-editing-presence-localized-actions`. Parent-owned startup cohorts use
+`CONFIGURATOR_NATIVE_UI_CULTURE=en` and `CONFIGURATOR_NATIVE_UI_CULTURE=ar`.
+The scenarios reject missing/wrong native backend,
 failed checks and incomplete counts. It does not qualify manual native dialogs,
 assistive technology, a published payload or installers; those require separate
 evidence. See [Desktop qualification](docs/internal/DESKTOP_CLIENT.md#native-qualification).

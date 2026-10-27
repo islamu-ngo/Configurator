@@ -16,6 +16,7 @@ concurrency:
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
   DOTNET_NOLOGO: "1"
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: "1"
 
 jobs:
   cli-native:
@@ -54,7 +55,23 @@ jobs:
         run: |
           set -euo pipefail
           dotnet restore tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --locked-mode
-          dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --no-restore -- --minimum-expected-tests 1
+          raw=$(mktemp -d "$RUNNER_TEMP/cli-tests-XXXXXXXX")
+          if dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj \
+            --configuration Release --no-restore --minimum-expected-tests 1 \
+            --report-trx --report-trx-filename results.trx --results-directory "$raw" > "$raw/command.log" 2>&1
+          then status=0; else status=$?; fi
+          dotnet run .ci/scripts/prepare-test-evidence.cs -- \
+            --owner Configurator.Cli --rid '${{ matrix.rid }}' \
+            --run "${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-native" \
+            --input "$raw" --output artifacts/test-evidence --exit-code "$status" --coverage none
+      - name: Retain safe native CLI test evidence even on failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-evidence-cli-${{ matrix.rid }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/test-evidence/*.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Publish standalone CLI for this native host
         shell: bash
         run: |
@@ -102,6 +119,8 @@ jobs:
           dotnet workload install wasm-tools
       - name: Validate external Action pins
         run: dotnet run .ci/scripts/validate-action-pins.cs -- .github/workflows
+      - name: Verify safe evidence preparation with synthetic vectors
+        run: dotnet run .ci/scripts/prepare-test-evidence.cs -- --self-test
       - name: Restore and build explicit destination owners
         shell: bash
         run: |
@@ -156,13 +175,44 @@ jobs:
           dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -p:DefinitionStoreSourceRoot="$PWD/store" -verbosity:minimal
           dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfiguratorBrowser -verbosity:minimal
       - name: Assert compiled boundaries and actual package closure
+        shell: bash
         run: |
+          set -euo pipefail
           dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
-          for project in tests/Configurator.*.Tests/*.csproj; do
-            dotnet test --project "$project" --configuration Release -- --minimum-expected-tests 1
+          overall=0
+          for project in tests/Configurator.*.Tests/*.csproj \
+            eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \
+            eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj
+          do
+            owner=$(basename "$project" .Tests.csproj)
+            raw=$(mktemp -d "$RUNNER_TEMP/test-${owner}-XXXXXXXX")
+            mode=none
+            coverage=()
+            if [[ "$owner" == Configurator.Core || "$owner" == Configurator.Presentation ]]; then
+              mode=required
+              coverage=(--coverage --coverage-settings "$PWD/.ci/scripts/coverage.config" \
+                --coverage-output-format cobertura --coverage-output coverage.cobertura.xml)
+            fi
+            if dotnet test --project "$project" --configuration Release --no-restore \
+              --minimum-expected-tests 1 --report-trx --report-trx-filename results.trx \
+              --results-directory "$raw" "${coverage[@]}" > "$raw/command.log" 2>&1
+            then status=0; else status=$?; fi
+            if dotnet run .ci/scripts/prepare-test-evidence.cs -- \
+              --owner "$owner" --rid linux-x64 \
+              --run "${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-standalone" \
+              --input "$raw" --output artifacts/test-evidence --exit-code "$status" --coverage "$mode"
+            then evidence_status=0; else evidence_status=$?; fi
+            if [[ "$overall" -eq 0 && "$evidence_status" -ne 0 ]]; then overall=$evidence_status; fi
           done
-          dotnet test --project eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj --configuration Release -- --minimum-expected-tests 1
-          dotnet test --project eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj --configuration Release -- --minimum-expected-tests 1
+          exit "$overall"
+      - name: Retain safe owner test and coverage evidence even on failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-evidence-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/test-evidence/*.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Write package checksums
         run: |
           dotnet run .ci/scripts/write-artifact-checksums.cs -- artifacts/configurator artifacts/configurator/checksums.sha256

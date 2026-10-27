@@ -41,6 +41,126 @@ must be reported as missing; test failures must not be converted into success by
 publication. Configurator does not inherit Event's Codecov/provider publication
 pipeline.
 
+### Safe retained owner reports
+
+`.ci/scripts/prepare-test-evidence.cs` accepts explicit `--owner`, `--rid`,
+`--run`, `--input`, `--output`, `--exit-code` and `--coverage required|none`
+arguments. The input directory contains `results.trx` and, when required,
+`coverage.cobertura.xml`. Each selection must use a fresh private directory.
+The tool creates `<owner>-<rid>-<run>.json` without replacing an existing file.
+CI run identifiers include the source SHA, workflow run, attempt and lane;
+owner and host are separate filename components.
+
+The JSON retains owner/test assembly identity, passed/failed/skipped counts,
+duration, SHA-256 case identities, outcomes and fixed diagnostic codes. Test
+names, parameter values, stdout/stderr, exception text, source paths, machine
+names and TRX attachments are not copied. XML inputs are limited to 64 MiB each,
+100,000 cases/classes and 1,000,000 class-line entries, with DTDs prohibited.
+Coverage is computed from the selected product assembly's class-line entries
+and branch numerators/denominators, not from supplied percentages or dependency
+assemblies. Generated classes sharing a source line remain distinct, matching
+the collector's class-line model. Raw files remain private and are not uploaded.
+
+`EvidenceStatus: validated` means parsing succeeded, not that tests passed.
+`CommandExitCode` retains the original process status. A nonzero test exit is
+returned unchanged, including when report preparation fails. Invalid/missing
+reports after a zero test exit return 1; they cannot turn into success or zero
+coverage. Failed test counts survive an invalid coverage report.
+`CoverageStatus: unmeasured` is explicit for runs without collection.
+`--self-test` exercises synthetic positive/negative vectors and does not measure
+product coverage. CI uploads only safe JSON with `always()` and seven-day
+retention, including failed selections; it does not upload the private command
+log or overwrite dependency advisory files. The standalone loop continues
+through owners and returns the first nonzero test/evidence status.
+
+The selected collector is `Microsoft.Testing.Extensions.CodeCoverage` 18.9.0,
+centrally pinned with `PrivateAssets="all"` only in Core/Presentation tests.
+TUnit 1.63.0 already resolved this exact collector transitively. Native restore
+promotes it to direct in those two locks and central-transitive in the other
+eight TUnit test locks, without changing package versions or hashes. The exact
+affected locks are in Core, Presentation, Architecture, Artifacts, Browser, CLI,
+Desktop and Terminal tests, plus AgentWorkflow and ReleaseEngineering tests.
+Its nuspec requires MTP >= 2.3.0; the actual closure
+resolves MTP 2.3.3. The collector uses Microsoft .NET Library terms, not MIT:
+development/testing use is permitted, while redistribution carries separate
+requirements. Keep it out of product packages and preserve its original terms
+and third-party notices if test tooling is ever conveyed. Central pinning does
+not relicense it or authorize its redistribution.
+
+Official interface sources, consulted 2026-10-27:
+[MTP coverage](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-code-coverage),
+[MTP TRX reporting](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-extensions-test-reports),
+[collector configuration](https://github.com/microsoft/codecoverage/blob/main/docs/configuration.md)
+and the restored 18.9.0 nuspec/license. Implementation uses documented interface
+facts and independently designed allowlisted JSON output; no third-party
+implementation is copied.
+
+Collect a selected settled owner with native MTP arguments (no VSTest `--`
+separator after `dotnet test` in this SDK):
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+export DOTNET_CLI_TELEMETRY_OPTOUT=1 TESTINGPLATFORM_TELEMETRY_OPTOUT=1
+raw=$(mktemp -d "$TMPDIR/presentation-evidence-XXXXXXXX")
+if dotnet test --project tests/Configurator.Presentation.Tests/Configurator.Presentation.Tests.csproj \
+  --configuration Release --minimum-expected-tests 1 \
+  --report-trx --report-trx-filename results.trx --results-directory "$raw" \
+  --coverage --coverage-settings "$PWD/.ci/scripts/coverage.config" \
+  --coverage-output-format cobertura --coverage-output coverage.cobertura.xml \
+  > "$raw/command.log" 2>&1
+then status=0; else status=$?; fi
+dotnet run .ci/scripts/prepare-test-evidence.cs -- \
+  --owner Configurator.Presentation --rid linux-x64 --run local-presentation-unique \
+  --input "$raw" --output artifacts/test-evidence --exit-code "$status" --coverage required
+```
+
+Choose a new run token for every invocation. Inspect the safe report and record
+the source/build identity before interpreting it. No global percentage or
+mutation gate is imposed.
+
+### Initial collection and resolved Core instrumentation prerequisite
+
+On Linux x64 with SDK 10.0.302, the 2026-10-27 initial Presentation collection
+executed 155 tests: 155 passed, 0 failed, 0 skipped, exit 0. Validated assembly
+`Configurator.Presentation` measured 1,674/1,758 class-line entries and
+1,201/1,368 branches. These are one run's measurements, not a maintained
+threshold or a claim about other owners/hosts.
+
+The initial Core collection executed 145 tests: 144 passed, 1 failed, 0 skipped,
+exit 2. Its validated `Configurator.Core` report contains 3,188/3,783 class-line
+entries and 2,737/3,683 branches, but this is **failed-run evidence**, not a green
+Core baseline. Default collector instrumentation adds
+`Microsoft.CodeCoverage.Instrumentation.Static.Tracker` types; the unchanged
+`SetupCoreArchitectureTests.ProductAssemblyRemainsBclAndApprovedYamlOnlyWithoutAmbientAuthority`
+guard correctly rejects their ambient I/O and mutable statics. A dynamic-only
+configuration passed all 145 tests but emitted an empty `<packages />` report;
+the evidence tool rejected it with exit 1 rather than claiming coverage.
+
+The repository's coverage settings now select dynamic managed instrumentation
+with the same pinned collector. This leaves the compiled Core image unchanged;
+no architecture assertion, test or covered product class is excluded. On this
+rolling Linux workstation the profiler initially could not load because
+`libInstrumentationEngine.so` requires the older `libxml2.so.2` ABI, while the
+system provides `libxml2.so.16`. Native dependency inspection identified that
+missing library. Pointing this local run's `LD_LIBRARY_PATH` at the already
+installed Rider x64 debugger library directory satisfied it without installing,
+copying or shipping a dependency. Other hosts must supply the profiler's actual
+runtime prerequisites; an empty report still fails validation.
+
+With that prerequisite available, the actual current Core collection passed
+150/150 tests, zero failures/skips, exit 0. The safe report validated
+`Configurator.Core`: 3,223/3,815 class-line entries and 2,745/3,687 branches;
+TRX duration 903.5408 ms. The earlier failed static and empty dynamic attempts
+remain historical failed evidence, not a green baseline. Final settled-source
+Core/Presentation collection is still required after remaining product edits.
+These local results do not prove GitHub execution or artifact delivery.
+
+The same checked-in dynamic settings subsequently passed the current
+Presentation 167/167 lane, zero failures/skips, exit 0. Its validated selected
+assembly measured 1,699/1,771 class-line entries and 1,192/1,346 branches;
+TRX duration 1,021.8177 ms. This successor supersedes the earlier 155-case
+measurement for these shared-form/adoption inputs, without rewriting its history.
+
 ## Framework
 
 The project uses TUnit through Microsoft.Testing.Platform (MTP), selected in
