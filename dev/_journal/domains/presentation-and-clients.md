@@ -1,6 +1,6 @@
 # Presentation & Clients Findings
 
-Last Updated: 2026-10-23 Europe/Brussels
+Last Updated: 2026-10-27 Europe/Brussels
 
 Use [journal guidance](../README.md), [the finding template](../FINDING_TEMPLATE.md)
 and [promotion rules](../PROMOTION_RULES.md) for recording and promotion.
@@ -331,3 +331,45 @@ were removed.
 
 **Promotion Consideration**: Stays in this domain journal as an observed browser
 qualification lesson, not a new project-wide compiler-mode policy.
+
+[2026-10-27 Europe/Brussels] — Native cancellation is not physical settlement
+
+**Context**: `cross-platform-quality` separates Desktop eligibility, external
+consumer lifetime and historical publication facts without changing the writer.
+
+**Symptom / Observation**: A deterministic consumer held the supplied save bytes
+before copying them. Repeated shell disposal zeroed those bytes while they were
+still borrowed; the literal ordered-byte assertion failed. A separate actual
+window close test reproduced closure before consumer settlement.
+
+**Root Cause**: Shell disposal released the logical operation and child disposal
+cleared active save, bundle, import and definition-read storage. Current-generation
+feedback also had no independent owner for stale installation facts.
+
+**Resolution**: Consumer-owned cleanup releases the physical completion lease;
+cancellation only revokes eligibility. Immutable bounded receipts retain known
+progress separately. Desktop close waits responsively, then keeps unknown work
+visible after two seconds until settlement, Stay open or deliberate Force close.
+`dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress`
+passed 201 cases; the native executable passed all seventeen named X11 guards.
+
+**Why This Matters for Future Work**: Register a gate before invoking the external
+boundary and pause before consumption, not after a writer has already copied its
+input. Preserve real create-only writer tests independently. For Avalonia
+headless async checks, use a typed `Dispatch` result and await it: the non-generic
+callback call used during test authoring returned before its nested async
+assertions. Only the corrected awaited failure is runtime Red evidence.
+
+The native Event guard also needed its declared `Artifact to prepare` answer
+selected independently of the artifact output picker. Output selection does not
+activate definition-dependent inputs. All existing expected output assertions
+remain; a current public fixture must satisfy its entry-point prerequisites.
+
+**References**: `DesktopPublicationLifetimeTests`, `DesktopCloseLifecycleTests`,
+`Configurator.Desktop.NativeHost`, the
+[ownership ADR](../../../docs/internal/adr/ADR-cross-platform-quality-ownership.md)
+and [execution evidence](../../../docs/internal/OPERATIONS.md#native-ownership-qualification-2026-10-27).
+
+**Promotion Consideration**: The ADR and native guides own the delivered lifetime
+contract. New hosts, installed payloads, human AT and deferred program slices
+retain their separate qualification owners.

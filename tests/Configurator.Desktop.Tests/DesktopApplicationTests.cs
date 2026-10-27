@@ -785,6 +785,84 @@ public sealed class DesktopApplicationTests
         finally { await Task.Run(session.Dispose).ConfigureAwait(false); }
     }
 
+    [Test]
+    [NotInParallel]
+    public async Task RealCloseControlsRemainReachableAndForceCloseFencesLateResults()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopApplicationTests));
+        try
+        {
+            var observed = await session.Dispatch(async () =>
+            {
+                var clock = new DesktopCloseLifecycleTests.CloseClock();
+                var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                ReadOnlyMemory<byte> borrowed = default;
+                using var shell = DesktopTestContext.Root(save: async (_, bytes, _) =>
+                {
+                    borrowed = bytes;
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+                    return ProtectedArtifactCommitResult.Installed(false, cleanupFailed: true);
+                }, protectedOutputAvailable: true, timeProvider: clock);
+                var window = new MainWindow { DataContext = shell, Width = 600, Height = 540 };
+                int closeCount = 0;
+                window.Closed += (_, _) => { closeCount++; closed.TrySetResult(); };
+                try
+                {
+                    window.Show();
+                    shell.Loader.LoadDefinition(Definition());
+                    shell.Publisher.ArtifactId = "environment";
+                    await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+                    await shell.Publisher.PrepareAsync();
+                    Task saving = shell.Publisher.SaveAsync();
+                    Task decision = DesktopCloseLifecycleTests.DecisionSignal(shell);
+                    window.Close();
+                    clock.Advance(TimeSpan.FromSeconds(2));
+                    await decision.WaitAsync(TimeSpan.FromSeconds(10));
+                    window.UpdateLayout();
+                    await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+                    var stay = window.GetControl<Button>("StayOpen");
+                    var force = window.GetControl<Button>("ForceClose");
+                    bool reachable = stay.IsEffectivelyVisible && stay.IsEffectivelyEnabled &&
+                        force.IsEffectivelyVisible && force.IsEffectivelyEnabled &&
+                        AutomationProperties.GetName(stay) == "Stay open" &&
+                        AutomationProperties.GetName(force) == "Force close" &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(stay)) &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(force)) && stay.Focus() && stay.IsFocused;
+                    bool heldOpen = window.IsVisible && !closed.Task.IsCompleted && !shell.ActiveCompletion.IsCompleted;
+                    Click(stay);
+                    await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+                    bool stayed = window.IsVisible && !shell.IsClosing && shell.IsBusy;
+                    decision = DesktopCloseLifecycleTests.DecisionSignal(shell);
+                    window.Close();
+                    clock.Advance(TimeSpan.FromSeconds(2));
+                    await decision.WaitAsync(TimeSpan.FromSeconds(10));
+                    Click(force);
+                    await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                    bool retained = !shell.ActiveCompletion.IsCompleted &&
+                        borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8);
+                    release.TrySetResult();
+                    await saving.WaitAsync(TimeSpan.FromSeconds(10));
+                    await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+                    return (reachable, heldOpen, stayed, retained, closeCount,
+                        detached: window.DataContext is null && shell.Workspace.Form is null && !window.IsVisible,
+                        cleared: borrowed.ToArray().All(value => value == 0),
+                        installed: shell.Publisher.PublicationHistory.Single().Outcomes.Single().Result!.InstallationEstablished);
+                }
+                finally
+                {
+                    release.TrySetResult();
+                    await shell.ActiveCompletion.WaitAsync(TimeSpan.FromSeconds(10));
+                    window.Close();
+                }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+            await Assert.That(observed.reachable && observed.heldOpen && observed.stayed && observed.retained).IsTrue();
+            await Assert.That(observed.closeCount).IsEqualTo(1);
+            await Assert.That(observed.detached && observed.cleared && observed.installed).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
     internal static byte[] Definition(long revision = 1) => Encoding.UTF8.GetBytes(
         """
         {

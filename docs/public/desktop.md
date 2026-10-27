@@ -137,7 +137,21 @@ Cancellation immediately denies stale actions. If native work ignores
 cancellation, its borrowed storage remains intact until the consumer and cleanup
 finish; only then is it cleared and another operation allowed. Definition reads
 and imports follow the same rule and cannot admit late answers after disposal.
-Bounded graceful-close choices remain a separate upcoming increment.
+
+## Close while work is pending
+
+Closing the window requests cancellation and waits responsively for the native
+consumer and cleanup. If they settle within two seconds, the window closes
+normally. If not, it stays open and reports the outcome as unknown. Known
+publication facts remain visible; unknown never means that no file was written.
+
+Choose **Stay open** to withdraw the close request and keep the window available.
+Cancellation remains requested, and another operation stays disabled until the
+current consumer settles. Choose **Force close** only deliberately: it closes
+despite the unknown outcome. Forced process termination cannot guarantee memory
+erasure, rollback or that no write occurred. Inspect uncertain destinations
+before retrying. If work settles while the close request is still active, normal
+closure completes without another click.
 
 ## Keyboard
 
@@ -149,7 +163,9 @@ focuses its editor, and removing it returns focus to **Add item**.
 The right-to-left switch changes layout direction without changing answers.
 Native selection returns focus to its button on cancellation or failure;
 successful loading/import focuses the first visible field. Status includes a
-value-free next step. Closing discards preparation and fences pending work.
+value-free next step. Close decisions have named, keyboard-reachable controls;
+the deadline focuses **Stay open**. Closing discards preparation and fences
+pending work without confusing cancellation with physical completion.
 
 ## Current qualification limits
 

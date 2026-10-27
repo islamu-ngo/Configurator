@@ -137,6 +137,21 @@
                  AutomationProperties.Name="Operation status" />
       <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
                  AutomationProperties.Name="Next step" />
+      <Border IsVisible="{Binding IsClosing}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+              BorderThickness="1" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Name="CloseStatus" Text="{Binding CloseMessage}" TextWrapping="Wrap"
+                     AutomationProperties.Name="Close operation status" />
+          <WrapPanel IsVisible="{Binding CloseDecisionRequired}">
+            <Button Name="StayOpen" Content="_Stay open" Margin="0,0,8,0"
+                    Command="{Binding StayOpenCommand}" AutomationProperties.Name="Stay open"
+                    AutomationProperties.HelpText="Withdraw the close request while native work remains owned and cancellation stays requested." />
+            <Button Name="ForceClose" Content="_Force close" Command="{Binding ForceCloseCommand}"
+                    AutomationProperties.Name="Force close"
+                    AutomationProperties.HelpText="Close despite an unknown native outcome. This cannot guarantee no write, rollback or managed memory erasure." />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
       <TextBlock Text="Publication facts" FontWeight="SemiBold" />
       <TextBlock Name="PublicationReceipt" Text="{Binding Publisher.PublicationSummary}" TextWrapping="Wrap"
                  AutomationProperties.Name="Latest publication facts"

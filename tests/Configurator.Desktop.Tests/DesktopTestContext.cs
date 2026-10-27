@@ -15,7 +15,8 @@ internal static class DesktopTestContext
         Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken,
             Task<ProtectedArtifactBundleResult>>? publishBundle = null,
         Func<DesktopPathSelectionKind, CancellationToken, Task<Uri?>>? select = null,
-        Func<string, Stream>? openDefinition = null, Func<string, Stream>? openImport = null)
+        Func<string, Stream>? openDefinition = null, Func<string, Stream>? openImport = null,
+        TimeProvider? timeProvider = null)
     {
         var messenger = new WeakReferenceMessenger();
         var dialogs = new Dialogs(select ?? ((_, _) => Task.FromResult<Uri?>(null)));
@@ -38,7 +39,7 @@ internal static class DesktopTestContext
                     save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
                     outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable ?? true, publishBundle, openImport);
             }
-            var root = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+            var root = new DesktopShellViewModel(messenger, loader, workspace, publisher, timeProvider);
             loader = null;
             workspace = null;
             publisher = null;

@@ -129,8 +129,13 @@ borrowed input or releasing a second operation early. Bundle progress reaches
 bounded copied receipt history before final completion, independently of current
 generation. Desktop retains 16 settled attempts plus one active attempt, each
 bounded to 64 outcomes. Current and historical controls expose only safe facts;
-no paths, private bytes or raw exceptions enter receipts. Graceful close/drain
-choices are not part of this physical-settlement increment.
+no paths, private bytes or raw exceptions enter receipts. Desktop's pre-close
+protocol awaits the exact physical completion without blocking the dispatcher.
+At two seconds it retains unknown outcomes in an open window with deliberate
+Stay open and Force close actions. Withdrawing the close intent cannot release
+the physical owner or restore preparation; forced termination cannot promise
+managed cleanup or no write. Client policy remains separate from immutable
+Artifacts facts and the native writer's unchanged authority.
 
 The Linux writer and bundle publication suites exercise create-only output,
 preflight rejection, every committed prefix, observer/cleanup failures, original

@@ -1,6 +1,7 @@
 namespace Configurator.Desktop.NativeHost;
 
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -30,7 +31,8 @@ internal static class Program
         "D06-protected-single-conflict", "D07-bundle-preflight-recovery",
         "D09-edit-cancel-stale-import", "D10-value-free-feedback-retry",
         "D12-event-one-tenant", "D12-event-two-tenants", "D12-event-three-tenants",
-        "D09-close-disposes-workspace", "D14-physical-settlement-receipt"
+        "D09-close-disposes-workspace", "D14-physical-settlement-receipt",
+        "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force"
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
@@ -58,6 +60,7 @@ internal static class Program
             return Reject("native-x11-display-required");
 
         // A stalled startup or UI dispatcher must also fail within a bounded wall-clock interval.
+        var elapsed = Stopwatch.StartNew();
         using var watchdog = new Timer(_ =>
         {
             Console.Error.WriteLine("native-qualification:timeout");
@@ -80,6 +83,17 @@ internal static class Program
                     Require(window.TryGetPlatformHandle() is { Handle: not 0 }, "native-window-missing");
                     await RunAsync(window, shell);
                     Require(Completed.SetEquals(RequiredChecks) && Completed.Count >= minimum, "checks-incomplete");
+                    if (_captureDirectory is not null)
+                        File.WriteAllText(Path.Combine(_captureDirectory, "qualification.json"), JsonSerializer.Serialize(new
+                        {
+                            schemaVersion = 1,
+                            rid = "linux-x64",
+                            backend = "X11",
+                            runtime = RuntimeInformation.FrameworkDescription,
+                            durationMilliseconds = elapsed.Elapsed.TotalMilliseconds,
+                            requiredChecks = RequiredChecks,
+                            completedChecks = Completed.Order(StringComparer.Ordinal).ToArray()
+                        }));
                     Console.WriteLine($"native-qualification:passed:{Completed.Count}:linux-x64:X11");
                     Console.WriteLine("qualification-limits:manual-dialogs-keyboard-rtl-scaling-assistive-technology-and-published-payload-required");
                     code = 0;
@@ -303,6 +317,8 @@ internal static class Program
             await PhysicalSettlementAsync();
             Pass();
 
+            await CloseLifecycleAsync();
+
             _currentCheck = "D09-close-disposes-workspace";
             await PrepareAsync(window, shell);
             var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -315,6 +331,139 @@ internal static class Program
         finally
         {
             Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static async Task CloseLifecycleAsync()
+    {
+        foreach (string check in new[] { "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force" })
+        {
+            _currentCheck = check;
+            _currentStep = "close-drain";
+            var clock = new NativeCloseClock();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            ReadOnlyMemory<byte> borrowed = default;
+            using var shell = PublicationShell(async (_, bytes, _) =>
+            {
+                borrowed = bytes;
+                entered.TrySetResult();
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+                return ProtectedArtifactCommitResult.Installed(true);
+            }, clock);
+            var window = new MainWindow { DataContext = shell };
+            int closeCount = 0;
+            window.Closed += (_, _) => { closeCount++; closed.TrySetResult(); };
+            try
+            {
+                window.Show();
+                shell.Loader.LoadDefinition(await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")));
+                await FlushAsync();
+                Select(window, shell, "environment");
+                await PrepareAsync(window, shell);
+                Click(window.GetControl<Button>("Save"));
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                Task physical = shell.ActiveCompletion;
+                Task decision = CloseDecisionAsync(shell);
+                window.Close();
+                window.Close();
+                Require(window.IsVisible && !closed.Task.IsCompleted && !physical.IsCompleted &&
+                    !shell.Publisher.CanSave, "close-released-pending-work");
+                if (check != "D15-close-drain-settles")
+                {
+                    Require(clock.DueTime == TimeSpan.FromSeconds(2), "close-deadline-budget");
+                    clock.Expire();
+                    await decision.WaitAsync(TimeSpan.FromSeconds(10));
+                    await FlushAsync();
+                    Require(window.IsVisible && !closed.Task.IsCompleted && shell.CloseDecisionRequired &&
+                        shell.Publisher.CurrentPublication is { IsUnknown: true, IsSettled: false }, "close-unknown-not-retained");
+                    Button stay = window.GetControl<Button>("StayOpen");
+                    Button force = window.GetControl<Button>("ForceClose");
+                    Require(stay.IsEffectivelyVisible && stay.IsEffectivelyEnabled &&
+                        force.IsEffectivelyVisible && force.IsEffectivelyEnabled &&
+                        AutomationProperties.GetName(stay) == "Stay open" &&
+                        AutomationProperties.GetName(force) == "Force close" &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(stay)) &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(force)) &&
+                        stay.Focus(), "close-controls-unreachable");
+                    await CaptureAsync(window, check + "-unknown");
+                    RequireSafe(window.GetControl<TextBlock>("CloseStatus").Text, "Example service");
+                    if (check == "D17-close-stay-force")
+                    {
+                        Click(stay);
+                        await FlushAsync();
+                        Require(window.IsVisible && !shell.IsClosing && shell.IsBusy &&
+                            !physical.IsCompleted && !shell.Publisher.CanSave, "stay-open-released-owner");
+                        decision = CloseDecisionAsync(shell);
+                        window.Close();
+                        clock.Expire();
+                        await decision.WaitAsync(TimeSpan.FromSeconds(10));
+                        Click(force);
+                        await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                        Require(!physical.IsCompleted &&
+                            borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8), "force-close-cleared-consumer");
+                    }
+                }
+                release.TrySetResult();
+                await physical.WaitAsync(TimeSpan.FromSeconds(10));
+                await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await FlushAsync();
+                Require(closeCount == 1 && !window.IsVisible && window.DataContext is null &&
+                    shell.Workspace.Form is null && !shell.Publisher.CanSave &&
+                    borrowed.ToArray().All(value => value == 0), "close-late-callback-or-cleanup");
+                Require(shell.Publisher.PublicationHistory.Single().Outcomes.Single().Result is
+                    { InstallationEstablished: true, VerificationSucceeded: true }, "close-installation-lost");
+                Pass();
+            }
+            finally
+            {
+                release.TrySetResult();
+                await shell.ActiveCompletion.WaitAsync(TimeSpan.FromSeconds(10));
+                window.Close();
+            }
+        }
+    }
+
+    private static Task CloseDecisionAsync(DesktopShellViewModel shell)
+    {
+        var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Changed(object? sender, PropertyChangedEventArgs args)
+        {
+            if (!shell.CloseDecisionRequired) return;
+            shell.PropertyChanged -= Changed;
+            signal.TrySetResult();
+        }
+        shell.PropertyChanged += Changed;
+        return signal.Task;
+    }
+
+    private sealed class NativeCloseClock : TimeProvider
+    {
+        private readonly List<CloseTimer> _timers = [];
+        internal TimeSpan DueTime { get; private set; }
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            DueTime = dueTime;
+            var timer = new CloseTimer(callback, state);
+            _timers.Add(timer);
+            return timer;
+        }
+        internal void Expire()
+        {
+            foreach (CloseTimer timer in _timers.ToArray()) timer.Fire();
+        }
+        private sealed class CloseTimer(TimerCallback callback, object? state) : ITimer
+        {
+            private int _finished;
+            public bool Change(TimeSpan dueTime, TimeSpan period) => Volatile.Read(ref _finished) == 0;
+            internal void Fire()
+            {
+                if (Interlocked.Exchange(ref _finished, 1) != 0) return;
+                callback(state);
+            }
+            public void Dispose() => Interlocked.Exchange(ref _finished, 1);
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
         }
     }
 
@@ -377,7 +526,8 @@ internal static class Program
     }
 
     private static DesktopShellViewModel PublicationShell(
-        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> save)
+        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> save,
+        TimeProvider? timeProvider = null)
     {
         var messenger = new StrongReferenceMessenger();
         var dialogs = new NoDialogs();
@@ -389,7 +539,7 @@ internal static class Program
             loader = new(messenger, dialogs);
             workspace = new(messenger);
             publisher = new(messenger, dialogs, save, Path.GetTempPath(), true);
-            var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+            var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, timeProvider);
             loader = null;
             workspace = null;
             publisher = null;

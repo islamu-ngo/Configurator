@@ -29,6 +29,7 @@ public sealed class DesktopLocalSelectionTests
         MainWindow? window = null;
         var selected = new TaskCompletionSource<Uri?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
             var observed = await session.Dispatch(async () =>
@@ -41,6 +42,7 @@ public sealed class DesktopLocalSelectionTests
                 });
                 shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
                 window = new MainWindow { DataContext = shell };
+                window.Closed += (_, _) => closed.TrySetResult();
                 window.Show();
                 window.UpdateLayout();
                 shell.PropertyChanged += (_, args) =>
@@ -56,6 +58,7 @@ public sealed class DesktopLocalSelectionTests
                 string directory = shell.Publisher.OutputDirectory;
                 if (outcome is "close" or "replacement") selected.SetResult(new Uri(Path.GetTempPath()));
                 await settled.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                if (outcome == "close") await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 Dispatcher.UIThread.RunJobs();
                 MainWindow current = window!;
                 return (focused: outcome == "replacement"
@@ -63,14 +66,16 @@ public sealed class DesktopLocalSelectionTests
                             AutomationProperties.GetName(control) == "Service name" && control.IsFocused)
                         : current.GetControl<Button>("SelectOutput").IsFocused,
                     directoryUnchanged: shell.Publisher.OutputDirectory == directory,
+                    closedCleanly: outcome != "close" || current.DataContext is null && shell.Workspace.Form is null,
                     safe: current.GetLogicalDescendants().OfType<Control>().All(control =>
                         !(AutomationProperties.GetName(control)?.Contains("synthetic-private", StringComparison.Ordinal) ?? false) &&
                         !(AutomationProperties.GetHelpText(control)?.Contains("synthetic-private", StringComparison.Ordinal) ?? false)) &&
-                        !current.GetControl<TextBlock>("Status").Text!.Contains("synthetic-private", StringComparison.Ordinal) &&
-                        !current.GetControl<TextBlock>("StatusHelp").Text!.Contains("synthetic-private", StringComparison.Ordinal));
+                        !(current.GetControl<TextBlock>("Status").Text?.Contains("synthetic-private", StringComparison.Ordinal) ?? false) &&
+                        !(current.GetControl<TextBlock>("StatusHelp").Text?.Contains("synthetic-private", StringComparison.Ordinal) ?? false));
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
             await Assert.That(observed.directoryUnchanged).IsTrue();
             await Assert.That(observed.safe).IsTrue();
+            await Assert.That(observed.closedCleanly).IsTrue();
             if (outcome != "close") await Assert.That(observed.focused).IsTrue();
         }
         finally

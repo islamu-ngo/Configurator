@@ -156,8 +156,20 @@ at most 16 settled attempts plus one active attempt, each with at most 64 declar
 outcomes. An installed prefix is visible while later work is pending. Unknown is
 not unattempted. History contains only attempt IDs, declared artifact IDs and
 result codes, never bytes or destination paths. Notifications marshal to the UI
-dispatcher and are fenced after disposal. Bounded graceful-close choices remain
-the next increment.
+dispatcher and are fenced after disposal.
+
+`MainWindow` intercepts ordinary close before disposal. The shell shares one
+close intent over the captured physical completion task; a two-second
+`TimeProvider` deadline never blocks the dispatcher. Settlement closes normally
+only while that same intent remains active. At the deadline the window remains
+open, marks pending publication unknown and focuses the named Stay open action.
+Stay open withdraws close intent but does not undo cancellation or release the
+physical owner. Force close is available only after the deadline and is deliberate.
+Final closure detaches window handlers and DataContext before disposing the
+workspace. Late task results retain safe facts and clear their own buffers but
+cannot revive UI state. Process termination cannot guarantee managed erasure or
+that no write occurred. Terminal's automatic-stop policy is not reused.
+See the [ownership decision](adr/ADR-cross-platform-quality-ownership.md).
 
 ## Verification
 
@@ -181,8 +193,9 @@ See the [public workflow](../public/desktop.md) and
 
 `tests/Configurator.Desktop.NativeHost` initializes the actual App/classic
 lifetime on the main thread, checks the X11 platform handle and Linux x64 RID,
-and requires all fourteen distinct named scenarios, including
-`D14-physical-settlement-receipt`. Each async action subscribes
+and requires all seventeen distinct named scenarios, including
+`D14-physical-settlement-receipt`, `D15-close-drain-settles`,
+`D16-close-deadline-unknown` and `D17-close-stay-force`. Each async action subscribes
 before triggering and has a bounded timeout; startup/shutdown also has a
 watchdog. Its synthetic generic definition and actual Event definition exercise
 independent outputs, supported imports, invalid nested values, inactive bundle
@@ -203,7 +216,7 @@ the verification boundary. No new release platform or installer is admitted.
 Synthetic visual evidence can be captured with:
 
 ```bash
-xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 14 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
+xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 17 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
 ```
 
 The harness captures loaded/edited workspaces at 960x800 and the 600x540 minimum,

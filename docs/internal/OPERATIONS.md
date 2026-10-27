@@ -1359,6 +1359,90 @@ Earlier download, keyboard, invalid-source, navigation and connection-guard
 observations retain their original package hashes and were not redundantly rerun.
 Owned host/tabs were closed, online mode restored and synthetic clipboard cleared.
 
+## Native ownership qualification (2026-10-27)
+
+The `cross-platform-quality` native slice separates cancelled eligibility from
+physical settlement, retains bounded publication facts and adds deliberate
+Desktop close choices. This is the three-increment native slice, not completion
+of the required Browser/CLI/editing/preparation/CI follow-up program.
+
+Activation was `main` at `d6c23eef32766f3743088c36858589afa8ed2af8`.
+Receipt extraction is `9d96269`; physical settlement is `f1eceb0`. The final
+close candidate was qualified on that committed prefix plus the owned close
+changes, before its phase-close commit. No worktree or remote publication was
+used. SDK 10.0.302, .NET runtime 10.0.10, Linux x64 and actual X11 under
+`xvfb-run -a` were used with `TMPDIR="$HOME/.cache/agent-tmp"`.
+
+### Executed commands and results
+
+All commands below exited 0 after attributable corrections. Native result and
+capture paths are local ignored evidence, not shipped answer storage.
+
+| Check | Exact command or selection | Result |
+| --- | --- | --- |
+| Untouched receipt baseline | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/*SetupTerminalPublicationReceiptTests/*" --minimum-expected-tests 1` | 9 passed, 0 failed/skipped; 768 ms |
+| Untouched Desktop baseline | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1` | 185 passed, 0 failed/skipped; executable 2.897 s |
+| Shared fact owner build | `dotnet build src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release --verbosity quiet` | Exit 0; 2 s wall |
+| Terminal preservation | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1` | 83 passed, 0 failed/skipped; 2.933 s |
+| Shared receipt bounds/copies | `dotnet test --project tests/Configurator.Artifacts.Tests/Configurator.Artifacts.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/*ProtectedArtifactPublicationReceiptTests/*" --minimum-expected-tests 1` | 8 passed, 0 failed/skipped; 657 ms |
+| Desktop build, each changed increment | `dotnet build src/Configurator.Desktop/Configurator.Desktop.csproj --configuration Release --verbosity quiet` | Exit 0; clean compiler/analyzer build |
+| Physical settlement owner | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 193 passed, 0 failed/skipped; 3.185 s |
+| Deterministic close class | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/*DesktopCloseLifecycleTests/*" --minimum-expected-tests 1 --no-progress` | 7 passed, 0 failed/skipped; 1.613 s |
+| Final Desktop owner | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1 --no-progress` | 201 passed, 0 failed/skipped; 3.597 s |
+| Native executable build | `dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet` | Exit 0; no suppressed diagnostics |
+| Physical settlement native lane | `xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 14 --capture-directory "$PWD/.tmp/cross-platform-quality-settlement"` | All fourteen required names passed; normal/minimum captures inspected |
+| Final close native lane | `xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 17 --capture-directory "$PWD/.tmp/cross-platform-quality-close"` | All seventeen required names passed; 9471.2676 ms native elapsed |
+| Terminal local package | `dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=terminal -p:ConfiguratorRid=linux-x64 -verbosity:minimal` | Exit 0; current ratchets 3/3; notices retained for 29 dependencies |
+| Desktop local package | `dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:ConfiguratorSurface=desktop -p:ConfiguratorRid=linux-x64 -verbosity:minimal` | Exit 0; current ratchets 3/3; notices retained for 31 dependencies |
+
+The pre-consumption Red ran before the physical fix: dispose failed, cancel/edit
+passed, exit 2, 1.108 s. The ordinary-close Red ran before the close handler:
+one failed executed test, exit 2, 1.366 s. Compiler-only failures and the initial
+incorrectly awaited headless callback were not counted as runtime Red.
+The first full settlement run exposed stale disposed-child busy flags; the
+completion owner now updates them only after settlement. The close picker
+regression now awaits the actual Closed event and asserts detached state rather
+than dereferencing cleared status bindings. Its late-selection and value-safety
+assertions remain intact.
+
+Native Event setup also now selects the definition's required
+`Artifact to prepare` answer independently of the output picker. The previous
+setup left settings inactive. All original thirteen named guards and their
+expected manifest assertions are preserved. There are no remaining quarantined
+failures in these executed lanes.
+
+### QA matrix and retained identity
+
+| Scenario | Observable evidence | Verdict / artifact |
+| --- | --- | --- |
+| Save/bundle/read invalidation before consumption, stale generations and eventual zeroing | `DesktopPublicationLifetimeTests`, preserved shell/import/writer tests | PASS; `TestResults/Configurator.Desktop.Tests-linux-net10.0.tunit-report.json` |
+| Installed prefix, cleanup/verification facts, copied 16-settled-plus-active history and 64-outcome bound | Desktop lifetime tests, Terminal preservation and shared Artifacts receipt cases | PASS; Desktop, Terminal and Artifacts MTP reports under `TestResults/` |
+| Exact two-second deadline, repeated close, both settlement orderings, withdrawn intent and deliberate force | Seven deterministic close cases and actual-window control test | PASS; final Desktop MTP report |
+| Real native lifetime and preserved adjacent output/import/Event behavior | Required set equals all seventeen completed names | PASS; `.tmp/cross-platform-quality-close/qualification.json` |
+| Visible unknown/receipt controls, names/help and focus at 960x800 and 600x540 | D14/D16/D17 real X11 controls and light/dark footer captures | PASS for exercised controls; `.tmp/cross-platform-quality-close/D16-close-deadline-unknown-unknown-minimum-Light-end.png` and `D17-close-stay-force-unknown-desktop-Dark-end.png` |
+| Changed native package assembly | Native release owner publication and retained dependency notices | PASS for build only; `artifacts/configurator/{terminal,desktop}/linux-x64/` |
+
+SHA-256 identities of the qualified executables/assemblies:
+
+- NativeHost DLL: `c17dd685a3626b7885ae0ae4ca21ee5b3c096bbde09a30215f03602983e67b95`.
+- Its Desktop DLL: `d805c457420975dcd7f29e2a9577ccb8fb100b91f4db9221c2865c1027b5b4cf`.
+- Desktop test DLL: `16e10f903e3fd196909e685300a3e6a39799cfe8583b36d1be4105decdf1493e`.
+- Local `islamu-configurator-terminal`: `2194bde911ca8fc785f2310b6b7fef6b0ccfbadcd2833c623bbac5890118f116`.
+- Local `islamu-configurator-desktop`: `09ac3b63554ca2c95f668138adf9c319c2125c180c4724eb8f01289a15a5becd`.
+
+The final fresh LSP diagnostics requests timed out after publication changed
+generated intermediates; prior changed-symbol diagnostics were clean and the
+actual final compiler/analyzer builds and owner suites passed. No warning was
+suppressed. Build/native command wall durations not printed by their tools were
+not reconstructed or claimed as latency evidence.
+
+Not executed: installed/published-payload interaction, human assistive technology,
+complete keyboard/RTL/scaling cohorts, other hosts, Browser/CLI suites, global
+coverage or the complete Architecture/package matrix. Dependency direction and
+those product owners did not change. Local publication is package build evidence,
+not installed runtime qualification, signing, deployment or target acceptance.
+See the [ownership ADR](adr/ADR-cross-platform-quality-ownership.md).
+
 ## Full Project Test List
 
 ### Desktop readiness evidence

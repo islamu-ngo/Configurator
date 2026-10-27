@@ -94,6 +94,11 @@ Publication facts view keeps known installation, verification and cleanup facts
 after editing or cancellation. Native work retains its borrowed buffers and busy
 gate until the consumer and cleanup physically settle. Logical cancellation
 cannot promise that no file was written, and a stale receipt cannot enable Save.
+Desktop waits responsively for settlement when closing. At two seconds it keeps
+the window open with **Stay open** and deliberate **Force close** actions; it
+does not copy Terminal's automatic stop. Force close cannot guarantee managed
+erasure or no write. Stay open does not restore preparation or cancel the pending
+operation's cleanup responsibility.
 
 An interrupted save can leave some files written and others unattempted. While
 publication is still running, an outcome that has not arrived remains unknown;

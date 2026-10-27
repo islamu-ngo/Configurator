@@ -9,8 +9,11 @@ using Configurator.Desktop.Messages;
 public sealed partial class DesktopShellViewModel : ObservableObject, IDisposable
 {
     private readonly IMessenger _messenger;
+    private readonly TimeProvider _timeProvider;
     private CancellationTokenSource? _operationCancellation;
     private DesktopOperation? _activeOperation;
+    private TaskCompletionSource<bool>? _closeDecision;
+    private Task<bool>? _closeTask;
     private long _generation;
     private bool _disposed;
 
@@ -27,11 +30,20 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     private string _focusTarget = "DefinitionPath";
     [ObservableProperty]
     private int _focusRequestGeneration = 1;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CloseMessage))]
+    [NotifyCanExecuteChangedFor(nameof(StayOpenCommand))]
+    private bool _isClosing;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CloseMessage))]
+    [NotifyCanExecuteChangedFor(nameof(ForceCloseCommand))]
+    private bool _closeDecisionRequired;
 
     public DesktopShellViewModel(IMessenger messenger, DefinitionLoaderViewModel loader,
-        FormWorkspaceViewModel workspace, ArtifactPublisherViewModel publisher)
+        FormWorkspaceViewModel workspace, ArtifactPublisherViewModel publisher, TimeProvider? timeProvider = null)
     {
         _messenger = messenger;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         Loader = loader;
         Workspace = workspace;
         Publisher = publisher;
@@ -61,6 +73,12 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public ArtifactPublisherViewModel Publisher { get; }
     /// <summary>Physical settlement, including consumer-owned cleanup; cancellation alone never completes this task.</summary>
     public Task ActiveCompletion => _activeOperation?.Completion ?? Task.CompletedTask;
+    public bool IsCloseAuthorized { get; private set; }
+    public string CloseMessage => CloseDecisionRequired
+        ? "The native operation has not settled. Its outcome is unknown. Stay open to keep waiting, or deliberately force close. Force close cannot guarantee no write or managed memory erasure."
+        : "Waiting for the native consumer and cleanup. Cancellation does not prove that nothing was written.";
+    public bool CanForceClose => !_disposed && CloseDecisionRequired;
+    public bool CanStayOpen => !_disposed && IsClosing;
     public string StatusHelp => Status.Split(':')[0] switch
     {
         "definition-required" => "Choose a local JSON or YAML definition, then load it.",
@@ -84,7 +102,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
 
     private void Begin(OperationRequestedMessage message)
     {
-        if (_disposed || IsBusy)
+        if (_disposed || IsBusy || IsClosing || IsCloseAuthorized)
         {
             message.Reply(null);
             return;
@@ -143,15 +161,88 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     [RelayCommand]
     private void FocusDefinitionPath() => _messenger.Send(new FocusRequestedMessage("DefinitionPath"));
 
+    /// <summary>Shares one close intent while retaining the exact physical settlement task.</summary>
+    public Task<bool> RequestCloseAsync()
+    {
+        if (_disposed || IsCloseAuthorized) return Task.FromResult(true);
+        if (_closeDecision is not null) return _closeTask!;
+        Task settlement = ActiveCompletion;
+        var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _closeDecision = decision;
+        IsClosing = true;
+        Invalidate();
+        _closeTask = DrainForCloseAsync(settlement, decision);
+        return _closeTask;
+    }
+
+    private async Task<bool> DrainForCloseAsync(Task settlement, TaskCompletionSource<bool> decision)
+    {
+        using var deadlineCancellation = new CancellationTokenSource();
+        try
+        {
+            if (!settlement.IsCompleted)
+            {
+                Task deadline = Task.Delay(TimeSpan.FromSeconds(2), _timeProvider, deadlineCancellation.Token);
+                await Task.WhenAny(settlement, deadline, decision.Task);
+                if (!ReferenceEquals(_closeDecision, decision)) return false;
+                if (!settlement.IsCompleted && !decision.Task.IsCompleted)
+                {
+                    Publisher.MarkPublicationUnknown();
+                    CloseDecisionRequired = true;
+                    _messenger.Send(new FocusRequestedMessage("StayOpen"));
+                    await Task.WhenAny(settlement, decision.Task);
+                }
+            }
+            if (!ReferenceEquals(_closeDecision, decision)) return false;
+            if (settlement.IsCompleted) await settlement;
+            IsCloseAuthorized = !decision.Task.IsCompleted || await decision.Task;
+            CloseDecisionRequired = false;
+            return IsCloseAuthorized;
+        }
+        finally
+        {
+            await deadlineCancellation.CancelAsync();
+            if (ReferenceEquals(_closeDecision, decision))
+            {
+                _closeDecision = null;
+                CloseDecisionRequired = false;
+                if (!IsCloseAuthorized) IsClosing = false;
+            }
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStayOpen))]
+    public void StayOpen()
+    {
+        if (!CanStayOpen || _closeDecision is not { } decision) return;
+        _closeDecision = null;
+        decision.TrySetResult(false);
+        CloseDecisionRequired = false;
+        IsClosing = false;
+        _messenger.Send(new FocusRequestedMessage("Cancel"));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanForceClose))]
+    public void ForceClose()
+    {
+        if (CanForceClose) _closeDecision?.TrySetResult(true);
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _closeDecision?.TrySetResult(false);
+        _closeDecision = null;
+        CloseDecisionRequired = false;
+        IsClosing = false;
         Invalidate();
         Loader.Dispose();
         Publisher.Dispose();
         Workspace.Dispose();
         _messenger.UnregisterAll(this);
+        ForceCloseCommand.NotifyCanExecuteChanged();
+        StayOpenCommand.NotifyCanExecuteChanged();
     }
 
     public override string ToString() => nameof(DesktopShellViewModel);
