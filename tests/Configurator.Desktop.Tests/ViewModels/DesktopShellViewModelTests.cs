@@ -124,8 +124,7 @@ public sealed class DesktopShellViewModelTests
             await Assert.That(held.IsEmpty).IsFalse();
             Change(shell, change);
             string status = shell.Status;
-            if (change == "dispose")
-                await Assert.That(held.ToArray().All(value => value == 0)).IsTrue();
+            await Assert.That(held.ToArray().Any(value => value != 0)).IsTrue();
             release.SetResult();
             await Assert.That((await pending.WaitAsync(TimeSpan.FromSeconds(10))).Status)
                 .IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
@@ -562,7 +561,7 @@ public sealed class DesktopShellViewModelTests
     private static TestShell CreateShell(IStorageDialogService? dialogs = null,
         Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>>? save = null,
         string? outputDirectory = null, bool protectedOutputAvailable = true,
-        Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken, Task<ProtectedArtifactBundleResult>>? publishBundle = null)
+        Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken, Task<ProtectedArtifactBundleResult>>? publishBundle = null)
         => new(dialogs, save, outputDirectory, protectedOutputAvailable, publishBundle);
 
     private static TestShell CreateNativeShell(string directory, IProtectedArtifactWriter? writer = null) =>
@@ -603,7 +602,7 @@ public sealed class DesktopShellViewModelTests
         public TestShell(IStorageDialogService? dialogs = null,
             Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>>? save = null,
             string? outputDirectory = null, bool protectedOutputAvailable = true,
-            Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken, Task<ProtectedArtifactBundleResult>>? publishBundle = null,
+            Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken, Task<ProtectedArtifactBundleResult>>? publishBundle = null,
             bool native = false, IProtectedArtifactWriter? writer = null)
         {
             var messenger = new StrongReferenceMessenger();

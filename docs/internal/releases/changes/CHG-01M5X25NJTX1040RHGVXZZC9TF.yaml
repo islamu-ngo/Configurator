@@ -1,0 +1,27 @@
+Change-Id: CHG-01M5X25NJTX1040RHGVXZZC9TF
+Title: "retain physical save ownership after cancellation"
+Type: fix
+Scope: desktop
+Summary: "Keep borrowed native save, bundle, import and definition-read storage until physical settlement. Preserve known installation, verification and cleanup facts after cancellation or edits without restoring stale preparation."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Cancellation revokes eligibility immediately but no longer clears storage still borrowed by a consumer. Restricted create-only output and unsupported-host refusal remain enforced."
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Review bounded publication history before retrying. Unknown is not proof of no write; inspect uncertain files manually and use fresh destinations."

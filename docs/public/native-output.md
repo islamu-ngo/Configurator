@@ -88,6 +88,13 @@ private paths. Clearing answers, changing inputs or cancelling a save does not
 erase this history. It also does not make an old save ready to run again. The
 history is cleared when the session is disposed.
 
+The [Desktop client](desktop.md#save-safely) also retains the newest 16 settled
+attempts plus its running attempt independently of current preparation. Its
+Publication facts view keeps known installation, verification and cleanup facts
+after editing or cancellation. Native work retains its borrowed buffers and busy
+gate until the consumer and cleanup physically settle. Logical cancellation
+cannot promise that no file was written, and a stale receipt cannot enable Save.
+
 An interrupted save can leave some files written and others unattempted. While
 publication is still running, an outcome that has not arrived remains unknown;
 it does not prove that no file was created. Closing the terminal allows up to

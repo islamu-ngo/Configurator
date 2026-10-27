@@ -115,12 +115,12 @@ public sealed class DesktopWorkflowReadinessTests
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = DesktopTestContext.Root(
             (_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest)),
-            directory.Path, protectedOutputAvailable: true, async (artifacts, destination, cancellation) =>
+            directory.Path, protectedOutputAvailable: true, async (artifacts, destination, observe, cancellation) =>
             {
                 started.SetResult();
                 await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
                 return await ProtectedArtifactBundlePublisher.PublishAsync(
-                    new ProtectedArtifactWriter(), artifacts, destination, cancellationToken: cancellation);
+                    new ProtectedArtifactWriter(), artifacts, destination, observe, cancellation);
             });
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.SelectArtifact("environment", true);

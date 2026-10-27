@@ -12,9 +12,10 @@ internal static class DesktopTestContext
         Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>>? save = null,
         string? outputDirectory = null,
         bool? protectedOutputAvailable = null,
-        Func<IReadOnlyList<DefinitionArtifact>, string, CancellationToken,
+        Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken,
             Task<ProtectedArtifactBundleResult>>? publishBundle = null,
-        Func<DesktopPathSelectionKind, CancellationToken, Task<Uri?>>? select = null)
+        Func<DesktopPathSelectionKind, CancellationToken, Task<Uri?>>? select = null,
+        Func<string, Stream>? openDefinition = null, Func<string, Stream>? openImport = null)
     {
         var messenger = new WeakReferenceMessenger();
         var dialogs = new Dialogs(select ?? ((_, _) => Task.FromResult<Uri?>(null)));
@@ -23,9 +24,10 @@ internal static class DesktopTestContext
         ArtifactPublisherViewModel? publisher = null;
         try
         {
-            loader = new DefinitionLoaderViewModel(messenger, dialogs);
+            loader = openDefinition is null ? new DefinitionLoaderViewModel(messenger, dialogs)
+                : new DefinitionLoaderViewModel(messenger, dialogs, openDefinition);
             workspace = new FormWorkspaceViewModel(messenger);
-            if (save is null && protectedOutputAvailable is null && publishBundle is null)
+            if (save is null && protectedOutputAvailable is null && publishBundle is null && openImport is null)
             {
                 publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
                 if (outputDirectory is not null) publisher.OutputDirectory = outputDirectory;
@@ -34,7 +36,7 @@ internal static class DesktopTestContext
             {
                 publisher = new ArtifactPublisherViewModel(messenger, dialogs,
                     save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
-                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable ?? true, publishBundle);
+                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable ?? true, publishBundle, openImport);
             }
             var root = new DesktopShellViewModel(messenger, loader, workspace, publisher);
             loader = null;

@@ -159,10 +159,10 @@ Desktop native qualification runs separately from MTP/headless tests:
 
 ```bash
 dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet
-dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 10
+dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 14
 ```
 
-Its thirteen required named scenarios reject missing/wrong native backend,
+Its fourteen required named scenarios reject missing/wrong native backend,
 failed checks and incomplete counts. It does not qualify manual native dialogs,
 assistive technology, a published payload or installers; those require separate
 evidence. See [Desktop qualification](docs/internal/DESKTOP_CLIENT.md#native-qualification).

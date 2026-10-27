@@ -121,6 +121,17 @@ alongside write status, cleanup, cancellation and receipt delivery. Public stdou
 delivery is not native namespace installation. See [CLI contract](CLI_CONTRACT.md)
 for exact wire values. This is a breaking replacement, not a legacy adapter.
 
+Desktop now keeps the physical consumer's lease and CTS until its awaited
+publication/read and cleanup settle. `DesktopPublicationOperation` owns save
+bytes and bundles; import and definition readers own their buffers through
+`finally`. Cancellation/edit/disposal revoke eligibility without clearing
+borrowed input or releasing a second operation early. Bundle progress reaches
+bounded copied receipt history before final completion, independently of current
+generation. Desktop retains 16 settled attempts plus one active attempt, each
+bounded to 64 outcomes. Current and historical controls expose only safe facts;
+no paths, private bytes or raw exceptions enter receipts. Graceful close/drain
+choices are not part of this physical-settlement increment.
+
 The Linux writer and bundle publication suites exercise create-only output,
 preflight rejection, every committed prefix, observer/cleanup failures, original
 exception preservation and defensive copies. Actual Linux regressions perform a

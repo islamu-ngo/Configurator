@@ -18,14 +18,16 @@ public sealed record FormValidationRequestedMessage(Action<bool> Reply);
 public sealed record OperationRequestedMessage(string Kind, Action<DesktopOperation?> Reply,
     CancellationToken CancellationToken);
 
-/// <summary>A root-owned operation lease. Completion never releases a different operation.</summary>
+/// <summary>A consumer-owned lease, released only after its awaited work and cleanup finish.</summary>
 public sealed class DesktopOperation(long generation, Func<bool> isCurrent, Action complete,
     CancellationToken token) : IDisposable
 {
     private bool _completed;
+    private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public long Generation { get; } = generation;
     public CancellationToken Token { get; } = token;
     public bool IsCurrent => !_completed && isCurrent();
+    public Task Completion => _completion.Task;
 
     public static DesktopOperation? Begin(IMessenger messenger, string kind,
         CancellationToken cancellationToken = default)
@@ -39,6 +41,7 @@ public sealed class DesktopOperation(long generation, Func<bool> isCurrent, Acti
     {
         if (_completed) return;
         _completed = true;
-        complete();
+        try { complete(); }
+        finally { _completion.TrySetResult(); }
     }
 }

@@ -55,7 +55,7 @@ public sealed class DesktopProtectedWriteInvariantTests
             ProtectedArtifactCommitResult conflict = await shell.Publisher.SaveAsync();
             await Assert.That(conflict.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
             await Assert.That(conflict.InstallationEstablished).IsFalse();
-            await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(original);
+            await Assert.That((await File.ReadAllBytesAsync(target)).AsSpan().SequenceEqual(original)).IsTrue();
             await Assert.That(shell.Publisher.CanSave).IsFalse();
             await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([target]);
         }
@@ -82,6 +82,9 @@ public sealed class DesktopProtectedWriteInvariantTests
         await Assert.That(result.Succeeded).IsFalse();
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         await Assert.That(shell.Status).DoesNotContain("save-complete");
+        ProtectedArtifactPublicationReceipt receipt = shell.Publisher.PublicationHistory.Single();
+        await Assert.That(receipt.Outcomes.Single().Result).IsEqualTo(result);
+        await Assert.That(receipt.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.Cancelled);
     }
 
     [Test]
@@ -102,7 +105,7 @@ public sealed class DesktopProtectedWriteInvariantTests
             ProtectedArtifactCommitResult conflict = await overwrite.CommitAsync();
             await Assert.That(conflict.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
             await Assert.That(conflict.InstallationEstablished).IsFalse();
-            await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(bytes);
+            await Assert.That((await File.ReadAllBytesAsync(target)).AsSpan().SequenceEqual(bytes)).IsTrue();
             await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
             await Assert.That(Directory.GetFileSystemEntries(directory)).IsEquivalentTo([target]);
         }

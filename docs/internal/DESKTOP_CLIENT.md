@@ -134,18 +134,30 @@ facts, never protected bytes or local paths. The capability notice
 reflects the native writer on the current host.
 
 Input, destination, definition, or artifact changes increment the adapter
-generation, cancel pending save work, dispose preparation, and zero owned output
-buffers. Save checks its captured generation before publishing status, so a
+generation, cancel pending save work, dispose unused preparation, and revoke
+current capabilities immediately. Save checks its captured generation before publishing status, so a
 writer that completes after cancellation cannot overwrite new form state.
 Save failure, cancellation, and success all consume preparation. The final
 private save copy is zeroed in `finally`. Closing unloads the form and disposes
 the session. .NET input strings cannot promise secure memory erasure; the form
 clears references on disposal and no prepared bytes enter status or logs.
 
-These result changes do not implement Desktop operation-owned buffer settlement,
-close/drain handling or independent stale receipt recovery. Those lifetime
-concerns remain the separate follow-up; existing buffer disposal behavior is
-not newly certified by this publication-point migration.
+`DesktopOperation.Completion` settles only when the consumer releases its lease
+after awaited work and cleanup. Shell disposal requests cancellation but never
+releases that lease or its CTS. `DesktopPublicationOperation` owns the captured
+single-save bytes or composed bundle until that point. Import and definition
+streams clear borrowed buffers in their own await/finally scope before releasing
+the lease. A boundary that ignores cancellation keeps the busy gate closed
+without retaining current preparation or admitting late answers.
+
+The publisher forwards the bundle writer's real outcome observer and retains
+immutable `ProtectedArtifactPublicationReceipt` facts independently of generation:
+at most 16 settled attempts plus one active attempt, each with at most 64 declared
+outcomes. An installed prefix is visible while later work is pending. Unknown is
+not unattempted. History contains only attempt IDs, declared artifact IDs and
+result codes, never bytes or destination paths. Notifications marshal to the UI
+dispatcher and are fenced after disposal. Bounded graceful-close choices remain
+the next increment.
 
 ## Verification
 
@@ -169,7 +181,8 @@ See the [public workflow](../public/desktop.md) and
 
 `tests/Configurator.Desktop.NativeHost` initializes the actual App/classic
 lifetime on the main thread, checks the X11 platform handle and Linux x64 RID,
-and requires all thirteen distinct named scenarios. Each async action subscribes
+and requires all fourteen distinct named scenarios, including
+`D14-physical-settlement-receipt`. Each async action subscribes
 before triggering and has a bounded timeout; startup/shutdown also has a
 watchdog. Its synthetic generic definition and actual Event definition exercise
 independent outputs, supported imports, invalid nested values, inactive bundle
@@ -190,7 +203,7 @@ the verification boundary. No new release platform or installer is admitted.
 Synthetic visual evidence can be captured with:
 
 ```bash
-xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 13 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
+xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 14 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
 ```
 
 The harness captures loaded/edited workspaces at 960x800 and the 600x540 minimum,

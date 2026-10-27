@@ -137,6 +137,19 @@
                  AutomationProperties.Name="Operation status" />
       <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
                  AutomationProperties.Name="Next step" />
+      <TextBlock Text="Publication facts" FontWeight="SemiBold" />
+      <TextBlock Name="PublicationReceipt" Text="{Binding Publisher.PublicationSummary}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Latest publication facts"
+                 AutomationProperties.HelpText="Historical installation, verification and cleanup facts do not restore preparation or guarantee current file integrity." />
+      <Expander Header="Previous publication attempts" AutomationProperties.Name="Previous publication attempts">
+        <ItemsControl Name="PublicationHistory" ItemsSource="{Binding Publisher.PublicationHistoryText}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,4" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Expander>
     </StackPanel>
   </StackPanel>
   </ScrollViewer>

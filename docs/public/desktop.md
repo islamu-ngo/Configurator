@@ -126,9 +126,18 @@ outputs and prepare again. Configurator does not roll back committed files or
 apply them to the target application.
 
 Cancellation or edits still fence stale status updates and discard preparation.
-They do not retract an established installation. Desktop's separate in-flight
-buffer ownership and close/drain recovery work is not qualified by these result
-semantics.
+They do not retract an established installation. **Publication facts** retains the
+latest attempt, and **Previous publication attempts** retains the newest 16
+settled attempts independently of answers, plus the running attempt. The history
+shows declared artifact IDs and installation, verification and cleanup facts,
+never private content or destination paths. A pending outcome is unknown, not
+proof that nothing was written.
+
+Cancellation immediately denies stale actions. If native work ignores
+cancellation, its borrowed storage remains intact until the consumer and cleanup
+finish; only then is it cleared and another operation allowed. Definition reads
+and imports follow the same rule and cannot admit late answers after disposal.
+Bounded graceful-close choices remain a separate upcoming increment.
 
 ## Keyboard
 

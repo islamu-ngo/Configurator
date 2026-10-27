@@ -597,12 +597,12 @@ public sealed class DesktopApplicationTests
         var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = DesktopTestContext.Root((_, _, _) =>
             Task.FromResult(ProtectedArtifactCommitResult.Installed(true)), directory.Path, protectedOutputAvailable: true,
-            async (artifacts, output, cancellation) =>
+            async (artifacts, output, observe, cancellation) =>
             {
                 started.SetResult();
                 await finish.Task;
                 return await ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(),
-                    artifacts, output, cancellationToken: cancellation);
+                    artifacts, output, observe, cancellation);
             });
         shell.Loader.LoadDefinition(Definition());
         shell.Publisher.SelectArtifact("environment", true);
@@ -625,7 +625,7 @@ public sealed class DesktopApplicationTests
         string privatePath = "/synthetic/private/output";
         using var shell = DesktopTestContext.Root((_, _, _) =>
             Task.FromResult(ProtectedArtifactCommitResult.Installed(true)), Path.GetTempPath(), protectedOutputAvailable: true,
-            (_, _, _) => throw new IOException(privatePath));
+            (_, _, _, _) => throw new IOException(privatePath));
         shell.Loader.LoadDefinition(Definition());
         await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
         await Assert.That(await shell.Publisher.SaveBundleAsync()).IsNull();

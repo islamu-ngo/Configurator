@@ -14,8 +14,8 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
 {
     private readonly IMessenger _messenger;
     private readonly IStorageDialogService _dialogs;
+    private readonly Func<string, Stream> _openRead;
     private SetupDefinition? _definition;
-    private byte[]? _source;
     private long _generation;
     private bool _disposed;
 
@@ -27,9 +27,17 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     private string _definitionPath = string.Empty;
 
     public DefinitionLoaderViewModel(IMessenger messenger, IStorageDialogService dialogs)
+        : this(messenger, dialogs, path => new FileStream(path, FileMode.Open, FileAccess.Read,
+            FileShare.Read, 4096, FileOptions.Asynchronous))
+    {
+    }
+
+    internal DefinitionLoaderViewModel(IMessenger messenger, IStorageDialogService dialogs,
+        Func<string, Stream> openRead)
     {
         _messenger = messenger;
         _dialogs = dialogs;
+        _openRead = openRead;
         messenger.Register<DefinitionLoaderViewModel, OperationStateMessage>(this,
             static (loader, message) => loader.IsBusy = message.IsBusy);
         messenger.Register<DefinitionLoaderViewModel, WorkspaceInvalidatedMessage>(this,
@@ -96,15 +104,13 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
                 _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation));
                 return false;
             }
-            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-                4096, FileOptions.Asynchronous);
+            await using Stream stream = _openRead(path);
             if (stream.Length > ProtectedArtifactWriter.MaximumBytes)
             {
                 _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation));
                 return false;
             }
             source = new byte[ProtectedArtifactWriter.MaximumBytes + 1];
-            _source = source;
             int count = 0;
             while (count < source.Length)
             {
@@ -133,7 +139,6 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         finally
         {
             CryptographicOperations.ZeroMemory(source);
-            if (ReferenceEquals(_source, source)) _source = null;
         }
     }
 
@@ -190,8 +195,6 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     {
         if (_disposed) return;
         _disposed = true;
-        if (_source is not null) CryptographicOperations.ZeroMemory(_source);
-        _source = null;
         _definition = null;
         _messenger.UnregisterAll(this);
         LoadDefinitionCommand.NotifyCanExecuteChanged();

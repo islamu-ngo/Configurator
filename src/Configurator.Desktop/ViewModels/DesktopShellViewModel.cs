@@ -59,6 +59,8 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public DefinitionLoaderViewModel Loader { get; }
     public FormWorkspaceViewModel Workspace { get; }
     public ArtifactPublisherViewModel Publisher { get; }
+    /// <summary>Physical settlement, including consumer-owned cleanup; cancellation alone never completes this task.</summary>
+    public Task ActiveCompletion => _activeOperation?.Completion ?? Task.CompletedTask;
     public string StatusHelp => Status.Split(':')[0] switch
     {
         "definition-required" => "Choose a local JSON or YAML definition, then load it.",
@@ -111,7 +113,15 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         IsBusy = busy;
         IsSaving = busy && kind == "save";
         IsSelecting = busy && kind == "selection";
-        _messenger.Send(new OperationStateMessage(busy, kind));
+        if (_disposed)
+        {
+            Loader.IsBusy = busy;
+            Workspace.IsBusy = busy;
+            Publisher.IsBusy = busy;
+            Publisher.IsSaving = IsSaving;
+            Publisher.IsSelecting = IsSelecting;
+        }
+        else _messenger.Send(new OperationStateMessage(busy, kind));
     }
 
     private void Invalidate()
@@ -138,7 +148,6 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         if (_disposed) return;
         _disposed = true;
         Invalidate();
-        _activeOperation?.Dispose();
         Loader.Dispose();
         Publisher.Dispose();
         Workspace.Dispose();

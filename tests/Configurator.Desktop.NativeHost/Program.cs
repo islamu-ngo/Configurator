@@ -13,7 +13,10 @@ using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Messaging;
+using Configurator.Artifacts;
 using Configurator.Core.Definitions;
+using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
@@ -27,10 +30,11 @@ internal static class Program
         "D06-protected-single-conflict", "D07-bundle-preflight-recovery",
         "D09-edit-cancel-stale-import", "D10-value-free-feedback-retry",
         "D12-event-one-tenant", "D12-event-two-tenants", "D12-event-three-tenants",
-        "D09-close-disposes-workspace"
+        "D09-close-disposes-workspace", "D14-physical-settlement-receipt"
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
+    private static string _currentStep = "startup";
     private static string? _captureDirectory;
 
     [STAThread]
@@ -92,9 +96,9 @@ internal static class Program
                 {
                     Console.Error.WriteLine($"native-qualification:failed:{_currentCheck}:operation-timeout");
                 }
-                catch (Exception)
+                catch (Exception exception)
                 {
-                    Console.Error.WriteLine($"native-qualification:failed:{_currentCheck}");
+                    Console.Error.WriteLine($"native-qualification:failed:{_currentCheck}:{_currentStep}:{exception.GetType().Name}");
                 }
                 finally
                 {
@@ -295,6 +299,10 @@ internal static class Program
                 Pass();
             }
 
+            _currentCheck = "D14-physical-settlement-receipt";
+            await PhysicalSettlementAsync();
+            Pass();
+
             _currentCheck = "D09-close-disposes-workspace";
             await PrepareAsync(window, shell);
             var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -310,16 +318,113 @@ internal static class Program
         }
     }
 
+    private static async Task PhysicalSettlementAsync()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        ReadOnlyMemory<byte> borrowed = default;
+        byte[] consumed = [];
+        using var shell = PublicationShell(async (_, bytes, _) =>
+        {
+            borrowed = bytes;
+            entered.TrySetResult();
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+            consumed = bytes.ToArray();
+            return ProtectedArtifactCommitResult.Installed(false, cleanupFailed: true);
+        });
+        var window = new MainWindow { DataContext = shell };
+        try
+        {
+            window.Show();
+            shell.Loader.LoadDefinition(await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")));
+            await FlushAsync();
+            Select(window, shell, "environment");
+            await PrepareAsync(window, shell);
+            TextBox retainedControl = Input<TextBox>(window, "Service name");
+            Click(window.GetControl<Button>("Save"));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Task completion = shell.ActiveCompletion;
+            Click(window.GetControl<Button>("Cancel"));
+            Require(!completion.IsCompleted && shell.IsBusy && !shell.Publisher.CanSave &&
+                !await shell.Publisher.PrepareAsync(), "physical-owner-released");
+            Require(borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8), "borrowed-input-cleared");
+            await CaptureAsync(window, "settlement-pending");
+            release.TrySetResult();
+            await completion.WaitAsync(TimeSpan.FromSeconds(10));
+            await FlushAsync();
+            ProtectedArtifactPublicationReceipt receipt = shell.Publisher.PublicationHistory.Single();
+            Require(consumed.AsSpan().SequenceEqual("NAME=\"Example service\"\n"u8) &&
+                borrowed.ToArray().All(value => value == 0), "physical-consumption-or-cleanup");
+            Require(receipt.IsSettled && receipt.CleanupFailed &&
+                receipt.Outcomes.Single().Result is { InstallationEstablished: true, VerificationSucceeded: false } &&
+                !shell.Publisher.CanSave, "historical-installation-lost");
+            TextBlock facts = window.GetControl<TextBlock>("PublicationReceipt");
+            Require(facts.Text is { } text && text.Contains("installed-unverified", StringComparison.Ordinal) &&
+                text.Contains("cleanup-failed", StringComparison.Ordinal) &&
+                !text.Contains("Example service", StringComparison.Ordinal), "receipt-rendering");
+            Require(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(facts)) &&
+                !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(facts)) &&
+                ReferenceEquals(retainedControl, Input<TextBox>(window, "Service name")), "receipt-control-identity");
+            Require(window.GetControl<Button>("Cancel").Focus(), "settlement-keyboard-focus");
+            await CaptureAsync(window, "settlement-receipt");
+        }
+        finally
+        {
+            release.TrySetResult();
+            await shell.ActiveCompletion.WaitAsync(TimeSpan.FromSeconds(10));
+            window.Close();
+        }
+    }
+
+    private static DesktopShellViewModel PublicationShell(
+        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> save)
+    {
+        var messenger = new StrongReferenceMessenger();
+        var dialogs = new NoDialogs();
+        DefinitionLoaderViewModel? loader = null;
+        FormWorkspaceViewModel? workspace = null;
+        ArtifactPublisherViewModel? publisher = null;
+        try
+        {
+            loader = new(messenger, dialogs);
+            workspace = new(messenger);
+            publisher = new(messenger, dialogs, save, Path.GetTempPath(), true);
+            var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+            loader = null;
+            workspace = null;
+            publisher = null;
+            return shell;
+        }
+        finally
+        {
+            loader?.Dispose();
+            workspace?.Dispose();
+            publisher?.Dispose();
+        }
+    }
+
+    private sealed class NoDialogs : IStorageDialogService
+    {
+        public Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Uri?>(null);
+    }
+
     private static async Task EventAsync(MainWindow window, DesktopShellViewModel shell, string directory, int count)
     {
+        _currentStep = "event-load";
         await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json"), true);
+        Input<ComboBox>(window, "Artifact to prepare").SelectedItem = "configuration-manifest";
         window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
         Select(window, shell, "configuration-manifest");
         await FlushAsync();
+        _currentStep = "event-name";
         var name = Field(window, "configuration-manifest.metadata.name");
         name.GetLogicalDescendants().OfType<TextBox>().Single().Text = "qa-config";
+        _currentStep = "event-settings";
         var settings = Field(window, "configuration-manifest.spec.instance.settings");
+        _currentStep = "event-settings-value";
         SetBoolean(settings, "modules.tech_enabled", true);
+        _currentStep = "event-tenants";
         var tenants = Field(window, "configuration-manifest.tenants");
         for (int index = 0; index < count; index++)
         {
@@ -329,15 +434,18 @@ internal static class Program
             tenants.GetLogicalDescendants().OfType<TextBox>().Where(control => AutomationProperties.GetName(control) == "Display name").ElementAt(index).Text = "Tenant " + index.ToString(CultureInfo.InvariantCulture);
         }
         await FlushAsync();
+        _currentStep = "event-prepare";
         Select(window, shell, "configuration-manifest");
         foreach (string id in shell.Publisher.SelectedArtifactIds.ToArray()) Include(window, id, false);
         Include(window, "configuration-manifest", true);
         window.GetControl<TextBox>("OutputDirectory").Text = directory;
         window.GetControl<TextBox>("FileName").Text = "event-" + count.ToString(CultureInfo.InvariantCulture) + ".json";
         await PrepareAsync(window, shell);
+        _currentStep = "event-save";
         await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
         string output = Path.Combine(directory, "event-" + count.ToString(CultureInfo.InvariantCulture) + ".json");
         using var document = JsonDocument.Parse(await File.ReadAllBytesAsync(output));
+        _currentStep = "event-output";
         JsonElement actual = document.RootElement;
         Require(actual.GetProperty("$schema").GetString() == "https://schemas.islamu.org/event/configuration-manifest/v1alpha2/schema.json" &&
             actual.GetProperty("apiVersion").GetString() == "configuration.islamu.org/v1alpha2" &&
@@ -483,11 +591,18 @@ internal static class Program
     private static T Input<T>(MainWindow window, string title) where T : Control => Named<T>(window, title);
     private static void SetBoolean(Control owner, string title, bool value)
     {
-        if (owner.GetLogicalDescendants().OfType<CheckBox>().SingleOrDefault(control =>
-            AutomationProperties.GetName(control) == title && control.IsVisible) is { } choice)
-            choice.IsChecked = value;
+        CheckBox[] choices = owner.GetLogicalDescendants().OfType<CheckBox>().Where(control =>
+            AutomationProperties.GetName(control) == title && control.IsVisible).ToArray();
+        Require(choices.Length <= 1, "boolean-choice-ambiguous");
+        if (choices.Length == 1)
+            choices[0].IsChecked = value;
         else
-            Named<TextBox>(owner, title).Text = value ? "true" : "false";
+        {
+            TextBox[] editors = owner.GetLogicalDescendants().OfType<TextBox>()
+                .Where(control => AutomationProperties.GetName(control) == title).ToArray();
+            Require(editors.Length == 1, editors.Length == 0 ? "boolean-editor-missing" : "boolean-editor-ambiguous");
+            editors[0].Text = value ? "true" : "false";
+        }
     }
     private static T Named<T>(Control owner, string name) where T : Control => owner.GetLogicalDescendants().OfType<T>().Single(control => AutomationProperties.GetName(control) == name);
     private static void Click(Button button)
