@@ -11,7 +11,7 @@ This directory contains generated structural JSON Schemas for definition authori
 | [`configurator-authoring-v2.schema.json`](configurator-authoring-v2.schema.json) | Describes current compact maintainer source (`configurator.yaml` or `configurator.json`). | Tool authors, IDE validation, compiler preflight. | YAML / JSON |
 | [`setup-definition-v2.schema.json`](setup-definition-v2.schema.json) | Describes canonical runtime schemaVersion 2/profile bounded-v2 definitions. | `Configurator.Core`, definition store, runtime clients. | Canonical JSON |
 | [`configurator-answers-v1.schema.json`](configurator-answers-v1.schema.json) | Describes the private answerContractVersion 1 envelope with values and explicit omitted pointers. | Local answer tooling; never a public definition/cache payload. | Private JSON |
-| [`islamu-configurator-command-v2.schema.json`](islamu-configurator-command-v2.schema.json) | Defines the structured machine envelope emitted by CLI commands when `--machine` is invoked. | CI/CD pipelines, automated scripts, AI coding agents. | JSON |
+| [`islamu-configurator-command-v3.schema.json`](islamu-configurator-command-v3.schema.json) | Defines the structured machine envelope emitted by CLI commands when `--machine` is invoked. | CI/CD pipelines, automated scripts, AI coding agents. | JSON |
 | [`definition-store-curation-v1.schema.json`](definition-store-curation-v1.schema.json) | Validates catalog metadata and project curation records (`curation.json`) for the Definition Store. | Store builders, catalog contributors. | JSON |
 
 ---
@@ -102,7 +102,7 @@ not bounded metadata IDs. Standard `default` never inserts answers;
 reset removes override and suppression. No initialized child creates an absent
 container.
 
-Command results still use envelope v2; successful authoring check/build reports
+Command results still use envelope v3; successful authoring check/build reports
 authoringContractVersion 2/runtimeSchemaVersion 2. Answer v1 and store v1 are
 independent contracts, not compatibility fallbacks for definition v1.
 

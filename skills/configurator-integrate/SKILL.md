@@ -2,7 +2,7 @@
 name: configurator-integrate
 description: Create or review a compact Configurator YAML or JSON integration for a tool, scaffold from a public JSON Schema, or prepare an optional definition-store contribution. Do not use for collecting private answers, applying configuration, or deploying the target application.
 license: MIT
-compatibility: Requires the standalone islamu-configurator CLI supporting definition authoring v1 and a native shell. No application startup, network access, or credentials are required.
+compatibility: Requires the standalone islamu-configurator CLI supporting machine contract v3 and definition authoring v2, and a native shell. No application startup, network access, or credentials are required.
 ---
 
 ## Rules
@@ -17,7 +17,7 @@ compatibility: Requires the standalone islamu-configurator CLI supporting defini
 
 ## Workflow
 
-1. Run `islamu-configurator --help` and inspect `islamu-configurator definition --help`. Confirm command contract `islamu-configurator-command/v2` and authoring schema v1 before authoring. Use the installed tool's declared options; a missing command is a prerequisite failure.
+1. Run `islamu-configurator --help` and inspect `islamu-configurator definition --help`. Confirm command contract `islamu-configurator-command/v3` and authoring/runtime schemas v2 before authoring; private answers remain v1. Use the installed tool's declared options; a missing command is a prerequisite failure.
 2. Read [authoring](resources/authoring.md) for ordinary field/output decisions. Read [schema import](resources/schema-import.md) only when scaffolding from a public schema, or [store contribution](resources/store-contribution.md) only when preparing that optional contribution.
 3. Use `definition init` to create the source, then supply the target's meaningful facts. Express advanced mappings through the existing closed projection vocabulary. Keep output format independent from source syntax.
 4. Run `definition check` on the selected source. Resolve every admission error. Do not bypass unsupported schema constraints or classify private values public to obtain green output.

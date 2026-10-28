@@ -65,7 +65,7 @@ internal static class SetupCliArtifactHandlers
             var readiness = new SetupCliMachineReadiness("incomplete",
                 coverage.MissingKeys.Count > 0 ? coverage.MissingKeys : ["input-invalid"], []);
             return new(missingOnly ? SetupCliExitCode.Incomplete : SetupCliExitCode.Validation,
-                validation.Diagnostics.Select(item => new SetupCliMachineDiagnostic(item.Code, "/input", "error")).ToArray(),
+                validation.Diagnostics.Select(SetupCliResults.Diagnostic).ToArray(),
                 [], coverage, readiness)
             { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
         }
@@ -194,7 +194,7 @@ internal static class SetupCliArtifactHandlers
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers, cancellationToken);
         if (!bundle.Succeeded)
             return new(SetupCliExitCode.Validation,
-                bundle.Diagnostics.Select(item => new SetupCliMachineDiagnostic(item.Code, "/input", "error")).ToArray(),
+                bundle.Diagnostics.Select(SetupCliResults.Diagnostic).ToArray(),
                 [], SetupCliResults.EmptyCoverage(), new("incomplete", ["input-invalid"], []))
             { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
 

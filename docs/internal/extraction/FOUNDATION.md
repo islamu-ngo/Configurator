@@ -31,8 +31,8 @@ this compiler before answers; remote Browser distribution remains canonical runt
 JSON. See [maintainer source ownership](../MAINTAINER_AUTHORING.md) and
 [runtime contract](../CORE_DEFINITION_CONTRACT.md).
 
-The CLI's [command v2 contract](../CLI_CONTRACT.md) replaces command v1 only;
-authoring/runtime v1 remain unchanged. Repeated bundle `--artifact` selection and
+The CLI's [command v3 contract](../CLI_CONTRACT.md) replaces command v2;
+authoring/runtime use v2 and private answers use v1. Repeated bundle `--artifact` selection and
 count/digest summaries keep the full output ledger within a 65,536-byte UTF-8
 receipt. The CLI plans receipt capacity before publication and preserves written,
 not-attempted and unknown outcomes through later failures. One application emitter

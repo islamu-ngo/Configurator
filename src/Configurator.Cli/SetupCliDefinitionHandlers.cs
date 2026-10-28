@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Configurator.Core;
 using Configurator.Core.Definitions;
 using Configurator.Core.Definitions.Authoring;
 
@@ -18,6 +19,7 @@ internal static class SetupCliDefinitionHandlers
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (command.Operation == "init") return await InitializeAsync(command, invocation, ledger, cancellationToken).ConfigureAwait(false);
+            if (command.Operation == "schema") return Schema(command.SchemaKind);
             ISetupCliAuthoringFiles files = invocation.Io.AuthoringFiles;
             int maximumBytes = invocation.Io.MaximumBytes;
             string source = await files.DiscoverSourceAsync(command.Root ?? ".", command.Source, cancellationToken).ConfigureAwait(false);
@@ -55,6 +57,8 @@ internal static class SetupCliDefinitionHandlers
             if (command.Against is not null) await VerifyAnchorAsync(files, maximumBytes, command.Against, definition, true, cancellationToken).ConfigureAwait(false);
             if (command.Operation == "check")
                 return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input");
+            if (command.Operation == "lint")
+                return Lint(definition, cancellationToken);
             string destination = command.Output ?? anchor;
             RejectSourceDestination(source, destination);
             if (command.IdMap is not null)
@@ -93,8 +97,98 @@ internal static class SetupCliDefinitionHandlers
                 .Concat(exception.Transformations.Select(TransformationDiagnostic)).ToArray();
             return new(SetupCliExitCode.Data, diagnostics, [], SetupCliResults.EmptyCoverage(), new("incomplete", ["schema-review-required"], []));
         }
-        catch (SetupDefinitionException) { return SetupCliResults.Failure(SetupCliExitCode.Data, "definition-source-invalid", "$.source"); }
+        catch (SetupDefinitionException exception)
+        {
+            SetupCliMachineSourceLocation? source = exception.SourceSpan is { } span && exception.SchemaPath is { } path
+                ? new(path, span.DocumentIndex, span.StartLine, span.StartColumn, span.EndLine, span.EndColumn) : null;
+            return SetupCliResults.Failure(SetupCliExitCode.Data, exception.Code, "/source") with
+            {
+                Diagnostics = [new(exception.Code, "/source", "error") { Source = source }]
+            };
+        }
         catch (DecoderFallbackException) { return SetupCliResults.Failure(SetupCliExitCode.Data, "definition-source-invalid", "$.source"); }
+    }
+
+    private static SetupCliCommandResult Schema(string kind)
+    {
+        string schema = kind switch
+        {
+            "authoring" => DefinitionAuthoringSchema.Generate(),
+            "runtime" => DefinitionSchema.Generate(),
+            "answers" => DefinitionSchema.GenerateAnswers(),
+            "command" => Encoding.UTF8.GetString(SetupCliCommandSchemaMetadata.GenerateSchema()),
+            _ => throw new InvalidOperationException("definition-schema-kind")
+        };
+        byte[] canonical = DefinitionProfile.CanonicalizeJson(Encoding.UTF8.GetBytes(schema));
+        using JsonDocument document = JsonDocument.Parse(canonical);
+        string digest = ArtifactDigest.Compute(canonical).Value;
+        return SetupCliResults.Success() with
+        {
+            Schema = new(kind, document.RootElement.GetProperty("$id").GetString()!, digest, DefinitionProfile.Id,
+                2, 2, 1, DefinitionProfile.Capabilities, document.RootElement.Clone()),
+            DefinitionDigest = digest,
+            Preparation = "ready"
+        };
+    }
+
+    private static SetupCliCommandResult Lint(SetupDefinition definition, CancellationToken cancellationToken)
+    {
+        var diagnostics = new List<SetupCliMachineDiagnostic>();
+        var pending = new Stack<(DefinitionNode Node, string Path)>();
+        pending.Push((definition.Configuration, "/configuration"));
+        bool limited = false;
+        while (pending.TryPop(out var current) && !limited)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            JsonElement keywords = current.Node.Keywords;
+            if (keywords.TryGetProperty("default", out _)) Warn("default-is-descriptive", current.Path + "/default");
+            if (keywords.TryGetProperty("format", out _) &&
+                !(keywords.TryGetProperty("x-configurator", out var extension) &&
+                    extension.TryGetProperty("assertFormat", out var assertion) && assertion.ValueKind == JsonValueKind.True))
+                Warn("format-is-advisory", current.Path + "/format");
+            foreach ((string name, DefinitionNode child) in current.Node.Properties.Reverse())
+                pending.Push((child, current.Path + "/properties/" + name.Replace("~", "~0", StringComparison.Ordinal)
+                    .Replace("/", "~1", StringComparison.Ordinal)));
+            if (current.Node.Items is { } items) pending.Push((items, current.Path + "/items"));
+            if (current.Node.AdditionalProperties is { } map) pending.Push((map, current.Path + "/additionalProperties"));
+            for (int index = current.Node.Variants.Count - 1; index >= 0; index--)
+                pending.Push((current.Node.Variants[index], current.Path + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture)));
+        }
+        for (int index = 0; index < definition.Artifacts.Count && !limited; index++)
+        {
+            SetupArtifactDefinition artifact = definition.Artifacts[index];
+            string path = "/artifacts/" + index.ToString(CultureInfo.InvariantCulture);
+            if (artifact.ApplySemantics == "unspecified") Warn("target-update-unspecified", path + "/targetUpdateMode");
+            if (artifact.Restart == "unspecified") Warn("restart-unspecified", path + "/restartRequirement");
+        }
+        return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input") with
+        {
+            Exit = limited ? SetupCliExitCode.Data : SetupCliExitCode.Success,
+            Diagnostics = diagnostics.OrderBy(item => item.Source?.SchemaPath, StringComparer.Ordinal)
+                .ThenBy(item => item.Code, StringComparer.Ordinal).ToArray(),
+            Readiness = limited ? new("incomplete", ["lint-report-limit"], []) : SetupCliResults.Ready(),
+            Preparation = limited ? "incomplete" : "ready"
+        };
+
+        void Warn(string code, string path)
+        {
+            if (limited) return;
+            if (diagnostics.Count == 4095)
+            {
+                diagnostics.Add(new("lint-report-limit", "/source", "error"));
+                limited = true;
+                return;
+            }
+            while (!definition.SourceMap.TryGetSpan(path, out _))
+            {
+                int separator = path.LastIndexOf('/');
+                if (separator < 0) break;
+                path = path[..separator];
+            }
+            SetupCliMachineSourceLocation? source = definition.SourceMap.TryGetSpan(path, out var span)
+                ? new(path, span.DocumentIndex, span.StartLine, span.StartColumn, span.EndLine, span.EndColumn) : null;
+            diagnostics.Add(new(code, "/source", "warning") { Source = source });
+        }
     }
 
     private static async Task<SetupCliCommandResult> InitializeAsync(SetupCliCommand command, SetupCliInvocation invocation,
@@ -187,7 +281,7 @@ internal static class SetupCliDefinitionHandlers
         // The machine envelope bounds diagnostic pointers; retain the nearest representable schema ancestor.
         while (location.Length > 256 || location.Any(char.IsControl))
             location = location[..location.LastIndexOf('/')];
-        return new(transformation.Code, location, transformation.Classification switch
+        return new(transformation.Code.ToLowerInvariant(), location, transformation.Classification switch
             {
                 "unsupported" => "error",
                 "advisory" or "discarded" => "warning",

@@ -9,6 +9,75 @@ namespace Configurator.Cli.Tests;
 public sealed class SetupCliDefinitionTests
 {
     [Test]
+    public async Task CompilerFailuresRetainPublicSourceLocationsWithoutUnknownKeysOrValues()
+    {
+        using var files = new DefinitionTestDirectory();
+        string path = files.Path("configurator.json");
+        File.WriteAllText(path, CurrentSource.Replace("\"type\":\"string\"",
+            "\"type\":\"string\",\"synthetic-private-key\":\"synthetic-private-value\"", StringComparison.Ordinal));
+        var io = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        await Assert.That(await io.RunAsync("definition", "check", "--source", path, "--machine")).IsEqualTo(SetupCliExitCode.Data);
+        using JsonDocument output = JsonDocument.Parse(io.StandardOutput);
+        JsonElement diagnostic = output.RootElement.GetProperty("diagnostics")[0];
+        await Assert.That(diagnostic.GetProperty("code").GetString()).IsEqualTo("member-unsupported");
+        await Assert.That(diagnostic.GetProperty("source").GetProperty("schemaPath").GetString())
+            .IsEqualTo("/configuration/properties/value");
+        await Assert.That(diagnostic.GetProperty("source").GetProperty("startLine").GetInt32() > 0).IsTrue();
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("synthetic-private");
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain(files.Root);
+    }
+
+    [Test]
+    [Arguments("authoring", "urn:islamu:configurator:authoring:v2")]
+    [Arguments("runtime", "urn:islamu:configurator:setup-definition:v2")]
+    [Arguments("answers", "urn:islamu:configurator:answers:v1")]
+    [Arguments("command", "https://schemas.islamu.org/configurator/command/v3/schema.json")]
+    public async Task SchemaDiscoveryUsesOnlyBuiltInPublicMetadataWithoutFileAuthority(string kind, string id)
+    {
+        var io = new CliFixture();
+        await Assert.That(await io.RunAsync("definition", "schema", "--kind", kind, "--machine"))
+            .IsEqualTo(SetupCliExitCode.Success);
+        using JsonDocument output = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(output.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v3");
+        JsonElement schema = output.RootElement.GetProperty("schema");
+        await Assert.That(schema.GetProperty("kind").GetString()).IsEqualTo(kind);
+        await Assert.That(schema.GetProperty("document").GetProperty("$id").GetString()).IsEqualTo(id);
+        await Assert.That(schema.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
+        await Assert.That(schema.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
+        await Assert.That(schema.GetProperty("answerContractVersion").GetInt32()).IsEqualTo(1);
+        await Assert.That(schema.GetProperty("capabilities").EnumerateArray().Any(item => item.GetString() == "predicate.item")).IsTrue();
+    }
+
+    [Test]
+    public async Task LintWarningsRemainDistinctFromAdmissionAndUseBoundedDiagnosticContinuation()
+    {
+        using var files = new DefinitionTestDirectory();
+        string path = files.Path("configurator.json");
+        File.WriteAllText(path, CurrentSource);
+        var io = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        await Assert.That(await io.RunAsync("definition", "lint", "--source", path, "--machine",
+            "--detail", "diagnostics", "--limit", "1")).IsEqualTo(SetupCliExitCode.Success);
+        using JsonDocument output = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(output.RootElement.GetProperty("diagnostics").EnumerateArray().Any(item =>
+            item.GetProperty("code").GetString() == "default-is-descriptive" &&
+            item.GetProperty("severity").GetString() == "warning")).IsTrue();
+        await Assert.That(output.RootElement.GetProperty("detail").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(1);
+        await Assert.That(output.RootElement.GetProperty("diagnostics").EnumerateArray().Any(item =>
+            item.GetProperty("severity").GetString() == "error")).IsFalse();
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("synthetic-public-default");
+    }
+
+    private const string CurrentSource = """
+        {"$schema":"urn:islamu:configurator:authoring:v2",
+         "identity":{"familyId":"d6788869-273c-4d44-b969-d8a54f6a9caf","revision":1},
+         "project":{"id":"example","name":"Authoring"},"applicationVersions":["1"],
+         "configuration":{"type":"object","additionalProperties":false,
+          "x-configurator":{"sensitivity":"public"},"properties":{
+           "value":{"type":"string","default":"synthetic-public-default","x-configurator":{"sensitivity":"public"}}}},
+         "outputs":{"config.json":{"format":"json"}}}
+        """;
+
+    [Test]
     public async Task ChangedRevisionWithoutOutputNeverMutatesSource()
     {
         using var files = new DefinitionTestDirectory();
@@ -34,15 +103,15 @@ public sealed class SetupCliDefinitionTests
         await Assert.That(await InitializeAsync(io, files)).IsEqualTo(SetupCliExitCode.Success);
         string source = files.Path("configurator.yaml");
         byte[] initial = File.ReadAllBytes(source);
-        await Assert.That(Encoding.UTF8.GetString(initial)).Contains("urn:islamu:configurator:authoring:v1");
+        await Assert.That(Encoding.UTF8.GetString(initial)).Contains("urn:islamu:configurator:authoring:v2");
         await Assert.That(await InitializeAsync(io, files)).IsEqualTo(SetupCliExitCode.Data);
         await Assert.That(File.ReadAllBytes(source).AsSpan().SequenceEqual(initial)).IsTrue();
         await Assert.That(await io.RunAsync("definition", "check", "--root", files.Root, "--machine")).IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
         using (JsonDocument receipt = JsonDocument.Parse(io.StandardOutput))
         {
-            await Assert.That(receipt.RootElement.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(1);
-            await Assert.That(receipt.RootElement.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(1);
+            await Assert.That(receipt.RootElement.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
+            await Assert.That(receipt.RootElement.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
         }
         await Assert.That(await io.RunAsync("definition", "build", "--root", files.Root, "--machine")).IsEqualTo(SetupCliExitCode.Success);
         string release = files.Path("dist/configurator/revisions/1.json");

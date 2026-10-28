@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Configurator.Artifacts;
 using Configurator.Core;
@@ -95,7 +96,19 @@ public sealed record SetupCliMachineDiagnostic(string Code, string Path, string 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Line { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Column { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public long? ByteOffset { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SetupCliMachineSourceLocation? Source { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SetupCliMachineCorrectionLocation? Correction { get; init; }
 }
+public sealed record SetupCliMachineSourceLocation(string SchemaPath, int DocumentIndex,
+    int StartLine, int StartColumn, int EndLine, int EndColumn);
+public sealed record SetupCliMachineLocationSegment(string Kind,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PropertyName,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Index);
+public sealed record SetupCliMachineCorrectionLocation(long InputRevision, string FieldId,
+    IReadOnlyList<SetupCliMachineLocationSegment> Segments);
+public sealed record SetupCliMachineSchema(string Kind, string Id, string Digest, string Profile,
+    int AuthoringContractVersion, int RuntimeSchemaVersion, int AnswerContractVersion,
+    IReadOnlyList<string> Capabilities, JsonElement Document);
 public sealed record SetupCliMachineCoverage
 {
     private readonly string[] _coveredKeys;
@@ -191,6 +204,8 @@ public sealed record SetupCliMachineEnvelope
     public int? AuthoringContractVersion { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? RuntimeSchemaVersion { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SetupCliMachineSchema? Schema { get; init; }
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

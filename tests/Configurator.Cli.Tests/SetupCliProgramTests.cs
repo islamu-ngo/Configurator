@@ -182,7 +182,12 @@ public sealed class SetupCliProgramTests
         string path = Path.Combine(Path.GetTempPath(), "islamu-configurator-input-" + Guid.NewGuid().ToString("N"));
         string value = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         using var files = new NativeFixture();
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new Dictionary<string, string> { ["service.name"] = value }));
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new
+        {
+            answerContractVersion = 1,
+            values = new Dictionary<string, string> { ["service.name"] = value },
+            omitted = Array.Empty<string>()
+        }));
         try
         {
             ProcessResult result = await ExecuteAsync(["env", "validate", "--definition", files.Definition,

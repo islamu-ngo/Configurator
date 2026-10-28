@@ -17,8 +17,24 @@ internal static class SetupCliContractSpecification
                 ["artifact"] = new HashSet<string>(["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "prefill", "bundle-check", "bundle-create", "preview"], StringComparer.Ordinal),
                 ["env"] = new HashSet<string>(["render", "validate"], StringComparer.Ordinal),
                 ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal),
-                ["definition"] = new HashSet<string>(["init", "check", "build", "revise"], StringComparer.Ordinal)
+                ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "schema"], StringComparer.Ordinal)
             });
+
+    internal static readonly IReadOnlyDictionary<string, string> SchemaIds =
+        new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["authoring"] = "urn:islamu:configurator:authoring:v2",
+            ["runtime"] = "urn:islamu:configurator:setup-definition:v2",
+            ["answers"] = "urn:islamu:configurator:answers:v1",
+            ["command"] = "https://schemas.islamu.org/configurator/command/v3/schema.json"
+        });
+
+    internal static readonly IReadOnlySet<string> Capabilities = new HashSet<string>(
+        ["predicate.item", "predicate.root", "projection.copy", "projection.index", "projection.list", "projection.literal", "projection.object",
+            "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
+            "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
+            "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",
+            "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "values.initial", "values.suggested"], StringComparer.Ordinal);
 
     internal static bool IsInvocation(string family, string operation) =>
         Operations.TryGetValue(family, out IReadOnlySet<string>? operations)

@@ -8,8 +8,22 @@ internal static class DefinitionCommands
         "definition",
         SetupCliCommandRegistry.Operation<DefinitionInitSettings>("init"),
         SetupCliCommandRegistry.Operation<DefinitionSourceSettings>("check"),
+        SetupCliCommandRegistry.Operation<DefinitionSourceSettings>("lint"),
+        SetupCliCommandRegistry.Operation<DefinitionSchemaSettings>("schema"),
         SetupCliCommandRegistry.Operation<DefinitionBuildSettings>("build"),
         SetupCliCommandRegistry.Operation<DefinitionCandidateSettings>("revise"));
+}
+
+internal sealed class DefinitionSchemaSettings : SetupCliCommandSettings
+{
+    [CommandOption("--kind <KIND>")]
+    public string Kind { get; set; } = "authoring";
+
+    protected override string? ValidateValues() => base.ValidateValues()
+        ?? (Kind is not ("authoring" or "runtime" or "answers" or "command") ? "definition-schema-kind" : null);
+
+    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+        base.Bind(family, operation, invocationMode) with { SchemaKind = Kind };
 }
 
 internal class DefinitionSourceSettings : SetupCliCommandSettings

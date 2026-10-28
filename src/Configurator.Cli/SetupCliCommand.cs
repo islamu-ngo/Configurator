@@ -1,4 +1,5 @@
 using Configurator.Core;
+using Configurator.Core.Definitions;
 
 namespace Configurator.Cli;
 
@@ -28,6 +29,7 @@ internal sealed record SetupCliCommand(
     internal string? FromEnvExample { get; init; }
     internal string? FromSchema { get; init; }
     internal bool AcceptBoundedSemantics { get; init; }
+    internal string SchemaKind { get; init; } = "authoring";
 }
 
 internal sealed record SetupCliCommandResult(
@@ -40,10 +42,25 @@ internal sealed record SetupCliCommandResult(
     internal string Completion { get; init; } = "completed";
     internal string? Preparation { get; init; }
     internal string Cleanup { get; init; } = "not-required";
+    internal SetupCliMachineSchema? Schema { get; init; }
 }
 
 internal static class SetupCliResults
 {
+    internal static SetupCliMachineDiagnostic Diagnostic(DefinitionDiagnostic diagnostic) =>
+        new(diagnostic.Code, "/input", "error")
+        {
+            Correction = diagnostic.Location is { } location
+                ? new(location.InputRevision, diagnostic.FieldId, Array.AsReadOnly(location.Segments.Select(segment =>
+                    new SetupCliMachineLocationSegment(segment.Kind switch
+                    {
+                        DefinitionLocationSegmentKind.Property => "property",
+                        DefinitionLocationSegmentKind.ArrayRow => "arrayRow",
+                        DefinitionLocationSegmentKind.MapEntry => "mapEntry",
+                        _ => throw new InvalidOperationException("diagnostic-location")
+                    }, segment.PropertyName, segment.Index)).ToArray())) : null
+        };
+
     internal static SetupCliCommandResult Success(IReadOnlyList<SetupCliMachineArtifact>? artifacts = null,
         SetupCliMachineCoverage? coverage = null, SetupCliMachineReadiness? readiness = null) =>
         new(SetupCliExitCode.Success, [], artifacts ?? [], coverage ?? EmptyCoverage(), readiness ?? Ready());

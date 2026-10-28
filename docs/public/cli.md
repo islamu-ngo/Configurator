@@ -68,12 +68,49 @@ The CLI uses strict, case-sensitive option parsing:
 | `doctor` | *(none)* | *(none)* | Check system writer availability and schema status |
 | `definition init` | `--project-id`, `--name`, `--application-version` | `--root`, `--output`, `--format`, `--from-env-example`, `--from-schema` | Initialize a new maintainer definition |
 | `definition check` | *(none)* | `--source`, `--root`, `--against` | Verify maintainer source syntax and canonical hash |
+| `definition lint` | *(none)* | `--source`, `--root`, `--against`, `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Admit source and report bounded authoring warnings without publication |
+| `definition schema` | *(none)* | `--kind` | Discover built-in public schemas without reading files |
 | `definition build` | *(none)* | `--source`, `--root`, `--against`, `--output`, `--id-map` | Compile maintainer source into distribution JSON |
 | `definition revise` | `--output` *(when changed)* | `--source`, `--root`, `--against` | Increment revision if source contents changed |
 
 ---
 
 ## Command Examples
+
+### Authoring diagnostics and schema discovery
+
+```bash
+islamu-configurator definition lint --source configurator.yaml --machine \
+  --detail diagnostics --limit 16
+islamu-configurator definition schema --kind authoring --machine
+islamu-configurator definition schema --kind command --text
+```
+
+Schema kinds are exactly `authoring` (default), `runtime`, `answers`, and
+`command`. Machine discovery returns a `schema` object containing its kind, ID,
+canonical digest, `bounded-v2` profile, capabilities, document, and independent
+authoring/runtime/answer versions 2/2/1. Text mode prints only the public schema
+document. Discovery takes no source, input, output or root authority.
+
+Lint runs the same admission as check, then reports descriptive defaults,
+advisory formats and missing output update/restart advice as warnings. Warnings
+alone succeed; unsupported source still fails admission. Lint never revises or
+publishes source. A bounded report overflow fails explicitly rather than hiding
+unreported diagnostics.
+
+Compiler diagnostics preserve their code and optional public `source` location:
+schema pointer, zero-based document index and one-based start/end line/column.
+Answer diagnostics can instead carry a revision-bound `correction` with a field
+ID and typed `property`, `arrayRow`, or `mapEntry` segments. Map entries use
+ordinals, never private keys. A numeric declared property remains a property.
+Do not apply a correction after changing the input revision.
+
+Locations may stop at the nearest representable ancestor: pointers are limited
+to 256 characters; corrections to 32 segments and 256 aggregate declared-name
+characters. For omitted diagnostics, request `--detail diagnostics`, advance by
+the actual returned count, and send `--expected-detail-digest` on noninitial
+pages. A digest mismatch means the public diagnostic view changed: restart at
+offset zero. Values and native paths are never recovery identifiers.
 
 ### Catalogue Inspection
 
@@ -200,13 +237,13 @@ islamu-configurator doctor --machine
 
 ## Machine Contract (`--machine`)
 
-In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v2` schema. It provides deterministic, structured facts about operation results, file publication, and validation diagnostics.
+In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v3` schema. It provides deterministic, structured facts about operation results, file publication, and validation diagnostics.
 
 ### 1. Successful Artifact Creation
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v2",
+  "schemaVersion": "islamu-configurator-command/v3",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "create",
@@ -257,7 +294,7 @@ When validation fails, diagnostics include fixed error codes, RFC 6901 structura
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v2",
+  "schemaVersion": "islamu-configurator-command/v3",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "validate",
@@ -317,7 +354,7 @@ Query detailed coverage or diagnostics using pagination options (`--detail cover
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v2",
+  "schemaVersion": "islamu-configurator-command/v3",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "validate",

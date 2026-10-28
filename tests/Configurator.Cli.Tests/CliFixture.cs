@@ -9,28 +9,30 @@ namespace Configurator.Cli.Tests;
 internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
 {
     internal const string Definition = """
-        {"schemaVersion":1,"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
-        "revision":1,"applicationId":"example.service","applicationVersions":["1.0"],
-        "publisher":"example","title":"Example service","entryPoints":["setup"],"locales":["en"],
-        "fields":[
-          {"id":"service.name","type":"string","required":true,"sensitivity":"public","disclosure":"guided","title":"Name"},
-          {"id":"enabled","type":"boolean","required":false,"sensitivity":"public","disclosure":"guided","title":"Enabled","default":true},
-          {"id":"expectedRevision","type":"string","required":false,"sensitivity":"public","disclosure":"advanced","title":"Revision"}
-        ],
-        "artifacts":[
-          {"id":"config","format":"json","fileName":"service.json","applySemantics":"create","restart":"process",
-           "projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"},"enabled":{"op":"copy","field":"enabled"}}}},
-          {"id":"yaml","format":"yaml","fileName":"service.yaml","applySemantics":"create","restart":"process",
-           "projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"},"enabled":{"op":"copy","field":"enabled"}}}},
-          {"id":"environment","format":"dotenv","fileName":"service.env","applySemantics":"create","restart":"process",
-           "projection":{"op":"object","members":{"SERVICE_NAME":{"op":"copy","field":"service.name"}}}},
-          {"id":"request","format":"json","fileName":"request.json","applySemantics":"import","restart":"none",
-           "projection":{"op":"object","members":{"expectedRevision":{"op":"copy","field":"expectedRevision"},"name":{"op":"copy","field":"service.name"}}}},
-          {"id":"markdown","format":"markdown","fileName":"draft.md","applySemantics":"generationOnly","restart":"none",
-           "projection":{"op":"list","items":[{"op":"literal","value":"Draft"},{"op":"copy","field":"service.name"}]}}
-        ]}
+        {"$schema":"urn:islamu:configurator:authoring:v2",
+        "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
+        "project":{"id":"example.service","name":"Example service","publisher":"example"},
+        "applicationVersions":["1.0"],"entryPoints":["setup"],
+        "configuration":{"type":"object","additionalProperties":false,"required":["service.name"],
+          "x-configurator":{"sensitivity":"public"},"properties":{
+            "service.name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
+            "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard","initialValue":true}},
+            "expectedRevision":{"type":"string","title":"Revision","x-configurator":{"sensitivity":"public","detail":"advanced"}}
+          }},
+        "outputs":{
+          "service.json":{"id":"config","format":"json","targetUpdateMode":"create","restartRequirement":"process",
+           "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}},"enabled":{"op":"copy","reference":{"scope":"root","path":"/enabled"}}}}},
+          "service.yaml":{"id":"yaml","format":"yaml","targetUpdateMode":"create","restartRequirement":"process",
+           "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}},"enabled":{"op":"copy","reference":{"scope":"root","path":"/enabled"}}}}},
+          "service.env":{"id":"environment","format":"dotenv","targetUpdateMode":"create","restartRequirement":"process",
+           "projection":{"op":"object","members":{"SERVICE_NAME":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}},
+          "request.json":{"id":"request","format":"json","targetUpdateMode":"import","restartRequirement":"none",
+           "projection":{"op":"object","members":{"expectedRevision":{"op":"copy","reference":{"scope":"root","path":"/expectedRevision"}},"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}},
+          "draft.md":{"id":"markdown","format":"markdown","targetUpdateMode":"generationOnly","restartRequirement":"none",
+           "projection":{"op":"list","items":[{"op":"literal","value":"Draft"},{"op":"copy","reference":{"scope":"root","path":"/service.name"}}]}}
+        }}
         """;
-    internal const string Answers = """{"service.name":"private-answer-marker"}""";
+    internal const string Answers = """{"answerContractVersion":1,"values":{"service.name":"private-answer-marker"},"omitted":[]}""";
 
     public Dictionary<string, byte[]> Files { get; } = new(StringComparer.Ordinal)
     {

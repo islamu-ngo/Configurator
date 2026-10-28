@@ -17,9 +17,11 @@ public sealed class StandalonePackageTests
         string directory = Path.Combine(ReleaseTestPaths.PackageRoot, surface, "linux-x64");
         await Assert.That(File.Exists(Path.Combine(directory, executable))).IsTrue();
         foreach (string path in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md",
-            "schemas/setup-definition-v1.schema.json", "schemas/islamu-configurator-command-v2.schema.json",
+            "schemas/setup-definition-v2.schema.json", "schemas/islamu-configurator-command-v3.schema.json",
             "contracts/package.json", "contracts/native-release-capabilities.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
+        foreach (string retired in new[] { "islamu-configurator-command-v1.schema.json", "islamu-configurator-command-v2.schema.json" })
+            await Assert.That(File.Exists(Path.Combine(directory, "schemas", retired))).IsFalse();
         using JsonDocument contract = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "contracts/package.json")));
         await Assert.That(contract.RootElement.GetProperty("surface").GetString()).IsEqualTo(surface);
         await Assert.That(contract.RootElement.GetProperty("executableName").GetString()).IsEqualTo(executable);
@@ -67,7 +69,7 @@ public sealed class StandalonePackageTests
             "css/layers.css", "css/reset.css", "css/base.css", "css/tokens.css", "css/mudblazor-overrides.css",
             "css/components.css", "css/utilities.css", "browser-appearance.js", "browser-store.js", "workspace-interactions.js",
             "_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js",
-            "contracts/browser-release-capabilities.json", "schemas/setup-definition-v1.schema.json" })
+            "contracts/browser-release-capabilities.json", "schemas/setup-definition-v2.schema.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
         using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "manifest.webmanifest")));
         JsonElement icons = manifest.RootElement.GetProperty("icons");

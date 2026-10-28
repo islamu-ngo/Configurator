@@ -26,7 +26,13 @@ trusting authors. No second evaluator or general JSON Schema validator exists.
 or runtime by `schemaVersion: 2`. Conflicting/unknown discriminators reject;
 there is no parser fallback. Public source, runtime, private answer and command
 versions are independent. Private answers use `answerContractVersion: 1`;
-the command envelope remains v2 and check/build handshake versions are 2/2.
+the command envelope is v3 and check/build handshake versions are 2/2.
+
+Lint shares the source admission path and adds bounded warnings without
+publication. Schema discovery returns built-in public documents only; it runs
+before authoring-file authority. Precise compiler spans and revision-bound
+correction tokens are serialized through the CLI sanitizer, not exception text.
+See [the machine contract](CLI_CONTRACT.md) for paging, digests and location bounds.
 
 Project requires `id` and `name`; publisher defaults to name. Optional description,
 credential-free public HTTPS repository and definition license are distribution

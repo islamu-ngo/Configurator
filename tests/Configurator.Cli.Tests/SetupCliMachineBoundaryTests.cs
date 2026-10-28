@@ -10,6 +10,38 @@ namespace Configurator.Cli.Tests;
 public sealed class SetupCliMachineBoundaryTests
 {
     [Test]
+    public async Task CoreCorrectionsPreserveTypedSafeCoordinatesWithoutPrivateMapKeys()
+    {
+        var fixture = new CliFixture();
+        fixture.Files["definition.json"] = Encoding.UTF8.GetBytes("""
+            {"$schema":"urn:islamu:configurator:authoring:v2",
+             "identity":{"familyId":"61d35828-9c74-41e3-8f92-57324a708e85","revision":1},
+             "project":{"id":"example","name":"Corrections"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"properties":{
+              "value":{"type":"object","additionalProperties":{"type":"array","items":{
+               "type":"object","additionalProperties":false,"properties":{"0":{"type":"integer"}}}}}}},
+             "outputs":{"service.json":{"id":"config","format":"json"}}}
+            """);
+        fixture.Files["answers.json"] = Encoding.UTF8.GetBytes("""
+            {"answerContractVersion":1,"values":{"value":{"synthetic-private-key":[{"0":"synthetic-private-answer"}]}},"omitted":[]}
+            """);
+        await Assert.That(await fixture.ArtifactAsync("validate")).IsEqualTo(SetupCliExitCode.Validation);
+        using JsonDocument output = JsonDocument.Parse(fixture.StandardOutput);
+        JsonElement diagnostic = output.RootElement.GetProperty("diagnostics")[0];
+        await Assert.That(diagnostic.GetProperty("code").GetString()).IsEqualTo("value-invalid");
+        JsonElement correction = diagnostic.GetProperty("correction");
+        await Assert.That(correction.GetProperty("inputRevision").GetInt64()).IsEqualTo(0);
+        await Assert.That(correction.GetProperty("fieldId").GetString()).IsEqualTo("value");
+        JsonElement segments = correction.GetProperty("segments");
+        await Assert.That(segments[0].GetProperty("kind").GetString()).IsEqualTo("mapEntry");
+        await Assert.That(segments[0].GetProperty("index").GetInt32()).IsEqualTo(0);
+        await Assert.That(segments[1].GetProperty("kind").GetString()).IsEqualTo("arrayRow");
+        await Assert.That(segments[2].GetProperty("kind").GetString()).IsEqualTo("property");
+        await Assert.That(segments[2].GetProperty("propertyName").GetString()).IsEqualTo("0");
+        await Assert.That(Encoding.UTF8.GetString(fixture.StandardOutput)).DoesNotContain("synthetic-private");
+    }
+
+    [Test]
     [Arguments("missing", false, true)]
     [Arguments("replaced", false, true)]
     [Arguments("exception", false, true)]
@@ -170,45 +202,47 @@ public sealed class SetupCliMachineBoundaryTests
         try
         {
             JsonObject definition = JsonNode.Parse(CliFixture.Definition)!.AsObject();
-            JsonArray fields = definition["fields"]!.AsArray();
-            fields.Clear();
+            var fields = new JsonObject();
+            var required = new JsonArray();
             JsonObject answers = new();
             for (int index = 0; index < 1024; index++)
             {
                 string id = "f" + index.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + new string('x', 123);
-                fields.Add(new JsonObject
+                fields[id] = new JsonObject
                 {
-                    ["id"] = id,
                     ["type"] = "string",
-                    ["required"] = true,
-                    ["sensitivity"] = "public",
-                    ["disclosure"] = "guided",
+                    ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
                     ["title"] = "Field"
-                });
+                };
+                required.Add(id);
                 answers[id] = "synthetic";
             }
-            var artifacts = new JsonArray();
+            definition["configuration"]!["properties"] = fields;
+            definition["configuration"]!["required"] = required;
+            var artifacts = new JsonObject();
             var ids = new List<string>();
             for (int index = 0; index < 64; index++)
             {
                 string id = "a" + index.ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + new string('x', 124);
                 ids.Add(id);
-                artifacts.Add(new JsonObject
+                artifacts[index.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".json"] = new JsonObject
                 {
                     ["id"] = id,
                     ["format"] = "json",
-                    ["fileName"] = index + ".json",
-                    ["applySemantics"] = "create",
-                    ["restart"] = "none",
+                    ["targetUpdateMode"] = "create",
+                    ["restartRequirement"] = "none",
                     ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject { ["ok"] = true } }
-                });
+                };
             }
-            definition["artifacts"] = artifacts;
+            definition["outputs"] = artifacts;
             string source = Path.Combine(directory, "definition.json");
             string input = Path.Combine(directory, "answers.json");
             string target = Path.Combine(directory, "0.json");
             await File.WriteAllTextAsync(source, definition.ToJsonString());
-            await File.WriteAllTextAsync(input, answers.ToJsonString());
+            await File.WriteAllTextAsync(input, new JsonObject
+            {
+                ["answerContractVersion"] = 1, ["values"] = answers, ["omitted"] = new JsonArray()
+            }.ToJsonString());
             var info = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "Configurator.Cli.exe" : "Configurator.Cli"))
             { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
             foreach (string argument in new[] { "artifact", "bundle-create", "--definition", source,
@@ -312,28 +346,29 @@ public sealed class SetupCliMachineBoundaryTests
     {
         var fixture = new CliFixture();
         JsonObject definition = JsonNode.Parse(CliFixture.Definition)!.AsObject();
-        var fields = new JsonArray();
-        for (int index = 0; index < 40; index++) fields.Add(new JsonObject
+        var fields = new JsonObject();
+        var required = new JsonArray();
+        for (int index = 0; index < 40; index++)
         {
-            ["id"] = "field" + index,
-            ["type"] = "string",
-            ["required"] = true,
-            ["sensitivity"] = "public",
-            ["disclosure"] = "guided",
-            ["title"] = "Field"
-        });
-        definition["fields"] = fields;
-        definition["artifacts"] = new JsonArray(new JsonObject
+            string name = "field" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            fields[name] = new JsonObject
+            {
+                ["type"] = "string", ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" }, ["title"] = "Field"
+            };
+            required.Add(name);
+        }
+        definition["configuration"]!["properties"] = fields;
+        definition["configuration"]!["required"] = required;
+        definition["outputs"] = new JsonObject { ["output.json"] = new JsonObject
         {
             ["id"] = "config",
             ["format"] = "json",
-            ["fileName"] = "output.json",
-            ["applySemantics"] = "create",
-            ["restart"] = "none",
+            ["targetUpdateMode"] = "create",
+            ["restartRequirement"] = "none",
             ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject() }
-        });
+        } };
         fixture.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
-        fixture.Files["answers.json"] = "{}"u8.ToArray();
+        fixture.Files["answers.json"] = """{"answerContractVersion":1,"values":{},"omitted":[]}"""u8.ToArray();
         string[] arguments = ["artifact", operation, "--definition", "definition.json", "--artifact", "config",
             "--input", "answers.json", "--machine", "--detail", "diagnostics", "--limit", "16"];
         await Assert.That(await fixture.RunAsync(arguments)).IsEqualTo(expected);
@@ -345,7 +380,7 @@ public sealed class SetupCliMachineBoundaryTests
         string[] continuation = [.. arguments, "--offset", "16", "--expected-detail-digest", digest];
         await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(expected);
         await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
-        fixture.Files["answers.json"] = "{\"field0\":\"synthetic\"}"u8.ToArray();
+        fixture.Files["answers.json"] = """{"answerContractVersion":1,"values":{"field0":"synthetic"},"omitted":[]}"""u8.ToArray();
         await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(SetupCliExitCode.Data);
         using JsonDocument mismatch = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(mismatch.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString()).IsEqualTo("detail-digest-mismatch");

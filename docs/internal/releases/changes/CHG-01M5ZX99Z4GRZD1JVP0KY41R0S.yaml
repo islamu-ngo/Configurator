@@ -1,0 +1,30 @@
+Change-Id: CHG-01M5ZX99Z4GRZD1JVP0KY41R0S
+Title: "expose precise authoring diagnostics and schema discovery"
+Type: feat
+Scope: cli
+Summary: "Add read-only definition lint and built-in schema discovery. Preserve public compiler spans and typed correction coordinates in bounded machine v3 diagnostics."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Consume islamu-configurator-command/v3. Machine v2 is no longer emitted or accepted as the current handshake; definition authoring/runtime remain v2 and private answers remain v1."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Diagnostics retain public source ancestors and revision-bound typed coordinates without private map keys, values or native paths. Schema discovery has no file authority."
+  Migration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Update strict consumers together with the generated v3 schema. Restart diagnostic paging when its expected digest no longer matches."
+  Configuration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "Use definition lint for admission plus advisory warnings, and definition schema with authoring, runtime, answers or command for built-in metadata."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/troubleshooting.md
+    Disposition: documented
+    Detail: "Use compiler codes and public spans to recover source errors; apply correction coordinates only to their reported input revision. Lint and discovery never publish or grant target acceptance."

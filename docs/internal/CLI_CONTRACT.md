@@ -275,7 +275,7 @@ without replaying effects. Detailed lists are not repeated in every artifact.
 
 `--detail diagnostics|coverage`, `--offset` (0–2,048, default 0), `--limit`
 (1–32, default 16) and `--expected-detail-digest` are admitted only by read-only
-`definition check`, `artifact validate`, `artifact check-existing` and
+`definition check`, `definition lint`, `artifact validate`, `artifact check-existing` and
 `artifact bundle-check`. A page includes kind, offset, requested limit, total,
 digest and sanitized diagnostic or coverage entries. Byte limits can return fewer
 entries than requested; advance by the actual count. The ordinary operation exit
@@ -287,13 +287,33 @@ definition digest, operation, selected IDs and sanitized structural/status view,
 including covered/missing IDs and safe diagnostics. It never hashes private
 answers or persists them. Same-view private-value changes need not change it.
 
+Machine v3 diagnostics carry mutually exclusive optional `source` and
+`correction` objects. `SetupCliDefinitionHandlers` preserves compiler codes and
+public source-map coordinates; importer keyword codes are lowercased to the
+machine code vocabulary. `SetupCliResults.Diagnostic` converts Core correction
+tokens without recovering private map keys. `SetupCliMachineOutput` sanitizes
+and bounds both before hashing their serialized structure into the detail
+digest. Pointers retain a safe ancestor within 256 characters; corrections retain
+at most 32 typed segments and 256 aggregate declared-name characters. The input
+revision fences correction use. Source offsets are one-based line/column and a
+zero-based document index; collection coordinates are zero-based ordinals.
+
+`definition lint` shares check admission and read-only continuation, then emits
+warnings for descriptive defaults, advisory formats and absent output update or
+restart advice. It caps its report at 4,096 entries including an explicit
+overflow error. `definition schema --kind authoring|runtime|answers|command`
+returns only built-in public metadata and canonical schema content, before any
+file authority is consulted. Its payload declares profile/capabilities and
+independent versions 2/2/1; text mode emits the public document only. Neither
+operation grants revision, publication or target-acceptance authority.
+
 `SetupCliCommandSchemaMetadata.GenerateSchema()` generates the closed
-`islamu-configurator-command/v2` envelope plus registry operation/option metadata.
+`islamu-configurator-command/v3` envelope plus registry operation/option metadata.
 The generator's `--write` and `--check` locate `Configurator.slnx`; `--stdout`
 returns schema bytes without needing a repository checkout.
-The native generator retires command v1 through owned-output cleanup; the
+The native generator retires command v1 and v2 through owned-output cleanup; the
 `RefreshConfiguratorSchemas` packaging stage refreshes only owned packaged schemas.
-Authoring/runtime v1 remain current: changing the command receipt does not change
+Authoring/runtime v2 remain current: changing the command receipt does not change
 their vocabularies. The independent specification/verifier must migrate with the
 compiled schema, rather than using production serialization as its oracle.
 

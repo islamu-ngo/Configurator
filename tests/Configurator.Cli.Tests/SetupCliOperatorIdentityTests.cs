@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Configurator.Cli.Tests;
 
@@ -29,12 +30,14 @@ public sealed class SetupCliOperatorIdentityTests
             await Assert.That(await io.ArtifactAsync(operation, "request", "--dry-run")).IsEqualTo(SetupCliExitCode.Blocked);
         await Assert.That(await io.ArtifactAsync("import", "config", "--dry-run", "--expected-revision", "absent",
             "--revision-field", "expectedRevision")).IsEqualTo(SetupCliExitCode.Blocked);
-        io.Files["answers.json"] = """{"service.name":"private-answer-marker","expectedRevision":"different"}"""u8.ToArray();
+        io.Files["answers.json"] = """{"answerContractVersion":1,"values":{"service.name":"private-answer-marker","expectedRevision":"different"},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run", "--expected-revision", "absent",
             "--revision-field", "expectedRevision")).IsEqualTo(SetupCliExitCode.Validation);
         io.Files["answers.json"] = Encoding.UTF8.GetBytes(CliFixture.Answers);
-        io.Files["definition.json"] = Encoding.UTF8.GetBytes(CliFixture.Definition.Replace(
-            "\"id\":\"expectedRevision\",\"type\":\"string\"", "\"id\":\"expectedRevision\",\"activeWhen\":{\"op\":\"equals\",\"field\":\"enabled\",\"value\":false},\"type\":\"string\"", StringComparison.Ordinal));
+        JsonNode definition = JsonNode.Parse(CliFixture.Definition)!;
+        definition["configuration"]!["properties"]!["expectedRevision"]!["x-configurator"]!["applicableWhen"] =
+            JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":false}""");
+        io.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
         await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run", "--expected-revision", "absent",
             "--revision-field", "expectedRevision")).IsEqualTo(SetupCliExitCode.Blocked);
         await Assert.That(io.Files.Keys).IsEquivalentTo(["definition.json", "answers.json", "baseline.json"]);

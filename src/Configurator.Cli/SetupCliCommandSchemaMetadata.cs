@@ -15,7 +15,7 @@ public sealed record SetupCliRegisteredCommandMetadata(
 
 public static class SetupCliCommandSchemaMetadata
 {
-    public const string RelativePath = "schemas/islamu-configurator-command-v2.schema.json";
+    public const string RelativePath = "schemas/islamu-configurator-command-v3.schema.json";
     public static IReadOnlyList<SetupCliRegisteredCommandMetadata> Commands { get; } =
         SetupCliCommandRegistry.Families.Select(family => new SetupCliRegisteredCommandMetadata(
                 family.Name,
@@ -86,7 +86,52 @@ public static class SetupCliCommandSchemaMetadata
                 ["severity"] = Enum(["info", "warning", "error"]),
                 ["line"] = Integer(1, int.MaxValue),
                 ["column"] = Integer(1, int.MaxValue),
-                ["byteOffset"] = Integer(0, long.MaxValue)
+                ["byteOffset"] = Integer(0, long.MaxValue),
+                ["source"] = Ref("source"),
+                ["correction"] = Ref("correction")
+            }),
+            ["source"] = ObjectSchema(["schemaPath", "documentIndex", "startLine", "startColumn", "endLine", "endColumn"], new()
+            {
+                ["schemaPath"] = String(0, 256, "^(?:/(?:[^~/\\x00-\\x1F\\x7F]|~[01])*)*$"),
+                ["documentIndex"] = Integer(0, int.MaxValue),
+                ["startLine"] = Integer(1, int.MaxValue),
+                ["startColumn"] = Integer(1, int.MaxValue),
+                ["endLine"] = Integer(1, int.MaxValue),
+                ["endColumn"] = Integer(1, int.MaxValue)
+            }),
+            ["correction"] = ObjectSchema(["inputRevision", "fieldId", "segments"], new()
+            {
+                ["inputRevision"] = Integer(0, long.MaxValue),
+                ["fieldId"] = String(0, 128, "^(?:[A-Za-z][A-Za-z0-9._-]*)?$"),
+                ["segments"] = BoundedArray("correctionSegment", 32)
+            }),
+            ["correctionSegment"] = ObjectSchema(["kind"], new()
+            {
+                ["kind"] = Enum(["property", "arrayRow", "mapEntry"]),
+                ["propertyName"] = String(0, 65536, "^[\\s\\S]*$"),
+                ["index"] = Integer(0, 4095)
+            }),
+            ["schema"] = ObjectSchema(["kind", "id", "digest", "profile", "authoringContractVersion",
+                "runtimeSchemaVersion", "answerContractVersion", "capabilities", "document"], new()
+            {
+                ["kind"] = Enum(["authoring", "runtime", "answers", "command"]),
+                ["id"] = Enum(["urn:islamu:configurator:authoring:v2", "urn:islamu:configurator:setup-definition:v2",
+                    "urn:islamu:configurator:answers:v1", "https://schemas.islamu.org/configurator/command/v3/schema.json"]),
+                ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
+                ["profile"] = new JsonObject { ["const"] = "bounded-v2" },
+                ["authoringContractVersion"] = new JsonObject { ["const"] = 2 },
+                ["runtimeSchemaVersion"] = new JsonObject { ["const"] = 2 },
+                ["answerContractVersion"] = new JsonObject { ["const"] = 1 },
+                ["capabilities"] = new JsonObject
+                {
+                    ["type"] = "array", ["maxItems"] = 64, ["uniqueItems"] = true,
+                    ["items"] = Enum(Configurator.Core.Definitions.DefinitionProfile.Capabilities)
+                },
+                ["document"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["$ref"] = "https://json-schema.org/draft/2020-12/schema"
+                }
             }),
             ["artifact"] = ObjectSchema(["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"], new()
             {
@@ -129,6 +174,34 @@ public static class SetupCliCommandSchemaMetadata
                 ["coverage"] = BoundedArray("coverageEntry", 32)
             })
         };
+        definitions["diagnostic"]!["not"] = new JsonObject { ["required"] = Array(["source", "correction"]) };
+        definitions["correctionSegment"]!["oneOf"] = new JsonArray(
+            new JsonObject
+            {
+                ["properties"] = new JsonObject { ["kind"] = new JsonObject { ["const"] = "property" } },
+                ["required"] = Array(["propertyName"]),
+                ["not"] = new JsonObject { ["required"] = Array(["index"]) }
+            },
+            new JsonObject
+            {
+                ["properties"] = new JsonObject { ["kind"] = Enum(["arrayRow", "mapEntry"]) },
+                ["required"] = Array(["index"]),
+                ["not"] = new JsonObject { ["required"] = Array(["propertyName"]) }
+            });
+        definitions["schema"]!["oneOf"] = new JsonArray(new[]
+        {
+            ("authoring", "urn:islamu:configurator:authoring:v2"),
+            ("runtime", "urn:islamu:configurator:setup-definition:v2"),
+            ("answers", "urn:islamu:configurator:answers:v1"),
+            ("command", "https://schemas.islamu.org/configurator/command/v3/schema.json")
+        }.Select(pair => (JsonNode?)new JsonObject
+        {
+            ["properties"] = new JsonObject
+            {
+                ["kind"] = new JsonObject { ["const"] = pair.Item1 },
+                ["id"] = new JsonObject { ["const"] = pair.Item2 }
+            }
+        }).ToArray());
         JsonObject root = new()
         {
             ["_metadata"] = new JsonObject
@@ -159,7 +232,7 @@ public static class SetupCliCommandSchemaMetadata
                 }).ToArray())
             },
             ["$schema"] = "https://json-schema.org/draft/2020-12/schema",
-            ["$id"] = "https://schemas.islamu.org/configurator/command/v2/schema.json",
+            ["$id"] = "https://schemas.islamu.org/configurator/command/v3/schema.json",
             ["type"] = "object",
             ["additionalProperties"] = false,
             ["required"] = Array(["schemaVersion", "invocation", "status", "exitCategory", "exitCode", "dryRun",
@@ -167,7 +240,7 @@ public static class SetupCliCommandSchemaMetadata
                 "diagnosticsOmitted", "detailDigest", "diagnostics", "artifacts", "coverage", "readiness"]),
             ["properties"] = new JsonObject
             {
-                ["schemaVersion"] = new JsonObject { ["const"] = "islamu-configurator-command/v2" },
+                ["schemaVersion"] = new JsonObject { ["const"] = "islamu-configurator-command/v3" },
                 ["invocation"] = Ref("invocation"),
                 ["status"] = ExitNames(),
                 ["exitCategory"] = ExitNames(),
@@ -183,15 +256,23 @@ public static class SetupCliCommandSchemaMetadata
                 ["detailDigest"] = String(null, null, "^[0-9a-f]{64}$"),
                 ["detail"] = Ref("detail"),
                 ["help"] = Ref("help"),
+                ["schema"] = Ref("schema"),
                 ["diagnostics"] = BoundedArray("diagnostic", 16),
                 ["artifacts"] = BoundedArray("artifact", 64),
                 ["coverage"] = Ref("coverage"),
                 ["readiness"] = Ref("readiness"),
-                ["authoringContractVersion"] = new JsonObject { ["const"] = 1 },
-                ["runtimeSchemaVersion"] = new JsonObject { ["const"] = 1 }
+                ["authoringContractVersion"] = new JsonObject { ["const"] = 2 },
+                ["runtimeSchemaVersion"] = new JsonObject { ["const"] = 2 }
             },
             ["$defs"] = definitions
         };
+        root["allOf"] = JsonNode.Parse("""
+            [{"if":{"required":["schema"]},"then":{"properties":{
+                "invocation":{"properties":{"commandFamily":{"const":"definition"},"operation":{"const":"schema"}}},
+                "exitCode":{"const":0}},"not":{"required":["help"]}}},
+             {"if":{"properties":{"invocation":{"properties":{"commandFamily":{"const":"definition"},"operation":{"const":"schema"}}},
+                "exitCode":{"const":0}},"not":{"required":["help"]}},"then":{"required":["schema"]}}]
+            """);
         string json = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
         return Encoding.UTF8.GetBytes(json);
     }

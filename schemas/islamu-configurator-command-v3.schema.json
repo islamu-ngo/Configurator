@@ -29,6 +29,7 @@
       "--input",
       "--input-revision",
       "--key",
+      "--kind",
       "--limit",
       "--machine",
       "--name",
@@ -475,6 +476,30 @@
             ]
           },
           {
+            "name": "lint",
+            "options": [
+              "--against",
+              "--detail",
+              "--expected-detail-digest",
+              "--help",
+              "--limit",
+              "--machine",
+              "--offset",
+              "--root",
+              "--source",
+              "--text"
+            ]
+          },
+          {
+            "name": "schema",
+            "options": [
+              "--help",
+              "--kind",
+              "--machine",
+              "--text"
+            ]
+          },
+          {
             "name": "build",
             "options": [
               "--against",
@@ -520,6 +545,7 @@
           "--from-schema",
           "--help",
           "--id-map",
+          "--kind",
           "--limit",
           "--machine",
           "--name",
@@ -552,7 +578,7 @@
     ]
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.islamu.org/configurator/command/v2/schema.json",
+  "$id": "https://schemas.islamu.org/configurator/command/v3/schema.json",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -577,7 +603,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": "islamu-configurator-command/v2"
+      "const": "islamu-configurator-command/v3"
     },
     "invocation": {
       "$ref": "#/$defs/invocation"
@@ -673,6 +699,9 @@
     "help": {
       "$ref": "#/$defs/help"
     },
+    "schema": {
+      "$ref": "#/$defs/schema"
+    },
     "diagnostics": {
       "type": "array",
       "maxItems": 16,
@@ -694,10 +723,10 @@
       "$ref": "#/$defs/readiness"
     },
     "authoringContractVersion": {
-      "const": 1
+      "const": 2
     },
     "runtimeSchemaVersion": {
-      "const": 1
+      "const": 2
     }
   },
   "$defs": {
@@ -736,12 +765,14 @@
             "format",
             "import",
             "init",
+            "lint",
             "list",
             "open",
             "prefill",
             "preview",
             "render",
             "revise",
+            "schema",
             "show",
             "validate",
             "help"
@@ -866,8 +897,290 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9223372036854775807
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "correction": {
+          "$ref": "#/$defs/correction"
+        }
+      },
+      "not": {
+        "required": [
+          "source",
+          "correction"
+        ]
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaPath",
+        "documentIndex",
+        "startLine",
+        "startColumn",
+        "endLine",
+        "endColumn"
+      ],
+      "properties": {
+        "schemaPath": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 256,
+          "pattern": "^(?:/(?:[^~/\\x00-\\x1F\\x7F]|~[01])*)*$"
+        },
+        "documentIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "startLine": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "startColumn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "endLine": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "endColumn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
         }
       }
+    },
+    "correction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputRevision",
+        "fieldId",
+        "segments"
+      ],
+      "properties": {
+        "inputRevision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "fieldId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 128,
+          "pattern": "^(?:[A-Za-z][A-Za-z0-9._-]*)?$"
+        },
+        "segments": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/correctionSegment"
+          }
+        }
+      }
+    },
+    "correctionSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "property",
+            "arrayRow",
+            "mapEntry"
+          ]
+        },
+        "propertyName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 65536,
+          "pattern": "^[\\s\\S]*$"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4095
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "property"
+            }
+          },
+          "required": [
+            "propertyName"
+          ],
+          "not": {
+            "required": [
+              "index"
+            ]
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "arrayRow",
+                "mapEntry"
+              ]
+            }
+          },
+          "required": [
+            "index"
+          ],
+          "not": {
+            "required": [
+              "propertyName"
+            ]
+          }
+        }
+      ]
+    },
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "digest",
+        "profile",
+        "authoringContractVersion",
+        "runtimeSchemaVersion",
+        "answerContractVersion",
+        "capabilities",
+        "document"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "authoring",
+            "runtime",
+            "answers",
+            "command"
+          ]
+        },
+        "id": {
+          "enum": [
+            "urn:islamu:configurator:authoring:v2",
+            "urn:islamu:configurator:setup-definition:v2",
+            "urn:islamu:configurator:answers:v1",
+            "https://schemas.islamu.org/configurator/command/v3/schema.json"
+          ]
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "profile": {
+          "const": "bounded-v2"
+        },
+        "authoringContractVersion": {
+          "const": 2
+        },
+        "runtimeSchemaVersion": {
+          "const": 2
+        },
+        "answerContractVersion": {
+          "const": 1
+        },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "predicate.item",
+              "predicate.root",
+              "projection.copy",
+              "projection.index",
+              "projection.list",
+              "projection.literal",
+              "projection.object",
+              "projection.omit",
+              "projection.repeat",
+              "relationship.presence",
+              "schema.array",
+              "schema.boolean",
+              "schema.bounds",
+              "schema.const",
+              "schema.enum",
+              "schema.integer",
+              "schema.notBlank",
+              "schema.nullable",
+              "schema.number",
+              "schema.object",
+              "schema.string",
+              "schema.uniqueBy",
+              "schema.map",
+              "schema.variant",
+              "schema.localRef",
+              "schema.multipleOf",
+              "schema.uniqueItems",
+              "schema.assertFormat",
+              "values.initial",
+              "values.suggested"
+            ]
+          }
+        },
+        "document": {
+          "type": "object",
+          "$ref": "https://json-schema.org/draft/2020-12/schema"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "authoring"
+            },
+            "id": {
+              "const": "urn:islamu:configurator:authoring:v2"
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "runtime"
+            },
+            "id": {
+              "const": "urn:islamu:configurator:setup-definition:v2"
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "answers"
+            },
+            "id": {
+              "const": "urn:islamu:configurator:answers:v1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "command"
+            },
+            "id": {
+              "const": "https://schemas.islamu.org/configurator/command/v3/schema.json"
+            }
+          }
+        }
+      ]
     },
     "artifact": {
       "type": "object",
@@ -1087,5 +1400,65 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "schema"
+        ]
+      },
+      "then": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "definition"
+              },
+              "operation": {
+                "const": "schema"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "definition"
+              },
+              "operation": {
+                "const": "schema"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "schema"
+        ]
+      }
+    }
+  ]
 }

@@ -27,7 +27,7 @@ internal static class SetupCliMachineOutput
                     : detail with { Coverage = detail.Coverage.SkipLast(1).ToArray() };
         }
         string category = SetupCliResults.Lower(result.Exit);
-        var envelope = new SetupCliMachineEnvelope("islamu-configurator-command/v2",
+        var envelope = new SetupCliMachineEnvelope("islamu-configurator-command/v3",
             new(family, operation, "machine"), category, category, (int)result.Exit, command.DryRun,
             inline, result.Artifacts, result.Coverage with { DetailDigest = digest }, result.Readiness)
         {
@@ -39,8 +39,10 @@ internal static class SetupCliMachineOutput
             DetailDigest = digest,
             Detail = detail,
             Help = result.Help,
-            AuthoringContractVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
-            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null
+            AuthoringContractVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
+            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
+            Schema = family == "definition" && operation == "schema" && result.Exit == SetupCliExitCode.Success && result.Help is null
+                ? result.Schema : null
         };
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(envelope, SetupCliJsonContext.Default.SetupCliMachineEnvelope);
         if (body.Length + 1 > maximumOutputBytes) throw new IOException("output-bound");
@@ -90,6 +92,8 @@ internal static class SetupCliMachineOutput
             Add(diagnostic.Line?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "");
             Add(diagnostic.Column?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "");
             Add(diagnostic.ByteOffset?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "");
+            Add(diagnostic.Source is null ? "" : JsonSerializer.Serialize(diagnostic.Source, SetupCliJsonContext.Default.SetupCliMachineSourceLocation));
+            Add(diagnostic.Correction is null ? "" : JsonSerializer.Serialize(diagnostic.Correction, SetupCliJsonContext.Default.SetupCliMachineCorrectionLocation));
         }
         foreach (string key in result.Coverage.CoveredKeys) { Add("covered"); Add(key); }
         foreach (string key in result.Coverage.MissingKeys) { Add("missing"); Add(key); }
@@ -102,13 +106,60 @@ internal static class SetupCliMachineOutput
         }
     }
 
-    private static SetupCliMachineDiagnostic Sanitize(SetupCliMachineDiagnostic diagnostic)
+    internal static SetupCliMachineDiagnostic Sanitize(SetupCliMachineDiagnostic diagnostic)
     {
         string pointer = diagnostic.Path.StartsWith("$.", StringComparison.Ordinal)
             ? "/" + diagnostic.Path[2..].Replace(".", "/", StringComparison.Ordinal) : diagnostic.Path == "$" ? "" : diagnostic.Path;
         if (pointer.Length > 256 || pointer.Any(char.IsControl) || pointer.Length > 0 && pointer[0] != '/') pointer = "";
         string code = diagnostic.Code.Length is > 0 and <= 96 && diagnostic.Code.All(character => char.IsAsciiLetterOrDigit(character) || character == '-')
             ? diagnostic.Code : "diagnostic-invalid";
+        SetupCliMachineSourceLocation? source = diagnostic.Source;
+        if (source is not null)
+        {
+            if (source.DocumentIndex is < 0 or > 4095 || source.StartLine < 1 || source.StartColumn < 1
+                || source.EndLine < source.StartLine || source.EndColumn < 1
+                || source.EndLine == source.StartLine && source.EndColumn < source.StartColumn) source = null;
+            else
+            {
+                string path = source.SchemaPath;
+                string root = path.Length == 0 ? "" : path[0] != '/' ? "invalid" : path.Split('/', 3)[1];
+                bool knownRoot = root is "" or "$schema" or "schemaVersion" or "profile" or "identity" or "familyId"
+                    or "revision" or "project" or "applicationVersions" or "entryPoints" or "locales" or "requiredCapabilities"
+                    or "configuration" or "outputs" or "artifacts" or "presentation" or "localization" or "annotations";
+                if (!knownRoot || path.Length > 0 && path[0] != '/') path = "";
+                while (path.Length > 256 || path.Any(char.IsControl))
+                {
+                    int separator = path.LastIndexOf('/');
+                    path = separator < 0 ? "" : path[..separator];
+                }
+                source = source with { SchemaPath = path };
+            }
+        }
+        SetupCliMachineCorrectionLocation? correction = source is null ? diagnostic.Correction : null;
+        if (correction is not null)
+        {
+            if (correction.InputRevision < 0 || correction.FieldId.Length > 128
+                || correction.FieldId.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('.' or '-' or '_')))
+                correction = null;
+            else
+            {
+                var segments = new List<SetupCliMachineLocationSegment>();
+                int characters = 0;
+                foreach (SetupCliMachineLocationSegment segment in correction.Segments.Take(32))
+                {
+                    if (segment.Kind == "property" && segment.PropertyName is { } name && segment.Index is null
+                        && name.Length <= 256 - characters)
+                    {
+                        characters += name.Length;
+                        segments.Add(segment);
+                    }
+                    else if (segment.Kind is "arrayRow" or "mapEntry" && segment.PropertyName is null
+                        && segment.Index is >= 0 and <= 4095) segments.Add(segment);
+                    else break;
+                }
+                correction = correction with { Segments = segments.AsReadOnly() };
+            }
+        }
         return diagnostic with
         {
             Code = code,
@@ -116,7 +167,9 @@ internal static class SetupCliMachineOutput
             Severity = diagnostic.Severity is "error" or "warning" or "info" ? diagnostic.Severity : "error",
             Line = diagnostic.Line > 0 ? diagnostic.Line : null,
             Column = diagnostic.Column > 0 ? diagnostic.Column : null,
-            ByteOffset = diagnostic.ByteOffset >= 0 ? diagnostic.ByteOffset : null
+            ByteOffset = diagnostic.ByteOffset >= 0 ? diagnostic.ByteOffset : null,
+            Source = source,
+            Correction = correction
         };
     }
 }

@@ -279,7 +279,7 @@ synthetic definition/answer workspace, verifies its inputs remain unchanged and
 requires no output file. No owner-source execution substitutes for these calls.
 
 Each receipt must be one LF-terminated UTF-8 object, without BOM, CR, terminal
-controls, stderr or more than 65,536 bytes. The checkout-owned command v2 schema
+controls, stderr or more than 65,536 bytes. The checkout-owned command v3 schema
 enforces required fields, closed nested objects, duplicate-key rejection, types,
 enum/constant vocabulary, string/array/numeric bounds and patterns. Additional
 checks bind invocation, process/receipt exit, status/completion, diagnostics

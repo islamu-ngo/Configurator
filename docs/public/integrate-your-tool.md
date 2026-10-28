@@ -24,8 +24,13 @@ broader features and complete client/scenario qualification are not delivered.
    overwriting the source or reusing an admitted family/revision.
 
 Revision 1/2 are family revisions, not authoring or runtime contract versions.
-Machine commands retain envelope v2; successful check/build reports the
+Machine commands retain envelope v3; successful check/build reports the
 independent authoring/runtime handshake as 2/2.
+
+Run `definition lint --source configurator.yaml --machine` for advisory authoring
+feedback after admission. Use `definition schema --kind authoring --text` for the
+built-in editor schema or `--kind command --machine` for the current receipt
+contract. Discovery never reads private answers or arbitrary schema locations.
 
 ## Complete Minimal `configurator.yaml` Example
 

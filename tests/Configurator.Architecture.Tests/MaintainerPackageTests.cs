@@ -33,19 +33,20 @@ public sealed class MaintainerPackageTests
             string workspace = Path.Combine(directory, "workspace");
             Directory.CreateDirectory(workspace);
             byte[] definition = """
-                {"schemaVersion":1,"familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
-                 "revision":1,"applicationId":"example.service","applicationVersions":["1.0"],
-                 "publisher":"example","title":"Installed service","entryPoints":["setup"],"locales":["en"],
-                 "fields":[{"id":"service.name","type":"string","required":true,
-                    "sensitivity":"sensitive","disclosure":"guided","title":"Service name"}],
+                {"schemaVersion":2,"profile":"bounded-v2","familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
+                 "revision":1,"project":{"id":"example.service","name":"Installed service","publisher":"example"},"applicationVersions":["1.0"],
+                 "entryPoints":["setup"],"locales":["en"],
+                 "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
+                 "configuration":{"type":"object","required":["service.name"],"properties":{
+                    "service.name":{"type":"string","title":"Service name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}}}},
                  "artifacts":[{"id":"config","format":"json","fileName":"service.json",
-                    "applySemantics":"create","restart":"process",
-                    "projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}}]}
+                    "targetUpdateMode":"create","restartRequirement":"process",
+                    "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}}]}
                 """u8.ToArray();
             _ = SetupDefinitionCodec.ParseJson(definition);
             await File.WriteAllBytesAsync(Path.Combine(workspace, "definition.json"), definition);
             string answers = Path.Combine(workspace, "answers.json");
-            await File.WriteAllTextAsync(answers, """{"service.name":"synthetic-installed-service"}""");
+            await File.WriteAllTextAsync(answers, """{"answerContractVersion":1,"values":{"service.name":"synthetic-installed-service"},"omitted":[]}""");
             string artifact = Path.Combine(workspace, "service.json");
             byte[] expected = """{"name":"synthetic-installed-service"}"""u8.ToArray();
 
@@ -69,7 +70,7 @@ public sealed class MaintainerPackageTests
             await Assert.That((await File.ReadAllBytesAsync(artifact)).SequenceEqual(expected)).IsTrue();
             await Assert.That(File.GetUnixFileMode(artifact)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
 
-            await File.WriteAllTextAsync(answers, """{"service.name":"synthetic-replacement"}""");
+            await File.WriteAllTextAsync(answers, """{"answerContractVersion":1,"values":{"service.name":"synthetic-replacement"},"omitted":[]}""");
             var conflict = await ReleaseTestPaths.RunInDirectory(workspace, executable, create);
             await AssertInstalledReceipt(conflict, "create", 74, "conflict", """{"name":"synthetic-replacement"}"""u8.ToArray());
             await Assert.That((await File.ReadAllBytesAsync(artifact)).SequenceEqual(expected)).IsTrue();
@@ -92,7 +93,7 @@ public sealed class MaintainerPackageTests
         await Assert.That(result.Output.Count(character => character == '\n')).IsEqualTo(1);
         using JsonDocument receipt = JsonDocument.Parse(result.Output);
         JsonElement root = receipt.RootElement;
-        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v2");
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v3");
         await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo("artifact");
         await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo(operation);
         await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(exitCode);
@@ -119,7 +120,7 @@ public sealed class MaintainerPackageTests
     {
         string package = ReleaseTestPaths.NativeCliPackage;
         string executable = Path.Combine(package, ReleaseTestPaths.CliExecutableName);
-        foreach (string relative in new[] { "schemas/configurator-authoring-v1.schema.json",
+        foreach (string relative in new[] { "schemas/configurator-authoring-v2.schema.json",
             "skills/configurator-integrate/SKILL.md", "skills/configurator-integrate/resources/authoring.md",
             "skills/configurator-integrate/resources/schema-import.md", "skills/configurator-integrate/resources/store-contribution.md" })
         {
@@ -136,19 +137,24 @@ public sealed class MaintainerPackageTests
             string source = Path.Combine(directory, "configurator.json");
             string output = Path.Combine(directory, "release.json");
             await File.WriteAllTextAsync(source, """
-                {"$schema":"urn:islamu:configurator:authoring:v1",
+                {"$schema":"urn:islamu:configurator:authoring:v2",
                  "identity":{"familyId":"d8b0a60f-27ee-4262-a2b3-3af0e12d5034","revision":1},
                  "project":{"id":"example.service","name":"Example Service"},
                  "applicationVersions":["1.0.0"],
-                 "fields":{"SERVICE_PORT":{"type":"integer","sensitivity":"public","default":8080,"minimum":1,"maximum":65535}},
+                 "configuration":{"type":"object","properties":{"SERVICE_PORT":{"type":"integer","minimum":1,"maximum":65535,
+                    "x-configurator":{"sensitivity":"public","initialValue":8080}}}},
                  "outputs":{".env":{"format":"dotenv"}}}
                 """);
             byte[] original = await File.ReadAllBytesAsync(source);
             var check = await ReleaseTestPaths.Run(executable, "definition", "check", "--source", source, "--machine");
             await Assert.That(check.ExitCode).IsEqualTo(0).Because(check.Output);
             using (JsonDocument result = JsonDocument.Parse(check.Output))
+            {
                 await Assert.That(result.RootElement.GetProperty("schemaVersion").GetString())
-                    .IsEqualTo("islamu-configurator-command/v2");
+                    .IsEqualTo("islamu-configurator-command/v3");
+                await Assert.That(result.RootElement.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
+                await Assert.That(result.RootElement.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
+            }
             await Assert.That(ReleaseTestPaths.Hash(await File.ReadAllBytesAsync(source)))
                 .IsEqualTo(ReleaseTestPaths.Hash(original));
 

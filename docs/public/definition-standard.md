@@ -21,7 +21,7 @@ types, explicit value/omission states, scoped references, root/row applicability
 local presence and const/enum relationships, typed maps, discriminated variants,
 exact numeric assertions, local references, explicitly asserted formats and
 public source maps. General conditional subschemas, localization policy expansion
-and machine v3 remain later work. No v1 fallback is provided.
+remain later work. Machine v3 is current. No v1 fallback is provided.
 
 A definition describes public configuration requirements and output mappings.
 It never contains private answers, executes code, fetches references, authenticates
@@ -34,7 +34,7 @@ to a target, or grants permission to apply prepared files.
 | Public YAML/JSON source | `$schema: urn:islamu:configurator:authoring:v2` | Maintained requirements |
 | Public compiled JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities` | Canonical admitted runtime |
 | Private answer JSON | `answerContractVersion: 1` | Values and explicit omissions |
-| CLI machine envelope | Command contract v2 | Bounded operation result; v3 is later work |
+| CLI machine envelope | Command contract v3 | Bounded operation result with safe source and correction locations |
 | Editor meta-schema | Packaged JSON Schema | Structural assistance, not semantic admission |
 
 Profile, definition revision, application version, locale, and command version

@@ -12,6 +12,17 @@ This searchable guide provides diagnostic steps and recovery procedures for comm
 
 ## Diagnostic Mental Model
 
+For authoring errors, run `definition check --source configurator.yaml --machine`.
+Use the diagnostic code and optional public `source.schemaPath` plus start/end
+line and column to find the admitted schema ancestor. Unknown member names and
+values are not echoed. `definition lint` adds advisory warnings after admission;
+it does not make unsupported syntax acceptable. To retrieve omitted entries use
+`--detail diagnostics --limit 16`, then advance by the returned count with the
+same `--expected-detail-digest`; restart at offset zero on a digest mismatch.
+Use `definition schema --kind authoring --text` for the built-in editor schema.
+For answer corrections, use typed property/row/map-entry coordinates only at the
+reported input revision; map ordinals must not be treated as private key names.
+
 Configurator separates configuration evaluation from physical artifact publication and target runtime execution. Errors occur at distinct pipeline stages:
 
 ```mermaid
@@ -55,8 +66,8 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v2",
-  "status": "succeeded",
+  "schemaVersion": "islamu-configurator-command/v3",
+  "status": "success",
   "exitCode": 0,
   "completion": "completed",
   "targetAcceptance": "unassessed"

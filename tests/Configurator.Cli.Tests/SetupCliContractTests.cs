@@ -5,6 +5,11 @@ namespace Configurator.Cli.Tests;
 
 public sealed class SetupCliContractTests
 {
+    private static readonly string[] SourceFields = ["schemaPath", "documentIndex", "startLine", "startColumn", "endLine", "endColumn"];
+    private static readonly string[] CorrectionFields = ["inputRevision", "fieldId", "segments"];
+    private static readonly string[] SchemaFields = ["kind", "id", "digest", "profile", "authoringContractVersion",
+        "runtimeSchemaVersion", "answerContractVersion", "capabilities", "document"];
+
     [Test]
     public async Task GeneratedSchemaIsClosedBoundedDeterministicAndRegistryOwned()
     {
@@ -19,11 +24,234 @@ public sealed class SetupCliContractTests
                 "--output", "--key", "--definition", "--artifact", "--format", "--expected-revision",
                 "--revision-field", "--input-revision", "--answers", "--source", "--root", "--against",
                 "--id-map", "--project-id", "--name", "--application-version", "--fork-from", "--from-env-example",
-                "--from-schema", "--accept-bounded-semantics", "--detail", "--offset", "--limit", "--expected-detail-digest"]);
+                "--from-schema", "--accept-bounded-semantics", "--kind", "--detail", "--offset", "--limit", "--expected-detail-digest"]);
         await Assert.That(schema["_metadata"]!["repeatableOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--artifact"]);
         await Assert.That(schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()))
             .IsEquivalentTo([0, 2, 3, 4, 64, 65, 70, 74, 130]);
+        JsonArray definition = schema["_metadata"]!["commands"]!.AsArray()
+            .Single(command => command!["name"]!.GetValue<string>() == "definition")!["operations"]!.AsArray();
+        JsonArray check = definition.Single(operation => operation!["name"]!.GetValue<string>() == "check")!["options"]!.AsArray();
+        JsonArray lint = definition.Single(operation => operation!["name"]!.GetValue<string>() == "lint")!["options"]!.AsArray();
+        await Assert.That(lint.Select(option => option!.GetValue<string>()))
+            .IsEquivalentTo(check.Select(option => option!.GetValue<string>()));
+        JsonArray discovery = definition.Single(operation => operation!["name"]!.GetValue<string>() == "schema")!["options"]!.AsArray();
+        await Assert.That(discovery.Select(option => option!.GetValue<string>()))
+            .IsEquivalentTo(["--help", "--kind", "--machine", "--text"]);
+    }
+
+    [Test]
+    public async Task MachineVersionThreeRejectsRetiredAndUnknownEnvelopesWithoutCompatibility()
+    {
+        foreach (string version in new[] { "islamu-configurator-command/v1", "islamu-configurator-command/v2",
+            "islamu-configurator-command/v4", "2", "" })
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(
+                root => root["schemaVersion"] = version))).Contains("machine-version");
+        foreach (string operation in new[] { "check", "build", "lint" })
+        {
+            byte[] valid = SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                root["invocation"]!["commandFamily"] = "definition";
+                root["invocation"]!["operation"] = operation;
+                root["authoringContractVersion"] = 2;
+                root["runtimeSchemaVersion"] = 2;
+            });
+            await Assert.That(SetupCliMachineContractVerifier.Validate(valid)).IsEmpty();
+            JsonObject old = JsonNode.Parse(valid)!.AsObject();
+            old["authoringContractVersion"] = 1;
+            await Assert.That(SetupCliMachineContractVerifier.Validate(System.Text.Encoding.UTF8.GetBytes(old.ToJsonString() + "\n")))
+                .Contains("machine-compiler-handshake");
+        }
+    }
+
+    [Test]
+    public async Task StructuredDiagnosticLocationsAreClosedBoundedAndMutuallyExclusive()
+    {
+        await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+            AddDiagnostic(root)["source"] = SourceLocation()))).IsEmpty();
+        await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+            AddDiagnostic(root)["correction"] = CorrectionLocation()))).IsEmpty();
+        Action<JsonObject>[] sourceMutations =
+        [
+            source => source["schemaPath"] = "/bad~2",
+            source => source["schemaPath"] = new string('x', 257),
+            source => source["schemaPath"] = null,
+            source => source["documentIndex"] = -1,
+            source => source["documentIndex"] = (long)int.MaxValue + 1,
+            source => source["startLine"] = 0,
+            source => source["startColumn"] = "1",
+            source => source["endLine"] = 0,
+            source => source["endColumn"] = 1,
+            source => source["endColumn"] = 1.5,
+            source => source["file"] = "private-path",
+            source => source["value"] = "private-answer-marker"
+        ];
+        foreach (Action<JsonObject> mutation in sourceMutations.Concat(
+            SourceFields.Select<string, Action<JsonObject>>(name => source => source.Remove(name))))
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                JsonObject source = SourceLocation();
+                mutation(source);
+                AddDiagnostic(root)["source"] = source;
+            })).Count).IsGreaterThan(0);
+        Action<JsonObject>[] correctionMutations =
+        [
+            correction => correction["inputRevision"] = -1,
+            correction => correction["inputRevision"] = 9223372036854775808m,
+            correction => correction["fieldId"] = new string('a', 129),
+            correction => correction["fieldId"] = "/private",
+            correction => correction["segments"] = null,
+            correction => correction["segments"] = new JsonArray(Enumerable.Range(0, 33)
+                .Select(_ => (JsonNode?)new JsonObject { ["kind"] = "arrayRow", ["index"] = 0 }).ToArray()),
+            correction => correction["key"] = "private-answer-marker"
+        ];
+        foreach (Action<JsonObject> mutation in correctionMutations.Concat(
+            CorrectionFields.Select<string, Action<JsonObject>>(name => correction => correction.Remove(name))))
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                JsonObject correction = CorrectionLocation();
+                mutation(correction);
+                AddDiagnostic(root)["correction"] = correction;
+            })).Count).IsGreaterThan(0);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+        {
+            JsonObject diagnostic = AddDiagnostic(root);
+            diagnostic["source"] = SourceLocation();
+            diagnostic["correction"] = CorrectionLocation();
+        }))).Contains("machine-diagnostic-location-kind");
+        foreach (string name in new[] { "source", "correction" })
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+                AddDiagnostic(root)[name] = null)).Count).IsGreaterThan(0);
+    }
+
+    [Test]
+    public async Task TypedCorrectionSegmentsRejectAmbiguousDynamicAndUnknownShapes()
+    {
+        JsonObject[] rejected =
+        [
+            new() { ["kind"] = "property" },
+            new() { ["kind"] = "property", ["propertyName"] = "declared", ["index"] = 0 },
+            new() { ["kind"] = "property", ["propertyName"] = null },
+            new() { ["kind"] = "property", ["propertyName"] = 1 },
+            new() { ["kind"] = "property", ["propertyName"] = new string('a', 65537) },
+            new() { ["kind"] = "arrayRow" },
+            new() { ["kind"] = "arrayRow", ["index"] = -1 },
+            new() { ["kind"] = "arrayRow", ["index"] = 4096 },
+            new() { ["kind"] = "arrayRow", ["index"] = 1.5 },
+            new() { ["kind"] = "arrayRow", ["index"] = 0, ["propertyName"] = "" },
+            new() { ["kind"] = "mapEntry", ["index"] = "0" },
+            new() { ["kind"] = "mapEntry", ["index"] = 0, ["key"] = "private-answer-marker" },
+            new() { ["kind"] = "map-entry", ["index"] = 0 },
+            new() { ["index"] = 0 }
+        ];
+        foreach (JsonObject segment in rejected)
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                JsonObject correction = CorrectionLocation();
+                correction["segments"] = new JsonArray(segment.DeepClone());
+                AddDiagnostic(root)["correction"] = correction;
+            })).Count).IsGreaterThan(0);
+    }
+
+    [Test]
+    public async Task SchemaDiscoveryRequiresItsOwnAxesKnownIdentityAndCanonicalDocumentDigest()
+    {
+        foreach (string kind in SetupCliContractSpecification.SchemaIds.Keys)
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(
+                root => AddSchemaDiscovery(root, kind)))).IsEmpty();
+        Action<JsonObject>[] mutations =
+        [
+            root => root.Remove("schema"),
+            root => root["schema"] = null,
+            root => root["schema"]!["kind"] = "capabilities",
+            root => root["schema"]!["id"] = "urn:islamu:configurator:answers:v1",
+            root => root["schema"]!["digest"] = new string('0', 64),
+            root => root["schema"]!["digest"] = new string('A', 64),
+            root => root["schema"]!["profile"] = "bounded-v1",
+            root => root["schema"]!["authoringContractVersion"] = 1,
+            root => root["schema"]!["runtimeSchemaVersion"] = 1,
+            root => root["schema"]!["answerContractVersion"] = 2,
+            root => root["schema"]!["capabilities"] = new JsonArray("schema.unknown"),
+            root => root["schema"]!["capabilities"] = new JsonArray("schema.object", "schema.object"),
+            root => root["schema"]!["capabilities"] = new JsonArray(7),
+            root => root["schema"]!["document"] = new JsonArray(),
+            root => root["schema"]!["document"]!["$id"] = "unknown",
+            root => root["schema"]!["document"]!["type"] = "array",
+            root => root["schema"]!["body"] = "private-answer-marker",
+            root => root["authoringContractVersion"] = 2,
+            root => root["invocation"]!["operation"] = "check",
+            root => { root["exitCode"] = 2; root["exitCategory"] = "validation"; root["status"] = "validation"; root["completion"] = "failed"; },
+            root => root["help"] = new JsonObject()
+        ];
+        foreach (Action<JsonObject> mutation in mutations.Concat(
+            SchemaFields.Select<string, Action<JsonObject>>(name => root => root["schema"]!.AsObject().Remove(name))))
+            await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(root =>
+            {
+                AddSchemaDiscovery(root, "authoring");
+                mutation(root);
+            })).Count).IsGreaterThan(0);
+    }
+
+    [Test]
+    public async Task SchemaVerifierRejectsWeakenedStructuredFieldContracts()
+    {
+        Action<JsonObject>[] mutations =
+        [
+            schema => schema["$defs"]!["source"]!["additionalProperties"] = true,
+            schema => schema["$defs"]!["source"]!["properties"]!["schemaPath"]!["maxLength"] = 257,
+            schema => schema["$defs"]!["diagnostic"]!.AsObject().Remove("not"),
+            schema => schema["$defs"]!["correction"]!["properties"]!["segments"]!["maxItems"] = 33,
+            schema => schema["$defs"]!["correctionSegment"]!.AsObject().Remove("oneOf"),
+            schema => schema["$defs"]!["correctionSegment"]!["properties"]!["index"]!["maximum"] = 4096,
+            schema => schema["$defs"]!["schema"]!["properties"]!["answerContractVersion"]!["const"] = 2,
+            schema => schema["$defs"]!["schema"]!["properties"]!["document"]!["$ref"] = "#/$defs/source",
+            schema => schema["$defs"]!["schema"]!.AsObject().Remove("oneOf")
+        ];
+        foreach (Action<JsonObject> mutation in mutations)
+        {
+            JsonObject schema = SetupCliMachineContractVerifier.ParseSchema(SetupCliCommandSchemaMetadata.GenerateSchema());
+            mutation(schema);
+            await Assert.That(SetupCliMachineContractVerifier.InspectSchema(schema).Count).IsGreaterThan(0);
+        }
+    }
+
+    private static JsonObject SourceLocation() => new()
+    {
+        ["schemaPath"] = "/configuration/properties/a~1b~0c", ["documentIndex"] = 0,
+        ["startLine"] = 1, ["startColumn"] = 2, ["endLine"] = 1, ["endColumn"] = 3
+    };
+
+    private static JsonObject CorrectionLocation() => new()
+    {
+        ["inputRevision"] = long.MaxValue, ["fieldId"] = "", ["segments"] = new JsonArray(
+            new JsonObject { ["kind"] = "property", ["propertyName"] = "" },
+            new JsonObject { ["kind"] = "arrayRow", ["index"] = 0 },
+            new JsonObject { ["kind"] = "mapEntry", ["index"] = 4095 })
+    };
+
+    private static JsonObject AddDiagnostic(JsonObject root)
+    {
+        var diagnostic = new JsonObject { ["code"] = "invalid-source", ["path"] = "", ["severity"] = "error" };
+        root["diagnostics"] = new JsonArray(diagnostic);
+        root["diagnosticsTotal"] = 1;
+        return diagnostic;
+    }
+
+    private static void AddSchemaDiscovery(JsonObject root, string kind)
+    {
+        string id = SetupCliContractSpecification.SchemaIds[kind];
+        // This literal ordering is canonical independently of the production canonicalizer.
+        string document = $$"""{"$id":"{{id}}","$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}""";
+        root["invocation"]!["commandFamily"] = "definition";
+        root["invocation"]!["operation"] = "schema";
+        root["schema"] = new JsonObject
+        {
+            ["kind"] = kind, ["id"] = id,
+            ["digest"] = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(document))),
+            ["profile"] = "bounded-v2", ["authoringContractVersion"] = 2, ["runtimeSchemaVersion"] = 2,
+            ["answerContractVersion"] = 1, ["capabilities"] = new JsonArray("schema.object"),
+            ["document"] = JsonNode.Parse(document)
+        };
     }
 
     [Test]

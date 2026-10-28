@@ -11,7 +11,7 @@ description: "Use the standalone islamu-configurator machine CLI to inspect loca
 ## Authority
 
 Use the compiled CLI registry and its generated
-[`islamu-configurator-command/v2` schema](../../../schemas/islamu-configurator-command-v2.schema.json).
+[`islamu-configurator-command/v3` schema](../../../schemas/islamu-configurator-command-v3.schema.json).
 The complete operator contract is [CLI usage](../../../docs/public/cli.md);
 the technical anchor is [CLI contract](../../../docs/internal/CLI_CONTRACT.md).
 Commands prepare local data. They never contact, authorize or apply to a target.
@@ -74,7 +74,7 @@ read-only `definition check`, `artifact validate`, `artifact check-existing` or
 returned and supply the returned digest as `--expected-detail-digest` on every
 noninitial page (offset at most 2,048). Digest mismatch rejects continuation.
 The digest binds a sanitized structural view, never private answer bytes.
-Authoring/runtime schemas remain v1; command v2 does not upgrade them.
+Authoring/runtime schemas are v2 and private answers are v1; command v3 is a separate axis.
 
 ## Projection And Import Boundaries
 

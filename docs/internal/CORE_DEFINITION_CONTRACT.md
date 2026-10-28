@@ -73,8 +73,8 @@ The closed registry is in `DefinitionProfile.Capabilities`; declaring a name
 never activates an unsupported feature.
 
 Definition revision, target version, private answer version and command version
-are independent. The CLI envelope remains v2; the authoring/runtime handshake is
-2/2. Machine v3 is not delivered by this base.
+are independent. The CLI envelope is v3; the authoring/runtime handshake is
+2/2. Private answers remain independently versioned at v1.
 
 ### Recursive configuration grammar
 
@@ -203,8 +203,8 @@ must not seed required containers or maintain a second effective-value policy.
 
 Admission/editor validation does not prove every runtime output composable, a
 target validator equivalent, or every client qualified. Broader/nested conditions,
-source maps, expanded
-localization policy and machine v3 retain their later-phase status.
+expanded localization policy retain their later-phase status. Source maps and
+machine v3 are delivered.
 
 ## Artifact preparation and inverse import
 

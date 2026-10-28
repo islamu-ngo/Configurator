@@ -68,7 +68,7 @@ public sealed class SetupCliParsingTests
             "--artifact=config", "--input=--machine", "--text")).IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(io.MaximumRead).IsGreaterThan(0);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput))
-            .DoesNotContain("islamu-configurator-command/v2");
+            .DoesNotContain("islamu-configurator-command/v3");
         await Assert.That(io.StandardError).IsEmpty();
     }
 
@@ -80,9 +80,9 @@ public sealed class SetupCliParsingTests
         await Assert.That(await io.RunAsync("doctor", "--", "--machine")).IsEqualTo(SetupCliExitCode.Usage);
         await Assert.That(io.MaximumRead).IsEqualTo(0);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput))
-            .DoesNotContain("islamu-configurator-command/v2");
+            .DoesNotContain("islamu-configurator-command/v3");
         await Assert.That(Encoding.UTF8.GetString(io.StandardError))
-            .DoesNotContain("islamu-configurator-command/v2");
+            .DoesNotContain("islamu-configurator-command/v3");
     }
 
     [Test]
@@ -208,6 +208,38 @@ public sealed class SetupCliParsingTests
             await Assert.That(Directory.GetFileSystemEntries(directory)).IsEmpty();
         }
         finally { Directory.Delete(directory); }
+    }
+
+    [Test]
+    public async Task SchemaDiscoveryUsesClosedKindsWithoutFileAuthorityOrInputReads()
+    {
+        foreach (string? kind in new string?[] { null, "authoring", "runtime", "answers", "command" })
+        {
+            var io = new CliFixture();
+            string[] arguments = kind is null ? ["definition", "schema", "--machine"]
+                : ["definition", "schema", "--kind", kind, "--machine"];
+            await Assert.That(await io.RunAsync(arguments)).IsEqualTo(SetupCliExitCode.Success);
+            await Assert.That(io.MaximumRead).IsEqualTo(0);
+            await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+            using System.Text.Json.JsonDocument result = System.Text.Json.JsonDocument.Parse(io.StandardOutput);
+            await Assert.That(result.RootElement.GetProperty("schema").GetProperty("kind").GetString())
+                .IsEqualTo(kind ?? "authoring");
+        }
+        string[][] rejected =
+        [
+            ["definition", "schema", "--kind", "capabilities", "--machine"],
+            ["definition", "schema", "--kind", "Authoring", "--machine"],
+            ["definition", "schema", "--kind", "--machine"],
+            ["definition", "schema", "--kind=runtime", "--kind", "answers", "--machine"],
+            ["definition", "schema", "--source", "synthetic-private-marker", "--machine"],
+            ["definition", "schema", "--output", "synthetic-private-marker", "--machine"],
+            ["definition", "schema", "--definition", "synthetic-private-marker", "--machine"],
+            ["definition", "schema", "--root", "synthetic-private-marker", "--machine"],
+            ["definition", "schema", "--against", "synthetic-private-marker", "--machine"],
+            ["definition", "schema", "--dry-run", "--machine"],
+            ["definition", "lint", "--source", "synthetic-private-marker", "--kind", "authoring", "--machine"]
+        ];
+        foreach (string[] arguments in rejected) await AssertRejectedBeforeInput(arguments);
     }
 
     private static async Task AssertRejectedBeforeInput(string[] arguments)

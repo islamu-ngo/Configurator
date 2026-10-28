@@ -11,7 +11,7 @@ priority: high
 ## Rules
 
 - The executable identity is `islamu-configurator`; no `event-setup` alias.
-- The machine schema identity is `islamu-configurator-command/v2`.
+- The machine schema identity is `islamu-configurator-command/v3`.
 - Resolve grammar from the current executable and generated command schema; do not invent flags from historical Event commands.
 - Definitions are local bounded data. Preparation never authenticates to a target, provisions it or certifies host acceptance.
 - Native answer-derived artifacts are restricted. Never send private output to stdout, public previews or ordinary file writes.

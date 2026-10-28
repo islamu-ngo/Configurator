@@ -2,18 +2,25 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
 
 namespace Configurator.Cli.Tests;
 
 internal static partial class SetupCliMachineContractVerifier
 {
     private const int MaximumOutputBytes = 65_536;
+    private static readonly string[] SourceCoordinates = ["startLine", "startColumn", "endLine", "endColumn"];
     private static readonly Dictionary<string, string[]> Required = new(StringComparer.Ordinal)
     {
         ["$"] = ["schemaVersion", "invocation", "status", "exitCategory", "exitCode", "dryRun", "completion", "preparation",
             "targetAcceptance", "cleanup", "delivery", "diagnosticsTotal", "diagnosticsOmitted", "detailDigest", "diagnostics", "artifacts", "coverage", "readiness"],
         ["$.invocation"] = ["commandFamily", "operation", "mode"],
         ["$.diagnostics[]"] = ["code", "path", "severity"],
+        ["$.diagnostics[].source"] = ["schemaPath", "documentIndex", "startLine", "startColumn", "endLine", "endColumn"],
+        ["$.diagnostics[].correction"] = ["inputRevision", "fieldId", "segments"],
+        ["$.diagnostics[].correction.segments[]"] = ["kind"],
+        ["$.schema"] = ["kind", "id", "digest", "profile", "authoringContractVersion", "runtimeSchemaVersion",
+            "answerContractVersion", "capabilities", "document"],
         ["$.artifacts[]"] = ["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"],
         ["$.coverage"] = ["coveredCount", "missingCount", "detailDigest"],
         ["$.readiness"] = ["state", "missingCount", "blockedCount"],
@@ -26,8 +33,9 @@ internal static partial class SetupCliMachineContractVerifier
     private static readonly Dictionary<string, string[]> Allowed = Required.ToDictionary(
         item => item.Key, item => item.Key switch
         {
-            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help"],
-            "$.diagnostics[]" => [.. item.Value, "line", "column", "byteOffset"],
+            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema"],
+            "$.diagnostics[]" => [.. item.Value, "line", "column", "byteOffset", "source", "correction"],
+            "$.diagnostics[].correction.segments[]" => [.. item.Value, "propertyName", "index"],
             _ => item.Value
         },
         StringComparer.Ordinal);
@@ -49,7 +57,7 @@ internal static partial class SetupCliMachineContractVerifier
     internal static IReadOnlyList<string> InspectSchema(JsonObject schema)
     {
         var errors = new List<string>();
-        if (schema["$id"]?.GetValue<string>() != "https://schemas.islamu.org/configurator/command/v2/schema.json")
+        if (schema["$id"]?.GetValue<string>() != "https://schemas.islamu.org/configurator/command/v3/schema.json")
         {
             errors.Add("schema-id");
         }
@@ -64,6 +72,10 @@ internal static partial class SetupCliMachineContractVerifier
             ["$"] = schema,
             ["$.invocation"] = schema["$defs"]!["invocation"]!.AsObject(),
             ["$.diagnostics[]"] = schema["$defs"]!["diagnostic"]!.AsObject(),
+            ["$.diagnostics[].source"] = schema["$defs"]!["source"]!.AsObject(),
+            ["$.diagnostics[].correction"] = schema["$defs"]!["correction"]!.AsObject(),
+            ["$.diagnostics[].correction.segments[]"] = schema["$defs"]!["correctionSegment"]!.AsObject(),
+            ["$.schema"] = schema["$defs"]!["schema"]!.AsObject(),
             ["$.artifacts[]"] = schema["$defs"]!["artifact"]!.AsObject(),
             ["$.coverage"] = schema["$defs"]!["coverage"]!.AsObject(),
             ["$.readiness"] = schema["$defs"]!["readiness"]!.AsObject(),
@@ -78,11 +90,12 @@ internal static partial class SetupCliMachineContractVerifier
                 || !obj["properties"]!.AsObject().Select(property => property.Key).ToHashSet(StringComparer.Ordinal).SetEquals(Allowed[path]))
                 errors.Add("schema-object-contract:" + path);
         }
-        if (schema["properties"]!["schemaVersion"]!["const"]!.GetValue<string>() != "islamu-configurator-command/v2"
+        if (schema["properties"]!["schemaVersion"]!["const"]!.GetValue<string>() != "islamu-configurator-command/v3"
             || schema["properties"]!["diagnostics"]!["maxItems"]!.GetValue<int>() != 16
             || schema["$defs"]!["detail"]!["properties"]!["diagnostics"]!["maxItems"]!.GetValue<int>() != 32
             || schema["$defs"]!["detail"]!["properties"]!["coverage"]!["maxItems"]!.GetValue<int>() != 32)
             errors.Add("schema-response-bounds");
+        InspectStructuredFields(schema, errors);
         if (!schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()).ToHashSet()
             .SetEquals(SetupCliContractSpecification.ExitCodes.Values))
             errors.Add("schema-exit-vocabulary");
@@ -147,7 +160,7 @@ internal static partial class SetupCliMachineContractVerifier
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,
-                MaxDepth = 16
+                MaxDepth = 64
             })?.AsObject();
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException)
@@ -166,11 +179,12 @@ internal static partial class SetupCliMachineContractVerifier
             ValidateInvocation(root["invocation"] as JsonObject, errors);
             ValidateStatus(root, errors);
             bool compilerHandshake = root["invocation"]?["commandFamily"]?.GetValue<string>() == "definition"
-                && root["invocation"]?["operation"]?.GetValue<string>() is "check" or "build"
+                && root["invocation"]?["operation"]?.GetValue<string>() is "check" or "build" or "lint"
                 && root["exitCode"]?.GetValue<int>() == 0 && !root.ContainsKey("help");
-            if (compilerHandshake ? root["authoringContractVersion"]?.GetValue<int>() != 1 || root["runtimeSchemaVersion"]?.GetValue<int>() != 1
+            if (compilerHandshake ? root["authoringContractVersion"]?.GetValue<int>() != 2 || root["runtimeSchemaVersion"]?.GetValue<int>() != 2
                 : root.ContainsKey("authoringContractVersion") || root.ContainsKey("runtimeSchemaVersion"))
                 errors.Add("machine-compiler-handshake");
+            ValidateSchemaDiscovery(root, errors);
             ValidateDiagnostics(root["diagnostics"] as JsonArray, 16, errors);
             ValidateArtifacts(root["artifacts"] as JsonArray, errors);
             ValidateCoverage(root["coverage"] as JsonObject, "$.coverage", errors);
@@ -187,12 +201,83 @@ internal static partial class SetupCliMachineContractVerifier
         return errors.Distinct(StringComparer.Ordinal).ToArray();
     }
 
+    private static void InspectStructuredFields(JsonObject schema, List<string> errors)
+    {
+        JsonNode definitions = schema["$defs"]!;
+        JsonNode source = definitions["source"]!["properties"]!;
+        JsonNode correction = definitions["correction"]!["properties"]!;
+        JsonNode segment = definitions["correctionSegment"]!["properties"]!;
+        JsonNode discovery = definitions["schema"]!["properties"]!;
+        if (source["schemaPath"]?["type"]?.GetValue<string>() != "string"
+            || source["schemaPath"]?["maxLength"]?.GetValue<int>() != 256
+            || source["schemaPath"]?["pattern"]?.GetValue<string>() != "^(?:/(?:[^~/\\x00-\\x1F\\x7F]|~[01])*)*$"
+            || source["documentIndex"]?["type"]?.GetValue<string>() != "integer"
+            || source["documentIndex"]?["minimum"]?.GetValue<int>() != 0
+            || source["documentIndex"]?["maximum"]?.GetValue<int>() != int.MaxValue
+            || SourceCoordinates.Any(name =>
+                source[name]?["type"]?.GetValue<string>() != "integer"
+                || source[name]?["minimum"]?.GetValue<int>() != 1
+                || source[name]?["maximum"]?.GetValue<int>() != int.MaxValue)
+            || definitions["diagnostic"]?["properties"]?["source"]?["$ref"]?.GetValue<string>() != "#/$defs/source"
+            || !JsonNode.DeepEquals(definitions["diagnostic"]?["not"], JsonNode.Parse("""{"required":["source","correction"]}""")))
+            errors.Add("schema-source-contract");
+        if (definitions["diagnostic"]?["properties"]?["correction"]?["$ref"]?.GetValue<string>() != "#/$defs/correction"
+            || correction["inputRevision"]?["type"]?.GetValue<string>() != "integer"
+            || correction["inputRevision"]?["minimum"]?.GetValue<long>() != 0
+            || correction["inputRevision"]?["maximum"]?.GetValue<long>() != long.MaxValue
+            || correction["fieldId"]?["maxLength"]?.GetValue<int>() != 128
+            || correction["fieldId"]?["type"]?.GetValue<string>() != "string"
+            || correction["fieldId"]?["pattern"]?.GetValue<string>() != "^(?:[A-Za-z][A-Za-z0-9._-]*)?$"
+            || correction["segments"]?["type"]?.GetValue<string>() != "array"
+            || correction["segments"]?["maxItems"]?.GetValue<int>() != 32
+            || correction["segments"]?["items"]?["$ref"]?.GetValue<string>() != "#/$defs/correctionSegment"
+            || segment["propertyName"]?["maxLength"]?.GetValue<int>() != 65536
+            || segment["propertyName"]?["type"]?.GetValue<string>() != "string"
+            || segment["index"]?["type"]?.GetValue<string>() != "integer"
+            || segment["index"]?["minimum"]?.GetValue<int>() != 0 || segment["index"]?["maximum"]?.GetValue<int>() != 4095
+            || segment["kind"]?["enum"] is not JsonArray kinds
+            || !kinds.Select(item => item!.GetValue<string>()).ToHashSet(StringComparer.Ordinal).SetEquals(["property", "arrayRow", "mapEntry"])
+            || !JsonNode.DeepEquals(definitions["correctionSegment"]?["oneOf"], JsonNode.Parse("""
+                [{"properties":{"kind":{"const":"property"}},"required":["propertyName"],"not":{"required":["index"]}},
+                 {"properties":{"kind":{"enum":["arrayRow","mapEntry"]}},"required":["index"],"not":{"required":["propertyName"]}}]
+                """)))
+            errors.Add("schema-correction-contract");
+        if (schema["properties"]?["schema"]?["$ref"]?.GetValue<string>() != "#/$defs/schema"
+            || schema["properties"]?["authoringContractVersion"]?["const"]?.GetValue<int>() != 2
+            || schema["properties"]?["runtimeSchemaVersion"]?["const"]?.GetValue<int>() != 2
+            || discovery["profile"]?["const"]?.GetValue<string>() != "bounded-v2"
+            || discovery["authoringContractVersion"]?["const"]?.GetValue<int>() != 2
+            || discovery["runtimeSchemaVersion"]?["const"]?.GetValue<int>() != 2
+            || discovery["answerContractVersion"]?["const"]?.GetValue<int>() != 1
+            || discovery["digest"]?["pattern"]?.GetValue<string>() != "^[0-9a-f]{64}$"
+            || discovery["kind"]?["enum"] is not JsonArray schemaKinds
+            || !schemaKinds.Select(item => item!.GetValue<string>()).ToHashSet(StringComparer.Ordinal).SetEquals(SetupCliContractSpecification.SchemaIds.Keys)
+            || discovery["id"]?["enum"] is not JsonArray ids
+            || !ids.Select(item => item!.GetValue<string>()).ToHashSet(StringComparer.Ordinal).SetEquals(SetupCliContractSpecification.SchemaIds.Values)
+            || discovery["capabilities"]?["maxItems"]?.GetValue<int>() != 64
+            || discovery["capabilities"]?["type"]?.GetValue<string>() != "array"
+            || discovery["capabilities"]?["uniqueItems"]?.GetValue<bool>() != true
+            || discovery["capabilities"]?["items"]?["enum"] is not JsonArray capabilities
+            || !capabilities.Select(item => item!.GetValue<string>()).ToHashSet(StringComparer.Ordinal).SetEquals(SetupCliContractSpecification.Capabilities)
+            || discovery["document"]?["type"]?.GetValue<string>() != "object"
+            || discovery["document"]?["$ref"]?.GetValue<string>() != "https://json-schema.org/draft/2020-12/schema")
+            errors.Add("schema-discovery-contract");
+        if (definitions["schema"]?["oneOf"] is not JsonArray identities || identities.Count != 4
+            || identities.Any(identity => identity?["properties"]?["kind"]?["const"]?.GetValue<string>() is not { } kind
+                || !SetupCliContractSpecification.SchemaIds.TryGetValue(kind, out string? id)
+                || identity["properties"]?["id"]?["const"]?.GetValue<string>() != id)
+            || identities.Select(identity => identity!["properties"]!["kind"]!["const"]!.GetValue<string>())
+                .Distinct(StringComparer.Ordinal).Count() != 4
+            || schema["allOf"] is not JsonArray { Count: 2 })
+            errors.Add("schema-discovery-operation");
+    }
+
     internal static byte[] GoodFixture()
     {
         const string digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         var root = new JsonObject
         {
-            ["schemaVersion"] = "islamu-configurator-command/v2",
+            ["schemaVersion"] = "islamu-configurator-command/v3",
             ["invocation"] = new JsonObject { ["commandFamily"] = "artifact", ["operation"] = "validate", ["mode"] = "machine" },
             ["status"] = "success",
             ["exitCategory"] = "success",
@@ -258,7 +343,7 @@ internal static partial class SetupCliMachineContractVerifier
         if (node is JsonObject obj)
         {
             bool objectSchema = obj["type"]?.GetValue<string>() == "object";
-            if (objectSchema && obj["additionalProperties"]?.GetValue<bool>() != false)
+            if (objectSchema && path != "$/$defs/schema.document" && obj["additionalProperties"]?.GetValue<bool>() != false)
             {
                 errors.Add("schema-open-object:" + path);
             }
@@ -408,7 +493,7 @@ internal static partial class SetupCliMachineContractVerifier
         {
             errors.Add("machine-exit-mismatch");
         }
-        if (root["schemaVersion"]?.GetValue<string>() != "islamu-configurator-command/v2")
+        if (root["schemaVersion"]?.GetValue<string>() != "islamu-configurator-command/v3")
         {
             errors.Add("machine-version");
         }
@@ -442,7 +527,132 @@ internal static partial class SetupCliMachineContractVerifier
                 || (diagnostic.ContainsKey("column") && !IsInteger(diagnostic["column"], 1, int.MaxValue))
                 || (diagnostic.ContainsKey("byteOffset") && !IsInteger(diagnostic["byteOffset"], 0, long.MaxValue)))
                 errors.Add("machine-diagnostic-location");
+            if (diagnostic.ContainsKey("source") && diagnostic.ContainsKey("correction"))
+                errors.Add("machine-diagnostic-location-kind");
+            if (diagnostic.ContainsKey("source")) ValidateSource(diagnostic["source"], errors);
+            if (diagnostic.ContainsKey("correction")) ValidateCorrection(diagnostic["correction"], errors);
         }
+    }
+
+    private static void ValidateSource(JsonNode? node, List<string> errors)
+    {
+        if (node is not JsonObject source)
+        {
+            errors.Add("machine-source-shape");
+            return;
+        }
+        ValidateObject(source, "$.diagnostics[].source", errors);
+        if (source["schemaPath"] is not JsonValue path || !path.TryGetValue<string>(out string? text)
+            || text.Length > 256 || !PathPattern().IsMatch(text)
+            || !IsInteger(source["documentIndex"], 0, int.MaxValue)
+            || SourceCoordinates.Any(name => !IsInteger(source[name], 1, int.MaxValue)))
+        {
+            errors.Add("machine-source-shape");
+            return;
+        }
+        int startLine = source["startLine"]!.GetValue<int>();
+        int endLine = source["endLine"]!.GetValue<int>();
+        if (endLine < startLine || endLine == startLine && source["endColumn"]!.GetValue<int>() < source["startColumn"]!.GetValue<int>())
+            errors.Add("machine-source-order");
+    }
+
+    private static void ValidateCorrection(JsonNode? node, List<string> errors)
+    {
+        if (node is not JsonObject correction)
+        {
+            errors.Add("machine-correction-shape");
+            return;
+        }
+        ValidateObject(correction, "$.diagnostics[].correction", errors);
+        if (!IsInteger(correction["inputRevision"], 0, long.MaxValue)
+            || correction["fieldId"] is not JsonValue fieldId || !fieldId.TryGetValue<string>(out string? id)
+            || id.Length > 128 || id.Length > 0 && !KeyPattern().IsMatch(id)
+            || correction["segments"] is not JsonArray segments || segments.Count > 32)
+        {
+            errors.Add("machine-correction-shape");
+            return;
+        }
+        foreach (JsonNode? item in segments)
+        {
+            if (item is not JsonObject segment)
+            {
+                errors.Add("machine-correction-segment");
+                continue;
+            }
+            ValidateObject(segment, "$.diagnostics[].correction.segments[]", errors);
+            bool valid = segment["kind"]?.GetValue<string>() switch
+            {
+                "property" => !segment.ContainsKey("index") && segment["propertyName"] is JsonValue name
+                    && name.TryGetValue<string>(out string? propertyName) && propertyName.Length <= 65536,
+                "arrayRow" or "mapEntry" => !segment.ContainsKey("propertyName") && IsInteger(segment["index"], 0, 4095),
+                _ => false
+            };
+            if (!valid) errors.Add("machine-correction-segment");
+        }
+    }
+
+    private static void ValidateSchemaDiscovery(JsonObject root, List<string> errors)
+    {
+        bool expected = root["invocation"]?["commandFamily"]?.GetValue<string>() == "definition"
+            && root["invocation"]?["operation"]?.GetValue<string>() == "schema"
+            && root["exitCode"]?.GetValue<int>() == 0 && !root.ContainsKey("help");
+        if (!expected)
+        {
+            if (root.ContainsKey("schema")) errors.Add("machine-schema-operation");
+            return;
+        }
+        if (root["schema"] is not JsonObject schema)
+        {
+            errors.Add("machine-schema-required");
+            return;
+        }
+        ValidateObject(schema, "$.schema", errors);
+        string kind = schema["kind"]?.GetValue<string>() ?? "";
+        if (!SetupCliContractSpecification.SchemaIds.TryGetValue(kind, out string? id)
+            || schema["id"]?.GetValue<string>() != id || schema["profile"]?.GetValue<string>() != "bounded-v2"
+            || schema["authoringContractVersion"]?.GetValue<int>() != 2 || schema["runtimeSchemaVersion"]?.GetValue<int>() != 2
+            || schema["answerContractVersion"]?.GetValue<int>() != 1
+            || !DigestPattern().IsMatch(schema["digest"]?.GetValue<string>() ?? ""))
+            errors.Add("machine-schema-handshake");
+        if (schema["capabilities"] is not JsonArray capabilities || capabilities.Count > 64
+            || capabilities.Any(item => item is not JsonValue value || !value.TryGetValue<string>(out string? capability)
+                || !SetupCliContractSpecification.Capabilities.Contains(capability))
+            || capabilities.Select(item => item!.GetValue<string>()).Distinct(StringComparer.Ordinal).Count() != capabilities.Count)
+            errors.Add("machine-schema-capabilities");
+        if (schema["document"] is not JsonObject document
+            || document["$id"]?.GetValue<string>() != id
+            || document["$schema"]?.GetValue<string>() != "https://json-schema.org/draft/2020-12/schema")
+            errors.Add("machine-schema-document");
+        else
+        {
+            using var canonical = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(canonical))
+                WriteCanonicalDocument(writer, document);
+            if (schema["digest"]?.GetValue<string>() != Convert.ToHexStringLower(SHA256.HashData(canonical.ToArray())))
+                errors.Add("machine-schema-digest");
+        }
+    }
+
+    private static void WriteCanonicalDocument(Utf8JsonWriter writer, JsonNode? node)
+    {
+        if (node is JsonObject obj)
+        {
+            writer.WriteStartObject();
+            foreach ((string name, JsonNode? child) in obj.OrderBy(property => property.Key, StringComparer.Ordinal))
+            {
+                writer.WritePropertyName(name);
+                WriteCanonicalDocument(writer, child);
+            }
+            writer.WriteEndObject();
+        }
+        else if (node is JsonArray array)
+        {
+            writer.WriteStartArray();
+            foreach (JsonNode? child in array) WriteCanonicalDocument(writer, child);
+            writer.WriteEndArray();
+        }
+        else if (node is null) writer.WriteNullValue();
+        else node.WriteTo(writer);
     }
 
     private static void ValidateArtifacts(JsonArray? artifacts, List<string> errors)

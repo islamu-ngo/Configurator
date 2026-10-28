@@ -22,7 +22,7 @@ internal static class CliPackageValidation
         try
         {
             string root = Directory.GetCurrentDirectory();
-            byte[] schemaBytes = await File.ReadAllBytesAsync(Path.Combine(root, "schemas/islamu-configurator-command-v2.schema.json"));
+            byte[] schemaBytes = await File.ReadAllBytesAsync(Path.Combine(root, "schemas/islamu-configurator-command-v3.schema.json"));
             using JsonDocument schema = JsonDocument.Parse(schemaBytes);
             if (arguments is ["--self-test"]) return SelfTest(schema.RootElement);
             Require(arguments is ["--package-directory", _, "--expected-rid", _]);
@@ -39,7 +39,7 @@ internal static class CliPackageValidation
             Require(package.GetProperty("executableName").GetString() == "islamu-configurator");
             Require(package.GetProperty("protectedExportHosts").EnumerateArray().Select(item => item.GetString()).SequenceEqual(["linux"]));
             string executable = Path.Combine(directory, OperatingSystem.IsWindows() ? "islamu-configurator.exe" : "islamu-configurator");
-            byte[] packagedSchema = await File.ReadAllBytesAsync(Path.Combine(directory, "schemas/islamu-configurator-command-v2.schema.json"));
+            byte[] packagedSchema = await File.ReadAllBytesAsync(Path.Combine(directory, "schemas/islamu-configurator-command-v3.schema.json"));
             Console.WriteLine($"CLI_PACKAGE_IDENTITY rid={rid} host={RuntimeInformation.RuntimeIdentifier} executableSha256={Hash(await File.ReadAllBytesAsync(executable))} contractSha256={Hash(contractBytes)} packagedSchemaSha256={Hash(packagedSchema)} validatorSchemaSha256={Hash(schemaBytes)}");
 
             int failures = 0;
@@ -61,6 +61,8 @@ internal static class CliPackageValidation
             await Cohort("schema-freshness", () =>
             {
                 Require(packagedSchema.AsSpan().SequenceEqual(schemaBytes));
+                Require(!File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v1.schema.json"))
+                    && !File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v2.schema.json")));
                 return Task.CompletedTask;
             });
             await Cohort("doctor", async () =>
@@ -101,16 +103,17 @@ internal static class CliPackageValidation
             try
             {
                 const string definition = """
-                    {"schemaVersion":1,"familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
-                     "revision":1,"applicationId":"example.service","applicationVersions":["1.0"],
-                     "publisher":"example","title":"Package service","entryPoints":["setup"],"locales":["en"],
-                     "fields":[{"id":"service.name","type":"string","required":true,
-                        "sensitivity":"sensitive","disclosure":"guided","title":"Service name"}],
+                    {"schemaVersion":2,"profile":"bounded-v2","familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
+                     "revision":1,"project":{"id":"example.service","name":"Package service","publisher":"example"},"applicationVersions":["1.0"],
+                     "entryPoints":["setup"],"locales":["en"],
+                     "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
+                     "configuration":{"type":"object","required":["service.name"],"properties":{
+                        "service.name":{"type":"string","title":"Service name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}}}},
                      "artifacts":[{"id":"config","format":"json","fileName":"service.json",
-                        "applySemantics":"create","restart":"process",
-                        "projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}}]}
+                        "targetUpdateMode":"create","restartRequirement":"process",
+                        "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}}]}
                     """;
-                const string answers = """{"service.name":"synthetic-package-service"}""";
+                const string answers = """{"answerContractVersion":1,"values":{"service.name":"synthetic-package-service"},"omitted":[]}""";
                 byte[] expected = """{"name":"synthetic-package-service"}"""u8.ToArray();
                 string source = Path.Combine(workspace, "definition.json");
                 string input = Path.Combine(workspace, "answers.json");
@@ -199,12 +202,20 @@ internal static class CliPackageValidation
             Require(root.GetProperty("completion").GetString() == (expectedExit == 0 ? "completed" : "failed"));
             Require(!root.GetProperty("dryRun").GetBoolean());
             Require(!root.TryGetProperty("detail", out _) && !root.TryGetProperty("authoringContractVersion", out _)
-                && !root.TryGetProperty("runtimeSchemaVersion", out _));
+                && !root.TryGetProperty("runtimeSchemaVersion", out _) && !root.TryGetProperty("schema", out _));
             Require(root.TryGetProperty("help", out _) == (operation == "help"));
             Require(root.GetProperty("diagnosticsTotal").GetInt32() == root.GetProperty("diagnostics").GetArrayLength()
                 + root.GetProperty("diagnosticsOmitted").GetInt32());
             if (expectedExit == 0) Require(root.GetProperty("diagnosticsTotal").GetInt32() == 0);
             else Require(root.GetProperty("diagnosticsTotal").GetInt32() > 0);
+            foreach (JsonElement diagnostic in root.GetProperty("diagnostics").EnumerateArray())
+                if (diagnostic.TryGetProperty("source", out JsonElement source))
+                {
+                    int startLine = source.GetProperty("startLine").GetInt32();
+                    int endLine = source.GetProperty("endLine").GetInt32();
+                    Require(endLine > startLine || endLine == startLine
+                        && source.GetProperty("endColumn").GetInt32() >= source.GetProperty("startColumn").GetInt32());
+                }
             return document;
         }
         catch { document.Dispose(); throw; }
@@ -217,10 +228,26 @@ internal static class CliPackageValidation
         if (rule.TryGetProperty("$ref", out JsonElement reference))
         {
             string name = reference.GetString()!;
+            if (name == "https://json-schema.org/draft/2020-12/schema")
+            {
+                Require(value.ValueKind == JsonValueKind.Object);
+                return;
+            }
             Require(name.StartsWith("#/$defs/", StringComparison.Ordinal));
             Validate(value, schema.GetProperty("$defs").GetProperty(name[8..]), schema);
             return;
         }
+        bool Matches(JsonElement candidate)
+        {
+            try { Validate(value, candidate, schema); return true; }
+            catch (Exception exception) when (IsInputError(exception)) { return false; }
+        }
+        if (rule.TryGetProperty("not", out JsonElement excluded)) Require(!Matches(excluded));
+        if (rule.TryGetProperty("oneOf", out JsonElement alternatives)) Require(alternatives.EnumerateArray().Count(Matches) == 1);
+        if (rule.TryGetProperty("allOf", out JsonElement requirements))
+            foreach (JsonElement requirement in requirements.EnumerateArray()) Validate(value, requirement, schema);
+        if (rule.TryGetProperty("if", out JsonElement condition) && Matches(condition)
+            && rule.TryGetProperty("then", out JsonElement consequence)) Validate(value, consequence, schema);
         if (rule.TryGetProperty("const", out JsonElement constant)) Require(JsonElement.DeepEquals(value, constant));
         if (rule.TryGetProperty("enum", out JsonElement choices)) Require(choices.EnumerateArray().Any(item => JsonElement.DeepEquals(value, item)));
         if (rule.TryGetProperty("type", out JsonElement type))
@@ -235,14 +262,15 @@ internal static class CliPackageValidation
             });
         if (value.ValueKind == JsonValueKind.Object)
         {
-            JsonElement properties = rule.GetProperty("properties");
-            Require(rule.GetProperty("additionalProperties").ValueKind == JsonValueKind.False);
             Require(value.EnumerateObject().Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() == value.EnumerateObject().Count());
-            foreach (JsonElement required in rule.GetProperty("required").EnumerateArray()) Require(value.TryGetProperty(required.GetString()!, out _));
+            if (rule.TryGetProperty("required", out JsonElement requiredNames))
+                foreach (JsonElement required in requiredNames.EnumerateArray()) Require(value.TryGetProperty(required.GetString()!, out _));
             foreach (JsonProperty property in value.EnumerateObject())
             {
-                Require(properties.TryGetProperty(property.Name, out JsonElement child));
-                Validate(property.Value, child, schema);
+                if (rule.TryGetProperty("properties", out JsonElement properties)
+                    && properties.TryGetProperty(property.Name, out JsonElement child)) Validate(property.Value, child, schema);
+                else if (rule.TryGetProperty("additionalProperties", out JsonElement additional))
+                    Require(additional.ValueKind != JsonValueKind.False);
             }
         }
         if (value.ValueKind == JsonValueKind.Array)
@@ -314,7 +342,7 @@ internal static class CliPackageValidation
     private static int SelfTest(JsonElement schema)
     {
         const string good = """
-            {"schemaVersion":"islamu-configurator-command/v2","invocation":{"commandFamily":"artifact","operation":"validate","mode":"machine"},"status":"success","exitCategory":"success","exitCode":0,"dryRun":false,"completion":"completed","preparation":"ready","targetAcceptance":"unassessed","cleanup":"not-required","delivery":"attempt","diagnosticsTotal":0,"diagnosticsOmitted":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","diagnostics":[],"artifacts":[{"id":"config","kind":"definition-artifact","mediaType":"application/json","digest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sensitivity":"restricted","pathIntent":"input","writeStatus":"none","installation":"not-applicable","verification":"not-applicable"}],"coverage":{"coveredCount":1,"missingCount":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"readiness":{"state":"ready","missingCount":0,"blockedCount":0}}
+            {"schemaVersion":"islamu-configurator-command/v3","invocation":{"commandFamily":"artifact","operation":"validate","mode":"machine"},"status":"success","exitCategory":"success","exitCode":0,"dryRun":false,"completion":"completed","preparation":"ready","targetAcceptance":"unassessed","cleanup":"not-required","delivery":"attempt","diagnosticsTotal":0,"diagnosticsOmitted":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","diagnostics":[],"artifacts":[{"id":"config","kind":"definition-artifact","mediaType":"application/json","digest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sensitivity":"restricted","pathIntent":"input","writeStatus":"none","installation":"not-applicable","verification":"not-applicable"}],"coverage":{"coveredCount":1,"missingCount":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"readiness":{"state":"ready","missingCount":0,"blockedCount":0}}
             """;
         int rejected = 0;
         void Check(string text, bool valid, int exit = 0, byte[]? error = null)
@@ -337,6 +365,7 @@ internal static class CliPackageValidation
             obj => obj["unknown"] = true,
             obj => obj.Remove("schemaVersion"),
             obj => obj["schemaVersion"] = "islamu-configurator-command/v1",
+            obj => obj["schemaVersion"] = "islamu-configurator-command/v2",
             obj => obj["invocation"]!["mode"] = "text",
             obj => obj["invocation"]!["operation"] = "create",
             obj => obj["invocation"]!["unknown"] = true,
@@ -398,7 +427,65 @@ internal static class CliPackageValidation
         CheckRefusal(obj => obj["artifacts"]![0]!["sensitivity"] = "public", false);
         CheckRefusal(obj => obj["artifacts"]![0]!["digest"] = new string('0', 64), false);
         CheckRefusal(obj => obj["artifacts"] = new JsonArray(), false);
-        Console.WriteLine($"CLI_PACKAGE_SELF_TEST passed accepted=2 rejected={rejected}");
+        JsonObject sourceLocation = new()
+        {
+            ["schemaPath"] = "/configuration", ["documentIndex"] = 0,
+            ["startLine"] = 1, ["startColumn"] = 2, ["endLine"] = 1, ["endColumn"] = 3
+        };
+        JsonObject correctionLocation = new()
+        {
+            ["inputRevision"] = 0, ["fieldId"] = "service.name", ["segments"] = new JsonArray(
+                new JsonObject { ["kind"] = "property", ["propertyName"] = "declared" },
+                new JsonObject { ["kind"] = "arrayRow", ["index"] = 0 },
+                new JsonObject { ["kind"] = "mapEntry", ["index"] = 4095 })
+        };
+        CheckRefusal(obj => obj["diagnostics"]![0]!["source"] = sourceLocation.DeepClone(), true);
+        CheckRefusal(obj => obj["diagnostics"]![0]!["correction"] = correctionLocation.DeepClone(), true);
+        foreach (string name in new[] { "schemaPath", "documentIndex", "startLine", "startColumn", "endLine", "endColumn" })
+            CheckRefusal(obj =>
+            {
+                JsonObject source = sourceLocation.DeepClone().AsObject();
+                source.Remove(name);
+                obj["diagnostics"]![0]!["source"] = source;
+            }, false);
+        foreach (Action<JsonObject> mutation in new Action<JsonObject>[]
+        {
+            source => source["schemaPath"] = "/bad~2",
+            source => source["documentIndex"] = -1,
+            source => source["endColumn"] = 1,
+            source => source["value"] = "private"
+        })
+            CheckRefusal(obj =>
+            {
+                JsonObject source = sourceLocation.DeepClone().AsObject();
+                mutation(source);
+                obj["diagnostics"]![0]!["source"] = source;
+            }, false);
+        foreach (Action<JsonObject> mutation in new Action<JsonObject>[]
+        {
+            correction => correction.Remove("inputRevision"),
+            correction => correction["inputRevision"] = -1,
+            correction => correction["fieldId"] = "/private",
+            correction => correction["segments"]![0]!["index"] = 0,
+            correction => correction["segments"]![1]!["propertyName"] = "private",
+            correction => correction["segments"]![2]!["index"] = 4096,
+            correction => correction["segments"]![2]!["kind"] = "map-entry",
+            correction => correction["segments"]![2]!["key"] = "private",
+            correction => correction["segments"] = new JsonArray(Enumerable.Range(0, 33)
+                .Select(_ => (JsonNode?)new JsonObject { ["kind"] = "arrayRow", ["index"] = 0 }).ToArray())
+        })
+            CheckRefusal(obj =>
+            {
+                JsonObject correction = correctionLocation.DeepClone().AsObject();
+                mutation(correction);
+                obj["diagnostics"]![0]!["correction"] = correction;
+            }, false);
+        CheckRefusal(obj =>
+        {
+            obj["diagnostics"]![0]!["source"] = sourceLocation.DeepClone();
+            obj["diagnostics"]![0]!["correction"] = correctionLocation.DeepClone();
+        }, false);
+        Console.WriteLine($"CLI_PACKAGE_SELF_TEST passed accepted=4 rejected={rejected}");
         return 0;
     }
 

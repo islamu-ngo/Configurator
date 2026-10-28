@@ -23,7 +23,7 @@ There is no v1 fallback or implicit migration.
 | Public maintainer YAML/JSON | `$schema: urn:islamu:configurator:authoring:v2` |
 | Public canonical runtime JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities`; no `$schema` |
 | Private answer JSON | `answerContractVersion: 1`, `values` configuration tree, `omitted` concrete pointers |
-| CLI machine result | Command envelope v2; authoring/runtime handshake reports `authoringContractVersion: 2` and `runtimeSchemaVersion: 2` |
+| CLI machine result | Command envelope v3; authoring/runtime handshake reports `authoringContractVersion: 2` and `runtimeSchemaVersion: 2` |
 | Application JSON Schema | Separate bounded scaffolding input, not a Configurator runtime definition |
 | Editor meta-schema | Generated structural assistance in the [schema catalog](../../schemas/README.md), not semantic admission |
 
@@ -234,7 +234,7 @@ Optional layout can degrade only to reachable neutral presentation.
 The implemented Core base does not qualify every CLI, Browser, Desktop or Terminal
 scenario, accessibility path, package or physical host. Keep indispensable
 guidance in plain text and qualify the clients selected for your integration.
-Machine command v3 is later work; command v2 remains current.
+Machine command v3 is current; authoring/runtime remain v2 and private answers remain v1.
 
 ## Outputs and import
 
