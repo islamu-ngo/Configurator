@@ -32,13 +32,11 @@ public sealed class DefinitionExperienceProjectionTests
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["presentation"] = JsonNode.Parse("""
-        {"defaultExperience":"guided","sections":[
-          {"id":"connection","title":"Connection","description":"Connection description","fields":["enabled","token"]}],
-         "experiences":[
-          {"id":"guided","title":"Get connected","description":"Experience description","initialDisclosure":"essential",
-           "navigation":"guided","sections":["connection"]},
-          {"id":"complete","title":"All settings","initialDisclosure":"advanced",
-           "navigation":"sections","sections":["connection"]}]}
+        {"defaultJourney":"guided","navigation":"wizard","sections":[
+          {"id":"connection","title":"Connection","description":"Connection description","pointers":["/enabled","/token"]}],
+         "journeys":[
+          {"id":"guided","title":"Get connected","description":"Experience description","sections":["connection"]},
+          {"id":"complete","title":"All settings","sections":["connection"]}]}
         """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
@@ -69,6 +67,8 @@ public sealed class DefinitionExperienceProjectionTests
         form.SelectExperience("complete");
         await Assert.That(form.IsEditorVisible(["token"])).IsFalse();
         form.SetDisclosureOverride(null);
+        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        // v2 journeys no longer select advanced detail; retain this legacy expectation for disposition.
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         await Assert.That(form.IsEditorExpanded(["token"])).IsTrue();
         await Assert.That(form.CanEdit(["token"])).IsFalse();
@@ -81,18 +81,23 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task RelevantReviewIncludesActiveWorkAndAncestorsWithoutOmittedOrInactiveMetadata()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"required","type":"boolean","required":true,"title":"Required","sensitivity":"public","disclosure":"guided"},
-         {"id":"defaulted","type":"boolean","default":false,"title":"Defaulted","sensitivity":"public","disclosure":"guided"},
-         {"id":"omitted","type":"string","title":"Omitted","sensitivity":"public","disclosure":"advanced"},
-         {"id":"parent","type":"object","title":"Parent","sensitivity":"public","disclosure":"guided",
-          "properties":[
-            {"id":"literal.name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
-            {"id":"omitted","type":"string","title":"Omitted child","sensitivity":"public","disclosure":"advanced"}]},
-         {"id":"inactive","type":"string","title":"Inactive","sensitivity":"public","disclosure":"advanced",
-          "activeWhen":{"op":"equals","field":"required","value":true}}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["required"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "required":{"type":"boolean","title":"Required","x-configurator":{"sensitivity":"public","detail":"standard"}},
+          "defaulted":{"type":"boolean","title":"Defaulted","x-configurator":{"sensitivity":"public","detail":"standard","initialValue":false}},
+          "omitted":{"type":"string","title":"Omitted","x-configurator":{"sensitivity":"public","detail":"advanced"}},
+          "parent":{"type":"object","title":"Parent","additionalProperties":false,
+            "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "literal.name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "omitted":{"type":"string","title":"Omitted child","x-configurator":{"sensitivity":"public","detail":"advanced"}}}},
+          "inactive":{"type":"string","title":"Inactive","x-configurator":{"sensitivity":"public","detail":"advanced",
+            "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/required"},"value":true}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""
+        ["predicate.root","projection.literal","schema.boolean","schema.object","schema.string","values.initial"]
+        """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["required"], "false");
@@ -117,12 +122,14 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task CorrectedOptionalDraftStaysVisibleRegardlessOfInvalidVisibilityReads(bool renderInvalid)
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"options","type":"object","title":"Options","sensitivity":"public","disclosure":"guided",
-          "properties":[
-            {"id":"limit","type":"integer","title":"Limit","sensitivity":"public","disclosure":"advanced"}]}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+          "options":{"type":"object","title":"Options","additionalProperties":false,
+            "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "limit":{"type":"integer","title":"Limit","x-configurator":{"sensitivity":"public","detail":"advanced"}}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object"]""");
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         await Assert.That(form.EditValue(["options", "limit"], "-")).IsFalse();
@@ -192,21 +199,27 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task InactiveControllerChainsResolveToActiveQuestionsWithoutChangingAnswers()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"enabled","type":"boolean","default":false,"title":"Enable relay","sensitivity":"public","disclosure":"essential"},
-         {"id":"mode","type":"boolean","default":true,"title":"Relay mode","sensitivity":"public","disclosure":"guided",
-          "activeWhen":{"op":"equals","field":"enabled","value":true}},
-         {"id":"port","type":"integer","title":"Port","sensitivity":"public","disclosure":"advanced",
-          "activeWhen":{"op":"equals","field":"mode","value":true}}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+          "enabled":{"type":"boolean","title":"Enable relay",
+            "x-configurator":{"sensitivity":"public","detail":"basic","initialValue":false}},
+          "mode":{"type":"boolean","title":"Relay mode","x-configurator":{"sensitivity":"public","detail":"standard","initialValue":true,
+            "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}},
+          "port":{"type":"integer","title":"Port","x-configurator":{"sensitivity":"public","detail":"advanced",
+            "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/mode"},"value":true}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""
+        ["predicate.root","projection.literal","schema.boolean","schema.integer","schema.object","values.initial"]
+        """);
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         long revision = form.InputRevision;
         var port = form.Projection.Entries.Single(entry => entry.FieldId == "port");
         await Assert.That(port.IsActive).IsFalse();
         await Assert.That(port.ActiveControllerFields.Count).IsEqualTo(1);
         await Assert.That(port.ActiveControllerFields[0]).IsEqualTo("enabled");
-        await Assert.That(form.Snapshot().Values["enabled"].GetBoolean()).IsFalse();
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/enabled"), out JsonElement initialized)).IsTrue();
+        await Assert.That(initialized.GetBoolean()).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
     }
 
@@ -214,11 +227,13 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task InvalidSecretDraftIsNotCountedAsDeferredWork()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"private_number","type":"integer","required":true,"title":"Private number",
-          "sensitivity":"secret","disclosure":"guided"}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["private_number"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "private_number":{"type":"integer","title":"Private number","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object"]""");
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserSecretsEnabled);
@@ -234,13 +249,16 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task LocalOptionalDisclosurePreservesRevisionAndCannotHideAnInvalidDraft()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"options","type":"object","required":true,"title":"Options","sensitivity":"public","disclosure":"guided",
-          "properties":[
-            {"id":"host","type":"string","required":true,"title":"Host","sensitivity":"public","disclosure":"guided"},
-            {"id":"limit","type":"integer","title":"Limit","sensitivity":"public","disclosure":"advanced"}]}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["options"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "options":{"type":"object","title":"Options","additionalProperties":false,"required":["host"],
+            "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "host":{"type":"string","title":"Host","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "limit":{"type":"integer","title":"Limit","x-configurator":{"sensitivity":"public","detail":"advanced"}}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object","schema.string"]""");
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         long revision = form.InputRevision;
@@ -263,11 +281,16 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task MissingRequiredSecretContainerIsNotADeferredLeaf()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"keys","type":"list","itemType":"string","required":true,"minItems":1,
-          "title":"Keys","sensitivity":"secret","disclosure":"guided"}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["keys"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "keys":{"type":"array","items":{"type":"string","x-configurator":{"sensitivity":"secret"}},"minItems":1,
+            "title":"Keys","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""
+        ["projection.literal","schema.array","schema.bounds","schema.object","schema.string"]
+        """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
@@ -281,13 +304,15 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task EssentialNestedDecisionPromotesAncestorsWithoutExpandingOptionalSecrets()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"options","type":"object","title":"Options","sensitivity":"public","disclosure":"advanced",
-          "properties":[
-            {"id":"enabled","type":"boolean","title":"Enable feature","sensitivity":"public","disclosure":"essential"},
-            {"id":"token","type":"string","title":"Optional token","sensitivity":"secret","disclosure":"advanced"}]}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+          "options":{"type":"object","title":"Options","additionalProperties":false,
+            "x-configurator":{"sensitivity":"public","detail":"advanced"},"properties":{
+              "enabled":{"type":"boolean","title":"Enable feature","x-configurator":{"sensitivity":"public","detail":"basic"}},
+              "token":{"type":"string","title":"Optional token","x-configurator":{"sensitivity":"secret","detail":"advanced"}}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.boolean","schema.object","schema.string"]""");
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
 
@@ -298,10 +323,14 @@ public sealed class DefinitionExperienceProjectionTests
     }
 
     [Test]
-    public async Task MachineOnlyGroupsAreSharedDiscoverableSectionsWithoutInventedExperiences()
+    public async Task AuthoredSectionsAreSharedDiscoverableWithoutInventedExperiences()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]![0]!["group"] = "Network settings";
+        source["presentation"] = JsonNode.Parse("""
+        {"defaultJourney":"configure","navigation":"sections",
+         "sections":[{"id":"network","title":"Network settings","pointers":["/enabled"]}],
+         "journeys":[{"id":"configure","title":"Configure","sections":["network"]}]}
+        """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.SetDiscovery("network");
@@ -332,13 +361,18 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task ListCardinalityAndActualRequiredRowsRecomputeIndependentObligations()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"rows","type":"list","itemType":"object","required":true,"minItems":1,
-          "title":"Rows","sensitivity":"public","disclosure":"advanced",
-          "properties":[{"id":"enabled","type":"boolean","required":true,
-            "title":"Enabled","sensitivity":"public","disclosure":"guided"}]}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["rows"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "rows":{"type":"array","minItems":1,"title":"Rows","x-configurator":{"sensitivity":"public","detail":"advanced"},
+            "items":{"type":"object","additionalProperties":false,"required":["enabled"],
+              "x-configurator":{"sensitivity":"public"},"properties":{
+                "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard"}}}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""
+        ["projection.literal","schema.array","schema.boolean","schema.bounds","schema.object"]
+        """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         await Assert.That(form.Projection.Progress.Required).IsEqualTo(1);
@@ -358,7 +392,7 @@ public sealed class DefinitionExperienceProjectionTests
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""
-        {"op":"object","members":{"ENABLE_INTEGRATION":{"op":"copy","field":"enabled"}}}
+        {"op":"object","members":{"ENABLE_INTEGRATION":{"op":"copy","reference":{"scope":"root","path":"/enabled"}}}}
         """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
@@ -383,13 +417,11 @@ public sealed class DefinitionExperienceProjectionTests
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["presentation"] = JsonNode.Parse("""
-        {"defaultExperience":"guided","sections":[
-          {"id":"connection","title":"Connection","fields":["enabled","token"]}],
-         "experiences":[
-          {"id":"guided","title":"Get connected","initialDisclosure":"essential",
-           "navigation":"guided","sections":["connection"]},
-          {"id":"complete","title":"All settings","initialDisclosure":"advanced",
-           "navigation":"sections","sections":["connection"]}]}
+        {"defaultJourney":"guided","navigation":"wizard","sections":[
+          {"id":"connection","title":"Connection","pointers":["/enabled","/token"]}],
+         "journeys":[
+          {"id":"guided","title":"Get connected","sections":["connection"]},
+          {"id":"complete","title":"All settings","sections":["connection"]}]}
         """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
@@ -408,9 +440,11 @@ public sealed class DefinitionExperienceProjectionTests
         await Assert.That(form.Projection.Matches.Single().Entry.FieldId).IsEqualTo("token");
         // Selection is tested through the shared API once admitted, not through a client preset.
         await Assert.That(form.SelectExperience("complete")).IsTrue();
+        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         await Assert.That(form.SelectExperience("unknown")).IsFalse();
         await Assert.That(form.SelectExperience("guided")).IsTrue();
+        form.SetDisclosureOverride(null);
         form.SetAllSectionsExpanded(true);
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         form.SetAllSectionsExpanded(false);
@@ -434,10 +468,13 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task InactiveInvalidDraftDoesNotBlockActiveConfiguration()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]![1]!["type"] = "integer";
-        source["fields"]![1]!["sensitivity"] = "public";
-        source["fields"]![1]!["activeWhen"] =
-            JsonNode.Parse("""{"op":"equals","field":"enabled","value":true}""");
+        source["configuration"]!["properties"]!["token"]!["type"] = "integer";
+        source["configuration"]!["properties"]!["token"]!["x-configurator"]!["sensitivity"] = "public";
+        source["configuration"]!["properties"]!["token"]!["x-configurator"]!["applicableWhen"] =
+            JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""
+        ["predicate.root","projection.copy","projection.object","schema.boolean","schema.integer","schema.object"]
+        """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["enabled"], "true");
@@ -469,13 +506,16 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task RequiredObjectDoesNotCountItsRequiredChildrenTwice()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"settings","type":"object","required":true,"title":"Settings","sensitivity":"public","disclosure":"essential",
-          "properties":[
-            {"id":"name","type":"string","required":true,"title":"Name","sensitivity":"public","disclosure":"guided"},
-            {"id":"port","type":"integer","required":true,"title":"Port","sensitivity":"public","disclosure":"guided"}]}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["settings"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "settings":{"type":"object","title":"Settings","additionalProperties":false,"required":["name","port"],
+            "x-configurator":{"sensitivity":"public","detail":"basic"},"properties":{
+              "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "port":{"type":"integer","title":"Port","x-configurator":{"sensitivity":"public","detail":"standard"}}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object","schema.string"]""");
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.SetValue(["settings"], JsonSerializer.SerializeToElement(new { name = "configured" }));
@@ -505,8 +545,11 @@ public sealed class DefinitionExperienceProjectionTests
     public async Task NoRequiredAnswersHaveNoPercentageButInvalidOptionalDraftStillBlocks()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]![0]!["required"] = false;
-        source["fields"]![0]!["type"] = "integer";
+        source["configuration"]!.AsObject().Remove("required");
+        source["configuration"]!["properties"]!["enabled"]!["type"] = "integer";
+        source["requiredCapabilities"] = JsonNode.Parse("""
+        ["projection.copy","projection.object","schema.integer","schema.object","schema.string"]
+        """);
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["enabled"], "invalid-number");
@@ -518,16 +561,16 @@ public sealed class DefinitionExperienceProjectionTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":1,"familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32003","revision":1,
-     "applicationId":"example","applicationVersions":["1"],"publisher":"example",
-     "title":"Projection example","entryPoints":["setup"],"locales":["en"],
-     "fields":[
-       {"id":"enabled","type":"boolean","title":"Enable integration","required":true,
-        "sensitivity":"public","disclosure":"essential"},
-       {"id":"token","type":"string","title":"Integration credential","required":false,
-        "sensitivity":"secret","disclosure":"advanced"}],
+    {"schemaVersion":2,"profile":"bounded-v2","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32003","revision":1,
+     "project":{"id":"example","name":"Projection example","publisher":"example"},
+     "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
+     "configuration":{"type":"object","additionalProperties":false,"required":["enabled"],
+       "x-configurator":{"sensitivity":"public"},"properties":{
+         "enabled":{"type":"boolean","title":"Enable integration","x-configurator":{"sensitivity":"public","detail":"basic"}},
+         "token":{"type":"string","title":"Integration credential","x-configurator":{"sensitivity":"secret","detail":"advanced"}}}},
+     "requiredCapabilities":["projection.copy","projection.object","schema.boolean","schema.object","schema.string"],
      "artifacts":[{"id":"config","format":"json","fileName":"service.json",
-       "applySemantics":"create","restart":"process",
-       "projection":{"op":"object","members":{"enabled":{"op":"copy","field":"enabled"}}}}]}
+       "targetUpdateMode":"create","restartRequirement":"process",
+       "projection":{"op":"object","members":{"enabled":{"op":"copy","reference":{"scope":"root","path":"/enabled"}}}}}]}
     """));
 }

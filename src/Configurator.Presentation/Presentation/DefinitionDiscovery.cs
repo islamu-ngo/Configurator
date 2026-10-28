@@ -8,6 +8,7 @@ public enum DefinitionDiscoveryFacet { Section, Requirement, Applicability, Stat
 /// <summary>Public metadata and projected facts only; never supply answers, drafts or artifact contents.</summary>
 public sealed class DefinitionDiscoveryEntry
 {
+    private readonly string? _schemaPath;
     public DefinitionDiscoveryEntry(string fieldId, IEnumerable<string> relativePath, string title,
         string sectionId, string sectionTitle, string type, SetupFieldSensitivity sensitivity,
         bool isActive, bool isRequired, bool isProvided, bool isReady, bool needsAttention,
@@ -65,6 +66,7 @@ public sealed class DefinitionDiscoveryEntry
         DefinitionNodeState state, bool inputError, bool deferred, DefinitionAnswerOrigin origin,
         IReadOnlyList<string>? artifacts, IReadOnlyList<string>? bindingKeys, IReadOnlyList<string> controllers)
     {
+        _schemaPath = metadata.SchemaPath;
         FieldId = state.FieldId;
         RelativePath = state.RelativePath;
         Title = metadata.Title ?? section.Title + " item";
@@ -87,13 +89,15 @@ public sealed class DefinitionDiscoveryEntry
         ActiveControllerFields = controllers;
     }
 
-    private DefinitionDiscoveryEntry(DefinitionDiscoveryEntry current, int sectionOrder)
+    private DefinitionDiscoveryEntry(DefinitionDiscoveryEntry current, int sectionOrder,
+        DefinitionLocalization? localization = null, string locale = "", string? sectionTitle = null)
     {
+        _schemaPath = current._schemaPath;
         FieldId = current.FieldId;
         RelativePath = current.RelativePath;
-        Title = current.Title;
+        Title = localization?.Text(locale, _schemaPath + "/title", current.Title) ?? current.Title;
         SectionId = current.SectionId;
-        SectionTitle = current.SectionTitle;
+        SectionTitle = sectionTitle ?? current.SectionTitle;
         Type = current.Type;
         Sensitivity = current.Sensitivity;
         IsActive = current.IsActive;
@@ -104,15 +108,16 @@ public sealed class DefinitionDiscoveryEntry
         IsDeferred = current.IsDeferred;
         Origin = current.Origin;
         SearchTerms = current.SearchTerms;
-        Help = current.Help;
-        Instructions = current.Instructions;
+        Help = localization?.Text(locale, _schemaPath + "/description", current.Help) ?? current.Help;
+        Instructions = localization?.Text(locale, _schemaPath + "/x-configurator/guidance/instructions", current.Instructions) ?? current.Instructions;
         OutputArtifactIds = current.OutputArtifactIds;
         BindingKeys = current.BindingKeys;
         SectionOrder = sectionOrder;
         ActiveControllerFields = current.ActiveControllerFields;
     }
 
-    internal DefinitionDiscoveryEntry WithSectionOrder(int order) => order == SectionOrder ? this : new(this, order);
+    internal DefinitionDiscoveryEntry WithDisplay(DefinitionLocalization localization, string locale, string sectionTitle, int order) =>
+        new(this, order, localization, locale, sectionTitle);
 }
 
 /// <summary>A transient query and copied facet selections. Oversized queries reject rather than truncate.</summary>

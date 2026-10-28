@@ -1,6 +1,44 @@
 namespace Configurator.Presentation;
 
 using Configurator.Core.Definitions;
+using System.Text.Json;
+
+public sealed class DefinitionChoicePresentation
+{
+    internal DefinitionChoicePresentation(JsonElement value, string label, string? explanation)
+    {
+        Value = value.Clone();
+        Label = label;
+        Explanation = explanation;
+    }
+    public JsonElement Value { get; }
+    public string Label { get; }
+    public string? Explanation { get; }
+}
+
+/// <summary>Public display metadata over the original admitted typed schema; no answer values are retained.</summary>
+public sealed class DefinitionEditorPresentation
+{
+    internal DefinitionEditorPresentation(DefinitionNode schema, string title, string? description,
+        string? instructions, string? units, IReadOnlyList<DefinitionChoicePresentation> choices,
+        IReadOnlyList<DefinitionGuidanceLink> links)
+    {
+        Schema = schema;
+        Title = title;
+        Description = description;
+        Instructions = instructions;
+        Units = units;
+        Choices = choices;
+        Links = links;
+    }
+    public DefinitionNode Schema { get; }
+    public string Title { get; }
+    public string? Description { get; }
+    public string? Instructions { get; }
+    public string? Units { get; }
+    public IReadOnlyList<DefinitionChoicePresentation> Choices { get; }
+    public IReadOnlyList<DefinitionGuidanceLink> Links { get; }
+}
 
 public sealed record DefinitionFormExperience
 {

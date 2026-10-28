@@ -16,6 +16,9 @@ public sealed class EventDefinitionFormTests
         await Assert.That(form.AddListItem(["configuration-manifest.tenants"])).IsTrue();
         form.SetValue(["configuration-manifest.tenants", "0", "metadata", "name"], JsonSerializer.SerializeToElement("tenant-one"));
         form.SetValue(["configuration-manifest.tenants", "0", "spec", "displayName"], JsonSerializer.SerializeToElement("Tenant One"));
+        form.SupplyObject(["configuration-manifest.tenants", "0", "spec", "settings"]);
+        form.SupplyObject(["configuration-manifest.tenants", "0", "spec", "documents"]);
+        form.SupplyObject(["configuration-manifest.tenants", "0", "spec", "legalDocuments"]);
         using DefinitionDraftArtifactResult result = DefinitionDraftArtifactComposer.Compose(form.Definition, "configuration-manifest", form.Snapshot());
         await Assert.That(string.Join(',', result.Diagnostics.Select(diagnostic => diagnostic.ToString()))).IsEqualTo(string.Empty);
         await Assert.That(result.Succeeded).IsTrue();

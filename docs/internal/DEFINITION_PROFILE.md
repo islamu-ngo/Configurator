@@ -218,6 +218,16 @@ test that scans prose.
 
 ### Capability activation
 
+Shared Presentation now exposes typed map/variant traversal and nullable,
+choice, suggestion/reset, locale and correction actions over the admitted Core
+nodes. Optional constructor capability admission happens before answer editors.
+Core's discriminator selector remains the only branch authority. Public
+correction coordinates use declared properties and row/map ordinals, including
+temporary invalid drafts; local recovery is fenced by input revision.
+Locale changes project text/direction only and do not change output bytes.
+Browser/Desktop/Terminal activation still requires their adapter and actual
+surface gates; the shared feature is not an assertion of client qualification.
+
 Derived semantic features include recursive objects/arrays, typed maps, nullable
 values, discriminated variants, scoped applicability, exact typed choices,
 explicit omission/reset, guidance and localized metadata. A renderer advertises

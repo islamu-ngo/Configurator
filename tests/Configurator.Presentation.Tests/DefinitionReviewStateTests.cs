@@ -10,10 +10,12 @@ public sealed class DefinitionReviewStateTests
     public async Task SecretImportRejectionIdentifiesAdmittedRecoveryWithoutApplyingAnswers()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]!.AsArray().Add(JsonNode.Parse("""
-        {"id":"secret","type":"string","title":"Secret","sensitivity":"secret","disclosure":"advanced"}
-        """));
-        source["artifacts"]![0]!["projection"]!["members"]!["secret"] = JsonNode.Parse("""{"op":"copy","field":"secret"}""");
+        source["configuration"]!["properties"]!["secret"] = JsonNode.Parse("""
+        {"type":"string","title":"Secret","x-configurator":{"sensitivity":"secret","detail":"advanced"}}
+        """);
+        source["artifacts"]![0]!["projection"]!["members"]!["secret"] = JsonNode.Parse("""
+        {"op":"copy","reference":{"scope":"root","path":"/secret"}}
+        """);
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
         long revision = form.InputRevision;
@@ -26,17 +28,21 @@ public sealed class DefinitionReviewStateTests
     }
 
     [Test]
-    public async Task OmittedRootDefaultKeepsEffectiveChildProvenanceWithoutMaterializingAnswers()
+    public async Task ResetRootInitializerKeepsEffectiveChildProvenanceWithoutMaterializingAnswers()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"options","type":"object","default":{"host":"example.test"},"title":"Options",
-          "sensitivity":"public","disclosure":"guided","properties":[
-            {"id":"host","type":"string","title":"Host","required":true,"sensitivity":"public","disclosure":"guided"}]}]
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+        {"options":{"type":"object","additionalProperties":false,"required":["host"],"title":"Options",
+          "x-configurator":{"sensitivity":"public","detail":"standard","initialValue":{"host":"example.test"}},
+          "properties":{
+            "host":{"type":"string","title":"Host","x-configurator":{"sensitivity":"public","detail":"standard"}}}}}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = JsonNode.Parse("""
+        ["projection.literal","schema.object","schema.string","values.initial"]
+        """);
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
-        form.SetValue(["options"], null);
+        form.ResetValue(["options"]);
         long revision = form.InputRevision;
         await Assert.That(form.AnswerOrigin(["options", "host"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
         await Assert.That(form.Validate().IsReady).IsTrue();
@@ -91,16 +97,20 @@ public sealed class DefinitionReviewStateTests
         form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(Encoding.UTF8.GetBytes(json)));
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":1,"familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32004","revision":1,
-     "applicationId":"example","applicationVersions":["1"],"publisher":"example",
-     "title":"Review example","entryPoints":["setup"],"locales":["en"],
-     "fields":[
-       {"id":"name","type":"string","default":"authored","title":"Name","sensitivity":"public","disclosure":"essential"},
-       {"id":"note","type":"string","title":"Note","sensitivity":"public","disclosure":"guided"},
-       {"id":"count","type":"integer","title":"Count","sensitivity":"public","disclosure":"guided"},
-       {"id":"enabled","type":"boolean","default":false,"title":"Enabled","sensitivity":"public","disclosure":"essential"}],
-     "artifacts":[{"id":"config","format":"json","fileName":"service.json","applySemantics":"create","restart":"process",
-       "projection":{"op":"object","members":{"name":{"op":"copy","field":"name"},
-         "note":{"op":"copy","field":"note"},"count":{"op":"copy","field":"count"},"enabled":{"op":"copy","field":"enabled"}}}}]}
+    {"schemaVersion":2,"profile":"bounded-v2","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32004","revision":1,
+     "project":{"id":"example","publisher":"example","name":"Review example"},
+     "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
+     "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+       "properties":{
+         "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"basic","initialValue":"authored"}},
+         "note":{"type":"string","title":"Note","x-configurator":{"sensitivity":"public","detail":"standard"}},
+         "count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"standard"}},
+         "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"basic","initialValue":false}}}},
+     "artifacts":[{"id":"config","format":"json","fileName":"service.json","targetUpdateMode":"create","restartRequirement":"process",
+       "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}},
+         "note":{"op":"copy","reference":{"scope":"root","path":"/note"}},
+         "count":{"op":"copy","reference":{"scope":"root","path":"/count"}},
+         "enabled":{"op":"copy","reference":{"scope":"root","path":"/enabled"}}}}}],
+     "requiredCapabilities":["projection.copy","projection.object","schema.boolean","schema.integer","schema.object","schema.string","values.initial"]}
     """));
 }

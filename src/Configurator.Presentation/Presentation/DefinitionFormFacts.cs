@@ -28,14 +28,15 @@ internal sealed class DefinitionFormFacts
         HasInputErrors = activeInputs.Any(field => field.InputDiagnosticCode is not null);
         foreach (DefinitionNodeState node in validation.Nodes)
         {
-            IReadOnlyList<string> path = node.RelativePath.Count == 0
-                ? index.RootPaths[node.FieldId] : [node.FieldId, .. node.RelativePath];
+            if (!form.TryCorrectionPath(node.FieldId, node.Location, validation, out IReadOnlyList<string> path)) continue;
             if (node.IsActive && (node.HasError || node.IsObligation && node.IsMissing))
                 AddPrefixes(path, correction: true);
             if (node.IsActive && node.IsRequired) AddPrefixes(path, correction: false);
         }
         foreach (DefinitionDiagnostic diagnostic in validation.Diagnostics.Where(item => item.Code != "value-required"))
-            AddPrefixes([diagnostic.FieldId, .. diagnostic.RelativePath], correction: true, promote: true);
+            if (diagnostic.Location is { } location &&
+                form.TryCorrectionPath(diagnostic.FieldId, location, validation, out IReadOnlyList<string> path))
+                AddPrefixes(path, correction: true, promote: true);
         foreach (DefinitionDiagnostic diagnostic in InputDiagnostics)
             AddPrefixes([diagnostic.FieldId, .. diagnostic.RelativePath], correction: true, promote: true);
         Progress = CountProgress(validation.Nodes, validation.Diagnostics, InputDiagnostics);
@@ -51,8 +52,7 @@ internal sealed class DefinitionFormFacts
         var entries = new List<EntryState>(validation.Nodes.Count);
         foreach (DefinitionNodeState node in validation.Nodes)
         {
-            IReadOnlyList<string> path = node.RelativePath.Count == 0
-                ? index.RootPaths[node.FieldId] : [node.FieldId, .. node.RelativePath];
+            if (!form.TryCorrectionPath(node.FieldId, node.Location, validation, out IReadOnlyList<string> path)) continue;
             if (!form.TryMetadataNode(path, out DefinitionFormIndex.Node metadata, out _, validation)) continue;
             DefinitionFormSection section = index.SectionsByField[node.FieldId];
             bool inputError = false;

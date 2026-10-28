@@ -130,12 +130,13 @@ public sealed partial class DefinitionFormModel
             if (parent is JsonObject owner) owner.Remove(path[^1]);
             replacement = JsonSerializer.SerializeToElement(root);
         }
+        long before = InputRevision;
         if (!input.TrySetValue(replacement, recordOrigin: false)) return false;
         _omitted.RemoveWhere(existing => existing.Segments.Take(path.Count).SequenceEqual(path));
         input.ForgetOrigin(path);
         input.ClearDrafts(path);
         ClearRowIdentities(path);
-        OnInputChanged();
+        if (InputRevision == before) OnInputChanged();
         return true;
     }
 
@@ -191,6 +192,74 @@ public sealed partial class DefinitionFormModel
                 AnswerOrigin(location, validation) == DefinitionAnswerOrigin.Defaulted)
                 input.RecordOrigin(location, DefinitionAnswerOrigin.Defaulted, clearDescendants: false);
         }
+    }
+
+    private DefinitionDiagnostic SafeInputDiagnostic(DefinitionDiagnostic diagnostic)
+    {
+        var segments = new List<DefinitionLocationSegment>();
+        var path = new List<string> { diagnostic.FieldId };
+        foreach (string name in diagnostic.RelativePath)
+        {
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node owner, out _)) break;
+            DefinitionNode schema = owner.Schema;
+            if (schema.Variants.Count > 0)
+            {
+                if (ReadValue(path) is not { } supplied ||
+                    DefinitionValidator.SelectVariant(schema, supplied) is not { } branch) break;
+                schema = branch;
+            }
+            if (schema.Items is not null && int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out int row))
+                segments.Add(DefinitionLocationSegment.ArrayRow(row));
+            else if (schema.Properties.ContainsKey(name))
+                segments.Add(DefinitionLocationSegment.Property(name));
+            else if (schema.AdditionalProperties is not null && ReadValue(path) is { ValueKind: JsonValueKind.Object } mapping)
+            {
+                string[] names = mapping.EnumerateObject().Select(property => property.Name)
+                    .Where(key => !schema.Properties.ContainsKey(key)).ToArray();
+                int index = Array.IndexOf(names, name);
+                if (index < 0) break;
+                segments.Add(DefinitionLocationSegment.MapEntry(index));
+            }
+            else break;
+            path.Add(name);
+        }
+        return new(diagnostic.Code, diagnostic.FieldId, new DefinitionCorrectionLocation(InputRevision, segments));
+    }
+
+    internal bool TryCorrectionPath(string fieldId, DefinitionCorrectionLocation location,
+        DefinitionValidationResult validation, out IReadOnlyList<string> path)
+    {
+        var resolved = new List<string> { fieldId };
+        path = resolved;
+        if (!_index!.Roots.ContainsKey(fieldId)) return false;
+        foreach (DefinitionLocationSegment segment in location.Segments)
+        {
+            if (segment.Kind == DefinitionLocationSegmentKind.Property)
+                resolved.Add(segment.PropertyName!);
+            else if (segment.Kind == DefinitionLocationSegmentKind.ArrayRow)
+                resolved.Add(segment.Index!.Value.ToString(CultureInfo.InvariantCulture));
+            else
+            {
+                if (!TryMetadataNode(resolved, out DefinitionFormIndex.Node owner, out _, validation) ||
+                    !validation.TryGetEffectiveValue(DataPath(resolved), out JsonElement mapping) ||
+                    mapping.ValueKind != JsonValueKind.Object) return false;
+                string[] names = mapping.EnumerateObject().Select(property => property.Name)
+                    .Where(name => !owner.Properties.ContainsKey(name)).ToArray();
+                if (segment.Index is not { } index || index >= names.Length) return false;
+                resolved.Add(names[index]);
+            }
+        }
+        return TryMetadataNode(resolved, out _, out _, validation);
+    }
+
+    public bool FocusCorrection(string fieldId, DefinitionCorrectionLocation location, bool preserveDiscovery = false)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return location.InputRevision == InputRevision &&
+            TryCorrectionPath(fieldId, location, Facts.Validation, out IReadOnlyList<string> path) &&
+            FocusEditor(path, preserveDiscovery);
     }
 
     /// <summary>Opens exact literal ancestors for correction without changing answers or granting consent.</summary>

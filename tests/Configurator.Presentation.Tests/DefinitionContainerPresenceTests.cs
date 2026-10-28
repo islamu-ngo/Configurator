@@ -15,7 +15,7 @@ public sealed class DefinitionContainerPresenceTests
         await Assert.That(form.Validate().IsReady).IsTrue();
         await Assert.That(form.SetValue(["optional", "nested", "name"], null)).IsTrue();
         await Assert.That(form.Snapshot().Values.ContainsKey("optional")).IsFalse();
-        await Assert.That(form.InputRevision).IsEqualTo(2);
+        await Assert.That(form.InputRevision).IsEqualTo(3);
         await Assert.That(form.Validate().IsReady).IsTrue();
     }
 
@@ -26,7 +26,7 @@ public sealed class DefinitionContainerPresenceTests
         await Assert.That(form.SetValue(["optional", "sibling"], JsonSerializer.SerializeToElement("kept"))).IsTrue();
         await Assert.That(form.SetValue(["optional", "nested", "name"], null)).IsTrue();
         await Assert.That(form.Snapshot().Values["optional"].GetRawText()).IsEqualTo("""{"sibling":"kept"}""");
-        await Assert.That(form.InputRevision).IsEqualTo(1);
+        await Assert.That(form.InputRevision).IsEqualTo(2);
     }
 
     [Test]
@@ -77,17 +77,21 @@ public sealed class DefinitionContainerPresenceTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":1,"familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28902","revision":1,
-     "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example","entryPoints":["setup"],"locales":["en"],
-     "fields":[
-       {"id":"optional","type":"object","title":"Optional","sensitivity":"public","disclosure":"guided","properties":[
-         {"id":"nested","type":"object","required":true,"title":"Nested","sensitivity":"public","disclosure":"guided","properties":[
-           {"id":"name","type":"string","required":true,"title":"Name","sensitivity":"public","disclosure":"guided"}]},
-         {"id":"sibling","type":"string","title":"Sibling","sensitivity":"public","disclosure":"guided"}]},
-       {"id":"empty","type":"object","required":true,"title":"Empty","sensitivity":"public","disclosure":"guided","properties":[]},
-       {"id":"items","type":"list","itemType":"integer","required":true,"maxItems":0,"title":"Items","sensitivity":"public","disclosure":"guided"},
-       {"id":"private","type":"list","itemType":"string","title":"Private","sensitivity":"secret","disclosure":"guided"}],
-     "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-       "projection":{"op":"object","members":{"empty":{"op":"copy","field":"empty"},"items":{"op":"copy","field":"items"}}}}]}
+    {"schemaVersion":2,"profile":"bounded-v2","familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28902","revision":1,
+     "project":{"id":"example","name":"Example","publisher":"example"},
+     "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
+     "requiredCapabilities":["projection.copy","projection.object","schema.array","schema.bounds","schema.integer","schema.object","schema.string"],
+     "configuration":{"type":"object","additionalProperties":false,"required":["empty","items"],"x-configurator":{"sensitivity":"public"},"properties":{
+       "optional":{"type":"object","additionalProperties":false,"required":["nested"],"title":"Optional","x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+         "nested":{"type":"object","additionalProperties":false,"required":["name"],"title":"Nested","x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+           "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+         "sibling":{"type":"string","title":"Sibling","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+       "empty":{"type":"object","additionalProperties":false,"properties":{},"title":"Empty","x-configurator":{"sensitivity":"public","detail":"standard"}},
+       "items":{"type":"array","items":{"type":"integer","x-configurator":{"sensitivity":"public"}},"maxItems":0,"title":"Items","x-configurator":{"sensitivity":"public","detail":"standard"}},
+       "private":{"type":"array","items":{"type":"string","x-configurator":{"sensitivity":"secret"}},"title":"Private","x-configurator":{"sensitivity":"secret","detail":"standard"}}}},
+     "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+       "projection":{"op":"object","members":{
+         "empty":{"op":"copy","reference":{"scope":"root","path":"/empty"}},
+         "items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}}}]}
     """));
 }

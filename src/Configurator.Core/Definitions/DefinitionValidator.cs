@@ -73,7 +73,7 @@ public sealed class DefinitionNodeState
 {
     internal DefinitionNodeState(string fieldId, IReadOnlyList<string> relativePath,
         bool active, bool required, bool provided, bool valid, bool obligation, bool obligationReady, bool missing,
-        SetupFieldSensitivity sensitivity)
+        SetupFieldSensitivity sensitivity, DefinitionCorrectionLocation location)
     {
         FieldId = fieldId;
         RelativePath = Array.AsReadOnly(relativePath.ToArray());
@@ -86,6 +86,7 @@ public sealed class DefinitionNodeState
         IsObligationReady = active && obligationReady;
         IsMissing = missing;
         Sensitivity = sensitivity;
+        Location = location;
     }
 
     public string FieldId { get; }
@@ -99,6 +100,7 @@ public sealed class DefinitionNodeState
     public bool IsObligationReady { get; }
     public bool IsMissing { get; }
     public SetupFieldSensitivity Sensitivity { get; }
+    public DefinitionCorrectionLocation Location { get; }
 }
 
 public static class DefinitionValidator
@@ -239,7 +241,8 @@ public static class DefinitionValidator
                 {
                     diagnostics.Add(new("value-variant", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
                     nodes.Add(new(fieldId, safePath, true, required, true, false, required, false, false,
-                        SetupFieldDefinition.EffectiveSensitivity(schema, inherited)));
+                        SetupFieldDefinition.EffectiveSensitivity(schema, inherited),
+                        new DefinitionCorrectionLocation(answers.InputRevision, correction)));
                     return (true, value, false);
                 }
                 var resolvedBranch = Resolve(branch, value, true, location, fieldId, safePath, true, required, sensitivity,
@@ -337,7 +340,7 @@ public static class DefinitionValidator
                                 child.RelativePath.Count > requiredPath.Length &&
                                 child.RelativePath.Take(requiredPath.Length).SequenceEqual(requiredPath, StringComparer.Ordinal));
                             nodes[nodeIndex] = new(node.FieldId, node.RelativePath, node.IsActive, true, node.IsProvided,
-                                node.IsReady, !hasChildObligation, node.IsProvided && node.IsReady, node.IsMissing, node.Sensitivity);
+                                node.IsReady, !hasChildObligation, node.IsProvided && node.IsReady, node.IsMissing, node.Sensitivity, node.Location);
                         }
                         if (localUnknown.Contains(name) || mapping!.ContainsKey(name)) continue;
                         DefinitionNode child = schema.Properties[name];
@@ -400,7 +403,8 @@ public static class DefinitionValidator
             bool obligationReady = present && (schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence
                 ? LocalValueValid(schema, Element(value)) : valid);
             nodes.Insert(start, new(fieldId, safePath, active, required, active && present, valid,
-                obligation, obligationReady, !present, SetupFieldDefinition.EffectiveSensitivity(schema, inherited)));
+                obligation, obligationReady, !present, SetupFieldDefinition.EffectiveSensitivity(schema, inherited),
+                new DefinitionCorrectionLocation(answers.InputRevision, correction)));
             return (active && present, value, valid);
 
         }
@@ -459,7 +463,7 @@ public static class DefinitionValidator
                      !nodes.Any(child => child.FieldId == node.FieldId && child.RelativePath.Count > 0 && child.IsObligation));
                 nodes[index] = new(node.FieldId, node.RelativePath, active, required, active && node.IsProvided,
                     !error && node.IsReady, active && (node.IsObligation || rootObligation),
-                    node.IsObligationReady, node.IsMissing, node.Sensitivity);
+                    node.IsObligationReady, node.IsMissing, node.Sensitivity, node.Location);
             }
 
             void CloseUncertainty()
@@ -531,8 +535,10 @@ public static class DefinitionValidator
         return true;
     }
 
-    internal static DefinitionNode? SelectVariant(DefinitionNode schema, JsonElement value)
+    /// <summary>Returns the declared branch selected by a supplied discriminator, without inventing a branch.</summary>
+    public static DefinitionNode? SelectVariant(DefinitionNode schema, JsonElement value)
     {
+        ArgumentNullException.ThrowIfNull(schema);
         if (schema.Discriminator is null || value.ValueKind != JsonValueKind.Object ||
             !value.TryGetProperty(schema.Discriminator, out JsonElement discriminator)) return null;
         return DiscriminatedBranch(schema, discriminator);

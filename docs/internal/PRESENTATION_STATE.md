@@ -1,5 +1,52 @@
 # Definition presentation state
 
+> **Audience:** Contributors | Integrators | AI agents
+> **Status:** Implemented shared state; rendered client qualification is separate
+> **Owner:** Presentation
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `src/Configurator.Presentation/Presentation/`, `src/Configurator.Core/Definitions/`
+
+## Recursive v2 editing and localized display
+
+`DefinitionFormIndex` indexes declared properties, items, typed map values and
+variant schemas once. It contains public schema paths, not dynamic entry names.
+`TryMetadataNode` traverses actual supplied rows and delegates branch selection
+to `DefinitionValidator.SelectVariant`; it does not interpret applicability.
+Core node states carry the same revision-bound typed correction locations as
+diagnostics. `TryCorrectionPath` resolves private map ordinals locally against
+the current effective snapshot. `FocusCorrection` rejects another input revision.
+Public draft diagnostics convert local draft paths to typed safe coordinates;
+private map keys never become serialized correction names.
+
+`SelectChoice` uses the declared enum ordinal and exact JSON value.
+`ApplySuggestion`, `SetNull`, `ResetValue` and `SelectVariant` are deliberate
+edits under the existing mutation gate. A variant switch supplies only the chosen
+discriminator and removes the old branch payload. Core alone initializes missing
+eligible children. Requiredness never creates absent containers. Reset removes
+the override and omission and advances one input revision, rather than
+materializing initialized values into the supplied snapshot.
+
+An optional consumer capability set is checked before the form creates answer
+editors. Adapters must advertise their actual editing support there; generic
+shared support does not qualify a renderer. Required/error paths remain
+reachable independently of optional journey detail.
+
+`DefinitionLocalization` retains only admitted public translation metadata.
+`SelectLocale` publishes view changes without input changes or preparation
+invalidation. `GetEditorPresentation`, `DisplaySections`, `DisplayExperiences`
+and lazy discovery projections resolve public labels/help/units with base-text
+fallback. Existing lazy projections capture their locale, so later language
+selection cannot change a previously published view. Choice values, schema
+identity, numeric values and artifact composition remain unchanged. Guidance
+links remain static admitted metadata; these APIs fetch or execute nothing.
+
+Consent checks and revocation traverse declared properties, typed maps and the
+Core-selected variant. Revocation mutates the existing transient JSON tree
+without reparenting surviving array nodes; public nulls and safe siblings remain.
+No new answer store, evaluator, operation scheduler or transport is introduced.
+Client rendering, keyboard/accessibility and actual-host qualification remain
+separate from this shared-state contract.
+
 Native clients and Browser use the same admitted definition and answer snapshots.
 Local compact YAML/JSON sources pass through `SetupDefinitionSourceCodec` before
 the client constructs `DefinitionFormModel`. Syntax is explicit and canonical

@@ -185,7 +185,7 @@ public sealed class DefinitionPreparedAdoptionTests
         await Assert.That(metadata.Succeeded).IsTrue();
         await Assert.That(metadata.IsDraft).IsTrue();
         await Assert.That(metadata.InputRevision).IsEqualTo(9L);
-        await Assert.That(metadata.Completions.Single()).IsEqualTo(new DefinitionDraftCompletion("config", "name", "/name"));
+        await Assert.That(metadata.Completions.Single()).IsEqualTo(new DefinitionDraftCompletion("config", "/name", "/name"));
         await Assert.That(outcome.Output.Span.SequenceEqual("""{"name":""}"""u8)).IsTrue();
         await Assert.That(metadata.Digest!.Value.Value)
             .IsEqualTo("1390696a77e5d6f4375e9b36450c26bb67e99662fcd31b71cecd8ceda332040e");
@@ -207,13 +207,17 @@ public sealed class DefinitionPreparedAdoptionTests
 
     private static SetupDefinition Definition(bool secret = false) => SetupDefinitionCodec.ParseJson(
         Encoding.UTF8.GetBytes("""
-            {"schemaVersion":1,"familyId":"e201806e-18ec-40ee-8540-f5d1fa742ce1","revision":1,
-             "applicationId":"example.service","applicationVersions":["1.0"],"publisher":"example",
-             "title":"Example","entryPoints":["setup"],"locales":["en"],
-             "fields":[{"id":"name","type":"string","required":true,"sensitivity":"public","disclosure":"guided","title":"Name"}],
-             "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"none",
-               "projection":{"op":"object","members":{"name":{"op":"copy","field":"name"}}}}]}
-            """.Replace("\"sensitivity\":\"public\"", secret ? "\"sensitivity\":\"secret\"" : "\"sensitivity\":\"public\"",
+            {"schemaVersion":2,"profile":"bounded-v2","familyId":"e201806e-18ec-40ee-8540-f5d1fa742ce1","revision":1,
+             "project":{"id":"example.service","publisher":"example","name":"Example"},
+             "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["en"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["name"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "name":{"type":"string","title":"Name",
+                   "x-configurator":{"sensitivity":"secret","detail":"standard"}}}},
+             "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"none",
+               "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}}],
+             "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"]}
+            """.Replace("\"sensitivity\":\"secret\"", secret ? "\"sensitivity\":\"secret\"" : "\"sensitivity\":\"public\"",
                 StringComparison.Ordinal)));
 
     private sealed class HeldOperation(Task<SetupPresentationOutcome> pending) : ISetupPresentationOperation

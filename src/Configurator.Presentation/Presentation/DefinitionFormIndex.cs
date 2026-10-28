@@ -9,9 +9,10 @@ internal sealed class DefinitionFormIndex
 {
     internal sealed class Node
     {
-        internal Node(DefinitionNode schema, Node? parent = null)
+        internal Node(DefinitionNode schema, Node? parent = null, string schemaPath = "")
         {
             Schema = schema;
+            SchemaPath = schemaPath;
             JsonElement metadata = schema.Keywords;
             Parent = parent;
             Type = schema.JsonType;
@@ -27,8 +28,13 @@ internal sealed class DefinitionFormIndex
                 guidance.TryGetProperty("searchTerms", out JsonElement terms)
                 ? terms.EnumerateArray().Select(term => term.GetString()!).ToArray() : []);
             Properties = schema.Properties.ToDictionary(child => child.Key,
-                child => new Node(child.Value, this), StringComparer.Ordinal);
-            Item = schema.Items is { } item ? new Node(item, this) : null;
+                child => new Node(child.Value, this, schemaPath + "/properties/" +
+                    child.Key.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal)), StringComparer.Ordinal);
+            Item = schema.Items is { } item ? new Node(item, this, schemaPath + "/items") : null;
+            Additional = schema.AdditionalProperties is { } additional
+                ? new Node(additional, this, schemaPath + "/additionalProperties") : null;
+            Variants = Array.AsReadOnly(schema.Variants.Select((variant, index) =>
+                new Node(variant, this, schemaPath + "/oneOf/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray());
             Disclosure = extension.ValueKind == JsonValueKind.Object &&
                 extension.TryGetProperty("detail", out JsonElement detail) ? detail.GetString() switch
                 {
@@ -44,6 +50,7 @@ internal sealed class DefinitionFormIndex
         }
 
         internal DefinitionNode Schema { get; }
+        internal string SchemaPath { get; }
         internal JsonElement Metadata => Schema.Keywords;
         internal Node? Parent { get; }
         internal string Type { get; }
@@ -53,6 +60,8 @@ internal sealed class DefinitionFormIndex
         internal IReadOnlyList<string> SearchTerms { get; }
         internal Dictionary<string, Node> Properties { get; }
         internal Node? Item { get; }
+        internal Node? Additional { get; }
+        internal IReadOnlyList<Node> Variants { get; }
         internal bool HasEssentialDecision { get; }
         internal SetupFieldDisclosure Disclosure { get; }
         internal IReadOnlyList<string> Controllers { get; }
@@ -74,7 +83,8 @@ internal sealed class DefinitionFormIndex
     internal DefinitionFormIndex(SetupDefinition definition, IReadOnlyList<DefinitionFormSection> sections,
         IReadOnlyList<DefinitionFormExperience> experiences)
     {
-        Roots = definition.Fields.ToDictionary(field => field.Id, field => new Node(field.Node),
+        Roots = definition.Fields.ToDictionary(field => field.Id, field => new Node(field.Node,
+                schemaPath: "/configuration/properties/" + field.Name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal)),
             StringComparer.Ordinal);
         FieldIds = Array.AsReadOnly(definition.Fields.Select(field => field.Id).ToArray());
         RootPaths = FieldIds.ToDictionary(id => id,

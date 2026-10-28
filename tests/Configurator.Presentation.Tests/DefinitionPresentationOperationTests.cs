@@ -21,7 +21,7 @@ public sealed class DefinitionPresentationOperationTests
         await Assert.That(form.InputRevision).IsEqualTo(1);
         await Assert.That(discarded.ToString()).DoesNotContain("private-import-marker");
 
-        form.SetValue(["service.name"], null);
+        form.ResetValue(["service.name"]);
         DefinitionImportResult applied = await form.ImportAsync("config",
             _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"name":"private-import-marker"}"""u8.ToArray()));
         await Assert.That(applied.Succeeded).IsTrue();
@@ -105,25 +105,29 @@ public sealed class DefinitionPresentationOperationTests
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(
         Encoding.UTF8.GetBytes("""
         {
-          "schemaVersion": 1,
+          "schemaVersion": 2,
+          "profile": "bounded-v2",
           "familyId": "e201806e-18ec-40ee-8540-f5d1fa742ce1",
           "revision": 1,
-          "applicationId": "example.service",
+          "project": {"id":"example.service","publisher":"example","name":"Example service"},
           "applicationVersions": ["1.0"],
-          "publisher": "example",
-          "title": "Example service",
           "entryPoints": ["setup"],
           "locales": ["en"],
-          "fields": [
-            {"id":"service.name","type":"string","required":true,"sensitivity":"public","disclosure":"guided","title":"Service name"}
-          ],
+          "configuration": {
+            "type":"object","additionalProperties":false,"required":["service.name"],
+            "x-configurator":{"sensitivity":"public"},
+            "properties": {
+              "service.name":{"type":"string","title":"Service name","x-configurator":{"sensitivity":"public","detail":"standard"}}
+            }
+          },
           "artifacts": [
             {
               "id":"config","format":"json","fileName":"service.json",
-              "applySemantics":"create","restart":"process",
-              "projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}
+              "targetUpdateMode":"create","restartRequirement":"process",
+              "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}
             }
-          ]
+          ],
+          "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"]
         }
         """));
 }

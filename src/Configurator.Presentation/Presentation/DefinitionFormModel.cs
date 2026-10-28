@@ -17,6 +17,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private int _mutationDepth;
     private readonly DefinitionEditingState _editing;
     private readonly DefinitionViewState _view;
+    private readonly DefinitionLocalization _localization;
     private readonly HashSet<DefinitionPath> _omitted = [];
     private DefinitionFormIndex? _index;
     private DefinitionFormFacts? _facts;
@@ -28,14 +29,18 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private bool _disposed;
 
     public DefinitionFormModel(SetupDefinition definition,
-        DefinitionSessionPrivacy sessionPrivacy = DefinitionSessionPrivacy.NativeComplete)
+        DefinitionSessionPrivacy sessionPrivacy = DefinitionSessionPrivacy.NativeComplete,
+        IReadOnlySet<string>? supportedCapabilities = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (!Enum.IsDefined(sessionPrivacy)) throw new ArgumentOutOfRangeException(nameof(sessionPrivacy));
+        if (supportedCapabilities is not null && definition.RequiredCapabilities.Any(capability => !supportedCapabilities.Contains(capability)))
+            throw new ArgumentException("consumer-capability-unsupported", nameof(supportedCapabilities));
         Definition = definition;
+        _localization = new(definition);
         _editing = new(Array.AsReadOnly(definition.Fields.Select(field =>
             new DefinitionFieldInput(field, Edit, (text, value) => AllowsValue(field, text, value),
-                () => ReadValue([field.Id]), RecordOverride, Notify)).ToArray()),
+                () => _disposed ? null : ReadValue([field.Id]), RecordOverride, Notify)).ToArray()),
             sessionPrivacy);
         var assigned = new HashSet<string>(StringComparer.Ordinal);
         var sections = new List<DefinitionFormSection>();
@@ -60,14 +65,62 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 experience.Description)).ToArray()
             : [new DefinitionFormExperience("configure", "Configure", SetupFieldDisclosure.Guided,
                 "sections", Sections.Select(section => section.Id), null)]);
-        _view = new(definition.Presentation?.DefaultExperience ?? "configure");
+        _view = new(definition.Presentation?.DefaultExperience ?? "configure") { Locale = _localization.DefaultLocale };
         _index = new DefinitionFormIndex(definition, Sections, Experiences);
     }
 
     public SetupDefinition Definition { get; }
     public IReadOnlyList<DefinitionFormExperience> Experiences { get; }
     public IReadOnlyList<DefinitionFormSection> Sections { get; }
+    public IReadOnlyList<DefinitionFormSection> DisplaySections => Array.AsReadOnly(Sections.Select(section =>
+    {
+        int index = Definition.Presentation?.Sections.ToList().FindIndex(item => item.Id == section.Id) ?? -1;
+        string prefix = "/presentation/sections/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return index < 0 ? section : new DefinitionFormSection(section.Id,
+            _localization.Text(Locale, prefix + "/title", section.Title)!,
+            _localization.Text(Locale, prefix + "/description", section.Description), section.Fields, section.Disclosure);
+    }).ToArray());
+    public IReadOnlyList<DefinitionFormExperience> DisplayExperiences => Array.AsReadOnly(Experiences.Select(experience =>
+    {
+        int index = Definition.Presentation?.Experiences.ToList().FindIndex(item => item.Id == experience.Id) ?? -1;
+        string prefix = "/presentation/journeys/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return index < 0 ? experience : new DefinitionFormExperience(experience.Id,
+            _localization.Text(Locale, prefix + "/title", experience.Title)!, experience.InitialDisclosure,
+            experience.Navigation, experience.Sections, _localization.Text(Locale, prefix + "/description", experience.Description));
+    }).ToArray());
     public string SelectedExperienceId => _view.SelectedExperienceId;
+    public string Locale => _view.Locale;
+    public string Direction => _localization.Direction(Locale);
+
+    /// <summary>Changes public display metadata without changing answers or retiring prepared output.</summary>
+    public bool SelectLocale(string locale)
+    {
+        ArgumentNullException.ThrowIfNull(locale);
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_localization.Locales.Contains(locale, StringComparer.Ordinal)) return false;
+        if (Locale == locale) return true;
+        _view.Locale = locale;
+        _orderedEntries = null;
+        _relevantEntries = null;
+        _discovery = null;
+        OnPropertyChanged(nameof(Locale));
+        OnPropertyChanged(nameof(Direction));
+        OnPropertyChanged(nameof(DisplaySections));
+        OnPropertyChanged(nameof(DisplayExperiences));
+        OnViewChanged();
+        return true;
+    }
+
+    public string? LocalizedText(DefinitionPath location, string? baseText)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            ArgumentNullException.ThrowIfNull(location);
+            return _localization.Text(Locale, location.ToPointer(), baseText);
+        }
+    }
     public bool OptionalEditorsExpanded => _view.OptionalEditorsExpanded;
     public SetupFieldDisclosure? DisclosureOverride => _view.DisclosureOverride;
     public event EventHandler? ViewChanged;
@@ -174,19 +227,28 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     internal DefinitionFormFacts Facts => _facts ??= new DefinitionFormFacts(this, _index!,
         DefinitionValidator.Validate(Definition, Snapshot()));
 
-    internal IReadOnlyList<DefinitionFormSection> OrderedSections =>
-        _index!.ExperienceSections[SelectedExperienceId];
+    internal IReadOnlyList<DefinitionFormSection> OrderedSections
+    {
+        get
+        {
+            var display = DisplaySections.ToDictionary(section => section.Id, StringComparer.Ordinal);
+            return Array.AsReadOnly(_index!.ExperienceSections[SelectedExperienceId]
+                .Select(section => display[section.Id]).ToArray());
+        }
+    }
 
     internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> OrderedEntries =>
         _orderedEntries ??= OrderEntries(Facts.Entries, OrderedSections);
 
-    private static Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> OrderEntries(
+    private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> OrderEntries(
         Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> entries, IReadOnlyList<DefinitionFormSection> sections)
     {
         var order = sections.Select((section, position) => (section.Id, position))
             .ToDictionary(item => item.Id, item => item.position, StringComparer.Ordinal);
+        string locale = Locale;
         return new(() => Array.AsReadOnly(entries.Value
-            .Select(entry => entry.WithSectionOrder(order[entry.SectionId])).ToArray()));
+            .Select(entry => entry.WithDisplay(_localization, locale,
+                sections[order[entry.SectionId]].Title, order[entry.SectionId])).ToArray()));
     }
 
     internal Lazy<DefinitionDiscoverySnapshot> CurrentDiscovery =>
@@ -248,7 +310,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             lock (_gate)
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
-                return Facts.InputDiagnostics;
+                return Array.AsReadOnly(Facts.InputDiagnostics.Select(SafeInputDiagnostic).ToArray());
             }
         }
     }
@@ -312,6 +374,106 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     }
 
     public bool SetValue(IReadOnlyList<string> path, JsonElement? value) => ApplyValue(path, value, clearDrafts: true);
+
+    public DefinitionNode? GetEditorSchema(IReadOnlyList<string> path)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) ? node.Schema : null;
+        }
+    }
+
+    public DefinitionEditorPresentation? GetEditorPresentation(IReadOnlyList<string> path)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _)) return null;
+            JsonElement metadata = node.Metadata;
+            JsonElement extension = metadata.TryGetProperty("x-configurator", out JsonElement configured) ? configured : default;
+            var choices = new List<DefinitionChoicePresentation>();
+            if (metadata.TryGetProperty("enum", out JsonElement values))
+                foreach (JsonElement value in values.EnumerateArray())
+                {
+                    string label = value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
+                    string? explanation = null;
+                    if (extension.ValueKind == JsonValueKind.Object && extension.TryGetProperty("choices", out JsonElement labels))
+                    {
+                        int index = 0;
+                        foreach (JsonElement declared in labels.EnumerateArray())
+                        {
+                            if (JsonElement.DeepEquals(declared.GetProperty("value"), value))
+                            {
+                                string prefix = "x-configurator/choices/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                label = Text(prefix + "/label", declared.GetProperty("label").GetString())!;
+                                explanation = Text(prefix + "/explanation",
+                                    declared.TryGetProperty("explanation", out JsonElement detail) ? detail.GetString() : null);
+                                break;
+                            }
+                            index++;
+                        }
+                    }
+                    choices.Add(new(value, label, explanation));
+                }
+            string? units = extension.ValueKind == JsonValueKind.Object &&
+                extension.TryGetProperty("units", out JsonElement unit) ? unit.GetString() : null;
+            IReadOnlyList<DefinitionGuidanceLink> links = extension.ValueKind == JsonValueKind.Object &&
+                extension.TryGetProperty("guidance", out JsonElement declaredHelp) &&
+                declaredHelp.TryGetProperty("links", out JsonElement declaredLinks)
+                    ? Array.AsReadOnly(declaredLinks.EnumerateArray().Select((link, index) =>
+                        new DefinitionGuidanceLink(Text("x-configurator/guidance/links/" +
+                            index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/title",
+                            link.GetProperty("title").GetString())!, link.GetProperty("url").GetString()!)).ToArray())
+                    : Array.Empty<DefinitionGuidanceLink>();
+            return new(node.Schema, Text("title", node.Title ?? path[^1])!,
+                Text("description", node.Help), Text("x-configurator/guidance/instructions", node.Instructions),
+                Text("x-configurator/units", units), choices.AsReadOnly(), links);
+
+            string? Text(string suffix, string? fallback) => _localization.Text(Locale, node.SchemaPath + "/" + suffix, fallback);
+        }
+    }
+
+    /// <summary>Chooses an admitted typed enum member by ordinal, never by its display label.</summary>
+    public bool SelectChoice(IReadOnlyList<string> path, int index)
+    {
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) &&
+            node.Metadata.TryGetProperty("enum", out JsonElement choices) &&
+            index >= 0 && index < choices.GetArrayLength() && SetValue(path, choices[index]);
+    }
+
+    public bool SetNull(IReadOnlyList<string> path)
+    {
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) && node.Schema.IsNullable &&
+            SetValue(path, JsonSerializer.SerializeToElement<object?>(null));
+    }
+
+    /// <summary>Explicitly replaces a branch with its discriminator only; Core resolves declared initialization.</summary>
+    public bool SelectVariant(IReadOnlyList<string> path, int index)
+    {
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) ||
+            index < 0 || index >= node.Schema.Variants.Count || node.Schema.Discriminator is not { } discriminator)
+            return false;
+        JsonElement value = node.Schema.Variants[index].Properties[discriminator].Keywords.GetProperty("const");
+        return SetValue(path, JsonSerializer.SerializeToElement(new Dictionary<string, JsonElement>
+            { [discriminator] = value }));
+    }
+
+    /// <summary>Adopts a suggestion only through an explicit current-workspace edit.</summary>
+    public bool ApplySuggestion(IReadOnlyList<string> path)
+    {
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) &&
+            node.Metadata.TryGetProperty("x-configurator", out JsonElement metadata) &&
+            metadata.TryGetProperty("suggestedValue", out JsonElement suggested) && SetValue(path, suggested);
+    }
 
     private bool ApplyValue(IReadOnlyList<string> path, JsonElement? value, bool clearDrafts)
     {
@@ -558,6 +720,13 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         foreach (string segment in path.Skip(1))
         {
             inheritedSecret |= DefinitionSecretPolicy.IsSecret(node.Schema);
+            if (node.Variants.Count > 0)
+            {
+                if (ReadValue(prefix, validation) is not { } supplied ||
+                    DefinitionValidator.SelectVariant(node.Schema, supplied) is not { } branch) return false;
+                node = node.Variants.Single(variant => ReferenceEquals(variant.Schema, branch));
+                inheritedSecret |= DefinitionSecretPolicy.IsSecret(node.Schema);
+            }
             if (node.Item is { } item)
             {
                 if (!int.TryParse(segment, System.Globalization.NumberStyles.None,
@@ -569,7 +738,11 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 prefix.Add(segment);
                 continue;
             }
-            if (!node.Properties.TryGetValue(segment, out var child)) return false;
+            if (!node.Properties.TryGetValue(segment, out var child))
+            {
+                if (node.Additional is not { } additional) return false;
+                child = additional;
+            }
             node = child;
             prefix.Add(segment);
         }

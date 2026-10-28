@@ -14,7 +14,7 @@ public sealed class DefinitionAnswerPresenceTests
         await Assert.That(form.AnswerOrigin(["defaultText"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
         form.SetValue(["defaultText"], JsonSerializer.SerializeToElement(""));
         await Assert.That(form.AnswerOrigin(["defaultText"])).IsEqualTo(DefinitionAnswerOrigin.Explicit);
-        form.SetValue(["defaultText"], null);
+        form.ResetValue(["defaultText"]);
         await Assert.That(form.AnswerOrigin(["defaultText"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
         await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"text":""}"""u8.ToArray()));
         await Assert.That(form.AnswerOrigin(["text"])).IsEqualTo(DefinitionAnswerOrigin.Imported);
@@ -38,7 +38,9 @@ public sealed class DefinitionAnswerPresenceTests
     public async Task EmptyDefaultAndTypedEmptyEnumRemainSupplied()
     {
         using var form = new DefinitionFormModel(Definition());
-        await Assert.That(form.Snapshot().Values["defaultText"].GetRawText()).IsEqualTo("\"\"");
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/defaultText"), out JsonElement initialized)).IsTrue();
+        await Assert.That(initialized.GetRawText()).IsEqualTo("\"\"");
+        await Assert.That(form.Snapshot().Values.ContainsKey("defaultText")).IsFalse();
         await Assert.That(form.SetValue(["choice"], JsonSerializer.SerializeToElement(""))).IsTrue();
         await Assert.That(form.Snapshot().Values["choice"].GetRawText()).IsEqualTo("\"\"");
     }
@@ -164,9 +166,9 @@ public sealed class DefinitionAnswerPresenceTests
         var read = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
         Task<DefinitionImportResult> import = form.ImportAsync("config", _ => read.Task);
         form.SetValue(["options", "count"], null);
-        await Assert.That(form.InputRevision).IsEqualTo(0);
-        await Assert.That(form.EditValue(["options", "count"], null)).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(1);
+        await Assert.That(form.EditValue(["options", "count"], null)).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(2);
         await Assert.That(form.Snapshot().Values.ContainsKey("options")).IsFalse();
         read.SetResult("""{"text":"late"}"""u8.ToArray());
         await Assert.That((await import.WaitAsync(TimeSpan.FromSeconds(5))).Code).IsEqualTo("import-stale");
@@ -212,21 +214,26 @@ public sealed class DefinitionAnswerPresenceTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":1,"familyId":"c9fcf10e-526d-4007-bd03-825d039366ed","revision":1,
-     "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example","entryPoints":["setup"],"locales":["en"],
-     "fields":[
-       {"id":"text","type":"string","title":"Text","sensitivity":"public","disclosure":"guided"},
-       {"id":"secretText","type":"string","title":"Secret text","sensitivity":"secret","disclosure":"guided"},
-       {"id":"defaultText","type":"string","default":"","title":"Default","sensitivity":"public","disclosure":"guided"},
-       {"id":"choice","type":"enum","choices":["","other"],"title":"Choice","sensitivity":"public","disclosure":"guided"},
-       {"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"public","disclosure":"guided"},
-       {"id":"count","type":"integer","title":"Count","sensitivity":"public","disclosure":"guided"},
-       {"id":"options","type":"object","title":"Options","sensitivity":"public","disclosure":"guided","properties":[
-         {"id":"count","type":"integer","title":"Count","sensitivity":"public","disclosure":"guided"},
-         {"id":"other","type":"integer","title":"Other","sensitivity":"public","disclosure":"guided"},
-         {"id":"secret","type":"string","title":"Secret","sensitivity":"secret","disclosure":"guided"}]},
-       {"id":"items","type":"list","itemType":"string","title":"Items","sensitivity":"public","disclosure":"guided"}],
-     "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-       "projection":{"op":"object","members":{"text":{"op":"copy","field":"text"},"secretText":{"op":"copy","field":"secretText"},"options":{"op":"copy","field":"options"}}}}]}
+    {"schemaVersion":2,"profile":"bounded-v2","familyId":"c9fcf10e-526d-4007-bd03-825d039366ed","revision":1,
+     "project":{"id":"example","name":"Example","publisher":"example"},
+     "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
+     "requiredCapabilities":["projection.copy","projection.object","schema.array","schema.boolean","schema.enum","schema.integer","schema.object","schema.string","values.initial"],
+     "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+       "text":{"type":"string","title":"Text","x-configurator":{"sensitivity":"public","detail":"standard"}},
+       "secretText":{"type":"string","title":"Secret text","x-configurator":{"sensitivity":"secret","detail":"standard"}},
+       "defaultText":{"type":"string","title":"Default","x-configurator":{"sensitivity":"public","detail":"standard","initialValue":""}},
+       "choice":{"type":"string","enum":["","other"],"title":"Choice","x-configurator":{"sensitivity":"public","detail":"standard"}},
+       "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard"}},
+       "count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"standard"}},
+       "options":{"type":"object","additionalProperties":false,"title":"Options","x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+         "count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"standard"}},
+         "other":{"type":"integer","title":"Other","x-configurator":{"sensitivity":"public","detail":"standard"}},
+         "secret":{"type":"string","title":"Secret","x-configurator":{"sensitivity":"secret","detail":"standard"}}}},
+       "items":{"type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},"title":"Items","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+     "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+       "projection":{"op":"object","members":{
+         "text":{"op":"copy","reference":{"scope":"root","path":"/text"}},
+         "secretText":{"op":"copy","reference":{"scope":"root","path":"/secretText"}},
+         "options":{"op":"copy","reference":{"scope":"root","path":"/options"}}}}}]}
     """));
 }

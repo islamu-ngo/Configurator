@@ -9,20 +9,19 @@ public sealed class DefinitionScalarEditingTests
     [Arguments("boolean", "", null)]
     [Arguments("integer", "", null)]
     [Arguments("number", "", null)]
-    [Arguments("enum", "", "\"\"")]
+    [Arguments("string", "", "\"\"")]
     [Arguments("string", "  ", "\"  \"")]
     [Arguments("string", "null", "\"null\"")]
     [Arguments("boolean", " TRUE ", "true")]
     [Arguments("integer", " -42 ", "-42")]
     [Arguments("integer", "9223372036854775807", "9223372036854775807")]
     [Arguments("number", "1.25e2", "125")]
-    [Arguments("enum", "alpha", "\"alpha\"")]
-    [Arguments("enum", "true", "true")]
-    [Arguments("enum", "2", "2")]
+    [Arguments("string", "alpha", "\"alpha\"")]
+    [Arguments("boolean", "true", "true")]
+    [Arguments("integer", "2", "2")]
     public async Task ScalarTextKeepsDeclaredTypeAndExplicitAbsence(string type, string text, string? expected)
     {
-        using JsonDocument metadata = JsonDocument.Parse("""{"choices":["","alpha",true,2]}""");
-        await Assert.That(DefinitionScalarEditing.TryParse(type, text, metadata.RootElement, out JsonElement? value)).IsTrue();
+        await Assert.That(DefinitionScalarEditing.TryParse(type, text, default, out JsonElement? value)).IsTrue();
         await Assert.That(value?.GetRawText()).IsEqualTo(expected);
     }
 
@@ -40,10 +39,10 @@ public sealed class DefinitionScalarEditingTests
     [Arguments("enum", "null")]
     [Arguments("object", "{}")]
     [Arguments("list", "[]")]
+    [Arguments("array", "[]")]
     public async Task RejectedScalarTextProducesNoReplacementValue(string type, string text)
     {
-        using JsonDocument metadata = JsonDocument.Parse("""{"choices":["alpha",true,2]}""");
-        await Assert.That(DefinitionScalarEditing.TryParse(type, text, metadata.RootElement, out JsonElement? value)).IsFalse();
+        await Assert.That(DefinitionScalarEditing.TryParse(type, text, default, out JsonElement? value)).IsFalse();
         await Assert.That(value).IsNull();
     }
 

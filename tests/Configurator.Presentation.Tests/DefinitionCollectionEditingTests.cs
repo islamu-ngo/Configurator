@@ -84,7 +84,12 @@ public sealed class DefinitionCollectionEditingTests
     public async Task LiteralDottedChildrenRemainDistinctAndSurvivingRowTokensStayStable()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]![0]!["properties"]![0]!["properties"]![0]!["id"] = "literal.name";
+        JsonObject metadata = source["configuration"]!["properties"]!["rows"]!["items"]!["properties"]!["metadata"]!.AsObject();
+        JsonObject properties = metadata["properties"]!.AsObject();
+        JsonNode name = properties["name"]!;
+        properties.Remove("name");
+        properties["literal.name"] = name;
+        metadata["required"] = new JsonArray("literal.name");
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.AddListItem(["rows"]);
@@ -109,12 +114,13 @@ public sealed class DefinitionCollectionEditingTests
     {
         using var form = new DefinitionFormModel(Definition());
         form.AddListItem(["rows"]);
+        form.SupplyObject(["rows", "0", "settings"]);
         await Assert.That(form.AnswerOrigin(["rows", "0", "settings", "enabled"]))
             .IsEqualTo(DefinitionAnswerOrigin.Defaulted);
         form.EditValue(["rows", "0", "settings", "enabled"], "true");
         await Assert.That(form.AnswerOrigin(["rows", "0", "settings", "enabled"]))
             .IsEqualTo(DefinitionAnswerOrigin.Explicit);
-        form.SetValue(["rows"], null);
+        form.ResetValue(["rows"]);
         await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(
             """{"rows":[{"metadata":{"name":"imported"},"settings":{"enabled":true}}]}"""u8.ToArray()));
         await Assert.That(form.AnswerOrigin(["rows", "0", "metadata", "name"]))
@@ -129,8 +135,9 @@ public sealed class DefinitionCollectionEditingTests
     public async Task CorrectionDisclosureFollowsSurvivingRowInsteadOfItsOldIndex()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]![0]!["properties"]![0]!["properties"]![0]!["required"] = false;
-        source["fields"]![0]!["properties"]![0]!["properties"]![0]!["disclosure"] = "advanced";
+        JsonObject metadata = source["configuration"]!["properties"]!["rows"]!["items"]!["properties"]!["metadata"]!.AsObject();
+        metadata["required"] = new JsonArray();
+        metadata["properties"]!["name"]!["x-configurator"]!["detail"] = "advanced";
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.AddListItem(["rows"]);
@@ -149,7 +156,10 @@ public sealed class DefinitionCollectionEditingTests
     public async Task RevocationClearsSharedSecretDraftAndRejectsLateEditorEvents()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]![0]!["properties"]![2]!["type"] = "integer";
+        source["configuration"]!["properties"]!["rows"]!["items"]!["properties"]!["password"]!["type"] = "integer";
+        source["requiredCapabilities"] = new JsonArray(
+            "projection.copy", "projection.object", "schema.array", "schema.boolean", "schema.bounds",
+            "schema.integer", "schema.object", "schema.string", "values.initial");
         using var form = new DefinitionFormModel(
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserSecretsEnabled);
@@ -207,15 +217,21 @@ public sealed class DefinitionCollectionEditingTests
     {
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
         await Assert.That(form.AddListItem(["rows"])).IsTrue();
+        await Assert.That(form.Snapshot().Values["rows"][0].EnumerateObject().Count()).IsEqualTo(0);
+        form.SupplyObject(["rows", "0", "metadata"]);
+        form.SupplyObject(["rows", "0", "settings"]);
         JsonElement row = form.Snapshot().Values["rows"][0];
         await Assert.That(row.GetProperty("metadata").EnumerateObject().Count()).IsEqualTo(0);
-        await Assert.That(row.GetProperty("settings").GetProperty("enabled").GetBoolean()).IsTrue();
+        await Assert.That(row.GetProperty("settings").EnumerateObject().Count()).IsEqualTo(0);
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/rows/0/settings/enabled"), out JsonElement initialized)).IsTrue();
+        await Assert.That(initialized.GetBoolean()).IsTrue();
         await Assert.That(form.SetValue(["rows", "0", "metadata", "name"], JsonSerializer.SerializeToElement("first"))).IsTrue();
         await Assert.That(form.AddListItem(["rows"])).IsTrue();
         await Assert.That(form.AddListItem(["rows"])).IsFalse();
         await Assert.That(form.SetValue(["rows", "1", "metadata", "name"], JsonSerializer.SerializeToElement("second"))).IsTrue();
+        await Assert.That(form.SupplyObject(["rows", "1", "settings"])).IsTrue();
         await Assert.That(form.RemoveListItem(["rows"], 0)).IsTrue();
-        await Assert.That(form.InputRevision).IsEqualTo(5);
+        await Assert.That(form.InputRevision).IsEqualTo(8);
         using DefinitionArtifact? artifact = DefinitionArtifactComposer.Compose(Definition(), "config", form.Snapshot()).Artifact;
         await Assert.That(Encoding.UTF8.GetString(artifact!.Bytes.Span))
             .IsEqualTo("""{"rows":[{"metadata":{"name":"second"},"settings":{"enabled":true}}]}""");
@@ -243,15 +259,19 @@ public sealed class DefinitionCollectionEditingTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":1,"familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28901","revision":1,
-     "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example","entryPoints":["setup"],"locales":["en"],
-     "fields":[{"id":"rows","type":"list","itemType":"object","maxItems":2,"title":"Rows","sensitivity":"public","disclosure":"guided","properties":[
-       {"id":"metadata","type":"object","required":true,"title":"Metadata","sensitivity":"public","disclosure":"guided","properties":[
-         {"id":"name","type":"string","required":true,"title":"Name","sensitivity":"public","disclosure":"guided"}]},
-       {"id":"settings","type":"object","required":true,"title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
-         {"id":"enabled","type":"boolean","default":true,"title":"Enabled","sensitivity":"public","disclosure":"guided"}]},
-       {"id":"password","type":"string","title":"Password","sensitivity":"secret","disclosure":"guided"}]}],
-     "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-       "projection":{"op":"object","members":{"rows":{"op":"copy","field":"rows"}}}}]}
+    {"schemaVersion":2,"profile":"bounded-v2","familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28901","revision":1,
+     "project":{"id":"example","name":"Example","publisher":"example"},
+     "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
+     "requiredCapabilities":["projection.copy","projection.object","schema.array","schema.boolean","schema.bounds","schema.object","schema.string","values.initial"],
+     "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+       "rows":{"type":"array","maxItems":2,"title":"Rows","x-configurator":{"sensitivity":"public","detail":"standard"},
+         "items":{"type":"object","additionalProperties":false,"required":["metadata","settings"],"x-configurator":{"sensitivity":"public"},"properties":{
+           "metadata":{"type":"object","additionalProperties":false,"required":["name"],"title":"Metadata","x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+             "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+           "settings":{"type":"object","additionalProperties":false,"title":"Settings","x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+             "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard","initialValue":true}}}},
+           "password":{"type":"string","title":"Password","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}}}},
+     "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+       "projection":{"op":"object","members":{"rows":{"op":"copy","reference":{"scope":"root","path":"/rows"}}}}}]}
     """));
 }

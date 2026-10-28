@@ -37,10 +37,11 @@ public sealed class DefinitionSessionPrivacyTests
     public async Task CorrectedAdvancedInputRemainsVisibleUntilDeliberateCollapse()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"f0","type":"integer","title":"Advanced number","sensitivity":"public","disclosure":"advanced"}]
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+        {"f0":{"type":"integer","title":"Advanced number","x-configurator":{"sensitivity":"public","detail":"advanced"}}}
         """);
-        source["artifacts"]![0]!["projection"]!["members"]!["settings"]!["field"] = "f0";
+        source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object", "schema.integer", "schema.object");
+        source["artifacts"]![0]!["projection"]!["members"]!["settings"]!["reference"]!["path"] = "/f0";
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.SetAllSectionsExpanded(true);
         form.Fields.Single().Text = "not-an-integer";
@@ -58,19 +59,19 @@ public sealed class DefinitionSessionPrivacyTests
     public async Task AggregateBudgetRejectsEditsWithoutBreakingValidationAndCanBeCorrected()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = new JsonArray(Enumerable.Range(0, 17).Select(index =>
-            JsonSerializer.SerializeToNode(new
+        source["configuration"]!["properties"] = new JsonObject(Enumerable.Range(0, 17).Select(index =>
+            new KeyValuePair<string, JsonNode?>($"f{index}", JsonNode.Parse($$"""
             {
-                id = $"f{index}",
-                type = "string",
-                title = $"Field {index}",
-                sensitivity = "public",
-                disclosure = "guided"
-            })).ToArray());
-        source["artifacts"]![0]!["projection"]!["members"]!["settings"]!["field"] = "f0";
+                "type":"string",
+                "title":"Field {{index}}",
+                "x-configurator":{"sensitivity":"public","detail":"standard"}
+            }
+            """))));
+        source["artifacts"]![0]!["projection"]!["members"]!["settings"]!["reference"]!["path"] = "/f0";
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
-        foreach (DefinitionFieldInput field in form.Fields) field.Text = new string('a', 65_536);
+        // Sixteen values plus their configuration-tree keys fit the aggregate bound; seventeen do not.
+        foreach (DefinitionFieldInput field in form.Fields) field.Text = new string('a', 65_520);
         await Assert.That(form.HasAnswerBudgetError).IsTrue();
         await Assert.That(form.HasInputErrors).IsTrue();
         await Assert.That(form.Fields[^1].HasAnswerBudgetError).IsTrue();
@@ -98,7 +99,7 @@ public sealed class DefinitionSessionPrivacyTests
         await Assert.That(metadata.Succeeded).IsTrue();
         await Assert.That(metadata.IsDraft).IsTrue();
         await Assert.That(metadata.Completions.Count).IsEqualTo(1);
-        await Assert.That(metadata.Completions.Single().FieldPath).IsEqualTo("settings/password");
+        await Assert.That(metadata.Completions.Single().FieldPath).IsEqualTo("/settings/password");
     }
 
     [Test]
@@ -128,15 +129,16 @@ public sealed class DefinitionSessionPrivacyTests
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
-      "schemaVersion":1,"familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
-      "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example",
+      "schemaVersion":2,"profile":"bounded-v2","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
+      "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],
       "entryPoints":["setup"],"locales":["en"],
-      "fields":[{"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided",
-        "properties":[
-          {"id":"name","type":"string","title":"Name","required":true,"sensitivity":"sensitive","disclosure":"guided"},
-          {"id":"password","type":"string","title":"Password","required":true,"sensitivity":"secret","disclosure":"guided"}]}],
-      "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-        "projection":{"op":"object","members":{"settings":{"op":"copy","field":"settings"}}}}]
+      "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
+      "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+        "settings":{"type":"object","additionalProperties":false,"required":["name","password"],"title":"Settings","x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+          "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
+          "password":{"type":"string","title":"Password","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}}},
+      "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+        "projection":{"op":"object","members":{"settings":{"op":"copy","reference":{"scope":"root","path":"/settings"}}}}}]
     }
     """));
 }

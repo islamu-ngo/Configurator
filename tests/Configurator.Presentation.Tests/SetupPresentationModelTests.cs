@@ -909,12 +909,14 @@ public sealed class SetupPresentationModelTests
     }
 
     private static SetupDefinition PublicDefinition() => SetupDefinitionCodec.ParseJson("""
-        {"schemaVersion":1,"familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
-         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example",
+        {"schemaVersion":2,"profile":"bounded-v2","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
+         "project":{"id":"example","publisher":"example","name":"Example"},"applicationVersions":["1"],
          "entryPoints":["setup"],"locales":["en"],
-         "fields":[{"id":"title","type":"string","title":"Title","sensitivity":"public","disclosure":"guided"}],
-         "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-           "projection":{"op":"object","members":{"title":{"op":"copy","field":"title"}}}}]}
+         "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+           "properties":{"title":{"type":"string","title":"Title","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+         "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+           "projection":{"op":"object","members":{"title":{"op":"copy","reference":{"scope":"root","path":"/title"}}}}}],
+         "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"]}
         """u8.ToArray());
 
     private static async Task AssertValueFreeSignal(EventArgs signal)

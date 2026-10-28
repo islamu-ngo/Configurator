@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5ZX9AV2S0ZCQBRVAD8X46ES
+Title: "unify typed editing journeys and locale metadata"
+Type: feat
+Scope: definitions
+Summary: "Share typed map/variant editing, deliberate null/choice/suggestion actions, safe correction recovery and inert localized display metadata across adapters."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definition-reference.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Recursive consent and revocation include typed maps and provider variants. Public draft diagnostics hide dynamic keys and correction focus rejects stale input revisions."
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Adapters use shared typed actions and localized metadata. Supply required containers deliberately; reset, omission and supplied null are separate intents."
+  Configuration:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "Locale and direction project admitted public text only. Enum labels never determine typed values and suggestions require an explicit action."
+  OpenAPI:
+    Reference: docs/internal/DEFINITION_PROFILE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Shared capability support does not qualify a rendered adapter or physical host. Required/error work remains reachable and changing locale preserves answer revision and output semantics."

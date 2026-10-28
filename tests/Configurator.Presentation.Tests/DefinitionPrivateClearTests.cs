@@ -16,14 +16,16 @@ public sealed class DefinitionPrivateClearTests
     public async Task WarmedFactsCannotRestoreRevokedSecretsOrOutputAfterLateImport(bool replaceForm)
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]!.AsArray().Add(JsonNode.Parse("""
-        {"id":"rows","type":"list","itemType":"object","title":"Rows","sensitivity":"public","disclosure":"guided",
-          "properties":[
-            {"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
-            {"id":"password","type":"string","title":"Password","sensitivity":"secret","disclosure":"advanced"}]}
-        """));
+        source["configuration"]!["properties"]!["rows"] = JsonNode.Parse("""
+        {"type":"array","title":"Rows","x-configurator":{"sensitivity":"public","detail":"standard"},
+          "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+            "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
+            "password":{"type":"string","title":"Password","x-configurator":{"sensitivity":"secret","detail":"advanced"}}}}}
+        """);
+        source["requiredCapabilities"] = new JsonArray(
+            "projection.copy", "projection.object", "schema.array", "schema.object", "schema.string");
         source["artifacts"]![0]!["projection"]!["members"]!["rows"] =
-            JsonNode.Parse("""{"op":"copy","field":"rows"}""");
+            JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/rows"}}""");
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.EditValue(["title"], "initial-public");
@@ -46,7 +48,7 @@ public sealed class DefinitionPrivateClearTests
         Task<DefinitionImportResult> import = form.ImportAsync("config", _ => pendingRead.Task);
 
         bool reentered = false;
-        form.Fields[2].PropertyChanged += (_, args) =>
+        form.Fields.Single(field => field.Definition.Id == "password").PropertyChanged += (_, args) =>
         {
             if (reentered || args.PropertyName != nameof(DefinitionFieldInput.Text)) return;
             reentered = true;
@@ -108,11 +110,11 @@ public sealed class DefinitionPrivateClearTests
     public async Task ClearPreservesPublicRootsAndClearsProtectedRootsInOneRevision()
     {
         using var form = new DefinitionFormModel(Definition());
-        form.Fields[0].Text = "public-title";
-        form.Fields[1].Text = "synthetic-token";
-        form.Fields[2].Text = "synthetic-password";
-        form.Fields[3].Text = """{"name":"public-sibling","password":"nested-secret"}""";
-        form.Fields[2].Text = new string('x', 65_537);
+        form.Fields.Single(field => field.Definition.Id == "title").Text = "public-title";
+        form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-token";
+        form.Fields.Single(field => field.Definition.Id == "password").Text = "synthetic-password";
+        form.Fields.Single(field => field.Definition.Id == "settings").Text = """{"name":"public-sibling","password":"nested-secret"}""";
+        form.Fields.Single(field => field.Definition.Id == "password").Text = new string('x', 65_537);
         long before = form.InputRevision;
         int revisions = 0;
         form.InputChanged += (_, _) => revisions++;
@@ -136,9 +138,9 @@ public sealed class DefinitionPrivateClearTests
             if (args.PropertyName != nameof(DefinitionFieldInput.Text)) return;
             observedRevision = Task.Run(form.Snapshot).WaitAsync(SignalTimeout).GetAwaiter().GetResult().InputRevision;
         };
-        form.Fields[3].PropertyChanged += subscriber;
+        form.Fields.Single(field => field.Definition.Id == "settings").PropertyChanged += subscriber;
         try { form.SetValue(["settings", "name"], JsonSerializer.SerializeToElement("public-sibling")); }
-        finally { form.Fields[3].PropertyChanged -= subscriber; }
+        finally { form.Fields.Single(field => field.Definition.Id == "settings").PropertyChanged -= subscriber; }
         await Assert.That(observedRevision).IsEqualTo(1);
     }
 
@@ -160,7 +162,7 @@ public sealed class DefinitionPrivateClearTests
     {
         using var form = new DefinitionFormModel(Definition());
         bool cleared = false;
-        form.Fields[1].PropertyChanged += (_, args) =>
+        form.Fields.Single(field => field.Definition.Id == "token").PropertyChanged += (_, args) =>
         {
             if (cleared || args.PropertyName != nameof(DefinitionFieldInput.Text)) return;
             cleared = true;
@@ -178,18 +180,18 @@ public sealed class DefinitionPrivateClearTests
     public async Task ClearFencesPendingImportAndStillCompletesWhenSubscriberThrows()
     {
         using var form = new DefinitionFormModel(Definition());
-        form.Fields[1].Text = "synthetic-token";
-        form.Fields[2].Text = "synthetic-password";
+        form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-token";
+        form.Fields.Single(field => field.Definition.Id == "password").Text = "synthetic-password";
         var read = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
         Task<DefinitionImportResult> import = form.ImportAsync("config", _ => read.Task);
         int invalidations = 0;
         form.InputChanged += (_, _) => invalidations++;
         System.ComponentModel.PropertyChangedEventHandler subscriber = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
-        form.Fields[1].PropertyChanged += subscriber;
+        form.Fields.Single(field => field.Definition.Id == "token").PropertyChanged += subscriber;
         Exception? observed = null;
         try { form.ClearPrivateState(); }
         catch (Exception exception) { observed = exception; }
-        finally { form.Fields[1].PropertyChanged -= subscriber; }
+        finally { form.Fields.Single(field => field.Definition.Id == "token").PropertyChanged -= subscriber; }
         byte[] source = """{"password":"late-secret"}"""u8.ToArray();
         read.SetResult(source);
         DefinitionImportResult result = await import.WaitAsync(SignalTimeout);
@@ -204,7 +206,7 @@ public sealed class DefinitionPrivateClearTests
     public async Task FailingInputSubscriberCannotSkipRemainingInvalidationObservers()
     {
         using var form = new DefinitionFormModel(Definition());
-        form.Fields[1].Text = "synthetic-token";
+        form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-token";
         EventHandler failing = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
         int invalidations = 0;
         form.InputChanged += failing;
@@ -220,21 +222,23 @@ public sealed class DefinitionPrivateClearTests
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
-      "schemaVersion":1,"familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
-      "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example",
+      "schemaVersion":2,"profile":"bounded-v2","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
+      "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],
       "entryPoints":["setup"],"locales":["en"],
-      "fields":[
-        {"id":"title","type":"string","title":"Title","sensitivity":"public","disclosure":"guided"},
-        {"id":"token","type":"string","title":"Token","sensitivity":"sensitive","disclosure":"guided"},
-        {"id":"password","type":"string","title":"Password","sensitivity":"secret","disclosure":"guided"},
-        {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided",
-          "properties":[
-            {"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
-            {"id":"password","type":"string","title":"Password","sensitivity":"secret","disclosure":"guided"}]}],
-      "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+      "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
+      "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+        "title":{"type":"string","title":"Title","x-configurator":{"sensitivity":"public","detail":"standard"}},
+        "token":{"type":"string","title":"Token","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
+        "password":{"type":"string","title":"Password","x-configurator":{"sensitivity":"secret","detail":"standard"}},
+        "settings":{"type":"object","additionalProperties":false,"title":"Settings","x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+          "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
+          "password":{"type":"string","title":"Password","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}}},
+      "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
         "projection":{"op":"object","members":{
-          "title":{"op":"copy","field":"title"},"token":{"op":"copy","field":"token"},
-          "password":{"op":"copy","field":"password"},"settings":{"op":"copy","field":"settings"}}}}]
+          "title":{"op":"copy","reference":{"scope":"root","path":"/title"}},
+          "token":{"op":"copy","reference":{"scope":"root","path":"/token"}},
+          "password":{"op":"copy","reference":{"scope":"root","path":"/password"}},
+          "settings":{"op":"copy","reference":{"scope":"root","path":"/settings"}}}}}]
     }
     """));
 }

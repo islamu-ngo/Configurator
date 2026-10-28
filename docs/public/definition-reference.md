@@ -224,12 +224,27 @@ admits a `defaultLocale`, translations, direction and pointer-keyed overrides
 of existing public text. Broader localization policy and cross-client behavior
 remain later qualification, not implied translation coverage.
 
+Shared editing projects these overrides over the admitted schema without changing
+answer values. Locale selection uses a declared locale and explicit `ltr`/`rtl`
+metadata, with base-text fallback. Equal choice labels still select distinct typed
+enum values by ordinal. Suggestions require an explicit adoption action; clearing
+a value suppresses initialization, while reset restores eligibility. Adding an
+empty row does not invent required child containers: supply those containers
+deliberately before entering their children.
+
 ## Client capabilities
 
 Admission computes `requiredCapabilities` from actual schema, value, predicate,
 relationship and projection features. Canonical runtime JSON records the sorted
 set; unsupported mandatory semantics must be refused before collecting answers.
 Optional layout can degrade only to reachable neutral presentation.
+
+| Surface | Current capability evidence boundary |
+|---|---|
+| Core | Admitted recursive grammar, values, predicates and projection semantics |
+| Shared editing | Nullable values, typed map/variant traversal, deliberate enum/suggestion/reset actions, safe revision-bound corrections and inert locale metadata |
+| CLI | Machine v3 discovery and diagnostics over the admitted Core contract |
+| Browser, Desktop, Terminal | Adapter and actual-surface qualification are separate; shared support alone is not proof of rendered support |
 
 The implemented Core base does not qualify every CLI, Browser, Desktop or Terminal
 scenario, accessibility path, package or physical host. Keep indispensable

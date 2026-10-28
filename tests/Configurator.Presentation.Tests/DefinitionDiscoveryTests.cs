@@ -9,20 +9,22 @@ public sealed class DefinitionDiscoveryTests
     public async Task WarmDiscoveryUsesCurrentExperienceOrderWithoutChangingAnswerFacts()
     {
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-        {"schemaVersion":1,"familyId":"7d7d448e-f6ba-4860-94dd-5df51cae9578","revision":1,
-         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Order",
+        {"schemaVersion":2,"profile":"bounded-v2","familyId":"7d7d448e-f6ba-4860-94dd-5df51cae9578","revision":1,
+         "project":{"id":"example","publisher":"example","name":"Order"},"applicationVersions":["1"],
          "entryPoints":["setup"],"locales":["en"],
-         "fields":[
-           {"id":"alpha","type":"boolean","title":"Common","sensitivity":"public","disclosure":"guided"},
-           {"id":"beta","type":"boolean","title":"Common","sensitivity":"public","disclosure":"guided"}],
-         "presentation":{"defaultExperience":"forward","sections":[
-           {"id":"first","title":"First","fields":["alpha"]},
-           {"id":"second","title":"Second","fields":["beta"]}],
-           "experiences":[
-             {"id":"forward","title":"Forward","initialDisclosure":"guided","navigation":"sections","sections":["first","second"]},
-             {"id":"reverse","title":"Reverse","initialDisclosure":"guided","navigation":"sections","sections":["second","first"]}]},
-         "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-           "projection":{"op":"literal","value":{}}}]}
+         "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+           "properties":{
+             "alpha":{"type":"boolean","title":"Common","x-configurator":{"sensitivity":"public","detail":"standard"}},
+             "beta":{"type":"boolean","title":"Common","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+         "presentation":{"defaultJourney":"forward","navigation":"sections","sections":[
+           {"id":"first","title":"First","pointers":["/alpha"]},
+           {"id":"second","title":"Second","pointers":["/beta"]}],
+           "journeys":[
+             {"id":"forward","title":"Forward","sections":["first","second"]},
+             {"id":"reverse","title":"Reverse","sections":["second","first"]}]},
+         "artifacts":[{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+           "projection":{"op":"literal","value":{}}}],
+         "requiredCapabilities":["projection.literal","schema.boolean","schema.object"]}
         """)));
         form.EditValue(["alpha"], "false");
         form.SetDiscovery("common");
