@@ -80,12 +80,12 @@ array `items` recursively use the same admitted schema grammar.
 | `oneOf` | 2-16 closed object branches sharing exactly one eligible required scalar discriminator with distinct const values |
 | `readOnly`, `writeOnly`, `deprecated`, `examples` | Bounded annotations; `writeOnly: true` raises the secret floor |
 | `x-configurator` | Closed extension described below |
-| `if`/`then`, `dependentRequired` | Only the root presence relationships described under Conditions |
+| `if`/`then`/`else`, `dependentRequired` | Local object relationships described under Conditions |
 
 The extension admits `sensitivity` (`public`, `sensitive`, `secret`), `initialValue`,
 `suggestedValue`, string `notBlank`, `detail` (`basic`, `standard`, `advanced`),
 `guidance`, `credential`, typed enum `choices`, `units`, array-object `uniqueBy`,
-root-property `applicableWhen`, and string-only `assertFormat`. Missing sensitivity is conservatively
+property `applicableWhen`, and string-only `assertFormat`. Missing sensitivity is conservatively
 sensitive; missing detail projects as standard. `choices` pairs each enum value
 with a label and optional explanation. `uniqueBy` is a concrete item-relative
 pointer through required object properties to a non-null string.
@@ -159,10 +159,12 @@ String length counts Unicode scalars, not UTF-16 code units.
 
 ### Conditions
 
-`x-configurator.applicableWhen` is supported on direct configuration properties,
-not the configuration root or nested properties/items. Predicates use `exists`,
+`x-configurator.applicableWhen` is supported on declared properties, including
+properties within array rows, not the configuration root. Predicates use `exists`,
 `equals`, `notEquals`, `in`, `all`, `any`, `not`; leaf predicates use scoped
-root references, including declared nested paths. Comparisons use typed values;
+root references, including declared nested paths, or `item` references within
+an array row. An item reference resolves only against its current row.
+Comparisons use typed values;
 `in` uses nonempty `values`. Compounds use nonempty `operands`; `not` takes one.
 Unknown references and applicability cycles reject.
 
@@ -171,13 +173,26 @@ existing. Invalid or secret-deferred controllers propagate unknown, never a
 guessed active branch. Boolean composition preserves unknown unless a decisive
 false (`all`) or true (`any`) settles it.
 
-At the configuration root, `if: {required: [controller]}` with
-`then: {required: [dependent]}` and `dependentRequired` are supported now.
-Names must identify local root properties. These presence-only assertions
+At every object, `if: {required: [controller]}` with
+`then: {required: [dependent]}`, optional `else: {required: [...]}`, and
+`dependentRequired` are supported. The guard may also declare
+`properties: {controller: {const: value}}` or a nonempty typed `enum`.
+As in JSON Schema, a guard property absent from the object does not fail its
+property assertion; use guard `required` when absence must select the else branch.
+Names must identify locally declared properties. These assertions
 validate relationships, not visibility; mutual dependencies are permitted.
-Nested relationships, value-based schema conditions, `else` and source maps
-remain later-phase work. Recursive maps, discriminated variants, exact numeric
-assertions and unique items are admitted in the current profile.
+They do not add activation edges. Arbitrary conditional subschemas remain outside
+this bounded subset. Recursive maps, discriminated variants, exact numeric
+assertions and unique items use the same validation owner.
+
+Definition parsing also retains bounded public schema positions with numeric
+source spans. Errors identify a known enclosing schema position, not an unknown
+assertion key, raw scalar, reference value or filesystem path. Literal values
+and private answer trees are not indexed. Source positions are definition-only
+metadata and do not change canonical identity. Client correction coordinates
+separately distinguish declared properties, row indices and map-entry ordinals
+and are bound to the current answer revision; client generation checks remain
+necessary.
 
 ## Presentation and guidance
 

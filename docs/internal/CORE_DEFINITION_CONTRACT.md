@@ -16,14 +16,15 @@ implemented vocabulary.
 
 `SetupDefinitionCodec.ParseJson/ParseYaml(ReadOnlyMemory<byte>)` admits closed,
 bounded runtime definitions or throws `SetupDefinitionException` with a value-free
-`Code`. `SetupDefinitionSourceCodec` separately selects exact authoring-v2 source
+`Code` and, when available, public `SchemaPath`/numeric `SourceSpan`.
+`SetupDefinitionSourceCodec` separately selects exact authoring-v2 source
 or schemaVersion-2 runtime with no fallback. Admission snapshots data and owns
 canonical bytes; digest is computed, never supplied within the definition.
 
 `SetupDefinition` exposes `FamilyId`, `Revision`, `Digest`, `CanonicalBytes`,
 `Configuration`, `RequiredCapabilities`, `Title`, `Publisher`, `ApplicationId`,
 `ApplicationVersions`, `EntryPoints`, `Locales`, `Fields`, `Artifacts` and optional
-`Presentation`. `Configuration` is the immutable recursive `DefinitionNode` tree.
+`Presentation` and immutable `SourceMap`. `Configuration` is the immutable recursive `DefinitionNode` tree.
 Fields are root presentation projections, not a second schema authority.
 
 `SetupFieldDefinition.Name` preserves the exact root data key. `Id` is bounded
@@ -112,8 +113,8 @@ depth, scalar and reference-stack budgets. Fragments begin `#/$defs/`; percent
 encoding, remote/dynamic/cyclic references reject. Declarations are checked even
 when unused; reference expansion cannot hide unsupported assertions or amplify
 metadata beyond the work budget. Reference annotation merging preserves the
-strongest sensitivity and writeOnly floor. Arbitrary regex, general combinators
-and source maps remain later work.
+strongest sensitivity and writeOnly floor. Arbitrary regex and general
+combinators remain outside the selected profile.
 
 Asserted formats are hostname, email-address, uri and http-url. They perform
 bounded lexical checks only; their exact ASCII domains are in the
@@ -133,24 +134,45 @@ Scoped references are exactly `{scope: root|item, path: <pointer>}`. Root select
 the effective configuration; item requires an admitted repeat context. Data
 names never become expressions, paths inferred from dots or global searches.
 
-Current applicability is limited to direct configuration properties, with
-root-scoped `exists`, `equals`, `notEquals`, `in`, `all`, `any`, `not`.
+Applicability on declared properties uses root- or row-item-scoped `exists`,
+`equals`, `notEquals`, `in`, `all`, `any`, `not`.
 Leaf predicates use `reference`, plus typed `value` or nonempty `values`;
 compounds use nonempty `operands`, exactly one for not. Root-scoped controllers
 may select declared nested locations. Unknown references and activation cycles
-reject. Nested applicability and applicability on the configuration root reject.
+reject. Item scope exists only in an admitted array-row context; applicability
+on the configuration root rejects. Each row retains its own invalid/deferred
+controller set, so one row cannot activate another row's fields.
 
 Missing leaf controllers evaluate false. Present null exists when valid under a
 nullable schema. Invalid/secret-deferred controllers propagate unknown; not
 preserves unknown, all settles on false, any on true, otherwise unknown remains.
 No unresolved secret dependency becomes guessed branch authorization.
 
-At configuration root only, presence assertions support
-`if: {required: [...]}` paired with `then: {required: [...]}`, and
-`dependentRequired: {controller: [dependent, ...]}`. All names are local declared
-root properties. These settle requiredness, not applicability or visibility,
-and mutual required dependencies are legal. Broader value assertions, else and
-nested relationships are not delivered.
+Local object `if` guards support required presence and property const/enum
+assertions; consequences are `then.required` and optional `else.required`.
+`dependentRequired` names locally declared properties. Guards lower into the
+same predicate kernel; property assertions without guard requiredness are
+vacuously true for absent values. Relationship edges do not order activation,
+so mutual requirements are legal. Definite missing work survives an invalid
+controller elsewhere in the same container.
+
+Runtime validation diagnostics carry an immutable `DefinitionCorrectionLocation`
+bound to the snapshot's `InputRevision`. Segment kinds distinguish declared
+`Property` names (including numeric names), `ArrayRow` indices and `MapEntry`
+indices. Dynamic keys never enter this model. `RelativePath` projects the existing
+safe coordinates; map entries remain `@entry` plus ordinal. This Core coordinate
+does not grant stale client callbacks correction authority; client adoption and
+generation fencing are verified separately.
+
+`DefinitionSourceMap` is immutable definition-only metadata, separate from
+canonical bytes and digest. The existing JSON token reader and YAML events
+capture document ordinal 0 and one-based numeric line/column spans (exclusive
+end). The bounded projection maps known schema positions and declaration names,
+not unknown member names or literal/default/example data trees. Runtime admission
+attaches its known enclosing schema position; authoring compilation rebinds that
+position to the original source span. Unmapped positions fall back to a known
+public ancestor, or a code-only error. No filesystem path or reference value is
+published.
 
 ## Effective values and known semantic limits
 

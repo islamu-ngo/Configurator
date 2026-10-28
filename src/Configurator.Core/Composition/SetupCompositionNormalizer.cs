@@ -3,6 +3,7 @@ namespace Configurator.Core.Composition;
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
+using Configurator.Core.Definitions;
 
 internal sealed class SetupCompositionException : Exception
 {
@@ -10,7 +11,10 @@ internal sealed class SetupCompositionException : Exception
     internal SetupCompositionFailureCode Code { get; }
 }
 
-internal abstract record CompositionNode;
+internal abstract record CompositionNode
+{
+    internal DefinitionSourceSpan? SourceSpan { get; init; }
+}
 internal sealed record CompositionMap(IReadOnlyDictionary<string, CompositionNode> Entries) : CompositionNode;
 internal sealed record CompositionSequence(IReadOnlyList<CompositionNode> Entries) : CompositionNode;
 internal sealed record CompositionScalar(CompositionScalarKind Kind, string? Value) : CompositionNode;
@@ -75,19 +79,27 @@ internal static class SetupCompositionNormalizer
 
         try
         {
-            using JsonDocument document = JsonDocument.Parse(bytes, new JsonDocumentOptions
+            _ = StrictUtf8.GetCharCount(bytes.Span);
+            var reader = new Utf8JsonReader(bytes.Span, new JsonReaderOptions
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,
                 MaxDepth = limits.NestingDepth
             });
             var budget = sharedBudget ?? new CompositionBudget(limits);
-            CompositionNode root = FromJson(document.RootElement, 1, budget, limits, keyPolicy, cancellationToken);
+            var source = new CompositionSourceText(StrictUtf8.GetString(bytes.Span));
+            if (!reader.Read()) throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
+            CompositionNode root = FromJson(ref reader, bytes.Span, source, 1, budget, limits, keyPolicy, cancellationToken);
+            if (reader.Read()) throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
             return root as CompositionMap
                 ?? throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
         }
         catch (SetupCompositionException) { throw; }
         catch (JsonException)
+        {
+            throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
+        }
+        catch (DecoderFallbackException)
         {
             throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
         }
@@ -118,63 +130,83 @@ internal static class SetupCompositionNormalizer
     }
 
     private static CompositionNode FromJson(
-        JsonElement element, int depth, CompositionBudget budget, SetupCompositionLimits limits,
+        ref Utf8JsonReader reader, ReadOnlySpan<byte> bytes, CompositionSourceText source,
+        int depth, CompositionBudget budget, SetupCompositionLimits limits,
         CompositionKeyPolicy keyPolicy, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         budget.Node(depth);
-        switch (element.ValueKind)
+        int start = source.CharacterOffset(bytes, checked((int)reader.TokenStartIndex));
+        CompositionNode result;
+        switch (reader.TokenType)
         {
-            case JsonValueKind.Object:
+            case JsonTokenType.StartObject:
                 {
                     var entries = new SortedDictionary<string, CompositionNode>(StringComparer.Ordinal);
                     var identities = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     int count = 0;
-                    foreach (JsonProperty property in element.EnumerateObject())
+                    while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
                     {
+                        if (reader.TokenType != JsonTokenType.PropertyName)
+                            throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
                         if (checked(++count) > limits.MappingEntries)
                             throw new SetupCompositionException(SetupCompositionFailureCode.LimitExceeded);
-                        if (keyPolicy == CompositionKeyPolicy.Exact) budget.Scalar(property.Name);
-                        AddKey(entries, identities, property.Name,
-                            FromJson(property.Value, checked(depth + 1), budget, limits, keyPolicy, cancellationToken), keyPolicy);
+                        string name = reader.GetString()!;
+                        if (keyPolicy == CompositionKeyPolicy.Exact) budget.Scalar(name);
+                        if (!reader.Read()) throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
+                        AddKey(entries, identities, name,
+                            FromJson(ref reader, bytes, source, checked(depth + 1), budget, limits, keyPolicy, cancellationToken), keyPolicy);
                     }
-                    return new CompositionMap(entries);
+                    if (reader.TokenType != JsonTokenType.EndObject)
+                        throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
+                    result = new CompositionMap(entries);
+                    break;
                 }
-            case JsonValueKind.Array:
+            case JsonTokenType.StartArray:
                 {
                     var entries = new List<CompositionNode>();
-                    foreach (JsonElement item in element.EnumerateArray())
+                    while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
                     {
                         if (checked(entries.Count + 1) > limits.SequenceEntries)
                             throw new SetupCompositionException(SetupCompositionFailureCode.LimitExceeded);
-                        entries.Add(FromJson(item, checked(depth + 1), budget, limits, keyPolicy, cancellationToken));
+                        entries.Add(FromJson(ref reader, bytes, source, checked(depth + 1), budget, limits, keyPolicy, cancellationToken));
                     }
-                    return new CompositionSequence(entries.AsReadOnly());
+                    if (reader.TokenType != JsonTokenType.EndArray)
+                        throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
+                    result = new CompositionSequence(entries.AsReadOnly());
+                    break;
                 }
-            case JsonValueKind.String:
+            case JsonTokenType.String:
                 {
-                    string value = element.GetString()!;
+                    string value = reader.GetString()!;
                     budget.Scalar(value);
                     if (keyPolicy == CompositionKeyPolicy.Exact) ValidateExactText(value);
-                    return new CompositionScalar(CompositionScalarKind.String, value);
+                    result = new CompositionScalar(CompositionScalarKind.String, value);
+                    break;
                 }
-            case JsonValueKind.Number:
+            case JsonTokenType.Number:
                 {
-                    string value = element.GetRawText();
+                    string value = StrictUtf8.GetString(reader.ValueSpan);
                     budget.Scalar(value);
-                    return new CompositionScalar(CompositionScalarKind.JsonNumber, value);
+                    result = new CompositionScalar(CompositionScalarKind.JsonNumber, value);
+                    break;
                 }
-            case JsonValueKind.True:
+            case JsonTokenType.True:
                 budget.Scalar("true");
-                return new CompositionScalar(CompositionScalarKind.Boolean, "true");
-            case JsonValueKind.False:
+                result = new CompositionScalar(CompositionScalarKind.Boolean, "true");
+                break;
+            case JsonTokenType.False:
                 budget.Scalar("false");
-                return new CompositionScalar(CompositionScalarKind.Boolean, "false");
-            case JsonValueKind.Null:
-                return new CompositionScalar(CompositionScalarKind.Null, null);
+                result = new CompositionScalar(CompositionScalarKind.Boolean, "false");
+                break;
+            case JsonTokenType.Null:
+                result = new CompositionScalar(CompositionScalarKind.Null, null);
+                break;
             default:
                 throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
         }
+        int end = checked((int)reader.BytesConsumed);
+        return result with { SourceSpan = source.Span(start, source.CharacterOffset(bytes, end)) };
     }
 
     internal static void AddKey(
@@ -276,5 +308,38 @@ internal static class SetupCompositionNormalizer
             default:
                 throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
         }
+    }
+}
+
+/// <summary>Indexes parser offsets only; it does not interpret document syntax.</summary>
+internal sealed class CompositionSourceText
+{
+    private readonly int[] _lineStarts;
+    private int _byteOffset;
+    private int _characterOffset;
+
+    internal CompositionSourceText(string text)
+    {
+        var starts = new List<int> { 0 };
+        for (int index = 0; index < text.Length; index++)
+            if (text[index] == '\n') starts.Add(index + 1);
+        _lineStarts = starts.ToArray();
+    }
+
+    internal int CharacterOffset(ReadOnlySpan<byte> bytes, int offset)
+    {
+        _characterOffset += Encoding.UTF8.GetCharCount(bytes[_byteOffset..offset]);
+        _byteOffset = offset;
+        return _characterOffset;
+    }
+
+    internal DefinitionSourceSpan Span(int start, int end)
+    {
+        int startLine = Array.BinarySearch(_lineStarts, start);
+        if (startLine < 0) startLine = ~startLine - 1;
+        int endLine = Array.BinarySearch(_lineStarts, end);
+        if (endLine < 0) endLine = ~endLine - 1;
+        return new DefinitionSourceSpan(0, startLine + 1, start - _lineStarts[startLine] + 1,
+            endLine + 1, end - _lineStarts[endLine] + 1);
     }
 }

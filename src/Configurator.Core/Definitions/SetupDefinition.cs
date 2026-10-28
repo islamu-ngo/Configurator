@@ -9,6 +9,24 @@ public sealed class SetupDefinitionException : Exception
 {
     internal SetupDefinitionException(string code) : base(code) => Code = code;
     public string Code { get; }
+    public string? SchemaPath { get; private init; }
+    public DefinitionSourceSpan? SourceSpan { get; private init; }
+
+    internal SetupDefinitionException AtSchemaPath(string knownSchemaPath) => SchemaPath is not null ? this
+        : new SetupDefinitionException(Code) { SchemaPath = knownSchemaPath };
+
+    internal SetupDefinitionException WithLocation(DefinitionSourceMap map, string knownSchemaPath)
+    {
+        string path = SchemaPath ?? knownSchemaPath;
+        while (true)
+        {
+            if (map.TryGetSpan(path, out DefinitionSourceSpan span))
+                return new SetupDefinitionException(Code) { SchemaPath = path, SourceSpan = span };
+            int separator = path.LastIndexOf('/');
+            if (separator < 0) return new SetupDefinitionException(Code);
+            path = path[..separator];
+        }
+    }
 }
 
 public enum SetupFieldSensitivity { Public, Sensitive, Secret }
@@ -18,7 +36,8 @@ public sealed class SetupDefinition
 {
     private readonly byte[] _canonicalBytes;
 
-    internal SetupDefinition(JsonElement document, byte[] canonicalBytes, DefinitionNode configuration)
+    internal SetupDefinition(JsonElement document, byte[] canonicalBytes, DefinitionNode configuration,
+        DefinitionSourceMap? sourceMap = null)
     {
         Document = document.Clone();
         _canonicalBytes = (byte[])canonicalBytes.Clone();
@@ -26,6 +45,7 @@ public sealed class SetupDefinition
         FamilyId = document.GetProperty("familyId").GetGuid();
         Revision = document.GetProperty("revision").GetInt64();
         Configuration = configuration;
+        SourceMap = sourceMap ?? DefinitionSourceMap.Empty;
         SetupFieldSensitivity inherited = SetupFieldDefinition.SensitivityOf(configuration);
         Fields = Array.AsReadOnly(configuration.Properties.Select(item => new SetupFieldDefinition(
             item.Key, item.Value, configuration.Required.Contains(item.Key, StringComparer.Ordinal), inherited)).ToArray());
@@ -48,6 +68,7 @@ public sealed class SetupDefinition
     public string Publisher => Document.GetProperty("project").GetProperty("publisher").GetString()!;
     public string Title => Document.GetProperty("project").GetProperty("name").GetString()!;
     public DefinitionNode Configuration { get; }
+    public DefinitionSourceMap SourceMap { get; }
     public IReadOnlyList<string> ApplicationVersions { get; }
     public IReadOnlyList<string> EntryPoints { get; }
     public IReadOnlyList<string> Locales { get; }
@@ -262,6 +283,16 @@ public sealed class SetupAnswerSnapshot
 
 public sealed record DefinitionDiagnostic(string Code, string FieldId)
 {
+    public DefinitionDiagnostic(string code, string fieldId, DefinitionCorrectionLocation location)
+        : this(code, fieldId, location.Segments.SelectMany(segment =>
+            segment.Kind == DefinitionLocationSegmentKind.MapEntry
+                ? new[] { "@entry", segment.Index!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) }
+                : new[] { segment.PropertyName
+                    ?? segment.Index!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) }).ToArray())
+    {
+        Location = location;
+    }
+
     public DefinitionDiagnostic(string code, string fieldId, IReadOnlyList<string> relativePath)
         : this(code, fieldId)
     {
@@ -270,14 +301,17 @@ public sealed record DefinitionDiagnostic(string Code, string FieldId)
     }
 
     public IReadOnlyList<string> RelativePath { get; } = Array.Empty<string>();
+    public DefinitionCorrectionLocation? Location { get; }
     public bool Equals(DefinitionDiagnostic? other) => other is not null &&
-        Code == other.Code && FieldId == other.FieldId && RelativePath.SequenceEqual(other.RelativePath);
+        Code == other.Code && FieldId == other.FieldId && RelativePath.SequenceEqual(other.RelativePath)
+        && Equals(Location, other.Location);
     public override int GetHashCode()
     {
         var hash = new HashCode();
         hash.Add(Code, StringComparer.Ordinal);
         hash.Add(FieldId, StringComparer.Ordinal);
         foreach (string segment in RelativePath) hash.Add(segment, StringComparer.Ordinal);
+        hash.Add(Location);
         return hash.ToHashCode();
     }
     public override string ToString() => $"{Code}:{FieldId}";

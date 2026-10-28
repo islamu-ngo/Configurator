@@ -44,14 +44,22 @@ public static class DefinitionAuthoringCompiler
             foreach (string name in new[] { "presentation", "localization", "annotations" })
                 if (root.ContainsKey(name)) runtime[name] = root[name]!.DeepClone();
             runtime["artifacts"] = ExpandOutputs(root["outputs"]!.AsObject());
-            return SetupDefinitionCodec.AdmitCompiled(runtime);
+            SetupDefinition admitted = SetupDefinitionCodec.AdmitCompiled(runtime);
+            return new SetupDefinition(admitted.Document, admitted.CanonicalBytes.ToArray(),
+                admitted.Configuration, document.SourceMap);
         }
-        catch (SetupDefinitionException) { throw; }
-        catch (SetupCompositionException) { throw new SetupDefinitionException("document-limit"); }
+        catch (SetupDefinitionException exception)
+        {
+            throw exception.WithLocation(document.SourceMap, exception.SchemaPath ?? "");
+        }
+        catch (SetupCompositionException)
+        {
+            throw new SetupDefinitionException("document-limit").WithLocation(document.SourceMap, "");
+        }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException
             or ArgumentException or NullReferenceException or FormatException or OverflowException)
         {
-            throw new SetupDefinitionException("authoring-invalid");
+            throw new SetupDefinitionException("authoring-invalid").WithLocation(document.SourceMap, "");
         }
     }
 

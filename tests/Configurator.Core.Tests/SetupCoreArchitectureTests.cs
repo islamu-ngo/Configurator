@@ -400,8 +400,21 @@ internal static class SetupCoreAssemblyVerifier
                         ? property.Name is not "Code" and not "Path" and not "Key" and not "Category"
                         : type == typeof(Configurator.Core.Definitions.DefinitionDiagnostic)
                             ? property.Name is not "Code" and not "FieldId" and not "RelativePath"
+                                && !(property.Name == "Location"
+                                    && property.PropertyType == typeof(Configurator.Core.Definitions.DefinitionCorrectionLocation))
                             : property.Name is not "Code" and not "Path" and not "Severity"))
                     failures.Add($"value-bearing diagnostic field {type.FullName}.{property.Name}");
+                if (type == typeof(Configurator.Core.Definitions.DefinitionCorrectionLocation)
+                    && !(property.Name == "InputRevision" && property.PropertyType == typeof(long)
+                        || property.Name == "Segments" && property.PropertyType ==
+                            typeof(IReadOnlyList<Configurator.Core.Definitions.DefinitionLocationSegment>)))
+                    failures.Add($"value-bearing correction field {type.FullName}.{property.Name}");
+                if (type == typeof(Configurator.Core.Definitions.DefinitionLocationSegment)
+                    && !(property.Name == "Kind" && property.PropertyType ==
+                            typeof(Configurator.Core.Definitions.DefinitionLocationSegmentKind)
+                        || property.Name == "PropertyName" && property.PropertyType == typeof(string)
+                        || property.Name == "Index" && property.PropertyType == typeof(int?)))
+                    failures.Add($"value-bearing correction segment {type.FullName}.{property.Name}");
             }
 
             foreach (MethodInfo method in type.GetMethods(

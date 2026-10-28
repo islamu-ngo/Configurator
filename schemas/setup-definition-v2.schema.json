@@ -245,6 +245,7 @@
       "items": {
         "type": "string",
         "enum": [
+          "predicate.item",
           "predicate.root",
           "projection.copy",
           "projection.index",
@@ -440,6 +441,57 @@
         },
         "if": {
           "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "required": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1024,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              }
+            },
+            "properties": {
+              "type": "object",
+              "maxProperties": 1024,
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "const": {}
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "const"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "enum": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 256,
+                        "items": {}
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "enum"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "then": {
+          "type": "object",
           "properties": {
             "required": {
               "type": "array",
@@ -458,7 +510,7 @@
             "required"
           ]
         },
-        "then": {
+        "else": {
           "type": "object",
           "properties": {
             "required": {

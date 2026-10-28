@@ -1,0 +1,28 @@
+Change-Id: CHG-01M5ZX97TAMQ8EMXKTZ1VKYQ6Q
+Title: "explain scoped conditions with safe diagnostic locations"
+Type: feat
+Scope: definitions
+Summary: "Resolve row-local applicability and local object relationships through one bounded predicate kernel. Preserve public definition source spans and revision-bound typed correction locations without publishing private dynamic keys or answer values."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Invalid or deferred controllers remain unknown. Diagnostic locations distinguish declared properties, array rows and numeric map-entry ordinals; unknown source keys, answer scalars and filesystem paths are excluded. Client correction authority still requires current workspace generations."
+  Migration:
+    Reference: docs/public/definition-reference.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "Item references evaluate within their current row. Local if guards admit required presence and property const/enum assertions with then.required and optional else.required. Mutual dependentRequired relationships do not create activation edges."
+  OpenAPI:
+    Reference: docs/public/definition-reference.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/DEFINITION_PROFILE.md
+    Disposition: documented
+    Detail: "Definition-only source positions do not enter canonical identity or grant target acceptance. Core diagnostic coordinates are separate from the later machine-envelope and interactive-client adaptations."

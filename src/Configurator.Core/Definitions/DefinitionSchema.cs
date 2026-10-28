@@ -119,7 +119,29 @@ public static class DefinitionSchema
             ["$defs"] = new JsonObject { ["type"] = "object", ["maxProperties"] = 1024, ["additionalProperties"] = Ref("node") },
             ["$ref"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^#/" },
             ["oneOf"] = new JsonObject { ["type"] = "array", ["minItems"] = 2, ["maxItems"] = 16, ["items"] = Ref("node") },
-            ["if"] = RequiredAssertion(), ["then"] = RequiredAssertion(),
+            ["if"] = new JsonObject
+            {
+                ["type"] = "object", ["additionalProperties"] = false, ["minProperties"] = 1,
+                ["properties"] = new JsonObject
+                {
+                    ["required"] = Strings(1024, 65536),
+                    ["properties"] = new JsonObject
+                    {
+                        ["type"] = "object", ["maxProperties"] = 1024,
+                        ["additionalProperties"] = new JsonObject
+                        {
+                            ["oneOf"] = new JsonArray(
+                                Closed(new JsonObject { ["const"] = new JsonObject() }, "const"),
+                                Closed(new JsonObject { ["enum"] = new JsonObject
+                                {
+                                    ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 256,
+                                    ["items"] = new JsonObject()
+                                } }, "enum"))
+                        }
+                    }
+                }
+            },
+            ["then"] = RequiredAssertion(), ["else"] = RequiredAssertion(),
             ["dependentRequired"] = new JsonObject
             {
                 ["type"] = "object", ["maxProperties"] = 1024,

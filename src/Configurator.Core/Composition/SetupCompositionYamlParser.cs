@@ -44,7 +44,7 @@ internal static partial class SetupCompositionYamlParser
             reader.Advance();
 
             var budget = sharedBudget ?? new CompositionBudget(limits);
-            CompositionNode root = ReadNode(reader, budget, limits, 1, keyPolicy, cancellationToken);
+            CompositionNode root = ReadNode(reader, new CompositionSourceText(text), budget, limits, 1, keyPolicy, cancellationToken);
             if (root is not CompositionMap map)
                 throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
             reader.Require<DocumentEnd>();
@@ -81,11 +81,12 @@ internal static partial class SetupCompositionYamlParser
     }
 
     private static CompositionNode ReadNode(
-        EventReader reader, CompositionBudget budget, SetupCompositionLimits limits,
+        EventReader reader, CompositionSourceText source, CompositionBudget budget, SetupCompositionLimits limits,
         int depth, CompositionKeyPolicy keyPolicy, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         budget.Node(depth);
+        int start = checked((int)reader.Current!.Start.Index);
 
         if (reader.Current is AnchorAlias)
             throw new SetupCompositionException(SetupCompositionFailureCode.UnsupportedYamlGrammar);
@@ -114,11 +115,12 @@ internal static partial class SetupCompositionYamlParser
                         ? SetupCompositionFailureCode.UnsupportedYamlGrammar
                         : SetupCompositionFailureCode.InvalidKey);
                 reader.Advance();
-                CompositionNode value = ReadNode(reader, budget, limits, checked(depth + 1), keyPolicy, cancellationToken);
+                CompositionNode value = ReadNode(reader, source, budget, limits, checked(depth + 1), keyPolicy, cancellationToken);
                 SetupCompositionNormalizer.AddKey(entries, identities, key, value, keyPolicy);
             }
+            int end = checked((int)reader.Current.End.Index);
             reader.Advance();
-            return new CompositionMap(entries);
+            return new CompositionMap(entries) { SourceSpan = source.Span(start, end) };
         }
 
         if (reader.Current is SequenceStart)
@@ -129,10 +131,11 @@ internal static partial class SetupCompositionYamlParser
             {
                 if (checked(entries.Count + 1) > limits.SequenceEntries)
                     throw new SetupCompositionException(SetupCompositionFailureCode.LimitExceeded);
-                entries.Add(ReadNode(reader, budget, limits, checked(depth + 1), keyPolicy, cancellationToken));
+                entries.Add(ReadNode(reader, source, budget, limits, checked(depth + 1), keyPolicy, cancellationToken));
             }
+            int end = checked((int)reader.Current.End.Index);
             reader.Advance();
-            return new CompositionSequence(entries.AsReadOnly());
+            return new CompositionSequence(entries.AsReadOnly()) { SourceSpan = source.Span(start, end) };
         }
 
         if (reader.Current is Scalar scalar)
@@ -142,7 +145,7 @@ internal static partial class SetupCompositionYamlParser
             if (keyPolicy == CompositionKeyPolicy.Exact && result.Kind == CompositionScalarKind.String)
                 SetupCompositionNormalizer.ValidateExactText(result.Value!);
             reader.Advance();
-            return result;
+            return result with { SourceSpan = source.Span(start, checked((int)scalar.End.Index)) };
         }
 
         throw new SetupCompositionException(SetupCompositionFailureCode.UnsupportedYamlGrammar);

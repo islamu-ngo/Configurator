@@ -22,9 +22,11 @@ public static class SetupDefinitionCodec
 
     private static SetupDefinition Parse(ReadOnlyMemory<byte> bytes, bool yaml)
     {
+        DefinitionSourceMap sourceMap = DefinitionSourceMap.Empty;
         try
         {
-            byte[] canonical = yaml ? DefinitionProfile.CanonicalizeYaml(bytes) : DefinitionProfile.CanonicalizeJson(bytes);
+            byte[] canonical = yaml ? DefinitionProfile.CanonicalizeYaml(bytes, out sourceMap)
+                : DefinitionProfile.CanonicalizeJson(bytes, out sourceMap);
             using JsonDocument parsed = JsonDocument.Parse(canonical);
             var capabilities = new SortedSet<string>(StringComparer.Ordinal);
             DefinitionNode configuration = Admit(parsed.RootElement, capabilities);
@@ -32,9 +34,9 @@ public static class SetupDefinitionCodec
             if (declared.ValueKind != JsonValueKind.Array
                 || !declared.EnumerateArray().Select(item => item.GetString()).SequenceEqual(capabilities, StringComparer.Ordinal))
                 throw new SetupDefinitionException("capabilities-invalid");
-            return new SetupDefinition(parsed.RootElement, canonical, configuration);
+            return new SetupDefinition(parsed.RootElement, canonical, configuration, sourceMap);
         }
-        catch (SetupDefinitionException) { throw; }
+        catch (SetupDefinitionException exception) { throw exception.WithLocation(sourceMap, ""); }
         catch (SetupCompositionException) { throw new SetupDefinitionException("definition-limit"); }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException
             or FormatException or ArgumentException or OverflowException)
@@ -80,9 +82,6 @@ public static class SetupDefinitionCodec
         if (configuration.Type != DefinitionNodeType.Mapping || configuration.IsNullable)
             throw new SetupDefinitionException("configuration-object-required");
         if (configuration.Properties.Count > 1024) throw new SetupDefinitionException("document-limit");
-        foreach (DefinitionNode child in configuration.Properties.Values.Concat(configuration.Variants.SelectMany(branch => branch.Properties.Values)))
-            RejectNestedRelationships(child);
-        if (configuration.AdditionalProperties is { } rootMap) RejectNestedRelationships(rootMap);
         ValidateApplicability(configuration, capabilities);
         if (document.TryGetProperty("annotations", out var annotations) && annotations.ValueKind != JsonValueKind.Object)
             throw new SetupDefinitionException("annotations-invalid");
@@ -115,18 +114,28 @@ public static class SetupDefinitionCodec
         }
         return configuration;
 
-        static void RejectNestedRelationships(DefinitionNode node)
-        {
-            if (node.Keywords.TryGetProperty("if", out _) || node.Keywords.TryGetProperty("dependentRequired", out _))
-                throw new SetupDefinitionException("relationship-context");
-            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)) RejectNestedRelationships(child);
-            if (node.Items is { } items) RejectNestedRelationships(items);
-            if (node.AdditionalProperties is { } map) RejectNestedRelationships(map);
-        }
     }
 
     private static DefinitionNode ReadNode(JsonElement schema, SortedSet<string> capabilities, bool publicAncestors,
-        bool secretAncestors, JsonElement schemaRoot, HashSet<string> references, CompositionBudget budget, int depth)
+        bool secretAncestors, JsonElement schemaRoot, HashSet<string> references, CompositionBudget budget, int depth,
+        string schemaPath = "/configuration")
+    {
+        try
+        {
+            return ReadNodeCore(schema, capabilities, publicAncestors, secretAncestors, schemaRoot, references,
+                budget, depth, schemaPath);
+        }
+        catch (SetupDefinitionException exception) { throw exception.AtSchemaPath(schemaPath); }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException
+            or FormatException or ArgumentException or OverflowException)
+        {
+            throw new SetupDefinitionException("definition-invalid").AtSchemaPath(schemaPath);
+        }
+    }
+
+    private static DefinitionNode ReadNodeCore(JsonElement schema, SortedSet<string> capabilities, bool publicAncestors,
+        bool secretAncestors, JsonElement schemaRoot, HashSet<string> references, CompositionBudget budget, int depth,
+        string schemaPath)
     {
         budget.Node(depth);
         if (schema.TryGetProperty("$defs", out JsonElement definitions))
@@ -135,7 +144,9 @@ public static class SetupDefinitionCodec
                 throw new SetupDefinitionException("schema-reference");
             foreach (JsonProperty definition in definitions.EnumerateObject())
                 _ = ReadNode(definition.Value, capabilities, publicAncestors, secretAncestors,
-                    schemaRoot, references, budget, depth + 1);
+                    schemaRoot, references, budget, depth + 1,
+                    schemaPath + "/$defs/" + definition.Name.Replace("~", "~0", StringComparison.Ordinal)
+                        .Replace("/", "~1", StringComparison.Ordinal));
             capabilities.Add("schema.localRef");
         }
         if (schema.TryGetProperty("$ref", out JsonElement reference))
@@ -177,14 +188,14 @@ public static class SetupDefinitionCodec
                 capabilities.Add("schema.localRef");
                 using JsonDocument expanded = JsonDocument.Parse(merged.ToJsonString());
                 return ReadNode(expanded.RootElement, capabilities, publicAncestors, secretAncestors,
-                    schemaRoot, references, budget, depth);
+                    schemaRoot, references, budget, depth, "/configuration" + pointer[1..]);
             }
             finally { references.Remove(pointer); }
         }
         Only(schema, "type", "title", "description", "enum", "const", "properties", "required", "additionalProperties",
             "items", "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems", "minProperties",
             "maxProperties", "format", "default", "readOnly", "writeOnly", "deprecated", "examples", "x-configurator",
-            "if", "then", "dependentRequired", "$defs", "oneOf", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "uniqueItems");
+            "if", "then", "else", "dependentRequired", "$defs", "oneOf", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "uniqueItems");
         JsonElement type = schema.GetProperty("type");
         bool nullable = type.ValueKind == JsonValueKind.Array;
         string spelling;
@@ -238,8 +249,10 @@ public static class SetupDefinitionCodec
                 alternatives.GetArrayLength() is < 2 or > 16 || schema.TryGetProperty("properties", out _) ||
                 schema.TryGetProperty("required", out _) || schema.TryGetProperty("additionalProperties", out _))
                 throw new SetupDefinitionException("schema-variant");
+            int alternativeIndex = 0;
             foreach (JsonElement alternative in alternatives.EnumerateArray())
-                variants.Add(ReadNode(alternative, capabilities, publicContext, secretContext, schemaRoot, references, budget, depth + 1));
+                variants.Add(ReadNode(alternative, capabilities, publicContext, secretContext, schemaRoot, references, budget,
+                    depth + 1, schemaPath + "/oneOf/" + (alternativeIndex++).ToString(CultureInfo.InvariantCulture)));
             capabilities.Add("schema.variant");
         }
         if (nodeType == DefinitionNodeType.Mapping)
@@ -249,13 +262,16 @@ public static class SetupDefinitionCodec
                 throw new SetupDefinitionException("map-semantics-unsupported");
             if (schema.TryGetProperty("additionalProperties", out var typedMap) && typedMap.ValueKind == JsonValueKind.Object)
             {
-                map = ReadNode(typedMap, capabilities, publicContext, secretContext, schemaRoot, references, budget, depth + 1);
+                map = ReadNode(typedMap, capabilities, publicContext, secretContext, schemaRoot, references, budget,
+                    depth + 1, schemaPath + "/additionalProperties");
                 capabilities.Add("schema.map");
             }
             if (schema.TryGetProperty("properties", out var children))
                 foreach (JsonProperty child in children.EnumerateObject())
                     properties.Add(child.Name, ReadNode(child.Value, capabilities, publicContext, secretContext,
-                        schemaRoot, references, budget, depth + 1));
+                        schemaRoot, references, budget, depth + 1,
+                        schemaPath + "/properties/" + child.Name.Replace("~", "~0", StringComparison.Ordinal)
+                            .Replace("/", "~1", StringComparison.Ordinal)));
             if (schema.TryGetProperty("required", out var requiredNames))
             {
                 foreach (JsonElement name in requiredNames.EnumerateArray())
@@ -273,11 +289,37 @@ public static class SetupDefinitionCodec
         {
             if (nodeType != DefinitionNodeType.Mapping || !schema.TryGetProperty("then", out var consequence))
                 throw new SetupDefinitionException("relationship-invalid");
-            RequiredSet(guard);
+            Only(guard, "required", "properties");
+            if (guard.TryGetProperty("required", out var presentNames)) Names(presentNames);
+            if (guard.TryGetProperty("properties", out var guards))
+            {
+                if (guards.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("relationship-invalid");
+                foreach (JsonProperty property in guards.EnumerateObject())
+                {
+                    if (!properties.ContainsKey(property.Name)) throw new SetupDefinitionException("relationship-invalid");
+                    Only(property.Value, "const", "enum");
+                    if (property.Value.TryGetProperty("const", out var expected))
+                    {
+                        if (!DefinitionValidator.ValueValid(properties[property.Name], expected))
+                            throw new SetupDefinitionException("condition-type");
+                    }
+                    else if (property.Value.TryGetProperty("enum", out var guardChoices) && guardChoices.ValueKind == JsonValueKind.Array
+                        && guardChoices.GetArrayLength() > 0)
+                    {
+                        foreach (JsonElement choice in guardChoices.EnumerateArray())
+                            if (!DefinitionValidator.ValueValid(properties[property.Name], choice))
+                                throw new SetupDefinitionException("condition-type");
+                    }
+                    else throw new SetupDefinitionException("relationship-invalid");
+                }
+            }
+            if (!guard.EnumerateObject().Any()) throw new SetupDefinitionException("relationship-invalid");
             RequiredSet(consequence);
+            if (schema.TryGetProperty("else", out var alternative)) RequiredSet(alternative);
             capabilities.Add("relationship.presence");
         }
-        else if (schema.TryGetProperty("then", out _)) throw new SetupDefinitionException("relationship-invalid");
+        else if (schema.TryGetProperty("then", out _) || schema.TryGetProperty("else", out _))
+            throw new SetupDefinitionException("relationship-invalid");
         if (schema.TryGetProperty("dependentRequired", out var dependencies))
         {
             if (nodeType != DefinitionNodeType.Mapping || dependencies.ValueKind != JsonValueKind.Object)
@@ -304,7 +346,7 @@ public static class SetupDefinitionCodec
                     throw new SetupDefinitionException("relationship-invalid");
         }
         if (nodeType == DefinitionNodeType.Sequence) items = ReadNode(schema.GetProperty("items"), capabilities, publicContext, secretContext,
-            schemaRoot, references, budget, depth + 1);
+            schemaRoot, references, budget, depth + 1, schemaPath + "/items");
         else if (schema.TryGetProperty("items", out _)) throw new SetupDefinitionException("constraint-context");
         foreach ((string low, string high, DefinitionNodeType owner) in new[]
         {
@@ -506,49 +548,51 @@ public static class SetupDefinitionCodec
 
     private static void ValidateApplicability(DefinitionNode root, SortedSet<string> capabilities)
     {
-        foreach (DefinitionNode branch in root.Variants) ValidateApplicability(branch, capabilities);
         if (root.Keywords.TryGetProperty("x-configurator", out var rootMetadata)
             && rootMetadata.TryGetProperty("applicableWhen", out _)) throw new SetupDefinitionException("condition-context");
-        var dependencies = new Dictionary<string, string[]>(StringComparer.Ordinal);
-        foreach ((string name, DefinitionNode node) in root.Properties)
+        if (root.Variants.Count > 0)
         {
-            string[] references = [];
-            if (node.Keywords.TryGetProperty("x-configurator", out var metadata)
-                && metadata.TryGetProperty("applicableWhen", out var condition))
-            {
-                ValidateCondition(condition, root, capabilities);
-                references = DefinitionValidator.References(condition).Distinct(StringComparer.Ordinal).ToArray();
-            }
-            dependencies.Add(name, references);
-            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)
-                .Concat(node.AdditionalProperties is null ? [] : new[] { node.AdditionalProperties })
-                .Concat(node.Items is null ? [] : new[] { node.Items }))
-                RejectNested(child);
+            foreach (DefinitionNode branch in root.Variants) ValidateApplicability(branch, capabilities);
+            return;
         }
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        var visiting = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string name in root.Properties.Keys) Visit(name);
+        ValidateScope(root, null);
 
-        void Visit(string name)
+        void ValidateScope(DefinitionNode scope, DefinitionNode? item)
         {
-            if (visited.Contains(name)) return;
-            if (!visiting.Add(name)) throw new SetupDefinitionException("activation-cycle");
-            foreach (string reference in dependencies[name]) Visit(reference);
-            visiting.Remove(name);
-            visited.Add(name);
-        }
-        static void RejectNested(DefinitionNode node)
-        {
-            if (node.Keywords.TryGetProperty("x-configurator", out var extension)
-                && extension.TryGetProperty("applicableWhen", out _)) throw new SetupDefinitionException("condition-context");
-            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)
-                .Concat(node.AdditionalProperties is null ? [] : new[] { node.AdditionalProperties })
-                .Concat(node.Items is null ? [] : new[] { node.Items }))
-                RejectNested(child);
+            foreach (DefinitionNode branch in scope.Variants)
+                ValidateScope(branch, ReferenceEquals(scope, item) ? branch : item);
+            var dependencies = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            foreach ((string name, DefinitionNode node) in scope.Properties)
+            {
+                string[] references = [];
+                if (node.Keywords.TryGetProperty("x-configurator", out var metadata)
+                    && metadata.TryGetProperty("applicableWhen", out var condition))
+                    ValidateCondition(condition, root, capabilities, item);
+                if (ReferenceEquals(scope, root) || ReferenceEquals(scope, item))
+                    references = DefinitionValidator.SchemaReferences(node, item is null ? "root" : "item")
+                        .Where(scope.Properties.ContainsKey).ToArray();
+                dependencies.Add(name, references);
+                ValidateScope(node, item);
+            }
+            if (scope.Items is { } row) ValidateScope(row, row);
+            if (scope.AdditionalProperties is { } map) ValidateScope(map, item);
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var visiting = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string name in scope.Properties.Keys) Visit(name);
+
+            void Visit(string name)
+            {
+                if (visited.Contains(name)) return;
+                if (!visiting.Add(name)) throw new SetupDefinitionException("activation-cycle");
+                foreach (string reference in dependencies[name]) Visit(reference);
+                visiting.Remove(name);
+                visited.Add(name);
+            }
         }
     }
 
-    private static void ValidateCondition(JsonElement condition, DefinitionNode root, SortedSet<string> capabilities)
+    private static void ValidateCondition(JsonElement condition, DefinitionNode root, SortedSet<string> capabilities,
+        DefinitionNode? item = null)
     {
         string operation = condition.GetProperty("op").GetString()!;
         if (operation is "all" or "any" or "not")
@@ -557,7 +601,7 @@ public static class SetupDefinitionCodec
             JsonElement operands = condition.GetProperty("operands");
             if (operands.GetArrayLength() < 1 || operation == "not" && operands.GetArrayLength() != 1)
                 throw new SetupDefinitionException("condition-operands");
-            foreach (JsonElement operand in operands.EnumerateArray()) ValidateCondition(operand, root, capabilities);
+            foreach (JsonElement operand in operands.EnumerateArray()) ValidateCondition(operand, root, capabilities, item);
             return;
         }
         if (operation is not ("exists" or "equals" or "notEquals" or "in"))
@@ -565,10 +609,9 @@ public static class SetupDefinitionCodec
         Only(condition, operation == "exists" ? ["op", "reference"]
             : operation == "in" ? ["op", "reference", "values"] : ["op", "reference", "value"]);
         JsonElement reference = condition.GetProperty("reference");
-        if (reference.GetProperty("scope").GetString() != "root"
-            || DefinitionPath.Parse(reference.GetProperty("path").GetString()!).Segments.Count == 0)
+        if (DefinitionPath.Parse(reference.GetProperty("path").GetString()!).Segments.Count == 0)
             throw new SetupDefinitionException("condition-context");
-        DefinitionNode controller = Reference(reference, root, null);
+        DefinitionNode controller = Reference(reference, root, item);
         foreach (JsonElement expected in operation == "exists" ? Array.Empty<JsonElement>()
             : operation == "in" ? condition.GetProperty("values").EnumerateArray().ToArray()
             : new[] { condition.GetProperty("value") })
@@ -587,7 +630,7 @@ public static class SetupDefinitionCodec
         }
         if (operation == "in" && condition.GetProperty("values").GetArrayLength() == 0)
             throw new SetupDefinitionException("condition-operands");
-        capabilities.Add("predicate.root");
+        capabilities.Add(reference.GetProperty("scope").GetString() == "item" ? "predicate.item" : "predicate.root");
     }
 
     private static void ValidateProjection(JsonElement projection, DefinitionNode root, DefinitionNode? item,

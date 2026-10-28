@@ -50,13 +50,16 @@ generated one. It is not authentication or a content digest. Core snapshots and
 projection references always use literal names; Presentation translates its
 metadata-root editor paths at the snapshot/effective-value boundary.
 
-The initial relationship subset is root presence-only `if.required` with
-`then.required`, and root `dependentRequired`. It shares Core's three-valued
-presence kernel but contributes no activation edges. Missing target uncertainty
+The relationship subset is local object `if.required` and property const/enum
+guards with `then.required`, optional `else.required`, and `dependentRequired`.
+Guards lower into Core's existing three-valued predicate kernel and contribute
+no activation edges. Row applicability uses typed item references and a
+row-local unknown-controller set; invalid or deferred controllers never select
+a guessed branch. Missing target uncertainty
 propagates without invalidating a supplied valid target. Definite missing-work
 witnesses remain blocking even if mixed applicability feedback later becomes
-unknown. Nested relationships and broader assertion forms still reject until
-their implementing slice; accepting the base profile does not imply them.
+unknown, including definite work in a different row from an invalid controller.
+Arbitrary conditional subschemas remain outside the selected profile.
 
 ## Control and data flow
 

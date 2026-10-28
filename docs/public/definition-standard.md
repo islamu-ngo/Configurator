@@ -17,11 +17,11 @@ admission limits. Base implementation does not qualify every scenario, client,
 package or target. Sections marked later design are not admitted support.
 
 The base includes recursive closed objects/array items, typed enums and nullable
-types, explicit value/omission states, scoped references, root applicability and
-root presence-only relationships, typed maps, discriminated variants, exact
-numeric assertions, local references and explicitly asserted formats.
-Broader/nested conditions, source maps, localization policy expansion and
-machine v3 remain later phases. No v1 fallback is provided.
+types, explicit value/omission states, scoped references, root/row applicability,
+local presence and const/enum relationships, typed maps, discriminated variants,
+exact numeric assertions, local references, explicitly asserted formats and
+public source maps. General conditional subschemas, localization policy expansion
+and machine v3 remain later work. No v1 fallback is provided.
 
 A definition describes public configuration requirements and output mappings.
 It never contains private answers, executes code, fetches references, authenticates
@@ -91,8 +91,8 @@ The configuration root itself must be a non-null object.
 | `minProperties`, `maxProperties` | Objects only; nonnegative bounds |
 | `dependentRequired` | Current configuration-root map of local names to distinct nonempty local required-name arrays; nested form later |
 | `$defs`, `$ref` | Acyclic local schema references rooted at configuration, starting `#/$defs/`; supplied offline documents are additionally supported by the importer |
-| `if`, `then` | Current configuration-root presence-only `{required: [...]}` assertions |
-| Broader `if`/`then`, `else` | Later design; general/nested predicates and conditional assertions |
+| `if`, `then`, `else` | Local guards use required presence and property const/enum assertions; consequences are required-name sets |
+| General conditional subschemas | Not part of the bounded profile |
 | `oneOf` | 2-16 closed object variants with exactly one shared eligible required scalar discriminator and distinct const values |
 | `format` | String annotation; no assertion by itself |
 | `default` | Descriptive value only; never inserted |
@@ -235,17 +235,20 @@ Extra members reject.
 
 `not unknown` is unknown. For all, false dominates, then unknown, then true.
 For any, true dominates, then unknown, then false. Unknown never becomes a
-guessed active branch. Applicability dependency cycles reject. Current
-applicability occurs only on direct configuration properties with root-scoped
-references; those may select declared nested controllers. Item scope is current
-for admitted repeat projections, not nested/item applicability.
+guessed active branch. Applicability dependency cycles reject. Declared
+properties may use root-scoped references to declared controllers or item-scoped
+references within their current array row. Each row has its own controller
+uncertainty; one row cannot activate another row's dependent fields.
 
-Current `dependentRequired` and presence-only root `if.required`/`then.required`
+Local `dependentRequired` and `if`/`then`/`else`
 validate relationships; they do not toggle visibility or form activation edges.
-Their arrays name locally declared root properties. Mutual requirements are
+Guard assertions are required presence and property const/enum comparisons;
+consequences are required-name sets. A guard property absent from the object
+does not fail its property assertion; guard requiredness tests absence.
+Their arrays name locally declared properties. Mutual requirements are
 permitted: neither username nor password can be supplied alone, while both or
-neither follow ordinary requiredness. Broader predicates, nested relationships
-and `else` are later design, not implemented assertions.
+neither follow ordinary requiredness. Arbitrary conditional subschemas remain
+outside this subset.
 
 ## Outputs and inverse import
 

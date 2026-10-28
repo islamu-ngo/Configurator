@@ -9,6 +9,142 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionProfileConformanceTests
 {
     [Test]
+    public async Task ItemApplicabilityUsesOnlyItsRowAndInvalidControllersRemainUnknown()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"array","items":{"type":"object","additionalProperties":false,
+             "properties":{
+              "kind":{"type":["string","null"],"enum":["local","remote",null]},
+              "endpoint":{"type":"string","x-configurator":{"applicableWhen":{
+                "op":"equals","reference":{"scope":"item","path":"/kind"},"value":"remote"}}}},
+             "required":["endpoint"]}}
+            """);
+        DefinitionValidationResult valid = DefinitionValidator.Validate(definition, DefinitionFixture.Answers("""
+            {"value":[{"kind":"local","endpoint":12},{"kind":"remote","endpoint":"offline"}]}
+            """));
+        await Assert.That(valid.IsReady).IsTrue();
+        await Assert.That(valid.TryGetEffectiveValue(DefinitionPath.Parse("/value/0/endpoint"), out _)).IsFalse();
+        DefinitionValidationResult missing = DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{"kind":"local"},{"kind":"remote"}]}"""));
+        await Assert.That(missing.Diagnostics.Any(diagnostic => diagnostic.Code == "value-required" &&
+            diagnostic.RelativePath.SequenceEqual(["1", "endpoint"]))).IsTrue();
+        DefinitionValidationResult invalid = DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{"kind":42}]}"""));
+        await Assert.That(invalid.IsReady).IsFalse();
+        await Assert.That(invalid.Diagnostics.Any(diagnostic => diagnostic.RelativePath.Contains("endpoint"))).IsFalse();
+    }
+
+    [Test]
+    public async Task RowRelationshipsAllowMutualRequirementsAndConditionalElse()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"array","items":{"type":"object","additionalProperties":false,
+             "properties":{"kind":{"type":"string"},"username":{"type":"string"},"password":{"type":"string"}},
+             "dependentRequired":{"username":["password"],"password":["username"]},
+             "if":{"properties":{"kind":{"const":"remote"}},"required":["kind"]},
+             "then":{"required":["username"]},"else":{"required":["kind"]}}}
+            """);
+        foreach (string rows in new[] { """[{"kind":"local"}]""",
+            """[{"kind":"remote","username":"synthetic-user","password":"synthetic-secret"}]""" })
+            await Assert.That(DefinitionValidator.Validate(definition,
+                DefinitionFixture.Answers("{\"value\":" + rows + "}")).IsReady).IsTrue();
+        DefinitionValidationResult result = DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{"kind":"local","username":"synthetic-user"}]}"""));
+        await Assert.That(result.IsReady).IsFalse();
+        await Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == "value-required" &&
+            diagnostic.RelativePath.SequenceEqual(["0", "password"]))).IsTrue();
+    }
+
+    [Test]
+    public async Task RowApplicabilityCyclesRejectWithoutEchoingNames()
+    {
+        await Assert.That(() => WithValueSchema("""
+            {"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+             "first":{"type":"string","x-configurator":{"applicableWhen":{
+              "op":"exists","reference":{"scope":"item","path":"/second"}}}},
+             "second":{"type":"string","x-configurator":{"applicableWhen":{
+              "op":"exists","reference":{"scope":"item","path":"/first"}}}}}}}
+            """)).Throws<SetupDefinitionException>();
+    }
+
+    [Test]
+    public async Task CorrectionsDistinguishPrivateMapEntriesRowsAndNumericDeclaredNames()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"object","additionalProperties":{"type":"array","items":{
+             "type":"object","additionalProperties":false,"properties":{"0":{"type":"integer"}}}}}
+            """);
+        SetupAnswerSnapshot answers = DefinitionFixture.Answers("""
+            {"value":{"synthetic-private-key":[{"0":"synthetic-private-answer"}]}}
+            """);
+        DefinitionDiagnostic diagnostic = DefinitionValidator.Validate(definition, answers).Diagnostics.Single();
+        await Assert.That(diagnostic.Location is not null).IsTrue();
+        await Assert.That(diagnostic.Location!.InputRevision).IsEqualTo(answers.InputRevision);
+        await Assert.That(diagnostic.Location.Segments.Select(segment => segment.Kind).SequenceEqual([
+            DefinitionLocationSegmentKind.MapEntry, DefinitionLocationSegmentKind.ArrayRow,
+            DefinitionLocationSegmentKind.Property])).IsTrue();
+        await Assert.That(diagnostic.Location.Segments[2].PropertyName).IsEqualTo("0");
+        await Assert.That(JsonSerializer.Serialize(diagnostic)).DoesNotContain("synthetic-private");
+    }
+
+    [Test]
+    public async Task MissingAndNullItemControllersHaveDifferentPresenceAndDeferredControllersAreUnknown()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+             "controller":{"type":["string","null"],"x-configurator":{"sensitivity":"secret"}},
+             "dependent":{"type":"string","x-configurator":{"applicableWhen":{
+              "op":"exists","reference":{"scope":"item","path":"/controller"}}}}},"required":["dependent"]}}
+            """);
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{}]}""")).IsReady).IsTrue();
+        DefinitionValidationResult explicitNull = DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{"controller":null}]}"""));
+        await Assert.That(explicitNull.Diagnostics.Any(diagnostic => diagnostic.RelativePath.SequenceEqual(["0", "dependent"])))
+            .IsTrue();
+        DefinitionValidationResult draft = DefinitionValidator.ValidateDraft(definition,
+            DefinitionFixture.Answers("""{"value":[{}]}"""));
+        await Assert.That(draft.Diagnostics.Count).IsEqualTo(0);
+        await Assert.That(draft.Nodes.Any(node => node.RelativePath.SequenceEqual(["0", "dependent"]) && node.IsActive)).IsFalse();
+    }
+
+    [Test]
+    public async Task DefiniteMissingWorkInOneRowSurvivesInvalidControlInAnother()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"array","items":{"type":"object","additionalProperties":false,"required":["dependent"],
+             "properties":{"controller":{"type":"boolean"},"dependent":{"type":"string",
+             "x-configurator":{"applicableWhen":{"op":"equals",
+             "reference":{"scope":"item","path":"/controller"},"value":true}}}}}}
+            """);
+        DefinitionValidationResult result = DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{"controller":true},{"controller":"synthetic-invalid"}]}"""));
+        await Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == "value-required" &&
+            diagnostic.RelativePath.SequenceEqual(["0", "dependent"]))).IsTrue();
+        await Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.RelativePath.SequenceEqual(["1", "dependent"]))).IsFalse();
+    }
+
+    [Test]
+    public async Task NestedRootControllersAreResolvedBeforeRowApplicability()
+    {
+        JsonNode source = JsonNode.Parse(SourceV2)!;
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+            {"value":{"type":"array","items":{"type":"object","additionalProperties":false,
+             "required":["endpoint"],"properties":{"endpoint":{"type":"string",
+             "x-configurator":{"applicableWhen":{"op":"equals",
+             "reference":{"scope":"root","path":"/zcontroller"},"value":true}}}}}},
+             "zcontroller":{"type":"boolean"}}
+            """);
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        DefinitionValidationResult result = DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{}],"zcontroller":true}"""));
+        await Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == "value-required" &&
+            diagnostic.RelativePath.SequenceEqual(["0", "endpoint"]))).IsTrue();
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[{}],"zcontroller":false}""")).IsReady).IsTrue();
+    }
+
+    [Test]
     public async Task TypedMapsValidateRecursiveItemsWithoutPublishingPrivateEntryNames()
     {
         SetupDefinition definition = WithValueSchema("""
