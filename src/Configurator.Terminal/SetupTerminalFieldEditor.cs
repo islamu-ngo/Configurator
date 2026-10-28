@@ -9,39 +9,61 @@ using Configurator.Presentation;
 /// <summary>Expands object rows into typed leaves with independent navigation for each nested list.</summary>
 internal sealed class SetupTerminalFieldEditor
 {
-    internal sealed record Slot(DefinitionFormModel Form, DefinitionFieldInput Input, string[] Path, DefinitionNode Schema)
+    internal sealed record Slot(DefinitionFormModel Form, DefinitionFieldInput Input, string[] Path, DefinitionNode Schema,
+        string? FallbackTitle = null)
     {
         internal JsonElement Metadata => Schema.Keywords;
-        internal string Title => Metadata.TryGetProperty("title", out var title) ? title.GetString()!
-            : Path.Length == 0 ? Input.Definition.Title : Path[^1];
+        internal DefinitionEditorPresentation? Presentation => Form.GetEditorPresentation(FullPath);
+        internal string Title => FallbackTitle is not null && !Metadata.TryGetProperty("title", out _)
+            ? FallbackTitle : Presentation?.Title ?? Input.Definition.Title;
         internal string Type => Schema.JsonType;
         internal bool IsList => Schema.Type == DefinitionNodeType.Sequence;
         internal bool IsObject => Type == "object";
         internal bool IsContainer => IsList || IsObject;
-        internal bool IsObjectList => IsList && ScalarType == "object";
+        internal bool IsObjectList => IsList && Schema.Items!.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence;
+        internal bool IsMap => ObjectSchema.AdditionalProperties is not null;
+        internal DefinitionNode ObjectSchema => Value(this) is { } value
+            ? DefinitionValidator.SelectVariant(Schema, value) ?? Schema : Schema;
         internal string ScalarType => IsList ? Schema.Items!.JsonType : Type;
-        internal bool RequiresMasking => Input.RequiresMasking;
+        internal bool RequiresMasking => Input.RequiresMasking ||
+            Form.GetEditorState(FullPath)?.Sensitivity is { } sensitivity && sensitivity != SetupFieldSensitivity.Public;
         internal string[] FullPath => [Input.Definition.Id, .. Path];
-        internal string Help => Metadata.TryGetProperty("description", out var description) ? description.GetString()! : "";
+        internal string Help => SetupTerminalText.FormatHelp(Presentation, Metadata);
     }
 
     private readonly DefinitionFormModel _form;
     internal SetupTerminalFieldEditor(DefinitionFormModel form) => _form = form;
-    internal IReadOnlyList<Slot> Slots => _form.VisibleFields.SelectMany(input =>
-        Expand(input, input.Definition.Node, [])).ToArray();
+    internal IReadOnlyList<Slot> Slots => _form.Projection.Sections.SelectMany(section => section.Fields)
+        .Distinct(StringComparer.Ordinal).Where(_form.Projection.IsFieldVisible).SelectMany(id =>
+        {
+            var (input, schema) = _form.GetFieldEditor(id);
+            return Expand(input, schema, []);
+        }).ToArray();
 
-    private IEnumerable<Slot> Expand(DefinitionFieldInput input, DefinitionNode schema, string[] path)
+    private IEnumerable<Slot> Expand(DefinitionFieldInput input, DefinitionNode schema, string[] path,
+        string? fallbackTitle = null)
     {
+        var current = new Slot(_form, input, path, schema, fallbackTitle);
+        if (_form.GetEditorState(current.FullPath) is { IsActive: false }) yield break;
+        yield return current;
+        if (Value(current) is { ValueKind: JsonValueKind.Null }) yield break;
         if (schema.Type == DefinitionNodeType.Mapping)
         {
-            yield return new Slot(_form, input, path, schema);
-            foreach ((string name, DefinitionNode property) in schema.Properties)
+            DefinitionNode active = current.ObjectSchema;
+            foreach ((string name, DefinitionNode property) in active.Properties)
                 foreach (Slot slot in Expand(input, property, [.. path, name]))
                     yield return slot;
+            if (active.AdditionalProperties is { } entry && Value(current) is { ValueKind: JsonValueKind.Object } mapping)
+            {
+                int index = 0;
+                foreach (JsonProperty property in mapping.EnumerateObject().Where(property =>
+                    !active.Properties.ContainsKey(property.Name)))
+                    foreach (Slot slot in Expand(input, entry, [.. path, property.Name],
+                        SetupTerminalText.Get("MapEntry") + " " + (++index).ToString(CultureInfo.InvariantCulture)))
+                        yield return slot;
+            }
             yield break;
         }
-        var current = new Slot(_form, input, path, schema);
-        yield return current;
         if (!current.IsList || schema.Items!.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)) yield break;
         int count = ItemCount(current);
         for (int index = 0; index < count; index++)
@@ -79,10 +101,66 @@ internal sealed class SetupTerminalFieldEditor
 
     internal static IReadOnlyList<string> Choices(Slot slot)
     {
-        if (slot.ScalarType == "boolean") return ["false", "true"];
-        return (slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata).TryGetProperty("enum", out var choices)
-            ? choices.EnumerateArray().Select(item => item.ValueKind == JsonValueKind.String
-                ? item.GetString()! : item.GetRawText()).ToArray() : [];
+        string[] path = EditPath(slot, 0);
+        IReadOnlyList<DefinitionChoicePresentation>? choices = slot.Form.GetEditorPresentation(path)?.Choices;
+        if (choices is { Count: > 0 }) return choices.Select(choice => choice.Label).ToArray();
+        JsonElement metadata = slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata;
+        if (metadata.TryGetProperty("enum", out JsonElement declared))
+            return declared.EnumerateArray().Select(choice => choice.ValueKind == JsonValueKind.String
+                ? choice.GetString()! : choice.GetRawText()).ToArray();
+        return slot.ScalarType == "boolean" ? ["false", "true"] : [];
+    }
+
+    internal static string[] EditPath(Slot slot, int index) => slot.IsList
+        ? [.. slot.FullPath, index.ToString(CultureInfo.InvariantCulture)] : slot.FullPath;
+
+    internal static int ChoiceIndex(Slot slot, int index = 0)
+    {
+        JsonElement? value = Value(slot);
+        if (slot.IsList)
+            value = value is { ValueKind: JsonValueKind.Array } rows && index < rows.GetArrayLength() ? rows[index] : null;
+        if (value is null) return -1;
+        JsonElement metadata = slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata;
+        if (metadata.TryGetProperty("enum", out JsonElement choices))
+        {
+            for (int choice = 0; choice < choices.GetArrayLength(); choice++)
+                if (JsonElement.DeepEquals(choices[choice], value.Value)) return choice;
+            return -1;
+        }
+        return value.Value.ValueKind == JsonValueKind.True ? 1 : value.Value.ValueKind == JsonValueKind.False ? 0 : -1;
+    }
+
+    internal static bool SelectChoice(Slot slot, int choice, int index = 0)
+    {
+        if (slot.IsList && !HasItem(slot, index) && !AddItem(slot)) return false;
+        string[] path = EditPath(slot, index);
+        JsonElement metadata = slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata;
+        return metadata.TryGetProperty("enum", out _)
+            ? slot.Form.SelectChoice(path, choice)
+            : slot.Form.SetValue(path, JsonSerializer.SerializeToElement(choice == 1));
+    }
+
+    internal static bool AddMapEntry(Slot slot, string key)
+    {
+        if (!slot.IsMap || slot.ObjectSchema.Properties.ContainsKey(key) ||
+            Value(slot) is { ValueKind: JsonValueKind.Object } mapping && mapping.TryGetProperty(key, out _)) return false;
+        int count = Value(slot) is { ValueKind: JsonValueKind.Object } current ? current.EnumerateObject().Count() : 0;
+        int maximumEntries = slot.ObjectSchema.Keywords.TryGetProperty("maxProperties", out JsonElement maximum)
+            ? maximum.GetInt32() : Configurator.Core.Composition.SetupCompositionLimits.DefaultMappingEntries;
+        if (count >= maximumEntries) return false;
+        string[] path = [.. slot.FullPath, key];
+        try { _ = DefinitionPath.FromSegments(path); }
+        catch (SetupDefinitionException) { return false; }
+        DefinitionNode schema = slot.ObjectSchema.AdditionalProperties!;
+        JsonElement initial = schema.Type switch
+        {
+            DefinitionNodeType.Text => JsonSerializer.SerializeToElement(""),
+            DefinitionNodeType.Boolean => JsonSerializer.SerializeToElement(false),
+            DefinitionNodeType.WholeNumber or DefinitionNodeType.Number => JsonSerializer.SerializeToElement(0),
+            DefinitionNodeType.Sequence => JsonSerializer.SerializeToElement(Array.Empty<object>()),
+            _ => JsonSerializer.SerializeToElement(new Dictionary<string, object>())
+        };
+        return slot.Form.SetValue(path, initial);
     }
 
     internal static bool Write(Slot slot, string text, int listIndex = 0)
@@ -96,12 +174,12 @@ internal sealed class SetupTerminalFieldEditor
             if (array.Count >= MaximumItems(slot) && listIndex == array.Count) return false;
             string[] itemPath = [.. slot.FullPath, listIndex.ToString(CultureInfo.InvariantCulture)];
             if (listIndex < array.Count) return slot.Form.EditValue(itemPath, text);
-            if (!DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Metadata, out JsonElement? scalar))
+            if (!DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Schema.Items!.Keywords, out JsonElement? scalar))
             {
-                return slot.Form.EditValue(itemPath, text);
+                return AddItem(slot) && slot.Form.EditValue(itemPath, text);
             }
-            array.Add(scalar is { } item ? JsonNode.Parse(item.GetRawText()) : null);
-            return slot.Form.SetValue(slot.FullPath, JsonSerializer.SerializeToElement(array));
+            if (scalar is null) return true;
+            return AddItem(slot) && slot.Form.EditValue(itemPath, text);
         }
         return slot.Form.EditValue(slot.FullPath, text);
     }
@@ -112,13 +190,19 @@ internal sealed class SetupTerminalFieldEditor
         else slot.Form.SetValue(slot.FullPath, null);
     }
 
-    private static JsonNode? Node(Slot slot)
+    internal static JsonElement? Value(Slot slot)
     {
         if (!slot.Input.TryValue(out JsonElement? value) || value is null) return null;
-        JsonNode? node = JsonNode.Parse(value.Value.GetRawText());
+        JsonElement node = value.Value;
         foreach (string key in slot.Path)
-            node = node is JsonObject mapping ? mapping[key] : node is JsonArray array && int.TryParse(key, out int index)
-                && index >= 0 && index < array.Count ? array[index] : null;
+        {
+            if (node.ValueKind == JsonValueKind.Object && node.TryGetProperty(key, out JsonElement child)) node = child;
+            else if (node.ValueKind == JsonValueKind.Array && int.TryParse(key, out int index)
+                && index >= 0 && index < node.GetArrayLength()) node = node[index];
+            else return null;
+        }
         return node;
     }
+
+    private static JsonNode? Node(Slot slot) => Value(slot) is { } value ? JsonNode.Parse(value.GetRawText()) : null;
 }

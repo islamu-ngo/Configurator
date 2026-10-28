@@ -62,4 +62,26 @@
   <data name="PublicationFailed" xml:space="preserve"><value>Save failed</value></data>
   <data name="PublicationCleanupFailed" xml:space="preserve"><value>Cleanup failed; review created files before retrying.</value></data>
   <data name="NextAttempt" xml:space="preserve"><value>Save history</value></data>
+  <data name="SetNull" xml:space="preserve"><value>Set null</value></data>
+  <data name="ResetValue" xml:space="preserve"><value>Reset value</value></data>
+  <data name="ApplySuggestion" xml:space="preserve"><value>Apply suggestion</value></data>
+  <data name="ItemNull" xml:space="preserve"><value>Item null</value></data>
+  <data name="ItemSuggestion" xml:space="preserve"><value>Item suggestion</value></data>
+  <data name="OmitValue" xml:space="preserve"><value>Omit value</value></data>
+  <data name="AddMapEntry" xml:space="preserve"><value>Add map entry</value></data>
+  <data name="MapEntry" xml:space="preserve"><value>Map entry</value></data>
+  <data name="MapKeyHelp" xml:space="preserve"><value>Enter a literal map key in the masked editor, then choose Add map entry. Empty keys are allowed. Existing keys are never replaced.</value></data>
+  <data name="MapKeyInvalid" xml:space="preserve"><value>Map entry rejected. Check the key, duplicate entries and declared limits.</value></data>
+  <data name="NextCorrection" xml:space="preserve"><value>Next correction</value></data>
+  <data name="Locale" xml:space="preserve"><value>Locale</value></data>
+  <data name="Help" xml:space="preserve"><value>Help</value></data>
+  <data name="ChooseVariant" xml:space="preserve"><value>Cycle variant</value></data>
+  <data name="Required" xml:space="preserve"><value>required</value></data>
+  <data name="Omitted" xml:space="preserve"><value>omitted</value></data>
+  <data name="NullValue" xml:space="preserve"><value>null</value></data>
+  <data name="OptionalEditors" xml:space="preserve"><value>Show optional editors</value></data>
+  <data name="DefaultDisclosure" xml:space="preserve"><value>Restore disclosure</value></data>
+  <data name="CredentialIssuer" xml:space="preserve"><value>Obtain this value from its issuer. Do not substitute a locally generated password.</value></data>
+  <data name="CredentialCreate" xml:space="preserve"><value>Choose a new value that meets the target's requirements. A password manager may help create and retain it.</value></data>
+  <data name="CredentialExisting" xml:space="preserve"><value>Use the existing value already accepted by your target.</value></data>
 </root>

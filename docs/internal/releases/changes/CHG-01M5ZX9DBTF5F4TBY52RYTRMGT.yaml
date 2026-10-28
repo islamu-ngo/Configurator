@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5ZX9DBTF5F4TBY52RYTRMGT
+Title: "support typed v2 configuration and essential guidance"
+Type: feat
+Scope: terminal
+Summary: "Navigate recursive typed configuration with shared nullable, map, branch, choice and localized guidance semantics."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "Shared generations and sensitivity govern typed edits and corrections. Private buffers, asynchronous input and create-only publication retain their existing ownership."
+  Migration:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Use v2 definitions and distinct omission, reset, suggestion and null actions. Typed choice values do not derive from displayed labels."
+  Configuration:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "Typed map keys and provider alternatives use shared recursive state. Language selects admitted inert public metadata without changing answer values or readiness."
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Keyboard navigation retains required corrections and common guidance. Actual process and package qualification are recorded separately from deterministic adapter tests."

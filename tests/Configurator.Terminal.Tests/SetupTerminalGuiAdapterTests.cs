@@ -18,7 +18,7 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task ExplicitEmptyEnumChoiceIsNotOmission()
     {
         using var form = new DefinitionFormModel(EditingDefinition("""
-            {"id":"choice","title":"Choice","type":"enum","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
+            "choice":{"title":"Choice","type":"string","enum":["","other"],"x-configurator":{"sensitivity":"public","detail":"basic"}}
             """));
         var slot = new SetupTerminalFieldEditor(form).Slots.Single();
         await Assert.That(SetupTerminalFieldEditor.Write(slot, "")).IsTrue();
@@ -32,8 +32,8 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task DeliberateEmptyRowAndErasedRowAgreeWhileNavigationDoesNotRevise()
     {
         using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
-            {"id":"items","title":"Items","type":"list","itemType":"string","sensitivity":"public","disclosure":"guided"},
-            {"id":"after","title":"After","type":"string","sensitivity":"public","disclosure":"guided"}
+            "items":{"title":"Items","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "after":{"title":"After","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
             """)));
         Button add = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("AddItem"));
         add.InvokeCommand(Command.Accept);
@@ -54,8 +54,8 @@ public sealed class SetupTerminalGuiAdapterTests
     [Arguments("number")]
     public async Task UntouchedTypedAppendCanBeAbandoned(string type)
     {
-        using var form = new DefinitionFormModel(EditingDefinition($$"""
-            {"id":"items","title":"Items","type":"list","itemType":"{{type}}","sensitivity":"public","disclosure":"guided"}
+        using var form = new DefinitionFormModel(EditingDefinition($$$$"""
+            "items":{"title":"Items","type":"array","items":{"type":"{{{{type}}}}","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public","detail":"basic"}}
             """));
         var slot = new SetupTerminalFieldEditor(form).Slots.Single();
         await Assert.That(SetupTerminalFieldEditor.Write(slot, string.Empty)).IsTrue();
@@ -68,7 +68,7 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task ChoiceCyclingStartsFromVisibleDraftAndRetainsRejectedInput()
     {
         using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
-            {"id":"choice","title":"Choice","type":"enum","choices":["one","two","three"],"sensitivity":"public","disclosure":"guided"}
+            "choice":{"title":"Choice","type":"string","enum":["one","two","three"],"x-configurator":{"sensitivity":"public","detail":"basic"}}
             """)));
         Button choice = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("Choose"));
         harness.Window.PublicInput.Text = "two";
@@ -77,7 +77,10 @@ public sealed class SetupTerminalGuiAdapterTests
         harness.Window.PublicInput.Text = "invalid-visible-draft";
         choice.InvokeCommand(Command.Accept);
         await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("invalid-visible-draft");
-        await Assert.That(harness.Form.Snapshot().Values["choice"].GetString()).IsEqualTo("three");
+        // V2 retains typed but constraint-invalid values for correction; cycling
+        // must not silently replace that explicit input with a declared choice.
+        await Assert.That(harness.Form.Snapshot().Values["choice"].GetString()).IsEqualTo("invalid-visible-draft");
+        await Assert.That(harness.Form.Validate().IsReady).IsFalse();
     }
 
     [Test]
@@ -144,8 +147,12 @@ public sealed class SetupTerminalGuiAdapterTests
             }
             await Assert.That(harness.Window.CommitField()).IsFalse();
             await Assert.That(form.ReadDraftText(path)).IsEqualTo(draft);
-            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo(accepted);
-            await Assert.That(form.Snapshot().Values["after"].GetString()).IsEqualTo("untouched");
+            await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsEqualTo(masked);
+            await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/value"), out var effectiveValue)).IsTrue();
+            await Assert.That(effectiveValue.GetRawText()).IsEqualTo(accepted);
+            await Assert.That(form.Snapshot().Values.ContainsKey("after")).IsFalse();
+            await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/after"), out var effectiveAfter)).IsTrue();
+            await Assert.That(effectiveAfter.GetString()).IsEqualTo("untouched");
             await Assert.That(form.AnswerOrigin(path)).IsEqualTo(rejectedOrigin);
             await Assert.That(form.AnswerOrigin(["after"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
             await Assert.That(form.GetEditorIdentity(path)).IsEqualTo(identity);
@@ -178,7 +185,7 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task DisclosureChangesLeaveUntouchedAppendSlotsAbsent(bool existingItem)
     {
         using var form = new DefinitionFormModel(EditingDefinition("""
-            {"id":"items","title":"Items","type":"list","itemType":"integer","sensitivity":"public","disclosure":"guided"}
+            "items":{"title":"Items","type":"array","items":{"type":"integer","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public","detail":"basic"}}
             """));
         if (existingItem)
         {
@@ -235,29 +242,31 @@ public sealed class SetupTerminalGuiAdapterTests
         string field = shape switch
         {
             "nested" => """
-                "type":"object","default":{"leaf":7,"sibling":"kept"},"properties":[
-                  {"id":"leaf","title":"Leaf","type":"integer","sensitivity":"public","disclosure":"guided"},
-                  {"id":"sibling","title":"Sibling","type":"string","sensitivity":"public","disclosure":"guided"}]
+                "type":"object","additionalProperties":false,"properties":{
+                  "leaf":{"title":"Leaf","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                  "sibling":{"title":"Sibling","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}
                 """,
-            "list" => "\"type\":\"list\",\"itemType\":\"integer\",\"default\":[7,9]",
-            _ => "\"type\":\"integer\",\"default\":7"
+            "list" => "\"type\":\"array\",\"items\":{\"type\":\"integer\",\"x-configurator\":{\"sensitivity\":\"public\"}}",
+            _ => "\"type\":\"integer\""
         };
-        var source = System.Text.Json.Nodes.JsonNode.Parse(EditingDefinition($$"""
-            {"id":"value","title":"Value","sensitivity":"public","disclosure":"guided",{{field}}},
-            {"id":"after","title":"After","type":"string","default":"untouched","sensitivity":"public","disclosure":"guided"}
-            """).CanonicalBytes.Span)!.AsObject();
-        if (masked)
+        string initialValue = shape switch
         {
-            source["fields"]![0]!.AsObject().Remove("default");
-            source["fields"]![0]!["sensitivity"] = "secret";
-        }
-        source["presentation"] = System.Text.Json.Nodes.JsonNode.Parse("""
-            {"defaultExperience":"guided","sections":[{"id":"settings","title":"Settings","fields":["value","after"]}],
-             "experiences":[
-              {"id":"guided","title":"Guided","initialDisclosure":"guided","navigation":"guided","sections":["settings"]},
-              {"id":"complete","title":"Complete","initialDisclosure":"advanced","navigation":"sections","sections":["settings"]}]}
+            "nested" => """{"leaf":7,"sibling":"kept"}""",
+            "list" => "[7,9]",
+            _ => "7"
+        };
+        var source = EditingSource($$$$"""
+            "value":{"title":"Value","x-configurator":{"sensitivity":"{{{{(masked ? "secret" : "public")}}}}","detail":"basic"{{{{(masked ? "" : ",\"initialValue\":" + initialValue)}}}}},{{{{field}}}}},
+            "after":{"title":"After","type":"string","x-configurator":{"initialValue":"untouched","sensitivity":"public","detail":"basic"}}
             """);
-        return SetupDefinitionCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(source.ToJsonString()));
+        source["presentation"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultJourney":"guided","navigation":"sections",
+             "sections":[{"id":"settings","title":"Settings","pointers":["/value","/after"]}],
+             "journeys":[
+              {"id":"guided","title":"Guided","sections":["settings"]},
+              {"id":"complete","title":"Complete","sections":["settings"]}]}
+            """);
+        return SetupDefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 
     [Test]
@@ -266,9 +275,9 @@ public sealed class SetupTerminalGuiAdapterTests
     [Arguments(1)]
     public async Task FullListNavigationNeverEntersAnUncommittableAppend(int maximum)
     {
-        using var form = new DefinitionFormModel(EditingDefinition($$"""
-            {"id":"items","title":"Items","type":"list","itemType":"integer","maxItems":{{maximum}},"sensitivity":"public","disclosure":"guided"},
-            {"id":"after","title":"After","type":"string","sensitivity":"public","disclosure":"guided"}
+        using var form = new DefinitionFormModel(EditingDefinition($$$$"""
+            "items":{"title":"Items","type":"array","items":{"type":"integer","x-configurator":{"sensitivity":"public"}},"maxItems":{{{{maximum}}}},"x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "after":{"title":"After","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
             """));
         using var items = System.Text.Json.JsonDocument.Parse(maximum == 0 ? "[]" : "[7]");
         form.SetValue(["items"], items.RootElement);
@@ -281,23 +290,42 @@ public sealed class SetupTerminalGuiAdapterTests
         await Assert.That(form.Snapshot().Values["after"].GetString()).IsEqualTo("reachable");
     }
 
-    private static SetupDefinition EditingDefinition(string fields) => SetupDefinitionCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes($$$$"""
-        {"schemaVersion":1,"familyId":"9282a2b1-84a0-436d-8c4d-1c75b81d314c","revision":1,
-         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example","entryPoints":["setup"],"locales":["en"],
-         "fields":[{{{{fields}}}}],"artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-         "projection":{"op":"object","members":{}}}]}
-        """));
+    private static SetupDefinition EditingDefinition(string properties, string required = "[]") =>
+        SetupDefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(EditingSource(properties, required).ToJsonString()));
+
+    private static System.Text.Json.Nodes.JsonObject EditingSource(string properties, string required = "[]")
+    {
+        var source = System.Text.Json.Nodes.JsonNode.Parse($$$$$$"""
+            {"$schema":"urn:islamu:configurator:authoring:v2",
+             "identity":{"familyId":"9282a2b1-84a0-436d-8c4d-1c75b81d314c","revision":1},
+             "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],"entryPoints":["setup"],
+             "configuration":{"type":"object","additionalProperties":false,"required":{{{{{{required}}}}}},
+               "x-configurator":{"sensitivity":"public"},"properties":{ {{{{{{properties}}}}}} }},
+             "outputs":{"config.json":{"id":"config","format":"json","targetUpdateMode":"create","restartRequirement":"process",
+               "projection":{"op":"object","members":{}}}}}
+            """)!.AsObject();
+        var pointers = new System.Text.Json.Nodes.JsonArray();
+        foreach (string name in source["configuration"]!["properties"]!.AsObject().Select(property => property.Key))
+            pointers.Add(DefinitionPath.FromSegments([name]).ToPointer());
+        source["presentation"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultJourney":"guided","navigation":"sections",
+             "sections":[{"id":"settings","title":"Settings","pointers":[]}],
+             "journeys":[{"id":"guided","title":"Guided","sections":["settings"]}]}
+            """);
+        source["presentation"]!["sections"]![0]!["pointers"] = pointers;
+        return source;
+    }
 
     [Test]
     [NotInParallel]
     public async Task ContainerControlsSupplyAndClearEmptyValuesWithoutImplicitPresence()
     {
         using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
-            {"id":"object","title":"Object","type":"object","properties":[],"required":true,"sensitivity":"public","disclosure":"guided"},
-            {"id":"list","title":"List","type":"list","itemType":"integer","maxItems":0,"required":true,"sensitivity":"public","disclosure":"guided"}
-            """)));
+            "object":{"title":"Object","type":"object","additionalProperties":false,"properties":{},"x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "list":{"title":"List","type":"array","items":{"type":"integer","x-configurator":{"sensitivity":"public"}},"maxItems":0,"x-configurator":{"sensitivity":"public","detail":"basic"}}
+            """, """["object","list"]""")));
         Button supply = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("SupplyContainer"));
-        Button clear = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("ClearContainer"));
+        Button clear = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == SetupTerminalText.Get("OmitValue"));
         await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
         await Assert.That(supply.Visible).IsTrue();
         supply.InvokeCommand(Command.Accept);
@@ -316,9 +344,10 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task BrowsingBlankObjectChildPreservesAbsenceAndRevision()
     {
         using var harness = new Harness(form: new DefinitionFormModel(EditingDefinition("""
-            {"id":"object","title":"Object","type":"object","sensitivity":"public","disclosure":"guided","properties":[
-                {"id":"child","title":"Child","type":"string","required":true,"sensitivity":"public","disclosure":"guided"}]},
-            {"id":"after","title":"After","type":"string","sensitivity":"public","disclosure":"guided"}
+            "object":{"title":"Object","type":"object","additionalProperties":false,"required":["child"],
+              "x-configurator":{"sensitivity":"public","detail":"basic"},"properties":{
+                "child":{"title":"Child","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}},
+            "after":{"title":"After","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
             """)));
         harness.Window.MoveField(1);
         harness.Window.MoveField(1);
@@ -331,7 +360,7 @@ public sealed class SetupTerminalGuiAdapterTests
     public async Task SupplyListPreservesRejectedDraftAndCommitsValidVisibleDraft()
     {
         using var form = new DefinitionFormModel(EditingDefinition("""
-            {"id":"items","title":"Items","type":"list","itemType":"integer","sensitivity":"public","disclosure":"guided"}
+            "items":{"title":"Items","type":"array","items":{"type":"integer","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public","detail":"basic"}}
             """));
         using var items = System.Text.Json.JsonDocument.Parse("[7]");
         form.SetValue(["items"], items.RootElement);
@@ -731,8 +760,9 @@ public sealed class SetupTerminalGuiAdapterTests
         var rows = form.Snapshot().Values["rows"];
         await Assert.That(rows.GetArrayLength()).IsEqualTo(1);
         await Assert.That(rows[0].GetProperty("name").GetString()).IsEqualTo("second");
-        await Assert.That(rows[0].GetProperty("settings").ValueKind).IsEqualTo(System.Text.Json.JsonValueKind.Object);
-        await Assert.That(form.InputRevision).IsEqualTo(14);
+        await Assert.That(rows[0].TryGetProperty("settings", out _)).IsFalse();
+        // Appending each scalar alias supplies a row and then records its edit.
+        await Assert.That(form.InputRevision).IsEqualTo(16);
     }
 
     [Test]
@@ -745,16 +775,19 @@ public sealed class SetupTerminalGuiAdapterTests
         await Assert.That(add.Visible).IsTrue();
         await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
         await Assert.That(add.InvokeCommand(Command.Accept)).IsTrue();
+        // Exact property names are visited in canonical order: aliases, localizations, name, password, settings.
+        harness.Window.MoveField(2);
         await Assert.That(harness.Window.MaskedInput.Visible).IsTrue();
         await Assert.That(harness.Window.MaskedInput.HasFocus).IsTrue();
         await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("first")).IsTrue();
         await Assert.That(harness.Window.CommitField()).IsTrue();
-        harness.Window.MoveField(-1);
+        harness.Window.MoveField(-4);
         await Assert.That(add.InvokeCommand(Command.Accept)).IsTrue();
+        harness.Window.MoveField(2);
         await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("second")).IsTrue();
         await Assert.That(harness.Window.CommitField()).IsTrue();
-        // Pass the second row's remaining leaves and containers to return to the outer collection.
-        for (int navigation = 0; navigation < 5; navigation++) harness.Window.MoveField(1);
+        // Pass the second row's password and settings to return to the outer collection.
+        for (int navigation = 0; navigation < 3; navigation++) harness.Window.MoveField(1);
         await Assert.That(add.Visible).IsTrue();
         await Assert.That(remove.InvokeCommand(Command.Accept)).IsTrue();
         await Assert.That(harness.Form.Snapshot().Values["rows"].GetArrayLength()).IsEqualTo(2);
@@ -767,20 +800,28 @@ public sealed class SetupTerminalGuiAdapterTests
         await Assert.That(harness.Secret.Count).IsEqualTo(0);
     }
 
-    private static SetupDefinition ObjectListDefinition() => SetupDefinitionCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes("""
-        {"schemaVersion":1,"familyId":"9282a2b1-84a0-436d-8c4d-1c75b81d314c","revision":1,
-         "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Example","entryPoints":["setup"],"locales":["en"],
-         "fields":[{"id":"rows","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"guided","maxItems":2,
-           "properties":[
-             {"id":"name","title":"Row name","type":"string","required":true,"sensitivity":"public","disclosure":"guided"},
-             {"id":"password","title":"Row password","type":"string","sensitivity":"secret","disclosure":"guided"},
-             {"id":"settings","title":"Settings","type":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[]},
-             {"id":"aliases","title":"Aliases","type":"list","itemType":"string","required":true,"sensitivity":"public","disclosure":"guided"},
-             {"id":"localizations","title":"Localizations","type":"list","itemType":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[
-               {"id":"locale","title":"Locale","type":"string","required":true,"sensitivity":"public","disclosure":"guided"}]}]}],
-         "artifacts":[{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-           "projection":{"op":"object","members":{"rows":{"op":"copy","field":"rows"}}}}]}
-        """));
+    private static SetupDefinition ObjectListDefinition()
+    {
+        var source = EditingSource("""
+            "rows":{"title":"Rows","type":"array","maxItems":2,
+              "x-configurator":{"sensitivity":"public","detail":"basic"},
+              "items":{"type":"object","additionalProperties":false,"required":["name","settings","aliases","localizations"],
+                "x-configurator":{"sensitivity":"sensitive"},"properties":{
+                  "name":{"title":"Row name","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                  "password":{"title":"Row password","type":"string","x-configurator":{"sensitivity":"secret","detail":"basic"}},
+                  "settings":{"title":"Settings","type":"object","additionalProperties":false,"properties":{},
+                    "x-configurator":{"sensitivity":"public","detail":"basic"}},
+                  "aliases":{"title":"Aliases","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                    "x-configurator":{"sensitivity":"public","detail":"basic"}},
+                  "localizations":{"title":"Localizations","type":"array","x-configurator":{"sensitivity":"public","detail":"basic"},
+                    "items":{"type":"object","additionalProperties":false,"required":["locale"],"x-configurator":{"sensitivity":"public"},"properties":{
+                      "locale":{"title":"Locale","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}}}}}
+            """);
+        source["outputs"]!["config.json"]!["projection"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"op":"object","members":{"rows":{"op":"copy","reference":{"scope":"root","path":"/rows"}}}}
+            """);
+        return SetupDefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(source.ToJsonString()));
+    }
 
     private sealed class Harness : IDisposable
     {

@@ -8,36 +8,48 @@ internal static class TerminalDefinitionFixture
 {
     internal const string Json = """
         {
-          "schemaVersion":1,"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
-          "revision":1,"applicationId":"neutral.service","applicationVersions":["1.0"],
-          "publisher":"example","title":"Neutral service","entryPoints":["setup"],"locales":["en","ar"],
-          "fields":[
-            {"id":"name","title":"Name","type":"string","required":true,"sensitivity":"public","disclosure":"guided"},
-            {"id":"token","title":"Token","type":"string","required":true,"sensitivity":"secret","disclosure":"advanced"},
-            {"id":"enabled","title":"Enabled","type":"boolean","default":true,"sensitivity":"public","disclosure":"guided"},
-            {"id":"count","title":"Count","type":"integer","default":1,"sensitivity":"public","disclosure":"guided"},
-            {"id":"ratio","title":"Ratio","type":"number","default":1.5,"sensitivity":"public","disclosure":"guided"},
-            {"id":"mode","title":"Mode","type":"enum","choices":["local","external"],"default":"local","sensitivity":"public","disclosure":"guided"},
-            {"id":"endpoint","title":"Endpoint","type":"string","required":true,"activeWhen":{"op":"equals","field":"mode","value":"external"},"sensitivity":"public","disclosure":"guided"},
-            {"id":"tags","title":"Tags","type":"list","itemType":"string","sensitivity":"public","disclosure":"guided"},
-            {"id":"profile","title":"Profile","type":"object","sensitivity":"public","disclosure":"guided",
-             "properties":[
-               {"id":"display","title":"Display","type":"string","sensitivity":"public","disclosure":"guided"},
-               {"id":"password","title":"Password","type":"string","sensitivity":"secret","disclosure":"advanced"}
-             ]},
-            {"id":"advanced","title":"Advanced","type":"string","sensitivity":"public","disclosure":"advanced"}
-          ],
+          "schemaVersion":2,"profile":"bounded-v2","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
+          "revision":1,"project":{"id":"neutral.service","name":"Neutral service","publisher":"example"},
+          "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["ar","en"],
+          "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl"}}},
+          "requiredCapabilities":["predicate.root","projection.copy","projection.list","projection.literal","projection.object",
+            "relationship.presence","schema.array","schema.boolean","schema.enum","schema.integer","schema.number",
+            "schema.object","schema.string","values.initial"],
+          "configuration":{"type":"object","additionalProperties":false,"required":["name","token"],
+            "x-configurator":{"sensitivity":"public"},
+            "if":{"required":["mode"],"properties":{"mode":{"const":"external"}}},"then":{"required":["endpoint"]},
+            "properties":{
+              "name":{"title":"Name","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}},
+              "token":{"title":"Token","type":"string","x-configurator":{"sensitivity":"secret","detail":"advanced"}},
+              "enabled":{"title":"Enabled","type":"boolean","x-configurator":{"initialValue":true,"sensitivity":"public","detail":"basic"}},
+              "count":{"title":"Count","type":"integer","x-configurator":{"initialValue":1,"sensitivity":"public","detail":"basic"}},
+              "ratio":{"title":"Ratio","type":"number","x-configurator":{"initialValue":1.5,"sensitivity":"public","detail":"basic"}},
+              "mode":{"title":"Mode","type":"string","enum":["local","external"],
+                "x-configurator":{"initialValue":"local","sensitivity":"public","detail":"basic"}},
+              "endpoint":{"title":"Endpoint","type":"string","x-configurator":{"sensitivity":"public","detail":"basic",
+                "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/mode"},"value":"external"}}},
+              "tags":{"title":"Tags","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public","detail":"basic"}},
+              "profile":{"title":"Profile","type":"object","additionalProperties":false,
+                "x-configurator":{"sensitivity":"public","detail":"basic"},"properties":{
+                  "display":{"title":"Display","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                  "password":{"title":"Password","type":"string","x-configurator":{"sensitivity":"secret","detail":"advanced"}}}},
+              "advanced":{"title":"Advanced","type":"string","x-configurator":{"sensitivity":"public","detail":"advanced"}}
+            }},
+          "presentation":{"defaultJourney":"guided","navigation":"sections",
+            "sections":[{"id":"settings","title":"Settings",
+              "pointers":["/name","/token","/enabled","/count","/ratio","/mode","/endpoint","/tags","/profile","/advanced"]}],
+            "journeys":[{"id":"guided","title":"Guided","sections":["settings"]}]},
           "artifacts":[
-            {"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-             "projection":{"op":"object","members":{"name":{"op":"copy","field":"name"},"token":{"op":"copy","field":"token"}}}},
-            {"id":"environment","format":"dotenv","fileName":"config.env","applySemantics":"create","restart":"process",
-             "projection":{"op":"object","members":{"NAME":{"op":"copy","field":"name"},"TOKEN":{"op":"copy","field":"token"}}}},
-            {"id":"yaml","format":"yaml","fileName":"config.yaml","applySemantics":"create","restart":"process",
-             "projection":{"op":"object","members":{"name":{"op":"copy","field":"name"},"token":{"op":"copy","field":"token"}}}},
-            {"id":"legal","format":"markdown","fileName":"legal.md","applySemantics":"create","restart":"none",
-             "projection":{"op":"list","items":[{"op":"literal","value":"Operator: "},{"op":"copy","field":"token"}]}},
-            {"id":"identity","format":"json","fileName":"identity.json","applySemantics":"create","restart":"none",
-             "projection":{"op":"object","members":{"legalName":{"op":"copy","field":"token"}}}}
+            {"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+             "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}},"token":{"op":"copy","reference":{"scope":"root","path":"/token"}}}}},
+            {"id":"environment","format":"dotenv","fileName":"config.env","targetUpdateMode":"create","restartRequirement":"process",
+             "projection":{"op":"object","members":{"NAME":{"op":"copy","reference":{"scope":"root","path":"/name"}},"TOKEN":{"op":"copy","reference":{"scope":"root","path":"/token"}}}}},
+            {"id":"yaml","format":"yaml","fileName":"config.yaml","targetUpdateMode":"create","restartRequirement":"process",
+             "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}},"token":{"op":"copy","reference":{"scope":"root","path":"/token"}}}}},
+            {"id":"legal","format":"markdown","fileName":"legal.md","targetUpdateMode":"create","restartRequirement":"none",
+             "projection":{"op":"list","items":[{"op":"literal","value":"Operator: "},{"op":"copy","reference":{"scope":"root","path":"/token"}}]}},
+            {"id":"identity","format":"json","fileName":"identity.json","targetUpdateMode":"create","restartRequirement":"none",
+             "projection":{"op":"object","members":{"legalName":{"op":"copy","reference":{"scope":"root","path":"/token"}}}}}
           ]
         }
         """;

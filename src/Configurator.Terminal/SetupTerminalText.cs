@@ -2,13 +2,58 @@ namespace Configurator.Terminal;
 
 using System.Globalization;
 using System.Resources;
+using System.Text.Json;
 using Configurator.Artifacts;
+using Configurator.Presentation;
 
 internal static class SetupTerminalText
 {
     private static readonly ResourceManager Resources = new(
         "Configurator.Terminal.Resources.SetupTerminalText", typeof(SetupTerminalText).Assembly);
     internal static string Get(string key) => Resources.GetString(key, CultureInfo.CurrentUICulture) ?? key;
+
+    internal static string FormatHelp(DefinitionEditorPresentation? presentation, JsonElement metadata)
+    {
+        if (presentation is null) return string.Empty;
+        var parts = new List<string>();
+        if (presentation.Description is { Length: > 0 } description) parts.Add(description);
+        if (presentation.Instructions is { Length: > 0 } instructions) parts.Add(instructions);
+        if (presentation.Units is { Length: > 0 } units) parts.Add(units);
+        if (metadata.TryGetProperty("x-configurator", out JsonElement extension) &&
+            extension.TryGetProperty("credential", out JsonElement credential))
+            parts.Add(Get(credential.GetProperty("acquisition").GetString() switch
+            {
+                "issuer" => "CredentialIssuer",
+                "create" => "CredentialCreate",
+                _ => "CredentialExisting"
+            }));
+        parts.AddRange(presentation.Choices.Where(choice => choice.Explanation is { Length: > 0 })
+            .Select(choice => choice.Label + ": " + choice.Explanation));
+        parts.AddRange(presentation.Links.Select(link => link.Title + ": " + link.Url));
+        return string.Join("\n", parts);
+    }
+
+    /// <summary>Pages inert public guidance without interpreting markup, links or terminal escape sequences.</summary>
+    internal static IReadOnlyList<string> HelpPages(string text, int width)
+    {
+        width = Math.Max(1, width);
+        var lines = new List<string>();
+        foreach (string paragraph in text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        {
+            string safe = new(paragraph.Select(character => char.IsControl(character) ? ' ' : character).ToArray());
+            if (safe.Length == 0) lines.Add("");
+            for (int start = 0; start < safe.Length;)
+            {
+                int length = Math.Min(width, safe.Length - start);
+                if (start + length < safe.Length && char.IsHighSurrogate(safe[start + length - 1])) length--;
+                if (length == 0) length = Math.Min(2, safe.Length - start);
+                lines.Add(safe.Substring(start, length));
+                start += length;
+            }
+        }
+        return Enumerable.Range(0, (lines.Count + 1) / 2)
+            .Select(index => string.Join("\n", lines.Skip(index * 2).Take(2))).ToArray();
+    }
     internal static string FormatReceipt(ProtectedArtifactPublicationReceipt receipt, int index)
     {
         var result = new SetupTerminalArtifactResult(receipt.Outcomes,

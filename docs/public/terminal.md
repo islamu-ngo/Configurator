@@ -33,7 +33,7 @@ dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj \
   --family 69cdb122-41d2-4fab-9b82-7929a889c726 --app-version 1.0
 ```
 
-Local definition files can contain either a compact maintainer source (`$schema: urn:islamu:configurator:authoring:v1`) or an expanded runtime definition. The engine compiles and admits compact sources before any answers are collected, generating canonical identities identical to the CLI and Desktop clients. See the [definition guide](definitions.md) for authoring details.
+Local definition files can contain either a compact maintainer source (`$schema: urn:islamu:configurator:authoring:v2`) or an expanded runtime v2 definition. The engine compiles and admits compact sources before any answers are collected, generating canonical identities identical to the CLI and Desktop clients. See the [definition guide](definitions.md) for authoring details.
 
 > [!NOTE]
 > Definitions are frozen for the duration of the session. If you edit the definition source on disk, close and relaunch the terminal to load the updated revision.
@@ -100,7 +100,9 @@ Fields enforce strict typing based on the setup definition:
 - **Strings, Numbers, and Decimals:** Invariant decimal formatting is validated on commit.
 - **Booleans and Enums:** Use **Cycle choice** to advance choices sequentially. If an invalid draft is typed, correct it before cycling.
 - **Explicit Omission:** Use **Omit value** to remove an answer completely. Empty strings (`""`) and admitted empty enum options remain explicit values; omission is an independent action.
-- **Defaults:** Authored defaults automatically apply to any unsupplied, non-mandatory fields.
+- **Nullable values:** **Set null** supplies JSON null for a nullable location; it does not omit it. List-item null acts on the selected existing item.
+- **Reset and suggestions:** **Reset value** removes overrides and explicit omission, allowing eligible initialization again. **Apply suggestion** deliberately adopts the declared suggestion; neither navigation nor language selection applies suggestions.
+- **Initialization:** `x-configurator.initialValue` supplies eligible effective values without copying them into the supplied answer snapshot. Standard JSON Schema `default` is descriptive only. Requiredness does not create an absent parent container; explicit omission suppresses initialization until reset.
 
 Protected secrets are masked on screen. Secret draft buffers exist only while focused; navigating away flushes the transient editing buffer.
 
@@ -113,12 +115,41 @@ Structured fields require explicit lifecycle management:
 - **Adding Items:** Leaving a new-item slot empty skips adding it. Activating **Add item** commits the typed item, including empty strings.
 - **Double-Press Delete:** To prevent accidental data loss, removing an item requires pressing **Remove item** twice. Navigating away or editing any field cancels the pending deletion.
 
+Typed maps expose a masked key-entry control on the map container. Enter an
+exact literal key and activate **Add map entry**, then navigate to its typed
+value. Empty keys, dots, slashes and numeric-looking keys are data, not path
+syntax; duplicate keys are not replaced. Entry labels use local ordinals rather
+than exposing dynamic keys in public guidance or diagnostics. Omit an entry to
+remove it; declared bounds and value constraints still govern readiness.
+
+For a discriminated provider object, **Cycle variant** selects a declared branch.
+Only its selected children are available for editing. Switching branches drops
+the previous payload; the shared engine supplies only eligible initialization.
+Choice labels and translated branch titles never determine typed answer identity.
+
+### Guidance, language and corrections
+
+Use **Help** to page through admitted descriptions, instructions, units, choice
+explanations and static guidance links. These are inert public text: no links
+are fetched or executed. Paging keeps longer guidance reachable in the supported
+minimum viewport.
+
+**Locale** cycles declared definition languages with base-text fallback. Language
+changes public metadata, not answer values, schema identity, input revision or
+prepared output. Shipped English/Arabic action resources follow process UI
+culture separately. Terminal rendering is not a claim of full bidirectional
+layout or assistive-technology qualification.
+
+**Next correction** resolves current shared diagnostics to a reachable editor,
+including nested items and map entries. Coordinates from an earlier input
+revision are rejected; private map keys and values do not become status text.
+
 ### Journeys and Disclosure Levels
 
 Definitions can author tailored configuration journeys (e.g., *Recommended*, *Advanced*, *Minimal*):
 
 - **Experience Selector:** Cycle through authored journeys or use the neutral **Configure** experience.
-- **Optional Settings:** Toggle optional editor expansion to inspect advanced settings. Collapsing the view restores authored defaults without discarding entered values.
+- **Optional Settings:** Toggle optional editor expansion to inspect advanced settings. Collapsing the view restores authored disclosure without discarding entered values. Journeys organize navigation; selecting a different journey does not itself expand optional detail.
 - **Persistent Errors:** Active validation errors and required fields remain accessible regardless of the selected journey.
 - **Preserved Drafts:** Rejected input text is preserved when switching views, allowing you to correct mistakes without starting over.
 
@@ -165,3 +196,7 @@ To protect sensitive configuration data:
 - **Clear Private State:** Removes all entered secrets and invalidates prepared bundles while preserving non-sensitive public settings.
 - **Closing the Session:** Exiting or sending termination signals (`SIGINT`, `SIGTERM`) flushes private memory buffers and detaches UI callbacks.
 - **Graceful Shutdown:** Configurator waits up to two seconds for active disk operations to finish before exiting. If an operation cannot be verified before exit, status indicates an unknown outcome so you can inspect destination files manually.
+
+Deterministic adapter/control tests and actual interactive process qualification
+are separate evidence. A prepared configuration does not prove target acceptance,
+grant apply permission or qualify a new operating-system host.

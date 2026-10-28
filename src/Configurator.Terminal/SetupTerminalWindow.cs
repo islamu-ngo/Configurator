@@ -10,7 +10,7 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
 using global::Terminal.Gui.Drawing;
-using global::Terminal.Gui.Input;
+using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
 using global::Terminal.Gui.Views;
 
@@ -46,12 +46,21 @@ internal sealed class SetupTerminalWindow : Window
     private readonly Button _addItem;
     private readonly Button _supplyContainer;
     private readonly Button _clearContainer;
+    private readonly Button _null;
+    private readonly Button _reset;
+    private readonly Button _suggest;
+    private readonly Button _locale;
+    private readonly Button _helpNext;
+    private readonly Button _correction;
+    private readonly Button[] _itemActions;
     private readonly Button[] _listButtons;
     private readonly View[] _normal;
     private SetupTerminalFieldEditor.Slot? _slot;
     private int _fieldIndex;
     private int _itemIndex;
     private int _outcomeIndex;
+    private int _helpPage;
+    private int _correctionIndex = -1;
     private ProtectedArtifactPublicationReceipt? _receipt;
     private int _publicationRefreshQueued;
     private bool _loading;
@@ -93,14 +102,17 @@ internal sealed class SetupTerminalWindow : Window
             Width = Dim.Fill(2),
             Text = Safe($"{definition.Title} | {definition.ApplicationId} | r{definition.Revision}")
         };
+        _locale = Button("Locale", 1, 1, CycleLocale);
+        _correction = Button("NextCorrection", 25, 1, FocusNextCorrection);
         _experience = Button("Choose", 1, 2, CycleExperience);
         _experience.Width = Dim.Fill(2);
         _optionalEditors = Button("Choose", 1, 3, ToggleOptionalEditors);
         _optionalEditors.Width = Dim.Fill(2);
-        _fieldLabel = new Label { X = 1, Y = 4, Width = Dim.Fill(2) };
+        _fieldLabel = new Label { X = 1, Y = 4, Width = Dim.Fill(2), HotKeySpecifier = (Rune)0xffff };
         _value = new TextField { X = 1, Y = 5, Width = Dim.Fill(2) };
         _masked = new SetupSecretTextField(secret) { X = 1, Y = 5, Width = Dim.Fill(2), Visible = false };
-        _help = new Label { X = 1, Y = 6, Width = Dim.Fill(2), Height = 2 };
+        _help = new Label { X = 1, Y = 6, Width = Dim.Fill(2), Height = 2, HotKeySpecifier = (Rune)0xffff };
+        _experience.HotKeySpecifier = (Rune)0xffff;
         _choice = Button("Choose", 1, 8, CycleChoice);
         _supplyContainer = Button("SupplyContainer", 25, 8, SupplyContainer);
         _clearContainer = Button("ClearContainer", 49, 8, ClearContainer);
@@ -112,6 +124,7 @@ internal sealed class SetupTerminalWindow : Window
         var removeItem = Button("RemoveItem", 49, 10, RemoveItem);
         _listButtons = [previousItem, nextItem, removeItem];
         _addItem = Button("AddItem", 1, 11, AddItem);
+        _helpNext = Button("Help", 49, 11, () => { _helpPage++; ShowHelp(); });
         var artifact = Button("Artifact", 1, 12, CycleArtifact);
         var selectOutput = Button("SelectOutput", 27, 12, ToggleOutput);
         _artifactLabel = new Label { X = 1, Y = 13, Width = Dim.Fill(2) };
@@ -133,6 +146,12 @@ internal sealed class SetupTerminalWindow : Window
             ReadOnly = true,
             Text = SetupTerminalText.Get("Ready")
         };
+        _null = Button("SetNull", 1, 19, () => EditTyped("SetNull"));
+        _reset = Button("ResetValue", 25, 19, () => EditTyped("ResetValue"));
+        _suggest = Button("ApplySuggestion", 49, 19, () => EditTyped("ApplySuggestion"));
+        var itemNull = Button("ItemNull", 1, 20, () => EditTyped("SetNull", item: true));
+        var itemSuggestion = Button("ItemSuggestion", 25, 20, () => EditTyped("ApplySuggestion", item: true));
+        _itemActions = [itemNull, itemSuggestion];
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
         var limitations = new Label { X = 1, Y = 22, Width = Dim.Fill(2), Height = 2, Text = SetupTerminalText.Get("Limitations") };
@@ -145,10 +164,10 @@ internal sealed class SetupTerminalWindow : Window
             Text = SetupTerminalText.Get("TerminalTooSmall"),
             Visible = false
         };
-        Add(heading, _experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
+        Add(heading, _locale, _correction, _experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
             _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import,
             validate, _prepare, _save, _nextOutcome, _nextAttempt, _status,
-            clear, close, limitations, previousItem, nextItem, removeItem, _addItem);
+            clear, close, limitations, previousItem, nextItem, removeItem, _addItem, _helpNext, _null, _reset, _suggest, itemNull, itemSuggestion);
         _normal = SubViews.ToArray();
         Add(_smallNotice);
         _value.ValueChanged += (_, _) => EditorChanged();
@@ -211,6 +230,12 @@ internal sealed class SetupTerminalWindow : Window
         _confirmRemove = false;
         _importOperation.RequestCancellationAsync();
         _operation.Invalidate();
+        if (_slot is { IsMap: true })
+        {
+            _draftEdited = false;
+            Status("MapKeyHelp");
+            return;
+        }
         Status(CommitField() ? "InputChanged" : "DraftInvalid");
         RefreshCommands();
     }
@@ -219,6 +244,7 @@ internal sealed class SetupTerminalWindow : Window
     {
         if (Volatile.Read(ref _closeRequested) != 0) return false;
         if (_slot is null) return true;
+        if (_slot.IsMap) { _draftEdited = false; return true; }
         if (!_draftEdited) return _draftValid;
         _draftEdited = false;
         byte[] bytes = [];
@@ -243,7 +269,7 @@ internal sealed class SetupTerminalWindow : Window
 
     internal void MoveField(int delta)
     {
-        if (!CommitField()) return;
+        CommitField();
         var slots = VisibleSlots;
         if (slots.Count == 0) { ShowField(); return; }
         int current = _slot is null ? 0 : slots.ToList().FindIndex(slot =>
@@ -257,15 +283,18 @@ internal sealed class SetupTerminalWindow : Window
             if (firstRowField >= 0) _fieldIndex = firstRowField;
         }
         _itemIndex = 0;
+        _helpPage = 0;
         ShowField(preserveLocation: false);
         FocusInput();
     }
 
     private void MoveItem(int delta)
     {
-        if (_slot is null || !_slot.IsList || !CommitField()) return;
+        if (_slot is null || !_slot.IsList) return;
+        CommitField();
         int requested = _itemIndex + delta;
         _itemIndex = Math.Clamp(requested, 0, SetupTerminalFieldEditor.LastItemPosition(_slot));
+        _helpPage = 0;
         ShowField();
         if (requested > _itemIndex) Status("ListBound");
         FocusInput();
@@ -288,6 +317,23 @@ internal sealed class SetupTerminalWindow : Window
 
     private void AddItem()
     {
+        if (_slot is { IsMap: true } map)
+        {
+            byte[] keyBytes = _secret.Count == 0 ? [] : _secret.CopyUtf8Bytes();
+            try
+            {
+                string key = Encoding.UTF8.GetString(keyBytes);
+                if (!SetupTerminalFieldEditor.AddMapEntry(map, key)) { Status("MapKeyInvalid"); return; }
+                string[] path = [.. map.FullPath, key];
+                _operation.Form.FocusEditor(path);
+                var slots = VisibleSlots;
+                _fieldIndex = slots.ToList().FindIndex(slot => slot.FullPath.SequenceEqual(path));
+                ShowField(preserveLocation: false);
+                FocusInput();
+            }
+            finally { CryptographicOperations.ZeroMemory(keyBytes); }
+            return;
+        }
         if (_slot is not { IsList: true } collection || !CommitField()) return;
         if (SetupTerminalFieldEditor.ItemCount(collection) >= SetupTerminalFieldEditor.MaximumItems(collection))
         {
@@ -343,9 +389,12 @@ internal sealed class SetupTerminalWindow : Window
             _slot = slots.Count == 0 ? null : slots[_fieldIndex];
             if (_slot?.IsList == true) _itemIndex = Math.Clamp(_itemIndex, 0, SetupTerminalFieldEditor.LastItemPosition(_slot));
             _fieldLabel.Text = _slot is null ? SetupTerminalText.Get("NoFields")
-                : Safe($"{_fieldIndex + 1}/{slots.Count} {string.Join('/', _slot.FullPath)} / {_slot.Title} ({_slot.ScalarType})"
-                    + (_slot.IsList ? $" [{_itemIndex + 1}/{SetupTerminalFieldEditor.ItemCount(_slot) + 1}]" : ""));
-            _help.Text = _slot is null ? string.Empty : Safe(_slot.Help);
+                : Safe($"{_fieldIndex + 1}/{slots.Count} {_slot.Title} ({_slot.ScalarType})"
+                    + (_slot.IsList ? $" [{_itemIndex + 1}/{SetupTerminalFieldEditor.ItemCount(_slot) + 1}]" : "")
+                    + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + SetupTerminalText.Get("Required") : "")
+                    + (SetupTerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + SetupTerminalText.Get("NullValue")
+                        : _operation.Form.AnswerOrigin(_slot.FullPath) == DefinitionAnswerOrigin.Omitted ? " | " + SetupTerminalText.Get("Omitted") : ""));
+            ShowHelp();
             if (_slot is not null)
             {
                 string text = SetupTerminalFieldEditor.Read(_slot, _itemIndex);
@@ -355,11 +404,17 @@ internal sealed class SetupTerminalWindow : Window
                 else if (!_slot.RequiresMasking) _value.Text = text;
             }
             SetEditorVisibility();
-            var experience = _operation.Form.Experiences.Single(item => item.Id == _operation.Form.SelectedExperienceId);
+            var experience = _operation.Form.DisplayExperiences.Single(item => item.Id == _operation.Form.SelectedExperienceId);
             _experience.Text = Safe(experience.Title);
             _experience.Enabled = _operation.Form.Experiences.Count > 1;
             _optionalEditors.Text = _operation.Form.OptionalEditorsExpanded
-                ? "Restore default disclosure" : "Show optional editors";
+                ? SetupTerminalText.Get("DefaultDisclosure") : SetupTerminalText.Get("OptionalEditors");
+            _locale.Text = SetupTerminalText.Get("Locale") + ": " + _operation.Form.Locale + " (" + _operation.Form.Direction + ")";
+            _locale.Enabled = _operation.Form.Definition.Locales.Count > 1;
+            bool rtl = _operation.Form.Direction == "rtl";
+            _fieldLabel.TextDirection = _help.TextDirection = _experience.TextDirection = rtl
+                ? TextDirection.RightLeft_TopBottom : TextDirection.LeftRight_TopBottom;
+            _fieldLabel.TextAlignment = _help.TextAlignment = _experience.TextAlignment = rtl ? Alignment.End : Alignment.Start;
             RefreshCommands();
         }
         finally { _loading = false; }
@@ -370,18 +425,30 @@ internal sealed class SetupTerminalWindow : Window
         bool scalar = !_tooSmall && _slot is { IsObject: false, IsObjectList: false }
             && (!_slot.IsList || SetupTerminalFieldEditor.MaximumItems(_slot) > 0);
         _value.Visible = scalar && _slot is { RequiresMasking: false };
-        _masked.Visible = scalar && _slot is { RequiresMasking: true };
-        _addItem.Visible = !_tooSmall && _slot is { IsList: true };
-        _supplyContainer.Visible = !_tooSmall && _slot is { IsContainer: true };
+        _masked.Visible = scalar && _slot is { RequiresMasking: true } || !_tooSmall && _slot is { IsMap: true };
+        _addItem.Visible = !_tooSmall && (_slot is { IsList: true } or { IsMap: true });
+        _addItem.Text = SetupTerminalText.Get(_slot is { IsMap: true } ? "AddMapEntry" : "AddItem");
+        _supplyContainer.Visible = !_tooSmall && _slot is { IsContainer: true } && _slot.Schema.Variants.Count == 0;
         _clearContainer.Visible = !_tooSmall && _slot is not null;
-        _clearContainer.Text = _slot is { IsContainer: true } ? SetupTerminalText.Get("ClearContainer") : "Omit value";
-        _choice.Visible = !_tooSmall && _slot is not null && SetupTerminalFieldEditor.Choices(_slot).Count > 0;
+        _clearContainer.Text = SetupTerminalText.Get("OmitValue");
+        _choice.Visible = !_tooSmall && _slot is not null &&
+            (_slot.Schema.Variants.Count > 0 || SetupTerminalFieldEditor.Choices(_slot).Count > 0);
+        _choice.Text = SetupTerminalText.Get(_slot is not null && _slot.Schema.Variants.Count > 0 ? "ChooseVariant" : "Choose");
+        _null.Visible = !_tooSmall && _slot is not null && _slot.Schema.IsNullable;
+        _reset.Visible = !_tooSmall && _slot is not null;
+        _suggest.Visible = !_tooSmall && _slot is not null && HasSuggestion(_slot.Schema);
+        for (int index = 0; index < _itemActions.Length; index++)
+            _itemActions[index].Visible = !_tooSmall && _slot is { IsList: true, IsObjectList: false } &&
+                SetupTerminalFieldEditor.HasItem(_slot, _itemIndex) &&
+                (index == 0 ? _slot.Schema.Items!.IsNullable : HasSuggestion(_slot.Schema.Items!));
         foreach (var button in _listButtons) button.Visible = !_tooSmall && _slot is { IsList: true };
     }
 
     private void FocusInput()
     {
-        if (_slot?.IsObject == true) _supplyContainer.SetFocus();
+        if (_slot?.IsMap == true) _masked.SetFocus();
+        else if (_slot is not null && _slot.Schema.Variants.Count > 0) _choice.SetFocus();
+        else if (_slot?.IsObject == true) _supplyContainer.SetFocus();
         else if (_slot?.IsObjectList == true) _addItem.SetFocus();
         else if (_slot is { IsList: true } && SetupTerminalFieldEditor.MaximumItems(_slot) == 0) _supplyContainer.SetFocus();
         else if (_slot?.RequiresMasking == true) _masked.SetFocus();
@@ -408,14 +475,119 @@ internal sealed class SetupTerminalWindow : Window
     private void CycleChoice()
     {
         if (_slot is null) return;
+        if (_slot.Schema.Variants.Count > 0)
+        {
+            int currentVariant = _slot.Schema.Variants.ToList().FindIndex(variant => ReferenceEquals(variant, _slot.ObjectSchema));
+            int nextVariant = (currentVariant + 1) % _slot.Schema.Variants.Count;
+            if (!_operation.Form.SelectVariant(_slot.FullPath, nextVariant)) { Status("DraftInvalid"); return; }
+            ShowField();
+            _status.Text = Safe(_operation.Form.GetVariantTitle(_slot.FullPath, nextVariant) ?? "");
+            FocusInput();
+            return;
+        }
         var choices = SetupTerminalFieldEditor.Choices(_slot);
         if (choices.Count == 0) return;
         if (!CommitField()) return;
-        string current = SetupTerminalFieldEditor.Read(_slot, _itemIndex);
-        string next = choices[(choices.ToList().IndexOf(current) + 1) % choices.Count];
-        if (!SetupTerminalFieldEditor.Write(_slot, next, _itemIndex)) { Status("DraftInvalid"); return; }
+        int current = SetupTerminalFieldEditor.ChoiceIndex(_slot, _itemIndex);
+        if (current < 0 && (_slot.IsList ? SetupTerminalFieldEditor.HasItem(_slot, _itemIndex)
+            : SetupTerminalFieldEditor.Value(_slot) is not null))
+        {
+            Status("DraftInvalid");
+            return;
+        }
+        int next = (current + 1) % choices.Count;
+        if (!SetupTerminalFieldEditor.SelectChoice(_slot, next, _itemIndex)) { Status("DraftInvalid"); return; }
         ShowField();
+        if (!_slot.RequiresMasking) _status.Text = Safe($"{next + 1}/{choices.Count} " + choices[next]);
         FocusInput();
+    }
+
+    private static bool HasSuggestion(DefinitionNode schema) =>
+        schema.Keywords.TryGetProperty("x-configurator", out JsonElement extension) &&
+        extension.TryGetProperty("suggestedValue", out _);
+
+    private void EditTyped(string action, bool item = false)
+    {
+        if (_slot is null) return;
+        string[] path = item ? SetupTerminalFieldEditor.EditPath(_slot, _itemIndex) : _slot.FullPath;
+        bool accepted = action switch
+        {
+            "SetNull" => _operation.Form.SetNull(path),
+            "ResetValue" => _operation.Form.ResetValue(path),
+            _ => _operation.Form.ApplySuggestion(path)
+        };
+        if (!accepted) { Status("DraftInvalid"); return; }
+        ShowField();
+        Status("InputChanged");
+        FocusInput();
+    }
+
+    private void CycleLocale()
+    {
+        var form = _operation.Form;
+        var locales = form.Definition.Locales;
+        int current = locales.ToList().IndexOf(form.Locale);
+        _helpPage = 0;
+        form.SelectLocale(locales[(current + 1) % locales.Count]);
+    }
+
+    private void ShowHelp()
+    {
+        string text = _slot is null ? "" : _slot.Title + " (" + _slot.Type + ")\n" + _slot.Help;
+        if (_slot is not null && _slot.Schema.Variants.Count > 0)
+        {
+            int selected = _slot.Schema.Variants.ToList().FindIndex(variant => ReferenceEquals(variant, _slot.ObjectSchema));
+            if (selected >= 0)
+                text += $"\n{selected + 1}/{_slot.Schema.Variants.Count} " +
+                    _operation.Form.GetVariantTitle(_slot.FullPath, selected);
+        }
+        if (_slot is { IsMap: true }) text = SetupTerminalText.Get("MapKeyHelp") + "\n" + text;
+        if (_slot is { IsList: true } list && SetupTerminalFieldEditor.HasItem(list, _itemIndex))
+            text += "\n" + SetupTerminalText.FormatHelp(
+                _operation.Form.GetEditorPresentation(SetupTerminalFieldEditor.EditPath(list, _itemIndex)), list.Schema.Items!.Keywords);
+        IReadOnlyList<string> pages = SetupTerminalText.HelpPages(text, Math.Max(2, (Viewport.Width - 4) / 2));
+        _helpPage %= Math.Max(1, pages.Count);
+        _help.Text = pages.Count > 0 ? pages[_helpPage] : "";
+        _helpNext.Text = SetupTerminalText.Get("Help") + $" {_helpPage + 1}/{Math.Max(1, pages.Count)}";
+        _helpNext.Enabled = pages.Count > 1;
+    }
+
+    internal void FocusNextCorrection()
+    {
+        CommitField();
+        var form = _operation.Form;
+        var diagnostics = form.InputDiagnostics.Concat(form.Validate().Diagnostics).ToArray();
+        for (int offset = 0; offset < diagnostics.Length; offset++)
+        {
+            _correctionIndex = (_correctionIndex + 1) % diagnostics.Length;
+            DefinitionDiagnostic diagnostic = diagnostics[_correctionIndex];
+            IReadOnlyList<string> path;
+            if (diagnostic.Location is { } location)
+            {
+                if (!form.TryResolveCorrection(diagnostic.FieldId, location, out path) ||
+                    !form.FocusCorrection(diagnostic.FieldId, location)) continue;
+            }
+            else
+            {
+                path = new[] { diagnostic.FieldId }.Concat(diagnostic.RelativePath).ToArray();
+                if (!form.FocusEditor(path)) continue;
+            }
+            var slots = VisibleSlots;
+            int index = slots.ToList().FindIndex(slot => slot.FullPath.SequenceEqual(path));
+            if (index < 0 && path.Count > 1)
+            {
+                index = slots.ToList().FindIndex(slot => slot.IsList && slot.FullPath.SequenceEqual(path.SkipLast(1)));
+                if (index >= 0 && int.TryParse(path[^1], out int row)) _itemIndex = row;
+            }
+            if (index < 0) continue;
+            _fieldIndex = index;
+            _helpPage = 0;
+            ShowField(preserveLocation: false);
+            _status.Text = Safe(diagnostic.Code + ":" + diagnostic.FieldId);
+            FocusInput();
+            return;
+        }
+        Status("DraftInvalid");
     }
 
     private void CycleArtifact()
@@ -764,6 +936,7 @@ internal sealed class SetupTerminalWindow : Window
         _nextOutcome.Visible = !_tooSmall && _receipt is { Outcomes.Count: > 1 };
         _nextAttempt.Visible = !_tooSmall && _receipt is not null;
         _smallNotice.Visible = _tooSmall;
+        ShowHelp();
         SetEditorVisibility();
         RefreshCommands();
     }

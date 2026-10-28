@@ -11,6 +11,128 @@ using Configurator.Terminal;
 
 public sealed class SetupTerminalOfflineWorkflowTests
 {
+    private static readonly string[] EqualChoiceLabels = ["Equal", "Equal"];
+    private static readonly string[] TranslatedChoiceLabels = ["Translated", "Equal"];
+    [Test]
+    [NotInParallel]
+    public async Task NativeButtonsEditTypedMapNullAndBranchesWithoutLocaleAnswerChanges()
+    {
+        using var form = new DefinitionFormModel(TypedDefinition());
+        form.SetAllSectionsExpanded(true);
+        using var harness = new ExperienceHarness(form, initialize: true);
+        void Click(string key) => harness.Window.SubViews.OfType<global::Terminal.Gui.Views.Button>()
+            .Single(button => button.Text == SetupTerminalText.Get(key))
+            .InvokeCommand(global::Terminal.Gui.Input.Command.Accept);
+        Click("Choose");
+        Click("Choose");
+        await Assert.That(form.Snapshot().Values["choice"].GetInt32()).IsEqualTo(2);
+        harness.Window.MoveField(1);
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("literal/key")).IsTrue();
+        Click("AddMapEntry");
+        harness.Window.PublicInput.Text = "7";
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.Snapshot().Values["map"].GetProperty("literal/key").GetInt32()).IsEqualTo(7);
+        harness.Window.MoveField(1);
+        Click("SetNull");
+        await Assert.That(form.Snapshot().Values["nullable"].ValueKind).IsEqualTo(JsonValueKind.Null);
+        Click("OmitValue");
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/nullable"), out _)).IsFalse();
+        Click("ResetValue");
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/nullable"), out var reset)).IsTrue();
+        await Assert.That(reset.GetInt32()).IsEqualTo(4);
+        harness.Window.MoveField(1);
+        Click("ChooseVariant");
+        await Assert.That(form.Snapshot().Values["provider"].GetProperty("kind").GetString()).IsEqualTo("first");
+        Click("ChooseVariant");
+        await Assert.That(form.Snapshot().Values["provider"].GetProperty("kind").GetString()).IsEqualTo("second");
+        long revision = form.InputRevision;
+        harness.Window.SubViews.OfType<global::Terminal.Gui.Views.Button>()
+            .Single(button => button.Text.StartsWith(SetupTerminalText.Get("Locale") + ":", StringComparison.Ordinal))
+            .InvokeCommand(global::Terminal.Gui.Input.Command.Accept);
+        await Assert.That(form.Locale).IsEqualTo("ar");
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(harness.Window.StatusText).DoesNotContain("literal/key");
+    }
+
+    [Test]
+    public async Task TypedMapAndEqualLabelChoicesKeepLiteralKeysAndExactValues()
+    {
+        using var form = new DefinitionFormModel(TypedDefinition());
+        form.SetAllSectionsExpanded(true);
+        var editor = new SetupTerminalFieldEditor(form);
+        var choice = editor.Slots.Single(slot => slot.Input.Definition.Id == "choice");
+        await Assert.That(SetupTerminalFieldEditor.Choices(choice)).IsEquivalentTo(EqualChoiceLabels);
+        await Assert.That(SetupTerminalFieldEditor.SelectChoice(choice, 1, 0)).IsTrue();
+        await Assert.That(form.Snapshot().Values["choice"].GetInt32()).IsEqualTo(2);
+        var map = editor.Slots.Single(slot => slot.Input.Definition.Id == "map" && slot.Path.Length == 0);
+        await Assert.That(SetupTerminalFieldEditor.AddMapEntry(map, "literal/key")).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddMapEntry(map, "literal/key")).IsFalse();
+        var entry = editor.Slots.Single(slot => slot.Path.SequenceEqual(new[] { "literal/key" }));
+        await Assert.That(SetupTerminalFieldEditor.Write(entry, "7")).IsTrue();
+        await Assert.That(form.Snapshot().Values["map"].GetProperty("literal/key").GetInt32()).IsEqualTo(7);
+        await Assert.That(SetupTerminalFieldEditor.Write(entry, "-")).IsFalse();
+        await Assert.That(form.HasInputErrors).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.Read(entry)).IsEqualTo("-");
+        await Assert.That(SetupTerminalFieldEditor.Write(entry, "8")).IsTrue();
+        await Assert.That(form.HasInputErrors).IsFalse();
+        await Assert.That(SetupTerminalFieldEditor.AddMapEntry(map, "second")).IsTrue();
+        await Assert.That(SetupTerminalFieldEditor.AddMapEntry(map, "third")).IsFalse();
+        long revision = form.InputRevision;
+        form.SelectLocale("ar");
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(SetupTerminalFieldEditor.Choices(choice)).IsEquivalentTo(TranslatedChoiceLabels);
+        await Assert.That(SetupTerminalFieldEditor.ChoiceIndex(choice, 0)).IsEqualTo(1);
+        await Assert.That(form.Snapshot().Values["map"].GetProperty("literal/key").GetInt32()).IsEqualTo(8);
+    }
+
+    [Test]
+    public async Task BranchNavigationUsesOnlySelectedChildrenAndNullRemainsPresent()
+    {
+        using var form = new DefinitionFormModel(TypedDefinition());
+        form.SetAllSectionsExpanded(true);
+        var editor = new SetupTerminalFieldEditor(form);
+        form.SelectVariant(["provider"], 0);
+        var count = editor.Slots.Single(slot => slot.Path.SequenceEqual(new[] { "count" }));
+        await Assert.That(SetupTerminalFieldEditor.Write(count, "3")).IsTrue();
+        form.SelectVariant(["provider"], 0);
+        await Assert.That(form.Snapshot().Values["provider"].GetProperty("count").GetInt32()).IsEqualTo(3);
+        form.SelectVariant(["provider"], 1);
+        await Assert.That(SetupTerminalFieldEditor.Write(count, "9")).IsFalse();
+        await Assert.That(form.Snapshot().Values["provider"].TryGetProperty("count", out _)).IsFalse();
+        await Assert.That(editor.Slots.Any(slot => slot.Path.SequenceEqual(new[] { "count" }))).IsFalse();
+        await Assert.That(editor.Slots.Any(slot => slot.Path.SequenceEqual(new[] { "other" }))).IsTrue();
+        form.SetNull(["nullable"]);
+        var nullable = editor.Slots.Single(slot => slot.Input.Definition.Id == "nullable");
+        await Assert.That(form.Snapshot().Values["nullable"].ValueKind).IsEqualTo(JsonValueKind.Null);
+        SetupTerminalFieldEditor.Clear(nullable);
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/nullable"), out _)).IsFalse();
+        form.ResetValue(["nullable"]);
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/nullable"), out var initialized)).IsTrue();
+        await Assert.That(initialized.GetInt32()).IsEqualTo(4);
+    }
+
+    private static SetupDefinition TypedDefinition() => SetupDefinitionSourceCodec.ParseJson("""
+        {"$schema":"urn:islamu:configurator:authoring:v2",
+         "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":2},
+         "project":{"id":"typed-terminal","name":"Typed Terminal"},"applicationVersions":["1"],
+         "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+           "map":{"type":"object","maxProperties":2,"x-configurator":{"sensitivity":"public"},
+             "additionalProperties":{"type":"integer","x-configurator":{"sensitivity":"public"}}},
+           "choice":{"type":"integer","enum":[1,2],"x-configurator":{"sensitivity":"public","detail":"basic",
+             "choices":[{"value":1,"label":"Equal"},{"value":2,"label":"Equal"}]}},
+           "nullable":{"type":["integer","null"],"x-configurator":{"sensitivity":"public","detail":"basic","initialValue":4}},
+           "provider":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+             {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+               "kind":{"type":"string","const":"first","x-configurator":{"sensitivity":"public"}},
+               "count":{"type":"integer","x-configurator":{"sensitivity":"public"}}}},
+             {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+               "kind":{"type":"string","const":"second","x-configurator":{"sensitivity":"public"}},
+               "other":{"type":"string","x-configurator":{"sensitivity":"public"}}}}]}}},
+         "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{
+           "/configuration/properties/choice/x-configurator/choices/0/label":"Translated"}}}},
+         "outputs":{"config.json":{"format":"json"}}}
+        """u8.ToArray());
+
     [Test]
     [Arguments("config", """{"name":"sample","token":"privateValue"}""")]
     [Arguments("environment", "NAME=sample\nTOKEN=privateValue\n")]
@@ -108,6 +230,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
     {
         using var form = TerminalDefinitionFixture.Form();
         form.SetAllSectionsExpanded(true);
+        form.SupplyObject(["profile"]);
         var slots = new SetupTerminalFieldEditor(form).Slots;
         var display = slots.Single(item => item.Title == "Display");
         var password = slots.Single(item => item.Title == "Password");
@@ -139,13 +262,15 @@ public sealed class SetupTerminalOfflineWorkflowTests
         form.InputChanged += (_, _) => answerChanges++;
         await Assert.That(form.SelectedExperienceId).IsEqualTo("guided");
         await Assert.That(form.IsEditorVisible(["advanced"])).IsFalse();
-        await Assert.That(form.IsEditorVisible(["token"])).IsFalse();
+        await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         await Assert.That(form.IsEditorVisible(["profile", "password"])).IsFalse();
         await Assert.That(form.IsEditorVisible(["endpoint"])).IsFalse();
 
         harness.Window.CycleExperience();
 
         await Assert.That(form.SelectedExperienceId).IsEqualTo("complete");
+        // Journeys select layout; optional detail is an explicit view action.
+        harness.Window.ToggleOptionalEditors();
         await Assert.That(harness.Window.SubViews.OfType<global::Terminal.Gui.Views.Button>()
             .Any(button => button.Text == "All settings")).IsTrue();
         await Assert.That(form.IsEditorVisible(["advanced"])).IsTrue();
@@ -182,7 +307,12 @@ public sealed class SetupTerminalOfflineWorkflowTests
     [NotInParallel]
     public async Task UnauthoredDefinitionHasOneNeutralExperienceWithoutChangingAnswers()
     {
-        using var form = TerminalDefinitionFixture.Form();
+        JsonObject source = JsonNode.Parse(TerminalDefinitionFixture.Json)!.AsObject();
+        source.Remove("presentation");
+        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(
+            Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.EditValue(["name"], "sample");
+        form.EditValue(["token"], "privateValue");
         using var harness = new ExperienceHarness(form);
         long revision = form.InputRevision;
         await Assert.That(form.Experiences.Count).IsEqualTo(1);
@@ -201,11 +331,12 @@ public sealed class SetupTerminalOfflineWorkflowTests
     public async Task ValidationDisplaysLiteralNestedDiagnosticSegmentsWithoutPrivateAnswers()
     {
         JsonObject source = JsonNode.Parse(TerminalDefinitionFixture.Json)!.AsObject();
-        source["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"literal.root.field","title":"Literal root","type":"object","sensitivity":"public","disclosure":"guided",
-             "properties":[{"id":"child.with.dot","title":"Child","type":"string","required":true,
-               "sensitivity":"public","disclosure":"guided"}]}
-            """));
+        source["configuration"]!["properties"]!["literal.root.field"] = JsonNode.Parse("""
+            {"title":"Literal root","type":"object","additionalProperties":false,
+             "x-configurator":{"sensitivity":"public","detail":"basic"},"required":["child.with.dot"],
+             "properties":{"child.with.dot":{"title":"Child","type":"string",
+               "x-configurator":{"sensitivity":"public","detail":"basic"}}}}
+            """);
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["name"], "sample");
         form.EditValue(["token"], "privateValue");
@@ -263,10 +394,11 @@ public sealed class SetupTerminalOfflineWorkflowTests
         {
             string path = Path.Combine(directory, "source.json");
             await File.WriteAllTextAsync(path, """
-                {"$schema":"urn:islamu:configurator:authoring:v1",
+                {"$schema":"urn:islamu:configurator:authoring:v2",
                  "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
                  "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
-                 "fields":{"HOST":{"type":"string","sensitivity":"public","default":"example.test"}},
+                 "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+                   "properties":{"HOST":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"example.test"}}}},
                  "outputs":{"settings.json":{"format":"json"}}}
                 """);
             var definition = new SetupTerminalDefinitionSelection(path).Load();
@@ -277,7 +409,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
             await Assert.That(selected.Digest).IsEqualTo(definition.Digest);
             string yamlPath = Path.Combine(directory, "source.yaml");
             await File.WriteAllTextAsync(yamlPath, """
-                $schema: urn:islamu:configurator:authoring:v1
+                $schema: urn:islamu:configurator:authoring:v2
                 identity:
                   familyId: f93a6b9f-c210-47a9-b90b-434954040282
                   revision: 1
@@ -285,11 +417,17 @@ public sealed class SetupTerminalOfflineWorkflowTests
                   id: local.service
                   name: Local Service
                 applicationVersions: ["1.0"]
-                fields:
-                  HOST:
-                    type: string
+                configuration:
+                  type: object
+                  additionalProperties: false
+                  x-configurator:
                     sensitivity: public
-                    default: example.test
+                  properties:
+                    HOST:
+                      type: string
+                      x-configurator:
+                        sensitivity: public
+                        initialValue: example.test
                 outputs:
                   settings.json:
                     format: json
@@ -316,18 +454,17 @@ public sealed class SetupTerminalOfflineWorkflowTests
     {
         JsonObject source = JsonNode.Parse(TerminalDefinitionFixture.Json)!.AsObject();
         source["presentation"] = JsonNode.Parse("""
-            {"defaultExperience":"guided","sections":[
-               {"id":"settings","title":"Settings","fields":["name","token","enabled","count","ratio",
-                 "mode","endpoint","tags","profile","advanced"]}],
-             "experiences":[
-               {"id":"guided","title":"Get started","initialDisclosure":"guided",
-                 "navigation":"guided","sections":["settings"]},
-               {"id":"complete","title":"All settings","initialDisclosure":"advanced",
-                 "navigation":"sections","sections":["settings"]}]}
+            {"defaultJourney":"guided","navigation":"sections","sections":[
+               {"id":"settings","title":"Settings","pointers":["/name","/token","/enabled","/count","/ratio",
+                 "/mode","/endpoint","/tags","/profile","/advanced"]}],
+             "journeys":[
+               {"id":"guided","title":"Get started","sections":["settings"]},
+               {"id":"complete","title":"All settings","sections":["settings"]}]}
             """);
         var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["name"], "sample");
         form.EditValue(["token"], "privateValue");
+        form.SupplyObject(["profile"]);
         // Seeding required answers is edit intent and promotes corrected editors.
         // Start the navigation scenario from the authored disclosure instead.
         form.SelectExperience("complete");
@@ -342,13 +479,16 @@ public sealed class SetupTerminalOfflineWorkflowTests
         private readonly SetupPresentationWorkspace _workspace;
         private readonly SetupTerminalSecretBuffer _secret = new(262144, urlSafeOnly: false);
 
-        internal ExperienceHarness(DefinitionFormModel form)
+        internal ExperienceHarness(DefinitionFormModel form, bool initialize = false)
         {
+            if (initialize) _application.Init("dotnet");
             Operation = new(form, new ProtectedArtifactWriter(), Path.GetTempPath());
             SetupWorkspaceId.TryCreate("definition", out var id);
             _workspace = _session.CreateWorkspace(id, Operation);
             _workspace.Activate();
             Window = new(_application, _workspace, Operation, _secret, dispatch: callback => callback());
+            Window.Frame = new System.Drawing.Rectangle(0, 0, 100, 30);
+            Window.ApplyViewportPolicy(Window.Frame.Size);
         }
 
         internal SetupTerminalArtifactOperation Operation { get; }

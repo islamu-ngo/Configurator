@@ -13,6 +13,8 @@ public sealed class DefinitionV2EditingTests
         using var form = new DefinitionFormModel(Definition());
         using var factory = new FormFieldFactory();
         var map = (MapFieldViewModel)factory.Create(form).Single(field => field.Id == "named");
+        map.NewKey = new string('x', 65_537);
+        await Assert.That(map.AddEntryCommand.CanExecute(null)).IsFalse();
         map.NewKey = "literal/key";
         map.AddEntryCommand.Execute(null);
         FieldViewModel first = map.Entries.Single();

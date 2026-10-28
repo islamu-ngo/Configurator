@@ -1,5 +1,11 @@
 # Definition-driven Terminal.Gui adapter
 
+> **Audience:** Contributors | Integrators | AI agents
+> **Status:** Implemented typed v2 adapter; actual process qualification is separate
+> **Owner:** Terminal
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `src/Configurator.Terminal/`, `src/Configurator.Presentation/Presentation/`
+
 The client uses official Terminal.Gui with an exact central package pin and
 generated locks. Its published package retains reviewed embedded-asset notices;
 see [the dependency decision and history](TERMINAL_GUI_DEPENDENCY.md).
@@ -20,13 +26,30 @@ cleared after admission. Registry ambiguity is Core's decision, not a newest-
 revision heuristic in the terminal.
 
 `SetupTerminalApplication` owns one `DefinitionFormModel` and one presentation
-workspace. `SetupTerminalFieldEditor` exposes object/list container slots,
-expands object properties into scalar leaves and edits lists one scalar item
-at a time. It serializes only the edited
-object/list answer back to the parent-owned typed field input. It is not a raw
+workspace. `SetupTerminalFieldEditor` exposes object/list/map/variant slots,
+expands selected object properties and typed map values into scalar leaves, and
+edits scalar lists one item at a time. Each mutation uses a literal shared form
+path through `EditValue`, `SelectChoice`, `SetValue` or the shared container
+operations; there is no separately serialized adapter answer tree. It is not a raw
 definition or whole-answer JSON editor. Visibility, effective sensitivity,
 snapshots, input revisions, activation and validation remain parent-owned.
 Nested leaves use the strongest parent sensitivity to prevent disclosure.
+
+Typed enum choices use ordinal-to-`JsonElement` identity; duplicate or translated
+labels remain distinct. Core selects discriminator branches, not a terminal
+combinator evaluator. Branch changes replace only the selected provider payload
+through `SelectVariant`; shared same-branch reselection preserves existing
+children. Map entries use exact key segments with bounded `DefinitionPath`
+validation and shared answer budgets. Keys are entered through the existing
+masked buffer and rendered as entry ordinals in navigation. Public status never
+serializes dynamic keys. Shared node states supply current conditional
+requiredness and sensitivity.
+
+Null, reset, omission and suggestion remain separate shared operations.
+`initialValue` is effective initialization, not a supplied answer or descriptive
+JSON Schema `default`. Required children never create absent ancestors. Existing
+rows may be temporarily invalid while correcting them; readiness remains Core's
+decision.
 
 Container Supply/Clear actions call the shared form's `SupplyObject`,
 `SupplyList` and `SetValue` gates. Browsing a blank child leaves an absent
@@ -60,6 +83,22 @@ draft access; the window restores protected text only into its existing masked
 buffer and retains the path's invalid state until correction. View changes do
 not edit accepted answers, origins or row identities. Denied drafts stay cleared,
 and reading an untouched or nonexistent append position does not supply an item.
+
+The locale action calls `SelectLocale` for admitted public metadata only.
+`GetEditorPresentation` and `GetVariantTitle` supply translated titles and choice
+labels with base fallback; shipped action resources remain culture-selected.
+`SetupTerminalText.FormatHelp` assembles descriptions, instructions, units,
+choice explanations, credential acquisition guidance and static links.
+`HelpPages` bounds the visible two-line page, preserves multiline navigation,
+and replaces control characters without interpreting terminal escapes or markup.
+No guidance fetch occurs. Full RTL shaping and platform accessibility require
+separate surface evidence.
+
+Next correction resolves typed locations through `TryResolveCorrection` and
+`FocusCorrection`, then selects the corresponding visible slot or scalar-list
+item. Safe current coordinates are resolved locally; stale coordinates cannot
+restore an earlier answer revision. The native editor receives focus without
+putting private map keys or values into diagnostics.
 
 The artifact cursor cycles admitted outputs; a separate keyboard button toggles
 each output in the selected set. At least one must be selected. `PrepareAsync`

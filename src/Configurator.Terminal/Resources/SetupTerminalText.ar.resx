@@ -62,4 +62,26 @@
   <data name="PublicationFailed" xml:space="preserve"><value>فشل الحفظ</value></data>
   <data name="PublicationCleanupFailed" xml:space="preserve"><value>فشل التنظيف؛ راجع الملفات المنشأة قبل إعادة المحاولة.</value></data>
   <data name="NextAttempt" xml:space="preserve"><value>سجل الحفظ</value></data>
+  <data name="SetNull" xml:space="preserve"><value>تعيين null</value></data>
+  <data name="ResetValue" xml:space="preserve"><value>إعادة ضبط القيمة</value></data>
+  <data name="ApplySuggestion" xml:space="preserve"><value>اعتماد الاقتراح</value></data>
+  <data name="ItemNull" xml:space="preserve"><value>تعيين العنصر null</value></data>
+  <data name="ItemSuggestion" xml:space="preserve"><value>اقتراح العنصر</value></data>
+  <data name="OmitValue" xml:space="preserve"><value>إغفال القيمة</value></data>
+  <data name="AddMapEntry" xml:space="preserve"><value>إضافة مدخل للخريطة</value></data>
+  <data name="MapEntry" xml:space="preserve"><value>مدخل خريطة</value></data>
+  <data name="MapKeyHelp" xml:space="preserve"><value>أدخل مفتاح الخريطة حرفيًا في المحرر المحجوب، ثم اختر إضافة مدخل للخريطة. يُسمح بالمفاتيح الفارغة ولا تُستبدل المفاتيح الموجودة.</value></data>
+  <data name="MapKeyInvalid" xml:space="preserve"><value>رُفض مدخل الخريطة. تحقق من المفتاح والتكرار والحدود المعلنة.</value></data>
+  <data name="NextCorrection" xml:space="preserve"><value>التصحيح التالي</value></data>
+  <data name="Locale" xml:space="preserve"><value>اللغة</value></data>
+  <data name="Help" xml:space="preserve"><value>المساعدة</value></data>
+  <data name="ChooseVariant" xml:space="preserve"><value>تبديل النوع</value></data>
+  <data name="Required" xml:space="preserve"><value>مطلوب</value></data>
+  <data name="Omitted" xml:space="preserve"><value>مغفل</value></data>
+  <data name="NullValue" xml:space="preserve"><value>null</value></data>
+  <data name="OptionalEditors" xml:space="preserve"><value>إظهار الحقول الاختيارية</value></data>
+  <data name="DefaultDisclosure" xml:space="preserve"><value>استعادة العرض</value></data>
+  <data name="CredentialIssuer" xml:space="preserve"><value>احصل على هذه القيمة من الجهة المصدرة لها. لا تستبدلها بكلمة مرور مولدة محليًا.</value></data>
+  <data name="CredentialCreate" xml:space="preserve"><value>اختر قيمة جديدة تستوفي متطلبات التطبيق المستهدف. قد يساعدك مدير كلمات المرور في إنشائها وحفظها.</value></data>
+  <data name="CredentialExisting" xml:space="preserve"><value>استخدم القيمة الحالية التي يقبلها التطبيق المستهدف بالفعل.</value></data>
 </root>

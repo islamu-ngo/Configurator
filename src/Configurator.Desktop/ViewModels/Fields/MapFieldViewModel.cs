@@ -75,7 +75,7 @@ public sealed class MapFieldViewModel : FieldViewModel
     private bool ValidKey()
     {
         try { _ = DefinitionPath.FromSegments([.. FullPath(), NewKey]); return true; }
-        catch (ArgumentException) { return false; }
+        catch (SetupDefinitionException) { return false; }
     }
 
     private FieldViewModel CreateEntry(string name)
