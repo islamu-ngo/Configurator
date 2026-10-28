@@ -20,6 +20,7 @@ Documentation is organized into two parallel tracks:
 | Add configuration support to my own application | 🛠️ [Integrate Your Tool](public/integrate-your-tool.md) |
 | Inspect definition syntax and field types | 🧩 [Definitions Guide](public/definitions.md) |
 | Check required properties, defaults, import limits, and client support | [Current Definition Contract Reference](public/definition-reference.md) |
+| Review the proposed replacement contract | [Draft Definition Standard v2](public/definition-standard.md) |
 | Configure JSON Schema validation in your IDE | 📐 [Schema Catalog & IDE Setup](../schemas/README.md) |
 | Recover from a failed or interrupted save | 🛡️ [Native Output & Recovery](public/native-output.md) |
 | Troubleshoot exit codes, save failures, or UI issues | 🔧 [Troubleshooting Guide](public/troubleshooting.md) |
@@ -58,7 +59,7 @@ Each public guide corresponds to an authoritative internal technical reference:
 | Domain | User Guide (`public/`) | Technical Source Anchor (`internal/`) |
 |---|---|---|
 | **Architecture & Vision** | [Overview](public/overview.md) · [Glossary](public/glossary.md) | [Vision & Approach](internal/VISION_AND_APPROACH.md) · [Architecture](internal/ARCHITECTURE.md) · [Design Alternatives](internal/DESIGN_ALTERNATIVES.md) |
-| **Definitions & Validation** | [Definitions](public/definitions.md) · [Current Reference](public/definition-reference.md) · [Schemas](../schemas/README.md) | [Core Definition Contract](internal/CORE_DEFINITION_CONTRACT.md) |
+| **Definitions & Validation** | [Definitions](public/definitions.md) · [Current Reference](public/definition-reference.md) · [Draft Standard](public/definition-standard.md) · [Schemas](../schemas/README.md) | [Core Definition Contract](internal/CORE_DEFINITION_CONTRACT.md) · [Draft Profile](internal/DEFINITION_PROFILE.md) |
 | **Tool Authoring & Revisions** | [Integrate Your Tool](public/integrate-your-tool.md) | [Maintainer Authoring](internal/MAINTAINER_AUTHORING.md) |
 | **CLI & Machine Envelopes** | [CLI](public/cli.md) | [CLI Contract](internal/CLI_CONTRACT.md) |
 | **Interactive Terminal** | [Terminal](public/terminal.md) | [Terminal Client](internal/TERMINAL_CLIENT.md) · [Presentation State](internal/PRESENTATION_STATE.md) |
