@@ -19,6 +19,7 @@ Documentation is organized into two parallel tracks:
 | Fill in a form interactively | ⌨️ [Terminal TUI](public/terminal.md) · 🖥️ [Desktop GUI](public/desktop.md) · 🌐 [Web Browser](public/browser.md) |
 | Add configuration support to my own application | 🛠️ [Integrate Your Tool](public/integrate-your-tool.md) |
 | Inspect definition syntax and field types | 🧩 [Definitions Guide](public/definitions.md) |
+| Check required properties, defaults, import limits, and client support | [Current Definition Contract Reference](public/definition-reference.md) |
 | Configure JSON Schema validation in your IDE | 📐 [Schema Catalog & IDE Setup](../schemas/README.md) |
 | Recover from a failed or interrupted save | 🛡️ [Native Output & Recovery](public/native-output.md) |
 | Troubleshoot exit codes, save failures, or UI issues | 🔧 [Troubleshooting Guide](public/troubleshooting.md) |
@@ -46,7 +47,7 @@ flowchart LR
 4. **Hand Files to the Target:** You apply the generated files to your target application (e.g., via Docker Compose, systemd, or Kubernetes). Configurator never modifies running services on your behalf.
 
 > [!IMPORTANT]
-> **Filesystem Protection Boundaries:** The native protected writer enforces create-only, owner-only (`0600`) file permissions verified on Linux. On macOS and Windows, protected saves reject without an ordinary-file fallback. Browser downloads are deliberate user-initiated exports, not native protected saves. See [Platform Boundaries](public/packaging.md#cli-operating-system-boundaries).
+> **Filesystem Protection Boundaries:** The native protected writer enforces create-only, owner-only (`0600`) file permissions verified on Linux. On macOS and Windows, protected saves reject without an ordinary-file fallback. Browser downloads are deliberate user-initiated exports, not native protected saves. See [Platform Boundaries](public/packaging.md#platform-limitations--alerts).
 
 ---
 
@@ -57,7 +58,7 @@ Each public guide corresponds to an authoritative internal technical reference:
 | Domain | User Guide (`public/`) | Technical Source Anchor (`internal/`) |
 |---|---|---|
 | **Architecture & Vision** | [Overview](public/overview.md) · [Glossary](public/glossary.md) | [Vision & Approach](internal/VISION_AND_APPROACH.md) · [Architecture](internal/ARCHITECTURE.md) · [Design Alternatives](internal/DESIGN_ALTERNATIVES.md) |
-| **Definitions & Validation** | [Definitions](public/definitions.md) · [Schemas](../schemas/README.md) | [Core Definition Contract](internal/CORE_DEFINITION_CONTRACT.md) |
+| **Definitions & Validation** | [Definitions](public/definitions.md) · [Current Reference](public/definition-reference.md) · [Schemas](../schemas/README.md) | [Core Definition Contract](internal/CORE_DEFINITION_CONTRACT.md) |
 | **Tool Authoring & Revisions** | [Integrate Your Tool](public/integrate-your-tool.md) | [Maintainer Authoring](internal/MAINTAINER_AUTHORING.md) |
 | **CLI & Machine Envelopes** | [CLI](public/cli.md) | [CLI Contract](internal/CLI_CONTRACT.md) |
 | **Interactive Terminal** | [Terminal](public/terminal.md) | [Terminal Client](internal/TERMINAL_CLIENT.md) · [Presentation State](internal/PRESENTATION_STATE.md) |

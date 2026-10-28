@@ -136,7 +136,7 @@ Single Responsibility and do not duplicate content:
 | Domain | Public Adopter Guide | Technical Source Anchor | Boundary of Separation |
 |---|---|---|---|
 | First run | [getting-started.md](../public/getting-started.md), [neutral example](../../examples/minimal-self-hosted/README.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md), [CLI_CONTRACT.md](CLI_CONTRACT.md), [PROTECTED_ARTIFACTS.md](PROTECTED_ARTIFACTS.md) | Public: reproducible local steps; internal: admission, command and save contracts |
-| Definitions | [definitions.md](../public/definitions.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md) | Public: authoring and admission usage; internal: bounded declarative model and validation |
+| Definitions | [definitions.md](../public/definitions.md), [definition-reference.md](../public/definition-reference.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md) | Public: authoring usage, exact current properties and capability limits; internal: bounded model, admission and validation mechanisms |
 | Maintainer authoring | [integrate-your-tool.md](../public/integrate-your-tool.md) | [MAINTAINER_AUTHORING.md](MAINTAINER_AUTHORING.md) | Public: maintain one source, check/build/revise and distribute; internal: compilation, revision and public-source custody mechanisms |
 | CLI | [cli.md](../public/cli.md) | [CLI_CONTRACT.md](CLI_CONTRACT.md) | Public: commands and results; internal: machine contract and exit semantics |
 | Terminal | [terminal.md](../public/terminal.md) | [TERMINAL_CLIENT.md](TERMINAL_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: interaction; internal: shared state and terminal adapter |

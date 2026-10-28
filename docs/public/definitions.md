@@ -2,7 +2,9 @@
 
 A configuration definition is a declarative, non-executable document that describes an application's settings, validation rules, guided journeys, and output file mappings. 
 
-Configurator reads this data to render interactive setup interfaces across the terminal, desktop, and web, producing production-ready configuration files offline.
+Configurator reads this data to render interactive setup interfaces across the terminal, desktop, and web, preparing configuration files offline. The target application still owns semantic acceptance and application of those files.
+
+This guide explains the implemented pre-release v1 vocabulary. Use the [current contract reference](definition-reference.md) for mandatory and optional properties, presence/default rules, import limits, and client capabilities. A standards-aligned redesign is proposed, not implemented; proposed names must not be used in current definitions.
 
 ---
 
@@ -47,11 +49,11 @@ Configurator distinguishes between human-authored sources and machine-distribute
 | File Type | Format | Typical Location | Purpose |
 |---|---|---|---|
 | **Maintainer Source** | YAML / JSON | `configurator.yaml` | The compact, commentable source file maintained alongside your application code. |
-| **Runtime Definition** | Canonical JSON | `dist/revisions/1.json` | The compiled, admitted document distributed to clients, pinned by SHA-256 digest. |
+| **Runtime Definition** | Canonical JSON | `dist/configurator/revisions/1.json` | The compiled, admitted document distributed to clients, pinned by SHA-256 digest. |
 | **Answer Workspace** | JSON | Local transient memory | Local user inputs keyed by field ID. Answers are never stored inside definitions. |
 
 > [!NOTE]
-> Start by exploring the [minimal self-hosted definition](../../examples/minimal-self-hosted/setup-definition.json) or Grafana example [`examples/grafana-13.2.2`](../../examples/grafana-13.2.2/README.md) to see production implementations.
+> Start with the [minimal self-hosted source](../../examples/minimal-self-hosted/configurator.yaml) and its [compiled definition](../../examples/minimal-self-hosted/setup-definition.json). The [Grafana example](../../examples/grafana-13.2.2/README.md) demonstrates checked format projections, not execution or acceptance by a Grafana target.
 
 ---
 
@@ -71,8 +73,8 @@ applicationVersions: ["1.0.0", "1.1.0"]
 
 When a client loads a runtime definition, Configurator computes a canonical SHA-256 digest over its admitted content. Sessions pin this exact revision and digest:
 - **No Silent Upgrades:** A catalog or web update will never alter an active configuration session.
-- **Tamper Protection:** The digest verifies that the definition matches the author's published release byte-for-byte.
-- **Clear Provenance:** Identity establishes revision continuity; target applications still validate all generated files.
+- **Canonical Content Pinning:** Comparing against an independently selected expected digest detects different admitted canonical content. Formatting changes that canonicalize identically need not change the digest.
+- **Identity Is Not Authentication:** Family IDs and publisher labels do not authenticate an author or establish curation. Target applications still validate all generated files.
 
 ---
 
@@ -139,13 +141,13 @@ In compiled JSON format, the same fields appear with explicit types and constrai
 
 ### Sensitivity Classifications
 
-Every field declares an explicit data sensitivity level:
+Every compiled field has a data sensitivity level. In compact source, omission defaults to `sensitive`:
 - **`public`**: Non-sensitive settings (hostnames, ports, flags, log levels). Safe for defaults and pre-population.
-- **`sensitive`**: Internal operational details (internal endpoints, usernames). Defaults are withheld unless explicitly declared public.
-- **`secret`**: Passwords, API tokens, encryption keys, and private keys. Handled with transient memory masks, shielded from clipboard inspection, and protected on disk.
+- **`sensitive`**: Internal operational details (internal endpoints, usernames). Defaults and recommendations are rejected in sensitive contexts, not silently withheld.
+- **`secret`**: Passwords, API tokens, encryption keys, and private keys. Controls mask values; browser entry requires per-workspace consent. Deliberate output export transfers custody to the operator.
 
 > [!IMPORTANT]
-> Defaults are strictly forbidden on `secret` fields. Public labels cannot override secret fields inside nested parent structures.
+> Defaults and recommendations require a wholly public applicable context. A public child cannot lower a private ancestor's classification, and a public container cannot conceal protected descendants. All answer-derived artifacts remain restricted; browser exports do not establish native file protection.
 
 ---
 
@@ -159,6 +161,7 @@ fields:
     type: list
     itemType: object
     title: Upstream Backend Servers
+    sensitivity: public
     minItems: 1
     maxItems: 16
     uniqueBy: [name]
@@ -178,6 +181,7 @@ fields:
       weight:
         type: integer
         title: Traffic Weight
+        sensitivity: public
         default: 100
         minimum: 1
         maximum: 1000
@@ -198,6 +202,7 @@ fields:
   auth.provider:
     type: enum
     title: Authentication Provider
+    sensitivity: public
     choices: [local, oidc, ldap]
     default: local
 
@@ -222,12 +227,14 @@ fields:
 
 Supported condition operators include:
 - `equals` and `notEquals`: Match exact scalar values.
-- `present`: Check if an answer has been provided.
+- `present`: Check whether an active effective value exists and is non-null. Defaults and empty strings count as present; this is not a test of deliberate user entry.
 - `in`: Match against a set of permitted choices.
 - `all`, `any`, and `not`: Compose complex Boolean expressions using nested `operands`.
 
 > [!TIP]
 > Inactive fields are excluded from required validation checks and omitted from compiled output projections.
+
+Conditions currently reference root fields only; nested `activeWhen` and `requiredWhen` reject. Both conditional requirement and activation references participate in cycle rejection. See [presence and defaults](definition-reference.md#presence-defaults-and-requiredness) before combining conditions with defaults.
 
 ---
 
@@ -308,7 +315,7 @@ presentation:
 - **Sections (max 64)**: Group related root fields. Each root field must belong to exactly one section.
 - **Experiences (max 16)**: Order and present sections for specific user personas.
 - **Disclosure Levels**:
-  - `essential`: Critical settings required to start the application.
+  - `essential`: Settings kept prominent in progressive disclosure; this does not make them required.
   - `guided`: Common operational settings.
   - `advanced`: Fine-grained tuning parameters.
 
@@ -334,7 +341,7 @@ fields:
 
 - **`instructions`**: Plain text instructions up to 4,096 characters. Controls, HTML tags, and Markdown executable formatting are rejected.
 - **`links`**: Up to 4 external links. Must be absolute HTTPS URLs without query strings or fragments.
-- **`searchTerms`**: Up to 16 keywords enabling fast lookup in terminal and desktop search views.
+- **`searchTerms`**: Up to 16 public metadata keywords. Rendering and search support vary by client; see the [capability table](definition-reference.md#client-capabilities).
 
 ---
 
@@ -418,7 +425,7 @@ Configurator offers two distinct export modes depending on whether secrets have 
 flowchart TD
     ANSWERS["Answers Workspace"] --> EVAL{"Are all required secrets provided?"}
     
-    EVAL -->|"Yes (Fully Completed)"| READY["Complete Production Artifacts<br/>• Full .env / JSON / YAML<br/>• Ready for target application"]
+    EVAL -->|"Yes (Fully Completed)"| READY["Complete Configuration Artifacts<br/>• Full .env / JSON / YAML<br/>• Prepared for target validation"]
     EVAL -->|"No (Secrets Deferred)"| DRAFT["Secret-Deferred Draft<br/>• Public settings rendered<br/>• Secrets emitted as empty strings / nulls<br/>• Includes list of completion locations"]
 
     style READY fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px

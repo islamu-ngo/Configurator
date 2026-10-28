@@ -8,6 +8,12 @@
 
 ## Source and admission
 
+The public [current contract reference](../public/definition-reference.md)
+lists source-required versus compiler-materialized properties, actual value
+states, import losses and client capability limits. The
+[point-in-time standard audit](reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md)
+is research/proposed direction, not a replacement source contract.
+
 The authoring discriminator is `$schema: urn:islamu:configurator:authoring:v1`.
 Root members are `identity`, `project`, `applicationVersions`, `fields`, `outputs`
 and optional `entryPoints`, `locales` and `presentation`. The generated
@@ -111,7 +117,7 @@ selection. Regenerate both via the native definition schema generator; semantic
 coverage, effective-secret and existing source/generated node/scalar/depth budgets
 are still enforced by the compiler/codec. Any admitted metadata edit changes the
 canonical digest and requires the existing revision workflow. YAML syntax comments
-remain excluded. See the [public source example](../public/integrate-your-tool.md#describe-journeys-and-credential-acquisition).
+remain excluded. See the [public source example](../public/integrate-your-tool.md#complete-minimal-configuratoryaml-example).
 
 ## Syntax and identity editing
 

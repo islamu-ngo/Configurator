@@ -29,6 +29,7 @@ When implementing new features or verifying invariants, always prioritize the li
 
 | Report | Date | Scope & Primary Focus |
 |---|---|---|
+| [Definition Standard and Adoption Audit](DEFINITION_STANDARD_AUDIT_2026-10-28.md) | 2026-10-28 | Source-backed schema semantics, adoption defects, industry comparison, and proposed pre-release redesign; not an implemented replacement standard. |
 | [Blazor UI/UX Redesign Report](BLAZOR_UI_UX_REDESIGN_REPORT_2026-10-23.md) | 2026-10-23 | Comprehensive Blazor WebAssembly frontend audit, WCAG 2.2 AA accessibility, touch ergonomics, RTL text shaping, and mobile performance benchmarks. |
 | [Terminal Client CTO Review](TERMINAL_CTO_REVIEW.md) | 2026-10-14 | Point-in-time CTO architectural audit of `Configurator.Terminal` (Terminal.Gui v2), detailing viewport dimension minimums (80x26), memory bounds, async import freezes, and publication safety. |
 | [Maintainer Integration Architecture Report](CONFIGURATOR_MAINTAINER_INTEGRATION_REPORT.md) | 2026-10-10 | Architectural inspection of definition integration burden; proposed compact maintainer authoring format (`configurator.yaml`), deterministic compiler, and portable agent integration skill. |
@@ -37,6 +38,11 @@ When implementing new features or verifying invariants, always prioritize the li
 ---
 
 ## Detailed Report Summaries
+
+### Definition Standard and Adoption Audit
+- **File:** [DEFINITION_STANDARD_AUDIT_2026-10-28.md](DEFINITION_STANDARD_AUDIT_2026-10-28.md)
+- **Evaluation Date:** 2026-10-28
+- **Summary:** Retains the definition-standard investigation, sixteen improvement areas, mandatory/optional property policy, thirty design questions, official-source provenance, and conformance criteria. Current documentation corrections are distinguished from proposed schema and client changes. Source inspection and existing test assertions are not fresh runtime or target-acceptance proof.
 
 ### 1. Blazor UI/UX Redesign Report
 - **File:** [`BLAZOR_UI_UX_REDESIGN_REPORT_2026-10-23.md`](BLAZOR_UI_UX_REDESIGN_REPORT_2026-10-23.md)

@@ -1,6 +1,17 @@
 # Core definition contract
 
-Status: implementation contract for `configurator-extraction-r2`.
+> **Audience:** Contributors | Integrators | AI agents
+> **Status:** Implemented pre-release v1 contract; originating extraction revision `configurator-extraction-r2`
+> **Owner:** Core
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/`, `src/Configurator.Presentation/Presentation/DefinitionCollectionItem.cs`
+
+The public [current definition reference](../public/definition-reference.md)
+projects this implementation contract for adopters. The
+[definition-standard audit](reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md)
+retains proposed changes and evidence limits; proposals are not admitted v1
+vocabulary. Verification dates here describe source inspection, not newly run
+product or target checks.
 
 ## Public API
 
@@ -131,6 +142,30 @@ are unchanged.
 target-acceptance claims are not transferable evidence for Configurator.
 Admission still rejects mismatched evidence, incompatible output ceilings,
 unknown names and the disabled expanded profile without increasing any limit.
+
+## Effective values and known semantic limits
+
+`DefinitionValidator.ValidateCore` applies a root `Default` when an answer key is
+absent. `ObjectValid` validates supplied child values and does not recursively
+insert child defaults. Presentation's `DefinitionCollectionItem.CreateObject`
+materializes declared child defaults and required containers when a user creates
+an object/row. This is creation-time seeding, not a second validator or a promise
+that machine-supplied partial objects receive those values.
+
+Omitting a root with a default restores its effective fallback; current snapshots
+have no force-omit-default marker. Explicit empty strings remain supplied, but
+required strings reject whitespace. All current field types reject supplied
+null. `present` checks effective non-null existence, not explicit origin:
+defaults, empty strings, false, zero and empty containers count. Absent operands
+make `equals`, `notEquals` and `in` false. Draft unknown propagation remains
+separate from strict Boolean evaluation.
+
+Field `format` is descriptive, not a built-in assertion. Validator-name admission
+does not reject every incompatible type/validator combination. Generated schemas
+export structure; nullable metadata and some type/context combinations can still
+fail final semantic admission. Format-specific projected-shape checks also remain
+in composition. Do not interpret `definition check` or a structural editor pass
+as a proof of target-validator equivalence or every output's composability.
 
 ## Definition JSON
 
@@ -274,7 +309,7 @@ and conflicts with an already admitted family/revision. Optional absence is neut
 for machine-only definitions, not a legacy visibility policy. This increment admits
 public data only; Presentation owns any derived neutral experience and later
 client navigation, never Core validation or answer presets. Public procedures are
-in [definitions](../public/definitions.md#authored-journeys-and-field-guidance).
+in the [current reference](../public/definition-reference.md#presentation-and-guidance).
 
 ## Canonicalization and bounds
 

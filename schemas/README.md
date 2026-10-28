@@ -1,6 +1,6 @@
 # Configurator JSON Schemas
 
-This directory contains the authoritative JSON Schema definitions used for authoring definitions, validating runtime specifications, and structuring machine CLI envelopes.
+This directory contains generated structural JSON Schemas for definition authoring, runtime documents, and machine CLI envelopes. Core admission remains the authority for semantic and resource checks; it does not become a general JSON Schema validator merely because these editor schemas exist.
 
 ---
 
@@ -19,7 +19,7 @@ This directory contains the authoritative JSON Schema definitions used for autho
 
 ### 1. Visual Studio Code
 
-To get real-time autocompletion, field descriptions, and validation while authoring `configurator.yaml` or `.json` files, add the following mapping to your workspace `.vscode/settings.json`:
+To associate the structural schemas with your YAML and JSON files, add the following mapping to your workspace `.vscode/settings.json`. Adjust paths to your local schema copies. Editor validation is not a substitute for `definition check`: references, inherited sensitivity, cycles, and resource limits also require semantic admission.
 
 ```json
 {
@@ -31,6 +31,12 @@ To get real-time autocompletion, field descriptions, and validation while author
     ]
   },
   "json.schemas": [
+    {
+      "fileMatch": [
+        "**/configurator.json"
+      ],
+      "url": "./schemas/configurator-authoring-v1.schema.json"
+    },
     {
       "fileMatch": [
         "**/setup-definition.json",
@@ -53,9 +59,9 @@ To get real-time autocompletion, field descriptions, and validation while author
 
 ---
 
-### 2. Explicit `$schema` Declaration
+### 2. Authoring Discriminator vs. Editor Association
 
-You can also bind the schema directly inside your definition file using the `$schema` property:
+Compact authoring requires the exact `$schema` discriminator below. Its URN identifies the source contract; use the editor association above rather than assuming that the URN supplies a downloadable schema. This fragment omits required fields and outputs:
 
 **In YAML (`configurator.yaml`):**
 ```yaml
@@ -70,15 +76,16 @@ project:
 # ... fields and outputs
 ```
 
-**In JSON (`setup-definition.json`):**
+Compiled runtime definitions instead use `schemaVersion`. Do not add `$schema` to them: the runtime contract is closed, and combining `$schema` with `schemaVersion` rejects. Associate the runtime schema through editor settings. Runtime identity fragment, not a complete definition:
 ```json
 {
-  "$schema": "../../schemas/setup-definition-v1.schema.json",
   "schemaVersion": 1,
   "familyId": "69cdb122-41d2-4fab-9b82-7929a889c726",
   "revision": 1
 }
 ```
+
+The schemas in this directory describe Configurator definition documents. An application's own JSON Schema is a different input: it can scaffold a compact source only through the bounded [JSON Schema importer](../docs/public/definition-reference.md#json-schema-import). Generated schema validity does not establish target-application acceptance.
 
 ---
 

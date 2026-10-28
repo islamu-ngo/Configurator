@@ -185,6 +185,19 @@ server-side answer processing, target transport or private persistence.
 admission, optional public Store inclusion and image verification; production
 hosting remains an operator action.
 
+## Definition contract documentation
+
+The [current adopter reference](../../public/definition-reference.md) records
+implemented v1 required/optional properties, root fallback versus nested
+creation-time defaults, import limitations, and cross-client presentation
+differences. Its technical owners remain the [Core contract](../CORE_DEFINITION_CONTRACT.md)
+and [authoring contract](../MAINTAINER_AUTHORING.md). The
+[definition-standard audit](../reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md)
+retains source-backed findings and official-source research separately from
+future implementation. Documentation corrections do not add recursive item
+schemas, nullability, localized definitions, richer inverses, or new runtime
+capabilities.
+
 ## Verification and provenance
 
 The [documentation hub](../../README.md) routes readers by task into public

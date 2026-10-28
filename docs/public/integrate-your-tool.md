@@ -33,14 +33,14 @@ flowchart LR
 1. **Initialize (`definition init`):** Scaffold a fresh `configurator.yaml` with a unique family GUID and revision 1.
 2. **Author:** Add fields, validation bounds, guidance metadata, and output artifact bindings.
 3. **Check (`definition check`):** Validate definition integrity and constraints locally without side effects.
-4. **Build (`definition build`):** Compile the source YAML into canonical, pinned runtime JSON (`dist/revisions/1.json`).
+4. **Build (`definition build`):** Compile the source YAML into canonical, pinned runtime JSON (`dist/configurator/revisions/1.json`).
 5. **Revise (`definition revise`):** Safely advance the revision number when your configuration requirements evolve.
 
 ---
 
 ## Complete Minimal `configurator.yaml` Example
 
-Here is a complete, production-ready `configurator.yaml` illustrating field types, sensitivity rules, journeys, and multiple output bindings:
+This complete source illustrates field types, sensitivity rules, journeys, and multiple output bindings. Replace the example identity and target-specific guidance, then validate prepared files with your application before claiming target acceptance. The [current contract reference](definition-reference.md) distinguishes required properties, defaults, and client capabilities.
 
 ```yaml
 $schema: urn:islamu:configurator:authoring:v1
@@ -104,14 +104,14 @@ fields:
     disclosure: essential
     required: true
     guidance:
-      instructions: "Generate a secure 32-character random string or obtain one from your security team."
+      instructions: "Obtain a service-scoped token from your application's administrator or token issuer. Confirm its permissions and expiry before use."
       links:
         - title: "API Authentication Docs"
           url: "https://example.org/docs/auth"
       searchTerms: [token, auth, api, secret]
     credential:
       kind: opaque-token
-      acquisition: create
+      acquisition: issuer
 
 outputs:
   .env:
@@ -272,7 +272,9 @@ islamu-configurator definition init \
   --machine
 ```
 
-### After: Generated `configurator.yaml`
+### After: Imported Source Before Maintainer Review
+
+The following shows the generated source's meaning, not a byte-for-byte serialization fixture. Initialization allocates a fresh family ID. Import removes defaults, classifies ordinary fields as `sensitive`, and raises `writeOnly` fields to `secret`. It does not infer that a hostname, port, or other setting is safe to publish.
 
 ```yaml
 $schema: urn:islamu:configurator:authoring:v1
@@ -284,27 +286,29 @@ project:
   name: Example Service
 applicationVersions: ["1.0.0"]
 fields:
-  host:
-    type: string
-    title: Host
-    help: Listening interface hostname
-    sensitivity: public
-    default: "localhost"
-  port:
-    type: integer
-    title: Port
-    help: Port to bind HTTP server
-    sensitivity: public
-    default: 8080
-    minimum: 1
-    maximum: 65535
   apiKey:
     type: string
-    title: Api key
-    help: Secret administrative API key
-    sensitivity: secret
     required: true
+    sensitivity: secret
+    help: Secret administrative API key
+  host:
+    type: string
+    required: false
+    sensitivity: sensitive
+    help: Listening interface hostname
+  port:
+    type: integer
+    required: true
+    sensitivity: sensitive
+    help: Port to bind HTTP server
+    minimum: 1
+    maximum: 65535
+outputs:
+  config.json:
+    format: json
 ```
+
+After reviewing the target's semantics, you may explicitly classify a setting as `public` and author an appropriate default. Never restore a private default automatically. Omitted titles receive humanized labels during compilation; that does not mean initialization wrote those titles into the source.
 
 ### Why `--accept-bounded-semantics` is Required
 
@@ -313,7 +317,7 @@ JSON Schema and Configurator evaluate constraints with slightly different semant
 - **String Length:** Configurator measures character length in UTF-16 code units.
 - **Numbers:** Configurator uses bounded 64-bit integers (`Int64`) and exact decimals.
 
-The `--accept-bounded-semantics` flag acknowledges these specific differences. Complex features like dynamic remote `$ref` URIs, regex evaluation, and open polymorphism are strictly rejected to ensure predictable offline compilation.
+The flag acknowledges only differences actually encountered in the input. It cannot bypass unsupported assertions. The current importer requires closed objects and rejects nullable unions, open maps, general composition/conditionals, regex, and unrepresentable array-item constraints. Accepted annotations are not necessarily preserved: defaults are discarded, and `format` becomes explanatory help rather than a validator. See the [import support matrix](definition-reference.md#json-schema-import).
 
 ---
 
@@ -335,7 +339,7 @@ Before publishing your definition, verify that you have met each of the followin
 ## Distributing Your Definition
 
 Once compiled, you can distribute your definition through any of the following channels:
-1. **Directly in Your Repository:** Commit `configurator.yaml` and `dist/revisions/1.json` beside your code.
+1. **Directly in Your Repository:** Commit `configurator.yaml` and `dist/configurator/revisions/1.json` beside your code.
 2. **Web Deep Links:** Host `1.json` on any static HTTPS origin and link users directly to the Configurator WebAssembly app (see [Launch Integration](launch-integration.md)).
 3. **Public Store:** Submit a pull request to include your application in the bundled [Definition Store](definition-store.md).
 
