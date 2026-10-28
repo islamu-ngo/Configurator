@@ -22,7 +22,7 @@ ISLAMU Configurator prepares application-owned configuration artifacts, while th
 [![Documentation][docs-shield]][official-docs-link]
 [![Donate via Stripe][stripe-shield]][stripe-donation-link]
 
-[**Documentation**](docs/README.md) · [**Roadmap**][roadmap-link] · [**Quickstart**](#quick-start-for-developers--contributors) · [**Packaging**](docs/public/packaging.md) · [**Developer Guide**](#-2-internal-engineering-specifications-for-developers--contributors) · [**Sponsor**](#-sponsors)
+[**Documentation**](docs/README.md) · [**Roadmap**][roadmap-link] · [**Quickstart**](#quick-start-for-developers--contributors) · [**Packaging**](docs/public/packaging.md) · [**Developer Guide**](docs/README.md) · [**Sponsor**][stripe-donation-link]
 
 </div>
 
@@ -46,7 +46,7 @@ Choosing a client for sensitive configuration? Start with the [safety and trust 
 
 ### Application Authors
 
-- **One maintainer source:** Author YAML or JSON once, then check and compile it with `definition init/check/build/revise`. See [Integrate your tool](docs/public/integrate-your-tool.md) and the [portable agent workflow](skills/configurator-integrate/SKILL.md).
+- **One maintainer source:** Author YAML or JSON once, then check and compile it with native `definition init/check/build/revise`; use `init --fork-from` for a new family. Start with [portable adoption](docs/public/integrating.md), the [definition cookbook](docs/public/definition-cookbook.md), [maintained examples](examples/README.md) and the [portable agent workflow](skills/configurator-integrate/SKILL.md).
 - **🧩 Declarative Definitions:** Describe fields, activation, validation and output using bounded data rather than executable plugins — see [Definitions](docs/public/definitions.md).
 - **🔗 Pinned Public Launch:** Link to a registered family with bounded version, entry, locale and digest selectors; the session retains its admitted revision and digest — see [Launch Integration](docs/public/launch-integration.md).
 - **🌐 Complete Browser Preparation:** The static Blazor app collects ordinary settings and bounded tenant rows, with voluntary workspace-local secret entry or explicit secret-deferred drafts. Copy/download transfers restricted files deliberately — see [Browser Configuration](docs/public/browser.md).
@@ -58,7 +58,7 @@ Choosing a client for sensitive configuration? Start with the [safety and trust 
 - **🛡️ Local Preparation:** Preparation has no Event API, domain, wire or database dependency. The browser has no target authentication, telemetry or answer persistence; bounded public HTTPS definitions are admitted and pinned before answers.
 - **🧰 Independent Clients:** Choose the machine CLI, Terminal.Gui TUI, Avalonia Desktop or static Blazor WebAssembly browser without installing Event services.
 - **📚 Dual Documentation Tracks:** Public guides explain operator workflows; internal contracts explain architecture, privacy and verification.
-- **📜 Real Reference Target:** Event exports one neutral source and retains its host validators. An explicitly pinned standalone compiler creates the canonical definition; five independent target payload families verify the generic runtime. See [Event example](examples/islamu-event/README.md).
+- **📜 Real Reference Target:** Event supplies a neutral source and retains its host validators. The maintained v2 source compiles into canonical runtime; five independent target payload families exercise generic projections. Its historical v1 release receipt is not a current v2 compiler or target-acceptance receipt. See [Event example](examples/islamu-event/README.md).
 
 ---
 
@@ -71,9 +71,32 @@ ISLAMU Configurator separates native preparation from public static hosting:
 | **Machine CLI** | Reproducible local automation with explicit definitions and answer workspaces. | 📖 **[CLI Guide](docs/public/cli.md)** |
 | **Terminal Client** | Keyboard-driven native preparation with protected output. | 📖 **[Terminal Guide](docs/public/terminal.md)** |
 | **Desktop Client** | Avalonia native forms over the shared workspace. | 📖 **[Desktop Guide](docs/public/desktop.md)** |
-| **Static Configuration Browser** | Transient local answers, deliberate file export and a public-asset PWA cache. | 📖 **[Browser Hosting](docs/public/browser.md#hosting)** |
+| **Static Configuration Browser** | Transient local answers, deliberate file export and a public-asset PWA cache. | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
 
 See [Standalone Packaging](docs/public/packaging.md) for supported RIDs, executable names and package boundaries. Protected native writes are verified on Linux only. Browser offline reopening requires complete public app assets and an explicitly retained admitted definition; answers are never retained. Browser downloads cannot establish native owner-only/create-only protection. No public Configurator deployment is claimed.
+
+### Portable definition adoption
+
+Keep a public source and canonical runtime beside your application, including
+on local media; the Definition Store and GitHub are optional distribution
+channels, not runtime dependencies. Authoring v2, runtime v2 (`bounded-v2`),
+command envelope v3 and private answers v1 are separate contracts. Native
+tooling allocates family identity; changed canonical content needs a new
+revision, while a fork starts a new family at revision 1.
+
+The CLI, Terminal.Gui TUI, Avalonia Desktop and Blazor WebAssembly Browser use
+the same admitted definition and Core value semantics. Native clients publish
+restricted files through protected save; Browser transfers files by deliberate
+copy/download and needs workspace-local consent for secret entry. Omission,
+typed null, reset and suggestion adoption remain distinct; a secret-deferred
+draft remains incomplete. Neither successful compilation nor generated files
+prove target acceptance or authorize apply/restart.
+
+See [adoption steps and boundaries](docs/public/integrating.md), the
+[cookbook](docs/public/definition-cookbook.md), [schema generation](schemas/README.md)
+and the [Core mechanism map](docs/internal/CORE_DEFINITIONS.md).
+Actual package/host qualification and target acceptance require separate
+evidence; these guides do not claim final physical completion.
 
 ---
 
@@ -107,7 +130,7 @@ See [SECURITY.md](SECURITY.md), [Core Contract](docs/internal/CORE_DEFINITION_CO
 
 Choose the interface according to your security needs. **For sensitive configuration, treat the hosted web app as the least safe option among Configurator's interfaces.** You must trust its origin, the code it delivers, your browser and extensions; browser downloads also lack native protected-save guarantees. Prefer a reviewed local [Desktop](docs/public/desktop.md), [TUI](docs/public/terminal.md) (terminal interface) or [CLI](docs/public/cli.md) build on a trusted machine when handling high-value secrets. Native clients still require trust in the software and operating system. Protected native saving is currently verified on Linux only; unsupported hosts refuse it.
 
-The web app offers a lower-exposure path: leave secret entry disabled, prepare an incomplete **secret-deferred draft**, and fill in the documented secret locations locally. Ordinary settings can also be confidential, so review what you enter even when no passwords are involved. There is no official release or public hosted deployment yet; this is a design choice, not a security certification. See [Browser Configuration](docs/public/browser.md#choose-a-client-and-trust-level).
+The web app offers a lower-exposure path: leave secret entry disabled, prepare an incomplete **secret-deferred draft**, and fill in the documented secret locations locally. Ordinary settings can also be confidential, so review what you enter even when no passwords are involved. There is no official release or public hosted deployment yet; this is a design choice, not a security certification. See [Browser Configuration](docs/public/browser.md#data-custody--security-architecture).
 
 ### Why did ISLAMU Configurator choose WebAssembly interactivity?
 
@@ -125,7 +148,7 @@ You explicitly trust the hosted code and your browser environment with secrets f
 
 ### Does offline browser use remove the need for trust?
 
-No. Prepare the public app assets and retain the public definition before entering answers, then physically disconnect for stronger protection against live network transmission. You still need to trust the downloaded code, browser and device. An installed PWA shortcut alone does not prove offline readiness. Answers are not saved between workspaces, and browser-managed update checks can generate public-asset traffic while connected. See [offline work](docs/public/browser.md#offline-work).
+No. Prepare the public app assets and retain the public definition before entering answers, then physically disconnect for stronger protection against live network transmission. You still need to trust the downloaded code, browser and device. An installed PWA shortcut alone does not prove offline readiness. Answers are not saved between workspaces, and browser-managed update checks can generate public-asset traffic while connected. See [offline work](docs/public/browser.md#offline-work--pwa-support).
 
 ### Are downloaded files and copied secrets protected?
 

@@ -1,21 +1,26 @@
 # Definition Profile v2
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Draft; base v2 implementation, broader scenarios not yet qualified
+> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`
 
-The [Draft public standard](../public/definition-standard.md) owns adopter syntax.
-This document owns lowering, evaluation, privacy and qualification mechanisms.
-The [Core contract](CORE_DEFINITION_CONTRACT.md) describes the coordinated
-cutover. A Draft scenario below is a requirement, not passing evidence for the
-whole standard.
+The [public standard](../public/definition-standard.md) owns adopter syntax.
+The [technical conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) records
+the implemented grammar, admission/evaluation owners and source-observed limits.
+This document connects lowering, privacy invariants and scenario obligations to
+the qualified pre-release scope. The [Core contract](CORE_DEFINITION_CONTRACT.md)
+describes the coordinated cutover. The public
+[integration workflow](../public/integrating.md) and
+[cookbook](../public/definition-cookbook.md) explain adoption and bounded patterns.
+Scenario obligations are not independent pass receipts or proof of the whole
+JSON Schema standard.
 
 ## Bounded primitive foundation
 
-Phase 2 introduced compiler-ready shape and syntax primitives; Phase 3 routes
-the v2 codecs through them. `DefinitionPath.Parse` and `FromSegments` snapshot
+The v2 codecs route through shared shape and syntax primitives.
+`DefinitionPath.Parse` and `FromSegments` snapshot
 at most 32 exact tokens within the 65536-character pointer budget; value equality
 uses the encoded ordinal pointer. `ToPointer` is deliberate access to location
 data; `ToString` remains opaque because tokens may be private.
@@ -93,7 +98,7 @@ Formats remain annotation unless assertFormat is true. The lexical registry is
 ASCII hostname, dot-atom email-address, well-formed ASCII absolute uri and
 credential-free http-url. Parsing is local and grants no retrieval authority.
 The public standard states exact syntax limits; no full RFC/target-equivalence
-or complete client qualification follows from these Core capabilities.
+or unexercised client qualification follows from these Core capabilities.
 
 ```text
 bounded source decoding -> authoring lowering -> runtime admission
@@ -177,9 +182,23 @@ caches, worker messages or network requests.
 
 ## Scenario and support matrix
 
-All rows are **Draft / unqualified** until their owning implementation and
-executed gate are recorded. The table specifies an independent oracle, not a
-test that scans prose.
+The table retains independent expected behavior and owner/gate traceability for
+the implemented bounded-v2 contract. It is not a per-row execution receipt or a
+test that scans prose. Parent-reported completed qualification is:
+
+| Evidence layer | Qualified pre-release observation |
+|---|---|
+| Owner suites | Core 217, Desktop 229, Terminal 106, Architecture 73 passing tests |
+| Native actual surface | Linux x64 X11: all 19 scenarios in both English and Arabic |
+| Published Browser | AOT application exercised at real desktop/mobile sizes, RTL, offline and custody flows |
+| Standalone CLI | Linux x64 complete preparation, incomplete answers and create-only conflict exercises |
+
+This prose increment ran no product checks; [Operations](OPERATIONS.md) is the execution-evidence
+anchor. Counts alone do not prove every obligation below. General assertions
+outside the bounded grammar, version ranges, target acceptance, other hosts,
+assistive technologies, translation quality, stakeholder/usability and scholarly
+proof remain unqualified followups. Exact application-version strings remain
+the implemented selection contract.
 
 | Scenario | Independent expected behavior | Owner / gate |
 |---|---|---|
@@ -210,7 +229,7 @@ test that scans prose.
 | S25 | Machine v3 reports actual definition-v2 capabilities/schema/locations; lint stays quality advice | CLI and generated command schema |
 | S26 | Absent target update/restart metadata stays unspecified and grants no authority | Core output metadata |
 | S27 | Published assets/schemas/examples/store agree; public caches remain answer-free | Native generators and architecture/packages |
-| S28 | Draft promotion follows executed qualification and examples; prose itself is not pinned | Documentation and native checker |
+| S28 | Support promotion follows executed qualification and examples; prose itself is not pinned | Documentation and native checker |
 | S29 | Portable init/check/build uses qualified options and synthetic inputs without target dependencies | Portable skill validation and actual CLI |
 | S30 | Synthetic, client, host and target evidence remain separately reported | Published-client/package qualification |
 | S31 | Unknown/executable/remote/interpolated constructs reject; bounded annotations stay inert | Core closed grammar |
@@ -225,8 +244,9 @@ Core's discriminator selector remains the only branch authority. Public
 correction coordinates use declared properties and row/map ordinals, including
 temporary invalid drafts; local recovery is fenced by input revision.
 Locale changes project text/direction only and do not change output bytes.
-Browser/Desktop/Terminal activation still requires their adapter and actual
-surface gates; the shared feature is not an assertion of client qualification.
+Browser/Desktop/Terminal adapter and actual-surface gates have been exercised
+within the recorded Linux x64 and published Browser scope above; the shared
+feature alone is not evidence for another host or an unexercised interaction.
 
 Derived semantic features include recursive objects/arrays, typed maps, nullable
 values, discriminated variants, scoped applicability, exact typed choices,
@@ -282,9 +302,10 @@ slices using the owning Release build and suite with a nonempty guard.
 Generate structural schemas and canonical fixtures through their native owners.
 Never approximate an unsupported assertion as a no-op.
 
-At workstream exit qualify Linux x64 CLI/Terminal/Desktop publications and
-Browser before architecture/package checks. Separately record actual CLI,
-Terminal, Desktop and published Browser interactions, including keyboard,
-mobile, RTL, map/variant, consent, stale operations, drafts and custody channels.
+The current promotion uses the recorded Linux x64 CLI/Terminal/Desktop
+and published AOT Browser qualification above. Retain separate records of actual
+CLI, Terminal, Desktop and published Browser interactions, including keyboard,
+mobile, RTL, map/variant, consent, stale operations, drafts and custody channels;
+do not replace them with suite totals or this scenario table.
 Do not infer untested hosts, target acceptance or installed/assistive-technology
 support. Promote only verified capabilities to current public documentation.

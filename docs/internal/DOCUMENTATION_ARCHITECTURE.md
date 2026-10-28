@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Adopters | Integrators | AI agents
 > **Status:** Implemented repository documentation policy
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-16
+> **Last Verified:** 2026-10-28
 > **Source Anchors:** `README.md`, `docs/README.md`, `PROJECTS.md`, `docs/public/`, `docs/internal/`
 
 This repository uses Markdown-first documentation as the authoritative adopter,
@@ -37,7 +37,7 @@ or need a specific reference.
 | Evaluators | `README.md` | `docs/public/getting-started.md`, then the relevant client guide |
 | Local developers | `CONTRIBUTING.md`, `PROJECTS.md` | `TESTING.md`, `GOVERNANCE.md`, affected owner contract |
 | Adopters | `docs/public/getting-started.md` | `definitions.md`, `native-output.md`, `packaging.md` |
-| Integrators | `docs/public/launch-integration.md` | `LAUNCH_CONTRACT.md`, definition/runtime ADR |
+| Integrators | `docs/public/integrating.md` | `definition-cookbook.md`, `integrate-your-tool.md`, `DEFINITION_CONFORMANCE_PROFILE.md`; for launch, `launch-integration.md` and `LAUNCH_CONTRACT.md` |
 | Contributors | `PROJECTS.md` | `GOVERNANCE.md`, `QUICK_REFERENCE.md`, `DOCUMENTATION_ARCHITECTURE.md` |
 | AI agents | `AGENTS.md` | Matching intent, path rules and task-owned context |
 
@@ -49,7 +49,7 @@ responsible for accuracy, not that only that team may edit it.
 | Owner | Primary documentation |
 |---|---|
 | Packaging/Release | `PACKAGING.md`, `OPERATIONS.md`, `RELEASE_RUNBOOK.md`, `eng/release/README.md` |
-| Core | `CORE_DEFINITION_CONTRACT.md`, `LAUNCH_CONTRACT.md`, definition/runtime ADR |
+| Core | `CORE_DEFINITION_CONTRACT.md`, `DEFINITION_CONFORMANCE_PROFILE.md`, `DEFINITION_PROFILE.md`, `MAINTAINER_AUTHORING.md`, `LAUNCH_CONTRACT.md`, definition/runtime ADR |
 | Artifacts/Security | `PROTECTED_ARTIFACTS.md`, `SECURITY.md`, IP/dependency governance |
 | Presentation | `PRESENTATION_STATE.md`, `CLI_CONTRACT.md`, `TERMINAL_CLIENT.md`, `DESKTOP_CLIENT.md`, public browser guide |
 | Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `docs/public/getting-started.md`, this document |
@@ -136,9 +136,9 @@ Single Responsibility and do not duplicate content:
 | Domain | Public Adopter Guide | Technical Source Anchor | Boundary of Separation |
 |---|---|---|---|
 | First run | [getting-started.md](../public/getting-started.md), [neutral example](../../examples/minimal-self-hosted/README.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md), [CLI_CONTRACT.md](CLI_CONTRACT.md), [PROTECTED_ARTIFACTS.md](PROTECTED_ARTIFACTS.md) | Public: reproducible local steps; internal: admission, command and save contracts |
-| Definitions | [definitions.md](../public/definitions.md), [definition-reference.md](../public/definition-reference.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md) | Public: authoring usage, exact current properties and capability limits; internal: bounded model, admission and validation mechanisms |
-| Draft definition standard | [definition-standard.md](../public/definition-standard.md) | [DEFINITION_PROFILE.md](DEFINITION_PROFILE.md) | Public: selected v2 grammar and obligations, explicitly not current; internal: lowering, invariants, scenario/qualification and responsibility mapping |
-| Maintainer authoring | [integrate-your-tool.md](../public/integrate-your-tool.md) | [MAINTAINER_AUTHORING.md](MAINTAINER_AUTHORING.md) | Public: maintain one source, check/build/revise and distribute; internal: compilation, revision and public-source custody mechanisms |
+| Definitions | [definitions.md](../public/definitions.md), [definition-reference.md](../public/definition-reference.md), [definition-cookbook.md](../public/definition-cookbook.md) | [DEFINITION_CONFORMANCE_PROFILE.md](DEFINITION_CONFORMANCE_PROFILE.md), [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md) | Public: authoring usage, bounded patterns, exact properties and capability limits; internal: implemented grammar, admission/evaluation mechanisms and source-observed limits |
+| Definition standard | [definition-standard.md](../public/definition-standard.md) | [DEFINITION_PROFILE.md](DEFINITION_PROFILE.md) | Public: implemented bounded-v2 grammar and qualified pre-release scope; internal: lowering, invariants, scenario obligations, qualification and responsibility mapping |
+| Maintainer authoring | [integrating.md](../public/integrating.md), [integrate-your-tool.md](../public/integrate-your-tool.md) | [MAINTAINER_AUTHORING.md](MAINTAINER_AUTHORING.md) | Public: portable adoption workflow and detailed one-source check/build/revise/distribution guidance; internal: compilation, revision and public-source custody mechanisms |
 | CLI | [cli.md](../public/cli.md) | [CLI_CONTRACT.md](CLI_CONTRACT.md) | Public: commands and results; internal: machine contract and exit semantics |
 | Terminal | [terminal.md](../public/terminal.md) | [TERMINAL_CLIENT.md](TERMINAL_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: interaction; internal: shared state and terminal adapter |
 | Desktop | [desktop.md](../public/desktop.md) | [DESKTOP_CLIENT.md](DESKTOP_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: workflow; internal: Avalonia adapter and generation fencing |
@@ -171,6 +171,29 @@ Single Responsibility and do not duplicate content:
    frontmatter and never synthetic AI comment headers. Navigation is anchored
    in `docs/README.md` and the twin matrix here. Internal docs use natural
    Markdown metadata blocks.
+
+### Bounded-v2 qualification boundary
+
+Current definition documentation describes implemented bounded-v2 with qualified
+pre-release Linux x64 and published Browser scope, not an unimplemented Draft.
+Keep the detailed vocabulary, source-observed limits and scenario obligations;
+do not replace them with a broad support label.
+
+Recorded qualification completed Core 217, Desktop 229, Terminal 106 and
+Architecture 73 passing tests; native Linux x64 X11 passed all 19 scenarios in
+both English and Arabic. Actual published AOT Browser exercises covered
+desktop/mobile, RTL, offline and custody flows. Standalone Linux x64 CLI covered
+complete preparation, incomplete answers and create-only conflicts. This
+documentation-only increment did not rerun qualification. The parent owns exact
+verification records, linked through [Operations](OPERATIONS.md), and the
+[qualification map](DEFINITION_PROFILE.md) preserves the evidence layers.
+
+General assertions beyond the bounded profile, application-version ranges,
+target acceptance, other hosts, assistive technologies, translation quality,
+stakeholder/usability and scholarly proof remain unqualified followups.
+Public and technical twins must retain those limits together. Suite counts,
+English/Arabic render observations and Browser custody exercises are not
+interchangeable with target, accessibility or stakeholder evidence.
 
 ### Review a documentation-only change
 

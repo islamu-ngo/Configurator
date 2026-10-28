@@ -1,14 +1,14 @@
 # Core definition contract
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Implemented pre-release bounded-v2 base; broader scenarios remain unqualified
+> **Status:** Qualified pre-release bounded-v2; target acceptance and other hosts remain unqualified
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/`, `src/Configurator.Core/Definitions/Authoring/`
 
 The [public reference](../public/definition-reference.md) projects current
-admission. The [Definition Standard v2](../public/definition-standard.md) remains
-Draft and includes later design; neither that design nor the historical
+admission. The [Definition Standard v2](../public/definition-standard.md) records
+the qualified bounded profile; neither follow-up design nor the historical
 [standard audit](reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md) widens the
 implemented vocabulary.
 
@@ -26,6 +26,13 @@ canonical bytes; digest is computed, never supplied within the definition.
 `ApplicationVersions`, `EntryPoints`, `Locales`, `Fields`, `Artifacts` and optional
 `Presentation` and immutable `SourceMap`. `Configuration` is the immutable recursive `DefinitionNode` tree.
 Fields are root presentation projections, not a second schema authority.
+
+The promoted [Core overview](CORE_DEFINITIONS.md) and
+[bounded conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) complement this
+detailed source contract. Public adopters start with the
+[implemented reference](../public/definitions.md) and
+[supported-shape cookbook](../public/definition-cookbook.md). Successful
+preparation remains distinct from target semantic acceptance and authorization.
 
 `SetupFieldDefinition.Name` preserves the exact root data key. `Id` is bounded
 metadata: a representable name retains its ID except reserved prefix `f-`;
@@ -343,7 +350,7 @@ Native `Configurator.DefinitionSchemaGenerator` owns --write/--check schemas and
 pairs are minimal-self-hosted, grafana-13.2.2 and islamu-event.
 Fresh v2 families/revision 1 are recorded from source in the
 [integration guide](../public/integrate-your-tool.md#complete-minimal-configuratoryaml-example).
-The parent reports source/runtime agreement 3/3. This documentation unit did not
+Native verification records source/runtime agreement 3/3. This documentation unit did not
 rerun checks; target acceptance, package/host closure and complete interactive
 qualification are unproven by that result.
 

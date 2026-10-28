@@ -1,6 +1,6 @@
 # Configurator Documentation Hub
 
-Welcome to the ISLAMU Configurator documentation. Configurator is an offline, deployment-neutral utility that turns declarative setup definitions and local user answers into production-ready configuration files (`.env`, JSON, YAML).
+Welcome to the ISLAMU Configurator documentation. Configurator is an offline, deployment-neutral utility that turns declarative setup definitions and local user answers into candidate configuration files (`.env`, JSON, YAML). The target application independently validates and authorizes their use.
 
 Documentation is organized into two parallel tracks:
 - **`public/` (Adopters & Integrators):** User guides, interface walkthroughs, command references, and tutorials.
@@ -17,10 +17,11 @@ Documentation is organized into two parallel tracks:
 | Try a 5-minute offline walkthrough with sample data | 🚀 [Quickstart Guide](public/getting-started.md) |
 | Automate configuration or run headless in CI/CD | 💻 [CLI Reference](public/cli.md) |
 | Fill in a form interactively | ⌨️ [Terminal TUI](public/terminal.md) · 🖥️ [Desktop GUI](public/desktop.md) · 🌐 [Web Browser](public/browser.md) |
-| Add configuration support to my own application | 🛠️ [Integrate Your Tool](public/integrate-your-tool.md) |
+| Add configuration support to my own application | [Adopt Configurator beside your application](public/integrating.md) · [Detailed maintainer guide](public/integrate-your-tool.md) |
+| Apply supported schema and answer-state patterns | [Definition cookbook](public/definition-cookbook.md) |
 | Inspect definition syntax and field types | 🧩 [Definitions Guide](public/definitions.md) |
 | Check required properties, defaults, import limits, and client support | [Current Definition Contract Reference](public/definition-reference.md) |
-| Review the proposed replacement contract | [Draft Definition Standard v2](public/definition-standard.md) |
+| Review the implemented bounded-v2 contract and qualification limits | [Definition Standard v2](public/definition-standard.md) · [Technical conformance profile](internal/DEFINITION_CONFORMANCE_PROFILE.md) |
 | Configure JSON Schema validation in your IDE | 📐 [Schema Catalog & IDE Setup](../schemas/README.md) |
 | Recover from a failed or interrupted save | 🛡️ [Native Output & Recovery](public/native-output.md) |
 | Troubleshoot exit codes, save failures, or UI issues | 🔧 [Troubleshooting Guide](public/troubleshooting.md) |
@@ -59,8 +60,8 @@ Each public guide corresponds to an authoritative internal technical reference:
 | Domain | User Guide (`public/`) | Technical Source Anchor (`internal/`) |
 |---|---|---|
 | **Architecture & Vision** | [Overview](public/overview.md) · [Glossary](public/glossary.md) | [Vision & Approach](internal/VISION_AND_APPROACH.md) · [Architecture](internal/ARCHITECTURE.md) · [Design Alternatives](internal/DESIGN_ALTERNATIVES.md) |
-| **Definitions & Validation** | [Definitions](public/definitions.md) · [Current Reference](public/definition-reference.md) · [Draft Standard](public/definition-standard.md) · [Schemas](../schemas/README.md) | [Core Definition Contract](internal/CORE_DEFINITION_CONTRACT.md) · [Draft Profile](internal/DEFINITION_PROFILE.md) |
-| **Tool Authoring & Revisions** | [Integrate Your Tool](public/integrate-your-tool.md) | [Maintainer Authoring](internal/MAINTAINER_AUTHORING.md) |
+| **Definitions & Validation** | [Definitions](public/definitions.md) · [Current Reference](public/definition-reference.md) · [Standard](public/definition-standard.md) · [Cookbook](public/definition-cookbook.md) · [Schemas](../schemas/README.md) | [Core Definition Contract](internal/CORE_DEFINITION_CONTRACT.md) · [Conformance Profile](internal/DEFINITION_CONFORMANCE_PROFILE.md) · [Qualification Map](internal/DEFINITION_PROFILE.md) |
+| **Tool Authoring & Revisions** | [Integration workflow](public/integrating.md) · [Detailed maintainer guide](public/integrate-your-tool.md) | [Maintainer Authoring](internal/MAINTAINER_AUTHORING.md) |
 | **CLI & Machine Envelopes** | [CLI](public/cli.md) | [CLI Contract](internal/CLI_CONTRACT.md) |
 | **Interactive Terminal** | [Terminal](public/terminal.md) | [Terminal Client](internal/TERMINAL_CLIENT.md) · [Presentation State](internal/PRESENTATION_STATE.md) |
 | **Desktop Application** | [Desktop](public/desktop.md) | [Desktop Client](internal/DESKTOP_CLIENT.md) · [Presentation State](internal/PRESENTATION_STATE.md) |
@@ -71,6 +72,24 @@ Each public guide corresponds to an authoritative internal technical reference:
 | **Target Handoff & Launch** | [Launch Integration](public/launch-integration.md) | [Launch Contract](internal/LAUNCH_CONTRACT.md) · [ADR: Definition Boundary](internal/adr/ADR-definition-runtime-boundary.md) |
 | **Standalone Packaging** | [Packaging](public/packaging.md) | [Packaging Contract](internal/PACKAGING.md) |
 | **Definition Store** | [Definition Store](public/definition-store.md) | [Store Contract](internal/DEFINITION_STORE.md) · [ADR: Optional Store](internal/adr/ADR-optional-definition-store.md) |
+
+---
+
+## Qualified pre-release evidence
+
+Parent-reported bounded-v2 qualification completed Core **217**, Desktop **229**,
+Terminal **106**, and Architecture **73** passing tests; Linux x64 X11 native
+exercises passed all **19** scenarios in both English and Arabic. The published
+AOT Browser was exercised on real desktop/mobile layouts, RTL, offline and
+custody flows. Standalone Linux x64 CLI exercises covered complete/incomplete
+preparation and create-only conflicts. This documentation update did not rerun
+qualification; the parent owns verification records.
+
+These observations do not qualify general assertions beyond bounded-v2,
+application-version ranges, target acceptance, other hosts, assistive
+technologies, translation quality, stakeholder/usability or scholarly proof.
+See [Operations](internal/OPERATIONS.md) for execution evidence and the
+[definition qualification map](internal/DEFINITION_PROFILE.md) for scope.
 
 ---
 

@@ -9,10 +9,12 @@ application. Core compiles it into immutable canonical runtime JSON; clients
 collect private answers separately and prepare declared files offline.
 Preparation never installs configuration or grants target administration.
 
-The current base uses authoring v2 and runtime schemaVersion 2 with profile
-`bounded-v2`. The [current reference](definition-reference.md) defines executable
-grammar. The [public standard](definition-standard.md) remains Draft because
-broader features and complete client/scenario qualification are not delivered.
+The implemented standard uses authoring v2 and runtime schemaVersion 2 with
+profile `bounded-v2`. The [current reference](definitions.md), supported-shape
+[cookbook](definition-cookbook.md) and [portable workflow](integrating.md)
+describe the admitted contract. The earlier [standard draft](definition-standard.md)
+records design decisions; it is not a promise of unrestricted JSON Schema or
+target acceptance.
 
 ## The Maintainer Lifecycle
 
@@ -77,7 +79,7 @@ configuration:
         suggestedValue: 8443
     label:
       type: [string, "null"]
-      enum: [internal, external]
+      enum: [internal, external, null]
       x-configurator:
         sensitivity: public
     peers:
@@ -101,8 +103,10 @@ configuration:
 The generated `f-` hash namespace is reserved, including for literal names
 already beginning `f-`. Do not use IDs as answer keys.
 
-Every object explicitly declares `additionalProperties: false`; every array
-declares recursive `items`. Enums retain the scalar type instead of `type: enum`.
+Objects explicitly close undeclared names with `additionalProperties: false`
+or declare a typed additional-value schema. Fixed properties may coexist with
+that map schema and keep their own types and requiredness. Every array declares
+recursive `items`. Enums retain the scalar type instead of `type: enum`.
 Nullable form is one base type plus `"null"`. Names are ordinal, case-sensitive,
 not normalized; RFC6901 escaping preserves slashes, tildes and empty names.
 
@@ -162,12 +166,14 @@ islamu-configurator definition check --machine
 
 Check validates source admission, references, closed shapes, privacy, supported
 constraints and budgets. It does not establish target-validator equivalence.
-Root applicability is delivered, as are root presence-only
-`if.required`/`then.required` and `dependentRequired`. Broader or nested schema
-conditions and source maps are later phases. Recursive maps, bounded provider
-branches, local references and explicit format assertions are implemented.
-Unknown semantic vocabulary rejects rather than silently
-degrading. `format` currently remains descriptive.
+Root- and row-item-scoped applicability, nested local requiredness relationships,
+source locations and typed corrections are delivered. Local `if` guards can
+inspect required presence and declared const/enum properties; consequences are
+local required sets, not arbitrary schema combinators. Recursive maps, bounded
+provider branches, local references and explicit format assertions are
+implemented. Unknown semantic vocabulary rejects rather than silently degrading.
+Standard `format` remains descriptive unless `x-configurator.assertFormat`
+explicitly enables a supported assertion.
 
 ### Step 3: Build Canonical JSON
 

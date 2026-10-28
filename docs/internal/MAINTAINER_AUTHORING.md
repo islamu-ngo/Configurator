@@ -1,7 +1,7 @@
 # Maintainer authoring contract
 
 > **Audience:** Maintainers | Contributors | AI agents
-> **Status:** Implemented pre-release v2 base; full runtime/client/package qualification remains separate
+> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
 > **Owner:** Core | Native authoring tooling | Contributor Experience
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/SetupDefinitionSourceCodec.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `schemas/configurator-authoring-v2.schema.json`
@@ -12,8 +12,12 @@ The discriminator is `$schema: urn:islamu:configurator:authoring:v2`.
 Required roots are `identity`, `project`, `applicationVersions`, `configuration`
 and `outputs`; optional roots are `entryPoints`, `presentation`, `localization`,
 `annotations`. Unknown members reject. Source v1 is not an alternate parser path.
-The [public reference](../public/definition-reference.md) projects this contract;
-the [standard](../public/definition-standard.md) remains Draft beyond the base.
+The [public reference](../public/definition-reference.md) and
+[standard](../public/definition-standard.md) project the implemented bounded-v2
+contract. Use the [integration workflow](../public/integrating.md) for adoption,
+the [cookbook](../public/definition-cookbook.md) for supported patterns, and the
+[technical conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) for detailed
+admission mechanisms and limits.
 
 `DefinitionAuthoringCodec.ParseJson/ParseYaml` snapshots bounded exact-key source.
 `DefinitionAuthoringCompiler.Compile` builds the runtime envelope, expands output
@@ -110,12 +114,21 @@ pointers under answerContractVersion 1. Supplied/suppressed conflicts and
 overlapping omissions reject atomically. Validation, drafts and composition
 consume the same effective configuration.
 
-Applicability is currently admitted on direct configuration properties with
-root-scoped predicates; nested applicability and configuration-root applicability
-reject. Root presence-only `if.required`/`then.required` and `dependentRequired`
-are delivered relationship assertions, not visibility toggles. Broader/nested
-conditions and source maps remain later-phase work; recursive maps, variants
-and the explicit bounded assertion registry are implemented.
+Applicability is admitted on declared properties, including nested properties
+and array rows. Root-scoped references can select declared nested controllers;
+item-scoped references select only the current array item. Configuration-root
+applicability rejects. Invalid or secret-deferred controllers propagate unknown,
+not a guessed branch. Object-local `if` guards admit required presence and
+property const/enum tests; `then` and optional `else` contain local required-name
+sets. `dependentRequired` is also local, including in nested objects and rows.
+These are relationship assertions, not visibility toggles or activation edges;
+arbitrary conditional subschemas remain unsupported.
+
+Definition source maps carry bounded public schema pointers, document ordinals
+and numeric spans through decoding/lowering. Errors use known positions, or an
+enclosing safe position when necessary, never raw scalars, arbitrary unknown
+keys or native paths. Answer correction coordinates are separate, typed and
+revision-bound; private map names become entry ordinals.
 
 ## Authored presentation and guidance
 
@@ -142,8 +155,10 @@ issuer excludes symmetric-key. Intent grants no generator or authentication.
 
 Localization admits `defaultLocale`, locale-keyed translations, optional
 ltr/rtl direction and overrides pointing to existing public text. The compiler
-derives sorted runtime locales; runtime checks agreement. This base does not
-deliver broader localization policy or qualify translation behavior across clients.
+derives sorted runtime locales; runtime checks agreement. Native English/Arabic
+and Browser RTL observations are qualified only within the recorded pre-release
+scope below. Broader localization policy, translation quality and unexercised
+cross-client behavior remain followups.
 All admitted metadata participates in canonical identity; YAML comments do not.
 
 ## Syntax and identity editing
@@ -174,7 +189,7 @@ network authentication, target apply or persistent browser answer custody.
 ## Native maintainer commands
 
 `DefinitionCommands` registers init/check/build/revise through the existing
-Spectre registry/preflight and command v2 envelope. `SetupCliDefinitionHandlers`
+Spectre registry/preflight and command v3 envelope. `SetupCliDefinitionHandlers`
 owns scaffolding, compilation and revision comparison. Discovery/read/existence/
 staged publication, including schema references, use invocation-scoped
 `ISetupCliAuthoringFiles`; `SetupCliIo` requires it explicitly and Program supplies
@@ -202,7 +217,8 @@ candidates. This path boundary is not captured-handle/root authority or CAS.
 Machine diagnostics are bounded structural codes, never source scalars or private
 paths. Successful check/build reports authoringContractVersion=2 and
 runtimeSchemaVersion=2; downstream independently verifies the canonical digest.
-Command v3 remains later work.
+The command envelope is v3, independently of the 2/2 authoring/runtime handshake
+and private-answer v1.
 
 ## Public schema import
 
@@ -243,7 +259,19 @@ Renewal uses the native identity editor and allocates fresh family/revision 1;
 ordinary writing does not authorize rewriting published identity history.
 See the [schema catalog](../../schemas/README.md) for exact commands.
 
-The parent reports current fresh-family source/runtime agreement 3/3, not target
-acceptance. This unit inspected source and made prose edits only; parent owns
-freshness, link and product checks. See the [integration workflow](../public/integrate-your-tool.md)
-and [Core contract](CORE_DEFINITION_CONTRACT.md).
+Native verification records current fresh-family source/runtime agreement 3/3, not target
+acceptance. Recorded qualification also completed Core 217, Desktop 229,
+Terminal 106 and Architecture 73 passing tests; Linux x64 X11 passed all 19
+native scenarios in both English and Arabic. The published AOT Browser was
+exercised at real desktop/mobile sizes, RTL, offline and custody flows.
+Standalone Linux x64 CLI exercises covered complete preparation, incomplete
+answers and create-only conflicts.
+
+This unit read existing documentation and made prose edits only; the parent owns
+freshness, link and product checks and exact qualification records. General
+assertions outside bounded-v2, application-version ranges, target acceptance,
+other hosts, assistive technologies, translation quality, stakeholder/usability
+and scholarly proof remain unqualified followups. See the
+[integration workflow](../public/integrating.md),
+[detailed maintainer guide](../public/integrate-your-tool.md),
+[qualification map](DEFINITION_PROFILE.md) and [Core contract](CORE_DEFINITION_CONTRACT.md).

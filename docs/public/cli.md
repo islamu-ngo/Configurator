@@ -7,6 +7,24 @@ The CLI is designed for headless servers, automation pipelines, and CI/CD workfl
 > [!NOTE]
 > **Getting Started:** If you are running Configurator for the first time with synthetic example files, see the [Prepare a configuration offline](getting-started.md) guide.
 
+For portable bounded-v2 adoption, start with the
+[integration workflow](integrating.md), then the
+[definition reference](definition-reference.md) and
+[cookbook](definition-cookbook.md). Public authoring/runtime contracts are v2,
+private answers are v1, and machine receipts are v3; those versions are independent.
+
+## Qualified pre-release scope
+
+Parent-reported standalone Linux x64 CLI qualification exercised complete
+preparation, incomplete answers and create-only existing-file conflicts. This
+documentation update did not rerun those exercises. Qualification does not
+establish target acceptance, another host's protected-save support, installed
+adoption, assistive-technology compatibility or stakeholder/scholarly proof.
+The target still owns semantic validation and permission to apply the files.
+See [packaging](packaging.md) for host boundaries and the
+[technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
+for the bounded definition mechanisms and limits.
+
 ---
 
 ## Invocation Basics & Confidentiality
@@ -423,4 +441,6 @@ The CLI uses standard, predictable POSIX-compatible exit codes:
 | `74` | `io` | I/O failure (file bounds exceeded, protected write blocked, or stdout broken) |
 | `130` | `cancelled` | Operation cancelled cooperatively via `SIGINT` (`Ctrl+C`) or `SIGTERM` |
 
-For advanced authoring and schema guidelines, see the [Authoring Integration Guide](integrate-your-tool.md) and [Packaging Guide](packaging.md).
+For advanced authoring and schema guidelines, see the
+[Authoring Integration Guide](integrate-your-tool.md),
+[bounded patterns](definition-cookbook.md), and [Packaging Guide](packaging.md).

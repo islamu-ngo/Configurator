@@ -5,15 +5,19 @@ description: "Current bounded-v2 definition grammar, explicit answer states, out
 # Current Definition Contract Reference
 
 > **Audience:** Adopters | Integrators
-> **Status:** Implemented pre-release v2 base; scenario and client qualification remain separate
+> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`, `docs/internal/MAINTAINER_AUTHORING.md`
 
-Use this reference for the implemented base contract and the
-[integration guide](integrate-your-tool.md) for the maintainer workflow.
-The [Definition Standard v2](definition-standard.md) remains Draft: its broader
-selected design is not a claim that all scenarios or clients are qualified.
+Use this reference for the implemented bounded-v2 contract, the
+[integration workflow](integrating.md) for adoption, the
+[maintainer guide](integrate-your-tool.md) for detailed authoring, and the
+[cookbook](definition-cookbook.md) for supported patterns.
+The [Definition Standard v2](definition-standard.md) describes this bounded
+contract, not full JSON Schema or qualification of all scenarios and clients.
+The [technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
+records admission mechanisms and source-observed limits.
 There is no v1 fallback or implicit migration.
 
 ## Which document are you editing?
@@ -61,7 +65,7 @@ The configuration tree replaces the former `fields`/`itemType` vocabulary.
 `configuration.properties` holds exact root data names; object `properties` and
 array `items` recursively use the same admitted schema grammar.
 
-| Member | Implemented base rule |
+| Member | Implemented bounded-v2 rule |
 |---|---|
 | `type` | `string`, `boolean`, `integer`, `number`, `object`, `array`; nullable form is exactly one base type plus `"null"` |
 | `title`, `description` | Optional bounded inert metadata |
@@ -145,7 +149,7 @@ overlapping suppressions reject atomically.
 | Standard `default` | No inserted value |
 | Absent container with an initialized child | Container stays absent |
 | Present container with never-supplied children | Resolve eligible child initialization recursively |
-| Inapplicable root property | Exclude from effective validation and output |
+| Inapplicable location | Exclude from effective validation and output |
 
 Required descendants do not instantiate an absent optional object. Null is
 different from omission. Required empty strings are valid unless a separate
@@ -221,8 +225,9 @@ Credential descriptors require an effective secret string context:
 
 Descriptors do not generate or authenticate credentials. Localization currently
 admits a `defaultLocale`, translations, direction and pointer-keyed overrides
-of existing public text. Broader localization policy and cross-client behavior
-remain later qualification, not implied translation coverage.
+of existing public text. The recorded English/Arabic native and RTL Browser
+exercises qualify those observations only. Broader localization policy,
+translation quality and unexercised cross-client behavior remain followups.
 
 Shared editing projects these overrides over the admitted schema without changing
 answer values. Locale selection uses a declared locale and explicit `ltr`/`rtl`
@@ -243,12 +248,14 @@ Optional layout can degrade only to reachable neutral presentation.
 |---|---|
 | Core | Admitted recursive grammar, values, predicates and projection semantics |
 | Shared editing | Nullable values, typed map/variant traversal, deliberate enum/suggestion/reset actions, safe revision-bound corrections and inert locale metadata |
-| CLI | Machine v3 discovery and diagnostics over the admitted Core contract |
-| Browser, Desktop, Terminal | Adapter and actual-surface qualification are separate; shared support alone is not proof of rendered support |
+| CLI | Machine v3 discovery and diagnostics; standalone Linux x64 complete/incomplete and create-only conflict exercises |
+| Desktop, Terminal | Linux x64 X11: all 19 native scenarios in both English and Arabic |
+| Browser | Published AOT application: real desktop/mobile, RTL, offline and custody exercises |
 
-The implemented Core base does not qualify every CLI, Browser, Desktop or Terminal
-scenario, accessibility path, package or physical host. Keep indispensable
-guidance in plain text and qualify the clients selected for your integration.
+This is qualified pre-release scope, not every scenario, accessibility path,
+package or physical host. Shared editing alone does not prove rendered support.
+Keep indispensable guidance in plain text and qualify the clients selected for
+your integration. New hosts and assistive technologies remain unqualified.
 Machine command v3 is current; authoring/runtime remain v2 and private answers remain v1.
 
 ## Outputs and import
@@ -326,8 +333,17 @@ sections at 64 and journeys at 16. Import has stricter reference/expansion limit
 YAML is bounded JSON-shaped data: tags, anchors, aliases, directives, merge keys,
 multiple documents and non-string resolved keys reject.
 
-The parent reports example source/runtime agreement **3/3** for the fresh v2
-families at revision 1. This documentation unit did not rerun that check.
-It proves neither target acceptance nor complete scenario/client qualification.
+Native verification records example source/runtime agreement **3/3** for the fresh v2
+families at revision 1. This prose increment did not rerun that check.
+Recorded qualification also completed Core **217**, Desktop **229**,
+Terminal **106**, and Architecture **73** passing tests, plus the actual-surface
+exercises listed above. This prose increment did not rerun them. Counts do
+not substitute for scenario or actual-host evidence.
+
+General assertions outside the bounded grammar, application-version ranges,
+target acceptance, other hosts, assistive technologies, stakeholder/usability,
+translation quality and scholarly proof remain unqualified followups. Exact
+application strings remain the only version-selection contract. Neither the
+examples nor the qualified client exercises close those gaps.
 See the [Core contract](../internal/CORE_DEFINITION_CONTRACT.md) and
 [maintainer contract](../internal/MAINTAINER_AUTHORING.md) for mechanisms.

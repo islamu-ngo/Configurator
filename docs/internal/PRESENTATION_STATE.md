@@ -1,12 +1,18 @@
 # Definition presentation state
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Implemented shared state; rendered client qualification is separate
+> **Status:** Implemented shared state; qualified pre-release Linux x64 and Browser scope
 > **Owner:** Presentation
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Presentation/Presentation/`, `src/Configurator.Core/Definitions/`
 
 ## Recursive v2 editing and localized display
+
+The [technical conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) owns
+admitted semantics and source-observed limits; this contract owns workspace
+state, editing, operation generations and custody. Public entry points are the
+[integration workflow](../public/integrating.md) and
+[cookbook](../public/definition-cookbook.md).
 
 `DefinitionFormIndex` indexes declared properties, items, typed map values and
 variant schemas once. It contains public schema paths, not dynamic entry names.
@@ -48,8 +54,15 @@ Consent checks and revocation traverse declared properties, typed maps and the
 Core-selected variant. Revocation mutates the existing transient JSON tree
 without reparenting surviving array nodes; public nulls and safe siblings remain.
 No new answer store, evaluator, operation scheduler or transport is introduced.
-Client rendering, keyboard/accessibility and actual-host qualification remain
-separate from this shared-state contract.
+Client rendering and actual-host evidence remain separate from this shared-state
+contract. Parent-reported pre-release qualification completed Desktop 229 and
+Terminal 106 passing tests, alongside Core 217 and Architecture 73. Linux x64
+X11 passed all 19 native scenarios in both English and Arabic; the published AOT
+Browser was exercised at real desktop/mobile sizes, RTL, offline and custody
+flows. These observations do not qualify other hosts, assistive technologies,
+translation quality, stakeholder/usability or scholarly proof, or target
+acceptance. This prose unit reran none of those checks; the parent owns exact
+verification records. See the [qualification map](DEFINITION_PROFILE.md).
 
 Native clients and Browser use the same admitted definition and answer snapshots.
 Local compact YAML/JSON sources pass through `SetupDefinitionSourceCodec` before
@@ -233,8 +246,9 @@ requiredness. Typed presence is owned independently of display text.
 explicit empty strings and admitted empty enum choices remain values, whitespace
 in strings remains literal, and rejected conversions retain invalid draft state.
 Explicit omission removes an answer path without clearing its siblings. Core's
-declared-default fallback remains effective for absent answers; omission does
-not override that definition policy. Scalar edit
+eligible `initialValue` fallback remains effective for absent answers; explicit
+omission suppresses that initialization, and reset restores eligibility.
+Standard `default` is descriptive only. Scalar edit
 intent, parsing, validity and revision settle under the same mutation gate.
 Deliberate invalid, rejected or same-value edits advance one revision and fence
 pending imports even if accepted JSON does not change. Programmatic refresh,
@@ -347,9 +361,9 @@ a property/message observer failure clears that outcome without clearing a
 reentrant replacement or cancelling its pending worker. Invalidation, changed
 properties and command eligibility all receive their post-lock notification
 batch even when another notification fails; failures remain owned by the caller.
-Workspace-owned operation, result and public-input properties are read-only snapshots; callers
-use `SetPublicInput` and lifecycle methods instead of assigning those observable
-property setters. Notifications contain only
+Workspace-owned operation and result properties are read-only snapshots; callers
+use the form's typed editing APIs and workspace lifecycle methods instead of
+assigning observable property setters. Notifications contain only
 changed properties and run after coherent state transitions release the gate.
 Reentrant callbacks may start new work without a remaining old-state write.
 

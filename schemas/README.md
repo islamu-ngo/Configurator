@@ -62,7 +62,7 @@ To associate the structural schemas with your YAML and JSON files, add the follo
 
 ### 2. Authoring Discriminator vs. Editor Association
 
-Compact authoring requires the exact `$schema` discriminator below. Its URN identifies the source contract; use the editor association above rather than assuming that the URN supplies a downloadable schema. This fragment omits required fields and outputs:
+Compact authoring requires the exact `$schema` discriminator below. Its URN identifies the source contract; use the editor association above rather than assuming that the URN supplies a downloadable schema. This fragment omits required fields and outputs. Allocate your own family through native `definition init` or `init --fork-from`; the illustrative UUID is not an identity to reuse:
 
 **In YAML (`configurator.yaml`):**
 ```yaml
@@ -106,7 +106,39 @@ Command results still use envelope v3; successful authoring check/build reports
 authoringContractVersion 2/runtimeSchemaVersion 2. Answer v1 and store v1 are
 independent contracts, not compatibility fallbacks for definition v1.
 
-The schemas in this directory describe Configurator definition documents. An application's own JSON Schema is a different input: it can scaffold a compact source only through the bounded [JSON Schema importer](../docs/public/definition-reference.md#json-schema-import). Generated schema validity does not establish target-application acceptance.
+The schemas in this directory describe Configurator contracts, not the target application's schema. An application's own public JSON Schema is a different input: it can scaffold a compact source only through the bounded [JSON Schema importer](../docs/public/definition-reference.md#json-schema-import). Its transformation ledger records retained, converted, advisory, discarded and unsupported concepts; numeric-domain/nullable-branch acknowledgment never bypasses unsupported assertions. Defaults/examples are not private initialization and `writeOnly` ancestry remains secret. Generated schema validity does not establish target-application acceptance.
+
+## Portable use and capability boundaries
+
+Copy these public schemas into your own project for editor assistance, or obtain
+built-in schema documents with native tooling:
+
+```bash
+islamu-configurator definition schema --kind authoring --text
+islamu-configurator definition schema --kind runtime --text
+islamu-configurator definition schema --kind answers --text
+islamu-configurator definition schema --kind command --machine
+```
+
+Schema discovery does not inspect private answers or fetch arbitrary references.
+There is no Store/GitHub dependency for local authoring, admission or preparation.
+Use [portable adoption](../docs/public/integrating.md) and the
+[cookbook](../docs/public/definition-cookbook.md) rather than manually deriving
+runtime capabilities or copying full raw configurations into documentation.
+
+Objects explicitly declare closure or a typed `additionalProperties` schema;
+arrays declare recursive `items`. Closed discriminator branches and bounded
+configuration-root local references are supported, not general unions or remote
+schema fetch. `format` remains descriptive unless the admitted
+`x-configurator.assertFormat: true` opts into hostname, email-address, uri or
+http-url lexical checks. Editor acceptance does not prove contextual reference,
+privacy, capability or resource admission. Consumers must refuse unsupported
+mandatory semantics before answer collection.
+
+CLI, Terminal, Desktop and Browser share Core admission; their actual editor,
+custody and package evidence remains separate. Public schemas contain no
+answers or executable plugins, and native filename hints confer no path
+authority. Browser public caches exclude private answer and artifact payloads.
 
 ---
 
@@ -141,15 +173,22 @@ it is an intentional example identity replacement, not routine freshness repair.
 `--check-examples` compares canonical bytes for minimal-self-hosted,
 grafana-13.2.2 and islamu-event without writing.
 
-Native checking confirmed source/runtime agreement **3/3** for the current fresh v2
-families, recorded in the [integration guide](../docs/public/integrate-your-tool.md#complete-minimal-configuratoryaml-example).
-The result is not target acceptance or complete client/package qualification.
+The [maintained example index](../examples/README.md) names the three pairs.
+`--check-examples` reports canonical source/runtime agreement only; this
+documentation unit did not execute it or renew identities. Any current pass
+claim belongs to parent-owned verification, not this catalog. Agreement is not
+target acceptance, final physical/package completion or I-VSD closure.
 
-Root applicability and root presence-only `if.required`/`then.required` plus
-`dependentRequired` are current base support. Broader/nested conditions,
-source maps, expanded localization policy and machine v3 are later work.
-Recursive typed maps, closed discriminated variants, local refs, exact numeric
-assertions, unique items and explicit format assertions are supported. Structural schemas can describe
-shapes whose contextual semantics still reject in Core; consult the
-[current reference](../docs/public/definition-reference.md), not editor validity
-alone. The [public standard](../docs/public/definition-standard.md) remains Draft.
+The source-backed profile includes root/row applicability and local
+presence/const/enum guards with `then.required`, optional `else.required` and
+`dependentRequired`, not arbitrary conditional subschemas. Recursive typed maps,
+closed discriminated variants, bounded local refs, exact numeric assertions,
+unique items and opt-in format assertions share the same Core admission.
+Definition-only source maps and command v3 diagnostics are implemented;
+localization overrides address existing public text and do not change answers.
+Structural schemas can still describe shapes whose contextual semantics reject
+in Core. Consult the [reference](../docs/public/definition-reference.md),
+[standard](../docs/public/definition-standard.md) and
+[Core mechanism map](../docs/internal/CORE_DEFINITIONS.md), not editor validity
+alone. Target validators and operator apply/restart authority remain outside
+schema generation.

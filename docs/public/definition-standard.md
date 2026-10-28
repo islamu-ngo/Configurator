@@ -1,27 +1,29 @@
 ---
-description: "Draft v2 bounded configuration profile, explicit answer states, mappings, and client obligations."
+description: "Implemented bounded-v2 configuration profile, explicit answer states, mappings, and qualified pre-release scope."
 ---
 
 # Definition Standard v2
 
 > **Audience:** Adopters | Integrators | Contributors
-> **Status:** Draft; bounded-v2 base implemented, broader scenarios and client qualification incomplete
+> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `docs/internal/DEFINITION_PROFILE.md`, `src/Configurator.Core/Definitions/`
 
-This Draft records the v2 standard and its selected later design. The current
-product implements the bounded-v2 base; use the
+This standard records the implemented bounded-v2 contract; use the
 [current reference](definition-reference.md) for executable authoring and precise
-admission limits. Base implementation does not qualify every scenario, client,
-package or target. Sections marked later design are not admitted support.
+admission limits, the [integration workflow](integrating.md) for adoption, and the
+[cookbook](definition-cookbook.md) for bounded patterns. Qualification covers the
+recorded pre-release Linux x64 and published Browser exercises, not every
+scenario, package, host or target.
 
-The base includes recursive closed objects/array items, typed enums and nullable
+The profile includes recursive closed objects/array items, typed enums and nullable
 types, explicit value/omission states, scoped references, root/row applicability,
 local presence and const/enum relationships, typed maps, discriminated variants,
 exact numeric assertions, local references, explicitly asserted formats and
-public source maps. General conditional subschemas, localization policy expansion
-remain later work. Machine v3 is current. No v1 fallback is provided.
+public source maps. General conditional subschemas and localization policy
+expansion remain unqualified followups, not admitted support. Machine v3 is
+current. No v1 fallback is provided.
 
 A definition describes public configuration requirements and output mappings.
 It never contains private answers, executes code, fetches references, authenticates
@@ -89,7 +91,7 @@ The configuration root itself must be a non-null object.
 | `minItems`, `maxItems` | Current array cardinality bounds |
 | `uniqueItems` | Boolean structural uniqueness assertion |
 | `minProperties`, `maxProperties` | Objects only; nonnegative bounds |
-| `dependentRequired` | Current configuration-root map of local names to distinct nonempty local required-name arrays; nested form later |
+| `dependentRequired` | Object-local map of declared names to distinct nonempty local required-name arrays, including nested objects and array rows |
 | `$defs`, `$ref` | Acyclic local schema references rooted at configuration, starting `#/$defs/`; supplied offline documents are additionally supported by the importer |
 | `if`, `then`, `else` | Local guards use required presence and property const/enum assertions; consequences are required-name sets |
 | General conditional subschemas | Not part of the bounded profile |
@@ -121,7 +123,7 @@ unsupported assertion.
 | `notBlank` | String-only Boolean assertion rejecting empty/whitespace text when true |
 | `assertFormat` | String-only Boolean enabling a supported format assertion when true |
 | `uniqueBy` | Array-of-object uniqueness by an admitted concrete property pointer |
-| `applicableWhen` | Current direct configuration-property predicate using root-scoped references; nested/item predicates later |
+| `applicableWhen` | Declared-property predicate using root-scoped references, including nested declared paths, or current array-item references; configuration-root applicability rejects |
 | `detail` | `basic`, `standard`, `advanced`; presentation only, default standard |
 | `guidance` | Closed instructions, static documentation links, and search terms |
 | `credential` | Closed kind/acquisition descriptor; requires effective secret context |
@@ -184,14 +186,16 @@ not answer identity. Representable names retain their ID except reserved `f-`;
 other names, including literal `f-` names, use `f-` plus a domain-separated full
 SHA-256 of the escaped exact root pointer. Names are not normalized.
 
-**Later map/source-map design:** Dynamic map keys are private answer data.
+Dynamic map keys are private answer data.
 Public diagnostics must identify declared
 schema positions and bounded row/entry indices, never raw dynamic keys or values.
-The local workspace would resolve correction identities; edits would retire
-old correction tokens. Source maps are not delivered. Authoring errors may
-eventually include a public schema pointer,
-numeric line/column, stable code, and bounded supplied-document ordinal, but no
-raw scalar, exception, arbitrary unknown key, or private filesystem path.
+The local workspace resolves revision-bound correction identities; edits retire
+old correction tokens. Implemented definition source maps retain bounded public
+schema positions and numeric spans. Authoring errors can include a public schema
+pointer, numeric line/column, stable code, and bounded supplied-document ordinal,
+but no raw scalar, exception, arbitrary unknown key, or private filesystem path.
+Failures without a safe precise location may identify an enclosing position or
+omit the location.
 
 ## Effective values and answer states
 
@@ -296,7 +300,7 @@ ordered section IDs. Without metadata derive a neutral journey. Unlisted fields
 join a deterministic fallback section. Detail, journey, and section changes
 must leave all applicable required/error work reachable and cannot alter answers.
 
-Base localization declares `defaultLocale` and `translations` keyed by locale;
+Localization declares `defaultLocale` and `translations` keyed by locale;
 translations contain optional `direction` (`ltr`/`rtl`) and pointer-keyed text
 overrides. Current overrides target existing public string metadata ending in
 title, description, instructions, label, explanation or units. Expanded
@@ -315,8 +319,8 @@ Required semantic capabilities are computed from admitted features, not author
 assertions. Consumers must refuse unsupported mandatory editing before answers.
 Optional layout hints degrade to a reachable neutral form. Capability metadata
 is public, sorted and part of canonical identity; it grants no target authority.
-Core computes the current subset; actual full CLI/Browser/Desktop/Terminal
-scenario support remains separately qualified, not established by this Draft.
+Core computes the current subset. Actual CLI/Browser/Desktop/Terminal evidence
+is scoped below; shared support alone never qualifies an unexercised renderer.
 
 ## Identity, budgets, and conformance
 
@@ -342,11 +346,23 @@ Qualification must separately record Core conformance, actual machine/client
 behavior, generated schema freshness, published package closure, and any target's
 own acceptance. A build, editor pass, or synthetic projection does not prove
 usability, assistive-technology compatibility, target acceptance, or a new host.
-See the [implementation and conformance map](../internal/DEFINITION_PROFILE.md).
+See the [implementation and qualification map](../internal/DEFINITION_PROFILE.md)
+and the [technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
+for mechanisms and source-observed limits.
 
 The maintained examples now have fresh v2 families at revision 1; exact source
 identities are recorded in the [integration guide](integrate-your-tool.md#complete-minimal-configuratoryaml-example).
-The parent reports native source/runtime agreement **3/3**. This documentation
-unit did not rerun it, and no target acceptance follows from it. Retaining Draft
-status preserves the distinction between implemented base semantics, later
-standard design and unqualified end-to-end scenarios.
+Native verification records native source/runtime agreement **3/3**. This documentation
+unit did not rerun it, and no target acceptance follows from it.
+
+Recorded qualification completed Core **217**, Desktop **229**, Terminal
+**106**, and Architecture **73** passing tests. Native Linux x64 X11 exercises
+passed all **19** scenarios in both English and Arabic. The published AOT
+Browser was exercised at desktop/mobile sizes, with RTL, offline behavior and
+custody checks. Standalone CLI exercises covered complete preparation, incomplete
+answers and create-only conflicts. These are scoped pre-release observations,
+not full JSON Schema conformance, semantic-version range support, target
+acceptance, new-host or assistive-technology qualification, translation-quality,
+stakeholder/usability or scholarly proof. Broader assertions, version ranges and
+those evidence gaps remain followups. This prose update runs no new checks;
+execution records and release decisions remain separate.
