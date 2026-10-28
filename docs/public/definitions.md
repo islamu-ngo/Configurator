@@ -4,7 +4,11 @@ A configuration definition is a declarative, non-executable document that descri
 
 Configurator reads this data to render interactive setup interfaces across the terminal, desktop, and web, preparing configuration files offline. The target application still owns semantic acceptance and application of those files.
 
-This guide explains the implemented pre-release v1 vocabulary. Use the [current contract reference](definition-reference.md) for mandatory and optional properties, presence/default rules, import limits, and client capabilities. A standards-aligned redesign is proposed, not implemented; proposed names must not be used in current definitions.
+The [current contract reference](definition-reference.md) describes implemented
+authoring/runtime v2, presence/default rules, import limits and client capabilities.
+The output section below uses v2. Earlier field-oriented examples in this guide
+are migration material, not accepted v2 sources; v1 definitions have no fallback.
+Use the checked v2 examples and current reference while the longer guide is migrated.
 
 ---
 
@@ -347,7 +351,8 @@ fields:
 
 ## Output Artifact Mappings
 
-Definitions compile answers into one or more production configuration files.
+Definitions prepare restricted local configuration candidates. The target still
+owns acceptance and application.
 
 ### 1. Simple Output Bindings
 
@@ -357,18 +362,20 @@ For flat key-value outputs, use `bindings`:
 outputs:
   .env:
     format: dotenv
-    restart: process
+    targetUpdateMode: create
+    restartRequirement: process
     bindings:
-      HOST: service.host
-      PORT: service.port
-      DB_PASSWORD: database.password
+      HOST: {scope: root, path: /service.host}
+      PORT: {scope: root, path: /service.port}
+      DB_PASSWORD: {scope: root, path: /database.password}
 
   config.json:
     format: json
-    restart: process
+    targetUpdateMode: create
+    restartRequirement: process
     bindings:
-      host: service.host
-      port: service.port
+      /server/host: {scope: root, path: /service.host}
+      /server/port: {scope: root, path: /service.port}
 ```
 
 ### 2. Structured Projections
@@ -379,7 +386,8 @@ For nested documents or YAML trees, use explicit projection operators (`object`,
 outputs:
   config.yaml:
     format: yaml
-    restart: container
+    targetUpdateMode: create
+    restartRequirement: deployment
     projection:
       op: object
       members:
@@ -391,10 +399,10 @@ outputs:
           members:
             listen:
               op: copy
-              field: service.host
+              reference: {scope: root, path: /service.host}
             port:
               op: copy
-              field: service.port
+              reference: {scope: root, path: /service.port}
         security:
           op: object
           members:
@@ -405,7 +413,7 @@ outputs:
                   members:
                     secret:
                       op: copy
-                      field: database.password
+                      reference: {scope: root, path: /database.password}
 ```
 
 | Format | Typical Extensions | Best Used For |
@@ -414,6 +422,27 @@ outputs:
 | `json` | `.json` | Node.js, Go services, modern microservice daemons |
 | `yaml` | `.yaml`, `.yml` | Kubernetes ConfigMaps, Prometheus, Grafana, Home Assistant |
 | `markdown` | `.md` | Operator setup summaries and printable deployment receipts |
+
+Binding targets are concrete JSON pointers for JSON/YAML, but literal environment
+keys for dotenv. Source pointers preserve exact names: `/service.host` selects
+one dotted property, not a nested object. Escape literal slashes and tildes as
+`~1` and `~0`. Omitted JSON/YAML mappings copy the effective root; dotenv and
+Markdown require explicit mappings.
+
+Admission rejects nullable/container dotenv members, non-string Markdown list
+results and nullable repeat sources before answers are collected. A `when`
+inside a repeat may use the current `item`; it does not search other rows.
+Missing secret controllers remain unknown and withhold their dependent artifact,
+while independent projections remain available.
+
+Existing-file import supports unconditional one-to-one root/nested copies.
+Nested JSON/YAML target objects reconstruct the declared source object paths;
+scalar dotenv values recover declared types. Whole typed-map copies retain
+declared dynamic entries. Transforms, conditional projections, repeated/index
+ambiguity, overlapping source mappings and unknown imported members reject
+atomically. Existing values need provenance-owned replacement permission;
+explicit omissions require a deliberate reset before import. A prefill is not
+complete readiness or target acceptance.
 
 ---
 

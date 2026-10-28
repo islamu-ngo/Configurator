@@ -185,10 +185,17 @@ public static class DefinitionArtifactComposer
                     throw new SetupDefinitionException("projection-limit");
                 if (projection.TryGetProperty("when", out var condition))
                 {
-                    bool? matches = DefinitionValidator.EvaluateCondition(condition, validation.Values, draft ? unknown : null, item);
+                    bool? matches = DefinitionValidator.EvaluateCondition(condition, validation.Values, draft ? unknown : null, item,
+                        deferredLocations: draft ? validation.DeferredLocations : null,
+                        itemLocation: item is null ? null : DefinitionPath.Parse(itemPath));
                     if (matches is null)
                     {
                         string? unresolved = DefinitionValidator.References(condition).FirstOrDefault(unknown.Contains);
+                        if (unresolved is null && item is not null)
+                        {
+                            DefinitionPath location = DefinitionPath.Parse(itemPath);
+                            unresolved = location.Segments.Count > 0 ? location.Segments[0] : null;
+                        }
                         unresolvedField = unresolved is null ? "" : validation.Fields.FirstOrDefault(field => field.Definition.Name == unresolved)?.Id ?? "";
                         throw new SetupDefinitionException("draft-dependency-unresolved");
                     }

@@ -1,0 +1,30 @@
+Change-Id: CHG-01M5ZX98NPQSE61RCHVM89BHKS
+Title: "type-check configuration mappings and bounded imports"
+Type: feat
+Scope: output
+Summary: "Reject incompatible Markdown result shapes and nullable repeat sources before answers. Import one-to-one nested direct copies atomically and preserve unknown for secret-dependent item branches in drafts."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "Definitions with incompatible Markdown projections or nullable repeat sources now reject at admission. Explicit answer omissions cannot be reset by default-origin import replacement permission."
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "The shared predicate kernel consumes transient concrete deferred locations, so a missing secret item controller never becomes a guessed false branch. Unknown input and conflicting or ambiguous inverses reject without publishing private keys or values."
+  Migration:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+    Detail: "Use scoped source pointers and concrete JSON/YAML target pointers. Keep repeat sources non-nullable, Markdown results as string lists, and dotenv values as non-null scalars. Deliberately reset omissions before importing."
+  Configuration:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "Unconditional one-to-one root/nested object copies have a bounded inverse; transforms, conditional projections, array-index/repeat ambiguity and overlapping source mappings do not. Whole typed-map copies retain declared dynamic entries."
+  OpenAPI:
+    Reference: docs/public/definition-reference.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Prefill is immutable and may remain incomplete. Independent draft artifacts remain available when a secret-dependent artifact is withheld; target-update and restart metadata remain advice, not apply authority."

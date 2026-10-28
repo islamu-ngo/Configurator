@@ -254,17 +254,28 @@ dotenv and Markdown need explicit mappings/projections.
 Projection operations are `literal`, `copy`, `omit`, `index`, `object`, `list`,
 `repeat`. Copies/repeats use scoped references; item scope exists only inside
 repeat. Output bounds remain in force. Dotenv requires non-null scalar members;
-Markdown requires a list of strings. Successful admission is not proof of every
-runtime composition or target's own acceptance.
+Markdown requires a list of non-null strings. Admission checks the declared
+result shapes before collecting answers: incompatible scalar/object/list
+Markdown projections reject, and nullable repeat sources reject because a valid
+null is not iterable. Item-scoped `when` uses the same typed predicate kernel
+inside repeats. Explicit omissions remain omissions, not null values.
+Successful admission is not proof of every runtime byte limit or target's own acceptance.
 
 Existing-file import is narrower than generation: supported unconditional,
-unambiguous direct-copy mappings can prefill answers. Transforms, conditional
-or repeated ambiguity, unknown input and nonreplaceable conflicts reject
-atomically. Partial prefill is not complete readiness.
+unambiguous root/nested direct-copy mappings can prefill answers. Nested object
+targets reconstruct exact source object paths; whole typed-map copies retain
+declared dynamic entries. Dotenv scalar text recovers its declared source type.
+Transforms, conditional projections, repeated/index ambiguity, overlapping source
+mappings, unknown input and nonreplaceable conflicts reject atomically.
+Provenance-owned default replacement does not reset explicit omissions; reset
+those deliberately before importing. Partial prefill is not complete readiness.
 
 Drafts defer genuinely missing secret leaves, never malformed supplied values.
 Unresolved secret-dependent outputs are withheld; completion locations identify
-remaining work. Draft output is not a complete accepted artifact.
+remaining work. A missing secret used by an item predicate remains unknown, not
+false; independent row copies can still be prepared. These concrete deferred
+locations are transient Core control metadata, never another stored answer tree.
+Draft output is not a complete accepted artifact.
 
 ## JSON Schema import
 

@@ -111,6 +111,8 @@ public static class SetupDefinitionCodec
             ValidateProjection(artifact.GetProperty("projection"), configuration, null, capabilities, 0);
             if (artifact.GetProperty("format").GetString() == "dotenv")
                 ValidateDotenv(artifact.GetProperty("projection"), configuration);
+            if (artifact.GetProperty("format").GetString() == "markdown")
+                ValidateMarkdown(artifact.GetProperty("projection"), configuration);
         }
         return configuration;
 
@@ -649,7 +651,7 @@ public static class SetupDefinitionCodec
             _ => throw new SetupDefinitionException("projection-operation")
         };
         Only(projection, [.. members, "when"]);
-        if (projection.TryGetProperty("when", out var condition)) ValidateCondition(condition, root, capabilities);
+        if (projection.TryGetProperty("when", out var condition)) ValidateCondition(condition, root, capabilities, item);
         capabilities.Add("projection." + op);
         switch (op)
         {
@@ -666,7 +668,8 @@ public static class SetupDefinitionCodec
                 break;
             case "repeat":
                 DefinitionNode source = Reference(projection.GetProperty("reference"), root, item);
-                if (source.Type != DefinitionNodeType.Sequence) throw new SetupDefinitionException("repeat-source");
+                if (source.Type != DefinitionNodeType.Sequence || source.IsNullable)
+                    throw new SetupDefinitionException("repeat-source");
                 ValidateProjection(projection.GetProperty("item"), root, source.Items, capabilities, depth + 1);
                 break;
         }
@@ -693,6 +696,7 @@ public static class SetupDefinitionCodec
 
     private static void ValidateDotenv(JsonElement projection, DefinitionNode root)
     {
+        if (projection.GetProperty("op").GetString() == "omit") return;
         if (projection.GetProperty("op").GetString() != "object") throw new SetupDefinitionException("dotenv-shape");
         foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
         {
@@ -715,6 +719,34 @@ public static class SetupDefinitionCodec
                 default: throw new SetupDefinitionException("dotenv-shape");
             }
         }
+    }
+
+    private static void ValidateMarkdown(JsonElement projection, DefinitionNode root)
+    {
+        bool valid = projection.GetProperty("op").GetString() switch
+        {
+            "omit" => true,
+            "literal" => projection.GetProperty("value").ValueKind == JsonValueKind.Array &&
+                projection.GetProperty("value").EnumerateArray().All(value => value.ValueKind == JsonValueKind.String),
+            "list" => projection.GetProperty("items").EnumerateArray().All(value => TextResult(value, null)),
+            "copy" => TextSequence(Reference(projection.GetProperty("reference"), root, null)),
+            "repeat" => TextResult(projection.GetProperty("item"),
+                Reference(projection.GetProperty("reference"), root, null).Items),
+            _ => false
+        };
+        if (!valid) throw new SetupDefinitionException("markdown-shape");
+
+        static bool TextSequence(DefinitionNode node) => !node.IsNullable && node.Type == DefinitionNodeType.Sequence
+            && node.Items is { Type: DefinitionNodeType.Text, IsNullable: false };
+
+        bool TextResult(JsonElement value, DefinitionNode? item) => value.GetProperty("op").GetString() switch
+        {
+            "omit" => true,
+            "literal" => value.GetProperty("value").ValueKind == JsonValueKind.String,
+            "copy" => Reference(value.GetProperty("reference"), root, item)
+                is { Type: DefinitionNodeType.Text, IsNullable: false },
+            _ => false
+        };
     }
 
     private static void ValidatePresentation(JsonElement presentation, DefinitionNode root)

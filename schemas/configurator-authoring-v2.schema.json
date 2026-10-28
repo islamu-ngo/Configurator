@@ -1039,18 +1039,7 @@
               "const": "exists"
             },
             "reference": {
-              "allOf": [
-                {
-                  "$ref": "#/$defs/reference"
-                },
-                {
-                  "properties": {
-                    "scope": {
-                      "const": "root"
-                    }
-                  }
-                }
-              ]
+              "$ref": "#/$defs/reference"
             }
           },
           "additionalProperties": false,
@@ -1066,18 +1055,7 @@
               "const": "equals"
             },
             "reference": {
-              "allOf": [
-                {
-                  "$ref": "#/$defs/reference"
-                },
-                {
-                  "properties": {
-                    "scope": {
-                      "const": "root"
-                    }
-                  }
-                }
-              ]
+              "$ref": "#/$defs/reference"
             },
             "value": {}
           },
@@ -1095,18 +1073,7 @@
               "const": "notEquals"
             },
             "reference": {
-              "allOf": [
-                {
-                  "$ref": "#/$defs/reference"
-                },
-                {
-                  "properties": {
-                    "scope": {
-                      "const": "root"
-                    }
-                  }
-                }
-              ]
+              "$ref": "#/$defs/reference"
             },
             "value": {}
           },
@@ -1124,18 +1091,7 @@
               "const": "in"
             },
             "reference": {
-              "allOf": [
-                {
-                  "$ref": "#/$defs/reference"
-                },
-                {
-                  "properties": {
-                    "scope": {
-                      "const": "root"
-                    }
-                  }
-                }
-              ]
+              "$ref": "#/$defs/reference"
             },
             "values": {
               "type": "array",

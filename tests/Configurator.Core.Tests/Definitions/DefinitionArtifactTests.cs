@@ -1,11 +1,88 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
+using Configurator.Core.Definitions.Authoring;
 
 namespace Configurator.Core.Tests.Definitions;
 
 public sealed class DefinitionArtifactTests
 {
+    [Test]
+    public async Task ExportedPredicateSchemasShareTheRootAndItemReferenceContract()
+    {
+        foreach (string exported in new[] { DefinitionSchema.Generate(), DefinitionAuthoringSchema.Generate() })
+        {
+            using JsonDocument schema = JsonDocument.Parse(exported);
+            JsonElement definitions = schema.RootElement.GetProperty("$defs");
+            await Assert.That(definitions.GetProperty("reference").GetProperty("properties").GetProperty("scope")
+                .GetProperty("enum").EnumerateArray().Select(scope => scope.GetString()).SequenceEqual(["root", "item"])).IsTrue();
+            foreach (JsonElement predicate in definitions.GetProperty("predicate").GetProperty("oneOf").EnumerateArray())
+                if (predicate.GetProperty("properties").TryGetProperty("reference", out JsonElement reference))
+                    await Assert.That(reference.TryGetProperty("$ref", out JsonElement shared) &&
+                        shared.GetString() == "#/$defs/reference").IsTrue();
+        }
+    }
+
+    [Test]
+    public async Task SerializerIncompatibleMarkdownRejectsBeforeAnswerCollection()
+    {
+        foreach (string projection in new[]
+        {
+            """{"op":"literal","value":42}""",
+            """{"op":"list","items":[{"op":"literal","value":42}]}""",
+            """{"op":"copy","reference":{"scope":"root","path":"/service.name"}}"""
+        })
+        {
+            JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
+            source["outputs"] = JsonNode.Parse("""
+                {"notes.md":{"id":"notes","format":"markdown","projection":{"op":"omit"}}}
+                """);
+            source["outputs"]!["notes.md"]!["projection"] = JsonNode.Parse(projection);
+            await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+        }
+    }
+
+    [Test]
+    public async Task RepeatedItemConditionsUseTheSameTypedPredicateKernel()
+    {
+        JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
+        source["configuration"]!["required"] = new JsonArray("rows");
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+            {"rows":{"type":"array","items":{"type":"object","additionalProperties":false,
+             "required":["enabled","name"],"properties":{
+              "enabled":{"type":"boolean"},"name":{"type":"string"}}}}}
+            """);
+        source["outputs"] = JsonNode.Parse("""
+            {"rows.json":{"id":"rows","format":"json","projection":{
+             "op":"repeat","reference":{"scope":"root","path":"/rows"},
+             "item":{"op":"copy","reference":{"scope":"item","path":"/name"},
+              "when":{"op":"equals","reference":{"scope":"item","path":"/enabled"},"value":true}}}}}
+            """);
+        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "rows",
+            DefinitionFixture.Answers("""{"rows":[{"enabled":true,"name":"one"},{"enabled":false,"name":"two"}]}"""));
+        using DefinitionArtifact? artifact = result.Artifact;
+        await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(Encoding.UTF8.GetString(artifact!.Bytes.Span)).IsEqualTo("""["one"]""");
+    }
+
+    [Test]
+    public async Task NullableRepeatSourceRejectsBeforeAValidNullCanReachTheSerializer()
+    {
+        JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
+        source["configuration"]!["required"] = new JsonArray("rows");
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+            {"rows":{"type":["array","null"],"items":{"type":"string"}}}
+            """);
+        source["outputs"]!["service.json"]!["projection"] = JsonNode.Parse("""
+            {"op":"repeat","reference":{"scope":"root","path":"/rows"},
+             "item":{"op":"copy","reference":{"scope":"item","path":""}}}
+            """);
+        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+    }
+
     [Test]
     public async Task CheckedNeutralSampleProducesIndependentNativeBytesAndReadiness()
     {

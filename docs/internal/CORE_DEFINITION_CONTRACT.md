@@ -229,10 +229,14 @@ an explicit projection.
 
 Projection operations are literal, copy, omit, index, object, list and repeat,
 with root/item references and bounded expansion. Item references require repeat;
-index emits the current index. Optional `when` uses admitted root predicates.
+index emits the current index. Optional `when` uses the sole admitted predicate
+kernel with the current root/item schema context.
 Missing/inapplicable copies omit rather than invent null. Dotenv requires
 non-null scalar members; Markdown requires string lists and escapes substituted
-formatting/link-sensitive text. Output remains data, not executable templates.
+formatting/link-sensitive text. Admission checks Markdown list/copy/repeat/literal
+result shapes and rejects nullable repeat sources before answer collection.
+An explicit omit does not acquire a null result type.
+Output remains data, not executable templates.
 
 `DefinitionDraftArtifactComposer.Compose/ComposeBundle` returns disposable draft
 artifacts, completions and value-free diagnostics. Only genuinely missing secret
@@ -243,6 +247,11 @@ uses blank assignments and a warning; JSON/YAML placeholders remain draft-only.
 Fatal bundle failure clears owned outputs; disposal invalidates reads/clears bytes.
 
 `DefinitionValidator.ValidateDraft` is the shared draft seam.
+Its internal concrete deferred-location set contains paths only, not a second
+answer tree. The predicate kernel intersects an item reference with those
+locations to preserve unknown for a missing secret. A different nonsecret field
+in that row stays independently readable; the composer does not implement a
+second missing-controller interpreter.
 `DefinitionBundleComposer.ComposeActive` selects active complete outputs from one
 snapshot, skips intentional artifact omission and rejects an empty active set.
 Explicit single-artifact composition remains strict about omitted selection.
@@ -258,9 +267,18 @@ See [single-pass ownership](adr/ADR-single-pass-preparation-ownership.md).
 `DefinitionImport.Assess`/`CanImport` share a narrower inverse admission for
 unconditional unambiguous direct copies in JSON/YAML/dotenv. Unknown input,
 transform/conditional/repeat ambiguity, inactive mappings and nonreplaceable
-conflicts reject atomically. Successful immutable prefill does not mutate current
+conflicts reject atomically. Nested object targets reconstruct exact object-only
+source paths; numeric declared names are properties, while array-index selectors
+have no inverse. Whole-root/whole-container copies retain declared typed-map
+entries and reject undeclared members through Core validation. Overlapping
+source paths, including ancestor/descendant copies, reject as ambiguous.
+Unaddressable target pointers refuse within the same bounded inverse domain.
+Successful immutable prefill does not mutate current
 workspace or imply readiness. Provenance-owned replaceable defaults are distinct
-from permission to overwrite arbitrary answers. Rejection returns no answer
+from permission to overwrite arbitrary answers or reset explicit omissions.
+Imported members must survive the validator's effective-tree projection; the
+importer does not reevaluate applicability or silently discard inactive input.
+Rejection returns no answer
 snapshot and no private-value diagnostic authority.
 
 ## Presentation, guidance and credentials

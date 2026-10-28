@@ -61,6 +61,15 @@ witnesses remain blocking even if mixed applicability feedback later becomes
 unknown, including definite work in a different row from an invalid controller.
 Arbitrary conditional subschemas remain outside the selected profile.
 
+Output admission checks the existing projection family in its root/item schema
+context. Nullable repeats and incompatible Markdown shapes reject before
+answers; dotenv retains its non-null scalar-member contract. The importer
+reconstructs one-to-one nested object copies and validates the candidate through
+Core, rather than interpreting applicability itself. Explicit omissions remain
+protected independently of replaceable default provenance. Draft item predicates
+receive concrete deferred-location metadata from Core so a missing secret never
+becomes a guessed false branch or hides an independent row copy.
+
 ## Control and data flow
 
 The recursive profile now admits typed additional-properties maps, constrained

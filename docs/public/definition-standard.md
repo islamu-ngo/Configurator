@@ -266,17 +266,21 @@ Choose bindings or a projection, never both.
 Projection operations remain `literal`, `copy`, `omit`, `index`, `object`, `list`,
 and `repeat`; references are typed root/item references. Repeats may nest only
 within existing expansion/work limits. Optional predicates cannot become string
-expressions. Current admission checks references, contexts and dotenv's non-null
-scalar member shape. Markdown requires a string list at composition; an editor or
-definition check is not proof that every output will compose. General projected
-shape/omission/nullability inference remains later qualification, not a blanket
-pre-answer rejection guarantee.
+expressions. Admission checks references and contexts, dotenv's non-null scalar
+member shape, Markdown's non-null string-list results, and non-nullable repeat
+sources. List, repeated, copied and literal Markdown shapes are checked before
+answers; omitted results remain omitted. These bounded checks do not prove
+runtime byte limits or target acceptance, and are not a general result-type
+inference language.
 
 Inverse import remains narrower than generation; do not infer that every current
-root/nested scoped copy has a qualified inverse. Only supported unconditional
-unambiguous direct-copy mappings are candidates. Transforms, conditional projections, repeated ambiguity, unknown
-input members, and nonreplaceable conflicts reject atomically. Failed import
-preserves the entire current workspace. No undeclared passthrough is retained.
+root/nested scoped copy has a qualified inverse. Unconditional one-to-one
+object-path copies and whole declared-container copies are candidates; numeric
+object names remain literal properties. Transforms, conditional projections,
+array-index/repeated ambiguity, overlapping source paths, unknown input members
+and nonreplaceable conflicts reject atomically. Default-origin replacement does
+not reset explicit omissions. Failed import preserves the entire current
+workspace. No undeclared passthrough is retained.
 
 Drafts defer genuinely missing secret leaves only. Deliberately supplied malformed
 values still fail. Unknown secret-dependent outputs are withheld, completion

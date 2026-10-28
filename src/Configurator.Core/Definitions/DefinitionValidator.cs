@@ -32,7 +32,7 @@ public sealed class DefinitionValidationResult
     internal DefinitionValidationResult(IEnumerable<SetupFieldState> fields,
         IEnumerable<DefinitionDiagnostic> diagnostics, Dictionary<string, JsonElement> values,
         IReadOnlySet<string>? deferred = null, IReadOnlySet<string>? unresolved = null,
-        IEnumerable<DefinitionNodeState>? nodes = null)
+        IEnumerable<DefinitionNodeState>? nodes = null, IReadOnlySet<DefinitionPath>? deferredLocations = null)
     {
         Fields = Array.AsReadOnly(fields.ToArray());
         Diagnostics = Array.AsReadOnly(diagnostics.OrderBy(item => item.FieldId, StringComparer.Ordinal)
@@ -41,6 +41,7 @@ public sealed class DefinitionValidationResult
         DeferredFields = deferred ?? new HashSet<string>(StringComparer.Ordinal);
         UnresolvedFields = unresolved ?? new HashSet<string>(StringComparer.Ordinal);
         Nodes = Array.AsReadOnly(nodes?.ToArray() ?? []);
+        DeferredLocations = deferredLocations ?? new HashSet<DefinitionPath>();
     }
 
     public IReadOnlyList<SetupFieldState> Fields { get; }
@@ -50,6 +51,7 @@ public sealed class DefinitionValidationResult
     internal IReadOnlyDictionary<string, JsonElement> Values { get; }
     internal IReadOnlySet<string> DeferredFields { get; }
     internal IReadOnlySet<string> UnresolvedFields { get; }
+    internal IReadOnlySet<DefinitionPath> DeferredLocations { get; }
     /// <summary>Explicitly reads a resolved private value; serialized validation facts remain value-free.</summary>
     public bool TryGetEffectiveValue(DefinitionPath location, out JsonElement value)
     {
@@ -131,6 +133,7 @@ public static class DefinitionValidator
         var states = new Dictionary<string, SetupFieldState>(StringComparer.Ordinal);
         var nodes = new List<DefinitionNodeState>();
         var deferred = new HashSet<string>(StringComparer.Ordinal);
+        var deferredLocations = new HashSet<DefinitionPath>();
         var unresolved = new HashSet<string>(StringComparer.Ordinal);
         var invalidControllers = new HashSet<string>(StringComparer.Ordinal);
         var fields = rootFields.ToDictionary(field => field.Name, StringComparer.Ordinal);
@@ -175,7 +178,8 @@ public static class DefinitionValidator
                 diagnostics.Add(new("value-invalid", ""));
             if (DefinitionArtifactComposer.PreparationDiagnostics.IsEnabled("ValidationCompleted"))
                 DefinitionArtifactComposer.PreparationDiagnostics.Write("ValidationCompleted", draft);
-            return new(rootFields.Select(field => states[field.Name]), diagnostics, effective, deferred, unresolved, nodes);
+            return new(rootFields.Select(field => states[field.Name]), diagnostics, effective, deferred, unresolved, nodes,
+                deferredLocations);
         }
         catch (SetupCompositionException)
         {
@@ -249,7 +253,11 @@ public static class DefinitionValidator
             }
             bool missingSecret = active && !present && draft && sensitivity == SetupFieldSensitivity.Secret
                 && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
-            if (missingSecret) deferred.Add(location[0]);
+            if (missingSecret)
+            {
+                deferred.Add(location[0]);
+                deferredLocations.Add(DefinitionPath.FromSegments(location));
+            }
             bool valid = !active || !present;
             if (active && !present && required && !missingSecret)
                 missing.Add((location[0], fieldId, safePath, correction));
@@ -649,13 +657,15 @@ public static class DefinitionValidator
         EvaluateCondition(condition, values, null) == true;
 
     internal static bool? EvaluateCondition(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values,
-        IReadOnlySet<string>? unresolved, JsonElement? item = null, IReadOnlySet<string>? itemUnknown = null)
+        IReadOnlySet<string>? unresolved, JsonElement? item = null, IReadOnlySet<string>? itemUnknown = null,
+        IReadOnlySet<DefinitionPath>? deferredLocations = null, DefinitionPath? itemLocation = null)
     {
         string operation = condition.GetProperty("op").GetString()!;
         if (operation is "all" or "any" or "not")
         {
             bool?[] results = condition.GetProperty("operands").EnumerateArray()
-                .Select(operand => EvaluateCondition(operand, values, unresolved, item, itemUnknown)).ToArray();
+                .Select(operand => EvaluateCondition(operand, values, unresolved, item, itemUnknown,
+                    deferredLocations, itemLocation)).ToArray();
             if (operation == "not") return !results[0];
             return operation == "all" ? results.Contains(false) ? false : results.Contains(null) ? null : true
                 : results.Contains(true) ? true : results.Contains(null) ? null : false;
@@ -666,6 +676,13 @@ public static class DefinitionValidator
             && (path.Segments.Count == 0 ? unresolved.Count != 0 : unresolved.Contains(path.Segments[0]))) return null;
         if (reference.GetProperty("scope").GetString() == "item" && itemUnknown is not null
             && (path.Segments.Count == 0 ? itemUnknown.Count != 0 : itemUnknown.Contains(path.Segments[0]))) return null;
+        if (reference.GetProperty("scope").GetString() == "item" && deferredLocations is not null && itemLocation is not null)
+        {
+            DefinitionPath concrete = DefinitionPath.FromSegments(itemLocation.Segments.Concat(path.Segments));
+            if (deferredLocations.Any(location => location.Segments.Take(Math.Min(location.Segments.Count, concrete.Segments.Count))
+                .SequenceEqual(concrete.Segments.Take(Math.Min(location.Segments.Count, concrete.Segments.Count)), StringComparer.Ordinal)))
+                return null;
+        }
         bool present = TryResolveReference(reference, values, item, out JsonElement value);
         if (operation == "exists") return present;
         if (!present) return false;

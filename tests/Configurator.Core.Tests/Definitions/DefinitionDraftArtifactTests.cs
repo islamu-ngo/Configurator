@@ -11,6 +11,36 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionDraftArtifactTests
 {
     [Test]
+    public async Task DeferredItemControllerWithholdsItsArtifactWithoutGuessingOrHidingIndependentRows()
+    {
+        JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
+        source["configuration"]!["required"] = new JsonArray("rows");
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+            {"rows":{"type":"array","items":{"type":"object","additionalProperties":false,
+             "required":["name"],"properties":{
+              "name":{"type":"string","x-configurator":{"sensitivity":"public"}},
+              "secret":{"type":"boolean","x-configurator":{"sensitivity":"secret"}}}}}}
+            """);
+        source["outputs"] = JsonNode.Parse("""
+            {"selected.json":{"id":"selected","format":"json","projection":{
+              "op":"repeat","reference":{"scope":"root","path":"/rows"},
+              "item":{"op":"literal","value":"selected",
+               "when":{"op":"exists","reference":{"scope":"item","path":"/secret"}}}}},
+             "names.json":{"id":"names","format":"json","projection":{
+              "op":"repeat","reference":{"scope":"root","path":"/rows"},
+              "item":{"op":"copy","reference":{"scope":"item","path":"/name"}}}}}
+            """);
+        using DefinitionDraftBundleResult result = DefinitionDraftArtifactComposer.ComposeBundle(
+            DefinitionFixture.Parse(source.ToJsonString()), ["selected", "names"],
+            DefinitionFixture.Answers("""{"rows":[{"name":"safe"}]}"""));
+        await Assert.That(result.Artifacts.Count).IsEqualTo(1);
+        await Assert.That(result.Artifacts.Single().ArtifactId).IsEqualTo("names");
+        await Assert.That(Encoding.UTF8.GetString(result.Artifacts.Single().Bytes.Span)).IsEqualTo("""["safe"]""");
+        await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("draft-dependency-unresolved");
+        await Assert.That(result.Completions.Count).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task DraftBundleRetainsOrderedBytesCompletionsAndWithheldDiagnosticsInOnePass()
     {
         JsonNode document = JsonNode.Parse(SecretSource())!;

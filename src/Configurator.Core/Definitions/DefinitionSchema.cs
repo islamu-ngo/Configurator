@@ -263,13 +263,7 @@ public static class DefinitionSchema
             }
             else
             {
-                properties["reference"] = new JsonObject
-                {
-                    ["allOf"] = new JsonArray(Ref("reference"), new JsonObject
-                    {
-                        ["properties"] = new JsonObject { ["scope"] = new JsonObject { ["const"] = "root" } }
-                    })
-                };
+                properties["reference"] = Ref("reference");
                 required.Add("reference");
                 if (operation == "in")
                 {
