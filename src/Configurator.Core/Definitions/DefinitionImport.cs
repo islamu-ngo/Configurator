@@ -30,6 +30,7 @@ public static class DefinitionImport
             if (input is null || input.Count == 0) return Failed("input-invalid");
 
             var values = current.Values.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+            var omissions = current.Omitted.ToHashSet();
             var imported = new HashSet<string>(StringComparer.Ordinal);
             foreach ((string key, JsonElement value) in input)
             {
@@ -38,25 +39,49 @@ public static class DefinitionImport
                 if (!imported.Add(field))
                     return Failed("input-ambiguous");
                 JsonElement answer = value;
+                SetupFieldDefinition descriptor = definition.Fields.Single(item => item.Name == field);
                 if (artifact.Format == "dotenv" && !TryDotenvValue(
-                    definition.Fields.Single(item => item.Id == field), value.GetString()!, out answer))
+                    descriptor, value.GetString()!, out answer))
                     return Failed("inverse-unsupported");
                 if (values.TryGetValue(field, out JsonElement previous)
-                    && !JsonElement.DeepEquals(previous, answer) && replaceableDefaults?.Contains(field) != true)
-                    return Failed("answer-conflict", new("answer-conflict", field));
+                    && !JsonElement.DeepEquals(previous, answer) && replaceableDefaults?.Contains(descriptor.Id) != true)
+                    return Failed("answer-conflict", new("answer-conflict", descriptor.Id));
+                foreach (DefinitionPath omitted in current.Omitted.Where(path => path.Segments.Count > 0 && path.Segments[0] == field))
+                {
+                    JsonElement selected = answer;
+                    bool supplied = true;
+                    for (int index = 1; index < omitted.Segments.Count; index++)
+                    {
+                        if (selected.ValueKind == JsonValueKind.Object)
+                        {
+                            if (!selected.TryGetProperty(omitted.Segments[index], out selected)) { supplied = false; break; }
+                        }
+                        else if (selected.ValueKind == JsonValueKind.Array && omitted.TryGetArrayIndex(index, out int position)
+                            && position < selected.GetArrayLength()) selected = selected[position];
+                        else { supplied = false; break; }
+                    }
+                    if (!supplied) continue;
+                    if (replaceableDefaults?.Contains(descriptor.Id) != true)
+                        return Failed("answer-conflict", new("answer-conflict", descriptor.Id));
+                    omissions.Remove(omitted);
+                }
                 values[field] = answer;
             }
 
-            var candidate = new SetupAnswerSnapshot(checked(current.InputRevision + 1), values);
+            var candidate = new SetupAnswerSnapshot(checked(current.InputRevision + 1), values, omissions);
             DefinitionValidationResult validation = DefinitionValidator.Validate(definition, candidate);
             var rejected = validation.Fields.FirstOrDefault(field =>
-                imported.Contains(field.Id) && (!field.IsActive || field.HasError));
+                imported.Contains(field.Definition.Name) && (!field.IsActive || field.HasError));
             if (rejected is not null)
                 return Failed("import-field-invalid", validation.Diagnostics.FirstOrDefault(item => item.FieldId == rejected.Id)
                     ?? new("import-field-invalid", rejected.Id));
             if (validation.Diagnostics.FirstOrDefault(item => item.Code != "value-required") is { } diagnostic)
                 return Failed("import-field-invalid", definition.Fields.Any(field => field.Id == diagnostic.FieldId) ? diagnostic : null);
-            return new(true, candidate, "import-ready") { ProvidedFields = Array.AsReadOnly(imported.ToArray()) };
+            return new(true, candidate, "import-ready")
+            {
+                ProvidedFields = Array.AsReadOnly(definition.Fields.Where(field => imported.Contains(field.Name))
+                    .Select(field => field.Id).ToArray())
+            };
         }
         catch (Exception exception) when (exception is SetupCompositionException or JsonException
             or SetupDefinitionException or OverflowException or InvalidOperationException)
@@ -79,6 +104,14 @@ public static class DefinitionImport
 
         code = "inverse-unsupported";
         JsonElement projection = artifact.Data.GetProperty("projection");
+        if (projection.GetProperty("op").GetString() == "copy" && !projection.TryGetProperty("when", out _))
+        {
+            JsonElement reference = projection.GetProperty("reference");
+            if (reference.GetProperty("scope").GetString() != "root" || reference.GetProperty("path").GetString() != ""
+                || artifact.Format == "dotenv") return false;
+            foreach (SetupFieldDefinition field in definition.Fields) mappings.Add(field.Name, field.Name);
+            return mappings.Count > 0;
+        }
         if (projection.GetProperty("op").GetString() != "object"
             || projection.TryGetProperty("when", out _))
             return false;
@@ -89,9 +122,12 @@ public static class DefinitionImport
             if (member.Value.GetProperty("op").GetString() != "copy"
                 || member.Value.TryGetProperty("when", out _))
                 return false;
-            string fieldId = member.Value.GetProperty("field").GetString()!;
-            if (artifact.Format == "dotenv" && definition.Fields.Single(item => item.Id == fieldId).Type
-                is not ("string" or "enum" or "boolean" or "integer" or "number"))
+            JsonElement reference = member.Value.GetProperty("reference");
+            DefinitionPath path = DefinitionPath.Parse(reference.GetProperty("path").GetString()!);
+            if (reference.GetProperty("scope").GetString() != "root" || path.Segments.Count != 1) return false;
+            string fieldId = path.Segments[0];
+            if (artifact.Format == "dotenv" && definition.Fields.Single(item => item.Name == fieldId).Type
+                is not ("string" or "boolean" or "integer" or "number"))
                 return false;
             if (!mappedFields.Add(fieldId)) { code = "inverse-ambiguous"; return false; }
             mappings.Add(member.Name, fieldId);
@@ -102,7 +138,7 @@ public static class DefinitionImport
     private static bool TryDotenvValue(SetupFieldDefinition field, string text, out JsonElement value)
     {
         value = JsonSerializer.SerializeToElement(text);
-        if (field.Type is "string" or "enum") return true;
+        if (field.Type == "string") return true;
         if (field.Type == "boolean" && text is "true" or "false")
         {
             value = JsonSerializer.SerializeToElement(text == "true");
@@ -137,8 +173,8 @@ public static class DefinitionImport
             return entries;
         }
         CompositionMap normalized = format == "yaml"
-            ? SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default, CancellationToken.None)
-            : SetupCompositionNormalizer.ParseJson(bytes, SetupCompositionLimits.Default, CancellationToken.None);
+            ? SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default, CancellationToken.None, keyPolicy: CompositionKeyPolicy.Exact)
+            : SetupCompositionNormalizer.ParseJson(bytes, SetupCompositionLimits.Default, CancellationToken.None, keyPolicy: CompositionKeyPolicy.Exact);
         byte[] normalizedBytes = SetupCompositionNormalizer.WriteJson(normalized, CancellationToken.None);
         try
         {

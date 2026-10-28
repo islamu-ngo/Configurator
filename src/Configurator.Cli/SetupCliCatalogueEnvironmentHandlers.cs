@@ -32,10 +32,12 @@ internal static class SetupCliCatalogueEnvironmentHandlers
                 if (command.Operation == "describe")
                 {
                     using JsonDocument constraints = JsonDocument.Parse(field.Constraints.GetRawText());
-                    writer.WriteBoolean("conditionalActivation", constraints.RootElement.TryGetProperty("activeWhen", out _));
-                    writer.WriteBoolean("conditionalRequirement", constraints.RootElement.TryGetProperty("requiredWhen", out _));
+                    writer.WriteBoolean("conditionalActivation", constraints.RootElement.TryGetProperty("x-configurator", out var extension)
+                        && extension.TryGetProperty("applicableWhen", out _));
+                    writer.WriteBoolean("conditionalRequirement", definition.Configuration.Keywords.TryGetProperty("if", out _)
+                        || definition.Configuration.Keywords.TryGetProperty("dependentRequired", out _));
                     writer.WriteBoolean("hasDefault", field.Default.HasValue);
-                    writer.WriteBoolean("hasRecommendation", field.Recommended.HasValue);
+                    writer.WriteBoolean("hasRecommendation", field.SuggestedValue.HasValue);
                 }
                 // Free text, defaults and choices are not public output authority.
                 writer.WriteEndObject();

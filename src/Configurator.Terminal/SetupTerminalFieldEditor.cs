@@ -3,52 +3,51 @@ namespace Configurator.Terminal;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Configurator.Core.Definitions;
 using Configurator.Presentation;
 
 /// <summary>Expands object rows into typed leaves with independent navigation for each nested list.</summary>
 internal sealed class SetupTerminalFieldEditor
 {
-    private static readonly string[] HelpKeys = ["help", "consequence"];
-    internal sealed record Slot(DefinitionFormModel Form, DefinitionFieldInput Input, string[] Path, JsonElement Metadata)
+    internal sealed record Slot(DefinitionFormModel Form, DefinitionFieldInput Input, string[] Path, DefinitionNode Schema)
     {
-        internal string Title => Metadata.GetProperty("title").GetString()!;
-        internal string Type => Metadata.GetProperty("type").GetString()!;
-        internal bool IsList => Type == "list";
+        internal JsonElement Metadata => Schema.Keywords;
+        internal string Title => Metadata.TryGetProperty("title", out var title) ? title.GetString()!
+            : Path.Length == 0 ? Input.Definition.Title : Path[^1];
+        internal string Type => Schema.JsonType;
+        internal bool IsList => Schema.Type == DefinitionNodeType.Sequence;
         internal bool IsObject => Type == "object";
         internal bool IsContainer => IsList || IsObject;
         internal bool IsObjectList => IsList && ScalarType == "object";
-        internal string ScalarType => IsList ? Metadata.GetProperty("itemType").GetString()! : Type;
+        internal string ScalarType => IsList ? Schema.Items!.JsonType : Type;
         internal bool RequiresMasking => Input.RequiresMasking;
         internal string[] FullPath => [Input.Definition.Id, .. Path];
-        internal string Help => string.Join(" ", HelpKeys
-            .Where(key => Metadata.TryGetProperty(key, out _)).Select(key => Metadata.GetProperty(key).GetString()));
+        internal string Help => Metadata.TryGetProperty("description", out var description) ? description.GetString()! : "";
     }
 
     private readonly DefinitionFormModel _form;
     internal SetupTerminalFieldEditor(DefinitionFormModel form) => _form = form;
     internal IReadOnlyList<Slot> Slots => _form.VisibleFields.SelectMany(input =>
-        Expand(input, input.Definition.Constraints, [])).ToArray();
+        Expand(input, input.Definition.Node, [])).ToArray();
 
-    private IEnumerable<Slot> Expand(DefinitionFieldInput input, JsonElement metadata, string[] path)
+    private IEnumerable<Slot> Expand(DefinitionFieldInput input, DefinitionNode schema, string[] path)
     {
-        string type = metadata.GetProperty("type").GetString()!;
-        if (type == "object")
+        if (schema.Type == DefinitionNodeType.Mapping)
         {
-            yield return new Slot(_form, input, path, metadata);
-            foreach (JsonElement property in metadata.GetProperty("properties").EnumerateArray())
-                foreach (Slot slot in Expand(input, property, [.. path, property.GetProperty("id").GetString()!]))
+            yield return new Slot(_form, input, path, schema);
+            foreach ((string name, DefinitionNode property) in schema.Properties)
+                foreach (Slot slot in Expand(input, property, [.. path, name]))
                     yield return slot;
             yield break;
         }
-        var current = new Slot(_form, input, path, metadata);
+        var current = new Slot(_form, input, path, schema);
         yield return current;
-        if (!current.IsObjectList) yield break;
+        if (!current.IsList || schema.Items!.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)) yield break;
         int count = ItemCount(current);
         for (int index = 0; index < count; index++)
-            foreach (JsonElement property in metadata.GetProperty("properties").EnumerateArray())
-                foreach (Slot slot in Expand(input, property,
-                    [.. path, index.ToString(CultureInfo.InvariantCulture), property.GetProperty("id").GetString()!]))
-                    yield return slot;
+            foreach (Slot slot in Expand(input, schema.Items!,
+                [.. path, index.ToString(CultureInfo.InvariantCulture)]))
+                yield return slot;
     }
 
     internal static string Read(Slot slot, int listIndex = 0)
@@ -81,7 +80,7 @@ internal sealed class SetupTerminalFieldEditor
     internal static IReadOnlyList<string> Choices(Slot slot)
     {
         if (slot.ScalarType == "boolean") return ["false", "true"];
-        return slot.Metadata.TryGetProperty("choices", out var choices)
+        return (slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata).TryGetProperty("enum", out var choices)
             ? choices.EnumerateArray().Select(item => item.ValueKind == JsonValueKind.String
                 ? item.GetString()! : item.GetRawText()).ToArray() : [];
     }

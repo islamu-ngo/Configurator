@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
 
-/// <summary>Expands closed maintainer data and delegates final identity and privacy admission to Core.</summary>
+/// <summary>Lowers source output mappings and delegates recursive semantics to the sole runtime admission owner.</summary>
 public static class DefinitionAuthoringCompiler
 {
     public static SetupDefinition Compile(DefinitionAuthoringDocument document)
@@ -15,56 +15,36 @@ public static class DefinitionAuthoringCompiler
         try
         {
             JsonObject root = JsonNode.Parse(document.CanonicalBytes.Span)!.AsObject();
-            Only(root, "$schema", "identity", "project", "applicationVersions", "entryPoints", "locales", "fields", "outputs", "presentation");
-            RejectNullMembers(root);
+            Only(root, "$schema", "identity", "project", "applicationVersions", "entryPoints", "configuration",
+                "outputs", "presentation", "localization", "annotations");
+            if (root["$schema"]!.GetValue<string>() != DefinitionAuthoringCodec.SchemaId)
+                throw new SetupDefinitionException("authoring-schema");
             JsonObject identity = root["identity"]!.AsObject();
             Only(identity, "familyId", "revision");
-            JsonObject project = root["project"]!.AsObject();
-            Only(project, "id", "name", "publisher", "description", "repository", "definitionLicense");
-            RejectNullMembers(project);
-            ValidateProject(project);
-            JsonObject fields = root["fields"]!.AsObject();
-            JsonObject outputs = root["outputs"]!.AsObject();
-            if (fields.ContainsKey("$item")) throw new SetupDefinitionException("authoring-reserved");
-            if (fields.Count > 1024 || outputs.Count is < 1 or > 64)
-                throw new SetupDefinitionException("document-limit");
-            var generatedBudget = new CompositionBudget(SetupCompositionLimits.Default);
-            generatedBudget.Node(2);
-            generatedBudget.Node(2);
-            var ids = fields.ToDictionary(pair => pair.Key, pair => FieldId(pair.Key), StringComparer.Ordinal);
-            if (ids.Values.Distinct(StringComparer.OrdinalIgnoreCase).Count() != ids.Count)
-                throw new SetupDefinitionException("field-duplicate");
-            var expandedFields = new JsonArray();
-            foreach ((string key, JsonNode? value) in fields.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            JsonObject project = root["project"]!.DeepClone().AsObject();
+            if (!project.ContainsKey("publisher")) project["publisher"] = project["name"]!.DeepClone();
+            var locales = new SortedSet<string>(StringComparer.Ordinal) { "en" };
+            if (root["localization"] is JsonObject localization)
             {
-                JsonObject expanded = ExpandField(key, value!.AsObject(), ids[key], ids);
-                Charge(expanded, generatedBudget, 3);
-                expandedFields.Add(expanded);
+                locales.Clear();
+                locales.Add(localization["defaultLocale"]!.GetValue<string>());
+                foreach ((string locale, _) in localization["translations"]!.AsObject()) locales.Add(locale);
             }
-
-            JsonArray artifacts = ExpandOutputs(outputs, fields, ids, generatedBudget);
             var runtime = new JsonObject
             {
-                ["schemaVersion"] = 1,
+                ["schemaVersion"] = DefinitionProfile.RuntimeSchemaVersion,
                 ["familyId"] = identity["familyId"]!.DeepClone(),
                 ["revision"] = identity["revision"]!.DeepClone(),
-                ["applicationId"] = project["id"]!.DeepClone(),
-                ["title"] = project["name"]!.DeepClone(),
-                ["publisher"] = project["publisher"]?.DeepClone() ?? project["name"]!.DeepClone(),
+                ["project"] = project,
                 ["applicationVersions"] = root["applicationVersions"]!.DeepClone(),
-                ["entryPoints"] = root["entryPoints"]?.DeepClone() ?? new JsonArray("setup"),
-                ["locales"] = root["locales"]?.DeepClone() ?? new JsonArray("en")
+                ["entryPoints"] = root.ContainsKey("entryPoints") ? root["entryPoints"]!.DeepClone() : new JsonArray("setup"),
+                ["locales"] = new JsonArray(locales.Select(locale => (JsonNode?)JsonValue.Create(locale)).ToArray()),
+                ["configuration"] = root["configuration"]!.DeepClone()
             };
-            Charge(runtime, generatedBudget, 1);
-            runtime["fields"] = expandedFields;
-            runtime["artifacts"] = artifacts;
-            if (root["presentation"] is JsonNode presentation)
-            {
-                JsonObject expanded = ExpandPresentation(presentation.AsObject(), fields, ids);
-                Charge(expanded, generatedBudget, 2);
-                runtime["presentation"] = expanded;
-            }
-            return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString()));
+            foreach (string name in new[] { "presentation", "localization", "annotations" })
+                if (root.ContainsKey(name)) runtime[name] = root[name]!.DeepClone();
+            runtime["artifacts"] = ExpandOutputs(root["outputs"]!.AsObject());
+            return SetupDefinitionCodec.AdmitCompiled(runtime);
         }
         catch (SetupDefinitionException) { throw; }
         catch (SetupCompositionException) { throw new SetupDefinitionException("document-limit"); }
@@ -75,128 +55,80 @@ public static class DefinitionAuthoringCompiler
         }
     }
 
-    private static JsonObject ExpandPresentation(JsonObject source, JsonObject fields, Dictionary<string, string> ids)
+    private static JsonArray ExpandOutputs(JsonObject outputs)
     {
-        JsonObject presentation = source.DeepClone().AsObject();
-        if (presentation["sections"]!.AsArray().Count is < 1 or > 64
-            || presentation["experiences"]!.AsArray().Count is < 1 or > 16)
-            throw new SetupDefinitionException("presentation-limit");
-        foreach (JsonNode? node in presentation["sections"]!.AsArray())
-        {
-            JsonObject section = node!.AsObject();
-            Only(section, "id", "title", "description", "disclosure", "fields", "groups");
-            RejectNullMembers(section);
-            var references = new JsonArray();
-            var included = new HashSet<string>(StringComparer.Ordinal);
-            if (section["fields"] is JsonNode explicitFields)
-            {
-                if (explicitFields.AsArray().Count is < 1 or > 1024) throw new SetupDefinitionException("presentation-reference");
-                foreach (JsonNode? reference in explicitFields.AsArray())
-                {
-                    if (!ids.TryGetValue(reference!.GetValue<string>(), out string? id))
-                        throw new SetupDefinitionException("authoring-reference");
-                    if (!included.Add(id)) throw new SetupDefinitionException("presentation-reference");
-                    references.Add(id);
-                }
-            }
-            if (section["groups"] is JsonNode groups)
-            {
-                if (groups.AsArray().Count is < 1 or > 1024) throw new SetupDefinitionException("presentation-reference");
-                foreach (JsonNode? group in groups.AsArray())
-                {
-                    ValidateProjectText(group!, 256);
-                    string name = group!.GetValue<string>();
-                    string[] matches = fields.Where(pair => pair.Value!["group"]?.GetValue<string>() == name)
-                        .OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => ids[pair.Key]).ToArray();
-                    if (matches.Length == 0) throw new SetupDefinitionException("authoring-reference");
-                    foreach (string id in matches)
-                    {
-                        if (!included.Add(id)) throw new SetupDefinitionException("presentation-reference");
-                        references.Add(id);
-                    }
-                }
-                section.Remove("groups");
-            }
-            section["fields"] = references;
-        }
-        return presentation;
-    }
-
-    private static void ValidateProject(JsonObject project)
-    {
-        foreach (string member in new[] { "id", "name", "publisher", "description", "definitionLicense" })
-            if (project[member] is JsonNode value) ValidateProjectText(value, member == "description" ? 4096 : 256);
-        if (project["repository"] is JsonNode repository && (!Uri.TryCreate(repository.GetValue<string>(), UriKind.Absolute, out Uri? uri)
-            || uri.Scheme != Uri.UriSchemeHttps || uri.UserInfo.Length != 0 || uri.Query.Length != 0 || uri.Fragment.Length != 0))
-            throw new SetupDefinitionException("authoring-repository");
-    }
-
-    private static void ValidateProjectText(JsonNode value, int maximum)
-    {
-        using JsonDocument text = JsonDocument.Parse(value.ToJsonString());
-        _ = SetupDefinitionCodec.Text(text.RootElement, maximum);
-    }
-
-    private static JsonArray ExpandOutputs(JsonObject outputs, JsonObject fields, Dictionary<string, string> ids, CompositionBudget budget)
-    {
+        if (outputs.Count is < 1 or > 64) throw new SetupDefinitionException("artifact-limit");
         var artifacts = new JsonArray();
+        var budget = new CompositionBudget(SetupCompositionLimits.Default);
         foreach ((string fileName, JsonNode? value) in outputs.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             JsonObject output = value!.AsObject();
-            Only(output, "id", "format", "applySemantics", "restart", "bindings", "projection");
-            RejectNullMembers(output);
+            Only(output, "id", "format", "targetUpdateMode", "restartRequirement", "bindings", "projection");
             string format = output["format"]!.GetValue<string>();
             JsonNode projection;
             if (output.ContainsKey("projection"))
             {
                 if (output.ContainsKey("bindings")) throw new SetupDefinitionException("authoring-mapping");
-                projection = output["projection"]!;
-                output.Remove("projection");
-                RewriteProjection(projection.AsObject(), ids);
-                Charge(projection, budget, 4);
+                projection = output["projection"]!.DeepClone();
+            }
+            else if (output.ContainsKey("bindings"))
+            {
+                JsonObject bindings = output["bindings"]!.AsObject();
+                if (bindings.Count is < 1 or > 1024 || format == "markdown") throw new SetupDefinitionException("authoring-mapping");
+                var paths = new List<IReadOnlyList<string>>();
+                JsonObject members = new();
+                JsonObject objectProjection = new() { ["op"] = "object", ["members"] = members };
+                JsonNode? rootProjection = null;
+                foreach ((string target, JsonNode? reference) in bindings.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                {
+                    JsonObject copy = new() { ["op"] = "copy", ["reference"] = reference!.DeepClone() };
+                    if (format == "dotenv")
+                    {
+                        if (!IsDotenvKey(target)) throw new SetupDefinitionException("authoring-mapping");
+                        members.Add(target, copy);
+                        continue;
+                    }
+                    if (format is not ("json" or "yaml")) throw new SetupDefinitionException("authoring-mapping");
+                    IReadOnlyList<string> segments = DefinitionPath.Parse(target).Segments;
+                    foreach (IReadOnlyList<string> previous in paths)
+                        if (previous.Take(Math.Min(previous.Count, segments.Count))
+                            .SequenceEqual(segments.Take(Math.Min(previous.Count, segments.Count)), StringComparer.Ordinal))
+                            throw new SetupDefinitionException("authoring-target-overlap");
+                    paths.Add(segments);
+                    if (segments.Count == 0) rootProjection = copy;
+                    else
+                    {
+                        JsonObject current = members;
+                        for (int index = 0; index < segments.Count - 1; index++)
+                        {
+                            if (!current.ContainsKey(segments[index]))
+                                current[segments[index]] = new JsonObject { ["op"] = "object", ["members"] = new JsonObject() };
+                            current = current[segments[index]]!["members"]!.AsObject();
+                        }
+                        current.Add(segments[^1], copy);
+                    }
+                }
+                projection = rootProjection ?? objectProjection;
             }
             else
             {
-                if (format == "markdown") throw new SetupDefinitionException("authoring-mapping");
-                IEnumerable<KeyValuePair<string, JsonNode?>> bindings = output["bindings"] is JsonNode explicitBindings
-                    ? explicitBindings.AsObject() : fields.Select(pair => new KeyValuePair<string, JsonNode?>(pair.Key, JsonValue.Create(pair.Key)));
-                var members = new JsonObject();
-                budget.Node(4);
-                budget.Node(5);
-                budget.Node(5);
-                budget.Scalar("op");
-                budget.Scalar("object");
-                budget.Scalar("members");
-                foreach ((string target, JsonNode? binding) in bindings.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                if (format is not ("json" or "yaml")) throw new SetupDefinitionException("authoring-mapping");
+                projection = new JsonObject
                 {
-                    string field = binding!.GetValue<string>();
-                    if (!ids.TryGetValue(field, out string? id)) throw new SetupDefinitionException("authoring-reference");
-                    if (format == "dotenv" && (!IsDotenvKey(target)
-                        || fields[field]!["type"]!.GetValue<string>() is "object" or "list"))
-                        throw new SetupDefinitionException("authoring-mapping");
-                    budget.Scalar(target);
-                    budget.Scalar(id);
-                    budget.Scalar("op");
-                    budget.Scalar("copy");
-                    budget.Scalar("field");
-                    budget.Node(6);
-                    budget.Node(7);
-                    budget.Node(7);
-                    members.Add(target, new JsonObject { ["op"] = "copy", ["field"] = id });
-                }
-                projection = new JsonObject { ["op"] = "object", ["members"] = members };
+                    ["op"] = "copy",
+                    ["reference"] = new JsonObject { ["scope"] = "root", ["path"] = "" }
+                };
             }
             var artifact = new JsonObject
             {
-                ["id"] = output["id"]?.DeepClone() ?? JsonValue.Create(OutputId(fileName)),
+                ["id"] = output.ContainsKey("id") ? output["id"]!.DeepClone() : JsonValue.Create(OutputId(fileName)),
                 ["fileName"] = fileName,
                 ["format"] = format,
-                ["applySemantics"] = output["applySemantics"]?.DeepClone() ?? JsonValue.Create("generationOnly"),
-                ["restart"] = output["restart"]?.DeepClone() ?? JsonValue.Create("none")
+                ["targetUpdateMode"] = output.ContainsKey("targetUpdateMode") ? output["targetUpdateMode"]!.DeepClone() : JsonValue.Create("unspecified"),
+                ["restartRequirement"] = output.ContainsKey("restartRequirement") ? output["restartRequirement"]!.DeepClone() : JsonValue.Create("unspecified"),
+                ["projection"] = projection
             };
             Charge(artifact, budget, 3);
-            budget.Scalar("projection");
-            artifact["projection"] = projection;
             artifacts.Add(artifact);
         }
         return artifacts;
@@ -216,82 +148,15 @@ public static class DefinitionAuthoringCompiler
         else if (node is JsonValue value && value.TryGetValue<string>(out string? text)) budget.Scalar(text);
     }
 
-    public static string FieldId(string logicalKey) => ValidIdentifier(logicalKey) ? logicalKey
-        : "f-" + Hash("field:/" + logicalKey.Normalize(NormalizationForm.FormC).Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal));
-
-    public static string OutputId(string fileName) => ValidIdentifier("out-" + fileName) ? "out-" + fileName
-        : "o-" + Hash("output:" + fileName.Normalize(NormalizationForm.FormC));
-
+    public static string OutputId(string fileName) => ValidIdentifier("out-" + fileName) ? "out-" + fileName : "o-" + Hash("output:" + fileName);
     private static string Hash(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
     private static bool ValidIdentifier(string value) => value.Length is > 0 and <= 128 && char.IsAsciiLetter(value[0])
         && value.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_');
     private static bool IsDotenvKey(string key) => key.Length > 0 && (char.IsAsciiLetter(key[0]) || key[0] == '_')
         && key.All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
-
-    private static JsonObject ExpandField(string key, JsonObject source, string id, IReadOnlyDictionary<string, string> ids)
+    private static void Only(JsonObject node, params string[] allowed)
     {
-        if (source.ContainsKey("id")) throw new SetupDefinitionException("authoring-member");
-        JsonObject field = source.DeepClone().AsObject();
-        field["id"] = id;
-        if (!field.ContainsKey("title")) field["title"] = Humanize(key);
-        if (!field.ContainsKey("sensitivity")) field["sensitivity"] = "sensitive";
-        if (!field.ContainsKey("disclosure")) field["disclosure"] = "guided";
-        if (field["properties"] is JsonNode properties)
-        {
-            var children = new JsonArray();
-            foreach ((string name, JsonNode? child) in properties.AsObject().OrderBy(pair => pair.Key, StringComparer.Ordinal))
-            {
-                if (!ValidIdentifier(name)) throw new SetupDefinitionException("authoring-property");
-                children.Add(ExpandField(name, child!.AsObject(), name, ids));
-            }
-            field["properties"] = children;
-        }
-        foreach (string member in new[] { "activeWhen", "requiredWhen" })
-            if (field[member] is JsonNode condition) RewriteCondition(condition.AsObject(), ids);
-        return field;
-    }
-
-    private static string Humanize(string key)
-    {
-        string title = key.Replace('_', ' ').Replace('.', ' ').Replace('-', ' ').Trim();
-        return title.Length == 0 ? "Setting" : title.Length <= 256 ? title : title[..256];
-    }
-
-    private static void RewriteReference(JsonObject node, IReadOnlyDictionary<string, string> ids, bool itemAllowed)
-    {
-        string field = node["field"]!.GetValue<string>();
-        if (itemAllowed && field == "$item") return;
-        if (!ids.TryGetValue(field, out string? id)) throw new SetupDefinitionException("authoring-reference");
-        node["field"] = id;
-    }
-
-    private static void RewriteCondition(JsonObject condition, IReadOnlyDictionary<string, string> ids)
-    {
-        if (condition["operands"] is JsonArray operands)
-            foreach (JsonNode? operand in operands) RewriteCondition(operand!.AsObject(), ids);
-        else if (condition.ContainsKey("field")) RewriteReference(condition, ids, false);
-    }
-
-    private static void RewriteProjection(JsonObject projection, IReadOnlyDictionary<string, string> ids)
-    {
-        string op = projection["op"]!.GetValue<string>();
-        if (projection["when"] is JsonNode condition) RewriteCondition(condition.AsObject(), ids);
-        if (op is "copy" or "repeat") RewriteReference(projection, ids, op == "copy");
-        if (op == "object")
-            foreach ((_, JsonNode? child) in projection["members"]!.AsObject()) RewriteProjection(child!.AsObject(), ids);
-        if (op == "list")
-            foreach (JsonNode? child in projection["items"]!.AsArray()) RewriteProjection(child!.AsObject(), ids);
-        if (op == "repeat") RewriteProjection(projection["item"]!.AsObject(), ids);
-    }
-
-    private static void Only(JsonObject value, params string[] allowed)
-    {
-        if (value.Any(pair => !allowed.Contains(pair.Key, StringComparer.Ordinal)))
+        if (node.Any(pair => !allowed.Contains(pair.Key, StringComparer.Ordinal)))
             throw new SetupDefinitionException("authoring-member");
-    }
-
-    private static void RejectNullMembers(JsonObject value)
-    {
-        if (value.Any(pair => pair.Value is null)) throw new SetupDefinitionException("authoring-invalid");
     }
 }

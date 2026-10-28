@@ -1,6 +1,8 @@
 namespace Configurator.Core.Definitions;
 
 using System.Collections.ObjectModel;
+using System.Text;
+using System.Text.Json;
 using Configurator.Core.Composition;
 
 public enum DefinitionNodeType { Text, Boolean, WholeNumber, Number, Mapping, Sequence }
@@ -8,14 +10,24 @@ public enum DefinitionNodeType { Text, Boolean, WholeNumber, Number, Mapping, Se
 /// <summary>Immutable recursive shape data. Constructing a shape does not admit a definition or validate answers.</summary>
 public sealed record DefinitionNode
 {
+    private static readonly JsonElement EmptyKeywords = JsonSerializer.SerializeToElement(new { });
+    private readonly string _keywordIdentity;
+
     public DefinitionNode(DefinitionNodeType type, bool nullable = false,
         IEnumerable<KeyValuePair<string, DefinitionNode>>? properties = null,
         IEnumerable<string>? required = null, DefinitionNode? items = null,
-        DefinitionNode? additionalProperties = null, IEnumerable<DefinitionNode>? variants = null)
+        DefinitionNode? additionalProperties = null, IEnumerable<DefinitionNode>? variants = null,
+        JsonElement? keywords = null)
     {
         if (!Enum.IsDefined(type)) throw new SetupDefinitionException("schema-type");
         Type = type;
         IsNullable = nullable;
+        JsonElement metadata = keywords ?? EmptyKeywords;
+        if (metadata.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("schema-keywords");
+        byte[] canonicalKeywords = DefinitionProfile.CanonicalizeJson(Encoding.UTF8.GetBytes(metadata.GetRawText()));
+        using JsonDocument keywordDocument = JsonDocument.Parse(canonicalKeywords);
+        Keywords = keywordDocument.RootElement.Clone();
+        _keywordIdentity = Encoding.UTF8.GetString(canonicalKeywords);
         var propertySnapshot = new SortedDictionary<string, DefinitionNode>(StringComparer.Ordinal);
         foreach ((string name, DefinitionNode child) in properties ?? [])
         {
@@ -68,7 +80,19 @@ public sealed record DefinitionNode
     }
 
     public DefinitionNodeType Type { get; }
+    public string JsonType => Type switch
+    {
+        DefinitionNodeType.Text => "string",
+        DefinitionNodeType.Boolean => "boolean",
+        DefinitionNodeType.WholeNumber => "integer",
+        DefinitionNodeType.Number => "number",
+        DefinitionNodeType.Mapping => "object",
+        DefinitionNodeType.Sequence => "array",
+        _ => throw new InvalidOperationException()
+    };
     public bool IsNullable { get; }
+    /// <summary>Local public keywords only; child schemas belong to the typed recursive properties.</summary>
+    public JsonElement Keywords { get; }
     public IReadOnlyDictionary<string, DefinitionNode> Properties { get; }
     public IReadOnlyList<string> Required { get; }
     public DefinitionNode? Items { get; }
@@ -80,6 +104,7 @@ public sealed record DefinitionNode
 
     public bool Equals(DefinitionNode? other) => other is not null
         && Type == other.Type && IsNullable == other.IsNullable
+        && StringComparer.Ordinal.Equals(_keywordIdentity, other._keywordIdentity)
         && Properties.SequenceEqual(other.Properties) && Required.SequenceEqual(other.Required, StringComparer.Ordinal)
         && Equals(Items, other.Items) && Equals(AdditionalProperties, other.AdditionalProperties)
         && Variants.SequenceEqual(other.Variants);
@@ -89,6 +114,7 @@ public sealed record DefinitionNode
         var hash = new HashCode();
         hash.Add(Type);
         hash.Add(IsNullable);
+        hash.Add(_keywordIdentity, StringComparer.Ordinal);
         foreach ((string name, DefinitionNode node) in Properties)
         {
             hash.Add(name, StringComparer.Ordinal);

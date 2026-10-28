@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 
@@ -19,9 +18,8 @@ public sealed class ExternalDefinitionConformanceTests
         string artifactId, string answerName, string expectedName)
     {
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
-        using JsonDocument answers = JsonDocument.Parse(Resource("EventAnswers." + answerName + ".json"));
-        var snapshot = new SetupAnswerSnapshot(7, answers.RootElement.EnumerateObject()
-            .ToDictionary(item => item.Name, item => item.Value.Clone(), StringComparer.Ordinal));
+        SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(
+            Resource("EventAnswers." + answerName + ".json"), 7);
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifactId, snapshot);
 
         await Assert.That(result.Succeeded).IsTrue();

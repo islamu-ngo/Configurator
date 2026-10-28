@@ -1,35 +1,56 @@
 # Event-owned definition reference
 
-These files are generated data from [ISLAMU Event](https://github.com/ISLAMU/Event),
-not compiled target code or authority to apply configuration. The stable family
-GUID is `a4bcfaa6-9979-43e5-b1f5-00d552618cdf`, recorded by Event in
-`configurator/definitions/islamu-event/inputs/profile.json`.
+These public fixtures derive from first-party
+[ISLAMU Event](https://github.com/ISLAMU/Event) configuration metadata, not
+compiled target code or authority to apply configuration. The reauthored v2
+source uses fresh family `c0d02619-0134-411b-b495-ef302f592669`, revision 1,
+allocated through Configurator's native identity editor. The prior Event family
+and its publication facts are historical, not authority for this new family.
 
-`configurator.json` is Event's generated neutral authoring source. A separately
-installed, explicitly pinned Configurator compiler produces the sole canonical
+`configurator.json` is the reauthored neutral v2 source, preserving 427 declared
+root settings and five output mappings. Configurator's compiler produces the sole canonical
 `definition.json`, admitted by Configurator Core's bounded parser. `answers/` and
 `expected/` carry environment, manifest, tenant package, operator-identity and
 legal-draft vectors. Configurator's actual CLI composes these answer workspaces,
-and Event's host parsers verify the produced bytes. The Event exporter has no
+against independent expected bytes. Prior Event host-parser evidence does not
+certify this v2 reauthoring or its new family. The Event exporter has no
 Configurator assembly dependency. `catalogue.json` is value-safe environment metadata and
-`.env.example` is the target's curated template. `release.json` records the command,
+`.env.example` is the target's curated template. `release.json` retains the
+**historical v1 receipt**, including its old command,
 authoring and runtime contract versions, executable SHA-256, exact source and
 canonical definition digests, revision and host-acceptance limits. These public
 reproduction facts supply no signing, promotion or authentication authority.
+It is not a current compiler pin, digest, launch fragment or v2 acceptance
+receipt. It remains unchanged rather than fabricating a new upstream release.
 
 The browser embeds `definition.json` directly through a resource link; there are
 no separately maintained native/public copies.
-Use `/launch/a4bcfaa6-9979-43e5-b1f5-00d552618cdf` on your deployed Configurator
-origin for the bundled definition, or use `/open#` followed by the generated
-`browserLaunchFragment` in `release.json` for a pinned upstream source. Native
-and browser digest selectors identify the same revision and content. Revision 6
-uses semantic field paths instead of traversal numbers. See the checked receipt
-for the exact digests and compiler pin; earlier store snapshots retain their bytes.
+Use `/launch/c0d02619-0134-411b-b495-ef302f592669` on a Configurator origin
+built with this fixture. Its canonical runtime digest is
+`234b97da3612024910846742c0e2cf7c8d3837e794c805eb445582c025fa3f21`.
+The historical receipt's upstream URL does not serve this new family.
+Earlier store snapshots retain their bytes and are not silently revised.
 The complete browser workspace accepts typed memory-only answers, with explicit
 consent for secret entry and draft output for deferred secrets.
 No supplied answers, private defaults or private literals are embedded.
 
-Regenerate in the sibling Event checkout:
+Regenerate the local v2 runtime from the repository root:
+
+```bash
+dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
+  --configuration Release -- --write-examples
+dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
+  --configuration Release -- --check-examples
+```
+
+The synthetic answer fixtures use the private version 1 answer envelope.
+Regeneration does not contact Event or establish target acceptance.
+
+## Historical Event exporter workflow
+
+The original upstream v1 source was produced in the sibling Event checkout.
+These commands describe that provenance; they do not regenerate the current
+v2 source without a corresponding upstream exporter change:
 
 ```bash
 dotnet run --project eng/configurator/DefinitionExporter/DefinitionExporter.csproj \

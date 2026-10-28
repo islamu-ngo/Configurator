@@ -1,212 +1,197 @@
 ---
-description: "Implemented pre-release v1 definition properties, value semantics, limits, and client capabilities."
+description: "Current bounded-v2 definition grammar, explicit answer states, output mappings, and qualification limits."
 ---
 
 # Current Definition Contract Reference
 
 > **Audience:** Adopters | Integrators
-> **Status:** Implemented pre-release v1 reference; known limitations are identified below
+> **Status:** Implemented pre-release v2 base; scenario and client qualification remain separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `docs/internal/CORE_DEFINITION_CONTRACT.md`, `docs/internal/MAINTAINER_AUTHORING.md`, `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/Presentation/`
+> **Source Anchors:** `src/Configurator.Core/Definitions/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`, `docs/internal/MAINTAINER_AUTHORING.md`
 
-Use this reference to author a definition that today's Configurator understands.
-The [integration guide](integrate-your-tool.md) provides the complete workflow;
-the [definitions guide](definitions.md) explains examples.
-
-This is not a promise that the pre-release format is frozen. A standards-aligned
-redesign is proposed, not implemented. Names such as `items`, `initialValue`, and
-`applicableWhen` from that proposal are not current authoring properties.
+Use this reference for the implemented base contract and the
+[integration guide](integrate-your-tool.md) for the maintainer workflow.
+The [Definition Standard v2](definition-standard.md) remains Draft: its broader
+selected design is not a claim that all scenarios or clients are qualified.
+There is no v1 fallback or implicit migration.
 
 ## Which document are you editing?
 
-| Document | Meaning | Current discriminator |
-|---|---|---|
-| Maintainer source | Public YAML/JSON authored beside application code | `$schema: urn:islamu:configurator:authoring:v1` |
-| Compiled runtime definition | Public canonical JSON distributed to consumers | `schemaVersion: 1`; no `$schema` member |
-| Answer workspace | Private local values keyed by admitted root field ID | Neither definition discriminator |
-| Application JSON Schema | A target application's existing validation schema | Separate input to bounded scaffolding, not a Configurator definition |
-| Editor schema | Structural description of a Configurator source/runtime document | The generated files in the [schema catalog](../../schemas/README.md) |
+| Document | Current contract |
+|---|---|
+| Public maintainer YAML/JSON | `$schema: urn:islamu:configurator:authoring:v2` |
+| Public canonical runtime JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities`; no `$schema` |
+| Private answer JSON | `answerContractVersion: 1`, `values` configuration tree, `omitted` concrete pointers |
+| CLI machine result | Command envelope v2; authoring/runtime handshake reports `authoringContractVersion: 2` and `runtimeSchemaVersion: 2` |
+| Application JSON Schema | Separate bounded scaffolding input, not a Configurator runtime definition |
+| Editor meta-schema | Generated structural assistance in the [schema catalog](../../schemas/README.md), not semantic admission |
 
-Do not add an editor `$schema` URL to compiled runtime JSON. Use editor
-associations instead. Structural editor validation does not enforce every
-cross-reference, privacy, output, or resource rule.
+Definition revision, application version, answer version and command version are
+independent. Do not add an editor `$schema` URL to runtime JSON; use editor
+associations. Runtime admission recomputes capabilities and rejects a mismatching
+declaration. An author cannot declare unsupported features into existence.
 
 ## Mandatory and optional source properties
 
-The source root is closed: unknown properties reject. Omission and explicit
-`null` are not interchangeable.
+Source is a closed object. Unknown members reject; explicit null is not omission.
 
-| Property | Required? | Meaning or omission behavior |
-|---|---|---|
-| `$schema` | Yes | Exact authoring discriminator above |
-| `identity` | Yes | Nonempty `familyId` UUID and positive integer `revision`; initialization generates identity |
-| `project` | Yes | Requires `id` and `name`; `publisher` defaults to `name` |
-| `applicationVersions` | Yes | Nonempty set of exact version strings, not version ranges |
-| `fields` | Yes | Keyed map of root fields; an empty map is permitted |
-| `outputs` | Yes | Nonempty keyed map of target filenames |
-| `entryPoints` | No | Defaults to `["setup"]` |
-| `locales` | No | Defaults to `["en"]`; declaration does not translate field text |
-| `presentation` | No | Authored sections and experiences; absence permits a neutral generated presentation |
+| Property | Requirement and omission behavior |
+|---|---|
+| `$schema` | Required exact authoring discriminator |
+| `identity` | Required nonempty family UUID and positive `revision` |
+| `project` | Required `id` and `name`; `publisher` defaults to name |
+| `applicationVersions` | Required nonempty exact version strings, not ranges |
+| `configuration` | Required non-null object schema |
+| `outputs` | Required nonempty filename-keyed map |
+| `entryPoints` | Optional; defaults to `["setup"]` |
+| `presentation` | Optional ordered sections/journeys |
+| `localization` | Optional base locale and translations; absent means locale `en` |
+| `annotations` | Optional bounded inert object |
 
-Optional project metadata is `publisher`, `description`, `repository`, and
-`definitionLicense`. A repository URL is public, credential-free HTTPS.
-Store/distribution requirements are separate from local admission.
-
-Maintain source identity with `definition init` and `definition revise`; do not
-copy another project's family ID. The compiled definition materializes required
-runtime properties that source authors may omit. Build normally writes
+Project may also carry `description`, credential-free public HTTPS `repository`,
+and `definitionLicense`. Store admission is separate from local use.
+Initialize identity with `definition init`, preserve the family across revisions,
+and use `definition revise` for changed canonical content. Build normally writes
 `dist/configurator/revisions/<revision>.json`.
 
 ## Field properties
 
-Source keys identify root logical fields; nested `properties` are keyed maps too.
-Compilation assigns runtime IDs. Root keys that do not fit the identifier
-grammar receive deterministic IDs; nested property names must already start with
-an ASCII letter and contain only ASCII letters, digits, dots, hyphens, and
-underscores, within 128 characters. Dots are literal characters, not paths.
-Case/normalization collisions reject.
+The configuration tree replaces the former `fields`/`itemType` vocabulary.
+`configuration.properties` holds exact root data names; object `properties` and
+array `items` recursively use the same admitted schema grammar.
 
-| Property | Required? | Meaning or restriction |
-|---|---|---|
-| `type` | Yes | `string`, `boolean`, `integer`, `number`, `enum`, `list`, or `object` |
-| `title` | No | Humanized key when omitted |
-| `required` | No | False when omitted; evaluated only while active |
-| `sensitivity` | No | `sensitive` when omitted; other values are `public` and `secret` |
-| `disclosure` | No | `guided` when omitted; other values are `essential` and `advanced` |
-| `help`, `consequence` | No | Public inert explanations; neither makes a field required |
-| `group` | No | Public grouping label; authoring presentation may select that label |
-| `format` | No | Descriptive metadata, not an asserted validator |
-| `validator` | No | One of the closed validators listed below |
-| `default`, `recommended` | No | Only in allowed public contexts; must satisfy value constraints |
-| `choices` | For `enum` | Nonempty distinct string values; rejected on other types |
-| `itemType` | For `list` | `string`, `boolean`, `integer`, `number`, or `object` |
-| `properties` | For object/object-list | Nested field definitions; rejected on other types |
-| `uniqueBy` | No | Object-list path ending at a required string property |
-| `minLength`, `maxLength` | No | String/enum length bounds |
-| `minimum`, `maximum` | No | Integer/number inclusive bounds |
-| `minItems`, `maxItems` | No | List cardinality bounds |
-| `activeWhen`, `requiredWhen` | No | Root-only conditions |
-| `guidance` | No | Instructions, documentation links, and search terms |
-| `credential` | No | Required `kind` and `acquisition` inside an optional descriptor |
+| Member | Implemented base rule |
+|---|---|
+| `type` | `string`, `boolean`, `integer`, `number`, `object`, `array`; nullable form is exactly one base type plus `"null"` |
+| `title`, `description` | Optional bounded inert metadata |
+| `enum` | Distinct homogeneous typed non-null scalar alternatives compatible with the base type; not a separate type |
+| `const` | Compatible scalar assertion |
+| `properties`, `required` | Declared object children and local presence requirements |
+| `additionalProperties` | Explicitly `false` for every object; maps are not delivered |
+| `items` | Required recursive schema for arrays |
+| `minimum`, `maximum` | Inclusive integer/number bounds |
+| `minLength`, `maxLength` | String Unicode-scalar bounds |
+| `minItems`, `maxItems` | Array cardinality bounds |
+| `minProperties`, `maxProperties` | Object cardinality bounds |
+| `default` | Descriptive public metadata only; never inserted |
+| `format` | String annotation only; no assertion or network validation |
+| `readOnly`, `writeOnly`, `deprecated`, `examples` | Bounded annotations; `writeOnly: true` raises the secret floor |
+| `x-configurator` | Closed extension described below |
+| `if`/`then`, `dependentRequired` | Only the root presence relationships described under Conditions |
 
-Unknown field members reject. Supplying `help: null`, for example, is not the
-same as omitting help even if an editor's structural schema accepts it.
+The extension admits `sensitivity` (`public`, `sensitive`, `secret`), `initialValue`,
+`suggestedValue`, string `notBlank`, `detail` (`basic`, `standard`, `advanced`),
+`guidance`, `credential`, typed enum `choices`, `units`, array-object `uniqueBy`,
+and root-property `applicableWhen`. Missing sensitivity is conservatively
+sensitive; missing detail projects as standard. `choices` pairs each enum value
+with a label and optional explanation. `uniqueBy` is a concrete item-relative
+pointer through required object properties to a non-null string.
+
+Unknown members, incompatible constraints and invalid public literal metadata
+reject. Required property presence does not itself require nonblank text;
+use `minLength` or `x-configurator.notBlank` deliberately.
+
+### Exact names and references
+
+`SetupFieldDefinition.Name` is the exact root data key. Its bounded metadata
+`Id` is not an answer key or target path. Representable names retain their ID
+except the reserved `f-` namespace; other names, including names starting `f-`,
+receive `f-` plus a full SHA-256 over the domain-separated escaped root pointer.
+No NFC normalization or case folding changes data identity.
+
+References are closed `{scope: root|item, path: <RFC6901 pointer>}` objects.
+Empty pointer selects the context root; `/` selects the empty-name property.
+Escape `~` as `~0` and `/` as `~1`; decode once. Dots and asterisks are literal
+characters. Array indices are canonical nonnegative decimal tokens without
+leading zeroes; `-` is not an existing item. Item scope requires an admitted
+repeat context and never means an implicit global search.
+
+Names preserve case, empty names, Unicode composition and punctuation.
+`A`, `a`, `a.b`, and a nested `/a/b` are different locations. Exact duplicate
+members, invalid UTF-8, unpaired surrogates and malformed pointer escapes reject.
 
 ### Sensitivity and public metadata
 
-Definitions, help, links, choices, and declared defaults are public material;
-never put actual private answers in them.
+Definitions, examples, titles and choices are public. Never embed private answers.
+Private ancestors prevent public descendants from admitting private literal
+metadata, and protected descendants raise a container's effective sensitivity.
+Public `default`, `initialValue`, `suggestedValue`, examples and const metadata
+must satisfy the applicable privacy and value rules. Do not lower sensitivity
+to make initialization convenient. Credential intent never lowers sensitivity.
 
-- `public`: public defaults/recommendations are possible after deliberate review.
-- `sensitive`: values are protected; defaults/recommendations reject.
-- `secret`: values additionally require browser workspace consent; credential
-  descriptors require an effective secret context.
-
-A private ancestor prevents a public child's default. Protected descendants
-raise a container's effective sensitivity. Do not lower classification merely
-to admit a convenient default.
-
-Every answer-derived artifact remains restricted, even if every participating
-field is public. Browser copy/download is deliberate export, not native
-protected-save certification.
+Every answer-derived artifact is restricted even when all fields are public.
+Browser answers remain transient; secret entry needs per-workspace consent.
+Deliberate browser export is not native protected-save certification.
 
 ## Presence, defaults, and requiredness
 
-Requiredness, applicability, and disclosure are different concepts.
-`essential` means prominent in presentation, not mandatory for validity.
+The private envelope has exactly `answerContractVersion: 1`, object `values`,
+and array `omitted`. Values use exact data names, not metadata IDs. Omission
+pointers are distinct concrete locations; supplied/suppressed conflicts and
+overlapping suppressions reject atomically.
 
-| Answer state | Current meaning |
+| State at an applicable location | Effective result |
 |---|---|
-| Absent root, no default | Omitted; invalid only if active and required |
-| Absent root with default | Core uses the declared default as the effective value |
-| Root cleared after an edit | A declared root default becomes effective again; clearing cannot suppress it |
-| Absent nested property | Core does not recursively insert its default during validation |
-| Interactive object/row creation | Materializes declared nested defaults and required containers, not invented required scalar answers |
-| Present `null` | Not a valid field value; current field types are not nullable |
-| Present empty/whitespace string | Counts as present for conditions; required strings reject it |
-| Present `false` or `0` | Supplied values, not missing |
-| Present `[]` or `{}` | Supplied containers; item/property constraints still apply |
-| Absent optional object | Descendant required properties do not independently require the absent container |
-| Inactive root | Excluded from effective validation/output, even if raw workspace values remain |
+| Supplied value, including false, zero, empty string/container | Preserve and validate |
+| Supplied null | Present only under a nullable schema |
+| Explicit omission | Missing; suppress initialization |
+| Never supplied with eligible `initialValue` | Use admitted initialization |
+| Never supplied without initialization | Missing |
+| Reset | Remove override and omission; initialization becomes eligible again |
+| `suggestedValue` | No change until deliberately adopted |
+| Standard `default` | No inserted value |
+| Absent container with an initialized child | Container stays absent |
+| Present container with never-supplied children | Resolve eligible child initialization recursively |
+| Inapplicable root property | Exclude from effective validation and output |
 
-Root fallback and nested creation-time initialization are different current
-behaviors, not a promise of uniform recursive defaulting. `recommended` is an
-advisory typed value and is not automatically substituted by Core.
+Required descendants do not instantiate an absent optional object. Null is
+different from omission. Required empty strings are valid unless a separate
+assertion rejects them. Core owns effective-value resolution for validation,
+drafts and composition; clients must not invent required containers or answers.
 
-Integers use signed 64-bit representation; numbers use exact bounded decimal
-representation. String lengths use UTF-16 code units. These are important
-differences from unrestricted application JSON Schema.
+Integers use signed Int64. Numbers use exact bounded decimals (at most 28
+significant digits after redundant zero removal, scale at most 28, explicit
+exponents -28 through 28). Out-of-domain values reject without rounding.
+String length counts Unicode scalars, not UTF-16 code units.
 
 ### Conditions
 
-Operations are `present`, `equals`, `notEquals`, `in`, `all`, `any`, and `not`.
-Simple conditions reference declared root fields. Compound conditions use
-`operands`; `not` takes one operand and `all`/`any` at least two.
+`x-configurator.applicableWhen` is supported on direct configuration properties,
+not the configuration root or nested properties/items. Predicates use `exists`,
+`equals`, `notEquals`, `in`, `all`, `any`, `not`; leaf predicates use scoped
+root references, including declared nested paths. Comparisons use typed values;
+`in` uses nonempty `values`. Compounds use nonempty `operands`; `not` takes one.
+Unknown references and applicability cycles reject.
 
-`present` means an effective non-null value exists. It includes defaults and
-empty strings and does not report answer provenance. If a value is absent,
-`equals`, `notEquals`, and `in` all return false; use explicit Boolean
-composition when absence matters. In draft preparation, unresolved secret
-dependencies remain unknown rather than becoming guessed true/false values.
+Missing controllers make leaf predicates false; valid present null counts as
+existing. Invalid or secret-deferred controllers propagate unknown, never a
+guessed active branch. Boolean composition preserves unknown unless a decisive
+false (`all`) or true (`any`) settles it.
 
-Nested conditions, unknown references, and cycles reject. Both activation and
-conditional-requiredness references participate in cycle rejection.
-
-### Validators
-
-| Name | Current check |
-|---|---|
-| `none` | No additional check |
-| `hostname` | DNS hostname accepted by the bounded runtime check; not an IP-address validator |
-| `absolute-uri` | Absolute HTTP(S) URI without embedded user information, not every URI scheme |
-| `email-address` | Bounded lexical email check; no mailbox or target verification |
-| `port-number` | Integer from 1 through 65535 |
-| `positive-integer` | Integer greater than zero |
-
-Choose a validator compatible with the field type. Current admission does not
-reject every incompatible combination; such a definition can fail only when
-answers are validated. Field `format` does not activate these checks.
-
-## Collections and supported shapes
-
-- Objects have declared, closed properties; unknown answer properties reject.
-- Lists have one `itemType`. Scalar items cannot carry their own enum, format,
-  numeric, or length constraints through a recursive item schema.
-- Object-list `properties` describe each row. `uniqueBy` follows required
-  object properties to a string; comparison is ordinal and diagnostics exclude
-  the duplicate value.
-- Enum choices are strings, without independent option labels/descriptions.
-- Nullable unions, typed open maps, tuple arrays, and general alternative
-  schemas are not supported field shapes.
+At the configuration root, `if: {required: [controller]}` with
+`then: {required: [dependent]}` and `dependentRequired` are supported now.
+Names must identify local root properties. These presence-only assertions
+validate relationships, not visibility; mutual dependencies are permitted.
+Nested relationships, value-based schema conditions, `else`, maps, variants,
+advanced assertions and asserted formats remain later-phase work.
 
 ## Presentation and guidance
 
-Authored presentation requires `defaultExperience`, `sections`, and
-`experiences`. Every root occurs once across nonempty sections; each experience
-lists every section once. Section/experience identifiers use bounded lowercase
-ASCII kebab-case. Sections and experiences have titles and optional descriptions.
-Only roots are laid out independently.
+Presentation uses `defaultJourney`, optional `navigation` (`wizard`/`sections`),
+`sections` with concrete `pointers`, and `journeys` with ordered section IDs.
+IDs are bounded lowercase kebab-case; titles and optional descriptions are inert.
+Layout/detail never changes validity or grants presets. Consumers must keep
+applicable required/error work reachable; a metadata declaration is not proof
+that every client has qualified that experience.
 
-Source sections may select logical `fields` and/or existing `groups`.
-Compilation expands groups once into runtime root references. Explicit field
-order is preserved; group members and unconfigured source maps have ordinal
-ordering. No executable selectors or answer presets exist.
+`x-configurator.guidance` accepts optional instructions (4096 characters), up to
+four static HTTPS links and sixteen distinct search terms. Instructions support
+plain-text multiline technical punctuation, not executable markup or templates.
+Links are credential-free, have no query, may include fragments, and are opened
+deliberately without answer interpolation or automatic fetching.
 
-Disclosure is `essential`, `guided`, or `advanced`. Navigation is `guided` or
-`sections`. Changing presentation must not change configuration validity.
-
-Guidance accepts optional `instructions` (4096 characters), up to four `links`,
-and up to sixteen distinct `searchTerms`. Metadata text rejects control
-characters and angle brackets. Instructions also reject backticks, Markdown
-link syntax, and template markers. Consequently, multiline YAML syntax does
-not make multiline guidance metadata valid.
-
-Links require public credential-free HTTPS and reject query/fragment
-delimiters. They are inert metadata: no answer expansion, automatic fetching,
-prefetching, or execution. Consumers open links deliberately.
-
-Credential combinations:
+Credential descriptors require an effective secret string context:
 
 | Kind | Acquisition |
 |---|---|
@@ -216,104 +201,85 @@ Credential combinations:
 | `private-key` | `existing`, `issuer` |
 | `connection-string` | `existing`, `issuer` |
 
-The descriptor requires a secret string context and grants no generation,
-authentication, or network authority.
+Descriptors do not generate or authenticate credentials. Localization currently
+admits a `defaultLocale`, translations, direction and pointer-keyed overrides
+of existing public text. Broader localization policy and cross-client behavior
+remain later qualification, not implied translation coverage.
 
 ## Client capabilities
 
-This table records inspected consumer behavior, not newly executed runtime QA.
-Shared validity does not imply identical presentation.
+Admission computes `requiredCapabilities` from actual schema, value, predicate,
+relationship and projection features. Canonical runtime JSON records the sorted
+set; unsupported mandatory semantics must be refused before collecting answers.
+Optional layout can degrade only to reachable neutral presentation.
 
-| Capability | Current support boundary |
-|---|---|
-| Admission, readiness, activation, and preparation | Shared Core semantics |
-| Authored sections, ordering, guided navigation | Browser consumes them; inspected Desktop/Terminal forms use flatter root-order projections |
-| Rich guidance and deliberate documentation links | Browser renders them; ordinary help/consequence is the portable fallback |
-| Apply recommendation | Explicit Desktop action; no equivalent action in the inspected Browser/Terminal field controls |
-| Detailed controller/correction navigation | Browser has richer navigation; native feedback differs |
-| Temporary under-minimum lists | Shared editing can permit them; Desktop disables removal at the declared minimum |
-| Definition translation | `locales` alone does not translate scalar titles/help; client chrome localization is separate |
-| Machine catalogue | Structural metadata only; not a complete form schema or evaluated requiredness model |
-
-Put indispensable instructions in ordinary help until the chosen clients'
-capabilities are verified. Declared choices are public metadata; masking values
-does not imply that all clients hide the same choice controls.
+The implemented Core base does not qualify every CLI, Browser, Desktop or Terminal
+scenario, accessibility path, package or physical host. Keep indispensable
+guidance in plain text and qualify the clients selected for your integration.
+Machine command v3 is later work; command v2 remains current.
 
 ## Outputs and import
 
-Source outputs are keyed by sanitized filename hints and require `format`.
-Optional properties are `id`, `applySemantics`, `restart`, and either `bindings`
-or `projection`. Omitted apply semantics is `generationOnly`; restart defaults
-to `none`, without proving hot reload or target acceptance.
+Outputs require `format`: `dotenv`, `json`, `yaml`, or `markdown`. Optional
+`targetUpdateMode` is `unspecified`, `create`, `merge`, `replace`, `import`,
+`reconcile`, `generationOnly`; `restartRequirement` is `unspecified`, `none`,
+`process`, `deployment`. Both default to `unspecified`. They are advice, not
+target acceptance, apply permission or filesystem authority.
 
-Bindings map target keys to declared logical root fields. JSON/YAML shorthand
-copies literal root keys, including dots; it does not infer nesting.
-Dotenv bindings require compatible scalar fields and environment names.
-Filenames do not grant filesystem authority.
+Choose `bindings` or `projection`, never both. Dotenv binding keys are literal
+environment names; values are scoped references to compatible non-null scalars.
+JSON/YAML binding keys are concrete target pointers; `/server/port` constructs
+that target object path, whereas `/server.port` uses one dotted key. Overlapping
+target pointers reject. Without mappings, JSON/YAML copy the effective tree;
+dotenv and Markdown need explicit mappings/projections.
 
 Projection operations are `literal`, `copy`, `omit`, `index`, `object`, `list`,
-and `repeat`, with optional root-condition `when`. A copy references a root;
-`$item` copies the current whole repeated item and `index` emits its zero-based
-index. Nested repeats and row-relative property selectors are not admitted.
+`repeat`. Copies/repeats use scoped references; item scope exists only inside
+repeat. Output bounds remain in force. Dotenv requires non-null scalar members;
+Markdown requires a list of strings. Successful admission is not proof of every
+runtime composition or target's own acceptance.
 
-| Format | Required projected shape |
-|---|---|
-| `dotenv` | Object of non-null scalar values |
-| `json` | Bounded JSON value |
-| `yaml` | Bounded YAML serialization of the projected value |
-| `markdown` | List of strings, joined with formatting/link-sensitive characters escaped |
+Existing-file import is narrower than generation: supported unconditional,
+unambiguous direct-copy mappings can prefill answers. Transforms, conditional
+or repeated ambiguity, unknown input and nonreplaceable conflicts reject
+atomically. Partial prefill is not complete readiness.
 
-Admission does not prove every format-specific shape. Answer validation,
-successful composition, native publication, and target acceptance are separate
-outcomes. A complete active-output bundle skips intentionally omitted outputs;
-explicit selection of an omitted output remains an error.
-
-Existing-file import is narrower than generation: JSON/YAML/dotenv support an
-unconditional root-object mapping of direct copies with no ambiguous repeated
-field mapping. Other projections can be non-importable. Conflicts with existing
-nonreplaceable answers reject; partial prefill does not imply complete readiness.
-
-Secret-deferred drafts defer only missing secret leaves, retain completion
-locations, and withhold unresolved secret-dependent outputs. Ordinary missing
-or malformed values still block. A prepared draft is not a complete artifact.
+Drafts defer genuinely missing secret leaves, never malformed supplied values.
+Unresolved secret-dependent outputs are withheld; completion locations identify
+remaining work. Draft output is not a complete accepted artifact.
 
 ## JSON Schema import
 
-Import scaffolds public source from supplied bounded documents. It is not a
-claim that Configurator is a general Draft 2020-12 validator.
+Scaffolding remains narrower than native v2 authoring. The current importer
+accepts explicit scalar types, string enums, closed objects/local required sets,
+bounded homogeneous arrays and selected inclusive bounds. Supplied local
+`$defs`/`$ref` expansion is bounded; runtime configuration does not admit those
+reference keywords. Remote/dynamic/cyclic references and resource rescoping reject.
 
-| Input concept | Current disposition |
-|---|---|
-| Explicit scalar types and string enums | Supported within native numeric/string domains |
-| Closed objects and local required sets | Supported; explicit `additionalProperties: false` required |
-| Homogeneous arrays | Supported only where item constraints fit the current `itemType` representation |
-| Inclusive numeric, length, item bounds | Supported with the stated semantic differences |
-| Supplied local `$defs`/`$ref` | Bounded expansion; remote/dynamic/cyclic/resource-rescoping cases reject |
-| `title`, `description` | Selected bounded text retained; line breaks/tabs normalized |
-| `writeOnly` | Raises secret classification, including referenced/root annotations |
-| `default` | Discarded, not automatically restored as public |
-| `format` | Explanatory help, not asserted validation |
-| `examples`, `readOnly`, `deprecated` | Accepted annotations do not become equivalent native interaction/validation behavior |
-| Nullable unions, open maps, general combinators/conditionals, regex, unsupported item assertions | Rejected, not bypassed by acknowledgment |
+Selected title/description text survives, line breaks/tabs are normalized,
+`writeOnly` raises secret classification, defaults are discarded, and format
+becomes explanatory description rather than an assertion. Ordinary imported
+nodes remain sensitive until reviewed. Numeric domain differences require
+`--accept-bounded-semantics`; required-string-whitespace and UTF-16-length
+differences are no longer the native v2 semantics.
 
-The acknowledgment flag permits only encountered required-string-whitespace,
-UTF-16-length, and bounded-number differences. It does not waive unsupported
-assertions or privacy rules. Review generated fields before adding public
-defaults or claiming target-validator equivalence.
+Importer support does not expand merely because native v2 supports typed enums,
+nullable values, recursive items or root presence relationships. Nullable unions,
+maps, general composition/conditions, regex and unsupported item assertions still
+reject at this scaffolding boundary. Acknowledgment never waives unsupported
+assertions or privacy; compilation is not target-validator equivalence.
 
 ## Bounds and verification limits
 
-Current source ceilings include 4 MiB aggregate bytes, depth 32, 4096 map/list
-entries, 65536 nodes, 65536 scalar characters, and 1 MiB aggregate scalar
-characters. Definitions additionally cap roots at 1024 and outputs at 64;
-presentation caps sections at 64 and experiences at 16. Schema import has its
-own stricter document, reference, and expansion limits.
+Source ceilings remain 4 MiB aggregate bytes, depth 32, 4096 entries per container,
+65536 nodes, 65536 scalar characters and 1 MiB aggregate scalar characters.
+Definitions cap root properties at 1024 and outputs at 64; presentation caps
+sections at 64 and journeys at 16. Import has stricter reference/expansion limits.
+YAML is bounded JSON-shaped data: tags, anchors, aliases, directives, merge keys,
+multiple documents and non-string resolved keys reject.
 
-YAML accepts a bounded JSON-shaped data dialect. Anchors, aliases, tags,
-directives, merge keys, multiple documents, and ambiguous non-string keys reject.
-Quote strings that resemble typed values.
-
-For mechanisms and exact API contracts, see the [Core definition contract](../internal/CORE_DEFINITION_CONTRACT.md)
-and [maintainer authoring contract](../internal/MAINTAINER_AUTHORING.md).
-Current inspection limits and proposed improvements are retained in the
-[definition-standard audit](../internal/reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md).
+The parent reports example source/runtime agreement **3/3** for the fresh v2
+families at revision 1. This documentation unit did not rerun that check.
+It proves neither target acceptance nor complete scenario/client qualification.
+See the [Core contract](../internal/CORE_DEFINITION_CONTRACT.md) and
+[maintainer contract](../internal/MAINTAINER_AUTHORING.md) for mechanisms.

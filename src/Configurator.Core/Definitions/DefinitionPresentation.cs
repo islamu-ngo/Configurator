@@ -7,11 +7,12 @@ public sealed record DefinitionPresentation
 {
     internal DefinitionPresentation(JsonElement data)
     {
-        DefaultExperience = data.GetProperty("defaultExperience").GetString()!;
+        DefaultExperience = data.GetProperty("defaultJourney").GetString()!;
         Sections = Array.AsReadOnly(data.GetProperty("sections").EnumerateArray()
             .Select(section => new DefinitionSection(section)).ToArray());
-        Experiences = Array.AsReadOnly(data.GetProperty("experiences").EnumerateArray()
-            .Select(experience => new DefinitionExperience(experience)).ToArray());
+        string navigation = Text(data, "navigation") ?? "sections";
+        Experiences = Array.AsReadOnly(data.GetProperty("journeys").EnumerateArray()
+            .Select(experience => new DefinitionExperience(experience, navigation)).ToArray());
     }
 
     public string DefaultExperience { get; }
@@ -27,7 +28,7 @@ public sealed record DefinitionPresentation
 
     internal static SetupFieldDisclosure DisclosureValue(string? value) => value switch
     {
-        "essential" => SetupFieldDisclosure.Essential,
+        "basic" => SetupFieldDisclosure.Essential,
         "advanced" => SetupFieldDisclosure.Advanced,
         _ => SetupFieldDisclosure.Guided
     };
@@ -40,8 +41,10 @@ public sealed record DefinitionSection
         Id = data.GetProperty("id").GetString()!;
         Title = data.GetProperty("title").GetString()!;
         Description = DefinitionPresentation.Text(data, "description");
-        Disclosure = DefinitionPresentation.DisclosureValue(DefinitionPresentation.Text(data, "disclosure"));
-        Fields = DefinitionPresentation.Strings(data, "fields");
+        Disclosure = SetupFieldDisclosure.Guided;
+        Pointers = DefinitionPresentation.Strings(data, "pointers");
+        Fields = Array.AsReadOnly(Pointers.Select(path => DefinitionPath.Parse(path).Segments)
+            .Where(segments => segments.Count > 0).Select(segments => DefinitionProfile.FieldId(segments[0])).Distinct(StringComparer.Ordinal).ToArray());
     }
 
     public string Id { get; }
@@ -49,17 +52,18 @@ public sealed record DefinitionSection
     public string? Description { get; }
     public SetupFieldDisclosure Disclosure { get; }
     public IReadOnlyList<string> Fields { get; }
+    public IReadOnlyList<string> Pointers { get; }
 }
 
 public sealed record DefinitionExperience
 {
-    internal DefinitionExperience(JsonElement data)
+    internal DefinitionExperience(JsonElement data, string navigation)
     {
         Id = data.GetProperty("id").GetString()!;
         Title = data.GetProperty("title").GetString()!;
         Description = DefinitionPresentation.Text(data, "description");
-        InitialDisclosure = DefinitionPresentation.DisclosureValue(DefinitionPresentation.Text(data, "initialDisclosure"));
-        Navigation = DefinitionPresentation.Text(data, "navigation") ?? "sections";
+        InitialDisclosure = SetupFieldDisclosure.Guided;
+        Navigation = navigation;
         Sections = DefinitionPresentation.Strings(data, "sections");
     }
 

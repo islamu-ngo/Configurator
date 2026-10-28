@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 
@@ -12,9 +11,7 @@ public sealed class GrafanaDefinitionConformanceTests
     public async Task SyntheticAnswersProducePinnedRestrictedBytes(string artifactId, string expectedResource, string digest)
     {
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("GrafanaDefinition"));
-        using JsonDocument answers = JsonDocument.Parse(Resource("GrafanaAnswers"));
-        var snapshot = new SetupAnswerSnapshot(1, answers.RootElement.EnumerateObject()
-            .ToDictionary(item => item.Name, item => item.Value.Clone(), StringComparer.Ordinal));
+        SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Resource("GrafanaAnswers"), 1);
 
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifactId, snapshot);
 

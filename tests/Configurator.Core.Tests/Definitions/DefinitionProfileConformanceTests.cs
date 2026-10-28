@@ -1,10 +1,122 @@
 using System.Text;
+using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 
 namespace Configurator.Core.Tests.Definitions;
 
 public sealed class DefinitionProfileConformanceTests
 {
+    private const string SourceV2 = """
+        {
+          "$schema":"urn:islamu:configurator:authoring:v2",
+          "identity":{"familyId":"23808653-d359-4a11-8f28-0753b7825338","revision":1},
+          "project":{"id":"synthetic.profile","name":"Synthetic profile"},
+          "applicationVersions":["1.0"],
+          "configuration":{
+            "type":"object","additionalProperties":false,
+            "x-configurator":{"sensitivity":"public"},
+            "properties":{
+              "mode":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"on"}},
+              "settings":{
+                "type":"object","additionalProperties":false,
+                "x-configurator":{"sensitivity":"public"},
+                "properties":{
+                  "port":{"type":"integer","x-configurator":{"sensitivity":"public","initialValue":8080}}
+                }
+              },
+              "text":{"type":"string","x-configurator":{"sensitivity":"public"}},
+              "nullable":{"type":["string","null"],"x-configurator":{"sensitivity":"public"}},
+              "A":{"type":"boolean","x-configurator":{"sensitivity":"public"}},
+              "a":{"type":"integer","x-configurator":{"sensitivity":"public"}}
+            }
+          },
+          "outputs":{"config.json":{"format":"json"}}
+        }
+        """;
+
+    [Test]
+    public async Task V2ResolvesInitializationOnlyInsidePresentContainers()
+    {
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(SourceV2));
+        foreach ((string values, string expected) in new[]
+        {
+            ("{}", """{"mode":"on"}"""),
+            ("""{"settings":{}}""", """{"mode":"on","settings":{"port":8080}}"""),
+            ("""{"A":false,"a":0,"text":"","nullable":null}""",
+                """{"A":false,"a":0,"mode":"on","nullable":null,"text":""}""")
+        })
+        {
+            SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
+                """{"answerContractVersion":1,"values":""" + values + ""","omitted":[]}"""));
+            DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition,
+                definition.Artifacts[0].Id, snapshot);
+            using DefinitionArtifact? artifact = result.Artifact;
+            await Assert.That(artifact is not null).IsTrue();
+            await Assert.That(Encoding.UTF8.GetString(artifact!.Bytes.Span)).IsEqualTo(expected);
+        }
+    }
+
+    [Test]
+    public async Task V2OmissionSuppressesInitializationAndResetRestoresEligibility()
+    {
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(SourceV2));
+        foreach ((string omissions, string expected) in new[]
+        {
+            ("""["/mode"]""", "{}"),
+            ("[]", """{"mode":"on"}""")
+        })
+        {
+            SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
+                """{"answerContractVersion":1,"values":{},"omitted":""" + omissions + "}"), inputRevision: 7);
+            DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition,
+                definition.Artifacts[0].Id, snapshot);
+            using DefinitionArtifact? artifact = result.Artifact;
+            await Assert.That(artifact is not null).IsTrue();
+            await Assert.That(Encoding.UTF8.GetString(artifact!.Bytes.Span)).IsEqualTo(expected);
+            await Assert.That(artifact.InputRevision).IsEqualTo(7L);
+        }
+    }
+
+    [Test]
+    public async Task PrivateAnswerEnvelopesRejectAmbiguityAndUnknownContracts()
+    {
+        foreach (string envelope in new[]
+        {
+            """{"answerContractVersion":0,"values":{},"omitted":[]}""",
+            """{"answerContractVersion":1,"answers":{},"omitted":[]}""",
+            """{"answerContractVersion":1,"values":{"synthetic-private-key":1},"omitted":["/synthetic-private-key"]}""",
+            """{"answerContractVersion":1,"values":{},"omitted":["/a","/a/b"]}""",
+            """{"answerContractVersion":1,"values":{"A":1,"A":2},"omitted":[]}""",
+            """{"answerContractVersion":1,"values":null,"omitted":[]}"""
+        })
+            await Assert.That(() => SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(envelope)))
+                .Throws<SetupDefinitionException>();
+    }
+
+    [Test]
+    public async Task CutoverRejectsPriorAndUnknownSemanticSourceContracts()
+    {
+        const string priorRuntime = """
+            {"schemaVersion":1,"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1,
+             "applicationId":"example.service","applicationVersions":["1.0"],"publisher":"example",
+             "title":"Example service","entryPoints":["setup"],"locales":["en"],
+             "fields":[{"id":"service.name","type":"string","required":true,"sensitivity":"public",
+             "disclosure":"advanced","title":"Service name","minLength":1,"maxLength":80}],
+             "artifacts":[{"id":"config","format":"json","fileName":"service.json","applySemantics":"create",
+             "restart":"process","projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}}]}
+            """;
+        await Assert.That(() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(priorRuntime)))
+            .Throws<SetupDefinitionException>();
+        foreach (string source in new[]
+        {
+            SourceV2.Replace("authoring:v2", "authoring:v1", StringComparison.Ordinal),
+            SourceV2.Replace("\"type\":\"string\"", "\"type\":\"string\",\"executable\":\"synthetic\"", StringComparison.Ordinal),
+            SourceV2.Replace("\"additionalProperties\":false", "\"additionalProperties\":true", StringComparison.Ordinal)
+        })
+            await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source)))
+                .Throws<SetupDefinitionException>();
+    }
+
     [Test]
     public async Task ConcretePointersEscapeOnceAndKeepOrdinalIdentity()
     {

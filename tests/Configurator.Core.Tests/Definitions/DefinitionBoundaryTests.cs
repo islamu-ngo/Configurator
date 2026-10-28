@@ -20,26 +20,28 @@ public sealed class DefinitionBoundaryTests
     {
         foreach (string change in new[]
         {
-            "\"activeWhen\":{\"op\":\"present\",\"field\":\"missing\"}",
-            "\"activeWhen\":{\"op\":\"equals\"}",
-            "\"activeWhen\":{\"op\":\"not\",\"operands\":[]}",
-            "\"activeWhen\":{\"op\":\"all\",\"operands\":[{\"op\":\"present\",\"field\":\"service.name\"}]}",
+            "\"x-configurator\":{\"applicableWhen\":{\"op\":\"exists\",\"reference\":{\"scope\":\"root\",\"path\":\"/missing\"}}}",
+            "\"x-configurator\":{\"applicableWhen\":{\"op\":\"equals\"}}",
+            "\"x-configurator\":{\"applicableWhen\":{\"op\":\"not\",\"operands\":[]}}",
+            "\"x-configurator\":{\"applicableWhen\":{\"op\":\"all\",\"operands\":[{\"op\":\"exists\",\"reference\":{\"scope\":\"root\",\"path\":\"/service.name\"}}]}}",
             "\"validator\":\"remote-schema\"",
             "\"properties\":[]",
             "\"maxItems\":5"
         })
         {
-            string invalid = DefinitionFixture.Json.Replace("\"maxLength\":80",
-                "\"maxLength\":80," + change, StringComparison.Ordinal);
-            await Assert.That(() => DefinitionFixture.Parse(invalid)).Throws<SetupDefinitionException>();
+            JsonNode invalid = JsonNode.Parse(DefinitionFixture.Json)!;
+            foreach ((string name, JsonNode? value) in JsonNode.Parse("{" + change + "}")!.AsObject())
+                invalid["configuration"]!["properties"]!["service.name"]![name] = value?.DeepClone();
+            await Assert.That(() => DefinitionFixture.Parse(invalid.ToJsonString())).Throws<SetupDefinitionException>();
         }
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        JsonNode field = root["fields"]![0]!;
-        field["activeWhen"] = JsonNode.Parse("""{"op":"present","field":"second"}""");
-        root["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"second","type":"string","title":"Second","sensitivity":"public","disclosure":"guided",
-              "activeWhen":{"op":"present","field":"service.name"}}
-            """));
+        JsonNode field = root["configuration"]!["properties"]!["service.name"]!;
+        field["x-configurator"]!["applicableWhen"] = JsonNode.Parse(
+            """{"op":"exists","reference":{"scope":"root","path":"/second"}}""");
+        root["configuration"]!["properties"]!["second"] = JsonNode.Parse("""
+            {"type":"string","title":"Second","x-configurator":{"sensitivity":"public",
+              "applicableWhen":{"op":"exists","reference":{"scope":"root","path":"/service.name"}}}}
+            """);
         await Assert.That(() => DefinitionFixture.Parse(root.ToJsonString())).Throws<SetupDefinitionException>();
     }
 

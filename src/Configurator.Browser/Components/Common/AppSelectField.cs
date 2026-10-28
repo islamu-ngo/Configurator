@@ -1,6 +1,6 @@
 namespace Configurator.Browser.Components.Common;
 
-using System.Text.Json;
+using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
@@ -10,7 +10,7 @@ using MudBlazor;
 /// </summary>
 public sealed class AppSelectField : MudSelect<string>
 {
-    [Parameter] public JsonElement ChoiceSchema { get; set; }
+    [Parameter] public DefinitionNode ChoiceSchema { get; set; } = null!;
     private bool _suppressParameterRender;
 
     public override Task SetParametersAsync(ParameterView parameters)
@@ -23,7 +23,7 @@ public sealed class AppSelectField : MudSelect<string>
                 || attributes?.Any(item => UserAttributes is null
                     || !UserAttributes.TryGetValue(item.Key, out object? current) || !Equals(current, item.Value)) == true);
         _suppressParameterRender = !(attributesChanged
-            || Changed(nameof(ChoiceSchema), ChoiceSchema)
+            || parameters.TryGetValue<DefinitionNode>(nameof(ChoiceSchema), out var schema) && !ReferenceEquals(ChoiceSchema, schema)
             || Changed(nameof(Value), Value)
             || Changed(nameof(InputId), InputId)
             || Changed(nameof(Disabled), Disabled)

@@ -7,8 +7,8 @@ public sealed class DefinitionDiagnosticPathTests
     [Test]
     public async Task ContainerNodeCannotDemoteNestedSecretSensitivity()
     {
-        System.Text.Json.Nodes.JsonObject source = System.Text.Json.Nodes.JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]![1]!["properties"]![0]!["sensitivity"] = "secret";
+        System.Text.Json.Nodes.JsonObject source = System.Text.Json.Nodes.JsonNode.Parse(Source)!.AsObject();
+        source["configuration"]!["properties"]!["options"]!["properties"]!["dotted.name"]!["x-configurator"]!["sensitivity"] = "secret";
         DefinitionValidationResult result = DefinitionValidator.Validate(DefinitionFixture.Parse(source.ToJsonString()),
             DefinitionFixture.Answers("""{"rows":[],"options":{"dotted.name":1}}"""));
 
@@ -82,7 +82,7 @@ public sealed class DefinitionDiagnosticPathTests
         DefinitionDiagnostic diagnostic = result.Diagnostics.Single();
         await Assert.That(diagnostic.FieldId).IsEqualTo("rows");
         await Assert.That(diagnostic.RelativePath.SequenceEqual(["0", "name"])).IsTrue();
-        await Assert.That(diagnostic.Code).IsEqualTo("value-required");
+        await Assert.That(diagnostic.Code).IsEqualTo("value-invalid");
     }
 
     [Test]
@@ -95,17 +95,22 @@ public sealed class DefinitionDiagnosticPathTests
         await Assert.That(diagnostic.RelativePath.SequenceEqual(["1", "name"])).IsTrue();
     }
 
-    private static SetupDefinition Definition() => DefinitionFixture.Parse("""
-    {"schemaVersion":1,"familyId":"0d9f1857-93ad-4b7d-8be1-bd9e7223c587","revision":1,
-     "applicationId":"example","applicationVersions":["1"],"publisher":"example","title":"Paths",
-     "entryPoints":["setup"],"locales":["en"],
-     "fields":[
-       {"id":"rows","type":"list","itemType":"object","maxItems":3,"uniqueBy":["name"],
-        "title":"Rows","sensitivity":"public","disclosure":"advanced","properties":[
-          {"id":"name","type":"string","required":true,"title":"Name","sensitivity":"public","disclosure":"guided"}]},
-       {"id":"options","type":"object","title":"Options","sensitivity":"public","disclosure":"guided","properties":[
-         {"id":"dotted.name","type":"integer","required":true,"title":"Number","sensitivity":"public","disclosure":"guided"}]}],
-     "artifacts":[{"id":"config","format":"json","fileName":"service.json",
-       "applySemantics":"create","restart":"process","projection":{"op":"literal","value":{}}}]}
-    """);
+    private static SetupDefinition Definition() => DefinitionFixture.Parse(Source);
+
+    private const string Source = """
+    {"$schema":"urn:islamu:configurator:authoring:v2",
+     "identity":{"familyId":"0d9f1857-93ad-4b7d-8be1-bd9e7223c587","revision":1},
+     "project":{"id":"example","name":"Paths","publisher":"example"},
+     "applicationVersions":["1"],"entryPoints":["setup"],
+     "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+      "properties":{
+       "rows":{"type":"array","maxItems":3,"title":"Rows","x-configurator":{"sensitivity":"public","detail":"advanced","uniqueBy":"/name"},
+         "items":{"type":"object","additionalProperties":false,"required":["name"],"x-configurator":{"sensitivity":"public"},
+          "properties":{"name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","notBlank":true}}}}},
+       "options":{"type":"object","title":"Options","additionalProperties":false,"required":["dotted.name"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "dotted.name":{"type":"integer","title":"Number","x-configurator":{"sensitivity":"public"}}}}}},
+     "outputs":{"service.json":{"id":"config","format":"json",
+       "targetUpdateMode":"create","restartRequirement":"process","projection":{"op":"literal","value":{}}}}}
+    """;
 }

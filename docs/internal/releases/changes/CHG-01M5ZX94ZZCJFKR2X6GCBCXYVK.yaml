@@ -1,0 +1,30 @@
+Change-Id: CHG-01M5ZX94ZZCJFKR2X6GCBCXYVK
+Title: "adopt one v2 definition and answer-state contract"
+Type: feat
+Scope: definitions
+Summary: "Admit recursive exact-key v2 configuration schemas and explicit private answer states through one Core owner. Coordinate source compilation, initialization, omission, typed client schema consumers and freshly generated examples without a v1 fallback."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "Authoring v1, runtime v1, bare answer objects and former field/default vocabulary are rejected. Reauthor sources for authoring/runtime v2, rebuild callers and use the version 1 private answer envelope."
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Exact-key admission rejects duplicates and malformed Unicode. Protected initialization and suggestions remain forbidden; unknown applicability withholds dependent output. Explicit omission cannot resurrect initialization, and prepared artifacts remain restricted."
+  Migration:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: documented
+    Detail: "Move declared configuration into standard object properties, required sets and array items; use scoped concrete pointers and x-configurator metadata. Regenerate canonical runtime bytes and adopt new example families rather than overwrite v1 family history."
+  Configuration:
+    Reference: schemas/README.md
+    Disposition: documented
+    Detail: "Runtime definitions declare profile bounded-v2 and computed requiredCapabilities. Standard default is descriptive; initialValue initializes only eligible present paths, while suggestedValue requires deliberate use."
+  OpenAPI:
+    Reference: docs/public/definition-reference.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "Private envelopes distinguish supplied false, zero, empty strings and null from absence and explicit suppression. Reset restores initialization eligibility. Preparation and example conformance do not grant target acceptance or apply authority."

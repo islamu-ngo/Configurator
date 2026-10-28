@@ -28,14 +28,6 @@ public static class DefinitionScalarEditing
                 if (!decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number)) return false;
                 value = JsonSerializer.SerializeToElement(number);
                 return true;
-            case "enum":
-                foreach (JsonElement choice in metadata.GetProperty("choices").EnumerateArray())
-                    if ((choice.ValueKind == JsonValueKind.String ? choice.GetString() : choice.GetRawText()) == text)
-                    {
-                        value = choice.Clone();
-                        return true;
-                    }
-                return false;
             default:
                 return false;
         }

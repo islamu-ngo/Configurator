@@ -2,6 +2,7 @@ namespace Configurator.Core.Definitions;
 
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 using Configurator.Core.Composition;
 
 /// <summary>Bounded exact-key syntax primitives; schema admission remains the codec's responsibility.</summary>
@@ -13,8 +14,30 @@ public static class DefinitionProfile
     public const string AuthoringSchemaId = "urn:islamu:configurator:authoring:v2";
     public const int RuntimeSchemaVersion = 2;
 
+    /// <summary>Closed Phase 3 semantic capability registry. Required subsets are computed by admission.</summary>
+    public static IReadOnlyList<string> Capabilities { get; } = Array.AsReadOnly(new[]
+    {
+        "predicate.root", "projection.copy", "projection.index", "projection.list", "projection.literal", "projection.object",
+        "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
+        "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
+        "schema.string", "schema.uniqueBy", "values.initial", "values.suggested"
+    });
+
     public static byte[] CanonicalizeJson(ReadOnlyMemory<byte> bytes) => Canonicalize(bytes, yaml: false);
     public static byte[] CanonicalizeYaml(ReadOnlyMemory<byte> bytes) => Canonicalize(bytes, yaml: true);
+
+    /// <summary>Separates bounded metadata identity from exact target names; the generated prefix is reserved.</summary>
+    public static string FieldId(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ValidateScalar(name);
+        if (name.Length is > 0 and <= 128 && char.IsAsciiLetter(name[0])
+            && !name.StartsWith("f-", StringComparison.Ordinal)
+            && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'))
+            return name;
+        string jsonPointer = DefinitionPath.FromSegments([name]).ToPointer();
+        return "f-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("field:" + jsonPointer)));
+    }
 
     internal static void ValidateScalar(string text)
     {

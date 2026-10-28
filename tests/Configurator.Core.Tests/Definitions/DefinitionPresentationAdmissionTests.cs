@@ -8,27 +8,28 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionPresentationAdmissionTests
 {
     private const string Source = """
-        {"$schema":"urn:islamu:configurator:authoring:v1",
+        {"$schema":"urn:islamu:configurator:authoring:v2",
          "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
          "project":{"id":"example.service","name":"Example Service"},"applicationVersions":["1.0"],
-         "fields":{
-           "Service port":{"type":"integer","sensitivity":"public","default":8080,"group":"network"},
-           "TOKEN":{"type":"string","sensitivity":"secret","group":"access",
-             "help":"Credential for the service.","consequence":"Allows service access.",
-             "guidance":{"instructions":"Obtain the credential from your administrator.",
-               "links":[{"title":"Public instructions","url":"https://example.org/docs/credentials"}],
-               "searchTerms":["access","credential"]},
-             "credential":{"kind":"opaque-token","acquisition":"issuer"}}},
-         "presentation":{"defaultExperience":"recommended",
-           "sections":[{"id":"access","title":"Access","disclosure":"essential","fields":["TOKEN"]},
-             {"id":"network","title":"Network","groups":["network"]}],
-           "experiences":[{"id":"recommended","title":"Recommended","initialDisclosure":"essential","navigation":"guided","sections":["network","access"]},
-             {"id":"custom","title":"Custom","description":"Review every setting.","initialDisclosure":"advanced","navigation":"sections","sections":["access","network"]}]},
+         "configuration":{"type":"object","additionalProperties":false,"required":["TOKEN"],
+          "x-configurator":{"sensitivity":"public"},"properties":{
+           "Service port":{"type":"integer","x-configurator":{"sensitivity":"public","initialValue":8080}},
+           "TOKEN":{"type":"string","description":"Credential for the service.",
+             "x-configurator":{"sensitivity":"secret","detail":"basic","notBlank":true,
+               "guidance":{"instructions":"Obtain the credential from your administrator.",
+                 "links":[{"title":"Public instructions","url":"https://example.org/docs/credentials"}],
+                 "searchTerms":["access","credential"]},
+               "credential":{"kind":"opaque-token","acquisition":"issuer"}}}}},
+         "presentation":{"defaultJourney":"recommended","navigation":"wizard",
+           "sections":[{"id":"access","title":"Access","pointers":["/TOKEN"]},
+             {"id":"network","title":"Network","pointers":["/Service port"]}],
+           "journeys":[{"id":"recommended","title":"Recommended","sections":["network","access"]},
+             {"id":"custom","title":"Custom","description":"Review every setting.","sections":["access","network"]}]},
          "outputs":{"service.json":{"format":"json"}}}
         """;
 
     private const string Yaml = """
-        $schema: urn:islamu:configurator:authoring:v1
+        $schema: urn:islamu:configurator:authoring:v2
         identity:
           familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
           revision: 1
@@ -36,49 +37,49 @@ public sealed class DefinitionPresentationAdmissionTests
           id: example.service
           name: Example Service
         applicationVersions: ["1.0"]
-        fields:
-          Service port:
-            type: integer
-            sensitivity: public
-            default: 8080
-            group: network
-          TOKEN:
-            type: string
-            sensitivity: secret
-            group: access
-            # This syntax comment is not runtime help.
-            help: Credential for the service.
-            consequence: Allows service access.
-            guidance:
-              instructions: Obtain the credential from your administrator.
-              links:
-                - title: Public instructions
-                  url: https://example.org/docs/credentials
-              searchTerms: [access, credential]
-            credential:
-              kind: opaque-token
-              acquisition: issuer
+        configuration:
+          type: object
+          additionalProperties: false
+          required: [TOKEN]
+          x-configurator: {sensitivity: public}
+          properties:
+            Service port:
+              type: integer
+              x-configurator: {sensitivity: public, initialValue: 8080}
+            TOKEN:
+              type: string
+              # This syntax comment is not runtime help.
+              description: Credential for the service.
+              x-configurator:
+                sensitivity: secret
+                detail: basic
+                notBlank: true
+                guidance:
+                  instructions: Obtain the credential from your administrator.
+                  links:
+                    - title: Public instructions
+                      url: https://example.org/docs/credentials
+                  searchTerms: [access, credential]
+                credential:
+                  kind: opaque-token
+                  acquisition: issuer
         presentation:
-          defaultExperience: recommended
+          defaultJourney: recommended
+          navigation: wizard
           sections:
             - id: access
               title: Access
-              disclosure: essential
-              fields: [TOKEN]
+              pointers: [/TOKEN]
             - id: network
               title: Network
-              groups: [network]
-          experiences:
+              pointers: ["/Service port"]
+          journeys:
             - id: recommended
               title: Recommended
-              initialDisclosure: essential
-              navigation: guided
               sections: [network, access]
             - id: custom
               title: Custom
               description: Review every setting.
-              initialDisclosure: advanced
-              navigation: sections
               sections: [access, network]
         outputs:
           service.json:
@@ -90,21 +91,23 @@ public sealed class DefinitionPresentationAdmissionTests
 
     private static JsonObject Authoring() => JsonNode.Parse(Source)!.AsObject();
     private static JsonObject Runtime() => JsonNode.Parse(Compile(Authoring()).CanonicalBytes.Span)!.AsObject();
-    private static SetupDefinition Parse(JsonObject runtime) => DefinitionFixture.Parse(runtime.ToJsonString());
+    private static SetupDefinition Parse(JsonObject runtime) =>
+        SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString()));
+    private static JsonObject Token(JsonObject document) =>
+        document["configuration"]!["properties"]!["TOKEN"]!.AsObject();
+    private static JsonObject Metadata(JsonObject document) => Token(document)["x-configurator"]!.AsObject();
 
     [Test]
-    public async Task EquivalentYamlJsonCompilesGroupsAndLogicalReferencesInAuthoredOrder()
+    public async Task EquivalentYamlJsonCompilesPointersAndJourneysInAuthoredOrder()
     {
         SetupDefinition json = Compile(Authoring());
         SetupDefinition yaml = DefinitionAuthoringCompiler.Compile(
             DefinitionAuthoringCodec.ParseYaml(Encoding.UTF8.GetBytes(Yaml)));
         await Assert.That(json.Digest).IsEqualTo(yaml.Digest);
         JsonNode runtime = JsonNode.Parse(json.CanonicalBytes.Span)!;
-        await Assert.That(runtime["presentation"]!["sections"]![0]!["fields"]![0]!.GetValue<string>()).IsEqualTo("TOKEN");
-        await Assert.That(runtime["presentation"]!["sections"]![1]!["fields"]![0]!.GetValue<string>())
-            .IsEqualTo(DefinitionAuthoringCompiler.FieldId("Service port"));
-        await Assert.That(runtime["presentation"]!["sections"]![1]!["groups"] is null).IsTrue();
-        await Assert.That(runtime["presentation"]!["experiences"]![0]!["sections"]!.ToJsonString())
+        await Assert.That(runtime["presentation"]!["sections"]![0]!["pointers"]![0]!.GetValue<string>()).IsEqualTo("/TOKEN");
+        await Assert.That(runtime["presentation"]!["sections"]![1]!["pointers"]![0]!.GetValue<string>()).IsEqualTo("/Service port");
+        await Assert.That(runtime["presentation"]!["journeys"]![0]!["sections"]!.ToJsonString())
             .IsEqualTo("""["network","access"]""");
         await Assert.That(SetupDefinitionCodec.ParseYaml(json.CanonicalBytes).Digest).IsEqualTo(json.Digest);
         await Assert.That(json.Fields.Single(field => field.Id == "TOKEN").Help).IsEqualTo("Credential for the service.");
@@ -116,8 +119,9 @@ public sealed class DefinitionPresentationAdmissionTests
         SetupDefinition definition = DefinitionAuthoringTests.Compile();
         JsonObject runtime = JsonNode.Parse(definition.CanonicalBytes.Span)!.AsObject();
         await Assert.That(runtime.ContainsKey("presentation")).IsFalse();
-        await Assert.That(runtime["fields"]![1]!["guidance"] is null).IsTrue();
-        await Assert.That(runtime["fields"]![1]!["credential"] is null).IsTrue();
+        JsonNode metadata = runtime["configuration"]!["properties"]!["SERVICE_TOKEN"]!["x-configurator"]!;
+        await Assert.That(metadata["guidance"] is null).IsTrue();
+        await Assert.That(metadata["credential"] is null).IsTrue();
         await Assert.That(definition.Presentation is null).IsTrue();
     }
 
@@ -127,58 +131,49 @@ public sealed class DefinitionPresentationAdmissionTests
         JsonObject source = Authoring();
         SetupDefinition definition = Compile(source);
         DefinitionPresentation presentation = definition.Presentation!;
-        source["presentation"]!["sections"]![0]!["fields"]!.AsArray().Clear();
+        source["presentation"]!["sections"]![0]!["pointers"]!.AsArray().Clear();
         byte[] bytes = definition.CanonicalBytes.ToArray();
         bytes.AsSpan().Clear();
         await Assert.That(presentation.DefaultExperience).IsEqualTo("recommended");
-        await Assert.That(presentation.Sections[0].Disclosure).IsEqualTo(SetupFieldDisclosure.Essential);
-        await Assert.That(presentation.Sections[1].Disclosure).IsEqualTo(SetupFieldDisclosure.Guided);
-        await Assert.That(presentation.Experiences[0].InitialDisclosure).IsEqualTo(SetupFieldDisclosure.Essential);
-        await Assert.That(presentation.Experiences[0].Navigation).IsEqualTo("guided");
-        await Assert.That(presentation.Experiences[1].InitialDisclosure).IsEqualTo(SetupFieldDisclosure.Advanced);
-        await Assert.That(presentation.Experiences[1].Navigation).IsEqualTo("sections");
+        await Assert.That(presentation.Sections[0].Pointers.SequenceEqual(["/TOKEN"])).IsTrue();
+        await Assert.That(presentation.Sections[1].Pointers.SequenceEqual(["/Service port"])).IsTrue();
+        await Assert.That(presentation.Experiences[0].Navigation).IsEqualTo("wizard");
+        await Assert.That(presentation.Experiences[1].Navigation).IsEqualTo("wizard");
         await Assert.That(() => ((IList<string>)presentation.Sections[0].Fields).Clear()).Throws<NotSupportedException>();
         await Assert.That(() => ((IList<DefinitionSection>)presentation.Sections).Clear()).Throws<NotSupportedException>();
         await Assert.That(() => ((IList<DefinitionExperience>)presentation.Experiences).Clear()).Throws<NotSupportedException>();
         SetupFieldDefinition field = definition.Fields.Single(field => field.Id == "TOKEN");
+        await Assert.That(field.Disclosure).IsEqualTo(SetupFieldDisclosure.Essential);
         await Assert.That(field.InputPurpose!.Kind).IsEqualTo("opaque-token");
         await Assert.That(field.InputPurpose.Acquisition).IsEqualTo("issuer");
         await Assert.That(field.Guidance!.Links[0].Url).IsEqualTo("https://example.org/docs/credentials");
         await Assert.That(() => ((IList<DefinitionGuidanceLink>)field.Guidance.Links).Clear()).Throws<NotSupportedException>();
         await Assert.That(() => ((IList<string>)field.Guidance.SearchTerms).Clear()).Throws<NotSupportedException>();
         source = Authoring();
-        source["presentation"]!["experiences"]![0]!.AsObject().Remove("initialDisclosure");
-        source["presentation"]!["experiences"]![0]!.AsObject().Remove("navigation");
-        DefinitionExperience defaults = Compile(source).Presentation!.Experiences[0];
-        await Assert.That(defaults.InitialDisclosure).IsEqualTo(SetupFieldDisclosure.Guided);
-        await Assert.That(defaults.Navigation).IsEqualTo("sections");
+        source["presentation"]!.AsObject().Remove("navigation");
+        Metadata(source).Remove("detail");
+        SetupDefinition defaults = Compile(source);
+        await Assert.That(defaults.Presentation!.Experiences[0].Navigation).IsEqualTo("sections");
+        await Assert.That(defaults.Fields.Single(value => value.Id == "TOKEN").Disclosure).IsEqualTo(SetupFieldDisclosure.Guided);
     }
 
     [Test]
-    public async Task SectionsRequireExactRootPartitionAndExperiencesRequireEverySectionOnce()
+    public async Task SectionsAndJourneysRejectInvalidReferencesAndClosedMetadata()
     {
-        _ = Runtime();
         foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
         {
-            root => root["presentation"]!["sections"]!.AsArray().RemoveAt(1),
-            root => root["presentation"]!["sections"]![0]!["fields"] = new JsonArray(),
-            root => root["presentation"]!["sections"]![0]!["fields"] = new JsonArray("missing"),
-            root => root["presentation"]!["sections"]![0]!["fields"]!.AsArray().Add("TOKEN"),
-            root => root["presentation"]!["sections"]![1]!["fields"]!.AsArray().Add("TOKEN"),
-            root => root["presentation"]!["experiences"]![0]!["sections"] = new JsonArray("access"),
-            root => root["presentation"]!["experiences"]![0]!["sections"] = new JsonArray("access", "access"),
-            root => root["presentation"]!["experiences"]![0]!["sections"] = new JsonArray("access", "missing"),
-            root => root["presentation"]!["defaultExperience"] = "missing",
-            root => root["presentation"]!.AsObject().Remove("defaultExperience"),
+            root => root["presentation"]!["sections"]![0]!["pointers"] = new JsonArray("/missing"),
+            root => root["presentation"]!["sections"]![0]!["pointers"]!.AsArray().Add("/TOKEN"),
+            root => root["presentation"]!["journeys"]![0]!["sections"] = new JsonArray("access", "access"),
+            root => root["presentation"]!["journeys"]![0]!["sections"] = new JsonArray("access", "missing"),
+            root => root["presentation"]!["defaultJourney"] = "missing",
+            root => root["presentation"]!.AsObject().Remove("defaultJourney"),
             root => root["presentation"]!["sections"]![1]!["id"] = "access",
-            root => root["presentation"]!["experiences"]![1]!["id"] = "recommended",
-            root => root["presentation"]!["sections"]![0]!["id"] = "Invalid_Id",
-            root => root["presentation"]!["sections"]![0]!["id"] = "two--hyphens",
-            root => root["presentation"]!["experiences"]![0]!["id"] = "ends-",
-            root => root["presentation"]!["experiences"]![0]!["initialDisclosure"] = "all",
-            root => root["presentation"]!["experiences"]![0]!["navigation"] = "wizard",
+            root => root["presentation"]!["journeys"]![1]!["id"] = "recommended",
+            root => root["presentation"]!["navigation"] = "guided",
+            root => root["presentation"]!["journeys"]![0]!["initialDisclosure"] = "essential",
+            root => root["presentation"]!["journeys"]![0]!["answers"] = new JsonObject(),
             root => root["presentation"]!["sections"]![0]!["disclosure"] = "hidden",
-            root => root["presentation"]!["experiences"]![0]!["answers"] = new JsonObject(),
             root => root["presentation"]!["sections"]![0]!["groups"] = new JsonArray("access"),
             root => root["presentation"]!["command"] = "synthetic-private-marker"
         })
@@ -190,18 +185,17 @@ public sealed class DefinitionPresentationAdmissionTests
     }
 
     [Test]
-    public async Task AuthoringRejectsMissingEmptyAndOverlappingGroupSelectors()
+    public async Task AuthoringRejectsLegacyGroupAndLogicalFieldSelectors()
     {
-        _ = Compile(Authoring());
         foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
         {
-            root => root["presentation"]!["sections"]![1]!["groups"] = new JsonArray("missing"),
-            root => root["presentation"]!["sections"]![1]!["groups"] = new JsonArray(),
-            root => root["presentation"]!["sections"]![1]!["groups"] = new JsonArray("network", "network"),
-            root => root["presentation"]!["sections"]![1]!["groups"] = new JsonArray("access"),
+            root => root["presentation"]!["sections"]![1]!["groups"] = new JsonArray("network"),
             root => root["presentation"]!["sections"]![1]!["fields"] = new JsonArray("Service port"),
-            root => root["presentation"]!["sections"]![0]!["fields"] = new JsonArray("TOKEN/child"),
-            root => root["presentation"]!["sections"]![1]!["fields"] = new JsonArray()
+            root => root["presentation"]!["sections"]![0]!["pointers"] = new JsonArray("TOKEN/child"),
+            root => root["presentation"]!["sections"]![0]!["pointers"] = new JsonArray("/TOKEN/child"),
+            root => root["presentation"]!["defaultExperience"] = "recommended",
+            root => Metadata(root)["group"] = "access",
+            root => Metadata(root)["consequence"] = "synthetic-private-marker"
         })
         {
             JsonObject source = Authoring();
@@ -211,104 +205,106 @@ public sealed class DefinitionPresentationAdmissionTests
     }
 
     [Test]
-    public async Task GroupExpansionUsesStableRootOrderAndKeepsNestedPropertiesInsideRoot()
+    public async Task ExplicitPointersKeepNestedPropertiesInsideTheirDeclaredRoot()
     {
         JsonObject source = Authoring();
-        source["fields"]!["ANOTHER"] = JsonNode.Parse("""{"type":"object","group":"network","properties":{"child":{"type":"string"}}}""");
+        source["configuration"]!["properties"]!["ANOTHER"] = JsonNode.Parse(
+            """{"type":"object","additionalProperties":false,"properties":{"child":{"type":"string"}}}""");
+        source["presentation"]!["sections"]![1]!["pointers"] = new JsonArray("/ANOTHER", "/Service port");
         JsonNode runtime = JsonNode.Parse(Compile(source).CanonicalBytes.Span)!;
-        JsonArray roots = runtime["presentation"]!["sections"]![1]!["fields"]!.AsArray();
+        JsonArray roots = runtime["presentation"]!["sections"]![1]!["pointers"]!.AsArray();
         await Assert.That(roots.Count).IsEqualTo(2);
-        await Assert.That(roots[0]!.GetValue<string>()).IsEqualTo("ANOTHER");
-        await Assert.That(roots[1]!.GetValue<string>()).IsEqualTo(DefinitionAuthoringCompiler.FieldId("Service port"));
+        await Assert.That(roots[0]!.GetValue<string>()).IsEqualTo("/ANOTHER");
+        await Assert.That(roots[1]!.GetValue<string>()).IsEqualTo("/Service port");
+        source["presentation"]!["sections"]![0]!["pointers"] = new JsonArray();
+        source["presentation"]!["journeys"]![0]!["sections"] = new JsonArray("network");
+        DefinitionValidationResult validation = DefinitionValidator.Validate(Compile(source), DefinitionFixture.Answers("{}"));
+        await Assert.That(validation.IsReady).IsFalse();
+        await Assert.That(validation.Fields.Single(field => field.Id == "TOKEN").IsRequired).IsTrue();
+        await Assert.That(validation.Fields.Single(field => field.Id == "TOKEN").HasError).IsTrue();
     }
 
     [Test]
     public async Task PresentationBoundsAcceptTheirEdgesAndRejectOverflow()
     {
-        _ = Runtime();
         foreach ((string member, int maximum) in new[] { ("id", 64), ("title", 128), ("description", 2048) })
         {
             JsonObject runtime = Runtime();
-            runtime["presentation"]!["experiences"]![1]![member] = new string('x', maximum);
+            runtime["presentation"]!["journeys"]![1]![member] = new string('x', maximum);
             _ = Parse(runtime);
-            runtime["presentation"]!["experiences"]![1]![member] = new string('x', maximum + 1);
+            runtime["presentation"]!["journeys"]![1]![member] = new string('x', maximum + 1);
             await Reject(() => Parse(runtime));
             runtime = Runtime();
             runtime["presentation"]!["sections"]![0]![member] = new string('x', maximum + 1);
             await Reject(() => Parse(runtime));
         }
-        foreach (string collection in new[] { "experiences", "sections" })
+        foreach (string collection in new[] { "journeys", "sections" })
         {
             JsonObject runtime = Runtime();
             runtime["presentation"]![collection] = new JsonArray();
             await Reject(() => Parse(runtime));
-            int maximum = collection == "experiences" ? 16 : 64;
+            int maximum = collection == "journeys" ? 16 : 64;
             for (int index = 0; index <= maximum; index++)
-                runtime["presentation"]![collection]!.AsArray().Add(JsonNode.Parse(
-                    $$"""{"id":"entry-{{index}}","title":"Entry","sections":["access","network"],"fields":["TOKEN"]}"""));
+                runtime["presentation"]![collection]!.AsArray().Add(collection == "journeys"
+                    ? JsonNode.Parse($$"""{"id":"entry-{{index}}","title":"Entry","sections":["access","network"]}""")
+                    : JsonNode.Parse($$"""{"id":"entry-{{index}}","title":"Entry","pointers":["/TOKEN"]}"""));
             await Reject(() => Parse(runtime));
         }
     }
 
     [Test]
-    public async Task MaximumSectionAndExperienceCountsAdmitACompletePartition()
+    public async Task MaximumSectionAndJourneyCountsAdmitACompletePartition()
     {
-        JsonObject runtime = Runtime();
-        runtime["fields"] = new JsonArray();
+        JsonObject runtime = Authoring();
+        runtime["configuration"]!["properties"] = new JsonObject();
+        runtime["configuration"]!["required"] = new JsonArray();
         var sections = new JsonArray();
         var sectionIds = new JsonArray();
         for (int index = 0; index < 64; index++)
         {
             string suffix = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            runtime["fields"]!.AsArray().Add(new JsonObject
-            {
-                ["id"] = "root-" + suffix, ["type"] = "string", ["title"] = "Root",
-                ["sensitivity"] = "public", ["disclosure"] = "guided"
-            });
+            runtime["configuration"]!["properties"]!["root-" + suffix] = JsonNode.Parse(
+                """{"type":"string","title":"Root","x-configurator":{"sensitivity":"public"}}""");
             sections.Add(new JsonObject
             {
-                ["id"] = "section-" + suffix, ["title"] = "Section", ["fields"] = new JsonArray("root-" + suffix)
+                ["id"] = "section-" + suffix, ["title"] = "Section", ["pointers"] = new JsonArray("/root-" + suffix)
             });
             sectionIds.Add("section-" + suffix);
         }
-        var experiences = new JsonArray();
+        var journeys = new JsonArray();
         for (int index = 0; index < 16; index++)
-            experiences.Add(new JsonObject
+            journeys.Add(new JsonObject
             {
-                ["id"] = "experience-" + index, ["title"] = "Experience", ["sections"] = sectionIds.DeepClone()
+                ["id"] = "journey-" + index, ["title"] = "Journey", ["sections"] = sectionIds.DeepClone()
             });
         runtime["presentation"] = new JsonObject
         {
-            ["defaultExperience"] = "experience-0", ["sections"] = sections, ["experiences"] = experiences
+            ["defaultJourney"] = "journey-0", ["sections"] = sections, ["journeys"] = journeys
         };
-        runtime["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
-        SetupDefinition admitted = Parse(runtime);
+        SetupDefinition admitted = Compile(runtime);
         await Assert.That(admitted.Presentation!.Sections.Count).IsEqualTo(64);
         await Assert.That(admitted.Presentation.Experiences.Count).IsEqualTo(16);
-        experiences.Add(new JsonObject
+        journeys.Add(new JsonObject
         {
             ["id"] = "overflow", ["title"] = "Overflow", ["sections"] = sectionIds.DeepClone()
         });
-        await Reject(() => Parse(runtime));
-        experiences.RemoveAt(16);
-        sections.Add(new JsonObject { ["id"] = "overflow", ["title"] = "Overflow", ["fields"] = new JsonArray("root-0") });
-        await Reject(() => Parse(runtime));
+        await Reject(() => Compile(runtime));
+        journeys.RemoveAt(16);
+        sections.Add(new JsonObject { ["id"] = "overflow", ["title"] = "Overflow", ["pointers"] = new JsonArray("/root-0") });
+        await Reject(() => Compile(runtime));
     }
 
     [Test]
     public async Task GuidanceBoundsAndClosedLinksRejectActiveOrUnboundedMetadata()
     {
-        _ = Runtime();
         int mutationIndex = 0;
         foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
         {
             field => field["guidance"]!["instructions"] = new string('x', 4097),
             field => field["guidance"]!["instructions"] = "",
-            field => field["guidance"]!["instructions"] = "<script>synthetic-private-marker</script>",
-            field => field["guidance"]!["instructions"] = "line\nbreak",
             field => field["guidance"]!["instructions"] = "${answer}",
-            field => field["guidance"]!["instructions"] = "[Run](https://example.org)",
-            field => field["guidance"]!["instructions"] = "`execute synthetic-command`",
+            field => field["guidance"]!["instructions"] = "{{answer}}",
+            field => field["guidance"]!["instructions"] = "\u0001",
             field => field["guidance"]!["exec"] = "synthetic-private-marker",
             field => field["guidance"]!["searchTerms"] = new JsonArray("duplicate", "duplicate"),
             field => field["guidance"]!["searchTerms"] = new JsonArray(new string('x', 65)),
@@ -321,31 +317,42 @@ public sealed class DefinitionPresentationAdmissionTests
         })
         {
             JsonObject runtime = Runtime();
-            mutate(runtime["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "TOKEN")!.AsObject());
+            mutate(Metadata(runtime));
             await Reject(() => Parse(runtime), $"guidance-case-{mutationIndex++}");
         }
         foreach (string url in new[] { "http://example.org", "/docs", "javascript:alert(1)", "https://user:pass@example.org",
-            "https://example.org?q=value", "https://example.org#fragment", "https://example.org/?", "https://example.org/#",
+            "https://example.org?q=value", "https://example.org/?",
             "https://example.org/${answer}", "https://example.org/{{answer}}" })
         {
             JsonObject runtime = Runtime();
-            runtime["fields"]![1]!["guidance"]!["links"]![0]!["url"] = url;
+            Metadata(runtime)["guidance"]!["links"]![0]!["url"] = url;
             await Reject(() => Parse(runtime), $"link-case-{mutationIndex++}");
         }
+        foreach (string inert in new[] { "<script>synthetic-private-marker</script>", "line\nbreak",
+            "[Run](https://example.org)", "`execute synthetic-command`" })
+        {
+            JsonObject source = Authoring();
+            Metadata(source)["guidance"]!["instructions"] = inert;
+            await Assert.That(Compile(source).Fields.Single(field => field.Id == "TOKEN").Guidance!.Instructions).IsEqualTo(inert);
+        }
+        JsonObject fragment = Authoring();
+        Metadata(fragment)["guidance"]!["links"]![0]!["url"] = "https://example.org/docs#credential";
+        await Assert.That(Compile(fragment).Fields.Single(field => field.Id == "TOKEN").Guidance!.Links[0].Url)
+            .IsEqualTo("https://example.org/docs#credential");
     }
 
     [Test]
     public async Task GuidanceMaximumInstructionsLinksAndSearchTermsRemainUsable()
     {
         JsonObject source = Authoring();
-        JsonNode guidance = source["fields"]!["TOKEN"]!["guidance"]!;
+        JsonNode guidance = Metadata(source)["guidance"]!;
         guidance["instructions"] = new string('x', 4096);
         guidance["searchTerms"] = new JsonArray(Enumerable.Range(0, 16)
             .Select(index => (JsonNode?)JsonValue.Create(index.ToString("D2", System.Globalization.CultureInfo.InvariantCulture) + new string('x', 62))).ToArray());
         guidance["links"] = new JsonArray(Enumerable.Range(0, 4)
             .Select(_ => JsonNode.Parse("""{"title":"Docs","url":"https://example.org/docs"}""")).ToArray());
         _ = Compile(source);
-        source["fields"]!["TOKEN"]!["guidance"] = new JsonObject();
+        Metadata(source)["guidance"] = new JsonObject();
         _ = Compile(source);
         await Assert.That(Parse(Runtime()).Fields.Count).IsEqualTo(2);
     }
@@ -353,20 +360,19 @@ public sealed class DefinitionPresentationAdmissionTests
     [Test]
     public async Task MetadataNullsAndUnknownMembersRejectThroughTheRuntimeBoundary()
     {
-        _ = Runtime();
         foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
         {
             root => root["presentation"] = null,
-            root => root["presentation"]!["sections"]![0]!["fields"] = null,
-            root => root["presentation"]!["experiences"]![0]!["initialDisclosure"] = null,
-            root => root["presentation"]!["experiences"]![0]!["navigation"] = null,
-            root => root["fields"]![1]!["guidance"] = null,
-            root => root["fields"]![1]!["credential"] = null,
-            root => root["fields"]![1]!["guidance"]!["links"] = null,
-            root => root["fields"]![1]!["guidance"]!["searchTerms"] = null,
-            root => root["fields"]![1]!["credential"]!["kind"] = null,
-            root => root["fields"]![1]!["credential"]!["generation"] = new JsonObject(),
-            root => root["fields"]![1]!["comment"] = "synthetic-private-marker"
+            root => root["presentation"]!["sections"]![0]!["pointers"] = null,
+            root => root["presentation"]!["navigation"] = null,
+            root => Metadata(root)["detail"] = null,
+            root => Metadata(root)["guidance"] = null,
+            root => Metadata(root)["credential"] = null,
+            root => Metadata(root)["guidance"]!["links"] = null,
+            root => Metadata(root)["guidance"]!["searchTerms"] = null,
+            root => Metadata(root)["credential"]!["kind"] = null,
+            root => Metadata(root)["credential"]!["generation"] = new JsonObject(),
+            root => Token(root)["comment"] = "synthetic-private-marker"
         })
         {
             JsonObject runtime = Runtime();
@@ -378,12 +384,11 @@ public sealed class DefinitionPresentationAdmissionTests
     [Test]
     public async Task CredentialVocabularyAndAcquisitionAreClosedAndNeverImplyGeneration()
     {
-        _ = Runtime();
         foreach (string kind in new[] { "password", "opaque-token", "symmetric-key", "private-key", "connection-string" })
             foreach (string acquisition in new[] { "existing", "create", "issuer" })
             {
                 JsonObject source = Authoring();
-                source["fields"]!["TOKEN"]!["credential"] = new JsonObject { ["kind"] = kind, ["acquisition"] = acquisition };
+                Metadata(source)["credential"] = new JsonObject { ["kind"] = kind, ["acquisition"] = acquisition };
                 bool allowed = acquisition == "existing" || acquisition == "create" && kind is "password" or "symmetric-key"
                     || acquisition == "issuer" && kind != "symmetric-key";
                 if (allowed) _ = Compile(source);
@@ -395,7 +400,7 @@ public sealed class DefinitionPresentationAdmissionTests
             """{"kind":"password","acquisition":"existing","autocomplete":"current-password"}""" })
         {
             JsonObject source = Authoring();
-            source["fields"]!["TOKEN"]!["credential"] = JsonNode.Parse(credential);
+            Metadata(source)["credential"] = JsonNode.Parse(credential);
             await Reject(() => Compile(source));
         }
     }
@@ -403,53 +408,63 @@ public sealed class DefinitionPresentationAdmissionTests
     [Test]
     public async Task CredentialRequiresAnEffectivelySecretStringLeafIncludingInheritedContext()
     {
-        _ = Runtime();
         foreach (string sensitivity in new[] { "public", "sensitive" })
         {
             JsonObject source = Authoring();
-            source["fields"]!["TOKEN"]!["sensitivity"] = sensitivity;
+            Metadata(source)["sensitivity"] = sensitivity;
             await Reject(() => Compile(source));
         }
-        foreach (string type in new[] { "integer", "boolean", "enum", "object", "list" })
+        foreach (string type in new[] { "integer", "boolean", "object", "array" })
         {
             JsonObject source = Authoring();
-            source["fields"]!["TOKEN"]!["type"] = type;
-            if (type == "enum") source["fields"]!["TOKEN"]!["choices"] = new JsonArray("one");
-            if (type is "object" or "list") source["fields"]!["TOKEN"]!["properties"] = new JsonObject { ["child"] = new JsonObject { ["type"] = "string" } };
-            if (type == "list") source["fields"]!["TOKEN"]!["itemType"] = "object";
+            Token(source)["type"] = type;
+            Metadata(source).Remove("notBlank");
+            if (type == "object")
+            {
+                Token(source)["additionalProperties"] = false;
+                Token(source)["properties"] = new JsonObject { ["child"] = new JsonObject { ["type"] = "string" } };
+            }
+            if (type == "array") Token(source)["items"] = new JsonObject { ["type"] = "string" };
             await Reject(() => Compile(source));
         }
-        foreach (string type in new[] { "object", "list" })
+        foreach (bool array in new[] { false, true })
         {
             JsonObject source = Authoring();
-            source["fields"]!["TOKEN"] = JsonNode.Parse("""
-                {"type":"object","sensitivity":"secret","properties":{
-                  "child":{"type":"string","sensitivity":"public",
-                    "credential":{"kind":"password","acquisition":"existing"}}}}
-                """);
-            source["fields"]!["TOKEN"]!["type"] = type;
-            if (type == "list") source["fields"]!["TOKEN"]!["itemType"] = "object";
+            JsonNode container = JsonNode.Parse("""
+                {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"secret"},
+                 "properties":{"child":{"type":"string","x-configurator":{"sensitivity":"public",
+                   "credential":{"kind":"password","acquisition":"existing"}}}}}
+                """)!;
+            source["configuration"]!["properties"]!["TOKEN"] = array
+                ? new JsonObject { ["type"] = "array", ["items"] = container,
+                    ["x-configurator"] = new JsonObject { ["sensitivity"] = "secret" } }
+                : container;
             SetupDefinition definition = Compile(source);
             await Assert.That(definition.Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
-            source["fields"]!["TOKEN"]!["sensitivity"] = "public";
+            Metadata(source)["sensitivity"] = "public";
+            if (array) Token(source)["items"]!["x-configurator"]!["sensitivity"] = "public";
             await Reject(() => Compile(source));
         }
+        JsonObject enumeration = Authoring();
+        Token(enumeration)["enum"] = new JsonArray("one");
+        await Assert.That(Compile(enumeration).Fields.Single(field => field.Id == "TOKEN").InputPurpose!.Kind).IsEqualTo("opaque-token");
     }
 
     [Test]
     public async Task DescriptorsCannotDemoteSensitivityOrAdmitPrivateDefaults()
     {
-        _ = Runtime();
-        foreach (string member in new[] { "default", "recommended" })
+        foreach (string member in new[] { "default", "initialValue", "suggestedValue" })
         {
             JsonObject source = Authoring();
-            source["fields"]!["TOKEN"]![member] = "synthetic-private-marker";
+            if (member == "default") Token(source)[member] = "synthetic-private-marker";
+            else Metadata(source)[member] = "synthetic-private-marker";
             await Reject(() => Compile(source));
         }
         JsonObject inherited = Authoring();
-        inherited["fields"]!["TOKEN"] = JsonNode.Parse("""
-            {"type":"object","sensitivity":"secret","properties":{"child":{"type":"string","sensitivity":"public",
-             "default":"synthetic-private-marker","credential":{"kind":"password","acquisition":"existing"}}}}
+        inherited["configuration"]!["properties"]!["TOKEN"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"secret"},
+             "properties":{"child":{"type":"string","default":"synthetic-private-marker","x-configurator":{"sensitivity":"public",
+               "credential":{"kind":"password","acquisition":"existing"}}}}}
             """);
         await Reject(() => Compile(inherited));
     }
@@ -460,9 +475,9 @@ public sealed class DefinitionPresentationAdmissionTests
         SetupDefinition original = Compile(Authoring());
         foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
         {
-            source => source["presentation"]!["experiences"]![0]!["title"] = "A different title",
-            source => source["fields"]!["TOKEN"]!["guidance"]!["instructions"] = "Different public guidance.",
-            source => source["fields"]!["TOKEN"]!["credential"]!["acquisition"] = "existing"
+            source => source["presentation"]!["journeys"]![0]!["title"] = "A different title",
+            source => Metadata(source)["guidance"]!["instructions"] = "Different public guidance.",
+            source => Metadata(source)["credential"]!["acquisition"] = "existing"
         })
         {
             JsonObject source = Authoring();

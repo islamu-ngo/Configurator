@@ -38,7 +38,7 @@ public sealed class BrowserCredentialEntryTests
         using var replacement = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
         var component = context.Render<EmittedInputField>(parameters => parameters
             .Add(item => item.Form, form).Add(item => item.Path, ["created"])
-            .Add(item => item.Schema, form.Definition.Fields[0].Constraints));
+            .Add(item => item.Schema, form.Definition.Fields[0].Node));
         object callback = component.Instance.CaptureInput();
         if (transition == "reconsent")
         {

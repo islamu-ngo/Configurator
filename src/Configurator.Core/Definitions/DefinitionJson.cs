@@ -9,11 +9,11 @@ using Configurator.Core.Composition;
 internal static class DefinitionJson
 {
     internal static byte[] Canonicalize(JsonElement value, CompositionBudget? budget = null,
-        CompositionKeyPolicy keyPolicy = CompositionKeyPolicy.CollisionSafe)
+        CompositionKeyPolicy keyPolicy = CompositionKeyPolicy.CollisionSafe, int initialDepth = 1)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
-            Write(writer, value, budget ?? new CompositionBudget(SetupCompositionLimits.Default), 1, keyPolicy);
+            Write(writer, value, budget ?? new CompositionBudget(SetupCompositionLimits.Default), initialDepth, keyPolicy);
         if (buffer.WrittenCount > SetupCompositionLimits.DefaultAggregateSourceBytes)
             throw new SetupDefinitionException("document-limit");
         return buffer.WrittenSpan.ToArray();

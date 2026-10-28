@@ -2,7 +2,7 @@
 @using System.Globalization
 @using System.Text.Json
 
-<div class="configuration-field @(Type is "object" or "list" ? "configuration-field--group" : "")" data-field="@string.Join('.', Path)">
+<div class="configuration-field @(Type is "object" or "array" ? "configuration-field--group" : "")" data-field="@string.Join('.', Path)">
     @if (!Form.IsEditorVisible(Path))
     {
         <div class="configuration-field__collapsed">
@@ -19,7 +19,7 @@
     bool required = Required;
     bool isSecret = IsSecret;
     bool isMasked = IsMasked;
-    @if (type is "object" or "list")
+    @if (type is "object" or "array")
     {
         <fieldset @ref="_group" tabindex="-1" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
                   aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())" disabled="@(!canEdit)">
@@ -42,13 +42,15 @@
                     <button type="button" class="button button--secondary" @onclick="SupplyObject">Supply @Title object</button>
                 }
                 bool focusRemaining = FocusFirstControl || _focusObjectChildren;
-                @foreach (JsonElement child in Schema.GetProperty("properties").EnumerateArray())
+                @foreach (var child in Schema.Properties)
                 {
-                    string childId = child.GetProperty("id").GetString()!;
+                    string childId = child.Key;
                     string[] childPath = Path.Append(childId).ToArray();
-                    bool focusChild = focusRemaining && CanFocus(child, childPath);
+                    bool focusChild = focusRemaining && CanFocus(child.Value, childPath);
                     if (focusChild) focusRemaining = false;
-                    <ConfigurationField @key="childId" Form="Form" Schema="child" Path="childPath" Validation="Validation" ValidationChanged="ValidationChanged"
+                    <ConfigurationField @key="childId" Form="Form" Schema="child.Value" Path="childPath" Validation="Validation" ValidationChanged="ValidationChanged"
+                                        TitleOverride="@(child.Value.Keywords.TryGetProperty("title", out var childTitle) ? childTitle.GetString() : string.IsNullOrWhiteSpace(childId) ? "Setting" : childId)"
+                                        RequiredOverride="@Schema.Required.Contains(childId, StringComparer.Ordinal)"
                                         InheritedSecret="isSecret" InheritedSensitive="isMasked" FocusFirstControl="focusChild" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
                 }
             }
@@ -91,7 +93,7 @@
             <ConfigurationFieldActions Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required"
                                        CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled" OnOmit="Omit" GetBindings="InspectorBindings" />
         </div>
-        @if (type is "boolean" or "enum" && !isMasked)
+        @if ((type == "boolean" || HasChoices) && !isMasked)
         {
             var editForm = Form;
             var editPath = Path.ToArray();
@@ -105,7 +107,7 @@
                        UserAttributes="@(new Dictionary<string, object> { ["aria-required"] = required.ToString().ToLowerInvariant(), ["aria-labelledby"] = ControlId + "-label" })"
                        ValueChanged="value => { if (Edit(new ChangeEventArgs { Value = value }, editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }">
                 <MudSelectItem T="string" Value="@string.Empty">Not supplied</MudSelectItem>
-                @if (type == "boolean")
+                @if (!HasChoices)
                 {
                     <MudSelectItem T="string" Value="@("true")">Yes</MudSelectItem>
                     <MudSelectItem T="string" Value="@("false")">No</MudSelectItem>
@@ -113,9 +115,9 @@
                 else
                 {
                     int choiceIndex = 0;
-                    @foreach (JsonElement choice in Schema.GetProperty("choices").EnumerateArray())
+                    @foreach (JsonElement choice in Choices.EnumerateArray())
                     {
-                        <MudSelectItem T="string" Value="@ChoiceIdentity(choiceIndex++, choice)">@(Display(choice).Length == 0 ? "Empty string" : Display(choice))</MudSelectItem>
+                        <MudSelectItem T="string" Value="@ChoiceIdentity(choiceIndex++)">@(Display(choice).Length == 0 ? "Empty string" : Display(choice))</MudSelectItem>
                     }
                 }
             </AppSelectField>
@@ -142,12 +144,12 @@
         }
         }
     }
-    <p id="@(ControlId + "-help")" class="configuration-field__help" hidden="@(!HasHelp)">@Help @Consequence
+    <p id="@(ControlId + "-help")" class="configuration-field__help" hidden="@(!HasHelp)">@Help
         @if (isMasked && type == "boolean") { <span>Use true or false.</span> }
-        @if (isMasked && type == "enum") { <span>Declared choices: @string.Join(", ", Schema.GetProperty("choices").EnumerateArray().Select(Display)).</span> }
+        @if (isMasked && HasChoices) { <span>Declared choices: @string.Join(", ", Choices.EnumerateArray().Select(Display)).</span> }
         @if (InputPurposeHelp is { } purposeHelp) { <span>@purposeHelp</span> }
     </p>
-    @if (type is "object" or "list" || !canEdit)
+    @if (type is "object" or "array" || !canEdit)
     {
         <p id="@(ControlId + "-error")" class="configuration-field__error">@(_invalid ? "Supply a value of the declared type. (input-type-invalid)" : error)</p>
     }

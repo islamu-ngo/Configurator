@@ -38,14 +38,18 @@ internal static class SetupCliArtifactHandlers
         {
             if (artifact.ApplySemantics != "import"
                 || !definition.Fields.Any(field => field.Id == command.RevisionField && field.Type == "string")
-                || !CopiesRevision(definition, artifact.Id, command.RevisionField!))
+                || !CopiesRevision(definition, artifact.Id,
+                    definition.Fields.Single(field => field.Id == command.RevisionField).Name))
                 return SetupCliResults.Failure(SetupCliExitCode.Blocked, "revision-projection-required");
-            if (answers.Values.TryGetValue(command.RevisionField!, out JsonElement supplied)
+            string revisionName = definition.Fields.Single(field => field.Id == command.RevisionField).Name;
+            if (answers.Values.TryGetValue(revisionName, out JsonElement supplied)
                 && (supplied.ValueKind != JsonValueKind.String || supplied.GetString() != command.ExpectedRevision))
                 return SetupCliResults.Failure(SetupCliExitCode.Validation, "revision-conflict", "$.input");
+            if (answers.Omitted.Any(path => path.Segments.Count == 1 && path.Segments[0] == revisionName))
+                return SetupCliResults.Failure(SetupCliExitCode.Validation, "revision-conflict", "$.input");
             var values = answers.Values.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
-            values[command.RevisionField!] = JsonSerializer.SerializeToElement(command.ExpectedRevision);
-            answers = new(answers.InputRevision, values);
+            values[revisionName] = JsonSerializer.SerializeToElement(command.ExpectedRevision);
+            answers = new(answers.InputRevision, values, answers.Omitted);
         }
 
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, answers, cancellationToken);
@@ -161,7 +165,7 @@ internal static class SetupCliArtifactHandlers
 
         if (command.Output == "-")
             return SetupCliResults.Failure(SetupCliExitCode.Blocked, "restricted-stdout", "$.output");
-        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(result.Answers!.Values);
+        byte[] bytes = SetupAnswerSnapshotCodec.Serialize(result.Answers!);
         try
         {
             SetupCliCommandResult receipt = SetupCliResults.Success([SetupCliResults.Artifact("answer-snapshot", "application/json", bytes,
@@ -229,11 +233,17 @@ internal static class SetupCliArtifactHandlers
         using JsonDocument document = JsonDocument.Parse(definition.CanonicalBytes);
         JsonElement projection = document.RootElement.GetProperty("artifacts").EnumerateArray()
             .First(item => item.GetProperty("id").GetString() == artifactId).GetProperty("projection");
+        if (projection.GetProperty("op").GetString() == "copy" && !projection.TryGetProperty("when", out _))
+        {
+            JsonElement rootReference = projection.GetProperty("reference");
+            return rootReference.GetProperty("scope").GetString() == "root" && rootReference.GetProperty("path").GetString() == "";
+        }
         // An unconditional top-level copy ensures the option is actually emitted.
         return projection.GetProperty("op").GetString() == "object"
             && projection.GetProperty("members").EnumerateObject().Any(member =>
                 member.Value.GetProperty("op").GetString() == "copy"
-                && member.Value.GetProperty("field").GetString() == field
+                && member.Value.GetProperty("reference").GetProperty("scope").GetString() == "root"
+                && member.Value.GetProperty("reference").GetProperty("path").GetString() == DefinitionPath.FromSegments([field]).ToPointer()
                 && !member.Value.TryGetProperty("when", out _))
             && !projection.TryGetProperty("when", out _);
     }
@@ -330,16 +340,9 @@ internal static class SetupCliIoOperations
         string revision, CancellationToken cancellationToken)
     {
         using SetupCliInputBuffer buffer = await ReadAsync(invocation, path, cancellationToken);
-        using JsonDocument document = JsonDocument.Parse(buffer.Bytes,
-                new JsonDocumentOptions { MaxDepth = 32 });
-        if (document.RootElement.ValueKind != JsonValueKind.Object)
-            throw new JsonException();
-        var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        foreach (JsonProperty property in document.RootElement.EnumerateObject())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!values.TryAdd(property.Name, property.Value.Clone())) throw new JsonException();
-        }
-        return new(long.Parse(revision, CultureInfo.InvariantCulture), values);
+        cancellationToken.ThrowIfCancellationRequested();
+        SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(buffer.Bytes, long.Parse(revision, CultureInfo.InvariantCulture));
+        cancellationToken.ThrowIfCancellationRequested();
+        return snapshot;
     }
 }

@@ -3,7 +3,7 @@
 > **Audience:** Adopters | Contributors
 > **Status:** Implemented
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-20
+> **Last Verified:** 2026-10-28
 > **Source Anchors:** `examples/minimal-self-hosted/configurator.yaml`, `examples/minimal-self-hosted/setup-definition.json`, `examples/minimal-self-hosted/answers/complete.json`, `examples/minimal-self-hosted/expected/`
 
 The [offline quickstart](../../docs/public/getting-started.md) runs this
@@ -12,27 +12,28 @@ on a protected Linux path. No target service is included or started.
 
 [`configurator.yaml`](configurator.yaml) is the compact maintainer source;
 [`setup-definition.json`](setup-definition.json) is its generated runtime
-definition. Both now describe revision **3** of family
-`69cdb122-41d2-4fab-9b82-7929a889c726`, with canonical SHA-256 digest
-`7153b8cf94be4f242d2d3b675ad2cbdb254969fbbd80c0f8e0c6afaf9c10477c`.
-Revision 2 remains in Git history. See the
+definition. Both describe v2 revision **1** of fresh family
+`9b6a7b3e-45bf-4485-8fa1-d7888938c09b`, with canonical SHA-256 digest
+`1c60953fc09c4160ca38357a0b30e948aa0137ee117ea0df77e974352d428fdc`.
+The former v1 family and revisions remain in Git history. See the
 [integration guide](../../docs/public/integrate-your-tool.md).
 
 ## Explore the authored experiences
 
-**Recommended** starts with essential decisions in guided order: service identity
+**Recommended** orders the sections as service identity
 and deployment, local service access, extended operations, then optional issuer
 integration. Choose a deployment name and minimal or extended mode, then create
-the required local service password. **Custom** starts at advanced disclosure,
-uses section navigation, and orders operations before access. These are authored
+the required local service password. **Custom** orders operations before access.
+Both use the presentation-wide wizard navigation. These are authored
 labels and navigation choices, not answer presets or target policies.
 
 Help, instructions, public examples and discovery terms travel inside the
 admitted definition. For example, search for `deployment`, `password`,
 `monitoring`, `workers` or `issuer` to find the associated settings. The public
 name `local-service` and worker-count example `2` explain input; help text does
-not submit answers. Only the existing public defaults (name, mode and disabled
-metrics) are declared defaults. There are no secret defaults or recommendations.
+not submit answers. Public `x-configurator.initialValue` declarations initialize
+name, mode and disabled metrics. Standard `default` would only describe a value.
+There are no secret initial values or suggestions.
 Discovery and expanded disclosure should reveal settings without changing
 answers, granting consent or making inactive settings active.
 
@@ -78,10 +79,12 @@ the required credential, or defer it in an incomplete draft and finish it
 locally. Browser downloads cannot establish protected native-save permissions.
 Target validation and application remain with the target software.
 
-## Executed native evidence
+## Historical v1 native evidence
 
-The following commands ran from the repository root on 2026-10-20 using the
-existing CLI binary, without compiling any project or running product tests:
+The following commands ran against the former v1 family on 2026-10-20 using the
+then-existing CLI binary, without compiling any project or running product tests.
+They are historical evidence, not qualification of this v2 family. The current
+synthetic answer file is a version 1 private envelope:
 
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"

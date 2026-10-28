@@ -9,38 +9,42 @@ internal sealed class DefinitionFormIndex
 {
     internal sealed class Node
     {
-        internal Node(JsonElement metadata, Node? parent = null)
+        internal Node(DefinitionNode schema, Node? parent = null)
         {
-            Metadata = metadata;
+            Schema = schema;
+            JsonElement metadata = schema.Keywords;
             Parent = parent;
-            Type = metadata.GetProperty("type").GetString()!;
+            Type = schema.JsonType;
             Title = metadata.TryGetProperty("title", out JsonElement title) ? title.GetString() : null;
-            Help = metadata.TryGetProperty("help", out JsonElement help) ? help.GetString() : null;
-            JsonElement guidance = metadata.TryGetProperty("guidance", out JsonElement declared) ? declared : default;
+            Help = metadata.TryGetProperty("description", out JsonElement help) ? help.GetString() : null;
+            JsonElement extension = metadata.TryGetProperty("x-configurator", out JsonElement configured)
+                ? configured : default;
+            JsonElement guidance = extension.ValueKind == JsonValueKind.Object &&
+                extension.TryGetProperty("guidance", out JsonElement declared) ? declared : default;
             Instructions = guidance.ValueKind == JsonValueKind.Object &&
                 guidance.TryGetProperty("instructions", out JsonElement instructions) ? instructions.GetString() : null;
             SearchTerms = Array.AsReadOnly(guidance.ValueKind == JsonValueKind.Object &&
                 guidance.TryGetProperty("searchTerms", out JsonElement terms)
                 ? terms.EnumerateArray().Select(term => term.GetString()!).ToArray() : []);
-            Properties = metadata.TryGetProperty("properties", out JsonElement properties)
-                ? properties.EnumerateArray().ToDictionary(child => child.GetProperty("id").GetString()!,
-                    child => new Node(child, this), StringComparer.Ordinal)
-                : new Dictionary<string, Node>(StringComparer.Ordinal);
-            HasEssentialDecision = metadata.TryGetProperty("disclosure", out JsonElement disclosure) &&
-                disclosure.GetString() == "essential" || Properties.Values.Any(child => child.HasEssentialDecision);
-            Controllers = Array.AsReadOnly(metadata.TryGetProperty("activeWhen", out JsonElement condition)
-                ? References(condition).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray() : []);
-            if (Type == "list")
-                Item = new Node(JsonSerializer.SerializeToElement(new
+            Properties = schema.Properties.ToDictionary(child => child.Key,
+                child => new Node(child.Value, this), StringComparer.Ordinal);
+            Item = schema.Items is { } item ? new Node(item, this) : null;
+            Disclosure = extension.ValueKind == JsonValueKind.Object &&
+                extension.TryGetProperty("detail", out JsonElement detail) ? detail.GetString() switch
                 {
-                    type = metadata.GetProperty("itemType").GetString(),
-                    properties = metadata.TryGetProperty("properties", out JsonElement children)
-                        ? children : JsonSerializer.SerializeToElement(Array.Empty<object>()),
-                    sensitivity = "public"
-                }), this);
+                    "basic" => SetupFieldDisclosure.Essential,
+                    "advanced" => SetupFieldDisclosure.Advanced,
+                    _ => SetupFieldDisclosure.Guided
+                } : SetupFieldDisclosure.Guided;
+            HasEssentialDecision = Disclosure == SetupFieldDisclosure.Essential ||
+                Properties.Values.Any(child => child.HasEssentialDecision) || Item?.HasEssentialDecision == true;
+            Controllers = Array.AsReadOnly(extension.ValueKind == JsonValueKind.Object &&
+                extension.TryGetProperty("applicableWhen", out JsonElement condition)
+                ? References(condition).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray() : []);
         }
 
-        internal JsonElement Metadata { get; }
+        internal DefinitionNode Schema { get; }
+        internal JsonElement Metadata => Schema.Keywords;
         internal Node? Parent { get; }
         internal string Type { get; }
         internal string? Title { get; }
@@ -50,17 +54,27 @@ internal sealed class DefinitionFormIndex
         internal Dictionary<string, Node> Properties { get; }
         internal Node? Item { get; }
         internal bool HasEssentialDecision { get; }
+        internal SetupFieldDisclosure Disclosure { get; }
         internal IReadOnlyList<string> Controllers { get; }
 
-        private static IEnumerable<string> References(JsonElement condition) =>
-            condition.TryGetProperty("field", out JsonElement field) ? [field.GetString()!]
-                : condition.GetProperty("operands").EnumerateArray().SelectMany(References);
+        private static IEnumerable<string> References(JsonElement condition)
+        {
+            if (condition.TryGetProperty("reference", out JsonElement reference))
+            {
+                DefinitionPath path = DefinitionPath.Parse(reference.GetProperty("path").GetString()!);
+                if (reference.GetProperty("scope").GetString() == "root" && path.Segments.Count > 0)
+                    yield return path.Segments[0];
+            }
+            else
+                foreach (JsonElement operand in condition.GetProperty("operands").EnumerateArray())
+                    foreach (string field in References(operand)) yield return field;
+        }
     }
 
     internal DefinitionFormIndex(SetupDefinition definition, IReadOnlyList<DefinitionFormSection> sections,
         IReadOnlyList<DefinitionFormExperience> experiences)
     {
-        Roots = definition.Fields.ToDictionary(field => field.Id, field => new Node(field.Constraints),
+        Roots = definition.Fields.ToDictionary(field => field.Id, field => new Node(field.Node),
             StringComparer.Ordinal);
         FieldIds = Array.AsReadOnly(definition.Fields.Select(field => field.Id).ToArray());
         RootPaths = FieldIds.ToDictionary(id => id,
@@ -83,7 +97,7 @@ internal sealed class DefinitionFormIndex
         }, StringComparer.Ordinal);
         var bindings = new Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)>(StringComparer.Ordinal);
         foreach (SetupArtifactDefinition artifact in definition.Artifacts)
-            CollectBindings(artifact.Projection, artifact.Id, [], bindings);
+            CollectBindings(artifact.Projection, artifact.Id, [], bindings, FieldIds);
         Bindings = bindings.ToDictionary(pair => pair.Key, pair => (
             Artifacts: (IReadOnlyList<string>)Array.AsReadOnly(pair.Value.Artifacts.ToArray()),
             Keys: (IReadOnlyList<string>)Array.AsReadOnly(pair.Value.Keys.ToArray())), StringComparer.Ordinal);
@@ -103,29 +117,34 @@ internal sealed class DefinitionFormIndex
         path.Count == 1 ? RootPathKeys[path[0]] : JsonSerializer.Serialize(path);
 
     private static void CollectBindings(JsonElement projection, string artifact, string[] keys,
-        Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)> bindings)
+        Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)> bindings,
+        IReadOnlyList<string> roots)
     {
         if (projection.ValueKind != JsonValueKind.Object || !projection.TryGetProperty("op", out JsonElement operation)
             || operation.GetString() == "literal") return;
-        if (projection.TryGetProperty("field", out JsonElement reference) &&
-            reference.GetString() is { } fieldId && !fieldId.StartsWith('$'))
+        if (projection.TryGetProperty("reference", out JsonElement reference) &&
+            reference.GetProperty("scope").GetString() == "root")
         {
-            if (!bindings.TryGetValue(fieldId, out var binding))
+            DefinitionPath path = DefinitionPath.Parse(reference.GetProperty("path").GetString()!);
+            foreach (string fieldId in path.Segments.Count > 0 ? new[] { path.Segments[0] } : roots)
             {
-                binding = (new(StringComparer.Ordinal), new(StringComparer.Ordinal));
-                bindings.Add(fieldId, binding);
+                if (!bindings.TryGetValue(fieldId, out var binding))
+                {
+                    binding = (new(StringComparer.Ordinal), new(StringComparer.Ordinal));
+                    bindings.Add(fieldId, binding);
+                }
+                binding.Artifacts.Add(artifact);
+                binding.Keys.UnionWith(keys);
             }
-            binding.Artifacts.Add(artifact);
-            binding.Keys.UnionWith(keys);
         }
         foreach (JsonProperty child in projection.EnumerateObject())
             if (child.Name == "members" && child.Value.ValueKind == JsonValueKind.Object)
                 foreach (JsonProperty member in child.Value.EnumerateObject())
-                    CollectBindings(member.Value, artifact, [.. keys, member.Name], bindings);
+                    CollectBindings(member.Value, artifact, [.. keys, member.Name], bindings, roots);
             else if (child.Value.ValueKind == JsonValueKind.Object)
-                CollectBindings(child.Value, artifact, keys, bindings);
+                CollectBindings(child.Value, artifact, keys, bindings, roots);
             else if (child.Value.ValueKind == JsonValueKind.Array)
                 foreach (JsonElement item in child.Value.EnumerateArray())
-                    CollectBindings(item, artifact, keys, bindings);
+                    CollectBindings(item, artifact, keys, bindings, roots);
     }
 }

@@ -25,14 +25,19 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private DefinitionFormModel? _form;
     private DefinitionFieldInput? _input;
     private FieldViewModel? _root;
+    private readonly string _name;
+    private string _id;
 
-    protected FieldViewModel(JsonElement schema, FieldViewModel? parent, bool listItem)
+    protected FieldViewModel(DefinitionNode schema, string name, bool required,
+        FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
     {
         Schema = schema;
+        _name = name;
+        _id = name;
         Parent = parent;
         IsListItem = listItem;
-        RequiresMasking = parent?.RequiresMasking == true || HasNonPublicSchema(schema);
-        _isRequired = listItem || schema.TryGetProperty("required", out var required) && required.GetBoolean();
+        RequiresMasking = inheritedMasking || parent?.RequiresMasking == true || HasNonPublicSchema(schema);
+        _isRequired = required;
         ClearCommand = new RelayCommand(Clear, () => !IsDisposed);
         SupplyCommand = new RelayCommand(Supply, () => !IsDisposed && IsContainer);
         UseRecommendedCommand = new RelayCommand(UseRecommended, () => !IsDisposed && HasRecommended);
@@ -42,7 +47,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         }, () => !IsDisposed && Parent is ListFieldViewModel list && list.RemoveItemCommand.CanExecute(this));
     }
 
-    protected JsonElement Schema { get; }
+    protected DefinitionNode Schema { get; }
     protected FieldViewModel? Parent { get; }
     public bool IsListItem { get; }
     protected bool IsDisposed { get; private set; }
@@ -51,8 +56,19 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     protected DefinitionFormModel Form => Root._form!;
     internal virtual IEnumerable<FieldViewModel> Descendants => [];
     internal string EditorIdentity { get; set; } = string.Empty;
-    public string Id => IsListItem ? "item" : Schema.GetProperty("id").GetString()!;
-    public string Title => IsListItem ? $"{Parent!.Title} item" : Schema.GetProperty("title").GetString()!;
+    public string Id => _id;
+    public string Title
+    {
+        get
+        {
+            if (Parent is null && _input is not null) return _input.Definition.Title;
+            if (ReadMetadata("title") is { Length: > 0 } title) return title;
+            if (IsListItem) return $"{Parent!.Title} item";
+            string inferred = string.IsNullOrWhiteSpace(_name) ? "Setting" : _name;
+            if (inferred.Any(char.IsControl)) inferred = JsonSerializer.Serialize(inferred);
+            return inferred.Length <= 256 ? inferred : inferred[..256];
+        }
+    }
     public string Name => Title;
     public string ClearLabel => DesktopActionText.ClearLabel;
     public string ClearName => DesktopActionText.ClearName(Title);
@@ -63,19 +79,19 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public bool IsContainer => this is ObjectFieldViewModel or ListFieldViewModel;
     public string RecommendedName => $"Use recommended value for {Title}";
     public string RemoveItemName => $"Remove item from {Parent?.Title ?? Title}";
-    public string Help => ReadMetadata("help");
-    public string HelpText => ReadMetadata("help") is { Length: > 0 } help ? help : Title;
-    public string Group => ReadMetadata("group");
-    public string Consequence => ReadMetadata("consequence");
+    public string Help => ReadMetadata("description");
+    public string HelpText => Help is { Length: > 0 } help ? help : Title;
+    public string Group => string.Empty;
+    public string Consequence => string.Empty;
     public string Format => ReadMetadata("format");
     public string ConstraintsSummary => string.Join(" | ", ConstraintNames
-        .Where(name => Schema.TryGetProperty(name, out _))
-        .Select(name => $"{name}: {Schema.GetProperty(name).GetRawText()}"));
+        .Where(name => Schema.Keywords.TryGetProperty(name, out _))
+        .Select(name => $"{name}: {Schema.Keywords.GetProperty(name).GetRawText()}"));
     public bool RequiresMasking { get; }
     public char PasswordChar => RequiresMasking ? '●' : '\0';
     public bool IsPublic => !RequiresMasking;
     public bool HasProtectedDescendants => RequiresMasking || Descendants.Any(child => child.HasProtectedDescendants);
-    public bool HasRecommended => !HasProtectedDescendants && Schema.TryGetProperty("recommended", out _);
+    public bool HasRecommended => !HasProtectedDescendants && TryExtensionValue("suggestedValue", out _);
     public bool HasError { get => _hasError; private set => SetProperty(ref _hasError, value); }
     public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
     public bool IsRequired { get => _isRequired; private set => SetProperty(ref _isRequired, value); }
@@ -113,6 +129,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _root = this;
         _form = form;
         _input = input;
+        _id = input.Definition.Id;
         AdoptRoot(this);
     }
 
@@ -131,17 +148,6 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     }
 
     protected virtual void NotifyValue() { }
-    internal void MarkProvided()
-    {
-        _provided = true;
-    }
-    // Choice controls load their selected typed value before committing this one path.
-    protected void Commit()
-    {
-        if (IsDisposed || Root._form is null) return;
-        Form.EditValue(FullPath(), _provided ? _text : null);
-    }
-
     /// <summary>Signals the View focus bridge; structured nodes route to the first visible descendant.</summary>
     public void RequestFocus()
     {
@@ -221,7 +227,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private void Clear()
     {
         if (IsDisposed) return;
-        if (IsListItem && Schema.GetProperty("type").GetString() == "string")
+        if (IsListItem && Schema.Type == DefinitionNodeType.Text)
             Form.EditValue(FullPath(), "");
         else Form.SetValue(FullPath(), null);
         RequestFocus();
@@ -229,7 +235,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private void UseRecommended()
     {
         if (IsDisposed || !HasRecommended) return;
-        Form.SetValue(FullPath(), Schema.GetProperty("recommended"));
+        if (TryExtensionValue("suggestedValue", out var suggested)) Form.SetValue(FullPath(), suggested);
         RequestFocus();
     }
     private void Supply()
@@ -238,10 +244,21 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         bool supplied = this is ObjectFieldViewModel ? Form.SupplyObject(FullPath()) : Form.SupplyList(FullPath());
         if (supplied) RequestFocus();
     }
-    private string ReadMetadata(string name) => Schema.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
-    private static bool HasNonPublicSchema(JsonElement schema) =>
-        schema.TryGetProperty("sensitivity", out var sensitivity) && sensitivity.GetString() != "public" ||
-        schema.TryGetProperty("properties", out var properties) && properties.EnumerateArray().Any(HasNonPublicSchema);
+    private string ReadMetadata(string name) => Schema.Keywords.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
+    private bool TryExtensionValue(string name, out JsonElement value)
+    {
+        value = default;
+        return Schema.Keywords.TryGetProperty("x-configurator", out var extension) &&
+            extension.TryGetProperty(name, out value);
+    }
+    private static bool HasNonPublicSchema(DefinitionNode schema) =>
+        schema.Keywords.TryGetProperty("writeOnly", out var writeOnly) && writeOnly.GetBoolean() ||
+        !schema.Keywords.TryGetProperty("x-configurator", out var extension) ||
+        !extension.TryGetProperty("sensitivity", out var sensitivity) || sensitivity.GetString() != "public" ||
+        schema.Properties.Values.Any(HasNonPublicSchema) ||
+        schema.Items is { } item && HasNonPublicSchema(item) ||
+        schema.AdditionalProperties is { } additional && HasNonPublicSchema(additional) ||
+        schema.Variants.Any(HasNonPublicSchema);
     internal static string Display(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
 
     public void Dispose()

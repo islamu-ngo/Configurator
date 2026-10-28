@@ -8,9 +8,10 @@
             @if (!string.IsNullOrWhiteSpace(SectionDescription)) { <p data-section-description>@SectionDescription</p> }
             @if (Schema.ValueKind == JsonValueKind.Object)
             {
-            @if (Schema.TryGetProperty("help", out var help)) { <p>@help.GetString()</p> }
-            @if (Schema.TryGetProperty("consequence", out var consequence)) { <p>@consequence.GetString()</p> }
-            @if (Schema.TryGetProperty("guidance", out var guidance))
+            @if (Schema.TryGetProperty("description", out var help)) { <p>@help.GetString()</p> }
+            @if (Schema.TryGetProperty("x-configurator", out var metadata))
+            {
+            @if (metadata.TryGetProperty("guidance", out var guidance))
             {
                 @if (guidance.TryGetProperty("instructions", out var instructions))
                 {
@@ -27,10 +28,13 @@
                     </ul>
                 }
             }
+            }
             <dl>
                 <dt>Definition path</dt><dd><code data-definition-path>@FieldPath</code></dd>
-                <dt>Declared type</dt><dd>@Schema.GetProperty("type").GetString()</dd>
-                @if (Schema.TryGetProperty("sensitivity", out var sensitivity))
+                <dt>Declared type</dt><dd>@(Schema.GetProperty("type").ValueKind == JsonValueKind.Array
+                    ? string.Join(" or ", Schema.GetProperty("type").EnumerateArray().Select(item => item.GetString()))
+                    : Schema.GetProperty("type").GetString())</dd>
+                @if (Schema.TryGetProperty("x-configurator", out var declaredMetadata) && declaredMetadata.TryGetProperty("sensitivity", out var sensitivity))
                 {
                     <dt>Declared sensitivity</dt><dd>@sensitivity.GetString()</dd>
                 }

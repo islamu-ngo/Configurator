@@ -1,0 +1,1144 @@
+{
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "definitionLicense": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "publisher"
+      ]
+    },
+    "applicationVersions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "entryPoints": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "configuration": {
+      "$ref": "#/$defs/node"
+    },
+    "presentation": {
+      "type": "object",
+      "properties": {
+        "defaultJourney": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "navigation": {
+          "type": "string",
+          "enum": [
+            "wizard",
+            "sections"
+          ]
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "pointers": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "title",
+              "pointers"
+            ]
+          }
+        },
+        "journeys": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "sections": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 64,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "title",
+              "sections"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "sections",
+        "journeys",
+        "defaultJourney"
+      ]
+    },
+    "localization": {
+      "type": "object",
+      "properties": {
+        "defaultLocale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "translations": {
+          "type": "object",
+          "maxProperties": 128,
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "ltr",
+                  "rtl"
+                ]
+              },
+              "overrides": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": []
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "defaultLocale",
+        "translations"
+      ]
+    },
+    "annotations": {
+      "type": "object"
+    },
+    "schemaVersion": {
+      "const": 2
+    },
+    "profile": {
+      "const": "bounded-v2"
+    },
+    "familyId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "locales": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "predicate.root",
+          "projection.copy",
+          "projection.index",
+          "projection.list",
+          "projection.literal",
+          "projection.object",
+          "projection.omit",
+          "projection.repeat",
+          "relationship.presence",
+          "schema.array",
+          "schema.boolean",
+          "schema.bounds",
+          "schema.const",
+          "schema.enum",
+          "schema.integer",
+          "schema.notBlank",
+          "schema.nullable",
+          "schema.number",
+          "schema.object",
+          "schema.string",
+          "schema.uniqueBy",
+          "values.initial",
+          "values.suggested"
+        ]
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "dotenv",
+              "json",
+              "yaml",
+              "markdown"
+            ]
+          },
+          "targetUpdateMode": {
+            "type": "string",
+            "enum": [
+              "unspecified",
+              "create",
+              "merge",
+              "replace",
+              "import",
+              "reconcile",
+              "generationOnly"
+            ]
+          },
+          "restartRequirement": {
+            "type": "string",
+            "enum": [
+              "unspecified",
+              "none",
+              "process",
+              "deployment"
+            ]
+          },
+          "projection": {
+            "$ref": "#/$defs/projection"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "fileName",
+          "format",
+          "targetUpdateMode",
+          "restartRequirement",
+          "projection"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "profile",
+    "familyId",
+    "revision",
+    "project",
+    "applicationVersions",
+    "entryPoints",
+    "locales",
+    "configuration",
+    "artifacts",
+    "requiredCapabilities"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:islamu:configurator:setup-definition:v2",
+  "title": "Configurator SetupDefinition v2",
+  "$defs": {
+    "node": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "string",
+                "boolean",
+                "integer",
+                "number",
+                "array",
+                "object"
+              ]
+            },
+            {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "boolean",
+                  "integer",
+                  "number",
+                  "array",
+                  "object",
+                  "null"
+                ]
+              },
+              "contains": {
+                "const": "null"
+              }
+            }
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "format": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "if": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1024,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "required"
+          ]
+        },
+        "then": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1024,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "required"
+          ]
+        },
+        "dependentRequired": {
+          "type": "object",
+          "maxProperties": 1024,
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1024,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            }
+          }
+        },
+        "required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {
+          "const": false
+        },
+        "items": {
+          "$ref": "#/$defs/node"
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": [
+              "string",
+              "boolean",
+              "integer",
+              "number"
+            ]
+          }
+        },
+        "const": {
+          "type": [
+            "string",
+            "boolean",
+            "integer",
+            "number",
+            "null"
+          ]
+        },
+        "default": {},
+        "examples": {
+          "type": "array",
+          "maxItems": 256
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "writeOnly": {
+          "type": "boolean"
+        },
+        "deprecated": {
+          "type": "boolean"
+        },
+        "x-configurator": {
+          "type": "object",
+          "properties": {
+            "sensitivity": {
+              "type": "string",
+              "enum": [
+                "public",
+                "sensitive",
+                "secret"
+              ]
+            },
+            "initialValue": {},
+            "suggestedValue": {},
+            "notBlank": {
+              "type": "boolean"
+            },
+            "detail": {
+              "type": "string",
+              "enum": [
+                "basic",
+                "standard",
+                "advanced"
+              ]
+            },
+            "units": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "uniqueBy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "applicableWhen": {
+              "$ref": "#/$defs/predicate"
+            },
+            "credential": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "password",
+                    "opaque-token",
+                    "symmetric-key",
+                    "private-key",
+                    "connection-string"
+                  ]
+                },
+                "acquisition": {
+                  "type": "string",
+                  "enum": [
+                    "existing",
+                    "create",
+                    "issuer"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "acquisition"
+              ]
+            },
+            "guidance": {
+              "type": "object",
+              "properties": {
+                "instructions": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096
+                },
+                "links": {
+                  "type": "array",
+                  "maxItems": 4,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "url": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "title",
+                      "url"
+                    ]
+                  }
+                },
+                "searchTerms": {
+                  "type": "array",
+                  "minItems": 0,
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": []
+            },
+            "choices": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {},
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "explanation": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "label"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": []
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "minItems": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "minProperties": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "maxProperties": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "const": "object"
+                  },
+                  {
+                    "type": "array",
+                    "contains": {
+                      "const": "object"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "additionalProperties"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "properties"
+                  ]
+                },
+                {
+                  "required": [
+                    "required"
+                  ]
+                },
+                {
+                  "required": [
+                    "additionalProperties"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "const": "array"
+                  },
+                  {
+                    "type": "array",
+                    "contains": {
+                      "const": "array"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "items"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "items"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "reference": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "root",
+            "item"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "maxLength": 65536,
+          "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "path"
+      ]
+    },
+    "projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "literal"
+            },
+            "value": {},
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "copy"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "omit"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "index"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "object"
+            },
+            "members": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/projection"
+              }
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "members"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "list"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/projection"
+              }
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "items"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "repeat"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            },
+            "item": {
+              "$ref": "#/$defs/projection"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "item"
+          ]
+        }
+      ]
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "exists"
+            },
+            "reference": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/reference"
+                },
+                {
+                  "properties": {
+                    "scope": {
+                      "const": "root"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "equals"
+            },
+            "reference": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/reference"
+                },
+                {
+                  "properties": {
+                    "scope": {
+                      "const": "root"
+                    }
+                  }
+                }
+              ]
+            },
+            "value": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "notEquals"
+            },
+            "reference": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/reference"
+                },
+                {
+                  "properties": {
+                    "scope": {
+                      "const": "root"
+                    }
+                  }
+                }
+              ]
+            },
+            "value": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "in"
+            },
+            "reference": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/reference"
+                },
+                {
+                  "properties": {
+                    "scope": {
+                      "const": "root"
+                    }
+                  }
+                }
+              ]
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "values"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "all"
+            },
+            "operands": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "operands"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "any"
+            },
+            "operands": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "operands"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "not"
+            },
+            "operands": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "operands"
+          ]
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "properties": {
+        "configuration": {
+          "properties": {
+            "type": {
+              "const": "object"
+            }
+          },
+          "required": [
+            "additionalProperties"
+          ]
+        }
+      }
+    }
+  ],
+  "description": "Phase 3 closed bounded structure. Admission checks exact numbers, Unicode, references, privacy, computed capabilities and resource limits; unsupported later-phase semantics reject."
+}

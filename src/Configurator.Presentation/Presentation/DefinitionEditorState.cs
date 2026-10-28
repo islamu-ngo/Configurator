@@ -3,6 +3,7 @@ namespace Configurator.Presentation;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
 
 public enum DefinitionAnswerOrigin { Omitted, Defaulted, Imported, Explicit }
@@ -66,27 +67,76 @@ public sealed partial class DefinitionFormModel
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!TryMetadata(path, out JsonElement metadata, out _)) return DefinitionAnswerOrigin.Omitted;
-            if (ReadValue(path) is null)
-            {
-                if (metadata.TryGetProperty("default", out _)) return DefinitionAnswerOrigin.Defaulted;
-                DefinitionFieldInput root = Fields[_index!.FieldPositions[path[0]]];
-                if (root.Value is null && root.Definition.Default is { } value)
-                {
-                    foreach (string segment in path.Skip(1))
-                    {
-                        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty(segment, out JsonElement child))
-                            value = child;
-                        else if (value.ValueKind == JsonValueKind.Array && int.TryParse(segment, out int row)
-                            && row >= 0 && row < value.GetArrayLength()) value = value[row];
-                        else return DefinitionAnswerOrigin.Omitted;
-                    }
-                    if (value.ValueKind != JsonValueKind.Null) return DefinitionAnswerOrigin.Defaulted;
-                }
-                return DefinitionAnswerOrigin.Omitted;
-            }
-            return Fields[_index!.FieldPositions[path[0]]].OriginAt(path);
+            return AnswerOrigin(path, Facts.Validation);
         }
+    }
+
+    internal DefinitionAnswerOrigin AnswerOrigin(IReadOnlyList<string> path, DefinitionValidationResult validation)
+    {
+        if (!TryMetadataNode(path, out _, out _, validation) || ReadValue(path, validation) is null)
+            return DefinitionAnswerOrigin.Omitted;
+        DefinitionFieldInput input = Fields[_index!.FieldPositions[path[0]]];
+        if (!TrySuppliedValue(input.Value, path.Skip(1), out _)) return DefinitionAnswerOrigin.Defaulted;
+        DefinitionAnswerOrigin origin = input.OriginAt(path);
+        return origin == DefinitionAnswerOrigin.Omitted ? DefinitionAnswerOrigin.Defaulted : origin;
+    }
+
+    private static bool TrySuppliedValue(JsonElement? supplied, IEnumerable<string> segments, out JsonElement value)
+    {
+        value = supplied ?? default;
+        if (supplied is null) return false;
+        foreach (string segment in segments)
+            if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty(segment, out JsonElement child))
+                value = child;
+            else if (value.ValueKind == JsonValueKind.Array &&
+                int.TryParse(segment, NumberStyles.None, CultureInfo.InvariantCulture, out int row) &&
+                segment == row.ToString(CultureInfo.InvariantCulture) && row >= 0 && row < value.GetArrayLength())
+                value = value[row];
+            else return false;
+        return true;
+    }
+
+    private void RecordOverride(IReadOnlyList<string> path, bool omitted)
+    {
+        if (omitted && _omitted.Any(existing =>
+            path.Take(existing.Segments.Count).SequenceEqual(existing.Segments))) return;
+        _omitted.RemoveWhere(existing => existing.Segments.Take(path.Count).SequenceEqual(path) ||
+            path.Take(existing.Segments.Count).SequenceEqual(existing.Segments));
+        if (omitted) _omitted.Add(DefinitionPath.FromSegments(path));
+    }
+
+    /// <summary>Removes the supplied override and suppression so Core may initialize this location again.</summary>
+    public bool ResetValue(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        using var mutation = BeginMutation();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!TryMetadataNode(path, out _, out _) || !CanEdit(path)) return false;
+        DefinitionFieldInput input = Fields[_index!.FieldPositions[path[0]]];
+        JsonElement? replacement = null;
+        if (path.Count > 1 && input.Value is { } supplied)
+        {
+            JsonNode? root = JsonNode.Parse(supplied.GetRawText());
+            JsonNode? parent = root;
+            foreach (string segment in path.Skip(1).SkipLast(1))
+            {
+                if (parent is JsonObject mapping) parent = mapping[segment];
+                else if (parent is JsonArray rows &&
+                    int.TryParse(segment, NumberStyles.None, CultureInfo.InvariantCulture, out int row) &&
+                    row >= 0 && row < rows.Count) parent = rows[row];
+                else { parent = null; break; }
+            }
+            if (parent is JsonArray) return false;
+            if (parent is JsonObject owner) owner.Remove(path[^1]);
+            replacement = JsonSerializer.SerializeToElement(root);
+        }
+        if (!input.TrySetValue(replacement, recordOrigin: false)) return false;
+        _omitted.RemoveWhere(existing => existing.Segments.Take(path.Count).SequenceEqual(path));
+        input.ForgetOrigin(path);
+        input.ClearDrafts(path);
+        ClearRowIdentities(path);
+        OnInputChanged();
+        return true;
     }
 
     /// <summary>Identifies a logical editor without incorporating answers; surviving rows retain their token.</summary>
@@ -130,18 +180,16 @@ public sealed partial class DefinitionFormModel
         input.RecordOrigin(path, DefinitionAnswerOrigin.Explicit, clearDescendants: false);
     }
 
-    private void RecordMaterializedDefaults(IReadOnlyList<string> path, JsonElement metadata)
+    private void RecordMaterializedOrigins(IReadOnlyList<string> path)
     {
-        if (metadata.TryGetProperty("default", out _))
+        DefinitionValidationResult validation = Facts.Validation;
+        DefinitionFieldInput input = Fields[_index!.FieldPositions[path[0]]];
+        foreach (DefinitionNodeState node in validation.Nodes.Where(node => node.FieldId == path[0] && node.IsProvided))
         {
-            Fields.Single(input => input.Definition.Id == path[0]).RecordOrigin(path, DefinitionAnswerOrigin.Defaulted);
-            return;
-        }
-        if (!metadata.TryGetProperty("properties", out JsonElement properties)) return;
-        foreach (JsonElement child in properties.EnumerateArray())
-        {
-            string[] childPath = [.. path, child.GetProperty("id").GetString()!];
-            if (ReadValue(childPath) is not null) RecordMaterializedDefaults(childPath, child);
+            string[] location = [node.FieldId, .. node.RelativePath];
+            if (location.Take(path.Count).SequenceEqual(path) &&
+                AnswerOrigin(location, validation) == DefinitionAnswerOrigin.Defaulted)
+                input.RecordOrigin(location, DefinitionAnswerOrigin.Defaulted, clearDescendants: false);
         }
     }
 
@@ -154,8 +202,9 @@ public sealed partial class DefinitionFormModel
         if (!TryMetadata(path, out _, out _) ||
             !Validate().Fields.Any(state => state.Id == path[0] && state.IsActive)) return false;
         DefinitionFormSection? section = Sections.FirstOrDefault(item => item.Fields.Contains(path[0]));
-        if (section is not null && !Experiences.Single(item => item.Id == SelectedExperienceId).Sections.Contains(section.Id))
-            SelectExperience(Experiences.First(item => item.Sections.Contains(section.Id)).Id);
+        if (section is not null && !Experiences.Single(item => item.Id == SelectedExperienceId).Sections.Contains(section.Id) &&
+            Experiences.FirstOrDefault(item => item.Sections.Contains(section.Id)) is { } experience)
+            SelectExperience(experience.Id);
         if (!preserveDiscovery)
         {
             _view.DiscoverySelection = new();

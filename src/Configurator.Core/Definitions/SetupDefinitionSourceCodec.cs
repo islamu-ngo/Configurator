@@ -1,7 +1,6 @@
 namespace Configurator.Core.Definitions;
 
 using System.Text.Json;
-using Configurator.Core.Composition;
 using Configurator.Core.Definitions.Authoring;
 
 /// <summary>Selects one closed content contract after the caller explicitly chooses local syntax.</summary>
@@ -14,10 +13,8 @@ public static class SetupDefinitionSourceCodec
     {
         try
         {
-            CompositionMap tree = yaml
-                ? SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default, CancellationToken.None)
-                : SetupCompositionNormalizer.ParseJson(bytes, SetupCompositionLimits.Default, CancellationToken.None);
-            using JsonDocument parsed = JsonDocument.Parse(SetupCompositionNormalizer.WriteJson(tree, CancellationToken.None));
+            byte[] canonical = yaml ? DefinitionProfile.CanonicalizeYaml(bytes) : DefinitionProfile.CanonicalizeJson(bytes);
+            using JsonDocument parsed = JsonDocument.Parse(canonical);
             JsonElement root = parsed.RootElement;
             if (root.TryGetProperty("$schema", out JsonElement schema))
             {
@@ -29,10 +26,7 @@ public static class SetupDefinitionSourceCodec
             if (!root.TryGetProperty("schemaVersion", out _)) throw new SetupDefinitionException("source-discriminator");
             return yaml ? SetupDefinitionCodec.ParseYaml(bytes) : SetupDefinitionCodec.ParseJson(bytes);
         }
-        catch (SetupCompositionException exception)
-        {
-            throw new SetupDefinitionException(exception.Code == SetupCompositionFailureCode.LimitExceeded ? "document-limit" : "document-invalid");
-        }
         catch (JsonException) { throw new SetupDefinitionException("document-invalid"); }
+        catch (InvalidOperationException) { throw new SetupDefinitionException("document-invalid"); }
     }
 }

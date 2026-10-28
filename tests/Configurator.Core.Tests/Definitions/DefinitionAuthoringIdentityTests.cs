@@ -10,7 +10,7 @@ public sealed class DefinitionAuthoringIdentityTests
 {
     internal const string Yaml = """
         # Keep this maintainer comment.
-        $schema: urn:islamu:configurator:authoring:v1
+        $schema: urn:islamu:configurator:authoring:v2
         identity:
           familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
           revision: 1 # only this token is managed
@@ -18,18 +18,24 @@ public sealed class DefinitionAuthoringIdentityTests
           id: example.service
           name: Example Service
         applicationVersions: ["1.0"]
-        fields:
-          SERVICE_PORT:
-            type: integer
-            sensitivity: public
-            default: 8080
-          SERVICE_TOKEN:
-            type: string
-            sensitivity: secret
-            required: true
+        configuration:
+          type: object
+          additionalProperties: false
+          required: [SERVICE_TOKEN]
+          x-configurator: {sensitivity: public}
+          properties:
+            SERVICE_PORT:
+              type: integer
+              x-configurator: {sensitivity: public, initialValue: 8080}
+            SERVICE_TOKEN:
+              type: string
+              x-configurator: {sensitivity: secret, notBlank: true}
         outputs:
           ".env":
             format: dotenv
+            bindings:
+              SERVICE_PORT: {scope: root, path: /SERVICE_PORT}
+              SERVICE_TOKEN: {scope: root, path: /SERVICE_TOKEN}
         """;
 
     [Test]
@@ -50,12 +56,12 @@ public sealed class DefinitionAuthoringIdentityTests
     public async Task UnrelatedInsertionsDoNotChangeFieldOrOutputIdentity()
     {
         SetupDefinition original = DefinitionAuthoringTests.Compile();
-        string inserted = DefinitionAuthoringTests.Source.Replace("\"fields\":{", "\"fields\":{\"ANOTHER\":{\"type\":\"boolean\"},", StringComparison.Ordinal);
+        string inserted = DefinitionAuthoringTests.Source.Replace("\"properties\":{", "\"properties\":{\"ANOTHER\":{\"type\":\"boolean\"},", StringComparison.Ordinal);
         SetupDefinition changed = DefinitionAuthoringTests.Compile(inserted);
         await Assert.That(changed.Fields.Single(field => field.Id == "SERVICE_PORT").Id).IsEqualTo(original.Fields[0].Id);
         await Assert.That(changed.Artifacts.Single().Id).IsEqualTo("out-.env");
-        await Assert.That(DefinitionAuthoringCompiler.FieldId("service.port")).IsEqualTo("service.port");
-        await Assert.That(DefinitionAuthoringCompiler.FieldId("/service/port").Length).IsEqualTo(66);
+        await Assert.That(DefinitionProfile.FieldId("service.port")).IsEqualTo("service.port");
+        await Assert.That(DefinitionProfile.FieldId("/service/port").Length).IsEqualTo(66);
     }
 
     [Test]
@@ -86,9 +92,9 @@ public sealed class DefinitionAuthoringIdentityTests
     {
         foreach (string source in new[]
         {
-            DefinitionAuthoringTests.Source.Replace("authoring:v1", "authoring:v2", StringComparison.Ordinal),
+            DefinitionAuthoringTests.Source.Replace("authoring:v2", "authoring:v1", StringComparison.Ordinal),
             DefinitionAuthoringTests.Source.Replace("\"identity\":", "\"schemaVersion\":1,\"identity\":", StringComparison.Ordinal),
-            DefinitionAuthoringTests.Source.Replace("\"fields\":{", "\"fields\":{\"service_port\":{\"type\":\"boolean\"},", StringComparison.Ordinal)
+            DefinitionAuthoringTests.Source.Replace("\"properties\":{", "\"properties\":{\"SERVICE_PORT\":{\"type\":\"boolean\"},", StringComparison.Ordinal)
         })
             await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source))).Throws<SetupDefinitionException>();
     }
@@ -97,11 +103,11 @@ public sealed class DefinitionAuthoringIdentityTests
     public async Task MultilineLiteralsAndQuotedNumbersRetainStringSemantics()
     {
         const string source = """
-            $schema: urn:islamu:configurator:authoring:v1
+            $schema: urn:islamu:configurator:authoring:v2
             identity: {familyId: 69cdb122-41d2-4fab-9b82-7929a889c726, revision: 1}
             project: {id: example.service, name: Example}
             applicationVersions: ["1.0"]
-            fields: {}
+            configuration: {type: object, additionalProperties: false, properties: {}}
             outputs:
               notes.md:
                 format: markdown

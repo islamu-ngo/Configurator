@@ -1,20 +1,21 @@
 # Definition Profile v2
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Draft; selected design, not implemented support
+> **Status:** Draft; base v2 implementation, broader scenarios not yet qualified
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`
 
 The [Draft public standard](../public/definition-standard.md) owns adopter syntax.
 This document owns lowering, evaluation, privacy and qualification mechanisms.
-The [current Core contract](CORE_DEFINITION_CONTRACT.md) remains v1 until the
-coordinated cutover. A Draft scenario below is a requirement, not passing evidence.
+The [Core contract](CORE_DEFINITION_CONTRACT.md) describes the coordinated
+cutover. A Draft scenario below is a requirement, not passing evidence for the
+whole standard.
 
-## Dormant primitive foundation
+## Bounded primitive foundation
 
-Phase 2 introduces compiler-ready shape and syntax primitives, not an active v2
-source/runtime interpreter. `DefinitionPath.Parse` and `FromSegments` snapshot
+Phase 2 introduced compiler-ready shape and syntax primitives; Phase 3 routes
+the v2 codecs through them. `DefinitionPath.Parse` and `FromSegments` snapshot
 at most 32 exact tokens within the 65536-character pointer budget; value equality
 uses the encoded ordinal pointer. `ToPointer` is deliberate access to location
 data; `ToString` remains opaque because tokens may be private.
@@ -35,10 +36,27 @@ short control escapes; there is no BOM or insignificant whitespace.
 The conformance corpus independently fixes those actual bytes, including
 combining characters and surrogate pairs.
 
-Existing codecs, generic composition, and directory reading retain their current
-collision-safe policy until the coordinated cutover. In particular generic
-composition still rejects case/NFC collisions. No compatibility interpreter,
-second canonicalizer, answer tree, or new package is introduced.
+Definition and private-answer codecs select exact key identity. Generic
+composition and directory reading retain their collision-safe policy; generic
+composition still rejects case/NFC collisions. There is no compatibility
+interpreter, second canonicalizer, answer tree, or new package.
+
+`SetupFieldDefinition.Name` is the exact root configuration key; `Id` is bounded
+public metadata identity. `DefinitionProfile.FieldId` retains an ordinary ASCII
+identifier except for the reserved `f-` prefix. Other names use `f-` plus the
+lowercase SHA-256 of UTF-8 `field:` followed by the single-token RFC 6901 pointer.
+Reserving that prefix prevents an authored identifier from colliding with a
+generated one. It is not authentication or a content digest. Core snapshots and
+projection references always use literal names; Presentation translates its
+metadata-root editor paths at the snapshot/effective-value boundary.
+
+The initial relationship subset is root presence-only `if.required` with
+`then.required`, and root `dependentRequired`. It shares Core's three-valued
+presence kernel but contributes no activation edges. Missing target uncertainty
+propagates without invalidating a supplied valid target. Definite missing-work
+witnesses remain blocking even if mixed applicability feedback later becomes
+unknown. Nested relationships and broader assertion forms still reject until
+their implementing slice; accepting the base profile does not imply them.
 
 ## Control and data flow
 

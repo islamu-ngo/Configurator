@@ -10,7 +10,7 @@
             @if (!_mountable.Contains(state.Id) || _mounted.Contains(state.Id))
             {
                 <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
-                                    Validation="Validation" RequiredOverride="state.IsRequired"
+                                    Validation="Validation" RequiredOverride="state.IsRequired" TitleOverride="@ConfigurationDiagnosticText.Title(state.Definition)"
                                     FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
                                     FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
             }

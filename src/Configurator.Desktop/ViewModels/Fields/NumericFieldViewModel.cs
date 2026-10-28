@@ -1,11 +1,13 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
-using System.Text.Json;
+using Configurator.Core.Definitions;
 
 public sealed class NumericFieldViewModel : FieldViewModel
 {
-    internal NumericFieldViewModel(JsonElement schema, FieldViewModel? parent, bool listItem) : base(schema, parent, listItem) { }
-    public bool IsInteger => Schema.GetProperty("type").GetString() == "integer";
-    public decimal? Minimum => Schema.TryGetProperty("minimum", out var value) ? value.GetDecimal() : null;
-    public decimal? Maximum => Schema.TryGetProperty("maximum", out var value) ? value.GetDecimal() : null;
+    internal NumericFieldViewModel(DefinitionNode schema, string name, bool required,
+        FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
+        : base(schema, name, required, parent, listItem, inheritedMasking) { }
+    public bool IsInteger => Schema.Type == DefinitionNodeType.WholeNumber;
+    public decimal? Minimum => Schema.Keywords.TryGetProperty("minimum", out var value) ? value.GetDecimal() : null;
+    public decimal? Maximum => Schema.Keywords.TryGetProperty("maximum", out var value) ? value.GetDecimal() : null;
 }

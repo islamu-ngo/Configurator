@@ -9,12 +9,35 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionSemanticTests
 {
     [Test]
+    public async Task RequiredContainerAndItsRequiredLeafRepresentOneActionableObligation()
+    {
+        JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
+        source["configuration"]!["properties"]!["service.name"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"required":["name"],
+             "properties":{"name":{"type":"string","x-configurator":{"sensitivity":"public"}}},
+             "x-configurator":{"sensitivity":"public"}}
+            """);
+        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        foreach ((string answers, bool ready) in new[]
+        {
+            ("{}", false), ("""{"service.name":{}}""", false),
+            ("""{"service.name":{"name":"supplied"}}""", true)
+        })
+        {
+            DefinitionValidationResult result = DefinitionValidator.Validate(definition, DefinitionFixture.Answers(answers));
+            await Assert.That(result.IsReady).IsEqualTo(ready);
+            await Assert.That(result.Nodes.Count(node => node.IsObligation)).IsEqualTo(1);
+            await Assert.That(result.Nodes.Count(node => node.IsObligation && node.IsObligationReady)).IsEqualTo(ready ? 1 : 0);
+        }
+    }
+
+    [Test]
     public async Task NestedProtectedDecisionsRetainTheirEffectiveSensitivity()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        root["fields"] = JsonNode.Parse("""
-            [{"id":"service.name","type":"object","title":"Options","sensitivity":"public","disclosure":"advanced",
-              "properties":[{"id":"token","type":"string","title":"Token","sensitivity":"secret","disclosure":"advanced"}]}]
+        root["configuration"]!["properties"]!["service.name"] = JsonNode.Parse("""
+            {"type":"object","title":"Options","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"advanced"},
+              "properties":{"token":{"type":"string","title":"Token","x-configurator":{"sensitivity":"secret","detail":"advanced"}}}}
             """);
         var validation = DefinitionValidator.Validate(DefinitionFixture.Parse(root.ToJsonString()),
             DefinitionFixture.Answers("{}"));
@@ -26,36 +49,36 @@ public sealed class DefinitionSemanticTests
     public async Task ActivationAndConditionalRequirednessControlValidationAndComposition()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        root["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"enabled","type":"boolean","required":true,"sensitivity":"public","disclosure":"guided","title":"Enabled"}
-            """));
-        root["fields"]![0]!["required"] = false;
-        root["fields"]![0]!["activeWhen"] = JsonNode.Parse("""{"op":"equals","field":"enabled","value":true}""");
-        root["fields"]![0]!["requiredWhen"] = JsonNode.Parse("""{"op":"present","field":"enabled"}""");
+        root["configuration"]!["properties"]!["enabled"] = JsonNode.Parse("""
+            {"type":"boolean","x-configurator":{"sensitivity":"public"},"title":"Enabled"}
+            """);
+        root["configuration"]!["required"]!.AsArray().Add("enabled");
+        root["configuration"]!["properties"]!["service.name"]!["x-configurator"]!["applicableWhen"] =
+            JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}""");
         SetupDefinition definition = DefinitionFixture.Parse(root.ToJsonString());
         DefinitionValidationResult inactive = DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"enabled":false,"service.name":"ignored"}"""));
         await Assert.That(inactive.IsReady).IsTrue();
-        await Assert.That(inactive.Fields[0].IsActive).IsFalse();
-        await Assert.That(inactive.Fields[0].IsRequired).IsFalse();
+        await Assert.That(inactive.Fields.Single(field => field.Id == "service.name").IsActive).IsFalse();
+        await Assert.That(inactive.Fields.Single(field => field.Id == "service.name").IsRequired).IsFalse();
         DefinitionArtifactResult omitted = DefinitionArtifactComposer.Compose(definition, "config",
             DefinitionFixture.Answers("""{"enabled":false,"service.name":"ignored"}"""));
         await Assert.That(Encoding.UTF8.GetString(omitted.Artifact!.Bytes.Span)).IsEqualTo("{}");
         DefinitionValidationResult required = DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"enabled":true}"""));
         await Assert.That(required.IsReady).IsFalse();
-        await Assert.That(required.Fields[0].IsRequired).IsTrue();
-        await Assert.That(required.Fields[0].HasError).IsTrue();
+        await Assert.That(required.Fields.Single(field => field.Id == "service.name").IsRequired).IsTrue();
+        await Assert.That(required.Fields.Single(field => field.Id == "service.name").HasError).IsTrue();
     }
 
     [Test]
-    public async Task OptionalProtectionAndConsequencesDoNotInventRequiredObligations()
+    public async Task OptionalProtectionAndOutputAdviceDoNotInventRequiredObligations()
     {
-        foreach (string extra in new[] { "\"sensitivity\":\"secret\"", "\"sensitivity\":\"public\",\"consequence\":\"restart\"" })
+        foreach (string sensitivity in new[] { "secret", "public" })
         {
             SetupDefinition definition = DefinitionFixture.Parse(DefinitionFixture.Json
-                .Replace("\"required\":true", "\"required\":false", StringComparison.Ordinal)
-                .Replace("\"sensitivity\":\"public\"", extra, StringComparison.Ordinal));
+                .Replace("\"required\":[\"service.name\"]", "\"required\":[]", StringComparison.Ordinal)
+                .Replace("\"sensitivity\":\"public\"", $"\"sensitivity\":\"{sensitivity}\"", StringComparison.Ordinal));
             var validation = DefinitionValidator.Validate(definition, DefinitionFixture.Answers("{}"));
             await Assert.That(validation.Fields[0].IsActive).IsTrue();
             await Assert.That(validation.Fields[0].IsRequired).IsFalse();
@@ -80,13 +103,14 @@ public sealed class DefinitionSemanticTests
     public async Task RepeatedScalarProjectionUsesStableZeroBasedIndexes()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        root["fields"] = JsonNode.Parse("""
-            [{"id":"names","type":"list","itemType":"string","required":true,"sensitivity":"public",
-              "disclosure":"guided","title":"Names","maxItems":3}]
+        root["configuration"]!["properties"] = JsonNode.Parse("""
+            {"names":{"type":"array","items":{"type":"string"},"x-configurator":{"sensitivity":"public"},
+              "title":"Names","maxItems":3}}
             """);
-        root["artifacts"]![0]!["projection"] = JsonNode.Parse("""
-            {"op":"repeat","field":"names","item":{"op":"object","members":{
-              "index":{"op":"index"},"name":{"op":"copy","field":"$item"}}}}
+        root["configuration"]!["required"] = new JsonArray("names");
+        root["outputs"]!["service.json"]!["projection"] = JsonNode.Parse("""
+            {"op":"repeat","reference":{"scope":"root","path":"/names"},"item":{"op":"object","members":{
+              "index":{"op":"index"},"name":{"op":"copy","reference":{"scope":"item","path":""}}}}}
             """);
         var definition = DefinitionFixture.Parse(root.ToJsonString());
         var result = DefinitionArtifactComposer.Compose(definition, "config",
@@ -109,9 +133,9 @@ public sealed class DefinitionSemanticTests
             .IsEqualTo("# Terms\n<script>x</script> [link](javascript:x)");
         await Assert.That(result.Artifact.DefinitionRevision).IsEqualTo(1L);
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        root["artifacts"]![0]!["format"] = "markdown";
-        root["artifacts"]![0]!["projection"] = JsonNode.Parse(
-            """{"op":"list","items":[{"op":"copy","field":"service.name"}]}""");
+        root["outputs"]!["service.json"]!["format"] = "markdown";
+        root["outputs"]!["service.json"]!["projection"] = JsonNode.Parse(
+            """{"op":"list","items":[{"op":"copy","reference":{"scope":"root","path":"/service.name"}}]}""");
         var markdown = DefinitionArtifactComposer.Compose(DefinitionFixture.Parse(root.ToJsonString()), "config", answers);
         await Assert.That(Encoding.UTF8.GetString(markdown.Artifact!.Bytes.Span))
             .IsEqualTo("\\# Terms\n\\<script\\>x\\</script\\> \\[link\\]\\(javascript:x\\)");
@@ -120,7 +144,7 @@ public sealed class DefinitionSemanticTests
     [Test]
     public async Task CanonicalDefinitionBytesHaveAnIndependentGoldenVector()
     {
-        const string expected = """{"applicationId":"example.service","applicationVersions":["1.0"],"artifacts":[{"applySemantics":"create","fileName":"service.json","format":"json","id":"config","projection":{"members":{"name":{"field":"service.name","op":"copy"}},"op":"object"},"restart":"process"}],"entryPoints":["setup"],"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","fields":[{"disclosure":"advanced","id":"service.name","maxLength":80,"minLength":1,"required":true,"sensitivity":"public","title":"Service name","type":"string"}],"locales":["en"],"publisher":"example","revision":1,"schemaVersion":1,"title":"Example service"}""";
+        const string expected = """{"applicationVersions":["1.0"],"artifacts":[{"fileName":"service.json","format":"json","id":"config","projection":{"members":{"name":{"op":"copy","reference":{"path":"/service.name","scope":"root"}}},"op":"object"},"restartRequirement":"process","targetUpdateMode":"create"}],"configuration":{"additionalProperties":false,"properties":{"service.name":{"maxLength":80,"minLength":1,"title":"Service name","type":"string","x-configurator":{"detail":"advanced","sensitivity":"public"}}},"required":["service.name"],"type":"object","x-configurator":{"sensitivity":"public"}},"entryPoints":["setup"],"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","locales":["en"],"profile":"bounded-v2","project":{"id":"example.service","name":"Example service","publisher":"example"},"requiredCapabilities":["projection.copy","projection.object","schema.bounds","schema.object","schema.string"],"revision":1,"schemaVersion":2}""";
         await Assert.That(Encoding.UTF8.GetString(DefinitionFixture.Parse().CanonicalBytes.Span)).IsEqualTo(expected);
     }
 }

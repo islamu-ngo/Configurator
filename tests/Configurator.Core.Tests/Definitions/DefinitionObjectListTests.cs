@@ -9,19 +9,26 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionObjectListTests
 {
     internal const string Field = """
-        {"id":"service.name","type":"list","itemType":"object","required":true,
-         "sensitivity":"public","disclosure":"essential","title":"Rows","minItems":1,"maxItems":2,
-         "uniqueBy":["metadata","name"],"properties":[
-          {"id":"metadata","type":"object","required":true,"sensitivity":"public","disclosure":"essential","title":"Metadata","properties":[
-           {"id":"name","type":"string","required":true,"sensitivity":"public","disclosure":"essential","title":"Name","minLength":1}]},
-          {"id":"credential","type":"string","required":true,"sensitivity":"secret","disclosure":"essential","title":"Credential","minLength":1}]}
+        {"type":"array","title":"Rows","minItems":1,"maxItems":2,
+         "x-configurator":{"sensitivity":"public","detail":"basic","uniqueBy":"/metadata/name"},
+         "items":{"type":"object","additionalProperties":false,"required":["metadata","credential"],
+          "x-configurator":{"sensitivity":"public"},"properties":{
+           "metadata":{"type":"object","additionalProperties":false,"required":["name"],
+            "x-configurator":{"sensitivity":"public","detail":"basic"},"title":"Metadata","properties":{
+             "name":{"type":"string","x-configurator":{"sensitivity":"public","detail":"basic","notBlank":true},"title":"Name","minLength":1}}},
+           "credential":{"type":"string","x-configurator":{"sensitivity":"secret","detail":"basic","notBlank":true},"title":"Credential","minLength":1}}}}
         """;
 
     internal static SetupDefinition Definition(string? field = null)
     {
+        return DefinitionFixture.Parse(Source(field));
+    }
+
+    private static string Source(string? field = null)
+    {
         JsonNode document = JsonNode.Parse(DefinitionFixture.Json)!;
-        document["fields"] = JsonNode.Parse("[" + (field ?? Field) + "]");
-        return DefinitionFixture.Parse(document.ToJsonString());
+        document["configuration"]!["properties"]!["service.name"] = JsonNode.Parse(field ?? Field);
+        return document.ToJsonString();
     }
 
     [Test]
@@ -49,15 +56,22 @@ public sealed class DefinitionObjectListTests
     [Test]
     public async Task UniqueKeyAdmissionRejectsUnknownOptionalAndNonstringLeaves()
     {
+        JsonNode sequenceIntermediate = JsonNode.Parse(Field)!;
+        JsonNode metadata = sequenceIntermediate["items"]!["properties"]!["metadata"]!.DeepClone();
+        sequenceIntermediate["items"]!["properties"]!["metadata"] = new JsonObject
+        {
+            ["type"] = "array", ["items"] = metadata,
+            ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" }
+        };
         foreach (string field in new[]
         {
-            Field.Replace("[\"metadata\",\"name\"]", "[]", StringComparison.Ordinal),
-            Field.Replace("[\"metadata\",\"name\"]", "[\"unknown\"]", StringComparison.Ordinal),
-            Field.Replace("\"id\":\"name\",\"type\":\"string\",\"required\":true", "\"id\":\"name\",\"type\":\"string\",\"required\":false", StringComparison.Ordinal),
-            Field.Replace("\"type\":\"string\",\"required\":true,\"sensitivity\":\"public\"", "\"type\":\"boolean\",\"required\":true,\"sensitivity\":\"public\"", StringComparison.Ordinal)
-                .Replace(",\"minLength\":1", "", StringComparison.Ordinal),
-            Field.Replace("\"id\":\"metadata\",\"type\":\"object\"", "\"id\":\"metadata\",\"type\":\"list\",\"itemType\":\"object\"", StringComparison.Ordinal),
-            """{"id":"service.name","type":"list","itemType":"string","sensitivity":"public","disclosure":"essential","title":"Rows","uniqueBy":["name"]}"""
+            Field.Replace("\"uniqueBy\":\"/metadata/name\"", "\"uniqueBy\":\"\"", StringComparison.Ordinal),
+            Field.Replace("\"uniqueBy\":\"/metadata/name\"", "\"uniqueBy\":\"/unknown\"", StringComparison.Ordinal),
+            Field.Replace("\"required\":[\"name\"]", "\"required\":[]", StringComparison.Ordinal),
+            Field.Replace("\"name\":{\"type\":\"string\"", "\"name\":{\"type\":\"boolean\"", StringComparison.Ordinal)
+                .Replace(",\"notBlank\":true", "", StringComparison.Ordinal).Replace(",\"minLength\":1", "", StringComparison.Ordinal),
+            sequenceIntermediate.ToJsonString(),
+            """{"type":"array","items":{"type":"string"},"x-configurator":{"sensitivity":"public","detail":"basic","uniqueBy":"/name"},"title":"Rows"}"""
         }) await Assert.That(() => Definition(field)).Throws<SetupDefinitionException>();
     }
 
@@ -70,7 +84,7 @@ public sealed class DefinitionObjectListTests
         await Assert.That(Encoding.UTF8.GetString(result.Artifact!.Bytes.Span)).IsEqualTo(
             """{"name":[{"credential":"","metadata":{"name":"one"}}]}""");
         await Assert.That(result.Completions.Single()).IsEqualTo(
-            new DefinitionDraftCompletion("config", "service.name/0/credential", "/name/0/credential"));
+            new DefinitionDraftCompletion("config", "/service.name/0/credential", "/name/0/credential"));
         using DefinitionDraftArtifactResult duplicate = DefinitionDraftArtifactComposer.Compose(Definition(), "config",
             DefinitionFixture.Answers("""{"service.name":[{"metadata":{"name":"one"}},{"metadata":{"name":"one"}}]}"""));
         await Assert.That(duplicate.Artifact).IsNull();
@@ -82,9 +96,9 @@ public sealed class DefinitionObjectListTests
     [Test]
     public async Task RepeatedObjectCopiesPreserveRowsAndCompletionIndexes()
     {
-        JsonNode document = JsonNode.Parse(Definition().CanonicalBytes.Span)!;
-        document["artifacts"]![0]!["projection"] = JsonNode.Parse(
-            """{"op":"repeat","field":"service.name","item":{"op":"copy","field":"$item"}}""");
+        JsonNode document = JsonNode.Parse(Source())!;
+        document["outputs"]!["service.json"]!["projection"] = JsonNode.Parse(
+            """{"op":"repeat","reference":{"scope":"root","path":"/service.name"},"item":{"op":"copy","reference":{"scope":"item","path":""}}}""");
         using DefinitionDraftArtifactResult draft = DefinitionDraftArtifactComposer.Compose(
             DefinitionFixture.Parse(document.ToJsonString()), "config",
             DefinitionFixture.Answers("""{"service.name":[{"metadata":{"name":"one"}},{"metadata":{"name":"two"}}]}"""));

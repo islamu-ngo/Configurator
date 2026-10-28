@@ -1,165 +1,141 @@
 ---
-description: "Author and maintain a single public configuration definition beside your application code to provide guided setup across all platforms."
+description: "Author, review and distribute a bounded-v2 public configuration definition beside your application."
 ---
 
 # Integrate Your Tool
 
-Integrating your application with ISLAMU Configurator gives your users a guided, visual configuration experience across the terminal, desktop, and web—without writing custom wizard UIs or exposing secrets over the web.
+Maintain one public `configurator.yaml` or `configurator.json` beside your
+application. Core compiles it into immutable canonical runtime JSON; clients
+collect private answers separately and prepare declared files offline.
+Preparation never installs configuration or grants target administration.
 
-You maintain a single public source file (`configurator.yaml`) in your repository. Configurator compiles that declaration into an immutable, canonical JSON definition that can be distributed independently or via the public [Definition Store](definition-store.md).
-
----
+The current base uses authoring v2 and runtime schemaVersion 2 with profile
+`bounded-v2`. The [current reference](definition-reference.md) defines executable
+grammar. The [public standard](definition-standard.md) remains Draft because
+broader features and complete client/scenario qualification are not delivered.
 
 ## The Maintainer Lifecycle
 
-Authoring and maintaining a definition follows a predictable 5-step lifecycle:
+1. **Initialize:** Allocate a fresh family and revision 1 through native tooling.
+2. **Author:** Describe the configuration schema, guidance, journeys and outputs.
+3. **Check:** Admit bounded syntax, references, privacy and constraints.
+4. **Build:** Produce canonical `dist/configurator/revisions/1.json`.
+5. **Revise:** Create a reviewed candidate for changed canonical content without
+   overwriting the source or reusing an admitted family/revision.
 
-```mermaid
-flowchart LR
-    INIT["1. Init<br/><code>definition init</code>"] --> AUTHOR["2. Author<br/>Fields, Journeys & Outputs"]
-    AUTHOR --> CHECK["3. Check<br/><code>definition check</code>"]
-    CHECK --> BUILD["4. Build<br/><code>definition build -> v1</code>"]
-    BUILD --> REVISE["5. Revise<br/><code>definition revise -> v2</code>"]
-
-    REVISE --> AUTHOR
-
-    style INIT fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    style AUTHOR fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style CHECK fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style BUILD fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style REVISE fill:#ede7f6,stroke:#512da8,stroke-width:2px
-```
-
-1. **Initialize (`definition init`):** Scaffold a fresh `configurator.yaml` with a unique family GUID and revision 1.
-2. **Author:** Add fields, validation bounds, guidance metadata, and output artifact bindings.
-3. **Check (`definition check`):** Validate definition integrity and constraints locally without side effects.
-4. **Build (`definition build`):** Compile the source YAML into canonical, pinned runtime JSON (`dist/configurator/revisions/1.json`).
-5. **Revise (`definition revise`):** Safely advance the revision number when your configuration requirements evolve.
-
----
+Revision 1/2 are family revisions, not authoring or runtime contract versions.
+Machine commands retain envelope v2; successful check/build reports the
+independent authoring/runtime handshake as 2/2.
 
 ## Complete Minimal `configurator.yaml` Example
 
-This complete source illustrates field types, sensitivity rules, journeys, and multiple output bindings. Replace the example identity and target-specific guidance, then validate prepared files with your application before claiming target acceptance. The [current contract reference](definition-reference.md) distinguishes required properties, defaults, and client capabilities.
+The maintained [minimal source](../../examples/minimal-self-hosted/configurator.yaml)
+and its [compiled runtime](../../examples/minimal-self-hosted/setup-definition.json)
+are the complete neutral example; use them rather than a second full raw copy
+that can drift. They include required secret entry, optional nested settings,
+root applicability, journeys, guidance and dotenv/JSON/YAML mappings.
+
+Current checked example identities are fresh v2 families, each at revision 1:
+
+| Source | Family |
+|---|---|
+| `examples/minimal-self-hosted/configurator.yaml` | `9b6a7b3e-45bf-4485-8fa1-d7888938c09b` |
+| `examples/grafana-13.2.2/configurator.yaml` | `ffc20a25-7ea5-4138-be3b-88f678cac36b` |
+| `examples/islamu-event/configurator.json` | `c0d02619-0134-411b-b495-ef302f592669` |
+
+The native `--check-examples` check confirmed source/runtime agreement **3/3**
+on 2026-10-28. Agreement proves reproducible compilation of these
+sources, not target startup, Grafana provisioning acceptance, Event acceptance
+or qualification of every interactive scenario. Never copy these family IDs
+into your own integration.
+
+### Author configuration, not metadata IDs
+
+This fragment illustrates schema structure, not a complete source envelope:
 
 ```yaml
-$schema: urn:islamu:configurator:authoring:v1
-identity:
-  familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
-  revision: 1
-project:
-  id: example.service
-  name: Example Service
-  description: A production service configuration template.
-  repository: https://github.com/example/service
-  definitionLicense: MIT
-applicationVersions: ["1.0.0", "1.1.0"]
-
-presentation:
-  defaultExperience: guided-setup
-  sections:
-    - id: network
-      title: Network Settings
-      description: Ports and hostnames.
-      fields: [service.host, service.port]
-      disclosure: essential
-    - id: security
-      title: Credentials
-      description: API tokens and database keys.
-      fields: [service.token]
-      disclosure: essential
-  experiences:
-    - id: guided-setup
-      title: Standard Onboarding
-      initialDisclosure: essential
-      navigation: guided
-      sections: [network, security]
-
-fields:
-  service.host:
-    type: string
-    title: Service Hostname
-    help: Hostname or IP where the service listens.
+configuration:
+  type: object
+  additionalProperties: false
+  required: [service.port]
+  x-configurator:
     sensitivity: public
-    disclosure: essential
-    default: "localhost"
-    minLength: 1
-    maxLength: 255
-
-  service.port:
-    type: integer
-    title: Service Port
-    help: Port number for incoming traffic.
-    sensitivity: public
-    disclosure: guided
-    default: 8080
-    minimum: 1
-    maximum: 65535
-
-  service.token:
-    type: string
-    title: API Token
-    help: Secret token for administrative access.
-    sensitivity: secret
-    disclosure: essential
-    required: true
-    guidance:
-      instructions: "Obtain a service-scoped token from your application's administrator or token issuer. Confirm its permissions and expiry before use."
-      links:
-        - title: "API Authentication Docs"
-          url: "https://example.org/docs/auth"
-      searchTerms: [token, auth, api, secret]
-    credential:
-      kind: opaque-token
-      acquisition: issuer
-
-outputs:
-  .env:
-    id: dotenv-output
-    format: dotenv
-    applySemantics: create
-    restart: process
-    bindings:
-      SERVICE_HOST: service.host
-      SERVICE_PORT: service.port
-      SERVICE_TOKEN: service.token
-
-  config.json:
-    id: json-output
-    format: json
-    applySemantics: create
-    restart: process
-    projection:
-      op: object
-      members:
-        server:
-          op: object
-          members:
-            host:
-              op: copy
-              field: service.host
-            port:
-              op: copy
-              field: service.port
-        auth:
-          op: object
-          members:
-            token:
-              op: copy
-              field: service.token
+  properties:
+    service.port:
+      type: integer
+      minimum: 1
+      maximum: 65535
+      default: 8080
+      x-configurator:
+        sensitivity: public
+        initialValue: 8080
+        suggestedValue: 8443
+    label:
+      type: [string, "null"]
+      enum: [internal, external]
+      x-configurator:
+        sensitivity: public
+    peers:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required: [name]
+        x-configurator:
+          sensitivity: public
+        properties:
+          name:
+            type: string
+            x-configurator:
+              sensitivity: public
 ```
 
-> [!NOTE]
-> Generate your own family GUID with `definition init`. Never copy another project's `familyId` directly.
+`service.port` is one exact data key. Its reference is
+`{scope: root, path: /service.port}`, not `/service/port`.
+`SetupFieldDefinition.Name` preserves that key; bounded `Id` is metadata only.
+The generated `f-` hash namespace is reserved, including for literal names
+already beginning `f-`. Do not use IDs as answer keys.
 
----
+Every object explicitly declares `additionalProperties: false`; every array
+declares recursive `items`. Enums retain the scalar type instead of `type: enum`.
+Nullable form is one base type plus `"null"`. Names are ordinal, case-sensitive,
+not normalized; RFC6901 escaping preserves slashes, tildes and empty names.
+
+`default` describes the target; it does not fill answers. `initialValue` can fill
+an eligible never-supplied location; `suggestedValue` requires deliberate adoption.
+Omission suppresses initialization; reset removes both override and suppression.
+No child initialization creates an absent container. Required means presence,
+not nonblank text; declare a separate length/notBlank constraint if needed.
+Keep private values out of all public default/initial/suggested/example metadata.
+
+### Bind outputs explicitly
+
+```yaml
+outputs:
+  .env:
+    format: dotenv
+    targetUpdateMode: create
+    restartRequirement: process
+    bindings:
+      SERVICE_PORT: {scope: root, path: /service.port}
+  config.json:
+    format: json
+    bindings:
+      /server/port: {scope: root, path: /service.port}
+```
+
+Dotenv keys are literal variable names. JSON/YAML keys are concrete target
+pointers; `/server/port` builds nested objects, not a dotted-key convention.
+Source references have explicit root/item scope; item scope exists only in
+admitted repeat contexts. Choose bindings or a projection, never both.
+JSON/YAML without either copy the effective configuration tree. Omitted
+`targetUpdateMode` and `restartRequirement` mean `unspecified`, not create or
+hot reload. Filename hints never authorize writing a path.
 
 ## Step-by-Step Maintainer Guide
 
 ### Step 1: Initialize Your Project
 
-Generate a fresh authoring file in your repository:
-
 ```bash
 islamu-configurator definition init \
   --project-id example.service \
@@ -168,47 +144,38 @@ islamu-configurator definition init \
   --machine
 ```
 
-If you already have an existing `.env.example`, you can scaffold fields automatically:
-
-```bash
-islamu-configurator definition init \
-  --project-id example.service \
-  --name "Example Service" \
-  --application-version 1.0.0 \
-  --from-env-example .env.example \
-  --machine
-```
-
-> [!TIP]
-> `--from-env-example` extracts variable names as string fields and discards example values. Always review each field's type, sensitivity, and required status after scaffolding.
+To scaffold from a public environment template, add
+`--from-env-example .env.example`. Only variable names are retained, not example
+values. Review scalar types, required sets, sensitivity and output bindings.
+Do not use real private environment files as public definition inputs.
 
 ### Step 2: Validate Your Definition
-
-Run `definition check` to verify syntax, constraints, and relationships:
 
 ```bash
 islamu-configurator definition check --machine
 ```
 
-`definition check` ensures:
-- All referenced fields in `outputs` and `presentation` actually exist.
-- Secret fields do not declare invalid defaults or public sensitivity.
-- Unique constraints on object lists are well-formed.
-- The YAML syntax adheres to strict data-only rules (no tags, anchors, or merge keys).
+Check validates source admission, references, closed shapes, privacy, supported
+constraints and budgets. It does not establish target-validator equivalence.
+Root applicability is delivered, as are root presence-only
+`if.required`/`then.required` and `dependentRequired`. Broader or nested schema
+conditions, maps, variants, advanced assertions, asserted formats and source maps
+are later phases. Unknown semantic vocabulary rejects rather than silently
+degrading. `format` currently remains descriptive.
 
 ### Step 3: Build Canonical JSON
-
-Compile your source into the immutable runtime definition:
 
 ```bash
 islamu-configurator definition build --machine
 ```
 
-This generates `dist/configurator/revisions/1.json`. This compiled file is what native clients and the web client read. Its SHA-256 digest acts as its cryptographic pin.
+Build normally writes `dist/configurator/revisions/1.json`. The runtime includes
+`schemaVersion: 2`, `profile: bounded-v2` and computed sorted
+`requiredCapabilities`. Its SHA-256 binds the entire canonical definition.
+Consumers must refuse unsupported mandatory semantics before answer collection;
+generated metadata alone does not prove a client's editing support.
 
 ### Step 4: Revise for Subsequent Releases
-
-When your application adds new configuration options or changes defaults, you must create a new revision rather than modifying a published release:
 
 ```bash
 islamu-configurator definition revise \
@@ -216,51 +183,14 @@ islamu-configurator definition revise \
   --machine
 ```
 
-1. Review and test the generated candidate file.
-2. Replace your working `configurator.yaml` with the approved candidate.
-3. Run `definition build --machine` to produce revision 2 (`dist/configurator/revisions/2.json`).
-
-> [!IMPORTANT]
-> Configurator enforces revision immutability. If you edit fields without advancing the revision number, `definition check` and `build` will reject the changes.
-
----
+Review the create-only candidate, then adopt it as your working source and build
+the next revision. Native tooling preserves canonical family/revision history
+and rejects conflicting admitted content; unchanged canonical content does not
+advance the revision. Forking allocates a new family at revision 1.
 
 ## Scaffolding from JSON Schema (`--from-schema`)
 
-If your project already maintains a JSON Schema (Draft 2020-12) for its configuration, Configurator can automatically scaffold a `configurator.yaml`.
-
-### Before: Input `schema.json`
-
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ServiceConfig",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["port", "apiKey"],
-  "properties": {
-    "host": {
-      "type": "string",
-      "default": "localhost",
-      "description": "Listening interface hostname"
-    },
-    "port": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 65535,
-      "default": 8080,
-      "description": "Port to bind HTTP server"
-    },
-    "apiKey": {
-      "type": "string",
-      "writeOnly": true,
-      "description": "Secret administrative API key"
-    }
-  }
-}
-```
-
-### Command
+An existing public application schema is a separate input:
 
 ```bash
 islamu-configurator definition init \
@@ -272,75 +202,54 @@ islamu-configurator definition init \
   --machine
 ```
 
-### After: Imported Source Before Maintainer Review
-
-The following shows the generated source's meaning, not a byte-for-byte serialization fixture. Initialization allocates a fresh family ID. Import removes defaults, classifies ordinary fields as `sensitive`, and raises `writeOnly` fields to `secret`. It does not infer that a hostname, port, or other setting is safe to publish.
-
-```yaml
-$schema: urn:islamu:configurator:authoring:v1
-identity:
-  familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
-  revision: 1
-project:
-  id: example.service
-  name: Example Service
-applicationVersions: ["1.0.0"]
-fields:
-  apiKey:
-    type: string
-    required: true
-    sensitivity: secret
-    help: Secret administrative API key
-  host:
-    type: string
-    required: false
-    sensitivity: sensitive
-    help: Listening interface hostname
-  port:
-    type: integer
-    required: true
-    sensitivity: sensitive
-    help: Port to bind HTTP server
-    minimum: 1
-    maximum: 65535
-outputs:
-  config.json:
-    format: json
-```
-
-After reviewing the target's semantics, you may explicitly classify a setting as `public` and author an appropriate default. Never restore a private default automatically. Omitted titles receive humanized labels during compilation; that does not mean initialization wrote those titles into the source.
+The importer produces a v2 `configuration` schema, not the old `fields` map.
+It retains selected title/description and supported closed-object/scalar/array
+constraints. Defaults are discarded, ordinary nodes are sensitive, and
+`writeOnly` raises the secret floor. Format becomes explanatory description,
+not asserted validation. Review classification before adding any public initial
+or suggested value; no importer infers that a hostname or port is public.
 
 ### Why `--accept-bounded-semantics` is Required
 
-JSON Schema and Configurator evaluate constraints with slightly different semantics:
-- **Required Strings:** Configurator treats whitespace-only strings as invalid answers.
-- **String Length:** Configurator measures character length in UTF-16 code units.
-- **Numbers:** Configurator uses bounded 64-bit integers (`Int64`) and exact decimals.
+The flag acknowledges encountered bounded numeric-domain differences (Int64 and
+exact bounded decimals), not arbitrary semantic losses. Native v2 requiredness
+is presence and string length is Unicode-scalar based; the old whitespace and
+UTF-16 differences are not the current native contract.
 
-The flag acknowledges only differences actually encountered in the input. It cannot bypass unsupported assertions. The current importer requires closed objects and rejects nullable unions, open maps, general composition/conditionals, regex, and unrepresentable array-item constraints. Accepted annotations are not necessarily preserved: defaults are discarded, and `format` becomes explanatory help rather than a validator. See the [import support matrix](definition-reference.md#json-schema-import).
+Scaffolding remains narrower than native v2: string enums and selected homogeneous
+arrays are supported, but nullable unions, general conditions/composition, maps,
+regex and unsupported item assertions reject. Supplied local references are
+bounded; no remote fetch or executable validator is admitted. The flag cannot
+bypass unsupported assertions or privacy. See the
+[import support boundary](definition-reference.md#json-schema-import).
 
----
+## Private answers and qualification
 
-## Integration Checklist
+Private answer files use `answerContractVersion: 1`, object `values` and array
+`omitted`. Values preserve exact names and nesting; omissions are concrete
+RFC6901 pointers. This envelope is not public source, store metadata or a browser
+cache payload. A prepared secret-deferred draft remains incomplete.
 
-Before publishing your definition, verify that you have met each of the following quality criteria:
+Before distributing an integration:
 
-- [ ] **Stable Identity:** `familyId` was generated via `definition init` and is preserved across revisions.
-- [ ] **Accurate Version Matrix:** `applicationVersions` explicitly enumerates all supported target application versions.
-- [ ] **Sensitivity Review:** All password and token fields are set to `sensitivity: secret` with no default values.
-- [ ] **Public Defaults Verified:** Every default value on `public` fields has been tested and verified as safe.
-- [ ] **Clean Presentation:** Root fields are mapped into logical sections, and disclosure levels prioritize essential settings.
-- [ ] **Help & Guidance:** Secret fields include clear plain-text instructions or documentation links explaining where to obtain the credential.
-- [ ] **Target Validation:** Generated output files (`.env`, `.json`, `.yaml`) have been verified against the target application's actual startup process.
-- [ ] **Automated CI Checks:** Your repository's CI pipeline runs `islamu-configurator definition check --machine` on pull requests.
-
----
+- Generate your own family and enumerate exact target application versions.
+- Review inherited sensitivity, all public literals and required secret guidance.
+- Keep applicable required/error work reachable across your selected clients.
+- Exercise omission, reset, nullable values and nested-container behavior.
+- Validate prepared files through the target application's own startup/import
+  path; record that separately from source checks and synthetic projections.
+- Run definition checks in your own CI and qualify actual packages/hosts.
 
 ## Distributing Your Definition
 
-Once compiled, you can distribute your definition through any of the following channels:
-1. **Directly in Your Repository:** Commit `configurator.yaml` and `dist/configurator/revisions/1.json` beside your code.
-2. **Web Deep Links:** Host `1.json` on any static HTTPS origin and link users directly to the Configurator WebAssembly app (see [Launch Integration](launch-integration.md)).
-3. **Public Store:** Submit a pull request to include your application in the bundled [Definition Store](definition-store.md).
+Keep source and canonical revisions beside application code, host canonical
+runtime JSON on an admitted public HTTPS origin for
+[launch integration](launch-integration.md), or contribute through the
+[Definition Store](definition-store.md). Browser remote selection accepts
+compiled runtime JSON, not arbitrary remote authoring or answers.
 
-For AI coding agents helping you author definitions, consult the portable [configurator-integrate skill](../../skills/configurator-integrate/SKILL.md).
+No distribution channel grants target authentication, apply authority or native
+protected-save guarantees. See the portable
+[integration skill](../../skills/configurator-integrate/SKILL.md) for agent
+workflow guidance; the current contract reference and admitted source remain
+authoritative when older guidance differs.

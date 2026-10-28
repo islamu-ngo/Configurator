@@ -5,15 +5,22 @@ description: "Draft v2 bounded configuration profile, explicit answer states, ma
 # Definition Standard v2
 
 > **Audience:** Adopters | Integrators | Contributors
-> **Status:** Draft; not yet admitted by the current product
+> **Status:** Draft; bounded-v2 base implemented, broader scenarios and client qualification incomplete
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `docs/internal/DEFINITION_PROFILE.md`, `src/Configurator.Core/Definitions/`
 
-This Draft specifies the replacement for the pre-release v1 definition contract.
-Use the [current reference](definition-reference.md) for executable v1 authoring.
-Examples here describe the selected design, not qualified product examples.
-Support becomes current only after implementation and client qualification.
+This Draft records the v2 standard and its selected later design. The current
+product implements the bounded-v2 base; use the
+[current reference](definition-reference.md) for executable authoring and precise
+admission limits. Base implementation does not qualify every scenario, client,
+package or target. Sections marked later design are not admitted support.
+
+The base includes recursive closed objects/array items, typed enums and nullable
+types, explicit value/omission states, scoped references, root applicability and
+root presence-only relationships. Maps, variants, advanced assertions, broader/
+nested conditions, asserted formats, source maps, localization policy expansion
+and machine v3 remain later phases. No v1 fallback is provided.
 
 A definition describes public configuration requirements and output mappings.
 It never contains private answers, executes code, fetches references, authenticates
@@ -24,14 +31,16 @@ to a target, or grants permission to apply prepared files.
 | Document | Discriminator | Responsibility |
 |---|---|---|
 | Public YAML/JSON source | `$schema: urn:islamu:configurator:authoring:v2` | Maintained requirements |
-| Public compiled JSON | `schemaVersion: 2` | Canonical admitted runtime |
+| Public compiled JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities` | Canonical admitted runtime |
 | Private answer JSON | `answerContractVersion: 1` | Values and explicit omissions |
-| CLI machine envelope | Command contract v3 | Bounded operation result |
+| CLI machine envelope | Command contract v2 | Bounded operation result; v3 is later work |
 | Editor meta-schema | Packaged JSON Schema | Structural assistance, not semantic admission |
 
 Profile, definition revision, application version, locale, and command version
 are distinct. There is no v1 fallback or implicit migration. Application versions
 match exact declared strings, never guessed semantic-version ranges.
+The current authoring/runtime compiler handshake is 2/2; it does not change the
+command envelope or private answer version.
 
 ## Source envelope
 
@@ -59,28 +68,32 @@ basename hints, not paths or filesystem authority.
 
 ## Recursive schema grammar
 
-The same grammar applies to configuration roots, properties, array items, map
-values, and admitted variant branches. There are no item-only type aliases.
+The implemented recursive grammar applies to configuration roots, properties and
+array items, without item-only aliases. Map values and variant branches below are
+later design; they are not admitted by the current base. The configuration root
+itself must be a non-null object.
 
 | Member | Allowed context and rule |
 |---|---|
 | `type` | One of `string`, `boolean`, `integer`, `number`, `object`, `array`; or an array containing exactly one base type and `null` |
 | `title`, `description` | Optional bounded inert text |
-| `enum` | Nonempty distinct homogeneous scalar values compatible with the base type |
+| `enum` | Nonempty distinct homogeneous non-null scalar values compatible with the base type |
 | `const` | One compatible scalar; conflicts with enum or assertions reject |
 | `properties` | Object; exact-name keyed schema map, empty permitted |
 | `required` | Object; distinct locally declared property names; omission means none |
-| `additionalProperties` | Object; explicitly `false` or a schema for typed map values; untyped `true` rejects |
+| `additionalProperties` | Current objects explicitly require `false`; typed-map schema form is later design; untyped `true` rejects |
 | `items` | Required for array; one recursive schema |
-| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | Numeric types only; exact bounds |
-| `multipleOf` | Numeric types only; strictly positive exact decimal |
+| `minimum`, `maximum` | Current inclusive numeric bounds |
+| `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf` | Later design; numeric exact bounds/positive exact multiple |
 | `minLength`, `maxLength` | Strings only; nonnegative Unicode-scalar counts |
-| `minItems`, `maxItems`, `uniqueItems` | Arrays only; nonnegative bounds and Boolean uniqueness assertion |
+| `minItems`, `maxItems` | Current array cardinality bounds |
+| `uniqueItems` | Later design; Boolean uniqueness assertion |
 | `minProperties`, `maxProperties` | Objects only; nonnegative bounds |
-| `dependentRequired` | Object; map of local property names to distinct local required-name arrays |
-| `$defs`, `$ref` | Bounded supplied local definitions; acyclic references only |
-| `if`, `then`, `else` | Bounded local schema predicates and conditional assertions |
-| `oneOf` | Closed object variants with one shared required scalar discriminator and distinct const values |
+| `dependentRequired` | Current configuration-root map of local names to distinct nonempty local required-name arrays; nested form later |
+| `$defs`, `$ref` | Bounded supplied references in the separate importer; not current runtime node keywords |
+| `if`, `then` | Current configuration-root presence-only `{required: [...]}` assertions |
+| Broader `if`/`then`, `else` | Later design; general/nested predicates and conditional assertions |
+| `oneOf` | Later design; closed object variants with a shared required scalar discriminator |
 | `format` | String annotation; no assertion by itself |
 | `default` | Descriptive value only; never inserted |
 | `readOnly`, `writeOnly`, `deprecated`, `examples` | Inert annotations except writeOnly raises the secret floor; public values must meet privacy rules |
@@ -89,8 +102,8 @@ values, and admitted variant branches. There are no item-only type aliases.
 Missing bounds impose only the existing global budget. Reversed bounds,
 unknown members, assertions on incompatible types, invalid literal values, and
 unrepresentable numbers reject at admission. Closed objects reject undeclared
-answer members. Typed maps validate each dynamic member using the declared value
-schema. Declared properties retain their own schemas.
+answer members. The later typed-map design would validate each dynamic member
+using its value schema; no map form is delivered now.
 
 Unsupported constructs include tuples, general unions/combinators, arbitrary
 regular expressions, dynamic/remote/recursive references, executable validators,
@@ -105,9 +118,9 @@ unsupported assertion.
 | `initialValue` | Public valid value inserted only at eligible never-supplied locations |
 | `suggestedValue` | Public valid value adopted only by deliberate operator action |
 | `notBlank` | String-only Boolean assertion rejecting empty/whitespace text when true |
-| `assertFormat` | Boolean enabling an admitted supported format assertion |
+| `assertFormat` | Later design; Boolean enabling a supported format assertion; not a current extension member |
 | `uniqueBy` | Array-of-object uniqueness by an admitted concrete property pointer |
-| `applicableWhen` | Bounded predicate using explicit scoped references |
+| `applicableWhen` | Current direct configuration-property predicate using root-scoped references; nested/item predicates later |
 | `detail` | `basic`, `standard`, `advanced`; presentation only, default standard |
 | `guidance` | Closed instructions, static documentation links, and search terms |
 | `credential` | Closed kind/acquisition descriptor; requires effective secret context |
@@ -125,7 +138,8 @@ Integer values use signed Int64. Number values use exact decimal representation:
 at most 28 significant digits after redundant zero removal, scale at most 28,
 and explicit exponents in the range -28 through 28. Parsing must reject overflow,
 underflow, rounding, non-finite tokens, and values outside the admitted domain.
-Constraints and values use the same domain; multipleOf uses exact arithmetic.
+Constraints and values use the same domain; the later multipleOf design requires
+exact arithmetic rather than rounding.
 
 Strings preserve exact Unicode scalar values. Unpaired surrogates, invalid UTF-8,
 and exact duplicate object members reject. Names are ordinal and case-sensitive:
@@ -135,8 +149,10 @@ not UTF-16 code units or grapheme clusters.
 
 ### Asserted format registry
 
-Formats remain annotations unless `assertFormat` is true. An unknown asserted
-format or incompatible base type rejects. No format performs a network check.
+**Later design, not delivered support.** Current `format` is annotation only and
+`assertFormat` rejects as unknown extension vocabulary. The selected future
+registry below must be implemented and qualified before assertion use. No format
+may perform a network check.
 
 | Name | Selected lexical domain |
 |---|---|
@@ -163,10 +179,17 @@ effective configuration; item selects the current admitted repeat/row context.
 Item scope outside that context rejects. Reference expansion and traversal
 consume the same bounded work budget as validation.
 
-Dynamic map keys are private answer data. Public diagnostics identify declared
+`SetupFieldDefinition.Name` is the exact root data key; bounded `Id` is metadata,
+not answer identity. Representable names retain their ID except reserved `f-`;
+other names, including literal `f-` names, use `f-` plus a domain-separated full
+SHA-256 of the escaped exact root pointer. Names are not normalized.
+
+**Later map/source-map design:** Dynamic map keys are private answer data.
+Public diagnostics must identify declared
 schema positions and bounded row/entry indices, never raw dynamic keys or values.
-The current local workspace alone resolves correction identities; edits retire
-old correction tokens. Authoring errors may include a public schema pointer,
+The local workspace would resolve correction identities; edits would retire
+old correction tokens. Source maps are not delivered. Authoring errors may
+eventually include a public schema pointer,
 numeric line/column, stable code, and bounded supplied-document ordinal, but no
 raw scalar, exception, arbitrary unknown key, or private filesystem path.
 
@@ -212,13 +235,17 @@ Extra members reject.
 
 `not unknown` is unknown. For all, false dominates, then unknown, then true.
 For any, true dominates, then unknown, then false. Unknown never becomes a
-guessed active branch. Applicability dependency cycles reject. Item references
-stay local to their row.
+guessed active branch. Applicability dependency cycles reject. Current
+applicability occurs only on direct configuration properties with root-scoped
+references; those may select declared nested controllers. Item scope is current
+for admitted repeat projections, not nested/item applicability.
 
-`dependentRequired` and conditional schema assertions validate relationships;
-they do not toggle visibility or form activation edges. Mutual requirements
-are permitted: neither username nor password can be supplied alone, while both
-or neither follow ordinary local requiredness.
+Current `dependentRequired` and presence-only root `if.required`/`then.required`
+validate relationships; they do not toggle visibility or form activation edges.
+Their arrays name locally declared root properties. Mutual requirements are
+permitted: neither username nor password can be supplied alone, while both or
+neither follow ordinary requiredness. Broader predicates, nested relationships
+and `else` are later design, not implemented assertions.
 
 ## Outputs and inverse import
 
@@ -236,12 +263,15 @@ Choose bindings or a projection, never both.
 Projection operations remain `literal`, `copy`, `omit`, `index`, `object`, `list`,
 and `repeat`; references are typed root/item references. Repeats may nest only
 within existing expansion/work limits. Optional predicates cannot become string
-expressions. Admission infers projected shape and omission/nullability.
-Dotenv requires non-null scalar members; Markdown requires a string list.
-Incompatible shapes reject before answers.
+expressions. Current admission checks references, contexts and dotenv's non-null
+scalar member shape. Markdown requires a string list at composition; an editor or
+definition check is not proof that every output will compose. General projected
+shape/omission/nullability inference remains later qualification, not a blanket
+pre-answer rejection guarantee.
 
-Only unconditional one-to-one copy mappings of root or nested members have a
-proved inverse. Transforms, conditional projections, repeated ambiguity, unknown
+Inverse import remains narrower than generation; do not infer that every current
+root/nested scoped copy has a qualified inverse. Only supported unconditional
+unambiguous direct-copy mappings are candidates. Transforms, conditional projections, repeated ambiguity, unknown
 input members, and nonreplaceable conflicts reject atomically. Failed import
 preserves the entire current workspace. No undeclared passthrough is retained.
 
@@ -259,10 +289,12 @@ ordered section IDs. Without metadata derive a neutral journey. Unlisted fields
 join a deterministic fallback section. Detail, journey, and section changes
 must leave all applicable required/error work reachable and cannot alter answers.
 
-Localization declares `defaultLocale` and `translations` keyed by locale;
+Base localization declares `defaultLocale` and `translations` keyed by locale;
 translations contain optional `direction` (`ltr`/`rtl`) and pointer-keyed text
-overrides. Override titles, descriptions, guidance, choice labels/explanations,
-section/journey labels, and diagnostic messages, never identities or typed values.
+overrides. Current overrides target existing public string metadata ending in
+title, description, instructions, label, explanation or units. Expanded
+localization policy, diagnostic-message translation and broader coverage are
+later work, never authority to override identities or typed values.
 An absent translation falls back to base text. Direction is metadata, not inferred
 from private text. Language changes cannot alter numeric serialization or output.
 
@@ -276,7 +308,8 @@ Required semantic capabilities are computed from admitted features, not author
 assertions. Consumers must refuse unsupported mandatory editing before answers.
 Optional layout hints degrade to a reachable neutral form. Capability metadata
 is public, sorted and part of canonical identity; it grants no target authority.
-Actual Browser/Desktop/Terminal support remains unqualified for this Draft.
+Core computes the current subset; actual full CLI/Browser/Desktop/Terminal
+scenario support remains separately qualified, not established by this Draft.
 
 ## Identity, budgets, and conformance
 
@@ -303,3 +336,10 @@ behavior, generated schema freshness, published package closure, and any target'
 own acceptance. A build, editor pass, or synthetic projection does not prove
 usability, assistive-technology compatibility, target acceptance, or a new host.
 See the [implementation and conformance map](../internal/DEFINITION_PROFILE.md).
+
+The maintained examples now have fresh v2 families at revision 1; exact source
+identities are recorded in the [integration guide](integrate-your-tool.md#complete-minimal-configuratoryaml-example).
+The parent reports native source/runtime agreement **3/3**. This documentation
+unit did not rerun it, and no target acceptance follows from it. Retaining Draft
+status preserves the distinction between implemented base semantics, later
+standard design and unqualified end-to-end scenarios.

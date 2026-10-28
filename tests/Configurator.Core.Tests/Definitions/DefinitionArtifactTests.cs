@@ -16,7 +16,7 @@ public sealed class DefinitionArtifactTests
             "examples", "minimal-self-hosted");
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(File.ReadAllBytes(
             Path.Combine(sample, "setup-definition.json")));
-        SetupAnswerSnapshot answers = DefinitionFixture.Answers(File.ReadAllText(
+        SetupAnswerSnapshot answers = SetupAnswerSnapshotCodec.ParseJson(File.ReadAllBytes(
             Path.Combine(sample, "answers", "complete.json")));
 
         await Assert.That(DefinitionValidator.Validate(definition,

@@ -72,10 +72,10 @@ internal static class SetupCliDefinitionHandlers
             if (command.IdMap is not null)
             {
                 JsonObject mapping = new();
-                foreach (JsonProperty field in document.Root.GetProperty("fields").EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
+                foreach (JsonProperty field in document.Root.GetProperty("configuration").GetProperty("properties").EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    mapping[field.Name] = DefinitionAuthoringCompiler.FieldId(field.Name);
+                    mapping[field.Name] = DefinitionProfile.FieldId(field.Name);
                 }
                 map = Encoding.UTF8.GetBytes(mapping.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
                 artifacts.Add(SetupCliResults.Artifact("logical-id-map", "application/json", map, "public", "output", "not-attempted"));
@@ -134,19 +134,19 @@ internal static class SetupCliDefinitionHandlers
                 if (await files.ExistsAsync(Path.Combine(root, name), cancellationToken).ConfigureAwait(false))
                     throw new DefinitionFileException("definition-output-conflict");
         if (IsYaml(output) != (format == "yaml")) return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-source-format");
-        JsonObject fields = new();
+        JsonObject configuration = new() { ["type"] = "object", ["properties"] = new JsonObject(), ["additionalProperties"] = false };
         IReadOnlyList<string> differences = [];
         if (command.FromSchema is not null)
         {
             DefinitionSchemaImportResult imported = await DefinitionSchemaSourceFiles.ImportAsync(files, maximumBytes,
                 command.FromSchema, command.AcceptBoundedSemantics, cancellationToken).ConfigureAwait(false);
-            fields = JsonNode.Parse(imported.Fields.GetRawText())!.AsObject();
+            configuration = JsonNode.Parse(imported.Configuration.GetRawText())!.AsObject();
             differences = imported.Differences;
         }
         else if (command.FromEnvExample is not null)
         {
             using SetupCliInputBuffer example = await files.ReadAsync(command.FromEnvExample, maximumBytes, cancellationToken).ConfigureAwait(false);
-            fields = EnvironmentKeys(example.Bytes, cancellationToken);
+            configuration["properties"] = EnvironmentKeys(example.Bytes, cancellationToken);
         }
         JsonObject source = new()
         {
@@ -154,12 +154,22 @@ internal static class SetupCliDefinitionHandlers
             ["identity"] = new JsonObject { ["familyId"] = Guid.NewGuid().ToString("D"), ["revision"] = 1 },
             ["project"] = new JsonObject { ["id"] = command.ProjectId, ["name"] = command.ProjectName },
             ["applicationVersions"] = new JsonArray(command.ApplicationVersion),
-            ["fields"] = fields,
+            ["configuration"] = configuration,
             ["outputs"] = new JsonObject
             {
                 [command.FromEnvExample is null ? "config.json" : ".env"] = new JsonObject { ["format"] = command.FromEnvExample is null ? "json" : "dotenv" }
             }
         };
+        if (command.FromEnvExample is not null)
+        {
+            var bindings = new JsonObject();
+            foreach ((string name, _) in configuration["properties"]!.AsObject())
+                bindings[name] = new JsonObject
+                {
+                    ["scope"] = "root", ["path"] = DefinitionPath.FromSegments([name]).ToPointer()
+                };
+            source["outputs"]![".env"]!["bindings"] = bindings;
+        }
         byte[] bytes = Serialize(source, format == "yaml", cancellationToken);
         SetupDefinition compiled = DefinitionAuthoringCompiler.Compile(Parse(bytes, format == "yaml", cancellationToken));
         cancellationToken.ThrowIfCancellationRequested();
@@ -213,7 +223,7 @@ internal static class SetupCliDefinitionHandlers
     {
         cancellationToken.ThrowIfCancellationRequested();
         var fields = new JsonObject();
-        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var keys = new HashSet<string>(StringComparer.Ordinal);
         string text = new UTF8Encoding(false, true).GetString(bytes.Span);
         foreach (string line in text.Split('\n'))
         {
@@ -228,7 +238,11 @@ internal static class SetupCliDefinitionHandlers
                 || !keys.Add(key) || keys.Count > 1024)
                 throw new DefinitionFileException("definition-env-example-invalid");
             bool secret = SecretTerms.Any(term => key.Contains(term, StringComparison.OrdinalIgnoreCase));
-            fields[key] = new JsonObject { ["type"] = "string", ["sensitivity"] = secret ? "secret" : "sensitive" };
+            fields[key] = new JsonObject
+            {
+                ["type"] = "string",
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = secret ? "secret" : "sensitive" }
+            };
         }
         return fields;
     }

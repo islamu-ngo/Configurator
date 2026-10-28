@@ -97,7 +97,7 @@ public sealed class BrowserExperienceWorkflowTests
         form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
         var component = context.Render<BrowserCredentialEntryTests.EmittedInputField>(parameters => parameters
             .Add(item => item.Form, form).Add(item => item.Path, ["extra"])
-            .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "extra").Constraints));
+            .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "extra").Node));
         object callback = component.Instance.CaptureInput();
         long revision = form.InputRevision;
         await component.InvokeAsync(() => form.SetDisclosureOverride(SetupFieldDisclosure.Essential));
@@ -126,7 +126,7 @@ public sealed class BrowserExperienceWorkflowTests
         using var form = new DefinitionFormModel(Definition());
         var component = context.Render<BrowserCredentialEntryTests.EmittedInputField>(parameters => parameters
             .Add(item => item.Form, form).Add(item => item.Path, ["options", "host"])
-            .Add(item => item.Schema, form.Definition.Fields[1].Properties[0].Constraints));
+            .Add(item => item.Schema, form.Definition.Fields[1].Properties[0].Node));
         object callback = component.Instance.CaptureInput();
         foreach (string text in new[] { "e", "ex", "example.test" })
             await component.InvokeAsync(() => callback switch

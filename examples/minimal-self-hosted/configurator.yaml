@@ -1,156 +1,190 @@
-$schema: urn:islamu:configurator:authoring:v1
+$schema: urn:islamu:configurator:authoring:v2
+# Fresh v2 family allocated through the native identity editor.
 identity:
-  familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
-  revision: 3
+  familyId: "9b6a7b3e-45bf-4485-8fa1-d7888938c09b"
+  revision: 1
 project:
   id: example.service
   name: Minimal self-hosted service
   publisher: example
 applicationVersions: ["1.0"]
-locales: [en, ar]
+localization:
+  defaultLocale: en
+  translations:
+    # No Arabic text was supplied by the prior source; retain base-text fallback.
+    ar:
+      direction: rtl
+      overrides: {}
 presentation:
-  defaultExperience: recommended
+  defaultJourney: recommended
+  navigation: wizard
   sections:
     - id: service
       title: Service identity and deployment
-      fields: [service.name, service.mode]
-      disclosure: essential
+      pointers: [/service.name, /service.mode]
     - id: access
       title: Local service access
-      fields: [service.credential]
-      disclosure: essential
+      pointers: [/service.credential]
     - id: operations
       title: Extended operations
-      fields: [service.extended, metrics.enabled]
-      disclosure: guided
+      pointers: [/service.extended, /metrics.enabled]
     - id: integration
       title: Optional issuer integration
-      fields: [service.issuerToken]
-      disclosure: advanced
-  experiences:
+      pointers: [/service.issuerToken]
+  journeys:
     - id: recommended
       title: Recommended
-      initialDisclosure: essential
-      navigation: guided
       sections: [service, access, operations, integration]
     - id: custom
       title: Custom
-      initialDisclosure: advanced
-      navigation: sections
       sections: [service, operations, access, integration]
-fields:
-  service.name:
-    type: string
-    title: Service name
-    help: Choose a recognizable name for this deployment. Example public name, local-service.
-    guidance:
-      instructions: Use a deployment label, not a password or a private customer identifier.
-      searchTerms: [name, identity, deployment]
+configuration:
+  type: object
+  additionalProperties: false
+  required: [service.name, service.credential]
+  x-configurator:
     sensitivity: public
-    disclosure: essential
-    required: true
-    default: local-service
-    minLength: 1
-    maxLength: 128
-  service.mode:
-    type: enum
-    title: Deployment mode
-    help: Minimal keeps the base configuration; extended makes optional operations settings available.
-    consequence: Selecting extended activates metrics and nested operations settings; it does not start services or expose a network port.
-    guidance:
-      instructions: Keep minimal unless you intend to review extended operations. Both modes still require the local service password.
-      searchTerms: [mode, minimal, extended, deployment]
-    sensitivity: public
-    disclosure: essential
-    choices: [minimal, extended]
-    default: minimal
-  metrics.enabled:
-    type: boolean
-    title: Enable metrics
-    help: Expose metrics only on a network controlled by the operator.
-    guidance:
-      instructions: Leave disabled unless the target supports metrics and you have arranged an appropriate private network.
-      searchTerms: [monitoring, observability, metrics]
-    sensitivity: public
-    disclosure: advanced
-    activeWhen: {op: equals, field: service.mode, value: extended}
-    default: false
-  service.credential:
-    type: string
-    title: Local service password
-    help: Create a unique password for this service, not your hosting login. Enable secret entry first, or defer it and finish the incomplete draft locally.
-    guidance:
-      instructions: Create and retain the password in your own password manager. Configurator does not generate it or install it on the target.
-      searchTerms: [password, credential, access]
-    credential:
-      kind: password
-      acquisition: create
-    sensitivity: secret
-    disclosure: essential
-    required: true
-    minLength: 1
-    maxLength: 128
-  service.issuerToken:
-    type: string
-    title: Optional issuer token
-    help: Leave absent unless adapting this example to a service with an external token issuer. This example includes no issuer or token endpoint.
-    guidance:
-      instructions: Obtain a scoped service token through your issuer's documented administrator workflow. Ask that administrator about permissions and expiry; do not substitute the local service password. No provider documentation link is supplied because this neutral example names no provider.
-      searchTerms: [issuer, token, integration, permissions]
-    credential:
-      kind: opaque-token
-      acquisition: issuer
-    sensitivity: secret
-    disclosure: advanced
-    minLength: 1
-    maxLength: 4096
-  service.extended:
-    type: object
-    title: Extended operations settings
-    help: Optional nested settings for an adapted service; omit the object to retain target-owned behavior.
-    guidance:
-      instructions: These illustrative keys need an explicit mapping in a real target integration. Configurator only prepares them.
-      searchTerms: [operations, workers, logging]
-    sensitivity: public
-    disclosure: guided
-    activeWhen: {op: equals, field: service.mode, value: extended}
-    properties:
-      workers:
-        type: integer
-        title: Worker count
-        help: Optional worker count. Example public value, 2; confirm the target supports it.
+  # Dots are literal property-name characters, not nesting operators.
+  properties:
+    service.name:
+      type: string
+      title: Service name
+      description: Choose a recognizable name for this deployment. Example public name, local-service.
+      minLength: 1
+      maxLength: 128
+      x-configurator:
         sensitivity: public
-        disclosure: guided
-        minimum: 1
-        maximum: 64
-      logLevel:
-        type: enum
-        title: Log detail
-        help: Optional log level for a compatible target. Review target logs for private data before increasing detail.
+        detail: basic
+        initialValue: local-service
+        guidance:
+          instructions: Use a deployment label, not a password or a private customer identifier.
+          searchTerms: [name, identity, deployment]
+    service.mode:
+      type: string
+      title: Deployment mode
+      description: >-
+        Minimal keeps the base configuration; extended makes optional operations
+        settings available. Selecting extended activates metrics and nested
+        operations settings; it does not start services or expose a network port.
+      enum: [minimal, extended]
+      x-configurator:
         sensitivity: public
-        disclosure: advanced
-        choices: [warning, information, debug]
+        detail: basic
+        initialValue: minimal
+        guidance:
+          instructions: Keep minimal unless you intend to review extended operations. Both modes still require the local service password.
+          searchTerms: [mode, minimal, extended, deployment]
+    metrics.enabled:
+      type: boolean
+      title: Enable metrics
+      description: Expose metrics only on a network controlled by the operator.
+      x-configurator:
+        sensitivity: public
+        detail: advanced
+        applicableWhen:
+          op: equals
+          reference: {scope: root, path: /service.mode}
+          value: extended
+        initialValue: false
+        guidance:
+          instructions: Leave disabled unless the target supports metrics and you have arranged an appropriate private network.
+          searchTerms: [monitoring, observability, metrics]
+    service.credential:
+      type: string
+      title: Local service password
+      description: Create a unique password for this service, not your hosting login. Enable secret entry first, or defer it and finish the incomplete draft locally.
+      minLength: 1
+      maxLength: 128
+      x-configurator:
+        sensitivity: secret
+        detail: basic
+        credential:
+          kind: password
+          acquisition: create
+        guidance:
+          instructions: Create and retain the password in your own password manager. Configurator does not generate it or install it on the target.
+          searchTerms: [password, credential, access]
+    service.issuerToken:
+      type: string
+      title: Optional issuer token
+      description: Leave absent unless adapting this example to a service with an external token issuer. This example includes no issuer or token endpoint.
+      minLength: 1
+      maxLength: 4096
+      x-configurator:
+        sensitivity: secret
+        detail: advanced
+        credential:
+          kind: opaque-token
+          acquisition: issuer
+        guidance:
+          instructions: Obtain a scoped service token through your issuer's documented administrator workflow. Ask that administrator about permissions and expiry; do not substitute the local service password. No provider documentation link is supplied because this neutral example names no provider.
+          searchTerms: [issuer, token, integration, permissions]
+    service.extended:
+      type: object
+      title: Extended operations settings
+      description: Optional nested settings for an adapted service; omit the object to retain target-owned behavior.
+      additionalProperties: false
+      x-configurator:
+        sensitivity: public
+        detail: standard
+        applicableWhen:
+          op: equals
+          reference: {scope: root, path: /service.mode}
+          value: extended
+        guidance:
+          instructions: These illustrative keys need an explicit mapping in a real target integration. Configurator only prepares them.
+          searchTerms: [operations, workers, logging]
+      properties:
+        workers:
+          type: integer
+          title: Worker count
+          description: Optional worker count. Example public value, 2; confirm the target supports it.
+          minimum: 1
+          maximum: 64
+          x-configurator:
+            sensitivity: public
+            detail: standard
+        logLevel:
+          type: string
+          title: Log detail
+          description: Optional log level for a compatible target. Review target logs for private data before increasing detail.
+          enum: [warning, information, debug]
+          x-configurator:
+            sensitivity: public
+            detail: advanced
 outputs:
   ".env":
     id: environment
     format: dotenv
-    applySemantics: create
-    restart: process
+    targetUpdateMode: create
+    restartRequirement: process
     bindings:
-      SERVICE_NAME: service.name
-      SERVICE_MODE: service.mode
-      METRICS_ENABLED: metrics.enabled
-      SERVICE_CREDENTIAL: service.credential
-      SERVICE_ISSUER_TOKEN: service.issuerToken
+      SERVICE_NAME: {scope: root, path: /service.name}
+      SERVICE_MODE: {scope: root, path: /service.mode}
+      METRICS_ENABLED: {scope: root, path: /metrics.enabled}
+      SERVICE_CREDENTIAL: {scope: root, path: /service.credential}
+      SERVICE_ISSUER_TOKEN: {scope: root, path: /service.issuerToken}
   service.json:
     id: configuration
     format: json
-    applySemantics: create
-    restart: process
-    bindings: {name: service.name, mode: service.mode, metrics: metrics.enabled, credential: service.credential, issuerToken: service.issuerToken, extended: service.extended}
+    targetUpdateMode: create
+    restartRequirement: process
+    bindings:
+      /name: {scope: root, path: /service.name}
+      /mode: {scope: root, path: /service.mode}
+      /metrics: {scope: root, path: /metrics.enabled}
+      /credential: {scope: root, path: /service.credential}
+      /issuerToken: {scope: root, path: /service.issuerToken}
+      /extended: {scope: root, path: /service.extended}
   service.yaml:
     id: configuration-yaml
     format: yaml
-    applySemantics: create
-    restart: process
-    bindings: {name: service.name, mode: service.mode, metrics: metrics.enabled, credential: service.credential, issuerToken: service.issuerToken, extended: service.extended}
+    targetUpdateMode: create
+    restartRequirement: process
+    bindings:
+      /name: {scope: root, path: /service.name}
+      /mode: {scope: root, path: /service.mode}
+      /metrics: {scope: root, path: /metrics.enabled}
+      /credential: {scope: root, path: /service.credential}
+      /issuerToken: {scope: root, path: /service.issuerToken}
+      /extended: {scope: root, path: /service.extended}

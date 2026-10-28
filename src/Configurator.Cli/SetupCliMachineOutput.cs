@@ -39,8 +39,8 @@ internal static class SetupCliMachineOutput
             DetailDigest = digest,
             Detail = detail,
             Help = result.Help,
-            AuthoringContractVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 1 : null,
-            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 1 : null
+            AuthoringContractVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
+            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null
         };
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(envelope, SetupCliJsonContext.Default.SetupCliMachineEnvelope);
         if (body.Length + 1 > maximumOutputBytes) throw new IOException("output-bound");

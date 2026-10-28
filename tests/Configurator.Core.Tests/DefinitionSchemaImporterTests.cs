@@ -17,12 +17,13 @@ public sealed class DefinitionSchemaImporterTests
             "properties":{"enabled":{"type":"boolean"}},"required":["enabled"]}}}}
             """;
         DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema));
-        await Assert.That(imported.Fields.GetProperty("token").GetProperty("sensitivity").GetString()).IsEqualTo("secret");
-        await Assert.That(imported.Fields.GetProperty("token").TryGetProperty("default", out _)).IsFalse();
-        await Assert.That(imported.Fields.GetProperty("mode").GetProperty("type").GetString()).IsEqualTo("enum");
-        await Assert.That(imported.Fields.GetProperty("items").GetProperty("itemType").GetString()).IsEqualTo("object");
-        await Assert.That(imported.Fields.GetProperty("items").GetProperty("properties").GetProperty("enabled")
-            .GetProperty("required").GetBoolean()).IsTrue();
+        var properties = imported.Configuration.GetProperty("properties");
+        await Assert.That(properties.GetProperty("token").GetProperty("x-configurator").GetProperty("sensitivity").GetString()).IsEqualTo("secret");
+        await Assert.That(properties.GetProperty("token").TryGetProperty("default", out _)).IsFalse();
+        await Assert.That(properties.GetProperty("mode").GetProperty("type").GetString()).IsEqualTo("string");
+        await Assert.That(properties.GetProperty("mode").GetProperty("enum").GetArrayLength()).IsEqualTo(2);
+        await Assert.That(properties.GetProperty("items").GetProperty("items").GetProperty("type").GetString()).IsEqualTo("object");
+        await Assert.That(properties.GetProperty("items").GetProperty("items").GetProperty("required")[0].GetString()).IsEqualTo("enabled");
     }
 
     [Test]
@@ -35,8 +36,8 @@ public sealed class DefinitionSchemaImporterTests
         await Assert.That(() => DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema)))
             .Throws<DefinitionSchemaImportException>();
         DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), acceptBoundedSemantics: true);
-        await Assert.That(imported.Differences).IsEquivalentTo(["schema-required-string-whitespace", "schema-string-utf16-length", "schema-numeric-bounded-domain"]);
-        await Assert.That(imported.Fields.GetProperty("count").GetProperty("maximum").GetInt32()).IsEqualTo(20);
+        await Assert.That(imported.Differences).IsEquivalentTo(["schema-numeric-bounded-domain"]);
+        await Assert.That(imported.Configuration.GetProperty("properties").GetProperty("count").GetProperty("maximum").GetInt32()).IsEqualTo(20);
     }
 
     [Test]
@@ -47,7 +48,7 @@ public sealed class DefinitionSchemaImporterTests
         {
             ["common.json"] = Encoding.UTF8.GetBytes("""{"$defs":{"flag":{"type":"boolean"}}}""")
         };
-        await Assert.That(DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), references).Fields.GetProperty("flag")
+        await Assert.That(DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), references).Configuration.GetProperty("properties").GetProperty("flag")
             .GetProperty("type").GetString()).IsEqualTo("boolean");
         const string cycle = """{"type":"object","additionalProperties":false,"$defs":{"loop":{"$ref":"#/$defs/loop"}},"properties":{"x":{"$ref":"#/$defs/loop"}}}""";
         await Assert.That(() => DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(cycle), acceptBoundedSemantics: true))
@@ -87,8 +88,8 @@ public sealed class DefinitionSchemaImporterTests
             "properties":{"first":{"$ref":"#/$defs/flag","writeOnly":false},"second":{"type":"string"}}}
             """;
         DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema));
-        await Assert.That(imported.Fields.GetProperty("first").GetProperty("sensitivity").GetString()).IsEqualTo("secret");
-        await Assert.That(imported.Fields.GetProperty("second").GetProperty("sensitivity").GetString()).IsEqualTo("secret");
+        await Assert.That(imported.Configuration.GetProperty("properties").GetProperty("first").GetProperty("x-configurator").GetProperty("sensitivity").GetString()).IsEqualTo("secret");
+        await Assert.That(imported.Configuration.GetProperty("properties").GetProperty("second").GetProperty("x-configurator").GetProperty("sensitivity").GetString()).IsEqualTo("secret");
     }
 
     [Test]
@@ -122,7 +123,7 @@ public sealed class DefinitionSchemaImporterTests
             ["identity"] = new JsonObject { ["familyId"] = "69cdb122-41d2-4fab-9b82-7929a889c726", ["revision"] = 1 },
             ["project"] = new JsonObject { ["id"] = "example.service", ["name"] = "Example Service" },
             ["applicationVersions"] = new JsonArray("1.0.0"),
-            ["fields"] = JsonNode.Parse(imported.Fields.GetRawText()),
+            ["configuration"] = JsonNode.Parse(imported.Configuration.GetRawText()),
             ["outputs"] = new JsonObject { ["config.json"] = new JsonObject { ["format"] = "json" } }
         };
         var definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
@@ -171,8 +172,8 @@ public sealed class DefinitionSchemaImporterTests
             "namedDefinitions":{"$ref":"#/$defs/$defs"}}}
             """;
         DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema));
-        await Assert.That(imported.Fields.EnumerateObject().Count()).IsEqualTo(4);
-        foreach (var field in imported.Fields.EnumerateObject())
+        await Assert.That(imported.Configuration.GetProperty("properties").EnumerateObject().Count()).IsEqualTo(4);
+        foreach (var field in imported.Configuration.GetProperty("properties").EnumerateObject())
             await Assert.That(field.Value.GetProperty("type").GetString()).IsEqualTo("boolean");
     }
 }

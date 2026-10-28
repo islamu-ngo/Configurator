@@ -11,7 +11,7 @@ using MudBlazor;
 public partial class ConfigurationField
 {
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
-    [Parameter, EditorRequired] public JsonElement Schema { get; set; }
+    [Parameter, EditorRequired] public DefinitionNode Schema { get; set; } = null!;
     [Parameter, EditorRequired] public IReadOnlyList<string> Path { get; set; } = [];
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public EventCallback<(string Id, string FieldId, bool Invalid)> ValidationChanged { get; set; }
@@ -58,7 +58,7 @@ public partial class ConfigurationField
         _suppressParameterRender = ReferenceEquals(_parameterForm, form)
             && _parameterInputRevision == form.InputRevision
             && ReferenceEquals(_parameterProjection, form.Projection)
-            && !Changed(nameof(Schema), Schema)
+            && !(parameters.TryGetValue<DefinitionNode>(nameof(Schema), out var suppliedSchema) && !ReferenceEquals(Schema, suppliedSchema))
             && !PathChanged(nameof(Path), Path)
             && !Changed(nameof(Validation), Validation)
             && !Changed(nameof(ValidationChanged), ValidationChanged)
@@ -92,51 +92,56 @@ public partial class ConfigurationField
     private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
         diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1));
     private string ControlId => _controlId ??= Form.GetEditorIdentity(Path);
-    private string Type => Schema.GetProperty("type").GetString()!;
-    private string Title => TitleOverride ?? ConfigurationDiagnosticText.Title(Schema.TryGetProperty("title", out var value) ? value.GetString()! : "Item", Schema.TryGetProperty("id", out var id) ? id.GetString() : null);
-    private string? Help => Schema.TryGetProperty("help", out var value) ? value.GetString() : null;
-    private string? Consequence => Schema.TryGetProperty("consequence", out var value) ? value.GetString() : null;
-    private bool HasHelp => !string.IsNullOrWhiteSpace(Help) || !string.IsNullOrWhiteSpace(Consequence)
-        || InputPurposeHelp is not null || IsMasked && Type is "boolean" or "enum";
-    private bool Required => RequiredOverride ?? (Schema.TryGetProperty("required", out var value) && value.GetBoolean());
+    private string Type => Schema.JsonType;
+    private string Title => TitleOverride ?? (Schema.Keywords.TryGetProperty("title", out var value) ? value.GetString()! : "Item");
+    private string? Help => Schema.Keywords.TryGetProperty("description", out var value) ? value.GetString() : null;
+    private bool HasHelp => !string.IsNullOrWhiteSpace(Help)
+        || InputPurposeHelp is not null || IsMasked && (Type == "boolean" || HasChoices);
+    private bool Required => RequiredOverride ?? false;
     private bool HasOptionalChildren => ContainsOptionalProperty(Schema);
     private bool OptionalEditorsExpanded => Form.IsEditorExpanded(Path);
     private void ExpandEditor() => Form.SetEditorExpanded(Path, true);
     private void ToggleOptionalEditors() => Form.SetEditorExpanded(Path, !OptionalEditorsExpanded);
-    private static bool ContainsOptionalProperty(JsonElement schema) =>
-        schema.TryGetProperty("properties", out JsonElement properties) && properties.ValueKind == JsonValueKind.Array &&
-        properties.EnumerateArray().Any(child =>
-            (!(child.TryGetProperty("required", out JsonElement required) && required.GetBoolean()) &&
-             !(child.TryGetProperty("disclosure", out JsonElement disclosure) && disclosure.GetString() == "essential")) ||
-            ContainsOptionalProperty(child));
-    private bool HasEmptyChoice => Type == "enum" && Schema.GetProperty("choices").EnumerateArray()
-        .Any(choice => choice.ValueKind == JsonValueKind.String && choice.GetString() == "");
-    private string ChoiceIdentity(int index, JsonElement choice) => HasEmptyChoice
-        ? index.ToString(System.Globalization.CultureInfo.InvariantCulture) : Display(choice);
+    private static JsonElement? Metadata(DefinitionNode schema, string name) =>
+        schema.Keywords.TryGetProperty("x-configurator", out var metadata) && metadata.TryGetProperty(name, out var value)
+            ? value : null;
+    private static bool ContainsOptionalProperty(DefinitionNode schema) =>
+        schema.Properties.Any(child =>
+            (!schema.Required.Contains(child.Key, StringComparer.Ordinal) &&
+             Metadata(child.Value, "detail")?.GetString() != "basic") ||
+            ContainsOptionalProperty(child.Value));
+    private bool HasChoices => Schema.Keywords.TryGetProperty("enum", out _);
+    private JsonElement Choices => Schema.Keywords.GetProperty("enum");
+    private static string ChoiceIdentity(int index) => index.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private string Selection
     {
         get
         {
             if (Value is not { } value) return "";
-            if (Type != "enum") return Display(value);
+            if (!HasChoices) return Display(value);
             int index = 0;
-            foreach (JsonElement choice in Schema.GetProperty("choices").EnumerateArray())
+            foreach (JsonElement choice in Choices.EnumerateArray())
             {
-                if (JsonElement.DeepEquals(choice, value)) return ChoiceIdentity(index, choice);
+                if (JsonElement.DeepEquals(choice, value)) return ChoiceIdentity(index);
                 index++;
             }
             return "";
         }
     }
-    private bool IsSecret => InheritedSecret || Schema.TryGetProperty("sensitivity", out var value) && value.GetString() == "secret";
+    private static bool DeclaresSecret(DefinitionNode schema) =>
+        schema.Keywords.TryGetProperty("writeOnly", out var writeOnly) && writeOnly.GetBoolean()
+        || Metadata(schema, "sensitivity")?.GetString() == "secret";
+    private bool IsSecret => InheritedSecret || DeclaresSecret(Schema)
+        || Path.Count == 1 && DeclaresSecret(Form.Definition.Configuration);
     private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
-    private bool IsMasked => IsSecret || InheritedSensitive || Schema.TryGetProperty("sensitivity", out var value) && value.GetString() == "sensitive";
-    private int MaximumItems => Schema.TryGetProperty("maxItems", out var value) ? value.GetInt32() : SetupCompositionLimits.DefaultSequenceEntries;
+    private bool IsMasked => IsSecret || InheritedSensitive || Metadata(Schema, "sensitivity")?.GetString() != "public"
+        || Path.Count == 1 && Metadata(Form.Definition.Configuration, "sensitivity")?.GetString() != "public";
+    private int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var value) ? value.GetInt32() : SetupCompositionLimits.DefaultSequenceEntries;
     private int Count => Value is { ValueKind: JsonValueKind.Array } value ? value.GetArrayLength() : 0;
     private string Text => !Form.CanEdit(Path) ? string.Empty : Path.Count == 1
         ? _rootInput!.Text
         : Form.ReadDraftText(Path) ?? (Value is { } value ? Display(value) : string.Empty);
-    private string Autocomplete => Form.CanEdit(Path) && Schema.TryGetProperty("credential", out JsonElement credential)
+    private string Autocomplete => Form.CanEdit(Path) && Metadata(Schema, "credential") is { } credential
         && credential.GetProperty("kind").GetString() == "password"
         ? credential.GetProperty("acquisition").GetString() switch
         {
@@ -144,7 +149,7 @@ public partial class ConfigurationField
             "existing" => "section-" + ControlId + " current-password",
             _ => "off"
         } : "off";
-    private string? InputPurposeHelp => Schema.TryGetProperty("credential", out JsonElement credential)
+    private string? InputPurposeHelp => Metadata(Schema, "credential") is { } credential
         ? credential.GetProperty("acquisition").GetString() switch
         {
             "issuer" => "Obtain this value from its issuer, then paste it or map a password manager custom field. Do not substitute a locally generated password.",
@@ -152,7 +157,7 @@ public partial class ConfigurationField
             _ => "Use the value already accepted by your target. A password manager may fill or paste it."
         } + " Your password manager has independent custody; clearing this workspace does not clear its vault."
         : null;
-    private JsonElement ItemSchema => Form.GetListItemMetadata(Path);
+    private DefinitionNode ItemSchema => Form.GetListItemMetadata(Path);
     private JsonElement? Value
     {
         get
@@ -170,7 +175,7 @@ public partial class ConfigurationField
     }
     protected override void OnParametersSet()
     {
-        bool controlMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path) && Type is not ("object" or "list");
+        bool controlMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path) && Type is not ("object" or "array");
         if (_controlMounted != controlMounted)
         {
             _controlMounted = controlMounted;
@@ -198,11 +203,11 @@ public partial class ConfigurationField
             || Form.InputRevision != expectedRevision || !Path.SequenceEqual(expectedPath)) return false;
         string selection = args.Value?.ToString() ?? "";
         if (selection.Length == 0) { Omit(); return true; }
-        if (HasEmptyChoice)
+        if (HasChoices)
         {
             if (!int.TryParse(selection, out int index) || index < 0 ||
-                index >= Schema.GetProperty("choices").GetArrayLength()) return false;
-            _invalid = !Form.SetValue(Path, Schema.GetProperty("choices")[index]);
+                index >= Choices.GetArrayLength()) return false;
+            _invalid = !Form.SetValue(Path, Choices[index]);
             _ = NotifyValidityAsync();
             return true;
         }
@@ -258,14 +263,14 @@ public partial class ConfigurationField
         if (_focusAfterOmit)
         {
             _focusAfterOmit = false;
-            if (Type is "object" or "list") await _group.FocusAsync(preventScroll: true);
+            if (Type is "object" or "array") await _group.FocusAsync(preventScroll: true);
             else await FocusScalarAsync(preventScroll: true);
         }
         if (_focusObjectChildren) { _focusObjectChildren = false; if (!CanFocus(Schema, Path)) await _group.FocusAsync(preventScroll: true); }
-        if (FocusFirstControl && !_focusedForRequest && Form.CanEdit(Path) && Type != "object" && (Type != "list" || Count == 0))
+        if (FocusFirstControl && !_focusedForRequest && Form.CanEdit(Path) && Type != "object" && (Type != "array" || Count == 0))
         {
             _focusedForRequest = true;
-            if (Type == "list") await _addButton.FocusAsync();
+            if (Type == "array") await _addButton.FocusAsync();
             else await FocusScalarAsync();
         }
         if (!_focusAdd) return;
@@ -274,16 +279,16 @@ public partial class ConfigurationField
     }
     private async Task FocusScalarAsync(bool preventScroll = false)
     {
-        if (_textControl is not null && (Type is not ("boolean" or "enum") || IsMasked))
+        if (_textControl is not null && (Type != "boolean" && !HasChoices || IsMasked))
             await _textControl.FocusAsync();
         else if (_choiceControl is not null) await _choiceControl.FocusAsync();
     }
-    private bool CanFocus(JsonElement schema, IReadOnlyList<string> path)
+    private bool CanFocus(DefinitionNode schema, IReadOnlyList<string> path)
     {
         if (FocusPath.Count > 0 && !FocusPath.Take(path.Count).SequenceEqual(path)) return false;
         if (!Form.CanEdit(path)) return false;
-        if (schema.GetProperty("type").GetString() != "object") return true;
-        return schema.GetProperty("properties").EnumerateArray().Any(child => CanFocus(child, path.Append(child.GetProperty("id").GetString()!).ToArray()));
+        if (schema.Type != DefinitionNodeType.Mapping) return true;
+        return schema.Properties.Any(child => CanFocus(child.Value, path.Append(child.Key).ToArray()));
     }
     private static string Display(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
     public void Dispose() { _disposed = true; if (_invalid) { _invalid = false; _ = NotifyValidityAsync(); } GC.SuppressFinalize(this); }

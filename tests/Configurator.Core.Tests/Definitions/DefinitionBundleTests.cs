@@ -114,18 +114,25 @@ public sealed class DefinitionBundleTests
     }
 
     [Test]
-    public async Task InvalidLaterArtifactLeavesNoPublishablePrefix()
+    public async Task OversizedLaterArtifactLeavesNoPublishablePrefix()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        root["artifacts"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"bad","format":"dotenv","fileName":"bad.env","applySemantics":"create",
-             "restart":"none","projection":{"op":"object","members":{"nested":{"op":"object","members":{}}}}}
-            """));
+        root["configuration"]!["properties"]!["service.name"]!["maxLength"] = 65_536;
+        var members = new JsonObject();
+        for (int index = 0; index < 17; index++)
+            members[index.ToString(System.Globalization.CultureInfo.InvariantCulture)] = JsonNode.Parse(
+                """{"op":"copy","reference":{"scope":"root","path":"/service.name"}}""");
+        root["outputs"]!["service1.json"] = new JsonObject
+        {
+            ["id"] = "bad", ["format"] = "json",
+            ["projection"] = new JsonObject { ["op"] = "object", ["members"] = members }
+        };
         DefinitionBundleResult result = DefinitionBundleComposer.Compose(DefinitionFixture.Parse(root.ToJsonString()),
-            ["config", "bad"], DefinitionFixture.Answers());
+            ["config", "bad"], DefinitionFixture.Answers(
+                JsonSerializer.Serialize(new Dictionary<string, string> { ["service.name"] = new('x', 65_536) })));
         await Assert.That(result.Succeeded).IsFalse();
         await Assert.That(result.Artifacts).IsEmpty();
-        await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("dotenv-shape");
+        await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("artifact-limit");
         await Assert.That(result.ToString().Contains("sample", StringComparison.Ordinal)).IsFalse();
     }
 
@@ -155,13 +162,12 @@ public sealed class DefinitionBundleTests
     public async Task ActiveBundleIncludesOnlyResolvedActiveArtifactsWithoutWeakeningExplicitSelection()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        root["artifacts"]![0]!["projection"]!["when"] = JsonNode.Parse(
-            """{"op":"equals","field":"service.name","value":"first"}""");
-        JsonNode second = root["artifacts"]![0]!.DeepClone();
+        root["outputs"]!["service.json"]!["projection"]!["when"] = JsonNode.Parse(
+            """{"op":"equals","reference":{"scope":"root","path":"/service.name"},"value":"first"}""");
+        JsonNode second = root["outputs"]!["service.json"]!.DeepClone();
         second["id"] = "second";
-        second["fileName"] = "second.json";
         second["projection"]!["when"]!["value"] = "second";
-        root["artifacts"]!.AsArray().Add(second);
+        root["outputs"]!["service2.json"] = second;
         SetupDefinition definition = DefinitionFixture.Parse(root.ToJsonString());
         SetupAnswerSnapshot answers = DefinitionFixture.Answers("""{"service.name":"first"}""");
 
@@ -184,17 +190,14 @@ public sealed class DefinitionBundleTests
     }
 
     [Test]
-    public async Task ActiveBundleLateFailureClearsEveryEarlierArtifact()
+    public async Task ActiveBundleRejectsIncompatibleShapesBeforePreparation()
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        root["artifacts"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"bad","format":"dotenv","fileName":"bad.env","applySemantics":"create","restart":"none",
+        root["outputs"]!["service1.env"] = JsonNode.Parse("""
+            {"id":"bad","format":"dotenv","targetUpdateMode":"create","restartRequirement":"none",
              "projection":{"op":"literal","value":[]}}
-            """));
-        using DefinitionBundleResult result = DefinitionBundleComposer.ComposeActive(
-            DefinitionFixture.Parse(root.ToJsonString()), DefinitionFixture.Answers());
-        await Assert.That(result.Artifacts).IsEmpty();
-        await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("dotenv-shape");
+            """);
+        await Assert.That(() => DefinitionFixture.Parse(root.ToJsonString())).Throws<SetupDefinitionException>();
     }
 
     [Test]
@@ -209,20 +212,19 @@ public sealed class DefinitionBundleTests
     private static SetupDefinition Definition(int count)
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
-        JsonArray artifacts = root["artifacts"]!.AsArray();
+        JsonObject outputs = root["outputs"]!.AsObject();
         for (int index = 1; index < count; index++)
         {
-            JsonNode artifact = artifacts[0]!.DeepClone();
+            JsonNode artifact = outputs["service.json"]!.DeepClone();
             artifact["id"] = (index % 3) switch { 1 => "dotenv" + index, 2 => "yaml" + index, _ => "config" + index };
             artifact["format"] = count == 64 ? "json" : (index % 3) switch { 1 => "dotenv", 2 => "yaml", _ => "json" };
-            artifact["fileName"] = "output" + index + "." + ((index % 3) switch { 1 => "env", 2 => "yaml", _ => "json" });
             if (count != 64 && index % 3 == 1)
                 artifact["projection"]!["members"]!["NAME"] = artifact["projection"]!["members"]!["name"]!.DeepClone();
             if (count != 64 && index % 3 == 1)
                 artifact["projection"]!["members"]!.AsObject().Remove("name");
-            artifacts.Add(artifact);
+            outputs["service" + index + "." + ((index % 3) switch { 1 => "env", 2 => "yaml", _ => "json" })] = artifact;
         }
-        if (count == 64) root["fields"]![0]!["maxLength"] = SetupCompositionLimits.DefaultScalarCharacters;
+        if (count == 64) root["configuration"]!["properties"]!["service.name"]!["maxLength"] = SetupCompositionLimits.DefaultScalarCharacters;
         return DefinitionFixture.Parse(root.ToJsonString());
     }
 

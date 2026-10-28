@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "properties": {
+    "answerContractVersion": {
+      "const": 1
+    },
+    "values": {
+      "type": "object"
+    },
+    "omitted": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 65536,
+        "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "answerContractVersion",
+    "values",
+    "omitted"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:islamu:configurator:answers:v1",
+  "title": "Configurator private answers v1"
+}

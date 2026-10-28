@@ -174,16 +174,20 @@
     {
         if (!_fieldsById.TryGetValue(diagnostic.FieldId, out var field)) return "Preparation";
         var titles = new List<string> { ConfigurationDiagnosticText.Title(field) };
+        DefinitionNode node = field.Node;
         foreach (string segment in diagnostic.RelativePath)
         {
-            if (field.Type == "list" && int.TryParse(segment, out int row))
+            if (node.Items is { } item && int.TryParse(segment, out int row))
+            {
+                node = item;
                 titles.Add($"Item {row + 1}");
+            }
             else
             {
-                SetupFieldDefinition? child = field.Properties.FirstOrDefault(item => item.Id == segment);
-                if (child is null) break;
-                field = child;
-                titles.Add(ConfigurationDiagnosticText.Title(child));
+                if (!node.Properties.TryGetValue(segment, out var child)) break;
+                node = child;
+                titles.Add(node.Keywords.TryGetProperty("title", out var title) ? title.GetString()!
+                    : string.IsNullOrWhiteSpace(segment) ? "Setting" : segment);
             }
         }
         return string.Join(" / ", titles);

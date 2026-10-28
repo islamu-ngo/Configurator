@@ -4,11 +4,14 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.Input;
+using Configurator.Core.Definitions;
 
 public sealed class ListFieldViewModel : FieldViewModel
 {
     private readonly ObservableCollection<FieldViewModel> _items = [];
-    internal ListFieldViewModel(JsonElement schema, FieldViewModel? parent, bool listItem) : base(schema, parent, listItem)
+    internal ListFieldViewModel(DefinitionNode schema, string name, bool required,
+        FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
+        : base(schema, name, required, parent, listItem, inheritedMasking)
     {
         Items = new ReadOnlyObservableCollection<FieldViewModel>(_items);
         AddItemCommand = new RelayCommand(AddItem, () => !IsDisposed && Items.Count < MaximumItems);
@@ -17,8 +20,8 @@ public sealed class ListFieldViewModel : FieldViewModel
     }
     public ReadOnlyObservableCollection<FieldViewModel> Items { get; }
     public string AddItemName => $"Add item to {Title}";
-    public int MaximumItems => Schema.TryGetProperty("maxItems", out var maximum) ? maximum.GetInt32() : 4096;
-    public int MinimumItems => Schema.TryGetProperty("minItems", out var minimum) ? minimum.GetInt32() : 0;
+    public int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var maximum) ? maximum.GetInt32() : 4096;
+    public int MinimumItems => Schema.Keywords.TryGetProperty("minItems", out var minimum) ? minimum.GetInt32() : 0;
     public IRelayCommand AddItemCommand { get; }
     public IRelayCommand<FieldViewModel> RemoveItemCommand { get; }
     internal override IEnumerable<FieldViewModel> Descendants => Items;
@@ -55,7 +58,7 @@ public sealed class ListFieldViewModel : FieldViewModel
     }
     private FieldViewModel CreateItem(string identity)
     {
-        var item = FormFieldFactory.Project(Form.GetListItemMetadata(FullPath()), this, true);
+        var item = FormFieldFactory.Project(Schema.Items!, "item", true, this, true);
         item.EditorIdentity = identity;
         item.AdoptRoot(Root);
         return item;

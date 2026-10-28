@@ -1,222 +1,233 @@
 # Maintainer authoring contract
 
 > **Audience:** Maintainers | Contributors | AI agents
-> **Status:** Implemented source contract; final runtime and package qualification tracked by the workstream
+> **Status:** Implemented pre-release v2 base; full runtime/client/package qualification remains separate
 > **Owner:** Core | Native authoring tooling | Contributor Experience
-> **Last Verified:** 2026-10-10
-> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/SetupDefinitionSourceCodec.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `schemas/configurator-authoring-v1.schema.json`
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/SetupDefinitionSourceCodec.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `schemas/configurator-authoring-v2.schema.json`
 
 ## Source and admission
 
-The public [current contract reference](../public/definition-reference.md)
-lists source-required versus compiler-materialized properties, actual value
-states, import losses and client capability limits. The
-[point-in-time standard audit](reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md)
-is research/proposed direction, not a replacement source contract.
+The discriminator is `$schema: urn:islamu:configurator:authoring:v2`.
+Required roots are `identity`, `project`, `applicationVersions`, `configuration`
+and `outputs`; optional roots are `entryPoints`, `presentation`, `localization`,
+`annotations`. Unknown members reject. Source v1 is not an alternate parser path.
+The [public reference](../public/definition-reference.md) projects this contract;
+the [standard](../public/definition-standard.md) remains Draft beyond the base.
 
-The authoring discriminator is `$schema: urn:islamu:configurator:authoring:v1`.
-Root members are `identity`, `project`, `applicationVersions`, `fields`, `outputs`
-and optional `entryPoints`, `locales` and `presentation`. The generated
-[source schema](../../schemas/configurator-authoring-v1.schema.json) describes
-structure; Core also enforces references, privacy, resource budgets and output
-semantics. Authoring version, runtime schema version, family revision and target
-application version are separate contracts.
+`DefinitionAuthoringCodec.ParseJson/ParseYaml` snapshots bounded exact-key source.
+`DefinitionAuthoringCompiler.Compile` builds the runtime envelope, expands output
+mappings, then calls `SetupDefinitionCodec.AdmitCompiled`. That owner computes
+`profile: bounded-v2` and sorted `requiredCapabilities`, and finishes through
+public runtime admission. Runtime parsing verifies the computed set rather than
+trusting authors. No second evaluator or general JSON Schema validator exists.
 
-`DefinitionAuthoringCodec.ParseJson/ParseYaml` normalizes bounded syntax into an
-immutable `DefinitionAuthoringDocument`. `DefinitionAuthoringCompiler.Compile`
-expands it and calls `SetupDefinitionCodec.ParseJson`, yielding admitted canonical
-runtime bytes and a computed digest. `SetupDefinitionSourceCodec.ParseJson/ParseYaml`
-selects authoring only for that discriminator, runtime only for `schemaVersion`,
-and rejects conflicting/unknown discriminators. There is no parser fallback.
-
-The CLI's concrete public-source adapter uses `BoundedFileInput` for worker-owned
-open/stat/read with its existing 4 MiB per-file bound. Empty input, changed length
-and oversize map to `definition-source-bound`; errors do not reveal file content
-or private paths. The adapter still selects and checks source paths and returns
-a caller-owned byte copy after clearing bounded storage. Sharing byte acquisition
-does not grant command handlers ambient filesystem authority or merge public
-authoring policy with private artifact import.
+`SetupDefinitionSourceCodec` selects source by the exact `$schema` discriminator
+or runtime by `schemaVersion: 2`. Conflicting/unknown discriminators reject;
+there is no parser fallback. Public source, runtime, private answer and command
+versions are independent. Private answers use `answerContractVersion: 1`;
+the command envelope remains v2 and check/build handshake versions are 2/2.
 
 Project requires `id` and `name`; publisher defaults to name. Optional description,
-credential-free HTTPS repository and explicit definition license carry distribution
-metadata. Local use does not require store metadata. Identity requires a nonempty
-family GUID and positive revision; compilation never allocates or advances either.
-Versions are exact explicit strings; locales default to `en`, entry points to `setup`.
+credential-free public HTTPS repository and definition license are distribution
+metadata, not trust. Family is a nonempty UUID; revision is positive. Compilation
+never allocates or advances identity. Versions are exact strings; entry points
+default to `setup`. Locales derive from localization or default to `en`.
+
+The CLI's public-source adapter uses `BoundedFileInput` for worker-owned bounded
+open/stat/read (4 MiB per file). Empty input, changed length and oversize yield
+`definition-source-bound`; errors reveal neither content nor private paths.
+The adapter returns caller-owned bytes after clearing bounded storage. Shared
+acquisition does not give handlers ambient filesystem or private-import authority.
 
 ## Fields and projections
 
-Fields are keyed maps. Their members use the runtime field vocabulary except `id`;
-object/list-object `properties` are keyed maps too. Type is mandatory. Title defaults
-to a humanized key, disclosure to `guided`, sensitivity to `sensitive`. A public
-default/recommendation requires every applicable nested property to be public.
-Private ancestor classification also forbids a nested public leaf's default or
-recommendation; declaring the leaf public cannot lower its inherited privacy floor.
-Nested secret properties raise the effective parent's sensitivity. Unknown members,
-private defaults, invalid constraints and condition cycles fail with value-free codes.
+`configuration` is a non-null closed object schema. Every object explicitly
+requires `additionalProperties: false`; arrays require recursive `items`.
+`properties` keys are exact names. Types are string, boolean, integer, number,
+object and array; nullable type is exactly one base type plus `"null"`.
+Enums are typed homogeneous scalar values, not a separate field type.
+Inclusive numeric, scalar-length, item/property cardinality bounds and scalar
+const are admitted. `format` is annotation only.
 
-Source field/output cardinality is checked before expansion. Generated nodes and
-aggregate scalar text share one budget, charged while each projection member is
-constructed, so small sources cannot amplify implicit field/output products beyond
-the runtime's resource ceilings before admission.
+`x-configurator` admits sensitivity, initialValue, suggestedValue, notBlank,
+uniqueBy, applicableWhen, detail, guidance, credential, choices and units.
+Public initial/suggested/default/example/const metadata must pass privacy and
+value admission. Private ancestors prevent literal-value leakage through public
+leaves; protected descendants raise effective container sensitivity.
+Missing sensitivity remains sensitive. Unknown members, invalid constraints,
+reference errors, cycles and resource overflow reject with value-free codes.
 
-Valid root logical keys retain their runtime ID. Otherwise the ID is `f-` followed
-by a full SHA-256 of an NFC-normalized, domain-separated escaped root pointer.
-Nested property keys must satisfy runtime identifier grammar, preserving actual
-target names. Output IDs default to `out-<filename>` when representable, otherwise
-`o-` and a full domain-separated SHA-256. Arrays generated from maps use ordinal key
-order; inserting unrelated keys cannot change existing identities. Meaningful explicit
-output IDs are permitted. References use declared logical field keys and are rewritten
-once; labels, traversal counters and example values never determine identity.
+`SetupFieldDefinition.Name` preserves the exact root data key; `Id` is bounded
+metadata. Names fitting the identifier grammar retain their ID unless they start
+with reserved `f-`. Other names use `f-` plus full SHA-256 of `"field:"` and the
+escaped exact root pointer. Case and Unicode composition are not normalized.
+This also hashes literal names beginning `f-`, preventing generated-ID collisions.
+Neither human labels nor traversal order determines data identity.
 
-Outputs are keyed by sanitized target filenames and require `format`. Apply semantics
-default to `generationOnly`; omitted restart is `none`, with no hot-reload guarantee.
-JSON/YAML shorthand copies exact root keys, including literal dots, without nesting.
-Dotenv shorthand accepts scalar fields and valid environment names. Optional `bindings`
-maps target keys to declared logical fields. It is mutually exclusive with `projection`.
-Advanced projections use the existing closed literal/copy/object/list/repeat/omit/index
-vocabulary and conditions; Markdown requires an explicit projection. Source compilation
-does not supply target acceptance, administration or apply authority. Answer-derived
-output remains restricted under the existing composer/writer contracts.
+References are closed `{scope: root|item, path: <RFC6901 pointer>}` objects.
+Empty pointer selects the context root, `/` the empty-name property; `~0` and
+`~1` escape tilde/slash once. Dots and asterisks are literal names. Array indices
+are canonical decimal tokens without leading zeroes; `-` is not an existing item.
+Item scope is legal only in an admitted repeat context.
+
+Outputs are sanitized basename-keyed objects requiring `format`. Output IDs
+default to representable `out-<filename>` or a domain-separated `o-` SHA-256;
+explicit bounded IDs are permitted. Expansion uses ordinal output/binding order.
+`targetUpdateMode` and `restartRequirement` both default to `unspecified`.
+They replace old source `applySemantics`/`restart` vocabulary and grant no apply
+or protected-write authority.
+
+Dotenv bindings map literal environment names to scoped non-null scalar
+references. JSON/YAML bindings map concrete target pointers to scoped references;
+the compiler constructs object members and rejects overlapping target paths.
+No dotted-name nesting is inferred. Bindings and projection are mutually
+exclusive. Unmapped JSON/YAML copy the effective configuration tree; dotenv and
+Markdown require explicit mappings/projections. Projections retain the closed
+literal/copy/object/list/repeat/omit/index operations with scoped references.
+Generated projection nodes/text are budgeted during expansion before admission.
+
+## Effective values and relationships
+
+Standard `default` is descriptive only. Core resolves eligible `initialValue`
+at never-supplied locations, never a separate client seeding policy.
+`suggestedValue` changes nothing without deliberate adoption. Explicit omission
+suppresses initialization; reset removes override and suppression. Child initial
+values do not create absent containers, and required children do not manufacture
+an absent optional object. Required means property presence, not nonblank text.
+Null is supplied only when nullable; false, zero and empty containers are supplied.
+
+Private snapshots contain exact-name `values` plus distinct concrete `omitted`
+pointers under answerContractVersion 1. Supplied/suppressed conflicts and
+overlapping omissions reject atomically. Validation, drafts and composition
+consume the same effective configuration.
+
+Applicability is currently admitted on direct configuration properties with
+root-scoped predicates; nested applicability and configuration-root applicability
+reject. Root presence-only `if.required`/`then.required` and `dependentRequired`
+are delivered relationship assertions, not visibility toggles. Broader/nested
+conditions, maps, variants, advanced assertions, format assertions and source maps
+remain later-phase work.
 
 ## Authored presentation and guidance
 
-Source `presentation` shares runtime `defaultExperience`, `sections` and
-`experiences`. Section objects share `id`, `title`, optional `description` and
-`disclosure`, but select roots using a nonempty `fields` array of logical keys
-and/or a nonempty `groups` array of existing field-group labels. Unknown groups,
-missing roots, duplicate selectors and cross-section overlap reject. Explicit
-fields preserve authored order; each group appends matching roots in ordinal
-logical-key order. Compilation expands groups once and maps all logical roots
-through the existing `FieldId` map; runtime retains only ordered `fields` IDs.
-Nested properties are not independently laid out. No selector syntax is inferred
-from punctuation in a logical key.
+Presentation uses sections (`id`, `title`, concrete `pointers`, optional
+description), journeys (`id`, `title`, ordered section IDs, optional description),
+`defaultJourney` and optional `navigation` (`wizard`/`sections`). Section/journey
+IDs are bounded lowercase kebab-case, titles 128 and descriptions 2048 characters;
+section/journey counts remain bounded at 64/16. Concrete pointers resolve against
+the admitted configuration. There are no old group selectors or experience
+aliases. Detail is basic/standard/advanced, independent of requiredness.
+Absent presentation is neutral, not an answer preset.
 
-Every root must occur once across 1-64 nonempty sections; every experience must
-list all sections once. There are 1-16 experiences, with a declared
-`defaultExperience` reference. IDs are unique ASCII lowercase kebab-case starting
-with a letter, at most 64 characters; titles 128, optional descriptions 2,048.
-Section `disclosure` and experience `initialDisclosure` use the existing
-essential/guided/advanced vocabulary and default to guided. Experience
-`navigation` is guided/sections, default sections. These authored choices do not
-depend on experience names, supply presets or override validation. Absent
-presentation is valid and neutral for generic machine-only definitions.
+Schema `description` is the ordinary explanation. Extension guidance has optional
+instructions (4096), at most four links and sixteen search terms. Instructions
+admit multiline plain text and technical punctuation, not template expansion.
+Static credential-free HTTPS links may have fragments, not queries. Rendering
+and deliberate opening must add no fetching, interpolation or answer transfer.
+Useful secret-acquisition help remains an integration-review obligation.
 
-Per-field `help` remains the short authored explanation, not an alias for comments
-or a new sidecar. `guidance` accepts only optional `instructions`, `links`,
-`searchTerms`; `credential` accepts only required `kind`, `acquisition`. They pass
-through the same recursive field expansion, including inherited secret context,
-then the closed runtime admission boundary. Guidance bounds and plain-text/link
-restrictions, credential-kind acquisition matrix and immutable public API are
-defined in the [Core contract](CORE_DEFINITION_CONTRACT.md#presentation-guidance-and-credentials).
-First-party interactive secret fields require useful authored help at integration
-review; generic machine-only definitions may omit all descriptors.
+Credential descriptors require an effective secret string context. Kinds are
+password, opaque-token, symmetric-key, private-key and connection-string;
+acquisition is existing/create/issuer. Create is only password/symmetric-key;
+issuer excludes symmetric-key. Intent grants no generator or authentication.
 
-`DefinitionAuthoringSchema` derives these runtime descriptors from
-`DefinitionSchema`, adding only source `groups` and optional logical `fields`
-selection. Regenerate both via the native definition schema generator; semantic
-coverage, effective-secret and existing source/generated node/scalar/depth budgets
-are still enforced by the compiler/codec. Any admitted metadata edit changes the
-canonical digest and requires the existing revision workflow. YAML syntax comments
-remain excluded. See the [public source example](../public/integrate-your-tool.md#complete-minimal-configuratoryaml-example).
+Localization admits `defaultLocale`, locale-keyed translations, optional
+ltr/rtl direction and overrides pointing to existing public text. The compiler
+derives sorted runtime locales; runtime checks agreement. This base does not
+deliver broader localization policy or qualify translation behavior across clients.
+All admitted metadata participates in canonical identity; YAML comments do not.
 
 ## Syntax and identity editing
 
-Both formats share exact bounded decimal canonicalization; no floating-point conversion
-is used. YAML admits JSON-shaped numbers, lowercase `true`, `false`, `null`, strings,
-sequences, mappings, comments and multiline strings. Quote intended typed-looking keys
-and ambiguous strings. Empty plain scalars, non-string resolved keys, case/NFC collisions,
-merge keys (even quoted), directives, tags, anchors, aliases and multiple documents reject.
+Both formats use exact bounded decimal canonicalization with no floating-point
+rounding. YAML is JSON-shaped strings, numbers, lowercase booleans/null, sequences
+and mappings with comments/multiline strings. Quote typed-looking keys. Empty
+plain scalars, non-string resolved keys, exact duplicates, merge keys even quoted,
+directives, tags, anchors, aliases and multiple documents reject. Case- and
+NFC-distinct data names remain distinct; invalid Unicode rejects.
 
-`DefinitionAuthoringIdentityEditor.UpdateRevision/Fork` operates on source snapshots,
-locates parser scalar spans, patches only identity tokens and recompiles the result.
-JSON offsets are UTF-8 bytes; YAML marks are decoded character offsets. BOM, Unicode,
-newlines, quotes and all other comments/bytes are preserved. Native CLI owns source locks,
-digest checks, create-only public builds and atomic replacements. This public-file editing
-does not promise filesystem compare-and-swap against an uncooperative external editor:
-another writer can race the final replacement window. Protected answer saves use their
-separate create-only writer; source editing receives no answers.
+`DefinitionAuthoringIdentityEditor.UpdateRevision/Fork` patches parser scalar
+spans and recompiles. JSON offsets are UTF-8 bytes; YAML marks are decoded
+character offsets. Other source bytes, comments, quotes, BOM and newlines are
+preserved. Fork allocates a new family/revision 1. Native source editing is
+public-file custody, not the protected answer writer or filesystem CAS against
+an uncooperative external editor.
 
 ## Local clients and distribution
 
-CLI, Terminal and Desktop choose JSON or YAML/YML from an explicitly selected local file
-and use the shared source codec before workspace selection. Browser local selection uses
-the same bounded compiler before answers; remote HTTPS/deep links accept compiled runtime
-JSON only. Compilation adds no network, target authentication, native I/O or persistent
-answer custody. Optional store metadata comes from the same source; compiled immutable
-canonical revisions are the distribution and conflict-history boundary.
-
-See [public integration](../public/integrate-your-tool.md),
-[runtime admission](CORE_DEFINITION_CONTRACT.md) and
-[architecture decision](adr/ADR-maintainer-authoring-and-canonical-distribution.md).
+Local clients select JSON/YAML explicitly and share source compilation before
+answers. Browser remote HTTPS/deep links accept canonical runtime JSON only.
+Source/runtime agreement does not qualify every client editing path. Mandatory
+capabilities must be checked before answer collection; optional layout degrades
+only to a reachable neutral form. No compilation or distribution channel adds
+network authentication, target apply or persistent browser answer custody.
 
 ## Native maintainer commands
 
-`DefinitionCommands` registers init/check/build/revise through the existing Spectre
-registry/preflight and closed machine envelope. `SetupCliDefinitionHandlers` owns
-scaffolding, compilation and canonical revision comparison; every source discovery,
-read, existence and staged-publication route, including schema references, uses
-the required invocation `ISetupCliAuthoringFiles` capability. `SetupCliIo`
-requires this authority explicitly; Program supplies `PublicDefinitionFiles`
-and ordinary non-authoring fixtures reject it. There is no ambient fallback.
-The native staged-file owner is not the protected answer writer. Initialization requires
-project ID/name and an exact application version, or an explicit fork source/new
-destination. Environment scaffolding extracts only keys and retains no example
-values. YAML is default; JSON has identical capability.
+`DefinitionCommands` registers init/check/build/revise through the existing
+Spectre registry/preflight and command v2 envelope. `SetupCliDefinitionHandlers`
+owns scaffolding, compilation and revision comparison. Discovery/read/existence/
+staged publication, including schema references, use invocation-scoped
+`ISetupCliAuthoringFiles`; `SetupCliIo` requires it explicitly and Program supplies
+`PublicDefinitionFiles`. Non-authoring fixtures reject that authority.
 
-Discovery admits exactly one of configurator.yaml/configurator.yml/configurator.json
-at the selected root; explicit source selects one. Check is read-only. Build creates
-canonical JSON at dist/configurator/revisions/<revision>.json by default, accepts
-identical existing bytes and rejects conflicts. Existing default anchors bind
-family/revision/digest even when a build selects another destination. Revise requires
-a matching prior canonical family/current revision; semantic differences increment
-once, overflow rejects and unchanged canonical content leaves the source untouched.
-A changed revision requires a separate create-only `--output` candidate with the
-same source format. The original source is never replaced, including if an editor
-saves after the initial read. Review/adoption and a later build are separate actions.
-Fork allocates a new family/revision 1 in a new destination.
-Check/build accept `--against` for a separately located canonical anchor and reject
-an explicitly named missing anchor.
-Default recorded history is verified independently of the supplied anchor; an
-explicit prior cannot substitute different content under an already recorded revision.
+Initialization requires project ID/name and exact application version, or an
+explicit fork source/destination. Environment scaffolding retains names only,
+not example values. YAML is default; JSON has the same source capability.
+Discovery admits exactly one configurator.yaml/configurator.yml/configurator.json
+at the selected root; explicit source selects one. Check is read-only.
 
-Public source paths reject symlinks in any ancestor. Create-only public writes use
-same-directory temporary files and no-overwrite rename. Revision candidates use
-that same create-only boundary; source replacement helpers, mutation locks and
-legacy fixed-ceiling read wrappers are removed after caller migration.
-Identical-file acceptance is bounded by the current invocation in the public
-capability, not a second native read policy. Generated outputs cannot replace
-sources/discovery candidates. This path-based boundary does not establish
-captured-handle/root authority or filesystem CAS; that remains a separate required gate.
-Optional logical-ID maps contain only public semantic keys and IDs. Machine diagnostics
-contain bounded codes/structural paths, never source scalars or filesystem paths.
-Successful check/build adds authoringContractVersion=1/runtimeSchemaVersion=1 for
-the independent pinned compiler handshake; downstream validates the canonical digest.
+Build is create-only at dist/configurator/revisions/&lt;revision&gt;.json by default,
+accepts identical existing canonical bytes and rejects conflicts. Default history
+anchors bind family/revision/digest even when another destination is selected.
+Revise requires a matching prior family/current revision; semantic changes
+increment once, overflow rejects, unchanged canonical content leaves source alone.
+A changed revision goes to separate create-only `--output` in the same format;
+source adoption and later build are separate actions. Check/build support
+`--against` and reject an explicitly missing anchor. A supplied prior cannot
+replace different recorded history.
+
+Public paths reject ancestor symlinks. Staged writes use same-directory temporary
+files and no-overwrite rename; generated output cannot replace source/discovery
+candidates. This path boundary is not captured-handle/root authority or CAS.
+Machine diagnostics are bounded structural codes, never source scalars or private
+paths. Successful check/build reports authoringContractVersion=2 and
+runtimeSchemaVersion=2; downstream independently verifies the canonical digest.
+Command v3 remains later work.
 
 ## Public schema import
 
-`DefinitionSchemaImporter` is pure Core computation over the root schema and a bounded
-map of supplied local reference documents. `DefinitionSchemaSourceFiles` owns native
-root-confined reads, rejects links/traversal and provides no network fallback. Limits
-are 4 MiB aggregate supplied bytes, 64 documents, 16,384 parsed nodes, 8,192 expanded
-nodes, expansion depth 24 and reference stack 32. Duplicate/case/NFC collisions reject.
-Expanded bytes charge keys, per-node structural overhead, titles/help and choices
-before emission; repeated references cannot amplify source metadata beyond 4 MiB.
-Annotation text must fit runtime bounds; line breaks/tabs become spaces. Nested
-$id scopes and root $id with nonfragment references reject rather than changing
-resource resolution silently. Resource checks distinguish schema objects from
-definition/property maps, whose member names do not introduce schema keywords.
+`DefinitionSchemaImporter` is pure computation over bounded supplied schemas;
+`DefinitionSchemaSourceFiles` owns root-confined native reads, rejecting links/
+traversal with no network fallback. Bounds remain 4 MiB supplied bytes, 64
+documents, 16384 parsed nodes, 8192 expanded nodes, depth 24, reference stack 32.
+Expansion charges keys, overhead and metadata before emission.
 
-Supported Draft 2020-12 vocabulary is explicit scalar types, homogeneous string enums,
-closed objects with local required sets, homogeneous arrays, representable numeric,
-length and item bounds, local $defs/$ref and descriptive annotations. Unsupported
-assertions, dynamic/remote refs, cycles, open maps, tuple/union/combinator/conditional
-schemas, regex and unrepresentable item constraints fail. Imported defaults are
-discarded; writeOnly raises secret sensitivity, including referenced/root annotations.
-Format remains explanatory help rather than asserted validation.
+The importer emits `Configuration`, not the old Fields map. Its subset remains
+explicit scalar types/string enums, closed objects/local required sets, selected
+homogeneous arrays/inclusive bounds and bounded supplied local `$defs`/`$ref`.
+This is narrower than native v2: nullable unions, general conditions/combinators,
+maps, regex and unsupported array-item constraints still reject. Nested resource
+scopes reject. Selected text survives with line breaks/tabs normalized; defaults
+are discarded, ordinary nodes sensitive, writeOnly secret, format explanatory.
 
-Strict import returns schema-bounded-semantics-required with enumerated differences:
-schema-required-string-whitespace, schema-string-utf16-length and
-schema-numeric-bounded-domain. The explicit acknowledgment permits only these bounded
-domain differences and retains warning diagnostics in the success result; unsupported
-assertions/privacy are never bypassed. The CLI compiles the generated source before
-creating it. Neither import nor compilation certifies target-validator equivalence.
+Strict import reports `schema-bounded-semantics-required` for encountered
+`schema-numeric-bounded-domain`; acknowledgment permits that named difference,
+never unsupported assertions or privacy loss. Native v2 no longer substitutes
+required-string-whitespace or UTF-16-length semantics. CLI compiles before source
+creation; import is not proof of target-validator equivalence.
+
+## Generated schemas and examples
+
+The native `Configurator.DefinitionSchemaGenerator` owns `--write` and `--check`
+for authoring-v2/runtime-v2/answers-v1 schemas, and `--write-examples`,
+`--renew-example-families`, `--check-examples` for the three maintained pairs.
+Renewal uses the native identity editor and allocates fresh family/revision 1;
+ordinary writing does not authorize rewriting published identity history.
+See the [schema catalog](../../schemas/README.md) for exact commands.
+
+The parent reports current fresh-family source/runtime agreement 3/3, not target
+acceptance. This unit inspected source and made prose edits only; parent owns
+freshness, link and product checks. See the [integration workflow](../public/integrate-your-tool.md)
+and [Core contract](CORE_DEFINITION_CONTRACT.md).

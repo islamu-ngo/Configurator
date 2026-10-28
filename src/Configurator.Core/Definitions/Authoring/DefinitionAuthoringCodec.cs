@@ -1,11 +1,10 @@
 namespace Configurator.Core.Definitions.Authoring;
 
 using System.Text.Json;
-using Configurator.Core.Composition;
 
 public static class DefinitionAuthoringCodec
 {
-    public const string SchemaId = "urn:islamu:configurator:authoring:v1";
+    public const string SchemaId = DefinitionProfile.AuthoringSchemaId;
 
     public static DefinitionAuthoringDocument ParseJson(ReadOnlyMemory<byte> bytes) => Parse(bytes, false);
     public static DefinitionAuthoringDocument ParseYaml(ReadOnlyMemory<byte> bytes) => Parse(bytes, true);
@@ -14,11 +13,7 @@ public static class DefinitionAuthoringCodec
     {
         try
         {
-            CompositionMap tree = yaml
-                ? SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default, CancellationToken.None)
-                : SetupCompositionNormalizer.ParseJson(bytes, SetupCompositionLimits.Default, CancellationToken.None);
-            using JsonDocument parsed = JsonDocument.Parse(SetupCompositionNormalizer.WriteJson(tree, CancellationToken.None));
-            byte[] canonical = DefinitionJson.Canonicalize(parsed.RootElement);
+            byte[] canonical = yaml ? DefinitionProfile.CanonicalizeYaml(bytes) : DefinitionProfile.CanonicalizeJson(bytes);
             using JsonDocument snapshot = JsonDocument.Parse(canonical);
             if (!snapshot.RootElement.TryGetProperty("$schema", out JsonElement schema)
                 || schema.ValueKind != JsonValueKind.String || schema.GetString() != SchemaId)
@@ -26,11 +21,6 @@ public static class DefinitionAuthoringCodec
             return new DefinitionAuthoringDocument(snapshot.RootElement, canonical);
         }
         catch (SetupDefinitionException) { throw; }
-        catch (SetupCompositionException exception)
-        {
-            throw new SetupDefinitionException(exception.Code == SetupCompositionFailureCode.LimitExceeded
-                ? "document-limit" : "document-invalid");
-        }
         catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException)
         {
             throw new SetupDefinitionException("authoring-invalid");

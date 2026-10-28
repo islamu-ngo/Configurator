@@ -1,7 +1,6 @@
 namespace Configurator.Presentation;
 
 using System.Collections.ObjectModel;
-using System.Text.Json;
 using Configurator.Core.Definitions;
 
 /// <summary>One current input revision's private derived facts, without another answer tree.</summary>
@@ -26,7 +25,7 @@ internal sealed class DefinitionFormFacts
         DefinitionFieldInput[] activeInputs = validation.Fields.Where(state => state.IsActive)
             .Select(state => form.GetFieldEditor(state.Id).Input).ToArray();
         InputDiagnostics = Array.AsReadOnly(activeInputs.SelectMany(field => field.InputDiagnostics).ToArray());
-        HasInputErrors = activeInputs.Any(field => field.InputDiagnosticCode is not null || !field.TryValue(out _));
+        HasInputErrors = activeInputs.Any(field => field.InputDiagnosticCode is not null);
         foreach (DefinitionNodeState node in validation.Nodes)
         {
             IReadOnlyList<string> path = node.RelativePath.Count == 0
@@ -54,7 +53,7 @@ internal sealed class DefinitionFormFacts
         {
             IReadOnlyList<string> path = node.RelativePath.Count == 0
                 ? index.RootPaths[node.FieldId] : [node.FieldId, .. node.RelativePath];
-            if (!form.TryMetadataNode(path, out DefinitionFormIndex.Node metadata, out _)) continue;
+            if (!form.TryMetadataNode(path, out DefinitionFormIndex.Node metadata, out _, validation)) continue;
             DefinitionFormSection section = index.SectionsByField[node.FieldId];
             bool inputError = false;
             for (int diagnosticIndex = 0; diagnosticIndex < InputDiagnostics.Count; diagnosticIndex++)
@@ -66,7 +65,7 @@ internal sealed class DefinitionFormFacts
                 break;
             }
             bool deferred = !inputError && IsDeferredLeaf(node);
-            DefinitionAnswerOrigin origin = form.AnswerOrigin(path);
+            DefinitionAnswerOrigin origin = form.AnswerOrigin(path, validation);
             index.Bindings.TryGetValue(node.FieldId, out var binding);
             entries.Add(new(metadata, section, node, inputError, deferred, origin, binding.Artifacts, binding.Keys));
         }
@@ -76,8 +75,9 @@ internal sealed class DefinitionFormFacts
 
         bool IsDeferredLeaf(DefinitionNodeState node) =>
             node.IsObligation && node.IsMissing && node.Sensitivity == SetupFieldSensitivity.Secret &&
-            form.TryMetadata([node.FieldId, .. node.RelativePath], out JsonElement metadata, out _) &&
-            metadata.GetProperty("type").GetString() is not ("object" or "list");
+            form.TryMetadataNode([node.FieldId, .. node.RelativePath], out DefinitionFormIndex.Node metadata,
+                out _, validation) &&
+            metadata.Schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
 
         DefinitionFormProgress CountProgress(IEnumerable<DefinitionNodeState> nodes,
             IEnumerable<DefinitionDiagnostic> diagnostics, IReadOnlyList<DefinitionDiagnostic> inputErrors)

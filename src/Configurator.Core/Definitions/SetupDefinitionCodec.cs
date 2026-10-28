@@ -1,6 +1,8 @@
 namespace Configurator.Core.Definitions;
 
+using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Configurator.Core.Composition;
@@ -15,32 +17,24 @@ public static class SetupDefinitionCodec
         TypeInfoResolver = new DefaultJsonTypeInfoResolver()
     };
 
-    public static SetupDefinition ParseJson(ReadOnlyMemory<byte> bytes) => Parse(bytes, yaml: false);
-    public static SetupDefinition ParseYaml(ReadOnlyMemory<byte> bytes) => Parse(bytes, yaml: true);
+    public static SetupDefinition ParseJson(ReadOnlyMemory<byte> bytes) => Parse(bytes, false);
+    public static SetupDefinition ParseYaml(ReadOnlyMemory<byte> bytes) => Parse(bytes, true);
 
     private static SetupDefinition Parse(ReadOnlyMemory<byte> bytes, bool yaml)
     {
         try
         {
-            CompositionMap normalized = yaml
-                ? SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default, CancellationToken.None)
-                : SetupCompositionNormalizer.ParseJson(bytes, SetupCompositionLimits.Default, CancellationToken.None);
-            using JsonDocument parsed = JsonDocument.Parse(
-                SetupCompositionNormalizer.WriteJson(normalized, CancellationToken.None));
-            byte[] canonical = DefinitionJson.Canonicalize(parsed.RootElement);
-            using JsonDocument canonicalDocument = JsonDocument.Parse(canonical);
-            JsonElement document = canonicalDocument.RootElement;
-            _ = JsonSerializer.Deserialize<DefinitionDocument>(canonical, Options)
-                ?? throw new SetupDefinitionException("definition-invalid");
-            Validate(document);
-            return new SetupDefinition(document, canonical);
+            byte[] canonical = yaml ? DefinitionProfile.CanonicalizeYaml(bytes) : DefinitionProfile.CanonicalizeJson(bytes);
+            using JsonDocument parsed = JsonDocument.Parse(canonical);
+            var capabilities = new SortedSet<string>(StringComparer.Ordinal);
+            DefinitionNode configuration = Admit(parsed.RootElement, capabilities);
+            JsonElement declared = parsed.RootElement.GetProperty("requiredCapabilities");
+            if (declared.ValueKind != JsonValueKind.Array
+                || !declared.EnumerateArray().Select(item => item.GetString()).SequenceEqual(capabilities, StringComparer.Ordinal))
+                throw new SetupDefinitionException("capabilities-invalid");
+            return new SetupDefinition(parsed.RootElement, canonical, configuration);
         }
         catch (SetupDefinitionException) { throw; }
-        catch (SetupCompositionException exception)
-        {
-            throw new SetupDefinitionException(exception.Code == SetupCompositionFailureCode.LimitExceeded
-                ? "document-limit" : "document-invalid");
-        }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException
             or FormatException or ArgumentException or OverflowException)
         {
@@ -48,339 +42,602 @@ public static class SetupDefinitionCodec
         }
     }
 
-    private static void Validate(JsonElement document)
+    /// <summary>Fills computed profile/capabilities only, then uses public runtime admission.</summary>
+    internal static SetupDefinition AdmitCompiled(JsonObject runtime)
     {
-        if (document.GetProperty("schemaVersion").GetInt32() != 1
-            || !Guid.TryParseExact(document.GetProperty("familyId").GetString(), "D", out Guid family)
+        runtime["profile"] = DefinitionProfile.Id;
+        runtime["requiredCapabilities"] = new JsonArray();
+        byte[] bytes = DefinitionProfile.CanonicalizeJson(JsonSerializer.SerializeToUtf8Bytes(runtime));
+        using JsonDocument document = JsonDocument.Parse(bytes);
+        var capabilities = new SortedSet<string>(StringComparer.Ordinal);
+        _ = Admit(document.RootElement, capabilities);
+        runtime["requiredCapabilities"] = new JsonArray(capabilities.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray());
+        return ParseJson(JsonSerializer.SerializeToUtf8Bytes(runtime));
+    }
+
+    private static DefinitionNode Admit(JsonElement document, SortedSet<string> capabilities)
+    {
+        Only(document, "schemaVersion", "profile", "familyId", "revision", "project", "applicationVersions",
+            "entryPoints", "locales", "configuration", "artifacts", "requiredCapabilities", "presentation", "localization", "annotations");
+        if (document.GetProperty("schemaVersion").GetInt32() != DefinitionProfile.RuntimeSchemaVersion
+            || document.GetProperty("profile").GetString() != DefinitionProfile.Id)
+            throw new SetupDefinitionException("definition-version");
+        if (!Guid.TryParseExact(document.GetProperty("familyId").GetString(), "D", out Guid family)
             || family == Guid.Empty || document.GetProperty("revision").GetInt64() < 1)
             throw new SetupDefinitionException("identity-invalid");
-        foreach (string name in new[] { "applicationId", "publisher", "title" })
-            Text(document.GetProperty(name), 256);
+        JsonElement project = document.GetProperty("project");
+        Only(project, "id", "name", "publisher", "description", "repository", "definitionLicense");
+        foreach (string name in new[] { "id", "name", "publisher" }) Text(project.GetProperty(name), 256);
+        foreach (string name in new[] { "description", "definitionLicense" })
+            if (project.TryGetProperty(name, out var text)) Text(text, name == "description" ? 4096 : 256);
+        if (project.TryGetProperty("repository", out var repository)) PublicUrl(repository, fragment: false);
         foreach (string name in new[] { "applicationVersions", "entryPoints", "locales" })
-        {
-            var unique = new HashSet<string>(StringComparer.Ordinal);
-            JsonElement array = document.GetProperty(name);
-            if (array.GetArrayLength() is < 1 or > 128)
-                throw new SetupDefinitionException("metadata-limit");
-            foreach (JsonElement item in array.EnumerateArray())
-                if (!unique.Add(Text(item, 128))) throw new SetupDefinitionException("metadata-duplicate");
-        }
-        JsonElement fields = document.GetProperty("fields");
+            Strings(document.GetProperty(name), 128, 128, nonempty: true);
+        DefinitionNode configuration = ReadNode(document.GetProperty("configuration"), capabilities, true, false);
+        if (configuration.Type != DefinitionNodeType.Mapping || configuration.IsNullable)
+            throw new SetupDefinitionException("configuration-object-required");
+        if (configuration.Properties.Count > 1024) throw new SetupDefinitionException("document-limit");
+        foreach (DefinitionNode child in configuration.Properties.Values) RejectNestedRelationships(child);
+        ValidateApplicability(configuration, capabilities);
+        if (document.TryGetProperty("annotations", out var annotations) && annotations.ValueKind != JsonValueKind.Object)
+            throw new SetupDefinitionException("annotations-invalid");
+        ValidateLocalization(document);
+        if (document.TryGetProperty("presentation", out var presentation)) ValidatePresentation(presentation, configuration);
         JsonElement artifacts = document.GetProperty("artifacts");
-        if (fields.GetArrayLength() > 1024 || artifacts.GetArrayLength() is < 1 or > 64)
-            throw new SetupDefinitionException("definition-limit");
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        var folded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (JsonElement field in fields.EnumerateArray())
-        {
-            string id = Identifier(field.GetProperty("id"));
-            if (!ids.Add(id) || !folded.Add(id)) throw new SetupDefinitionException("field-duplicate");
-            ValidateField(field, nested: false);
-        }
-        if (document.TryGetProperty("presentation", out var presentation)) ValidatePresentation(presentation, ids);
-        var dependencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (JsonElement field in fields.EnumerateArray())
-        {
-            var references = new HashSet<string>(StringComparer.Ordinal);
-            foreach (string member in new[] { "activeWhen", "requiredWhen" })
-                if (field.TryGetProperty(member, out var condition)) ValidateCondition(condition, ids, references);
-            dependencies.Add(field.GetProperty("id").GetString()!, references);
-        }
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string id in ids) Visit(id, new HashSet<string>(StringComparer.Ordinal));
-        void Visit(string id, HashSet<string> path)
-        {
-            if (visited.Contains(id)) return;
-            if (!path.Add(id)) throw new SetupDefinitionException("activation-cycle");
-            foreach (string reference in dependencies[id]) Visit(reference, path);
-            path.Remove(id);
-            visited.Add(id);
-        }
-
-        var artifactIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var listIds = fields.EnumerateArray().Where(field => field.GetProperty("type").GetString() == "list")
-            .Select(field => field.GetProperty("id").GetString()!).ToHashSet(StringComparer.Ordinal);
+        if (artifacts.GetArrayLength() is < 1 or > 64) throw new SetupDefinitionException("artifact-limit");
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (JsonElement artifact in artifacts.EnumerateArray())
         {
-            if (!artifactIds.Add(Identifier(artifact.GetProperty("id"))))
-                throw new SetupDefinitionException("artifact-duplicate");
+            Only(artifact, "id", "fileName", "format", "targetUpdateMode", "restartRequirement", "projection");
+            string id = Text(artifact.GetProperty("id"), 128);
+            if (!char.IsAsciiLetter(id[0]) || !id.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_')
+                || !ids.Add(id)) throw new SetupDefinitionException("artifact-identifier");
             Choice(artifact, "format", DefinitionVocabulary.Formats);
-            Choice(artifact, "applySemantics", DefinitionVocabulary.ApplySemantics);
-            Choice(artifact, "restart", DefinitionVocabulary.Restarts);
-            string fileName = Text(artifact.GetProperty("fileName"), 128);
-            string stem = fileName.Split('.')[0];
-            if (fileName is "." or ".." || fileName[^1] is '.' or ' '
-                || !fileName.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_')
+            Choice(artifact, "targetUpdateMode", DefinitionVocabulary.TargetUpdateModes);
+            Choice(artifact, "restartRequirement", DefinitionVocabulary.RestartRequirements);
+            string file = Text(artifact.GetProperty("fileName"), 128);
+            string stem = file.Split('.')[0];
+            if (file is "." or ".." || file[^1] is '.' or ' '
+                || !file.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_')
                 || stem.ToUpperInvariant() is "CON" or "PRN" or "AUX" or "NUL"
                 || stem.Length == 4 && (stem.StartsWith("COM", StringComparison.OrdinalIgnoreCase)
                     || stem.StartsWith("LPT", StringComparison.OrdinalIgnoreCase)) && char.IsAsciiDigit(stem[3])
-                || !fileNames.Add(fileName))
-                throw new SetupDefinitionException("filename-invalid");
-            ValidateProjection(artifact.GetProperty("projection"), ids, listIds, inRepeat: false);
+                || !files.Add(file)) throw new SetupDefinitionException("filename-invalid");
+            ValidateProjection(artifact.GetProperty("projection"), configuration, null, capabilities, 0);
+            if (artifact.GetProperty("format").GetString() == "dotenv")
+                ValidateDotenv(artifact.GetProperty("projection"), configuration);
+        }
+        return configuration;
+
+        static void RejectNestedRelationships(DefinitionNode node)
+        {
+            if (node.Keywords.TryGetProperty("if", out _) || node.Keywords.TryGetProperty("dependentRequired", out _))
+                throw new SetupDefinitionException("relationship-context");
+            foreach (DefinitionNode child in node.Properties.Values) RejectNestedRelationships(child);
+            if (node.Items is { } items) RejectNestedRelationships(items);
         }
     }
 
-    private static void ValidateField(JsonElement field, bool nested, bool publicAncestors = true, bool secretAncestors = false)
+    private static DefinitionNode ReadNode(JsonElement schema, SortedSet<string> capabilities, bool publicAncestors, bool secretAncestors)
     {
-        Identifier(field.GetProperty("id"));
-        Text(field.GetProperty("title"), 256);
-        Choice(field, "type", DefinitionVocabulary.FieldTypes);
-        Choice(field, "sensitivity", DefinitionVocabulary.Sensitivities);
-        bool publicContext = publicAncestors && field.GetProperty("sensitivity").GetString() == "public";
-        Choice(field, "disclosure", DefinitionVocabulary.Disclosures);
-        foreach (string name in new[] { "help", "group", "format", "consequence" })
-            if (field.TryGetProperty(name, out var text)) Text(text, name == "help" ? 4096 : 256);
-        if (field.TryGetProperty("validator", out _))
-            Choice(field, "validator", DefinitionVocabulary.Validators);
-        foreach ((string low, string high) in new[]
-            { ("minLength", "maxLength"), ("minItems", "maxItems"), ("minimum", "maximum") })
+        Only(schema, "type", "title", "description", "enum", "const", "properties", "required", "additionalProperties",
+            "items", "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems", "minProperties",
+            "maxProperties", "format", "default", "readOnly", "writeOnly", "deprecated", "examples", "x-configurator",
+            "if", "then", "dependentRequired");
+        JsonElement type = schema.GetProperty("type");
+        bool nullable = type.ValueKind == JsonValueKind.Array;
+        string spelling;
+        if (nullable)
         {
-            decimal? min = field.TryGetProperty(low, out var a) ? a.GetDecimal() : null;
-            decimal? max = field.TryGetProperty(high, out var b) ? b.GetDecimal() : null;
-            if (min > max || low != "minimum" && (min < 0 || max < 0
-                || min != decimal.Truncate(min ?? 0) && min.HasValue
-                || max != decimal.Truncate(max ?? 0) && max.HasValue))
-                throw new SetupDefinitionException("constraint-invalid");
+            string?[] types = type.EnumerateArray().Select(item => item.GetString()).ToArray();
+            if (types.Length != 2 || types.Count(item => item == "null") != 1) throw new SetupDefinitionException("type-invalid");
+            spelling = types.Single(item => item != "null")!;
+            capabilities.Add("schema.nullable");
         }
-        string type = field.GetProperty("type").GetString()!;
-        bool secretContext = secretAncestors || field.GetProperty("sensitivity").GetString() == "secret";
-        if (field.TryGetProperty("guidance", out var guidance)) ValidateGuidance(guidance);
-        if (field.TryGetProperty("credential", out var credential))
+        else spelling = type.GetString()!;
+        DefinitionNodeType nodeType = spelling switch
         {
-            Choice(credential, "kind", "password", "opaque-token", "symmetric-key", "private-key", "connection-string");
-            Choice(credential, "acquisition", "existing", "create", "issuer");
-            string kind = credential.GetProperty("kind").GetString()!;
-            string acquisition = credential.GetProperty("acquisition").GetString()!;
-            if (type != "string" || !secretContext
-                || acquisition == "create" && kind is not ("password" or "symmetric-key")
-                || acquisition == "issuer" && kind == "symmetric-key")
-                throw new SetupDefinitionException("credential-invalid");
+            "string" => DefinitionNodeType.Text,
+            "boolean" => DefinitionNodeType.Boolean,
+            "integer" => DefinitionNodeType.WholeNumber,
+            "number" => DefinitionNodeType.Number,
+            "object" => DefinitionNodeType.Mapping,
+            "array" => DefinitionNodeType.Sequence,
+            _ => throw new SetupDefinitionException("type-unsupported")
+        };
+        capabilities.Add("schema." + spelling);
+        foreach (string name in new[] { "title", "description", "format" })
+            if (schema.TryGetProperty(name, out var text)) Text(text, name == "description" ? 4096 : 256);
+        foreach (string name in new[] { "readOnly", "writeOnly", "deprecated" })
+            if (schema.TryGetProperty(name, out var flag)) _ = flag.GetBoolean();
+        bool writeOnly = schema.TryGetProperty("writeOnly", out var write) && write.GetBoolean();
+        JsonElement extension = default;
+        bool hasExtension = schema.TryGetProperty("x-configurator", out extension);
+        string sensitivity = "sensitive";
+        if (hasExtension)
+        {
+            Only(extension, "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "credential", "choices", "units",
+                "uniqueBy", "applicableWhen");
+            if (extension.TryGetProperty("sensitivity", out var declared))
+            {
+                sensitivity = declared.GetString()!;
+                Choice(extension, "sensitivity", DefinitionVocabulary.Sensitivities);
+            }
         }
-        foreach ((string name, bool allowed) in new[]
+        bool publicContext = publicAncestors && sensitivity == "public" && !writeOnly;
+        bool secretContext = secretAncestors || sensitivity == "secret" || writeOnly;
+        var properties = new Dictionary<string, DefinitionNode>(StringComparer.Ordinal);
+        var required = new List<string>();
+        DefinitionNode? items = null;
+        if (nodeType == DefinitionNodeType.Mapping)
         {
-            ("minLength", type is "string" or "enum"), ("maxLength", type is "string" or "enum"),
-            ("minimum", type is "integer" or "number"), ("maximum", type is "integer" or "number"),
-            ("minItems", type == "list"), ("maxItems", type == "list")
+            if (!schema.TryGetProperty("additionalProperties", out var additional) || additional.ValueKind != JsonValueKind.False)
+                throw new SetupDefinitionException("map-semantics-unsupported");
+            if (schema.TryGetProperty("properties", out var children))
+                foreach (JsonProperty child in children.EnumerateObject())
+                    properties.Add(child.Name, ReadNode(child.Value, capabilities, publicContext, secretContext));
+            if (schema.TryGetProperty("required", out var requiredNames))
+            {
+                foreach (JsonElement name in requiredNames.EnumerateArray())
+                {
+                    string key = name.GetString()!;
+                    if (!properties.ContainsKey(key) || required.Contains(key, StringComparer.Ordinal))
+                        throw new SetupDefinitionException("required-invalid");
+                    required.Add(key);
+                }
+            }
+        }
+        else if (schema.TryGetProperty("properties", out _) || schema.TryGetProperty("required", out _)
+            || schema.TryGetProperty("additionalProperties", out _)) throw new SetupDefinitionException("constraint-context");
+        if (schema.TryGetProperty("if", out var guard))
+        {
+            if (nodeType != DefinitionNodeType.Mapping || !schema.TryGetProperty("then", out var consequence))
+                throw new SetupDefinitionException("relationship-invalid");
+            RequiredSet(guard);
+            RequiredSet(consequence);
+            capabilities.Add("relationship.presence");
+        }
+        else if (schema.TryGetProperty("then", out _)) throw new SetupDefinitionException("relationship-invalid");
+        if (schema.TryGetProperty("dependentRequired", out var dependencies))
+        {
+            if (nodeType != DefinitionNodeType.Mapping || dependencies.ValueKind != JsonValueKind.Object)
+                throw new SetupDefinitionException("relationship-invalid");
+            foreach (JsonProperty dependency in dependencies.EnumerateObject())
+            {
+                if (!properties.ContainsKey(dependency.Name)) throw new SetupDefinitionException("relationship-invalid");
+                Names(dependency.Value);
+            }
+            capabilities.Add("relationship.presence");
+        }
+        void RequiredSet(JsonElement assertion)
+        {
+            Only(assertion, "required");
+            Names(assertion.GetProperty("required"));
+        }
+        void Names(JsonElement names)
+        {
+            if (names.ValueKind != JsonValueKind.Array || names.GetArrayLength() is < 1 or > 1024)
+                throw new SetupDefinitionException("relationship-invalid");
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonElement name in names.EnumerateArray())
+                if (!properties.ContainsKey(name.GetString()!) || !seen.Add(name.GetString()!))
+                    throw new SetupDefinitionException("relationship-invalid");
+        }
+        if (nodeType == DefinitionNodeType.Sequence) items = ReadNode(schema.GetProperty("items"), capabilities, publicContext, secretContext);
+        else if (schema.TryGetProperty("items", out _)) throw new SetupDefinitionException("constraint-context");
+        foreach ((string low, string high, DefinitionNodeType owner) in new[]
+        {
+            ("minLength", "maxLength", DefinitionNodeType.Text),
+            ("minItems", "maxItems", DefinitionNodeType.Sequence),
+            ("minProperties", "maxProperties", DefinitionNodeType.Mapping),
+            ("minimum", "maximum", DefinitionNodeType.Number)
         })
-            if (!allowed && field.TryGetProperty(name, out _)) throw new SetupDefinitionException("constraint-invalid");
-        if (type == "enum")
         {
-            if (!field.TryGetProperty("choices", out var choices) || choices.GetArrayLength() is < 1 or > 256
-                || choices.EnumerateArray().Any(item => item.ValueKind != JsonValueKind.String)
-                || choices.EnumerateArray().Select(item => item.GetString()).Distinct(StringComparer.Ordinal).Count()
-                    != choices.GetArrayLength())
-                throw new SetupDefinitionException("choices-invalid");
-        }
-        else if (field.TryGetProperty("choices", out _)) throw new SetupDefinitionException("constraint-invalid");
-        if (type == "list") Choice(field, "itemType", DefinitionVocabulary.ItemTypes);
-        else if (field.TryGetProperty("itemType", out _)) throw new SetupDefinitionException("constraint-invalid");
-        bool objectList = type == "list" && field.GetProperty("itemType").GetString() == "object";
-        if (type == "object" || objectList)
-        {
-            if (!field.TryGetProperty("properties", out var properties) || properties.ValueKind != JsonValueKind.Array)
-                throw new SetupDefinitionException("properties-invalid");
-            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (JsonElement property in properties.EnumerateArray())
+            decimal? lower = Bound(low);
+            decimal? upper = Bound(high);
+            if (lower > upper) throw new SetupDefinitionException("constraint-invalid");
+            decimal? Bound(string name)
             {
-                if (!ids.Add(Identifier(property.GetProperty("id"))))
-                    throw new SetupDefinitionException("field-duplicate");
-                ValidateField(property, nested: true, publicAncestors: publicContext, secretAncestors: secretContext);
+                if (!schema.TryGetProperty(name, out var value)) return null;
+                if (owner == DefinitionNodeType.Number ? nodeType is not (DefinitionNodeType.Number or DefinitionNodeType.WholeNumber) : nodeType != owner)
+                    throw new SetupDefinitionException("constraint-context");
+                decimal number = value.GetDecimal();
+                if (owner != DefinitionNodeType.Number && (number < 0 || number != decimal.Truncate(number) || number > int.MaxValue))
+                    throw new SetupDefinitionException("constraint-invalid");
+                capabilities.Add("schema.bounds");
+                return number;
             }
         }
-        else if (field.TryGetProperty("properties", out _)) throw new SetupDefinitionException("constraint-invalid");
-        if (field.TryGetProperty("uniqueBy", out var uniqueBy))
+        var keywords = new JsonObject();
+        foreach (JsonProperty property in schema.EnumerateObject())
+            if (property.Name is not ("properties" or "required" or "items" or "additionalProperties"))
+                keywords.Add(property.Name, JsonNode.Parse(property.Value.GetRawText()));
+        var node = new DefinitionNode(nodeType, nullable, properties, required, items, keywords: JsonSerializer.SerializeToElement(keywords));
+        if (schema.TryGetProperty("format", out _) && nodeType != DefinitionNodeType.Text)
+            throw new SetupDefinitionException("constraint-context");
+        if (schema.TryGetProperty("enum", out var choices))
         {
-            if (!objectList || uniqueBy.GetArrayLength() is < 1 or > SetupCompositionLimits.DefaultNestingDepth)
-                throw new SetupDefinitionException("unique-key-invalid");
-            JsonElement current = field;
-            int position = 0;
-            foreach (JsonElement segment in uniqueBy.EnumerateArray())
+            if (nodeType is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence || choices.GetArrayLength() is < 1 or > 256)
+                throw new SetupDefinitionException("enum-invalid");
+            var values = new HashSet<string>(StringComparer.Ordinal);
+            JsonValueKind? kind = null;
+            foreach (JsonElement value in choices.EnumerateArray())
             {
-                string name = Identifier(segment);
-                if (!current.TryGetProperty("properties", out var properties))
-                    throw new SetupDefinitionException("unique-key-invalid");
-                JsonElement child = properties.EnumerateArray().FirstOrDefault(property => property.GetProperty("id").GetString() == name);
-                if (child.ValueKind == JsonValueKind.Undefined || !child.TryGetProperty("required", out var required) || !required.GetBoolean())
-                    throw new SetupDefinitionException("unique-key-invalid");
-                current = child;
-                if (++position < uniqueBy.GetArrayLength() && current.GetProperty("type").GetString() != "object")
-                    throw new SetupDefinitionException("unique-key-invalid");
+                JsonValueKind scalarKind = value.ValueKind == JsonValueKind.False ? JsonValueKind.True : value.ValueKind;
+                if (value.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Null
+                    || kind.HasValue && kind != scalarKind || !values.Add(value.GetRawText())
+                    || !DefinitionValidator.ValueValid(node, value)) throw new SetupDefinitionException("enum-invalid");
+                kind = scalarKind;
             }
-            if (current.GetProperty("type").GetString() != "string")
-                throw new SetupDefinitionException("unique-key-invalid");
+            capabilities.Add("schema.enum");
         }
-        if (nested && (field.TryGetProperty("activeWhen", out _) || field.TryGetProperty("requiredWhen", out _)))
-            throw new SetupDefinitionException("nested-condition");
-        foreach (string name in new[] { "default", "recommended" })
+        if (schema.TryGetProperty("const", out var constant))
         {
-            if (!field.TryGetProperty(name, out var value)) continue;
-            if (!publicContext
-                || !DefinitionValidator.ValueValid(field, value)
-                || HasProtectedProperty(field))
-                throw new SetupDefinitionException("default-invalid");
+            if (constant.ValueKind is JsonValueKind.Object or JsonValueKind.Array
+                || !DefinitionValidator.ValueValid(node, constant)) throw new SetupDefinitionException("const-invalid");
+            capabilities.Add("schema.const");
+        }
+        if (hasExtension)
+        {
+            if (extension.TryGetProperty("uniqueBy", out var uniqueBy))
+            {
+                if (nodeType != DefinitionNodeType.Sequence || items?.Type != DefinitionNodeType.Mapping)
+                    throw new SetupDefinitionException("unique-key-invalid");
+                DefinitionPath path = DefinitionPath.Parse(uniqueBy.GetString()!);
+                if (path.Segments.Count == 0) throw new SetupDefinitionException("unique-key-invalid");
+                DefinitionNode current = items;
+                foreach (string name in path.Segments)
+                    if (current.Type != DefinitionNodeType.Mapping
+                        || !current.Required.Contains(name, StringComparer.Ordinal)
+                        || !current.Properties.TryGetValue(name, out current!))
+                        throw new SetupDefinitionException("unique-key-invalid");
+                if (current.Type != DefinitionNodeType.Text || current.IsNullable)
+                    throw new SetupDefinitionException("unique-key-invalid");
+                capabilities.Add("schema.uniqueBy");
+            }
+            if (extension.TryGetProperty("notBlank", out var notBlank))
+            {
+                if (nodeType != DefinitionNodeType.Text) throw new SetupDefinitionException("constraint-context");
+                if (notBlank.GetBoolean()) capabilities.Add("schema.notBlank");
+            }
+            if (extension.TryGetProperty("detail", out _)) Choice(extension, "detail", "basic", "standard", "advanced");
+            if (extension.TryGetProperty("units", out var units)) Text(units, 128);
+            if (extension.TryGetProperty("guidance", out var guidance)) ValidateGuidance(guidance);
+            if (extension.TryGetProperty("credential", out var credential))
+            {
+                Only(credential, "kind", "acquisition");
+                Choice(credential, "kind", "password", "opaque-token", "symmetric-key", "private-key", "connection-string");
+                Choice(credential, "acquisition", "existing", "create", "issuer");
+                string kind = credential.GetProperty("kind").GetString()!;
+                string acquisition = credential.GetProperty("acquisition").GetString()!;
+                if (nodeType != DefinitionNodeType.Text || !secretContext
+                    || acquisition == "create" && kind is not ("password" or "symmetric-key")
+                    || acquisition == "issuer" && kind == "symmetric-key") throw new SetupDefinitionException("credential-invalid");
+            }
+            if (extension.TryGetProperty("choices", out var labels))
+            {
+                if (!schema.TryGetProperty("enum", out var enumValues) || labels.GetArrayLength() != enumValues.GetArrayLength())
+                    throw new SetupDefinitionException("choices-invalid");
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonElement label in labels.EnumerateArray())
+                {
+                    Only(label, "value", "label", "explanation");
+                    string value = label.GetProperty("value").GetRawText();
+                    if (!seen.Add(value) || !enumValues.EnumerateArray().Any(item => item.GetRawText() == value))
+                        throw new SetupDefinitionException("choices-invalid");
+                    Text(label.GetProperty("label"), 256);
+                    if (label.TryGetProperty("explanation", out var explanation)) Text(explanation, 2048);
+                }
+            }
+        }
+        bool protectedTree = !publicContext || properties.Values.Any(Protected) || items is not null && Protected(items);
+        foreach (string name in new[] { "default", "const", "examples" })
+            if (schema.TryGetProperty(name, out var value))
+            {
+                if (protectedTree) throw new SetupDefinitionException("public-value-protected");
+                if (name == "examples")
+                {
+                    if (value.GetArrayLength() > 256 || value.EnumerateArray().Any(item => !DefinitionValidator.ValueValid(node, item)))
+                        throw new SetupDefinitionException("public-value-invalid");
+                }
+                else if (!DefinitionValidator.ValueValid(node, value)) throw new SetupDefinitionException("public-value-invalid");
+            }
+        foreach (string name in new[] { "initialValue", "suggestedValue" })
+            if (hasExtension && extension.TryGetProperty(name, out var value))
+            {
+                if (protectedTree || !DefinitionValidator.ValueValid(node, value)) throw new SetupDefinitionException("public-value-invalid");
+                capabilities.Add(name == "initialValue" ? "values.initial" : "values.suggested");
+            }
+        return node;
+    }
+
+    private static bool Protected(DefinitionNode node) =>
+        node.Keywords.TryGetProperty("writeOnly", out var write) && write.GetBoolean()
+        || !node.Keywords.TryGetProperty("x-configurator", out var extension)
+        || !extension.TryGetProperty("sensitivity", out var sensitivity) || sensitivity.GetString() != "public"
+        || node.Properties.Values.Any(Protected) || node.Items is not null && Protected(node.Items);
+
+    private static void ValidateApplicability(DefinitionNode root, SortedSet<string> capabilities)
+    {
+        if (root.Keywords.TryGetProperty("x-configurator", out var rootMetadata)
+            && rootMetadata.TryGetProperty("applicableWhen", out _)) throw new SetupDefinitionException("condition-context");
+        var dependencies = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        foreach ((string name, DefinitionNode node) in root.Properties)
+        {
+            string[] references = [];
+            if (node.Keywords.TryGetProperty("x-configurator", out var metadata)
+                && metadata.TryGetProperty("applicableWhen", out var condition))
+            {
+                ValidateCondition(condition, root, capabilities);
+                references = DefinitionValidator.References(condition).Distinct(StringComparer.Ordinal).ToArray();
+            }
+            dependencies.Add(name, references);
+            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Items is null ? [] : new[] { node.Items }))
+                RejectNested(child);
+        }
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string name in root.Properties.Keys) Visit(name);
+
+        void Visit(string name)
+        {
+            if (visited.Contains(name)) return;
+            if (!visiting.Add(name)) throw new SetupDefinitionException("activation-cycle");
+            foreach (string reference in dependencies[name]) Visit(reference);
+            visiting.Remove(name);
+            visited.Add(name);
+        }
+        static void RejectNested(DefinitionNode node)
+        {
+            if (node.Keywords.TryGetProperty("x-configurator", out var extension)
+                && extension.TryGetProperty("applicableWhen", out _)) throw new SetupDefinitionException("condition-context");
+            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Items is null ? [] : new[] { node.Items }))
+                RejectNested(child);
         }
     }
 
-    private static void ValidatePresentation(JsonElement presentation, HashSet<string> roots)
+    private static void ValidateCondition(JsonElement condition, DefinitionNode root, SortedSet<string> capabilities)
     {
-        JsonElement sections = presentation.GetProperty("sections");
-        JsonElement experiences = presentation.GetProperty("experiences");
-        if (sections.GetArrayLength() is < 1 or > 64 || experiences.GetArrayLength() is < 1 or > 16)
-            throw new SetupDefinitionException("presentation-limit");
-        var sectionIds = new HashSet<string>(StringComparer.Ordinal);
-        var covered = new HashSet<string>(StringComparer.Ordinal);
-        foreach (JsonElement section in sections.EnumerateArray())
+        string operation = condition.GetProperty("op").GetString()!;
+        if (operation is "all" or "any" or "not")
         {
-            if (!sectionIds.Add(PresentationItem(section))) throw new SetupDefinitionException("presentation-duplicate");
-            if (section.TryGetProperty("disclosure", out _)) Choice(section, "disclosure", DefinitionVocabulary.Disclosures);
-            JsonElement fields = section.GetProperty("fields");
-            if (fields.GetArrayLength() is < 1 or > 1024) throw new SetupDefinitionException("presentation-reference");
-            foreach (JsonElement field in fields.EnumerateArray())
-                if (!roots.Contains(field.GetString()!) || !covered.Add(field.GetString()!))
-                    throw new SetupDefinitionException("presentation-reference");
+            Only(condition, "op", "operands");
+            JsonElement operands = condition.GetProperty("operands");
+            if (operands.GetArrayLength() < 1 || operation == "not" && operands.GetArrayLength() != 1)
+                throw new SetupDefinitionException("condition-operands");
+            foreach (JsonElement operand in operands.EnumerateArray()) ValidateCondition(operand, root, capabilities);
+            return;
         }
-        if (!covered.SetEquals(roots)) throw new SetupDefinitionException("presentation-coverage");
-        var experienceIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (JsonElement experience in experiences.EnumerateArray())
+        if (operation is not ("exists" or "equals" or "notEquals" or "in"))
+            throw new SetupDefinitionException("condition-operation");
+        Only(condition, operation == "exists" ? ["op", "reference"]
+            : operation == "in" ? ["op", "reference", "values"] : ["op", "reference", "value"]);
+        JsonElement reference = condition.GetProperty("reference");
+        if (reference.GetProperty("scope").GetString() != "root"
+            || DefinitionPath.Parse(reference.GetProperty("path").GetString()!).Segments.Count == 0)
+            throw new SetupDefinitionException("condition-context");
+        DefinitionNode controller = Reference(reference, root, null);
+        foreach (JsonElement expected in operation == "exists" ? Array.Empty<JsonElement>()
+            : operation == "in" ? condition.GetProperty("values").EnumerateArray().ToArray()
+            : new[] { condition.GetProperty("value") })
         {
-            if (!experienceIds.Add(PresentationItem(experience))) throw new SetupDefinitionException("presentation-duplicate");
-            if (experience.TryGetProperty("initialDisclosure", out _))
-                Choice(experience, "initialDisclosure", DefinitionVocabulary.Disclosures);
-            if (experience.TryGetProperty("navigation", out _)) Choice(experience, "navigation", "guided", "sections");
-            JsonElement references = experience.GetProperty("sections");
-            var listed = new HashSet<string>(StringComparer.Ordinal);
-            if (references.GetArrayLength() != sectionIds.Count) throw new SetupDefinitionException("presentation-coverage");
-            foreach (JsonElement reference in references.EnumerateArray())
-                if (!sectionIds.Contains(reference.GetString()!) || !listed.Add(reference.GetString()!))
-                    throw new SetupDefinitionException("presentation-reference");
+            bool compatible = expected.ValueKind == JsonValueKind.Null ? controller.IsNullable : controller.Type switch
+            {
+                DefinitionNodeType.Text => expected.ValueKind == JsonValueKind.String,
+                DefinitionNodeType.Boolean => expected.ValueKind is JsonValueKind.True or JsonValueKind.False,
+                DefinitionNodeType.WholeNumber => expected.ValueKind == JsonValueKind.Number && expected.TryGetInt64(out _),
+                DefinitionNodeType.Number => expected.ValueKind == JsonValueKind.Number && expected.TryGetDecimal(out _),
+                DefinitionNodeType.Mapping => expected.ValueKind == JsonValueKind.Object,
+                DefinitionNodeType.Sequence => expected.ValueKind == JsonValueKind.Array,
+                _ => false
+            };
+            if (!compatible) throw new SetupDefinitionException("condition-type");
         }
-        if (!experienceIds.Contains(presentation.GetProperty("defaultExperience").GetString()!))
+        if (operation == "in" && condition.GetProperty("values").GetArrayLength() == 0)
+            throw new SetupDefinitionException("condition-operands");
+        capabilities.Add("predicate.root");
+    }
+
+    private static void ValidateProjection(JsonElement projection, DefinitionNode root, DefinitionNode? item,
+        SortedSet<string> capabilities, int depth)
+    {
+        if (depth > SetupCompositionLimits.DefaultNestingDepth) throw new SetupDefinitionException("projection-limit");
+        string op = projection.GetProperty("op").GetString()!;
+        string[] members = op switch
+        {
+            "literal" => ["op", "value"],
+            "copy" => ["op", "reference"],
+            "omit" or "index" => ["op"],
+            "object" => ["op", "members"],
+            "list" => ["op", "items"],
+            "repeat" => ["op", "reference", "item"],
+            _ => throw new SetupDefinitionException("projection-operation")
+        };
+        Only(projection, [.. members, "when"]);
+        if (projection.TryGetProperty("when", out var condition)) ValidateCondition(condition, root, capabilities);
+        capabilities.Add("projection." + op);
+        switch (op)
+        {
+            case "literal": _ = projection.GetProperty("value"); break;
+            case "copy": _ = Reference(projection.GetProperty("reference"), root, item); break;
+            case "index": if (item is null) throw new SetupDefinitionException("index-context"); break;
+            case "object":
+                foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
+                    ValidateProjection(member.Value, root, item, capabilities, depth + 1);
+                break;
+            case "list":
+                foreach (JsonElement child in projection.GetProperty("items").EnumerateArray())
+                    ValidateProjection(child, root, item, capabilities, depth + 1);
+                break;
+            case "repeat":
+                DefinitionNode source = Reference(projection.GetProperty("reference"), root, item);
+                if (source.Type != DefinitionNodeType.Sequence) throw new SetupDefinitionException("repeat-source");
+                ValidateProjection(projection.GetProperty("item"), root, source.Items, capabilities, depth + 1);
+                break;
+        }
+    }
+
+    private static DefinitionNode Reference(JsonElement reference, DefinitionNode root, DefinitionNode? item)
+    {
+        Only(reference, "scope", "path");
+        DefinitionNode node = reference.GetProperty("scope").GetString() switch
+        {
+            "root" => root,
+            "item" => item ?? throw new SetupDefinitionException("reference-context"),
+            _ => throw new SetupDefinitionException("reference-scope")
+        };
+        foreach (string segment in DefinitionPath.Parse(reference.GetProperty("path").GetString()!).Segments)
+        {
+            if (node.Type == DefinitionNodeType.Mapping && node.Properties.TryGetValue(segment, out var property)) node = property;
+            else if (node.Type == DefinitionNodeType.Sequence && int.TryParse(segment, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+                && index >= 0 && segment == index.ToString(CultureInfo.InvariantCulture)) node = node.Items!;
+            else throw new SetupDefinitionException("reference-invalid");
+        }
+        return node;
+    }
+
+    private static void ValidateDotenv(JsonElement projection, DefinitionNode root)
+    {
+        if (projection.GetProperty("op").GetString() != "object") throw new SetupDefinitionException("dotenv-shape");
+        foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
+        {
+            string key = member.Name;
+            if (key.Length == 0 || !(char.IsAsciiLetter(key[0]) || key[0] == '_')
+                || !key.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')) throw new SetupDefinitionException("dotenv-key");
+            JsonElement value = member.Value;
+            switch (value.GetProperty("op").GetString())
+            {
+                case "omit": break;
+                case "copy":
+                    DefinitionNode source = Reference(value.GetProperty("reference"), root, null);
+                    if (source.IsNullable || source.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)
+                        throw new SetupDefinitionException("dotenv-shape");
+                    break;
+                case "literal":
+                    if (value.GetProperty("value").ValueKind is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False))
+                        throw new SetupDefinitionException("dotenv-shape");
+                    break;
+                default: throw new SetupDefinitionException("dotenv-shape");
+            }
+        }
+    }
+
+    private static void ValidatePresentation(JsonElement presentation, DefinitionNode root)
+    {
+        Only(presentation, "sections", "journeys", "defaultJourney", "navigation");
+        if (presentation.TryGetProperty("navigation", out _)) Choice(presentation, "navigation", "wizard", "sections");
+        var sections = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement section in presentation.GetProperty("sections").EnumerateArray())
+        {
+            Only(section, "id", "title", "description", "pointers");
+            if (!sections.Add(Text(section.GetProperty("id"), 64))) throw new SetupDefinitionException("presentation-duplicate");
+            Text(section.GetProperty("title"), 128);
+            if (section.TryGetProperty("description", out var description)) Text(description, 2048);
+            var pointers = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonElement pointer in section.GetProperty("pointers").EnumerateArray())
+            {
+                if (!pointers.Add(pointer.GetString()!)) throw new SetupDefinitionException("presentation-duplicate");
+                _ = Reference(JsonSerializer.SerializeToElement(new { scope = "root", path = pointer.GetString() }), root, null);
+            }
+        }
+        if (sections.Count is < 1 or > 64) throw new SetupDefinitionException("presentation-limit");
+        var journeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement journey in presentation.GetProperty("journeys").EnumerateArray())
+        {
+            Only(journey, "id", "title", "description", "sections");
+            if (!journeys.Add(Text(journey.GetProperty("id"), 64))) throw new SetupDefinitionException("presentation-duplicate");
+            Text(journey.GetProperty("title"), 128);
+            if (journey.TryGetProperty("description", out var description)) Text(description, 2048);
+            Strings(journey.GetProperty("sections"), 64, 64, true);
+            foreach (JsonElement section in journey.GetProperty("sections").EnumerateArray())
+                if (!sections.Contains(section.GetString()!)) throw new SetupDefinitionException("presentation-reference");
+        }
+        if (journeys.Count is < 1 or > 16 || !journeys.Contains(presentation.GetProperty("defaultJourney").GetString()!))
             throw new SetupDefinitionException("presentation-default");
     }
 
-    private static string PresentationItem(JsonElement item)
+    private static void ValidateLocalization(JsonElement document)
     {
-        string id = Text(item.GetProperty("id"), 64);
-        if (id[0] is < 'a' or > 'z' || id[^1] == '-' || id.Contains("--", StringComparison.Ordinal)
-            || !id.All(character => character is >= 'a' and <= 'z' or >= '0' and <= '9' or '-'))
-            throw new SetupDefinitionException("presentation-identifier");
-        Text(item.GetProperty("title"), 128);
-        if (item.TryGetProperty("description", out var description)) Text(description, 2048);
-        return id;
+        var locales = new SortedSet<string>(StringComparer.Ordinal) { "en" };
+        if (document.TryGetProperty("localization", out var localization))
+        {
+            Only(localization, "defaultLocale", "translations");
+            locales.Clear();
+            locales.Add(Text(localization.GetProperty("defaultLocale"), 128));
+            foreach (JsonProperty translation in localization.GetProperty("translations").EnumerateObject())
+            {
+                Text(JsonSerializer.SerializeToElement(translation.Name), 128);
+                locales.Add(translation.Name);
+                Only(translation.Value, "direction", "overrides");
+                if (translation.Value.TryGetProperty("direction", out _)) Choice(translation.Value, "direction", "ltr", "rtl");
+                if (translation.Value.TryGetProperty("overrides", out var overrides))
+                    foreach (JsonProperty entry in overrides.EnumerateObject())
+                    {
+                        IReadOnlyList<string> segments = DefinitionPath.Parse(entry.Name).Segments;
+                        if (segments.Count == 0 || segments[^1] is not ("title" or "description" or "instructions"
+                            or "label" or "explanation" or "units"))
+                            throw new SetupDefinitionException("localization-target");
+                        JsonElement target = document;
+                        foreach (string segment in segments)
+                        {
+                            if (target.ValueKind == JsonValueKind.Object && target.TryGetProperty(segment, out var child)) target = child;
+                            else if (target.ValueKind == JsonValueKind.Array
+                                && int.TryParse(segment, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+                                && index >= 0 && index < target.GetArrayLength()
+                                && segment == index.ToString(CultureInfo.InvariantCulture)) target = target[index];
+                            else throw new SetupDefinitionException("localization-target");
+                        }
+                        if (target.ValueKind != JsonValueKind.String) throw new SetupDefinitionException("localization-target");
+                        Text(entry.Value, 4096);
+                    }
+            }
+        }
+        if (!document.GetProperty("locales").EnumerateArray().Select(value => value.GetString()).SequenceEqual(locales, StringComparer.Ordinal))
+            throw new SetupDefinitionException("locales-invalid");
     }
 
     private static void ValidateGuidance(JsonElement guidance)
     {
+        Only(guidance, "instructions", "links", "searchTerms");
         if (guidance.TryGetProperty("instructions", out var instructions))
         {
-            string text = Text(instructions, 4096);
-            if (text.Contains('`', StringComparison.Ordinal) || text.Contains("](", StringComparison.Ordinal)
+            string text = instructions.GetString()!;
+            if (string.IsNullOrWhiteSpace(text) || text.Length > 4096
+                || text.Any(c => char.IsControl(c) && c is not ('\r' or '\n' or '\t'))
                 || text.Contains("${", StringComparison.Ordinal) || text.Contains("{{", StringComparison.Ordinal)
-                || text.Contains("}}", StringComparison.Ordinal))
-                throw new SetupDefinitionException("guidance-invalid");
+                || text.Contains("}}", StringComparison.Ordinal)) throw new SetupDefinitionException("guidance-invalid");
         }
         if (guidance.TryGetProperty("links", out var links))
         {
             if (links.GetArrayLength() > 4) throw new SetupDefinitionException("guidance-limit");
             foreach (JsonElement link in links.EnumerateArray())
             {
+                Only(link, "title", "url");
                 Text(link.GetProperty("title"), 128);
-                string url = Text(link.GetProperty("url"), 2048);
-                if (url.Any(char.IsWhiteSpace) || url.Contains('?', StringComparison.Ordinal)
-                    || url.Contains('#', StringComparison.Ordinal)
-                    || url.Contains("${", StringComparison.Ordinal) || url.Contains("{{", StringComparison.Ordinal)
-                    || url.Contains("}}", StringComparison.Ordinal)
-                    || !Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) || uri.Scheme != Uri.UriSchemeHttps
-                    || uri.UserInfo.Length != 0 || uri.Query.Length != 0 || uri.Fragment.Length != 0)
-                    throw new SetupDefinitionException("guidance-link");
+                PublicUrl(link.GetProperty("url"), fragment: true);
             }
         }
-        if (guidance.TryGetProperty("searchTerms", out var terms))
-        {
-            if (terms.GetArrayLength() > 16) throw new SetupDefinitionException("guidance-limit");
-            var unique = new HashSet<string>(StringComparer.Ordinal);
-            foreach (JsonElement term in terms.EnumerateArray())
-                if (!unique.Add(Text(term, 64))) throw new SetupDefinitionException("guidance-duplicate");
-        }
+        if (guidance.TryGetProperty("searchTerms", out var terms)) Strings(terms, 16, 64, false);
     }
 
-    private static bool HasProtectedProperty(JsonElement field) =>
-        field.TryGetProperty("properties", out var properties) && properties.EnumerateArray().Any(property =>
-            property.GetProperty("sensitivity").GetString() != "public" || HasProtectedProperty(property));
-
-    internal static void ValidateCondition(JsonElement condition, HashSet<string> ids, HashSet<string> references)
+    private static void PublicUrl(JsonElement value, bool fragment)
     {
-        string op = condition.GetProperty("op").GetString()!;
-        bool compound = op is "all" or "any" or "not";
-        if (compound)
-        {
-            Only(condition, "op", "operands");
-            JsonElement operands = condition.GetProperty("operands");
-            if (operands.GetArrayLength() < (op == "not" ? 1 : 2)
-                || op == "not" && operands.GetArrayLength() != 1)
-                throw new SetupDefinitionException("condition-arity");
-            foreach (JsonElement child in operands.EnumerateArray()) ValidateCondition(child, ids, references);
-        }
-        else
-        {
-            if (op is not ("present" or "equals" or "notEquals" or "in"))
-                throw new SetupDefinitionException("condition-operation");
-            Only(condition, op == "present" ? ["op", "field"] : ["op", "field", "value"]);
-            string id = condition.GetProperty("field").GetString()!;
-            if (!ids.Contains(id)) throw new SetupDefinitionException("field-unknown");
-            references.Add(id);
-            if (op != "present" && (!condition.TryGetProperty("value", out var value)
-                || op == "in" && value.ValueKind != JsonValueKind.Array))
-                throw new SetupDefinitionException("condition-value");
-        }
+        string url = Text(value, 2048);
+        if (url.Any(char.IsWhiteSpace) || url.Contains("${", StringComparison.Ordinal) || url.Contains("{{", StringComparison.Ordinal)
+            || url.Contains("}}", StringComparison.Ordinal) || !Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)
+            || uri.Scheme != Uri.UriSchemeHttps || uri.Host.Length == 0 || uri.UserInfo.Length != 0
+            || uri.Query.Length != 0 || !fragment && uri.Fragment.Length != 0)
+            throw new SetupDefinitionException("public-url-invalid");
     }
 
-    private static void ValidateProjection(
-        JsonElement projection, HashSet<string> ids, HashSet<string> listIds, bool inRepeat)
+    private static void Strings(JsonElement array, int maximum, int textMaximum, bool nonempty)
     {
-        string op = projection.GetProperty("op").GetString()!;
-        string[] members = op switch
-        {
-            "literal" => ["op", "value", "when"],
-            "copy" => ["op", "field", "when"],
-            "omit" or "index" => ["op", "when"],
-            "object" => ["op", "members", "when"],
-            "list" => ["op", "items", "when"],
-            "repeat" => ["op", "field", "item", "when"],
-            _ => throw new SetupDefinitionException("projection-operation")
-        };
-        Only(projection, members);
-        if (projection.TryGetProperty("when", out var condition)) ValidateCondition(condition, ids, []);
-        switch (op)
-        {
-            case "literal":
-                _ = projection.GetProperty("value");
-                break;
-            case "copy":
-            case "repeat":
-                string id = projection.GetProperty("field").GetString()!;
-                if (id == "$item" ? !inRepeat || op == "repeat" : !ids.Contains(id))
-                    throw new SetupDefinitionException("projection-field");
-                if (op == "repeat")
-                {
-                    if (inRepeat) throw new SetupDefinitionException("repeat-nesting");
-                    if (!listIds.Contains(id)) throw new SetupDefinitionException("repeat-source");
-                    ValidateProjection(projection.GetProperty("item"), ids, listIds, inRepeat: true);
-                }
-                break;
-            case "index":
-                if (!inRepeat) throw new SetupDefinitionException("index-context");
-                break;
-            case "object":
-                foreach (JsonProperty item in projection.GetProperty("members").EnumerateObject())
-                    ValidateProjection(item.Value, ids, listIds, inRepeat);
-                break;
-            case "list":
-                foreach (JsonElement item in projection.GetProperty("items").EnumerateArray())
-                    ValidateProjection(item, ids, listIds, inRepeat);
-                break;
-        }
+        if (array.GetArrayLength() > maximum || nonempty && array.GetArrayLength() == 0)
+            throw new SetupDefinitionException("metadata-limit");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement value in array.EnumerateArray())
+            if (!seen.Add(Text(value, textMaximum))) throw new SetupDefinitionException("metadata-duplicate");
     }
 
     internal static string Text(JsonElement value, int maximum)
@@ -392,146 +649,15 @@ public static class SetupDefinitionCodec
         return text;
     }
 
-    private static string Identifier(JsonElement value)
-    {
-        string text = Text(value, 128);
-        if (!char.IsAsciiLetter(text[0])
-            || !text.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_'))
-            throw new SetupDefinitionException("identifier-invalid");
-        return text;
-    }
-
     private static void Choice(JsonElement value, string name, params string[] allowed)
     {
         if (!allowed.Contains(value.GetProperty(name).GetString(), StringComparer.Ordinal))
             throw new SetupDefinitionException("vocabulary-invalid");
     }
 
-    private static void Only(JsonElement element, params string[] allowed)
+    private static void Only(JsonElement value, params string[] allowed)
     {
-        if (element.EnumerateObject().Any(item => !allowed.Contains(item.Name, StringComparer.Ordinal)))
-            throw new SetupDefinitionException("member-invalid");
+        if (value.ValueKind != JsonValueKind.Object || value.EnumerateObject().Any(property => !allowed.Contains(property.Name, StringComparer.Ordinal)))
+            throw new SetupDefinitionException("member-unsupported");
     }
-}
-
-// These closed wire records are shared with the definition schema exporter.
-internal sealed record DefinitionDocument
-{
-    public required int SchemaVersion { get; init; }
-    public required string FamilyId { get; init; }
-    public required long Revision { get; init; }
-    public required string ApplicationId { get; init; }
-    public required IReadOnlyList<string> ApplicationVersions { get; init; }
-    public required string Publisher { get; init; }
-    public required string Title { get; init; }
-    public required IReadOnlyList<string> EntryPoints { get; init; }
-    public required IReadOnlyList<string> Locales { get; init; }
-    public required IReadOnlyList<FieldDocument> Fields { get; init; }
-    public required IReadOnlyList<ArtifactDocument> Artifacts { get; init; }
-    public PresentationDocument? Presentation { get; init; }
-}
-
-internal sealed record FieldDocument
-{
-    public required string Id { get; init; }
-    public required string Type { get; init; }
-    public required string Title { get; init; }
-    public required string Sensitivity { get; init; }
-    public required string Disclosure { get; init; }
-    public bool Required { get; init; }
-    public string? Help { get; init; }
-    public string? Group { get; init; }
-    public string? Format { get; init; }
-    public string? Consequence { get; init; }
-    public GuidanceDocument? Guidance { get; init; }
-    public CredentialDocument? Credential { get; init; }
-    public string? Validator { get; init; }
-    public JsonElement? Default { get; init; }
-    public JsonElement? Recommended { get; init; }
-    public IReadOnlyList<string>? Choices { get; init; }
-    public int? MinLength { get; init; }
-    public int? MaxLength { get; init; }
-    public decimal? Minimum { get; init; }
-    public decimal? Maximum { get; init; }
-    public int? MinItems { get; init; }
-    public int? MaxItems { get; init; }
-    public string? ItemType { get; init; }
-    public IReadOnlyList<string>? UniqueBy { get; init; }
-    public IReadOnlyList<FieldDocument>? Properties { get; init; }
-    public ConditionDocument? ActiveWhen { get; init; }
-    public ConditionDocument? RequiredWhen { get; init; }
-}
-
-internal sealed record PresentationDocument
-{
-    public required string DefaultExperience { get; init; }
-    public required IReadOnlyList<SectionDocument> Sections { get; init; }
-    public required IReadOnlyList<ExperienceDocument> Experiences { get; init; }
-}
-
-internal sealed record SectionDocument
-{
-    public required string Id { get; init; }
-    public required string Title { get; init; }
-    public string? Description { get; init; }
-    public string? Disclosure { get; init; }
-    public required IReadOnlyList<string> Fields { get; init; }
-}
-
-internal sealed record ExperienceDocument
-{
-    public required string Id { get; init; }
-    public required string Title { get; init; }
-    public string? Description { get; init; }
-    public string? InitialDisclosure { get; init; }
-    public string? Navigation { get; init; }
-    public required IReadOnlyList<string> Sections { get; init; }
-}
-
-internal sealed record GuidanceDocument
-{
-    public string? Instructions { get; init; }
-    public IReadOnlyList<GuidanceLinkDocument>? Links { get; init; }
-    public IReadOnlyList<string>? SearchTerms { get; init; }
-}
-
-internal sealed record GuidanceLinkDocument
-{
-    public required string Title { get; init; }
-    public required string Url { get; init; }
-}
-
-internal sealed record CredentialDocument
-{
-    public required string Kind { get; init; }
-    public required string Acquisition { get; init; }
-}
-
-internal sealed record ConditionDocument
-{
-    public required string Op { get; init; }
-    public string? Field { get; init; }
-    public JsonElement? Value { get; init; }
-    public IReadOnlyList<ConditionDocument>? Operands { get; init; }
-}
-
-internal sealed record ArtifactDocument
-{
-    public required string Id { get; init; }
-    public required string Format { get; init; }
-    public required string FileName { get; init; }
-    public required string ApplySemantics { get; init; }
-    public required string Restart { get; init; }
-    public required ProjectionDocument Projection { get; init; }
-}
-
-internal sealed record ProjectionDocument
-{
-    public required string Op { get; init; }
-    public JsonElement? Value { get; init; }
-    public string? Field { get; init; }
-    public IReadOnlyDictionary<string, ProjectionDocument>? Members { get; init; }
-    public IReadOnlyList<ProjectionDocument>? Items { get; init; }
-    public ProjectionDocument? Item { get; init; }
-    public ConditionDocument? When { get; init; }
 }

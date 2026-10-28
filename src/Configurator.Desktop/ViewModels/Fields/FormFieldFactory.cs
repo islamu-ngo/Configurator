@@ -1,6 +1,6 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
-using System.Text.Json;
+using Configurator.Core.Definitions;
 using Configurator.Presentation;
 
 /// <summary>Owns one workspace's binding projections and its single shared-form refresh subscription.</summary>
@@ -16,7 +16,8 @@ public sealed class FormFieldFactory : IDisposable
         _form = form;
         _fields = Array.AsReadOnly(form.Fields.Select(input =>
         {
-            var field = Project(input.Definition.Constraints, null, false);
+            var field = Project(input.Definition.Node, input.Definition.Name, input.Definition.Required,
+                null, false, input.RequiresMasking);
             field.Attach(form, input);
             return field;
         }).ToArray());
@@ -51,15 +52,18 @@ public sealed class FormFieldFactory : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    internal static FieldViewModel Project(JsonElement schema, FieldViewModel? parent, bool listItem) =>
-        schema.GetProperty("type").GetString() switch
+    internal static FieldViewModel Project(DefinitionNode schema, string name, bool required,
+        FieldViewModel? parent, bool listItem, bool inheritedMasking = false) =>
+        schema.Keywords.TryGetProperty("enum", out _)
+            ? new EnumFieldViewModel(schema, name, required, parent, listItem, inheritedMasking)
+            : schema.Type switch
         {
-            "string" => new StringFieldViewModel(schema, parent, listItem),
-            "enum" => new EnumFieldViewModel(schema, parent, listItem),
-            "integer" or "number" => new NumericFieldViewModel(schema, parent, listItem),
-            "boolean" => new BooleanFieldViewModel(schema, parent, listItem),
-            "object" => new ObjectFieldViewModel(schema, parent, listItem),
-            "list" => new ListFieldViewModel(schema, parent, listItem),
+            DefinitionNodeType.Text => new StringFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
+            DefinitionNodeType.WholeNumber or DefinitionNodeType.Number =>
+                new NumericFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
+            DefinitionNodeType.Boolean => new BooleanFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
+            DefinitionNodeType.Mapping => new ObjectFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
+            DefinitionNodeType.Sequence => new ListFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
             _ => throw new InvalidOperationException("Unknown admitted field type.")
         };
 }
