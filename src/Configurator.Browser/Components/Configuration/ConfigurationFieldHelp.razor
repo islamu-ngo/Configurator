@@ -1,10 +1,11 @@
 @implements IDisposable
 @using System.Text.Json
+@using Configurator.Presentation
 @inject IDialogService Dialogs
 
 <span class="configuration-field-help">
     <button type="button" class="configuration-field-help__trigger"
-            aria-label="@("Help with " + Title)" data-action="field-help"
+            aria-label="@("Help with " + PublicTitle)" data-action="field-help"
             @onclick="OpenAsync">
         <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />
     </button>
@@ -12,6 +13,7 @@
 
 @code {
     [Parameter, EditorRequired] public JsonElement Schema { get; set; }
+    [Parameter] public DefinitionEditorPresentation? Presentation { get; set; }
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string FieldPath { get; set; } = string.Empty;
     [Parameter] public bool SecretsEnabled { get; set; }
@@ -24,13 +26,24 @@
     private bool _disposed;
     private bool? _observedConsent;
     private string? _observedFieldPath;
-    private string? _renderedTitle;
+    private DefinitionEditorPresentation? _observedPresentation;
+    private DefinitionEditorPresentation? _renderedPresentation;
+    private (string Title, string? ContextTitle, string? Description, string? SectionDescription) _rendered;
+    private (string Title, string? ContextTitle, string? Description, string? SectionDescription) RenderState =>
+        (PublicTitle, ContextTitle, Description, SectionDescription);
     private long _generation;
-    protected override bool ShouldRender() => _renderedTitle != Title;
-    protected override void OnAfterRender(bool firstRender) => _renderedTitle = Title;
+    private string PublicTitle => Presentation?.Title ?? Title;
+    protected override bool ShouldRender() => !_rendered.Equals(RenderState) ||
+        !SamePublicMetadata(_renderedPresentation, Presentation);
+    protected override void OnAfterRender(bool firstRender)
+    {
+        _rendered = RenderState;
+        _renderedPresentation = Presentation;
+    }
     protected override void OnParametersSet()
     {
-        if (_observedConsent.HasValue && (_observedConsent != SecretsEnabled || _observedFieldPath != FieldPath))
+        if (_observedConsent.HasValue && (_observedConsent != SecretsEnabled || _observedFieldPath != FieldPath ||
+            !SamePublicMetadata(_observedPresentation, Presentation)))
         {
             ++_generation;
             _dialog?.Close();
@@ -38,6 +51,7 @@
         }
         _observedConsent = SecretsEnabled;
         _observedFieldPath = FieldPath;
+        _observedPresentation = Presentation;
     }
     private async Task OpenAsync()
     {
@@ -49,6 +63,7 @@
             var parameters = new DialogParameters
             {
                 [nameof(ConfigurationInspector.Schema)] = Schema,
+                [nameof(ConfigurationInspector.Presentation)] = Presentation,
                 [nameof(ConfigurationInspector.FieldPath)] = FieldPath,
                 [nameof(ConfigurationInspector.ContextTitle)] = ContextTitle,
                 [nameof(ConfigurationInspector.Description)] = Description,
@@ -60,13 +75,20 @@
                 parameters[nameof(ConfigurationInspector.OutputArtifactIds)] = bindings.ArtifactIds;
                 parameters[nameof(ConfigurationInspector.BindingKeys)] = bindings.BindingKeys;
             }
-            var dialog = await Dialogs.ShowAsync<ConfigurationInspector>("Help with " + Title, parameters,
+            var dialog = await Dialogs.ShowAsync<ConfigurationInspector>("Help with " + PublicTitle, parameters,
                 new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
             if (_disposed || generation != _generation) dialog.Close();
             else _dialog = dialog;
         }
         finally { _opening = false; }
     }
+    internal static bool SamePublicMetadata(DefinitionEditorPresentation? left, DefinitionEditorPresentation? right) =>
+        ReferenceEquals(left, right) || left is not null && right is not null &&
+        left.Schema == right.Schema && left.Title == right.Title && left.Description == right.Description &&
+        left.Instructions == right.Instructions && left.Units == right.Units &&
+        left.Choices.Select(choice => (choice.Label, choice.Explanation))
+            .SequenceEqual(right.Choices.Select(choice => (choice.Label, choice.Explanation))) &&
+        left.Links.SequenceEqual(right.Links);
     public void Dispose()
     {
         _disposed = true;

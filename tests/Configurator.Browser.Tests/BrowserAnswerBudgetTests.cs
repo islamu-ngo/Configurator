@@ -16,15 +16,18 @@ public sealed class BrowserAnswerBudgetTests
     public async Task PreparingAdoptsEachAdmittedOutputWithoutRecomposingIt(bool draft)
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        definition["fields"] = JsonNode.Parse("""
-            [{"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"essential","default":"sample"}]
+        definition["configuration"]!["required"] = new JsonArray();
+        definition["configuration"]!["properties"] = JsonNode.Parse("""
+            {"name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"basic","initialValue":"sample"}}}
             """);
         definition["artifacts"] = JsonNode.Parse("""
-            [{"id":"first","format":"json","fileName":"first.json","applySemantics":"create","restart":"none",
-              "projection":{"op":"object","members":{"name":{"op":"copy","field":"name"}}}},
-             {"id":"second","format":"json","fileName":"second.json","applySemantics":"create","restart":"none",
+            [{"id":"first","format":"json","fileName":"first.json","targetUpdateMode":"create","restartRequirement":"none",
+              "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}},
+             {"id":"second","format":"json","fileName":"second.json","targetUpdateMode":"create","restartRequirement":"none",
               "projection":{"op":"literal","value":{"order":[3,1,4,2]}}}]
             """);
+        BrowserFixture.SetCapabilities(definition, "projection.copy", "projection.literal", "projection.object",
+            "schema.object", "schema.string", "values.initial");
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
@@ -41,18 +44,18 @@ public sealed class BrowserAnswerBudgetTests
     public async Task AggregateAnswerBudgetKeepsControlsEditableAndReportsValueSafeRejection()
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        var fields = new JsonArray();
+        var fields = new JsonObject();
         for (int index = 0; index < 17; index++)
-            fields.Add(new JsonObject
+            fields.Add("text" + index, new JsonObject
             {
-                ["id"] = "text" + index,
                 ["type"] = "string",
                 ["title"] = "Text " + index,
-                ["sensitivity"] = "public",
-                ["disclosure"] = "guided"
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public", ["detail"] = "standard" }
             });
-        definition["fields"] = fields;
-        definition["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"copy","field":"text0"}""");
+        definition["configuration"]!["required"] = new JsonArray();
+        definition["configuration"]!["properties"] = fields;
+        definition["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/text0"}}""");
+        BrowserFixture.SetCapabilities(definition, "projection.copy", "schema.object", "schema.string");
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
@@ -73,7 +76,10 @@ public sealed class BrowserAnswerBudgetTests
     public async Task AggregateBundleLimitPublishesNoEarlierArtifact()
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        definition["fields"] = JsonNode.Parse("""[{"id":"payload","type":"string","title":"Payload","sensitivity":"public","disclosure":"guided"}]""");
+        definition["configuration"]!["required"] = new JsonArray();
+        definition["configuration"]!["properties"] = JsonNode.Parse("""
+            {"payload":{"type":"string","title":"Payload","x-configurator":{"sensitivity":"public","detail":"standard"}}}
+            """);
         var artifacts = new JsonArray();
         for (int index = 0; index < 64; index++)
             artifacts.Add(new JsonObject
@@ -81,11 +87,12 @@ public sealed class BrowserAnswerBudgetTests
                 ["id"] = "output" + index,
                 ["format"] = "json",
                 ["fileName"] = "output" + index + ".json",
-                ["applySemantics"] = "create",
-                ["restart"] = "none",
-                ["projection"] = JsonNode.Parse("""{"op":"copy","field":"payload"}""")
+                ["targetUpdateMode"] = "create",
+                ["restartRequirement"] = "none",
+                ["projection"] = JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/payload"}}""")
             });
         definition["artifacts"] = artifacts;
+        BrowserFixture.SetCapabilities(definition, "projection.copy", "schema.object", "schema.string");
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));

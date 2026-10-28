@@ -73,8 +73,9 @@ public sealed class BrowserWorkspaceLifecycleTests
     public async Task QueuedPreparationCannotBypassRejectedCustody(bool appPrepared, bool accepted)
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        source["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "mode")!["default"] = "single";
-        source["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "hostname")!["default"] = "blocked-preparation.test";
+        source["configuration"]!["properties"]!["mode"]!["x-configurator"]!["initialValue"] = "single";
+        source["configuration"]!["properties"]!["hostname"]!["x-configurator"]!["initialValue"] = "blocked-preparation.test";
+        source["requiredCapabilities"]!.AsArray().Add("values.initial");
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule { AppPrepared = appPrepared, AcceptWorkspace = accepted };
@@ -134,17 +135,17 @@ public sealed class BrowserWorkspaceLifecycleTests
     public async Task RepeatedEmptyEnumSelectionFencesHeldSecretImport()
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        source["fields"]![0]!["choices"]!.AsArray().Insert(0, JsonValue.Create(""));
+        source["configuration"]!["properties"]!["mode"]!["enum"]!.AsArray().Insert(0, JsonValue.Create(""));
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await BrowserFixture.NotifyChoiceAsync(component, "mode", "0");
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "");
         component.Find("[data-field='hostname'] input").Input("retained.test");
         component.Find("#secret-consent").Change(true);
         using var stream = new HeldReadStream("{\"mode\":\"\",\"hostname\":\"retained.test\",\"credential\":\"repeated-selection-canary\"}"u8.ToArray());
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        try { await BrowserFixture.NotifyChoiceAsync(component, "mode", "0"); }
+        try { await BrowserFixture.NotifyChoiceAsync(component, "mode", ""); }
         finally { stream.Release.TrySetResult(); }
         await reading.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("value")).IsEqualTo("");

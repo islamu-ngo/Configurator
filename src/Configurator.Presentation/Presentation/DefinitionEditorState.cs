@@ -262,6 +262,19 @@ public sealed partial class DefinitionFormModel
             FocusEditor(path, preserveDiscovery);
     }
 
+    /// <summary>Explicitly resolves current private workspace coordinates for a local renderer, never for diagnostics or transport.</summary>
+    public bool TryResolveCorrection(string fieldId, DefinitionCorrectionLocation location, out IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(location);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            path = Array.Empty<string>();
+            return location.InputRevision == InputRevision &&
+                TryCorrectionPath(fieldId, location, Facts.Validation, out path);
+        }
+    }
+
     /// <summary>Opens exact literal ancestors for correction without changing answers or granting consent.</summary>
     public bool FocusEditor(IReadOnlyList<string> path, bool preserveDiscovery = false)
     {

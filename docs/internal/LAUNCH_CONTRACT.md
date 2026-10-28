@@ -1,5 +1,39 @@
 # Browser launch, custody and source contract
 
+> **Audience:** Contributors | Integrators | AI agents
+> **Status:** Implemented browser boundary; target acceptance is separate
+> **Owner:** Browser
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/Presentation/`
+
+## V2 typed workspace admission and callbacks
+
+`BrowserLaunchSelection` admits an explicit closed editing-capability set before
+answers and resolves the declared localization default, not the first locale in
+sorted order. Launch/Open pass that initial locale into `ConfigurationEditor`.
+The shared form checks the same capability set before allocating answer editors.
+It owns subsequent locale changes as view state. Public display metadata and
+localized sections/journeys come from Presentation; Core remains the schema,
+effective-value, predicate and branch authority.
+
+`ConfigurationField` uses typed enum ordinals, map-value schemas and the
+Core-selected variant. Provider changes delegate to the shared explicit branch
+action. Null, reset, omission and suggestion adoption remain distinct commands.
+Map-key drafts exist only in the component, clear on privacy changes and
+disposal, and never enter transport, storage or worker messages.
+
+Scalar native callbacks retain their existing form/path/revision/control
+generation fence. Compound actions additionally capture a mount generation;
+retired callbacks cannot supply/remove entries or edit a remounted workspace.
+Actions refresh their rendered callbacks when the input revision changes.
+Help consumes only admitted public display metadata and demand-mounts its
+encoded-text inspector; changing that metadata closes stale dialogs.
+
+Core validation and local draft diagnostics expose typed safe correction
+locations. The renderer explicitly resolves current private coordinates through
+the shared form before focusing a map entry; it does not reinterpret ordinals as
+private keys or infer coordinates after a revision change.
+
 ## Owners and dependency closure
 
 Browser is static Blazor WebAssembly over browser-safe Presentation/Core.
@@ -13,7 +47,7 @@ no answer-bearing connection to a server. The larger initial download and
 client resource use are accepted for stable local custody and offline operation.
 Server/Auto hosting would change that boundary, even with secret consent or no
 durable server storage. See the [hosting decision and alternatives](adr/ADR-browser-session-trust-and-export.md#hosting-alternatives-and-trade-offs)
-and [public trust guidance](../public/browser.md#choose-a-client-and-trust-level).
+and [public trust guidance](../public/browser.md#data-custody--security-architecture).
 
 `BrowserDefinitionRegistry` admits embedded definitions with Core's codec and
 registry. Public distribution includes complete definition metadata, never

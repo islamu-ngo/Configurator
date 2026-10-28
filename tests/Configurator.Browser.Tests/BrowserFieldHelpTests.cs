@@ -15,7 +15,8 @@ public sealed class BrowserFieldHelpTests
     {
         await using var context = BrowserFixture.Context();
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        source["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "hostname")!["required"] = false;
+        JsonArray required = source["configuration"]!["required"]!.AsArray();
+        required.Remove(required.Single(field => field!.GetValue<string>() == "hostname"));
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = RenderWorkspace(context, definition);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -57,9 +58,13 @@ public sealed class BrowserFieldHelpTests
     {
         await using var context = BrowserFixture.Context();
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        source["fields"]!.AsArray().Single(field => field!["id"]!.GetValue<string>() == "credential")!["guidance"] =
-            JsonNode.Parse("""{ "instructions":"Acquire this value locally and review target instructions.", "links":[{"title":"Public guide","url":"https://docs.example.test/configure"}]}""");
-        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","field":"credential"}}}""");
+        BrowserFixture.WithField(source, "credential", """
+            {"type":"string","title":"Service credential","x-configurator":{
+              "sensitivity":"secret","detail":"basic","guidance":{
+                "instructions":"Acquire this value locally and review target instructions.",
+                "links":[{"title":"Public guide","url":"https://docs.example.test/configure"}]}}}
+            """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","reference":{"scope":"root","path":"/credential"}}}}""");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = RenderWorkspace(context, definition);
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });

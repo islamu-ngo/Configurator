@@ -13,20 +13,21 @@ public sealed class BrowserConfigurationReviewTests
     public async Task ReviewPagesActiveObligationsAndInspectsInactiveMetadataDeliberately()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = new JsonArray(Enumerable.Range(0, 61).Select(index => (JsonNode)new JsonObject
-        {
-            ["id"] = $"setting{index:D2}",
-            ["title"] = $"Setting {index:D2}",
-            ["type"] = "string",
-            ["required"] = true,
-            ["sensitivity"] = "public",
-            ["disclosure"] = "advanced"
-        }).ToArray());
-        source["fields"]!.AsArray().Add(JsonNode.Parse("""
-        {"id":"inactive","title":"Inactive","type":"string","sensitivity":"public","disclosure":"advanced",
-         "activeWhen":{"op":"equals","field":"setting00","value":"enabled"}}
-        """));
+        source["configuration"]!["properties"] = new JsonObject(Enumerable.Range(0, 61).Select(index =>
+            new KeyValuePair<string, JsonNode?>($"setting{index:D2}", new JsonObject
+            {
+                ["title"] = $"Setting {index:D2}",
+                ["type"] = "string",
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public", ["detail"] = "advanced" }
+            })));
+        source["configuration"]!["required"] = new JsonArray(Enumerable.Range(0, 61)
+            .Select(index => (JsonNode?)JsonValue.Create($"setting{index:D2}")).ToArray());
+        source["configuration"]!["properties"]!["inactive"] = JsonNode.Parse("""
+        {"title":"Inactive","type":"string","x-configurator":{"sensitivity":"public","detail":"advanced",
+         "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/setting00"},"value":"enabled"}}}
+        """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.literal", "schema.object", "schema.string");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
@@ -50,14 +51,17 @@ public sealed class BrowserConfigurationReviewTests
     public async Task InactiveImportRecoveryOpensControllerWithoutActivatingTheImportedField()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"]!.AsArray().Add(JsonNode.Parse("""
-        {"id":"enabled","type":"boolean","title":"Enable integration","default":false,"sensitivity":"public","disclosure":"essential"}
-        """));
-        source["fields"]!.AsArray().Add(JsonNode.Parse("""
-        {"id":"dependent","type":"string","title":"Dependent setting","sensitivity":"public","disclosure":"advanced",
-         "activeWhen":{"op":"equals","field":"enabled","value":true}}
-        """));
-        source["artifacts"]![0]!["projection"]!["members"]!["dependent"] = JsonNode.Parse("""{"op":"copy","field":"dependent"}""");
+        source["configuration"]!["properties"]!["enabled"] = JsonNode.Parse("""
+        {"type":"boolean","title":"Enable integration","x-configurator":{"initialValue":false,"sensitivity":"public","detail":"basic"}}
+        """);
+        source["configuration"]!["properties"]!["dependent"] = JsonNode.Parse("""
+        {"type":"string","title":"Dependent setting","x-configurator":{"sensitivity":"public","detail":"advanced",
+         "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}}
+        """);
+        source["artifacts"]![0]!["projection"]!["members"]!["dependent"] =
+            JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/dependent"}}""");
+        source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.copy", "projection.object",
+            "schema.boolean", "schema.object", "schema.string", "values.initial");
         await using var context = BrowserFixture.Context();
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
@@ -68,7 +72,8 @@ public sealed class BrowserConfigurationReviewTests
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await component.Find("[data-import-correction='dependent']").ClickAsync(new MouseEventArgs());
         await Assert.That(form.DiscoveryQuery).IsEqualTo("obstructing-query");
-        await Assert.That(form.Snapshot().Values["enabled"].GetBoolean()).IsFalse();
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/enabled"), out var effectiveEnabled)).IsTrue();
+        await Assert.That(effectiveEnabled.GetBoolean()).IsFalse();
         await Assert.That(form.Snapshot().Values.ContainsKey("dependent")).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(component.Markup).DoesNotContain("synthetic-file-canary");
@@ -93,7 +98,9 @@ public sealed class BrowserConfigurationReviewTests
         await component.Find("[data-import-correction='name']").ClickAsync(new MouseEventArgs());
         await Assert.That(form.IsEditorVisible(["name"])).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
-        await Assert.That(form.Snapshot().Values["name"].GetString()).IsEqualTo(conflict ? "manual-answer" : "authored");
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/name"), out var effectiveName)).IsTrue();
+        await Assert.That(effectiveName.GetString()).IsEqualTo(conflict ? "manual-answer" : "authored");
+        await Assert.That(form.Snapshot().Values.ContainsKey("name")).IsEqualTo(conflict);
         await component.Find("[data-field='name'] input").InputAsync(new ChangeEventArgs { Value = "corrected" });
         await Assert.That(component.FindAll("[data-import-correction]")).IsEmpty();
     }
@@ -164,6 +171,7 @@ public sealed class BrowserConfigurationReviewTests
         await using var context = BrowserFixture.Context();
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.object", "schema.string", "values.initial");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await Assert.That(component.FindAll("#artifact-import")).IsEmpty();
@@ -172,16 +180,22 @@ public sealed class BrowserConfigurationReviewTests
     private static SetupDefinition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"name","type":"string","default":"authored","title":"Name","sensitivity":"public","disclosure":"essential"},
-         {"id":"note","type":"string","title":"Note","sensitivity":"public","disclosure":"advanced"},
-         {"id":"secret","type":"string","title":"Secret","sensitivity":"secret","disclosure":"advanced"}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+          "name":{"type":"string","title":"Name","x-configurator":{"initialValue":"authored","sensitivity":"public","detail":"basic"}},
+          "note":{"type":"string","title":"Note","x-configurator":{"sensitivity":"public","detail":"advanced"}},
+          "secret":{"type":"string","title":"Secret","x-configurator":{"sensitivity":"secret","detail":"advanced"}}}}
         """);
         source.Remove("presentation");
         source["artifacts"] = JsonNode.Parse("""
-        [{"id":"config","format":"json","fileName":"service.json","applySemantics":"create","restart":"process",
-          "projection":{"op":"object","members":{"name":{"op":"copy","field":"name"},"note":{"op":"copy","field":"note"},"secret":{"op":"copy","field":"secret"}}}}]
+        [{"id":"config","format":"json","fileName":"service.json","targetUpdateMode":"create","restartRequirement":"process",
+          "projection":{"op":"object","members":{
+            "name":{"op":"copy","reference":{"scope":"root","path":"/name"}},
+            "note":{"op":"copy","reference":{"scope":"root","path":"/note"}},
+            "secret":{"op":"copy","reference":{"scope":"root","path":"/secret"}}}}}]
         """);
+        source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object",
+            "schema.object", "schema.string", "values.initial");
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

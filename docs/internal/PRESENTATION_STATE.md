@@ -17,6 +17,10 @@ diagnostics. `TryCorrectionPath` resolves private map ordinals locally against
 the current effective snapshot. `FocusCorrection` rejects another input revision.
 Public draft diagnostics convert local draft paths to typed safe coordinates;
 private map keys never become serialized correction names.
+`TryResolveCorrection` is an explicit private-coordinate accessor for a local
+renderer; it applies the same revision fence and is not a diagnostic or transport
+projection. `GetVariantTitle` localizes only a declared branch's public title or
+discriminator fallback, never its collected answers.
 
 `SelectChoice` uses the declared enum ordinal and exact JSON value.
 `ApplySuggestion`, `SetNull`, `ResetValue` and `SelectVariant` are deliberate

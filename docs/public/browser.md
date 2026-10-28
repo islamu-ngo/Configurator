@@ -1,8 +1,42 @@
 # Browser Configuration (Blazor WebAssembly)
 
-ISLAMU Configurator Browser is a static, client-side web application built with Blazor WebAssembly and MudBlazor. It allows operators to prepare production-ready configuration files directly in modern web browsers without installing native software.
+> **Audience:** Operators | Integrators | Contributors
+> **Status:** Implemented browser workspace; target acceptance remains separate
+> **Owner:** Browser
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/LAUNCH_CONTRACT.md`
+
+ISLAMU Configurator Browser is a static, client-side web application built with Blazor WebAssembly and MudBlazor. It prepares configuration artifacts for validation by the target application without installing native software.
 
 All form processing, schema validation, and file composition execute entirely inside your browser's local sandbox. No configuration answers or generated files are ever transmitted to an application server.
+
+## Typed editing and language
+
+The workspace edits the admitted v2 schema directly. Typed maps keep literal keys,
+including dots and slashes, separate from editor paths. Add an entry, edit its
+declared value and remove it deliberately; compound values do not require an
+unrestricted JSON text area. Provider alternatives use the declared discriminator
+and show only the selected branch. Changing a provider replaces its old payload.
+
+Choice labels are display text, not answer values. Equal labels can represent
+different typed enum members. Field actions distinguish supplied null, omission,
+reset to declared initialization eligibility, and explicit suggestion adoption.
+Requiredness does not create absent child objects: use the supply action when
+you want an empty container. Invalid drafts remain local and block preparation
+until corrected or deliberately removed.
+
+For definitions declaring several locales, use **Language** to change existing
+public labels and guidance. The initial language is the definition's declared
+default unless the launch selects another admitted locale. Missing translations
+fall back to base text. Automatic direction follows locale metadata; an explicit
+direction preference still wins. Language changes do not edit answers, invalidate
+prepared files, convert numeric units, or reload the workspace.
+
+Unsupported required editing capabilities refuse before answer collection.
+Required or invalid work remains reachable even when optional settings or a
+journey are hidden. Correction links resolve typed property/row/map-entry
+coordinates only for their current input revision. Private map keys and values
+are not diagnostic or URL identifiers.
 
 ---
 

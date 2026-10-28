@@ -1,7 +1,9 @@
 @implements IAsyncDisposable
 @using Configurator.Presentation
 
+<MudRTLProvider RightToLeft="@(DisplayDirection == "rtl")">
 <section class="workspace configuration-editor @(_compact ? "configuration-editor--compact" : "")" aria-labelledby="configuration-heading"
+         lang="@_form!.Locale" dir="@DisplayDirection"
          data-experience="@_form!.SelectedExperienceId" data-density="@(_compact ? "compact" : "comfortable")">
     <header class="configuration-editor__header">
         <h2 @ref="_configureHeading" id="configuration-heading" tabindex="-1">Configuration answers</h2>
@@ -48,9 +50,21 @@
                 <div class="configuration-editor__mode">
                     <label for="configuration-experience">Configuration experience</label>
                     <select id="configuration-experience" value="@_form.SelectedExperienceId" @onchange="ChangeExperience">
-                        @foreach (var experience in _form.Experiences)
+                        @foreach (var experience in _form.DisplayExperiences)
                         {
                             <option value="@experience.Id">@experience.Title</option>
+                        }
+                    </select>
+                </div>
+            }
+            @if (_form.Definition.Locales.Count > 1)
+            {
+                <div class="configuration-editor__mode">
+                    <label for="configuration-locale">Language</label>
+                    <select id="configuration-locale" value="@_form.Locale" @onchange="ChangeLocale">
+                        @foreach (string locale in _form.Definition.Locales)
+                        {
+                            <option value="@locale">@locale</option>
                         }
                     </select>
                 </div>
@@ -58,8 +72,8 @@
             <div class="configuration-editor__mode">
                 <label for="configuration-detail">Detail in this profile</label>
                 <select id="configuration-detail" value="@(_form.DisclosureOverride?.ToString().ToLowerInvariant() ?? "authored")" @onchange="ChangeDetail">
-                    <option value="authored">Follow experience</option>
-                    <option value="essential">Essential</option>
+                    <option value="authored">Default detail</option>
+                    <option value="essential">Basic</option>
                     <option value="guided">Standard</option>
                     <option value="advanced">All active</option>
                 </select>
@@ -134,7 +148,7 @@
                                                     FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath" />
                     </section>
                 }
-                @if (SelectedExperience.Navigation == "guided" && sections.Length > 1)
+                @if (SelectedExperience.Navigation == "wizard" && sections.Length > 1)
                 {
                     int sectionIndex = Array.FindIndex(sections, item => item.Id == SelectedSection(sections));
                     <div class="actions configuration-editor__section-actions">
@@ -196,3 +210,4 @@
         }
     </fieldset>
 </section>
+</MudRTLProvider>

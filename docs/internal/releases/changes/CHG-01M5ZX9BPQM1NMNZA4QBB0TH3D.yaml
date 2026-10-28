@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5ZX9BPQM1NMNZA4QBB0TH3D
+Title: "support the shared v2 editing and privacy contract"
+Type: feat
+Scope: browser
+Summary: "Render typed maps, nullable choices and provider alternatives with explicit actions, localized help and revision-fenced correction recovery."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "Retired scalar and compound callbacks cannot mutate remounted workspaces. Map-key drafts clear on privacy changes and disposal; answers remain outside transport, storage and worker messages."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Use distinct null, omission, reset and suggestion actions. Provider selection replaces the previous branch payload and maps use declared typed entry editors."
+  Configuration:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: documented
+    Detail: "The declared default locale is independent of sorted locale order. Language changes project public metadata and automatic direction without editing answers or invalidating prepared output."
+  OpenAPI:
+    Reference: docs/internal/LAUNCH_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Unsupported required editing capabilities refuse before collection. Public help remains inert, and local correction focus rejects coordinates from another input revision. Published-host qualification is recorded separately."

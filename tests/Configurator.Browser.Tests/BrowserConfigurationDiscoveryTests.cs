@@ -34,15 +34,16 @@ public sealed class BrowserConfigurationDiscoveryTests
     public async Task PagingKeepsFullCountsAndResetsForNewSearch()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["fields"] = new JsonArray(Enumerable.Range(0, 61).Select(index => (JsonNode)new JsonObject
-        {
-            ["id"] = $"setting{index:D2}",
-            ["title"] = $"Setting {index:D2}",
-            ["type"] = "string",
-            ["sensitivity"] = "public",
-            ["disclosure"] = "advanced"
-        }).ToArray());
+        source["configuration"]!["properties"] = new JsonObject(Enumerable.Range(0, 61).Select(index =>
+            new KeyValuePair<string, JsonNode?>($"setting{index:D2}", new JsonObject
+            {
+                ["title"] = $"Setting {index:D2}",
+                ["type"] = "string",
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public", ["detail"] = "advanced" }
+            })));
+        source["configuration"]!["required"] = new JsonArray();
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.object", "schema.string");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = RenderWorkspace(context, definition);
@@ -132,7 +133,8 @@ public sealed class BrowserConfigurationDiscoveryTests
         await component.Find("[data-discovery-result='port'] button").ClickAsync(new MouseEventArgs());
         await Assert.That(form.IsEditorVisible(["enabled"])).IsTrue();
         await Assert.That(form.Validate().Fields.Single(field => field.Id == "port").IsActive).IsFalse();
-        await Assert.That(form.Snapshot().Values["enabled"].GetBoolean()).IsFalse();
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/enabled"), out var effectiveEnabled)).IsTrue();
+        await Assert.That(effectiveEnabled.GetBoolean()).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
     }
@@ -176,20 +178,25 @@ public sealed class BrowserConfigurationDiscoveryTests
     private static SetupDefinition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"enabled","type":"boolean","title":"Enable relay","default":false,"sensitivity":"public","disclosure":"essential"},
-         {"id":"host.name","type":"string","title":"Service host","required":true,"sensitivity":"public","disclosure":"guided",
-          "guidance":{"searchTerms":["server address"]}},
-         {"id":"note","type":"string","title":"Operator note","sensitivity":"public","disclosure":"advanced"},
-         {"id":"token","type":"string","title":"Issuer token","sensitivity":"secret","disclosure":"advanced"},
-         {"id":"port","type":"integer","title":"Relay port","sensitivity":"public","disclosure":"advanced",
-          "activeWhen":{"op":"equals","field":"enabled","value":true}}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["host.name"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "enabled":{"type":"boolean","title":"Enable relay",
+            "x-configurator":{"initialValue":false,"sensitivity":"public","detail":"basic"}},
+          "host.name":{"type":"string","title":"Service host",
+            "x-configurator":{"sensitivity":"public","detail":"standard","guidance":{"searchTerms":["server address"]}}},
+          "note":{"type":"string","title":"Operator note","x-configurator":{"sensitivity":"public","detail":"advanced"}},
+          "token":{"type":"string","title":"Issuer token","x-configurator":{"sensitivity":"secret","detail":"advanced"}},
+          "port":{"type":"integer","title":"Relay port","x-configurator":{"sensitivity":"public","detail":"advanced",
+            "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}}}}
         """);
         source.Remove("presentation");
         source["artifacts"] = JsonNode.Parse("""
-        [{"id":"config","format":"json","fileName":"service.json","applySemantics":"create","restart":"process",
-          "projection":{"op":"object","members":{"HOST_NAME":{"op":"copy","field":"host.name"}}}}]
+        [{"id":"config","format":"json","fileName":"service.json","targetUpdateMode":"create","restartRequirement":"process",
+          "projection":{"op":"object","members":{"HOST_NAME":{"op":"copy","reference":{"scope":"root","path":"/host.name"}}}}}]
         """);
+        source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.copy", "projection.object",
+            "schema.boolean", "schema.integer", "schema.object", "schema.string", "values.initial");
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

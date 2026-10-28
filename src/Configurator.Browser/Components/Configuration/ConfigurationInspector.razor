@@ -1,40 +1,50 @@
 @using System.Text.Json
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
 
 <MudDialog>
     <DialogContent>
         <div class="configuration-inspector">
             @if (!string.IsNullOrWhiteSpace(ContextTitle)) { <p><strong>@ContextTitle</strong></p> }
+            @if (!string.IsNullOrWhiteSpace(PublicTitle)) { <p data-help-title><strong>@PublicTitle</strong></p> }
             @if (!string.IsNullOrWhiteSpace(Description)) { <p data-experience-description>@Description</p> }
             @if (!string.IsNullOrWhiteSpace(SectionDescription)) { <p data-section-description>@SectionDescription</p> }
-            @if (Schema.ValueKind == JsonValueKind.Object)
+            @if (PublicSchema.ValueKind == JsonValueKind.Object)
             {
-            @if (Schema.TryGetProperty("description", out var help)) { <p>@help.GetString()</p> }
-            @if (Schema.TryGetProperty("x-configurator", out var metadata))
+            @if (!string.IsNullOrWhiteSpace(PublicDescription)) { <p data-help-description>@PublicDescription</p> }
+            @if (!string.IsNullOrWhiteSpace(Instructions))
             {
-            @if (metadata.TryGetProperty("guidance", out var guidance))
+                <p data-help-instructions>@Instructions</p>
+            }
+            @if (Links.Count > 0)
             {
-                @if (guidance.TryGetProperty("instructions", out var instructions))
-                {
-                    <p data-help-instructions>@instructions.GetString()</p>
-                }
-                @if (guidance.TryGetProperty("links", out var links) && links.GetArrayLength() > 0)
-                {
                     <ul>
-                        @foreach (var link in links.EnumerateArray())
+                        @foreach (var link in Links)
                         {
-                            <li><a href="@(link.GetProperty("url").GetString())" target="_blank"
-                                   rel="noopener noreferrer" referrerpolicy="no-referrer">@link.GetProperty("title").GetString()<span class="sr-only"> (new tab)</span></a></li>
+                            <li><a href="@link.Url" target="_blank"
+                                   rel="noopener noreferrer" referrerpolicy="no-referrer">@link.Title<span class="sr-only"> (new tab)</span></a></li>
                         }
                     </ul>
-                }
             }
+            @if (ChoiceExplanations.Any())
+            {
+                <dl data-choice-explanations>
+                    @foreach (var choice in ChoiceExplanations)
+                    {
+                        <dt>@choice.Label</dt><dd>@choice.Explanation</dd>
+                    }
+                </dl>
             }
             <dl>
                 <dt>Definition path</dt><dd><code data-definition-path>@FieldPath</code></dd>
-                <dt>Declared type</dt><dd>@(Schema.GetProperty("type").ValueKind == JsonValueKind.Array
-                    ? string.Join(" or ", Schema.GetProperty("type").EnumerateArray().Select(item => item.GetString()))
-                    : Schema.GetProperty("type").GetString())</dd>
-                @if (Schema.TryGetProperty("x-configurator", out var declaredMetadata) && declaredMetadata.TryGetProperty("sensitivity", out var sensitivity))
+                <dt>Declared type</dt><dd>@(PublicSchema.GetProperty("type").ValueKind == JsonValueKind.Array
+                    ? string.Join(" or ", PublicSchema.GetProperty("type").EnumerateArray().Select(item => item.GetString()))
+                    : PublicSchema.GetProperty("type").GetString())</dd>
+                @if (!string.IsNullOrWhiteSpace(Units))
+                {
+                    <dt>Units</dt><dd data-help-units>@Units</dd>
+                }
+                @if (Metadata.ValueKind == JsonValueKind.Object && Metadata.TryGetProperty("sensitivity", out var sensitivity))
                 {
                     <dt>Declared sensitivity</dt><dd>@sensitivity.GetString()</dd>
                 }
@@ -66,11 +76,36 @@
 @code {
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
     [Parameter] public JsonElement Schema { get; set; }
+    [Parameter] public DefinitionEditorPresentation? Presentation { get; set; }
     [Parameter] public string FieldPath { get; set; } = string.Empty;
     [Parameter] public string? ContextTitle { get; set; }
     [Parameter] public string? Description { get; set; }
     [Parameter] public string? SectionDescription { get; set; }
     [Parameter] public IReadOnlyList<string> OutputArtifactIds { get; set; } = [];
     [Parameter] public IReadOnlyList<string> BindingKeys { get; set; } = [];
+    private JsonElement PublicSchema => Presentation?.Schema.Keywords ?? Schema;
+    private JsonElement Metadata => PublicSchema.ValueKind == JsonValueKind.Object &&
+        PublicSchema.TryGetProperty("x-configurator", out var metadata) ? metadata : default;
+    private JsonElement Guidance => Metadata.ValueKind == JsonValueKind.Object &&
+        Metadata.TryGetProperty("guidance", out var guidance) ? guidance : default;
+    private string? PublicTitle => Presentation?.Title ?? Text(PublicSchema, "title");
+    private string? PublicDescription => Presentation?.Description ?? Text(PublicSchema, "description");
+    private string? Instructions => Presentation?.Instructions ?? Text(Guidance, "instructions");
+    private string? Units => Presentation?.Units ?? Text(Metadata, "units");
+    private IReadOnlyList<DefinitionGuidanceLink> Links => Presentation?.Links ??
+        (Guidance.ValueKind == JsonValueKind.Object && Guidance.TryGetProperty("links", out var links)
+            ? links.EnumerateArray().Select(link => new DefinitionGuidanceLink(
+                link.GetProperty("title").GetString()!, link.GetProperty("url").GetString()!)).ToArray()
+            : Array.Empty<DefinitionGuidanceLink>());
+    private IEnumerable<(string Label, string? Explanation)> ChoiceExplanations =>
+        (Presentation is not null
+            ? Presentation.Choices.Select(choice => (choice.Label, choice.Explanation))
+            : Metadata.ValueKind == JsonValueKind.Object && Metadata.TryGetProperty("choices", out var choices)
+                ? choices.EnumerateArray().Select(choice => (
+                    Label: choice.GetProperty("label").GetString()!, Explanation: Text(choice, "explanation")))
+                : Enumerable.Empty<(string Label, string? Explanation)>())
+        .Where(choice => !string.IsNullOrWhiteSpace(choice.Explanation));
+    private static string? Text(JsonElement source, string name) => source.ValueKind == JsonValueKind.Object &&
+        source.TryGetProperty(name, out var text) ? text.GetString() : null;
     private void Close() => Dialog.Close();
 }

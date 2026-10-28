@@ -45,6 +45,14 @@ public partial class ConfigurationField
     private DefinitionFormProjection? _parameterProjection;
     private long _parameterInputRevision = -1;
     private bool _suppressParameterRender;
+    private DefinitionEditorPresentation? _presentation;
+    private bool _actionsMounted;
+    private long _actionGeneration;
+    private string _newMapKey = "";
+    private bool _invalidMapKey;
+    private string? _focusMapEntry;
+    private long _mapFocusGeneration;
+    private DefinitionSessionPrivacy _lastPrivacy;
 
     public override Task SetParametersAsync(ParameterView parameters)
     {
@@ -90,15 +98,32 @@ public partial class ConfigurationField
 
     private string Error => string.Join(" ", Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
     private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
-        diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1));
+        (diagnostic.Location is { } location
+            ? Form.TryResolveCorrection(diagnostic.FieldId, location, out IReadOnlyList<string> resolved) &&
+                resolved.Take(Path.Count).SequenceEqual(Path, StringComparer.Ordinal)
+            : diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1)));
     private string ControlId => _controlId ??= Form.GetEditorIdentity(Path);
     private string Type => Schema.JsonType;
-    private string Title => TitleOverride ?? (Schema.Keywords.TryGetProperty("title", out var value) ? value.GetString()! : "Item");
-    private string? Help => Schema.Keywords.TryGetProperty("description", out var value) ? value.GetString() : null;
+    private string Title => TitleOverride ?? _presentation?.Title ?? (Schema.Keywords.TryGetProperty("title", out var value) ? value.GetString()! : "Item");
+    private string? Help => _presentation?.Description ?? (Schema.Keywords.TryGetProperty("description", out var value) ? value.GetString() : null);
+    private DefinitionNode ObjectSchema => Value is { } value ? DefinitionValidator.SelectVariant(Schema, value) ?? Schema : Schema;
+    private IEnumerable<JsonProperty> MapEntries => ObjectSchema.AdditionalProperties is not null &&
+        Value is { ValueKind: JsonValueKind.Object } value
+            ? value.EnumerateObject().Where(property => !ObjectSchema.Properties.ContainsKey(property.Name)) : [];
+    private string VariantSelection
+    {
+        get
+        {
+            if (Value is not { } value || DefinitionValidator.SelectVariant(Schema, value) is not { } selected) return "";
+            for (int index = 0; index < Schema.Variants.Count; index++)
+                if (ReferenceEquals(Schema.Variants[index], selected)) return ChoiceIdentity(index);
+            return "";
+        }
+    }
     private bool HasHelp => !string.IsNullOrWhiteSpace(Help)
         || InputPurposeHelp is not null || IsMasked && (Type == "boolean" || HasChoices);
     private bool Required => RequiredOverride ?? false;
-    private bool HasOptionalChildren => ContainsOptionalProperty(Schema);
+    private bool HasOptionalChildren => ContainsOptionalProperty(ObjectSchema);
     private bool OptionalEditorsExpanded => Form.IsEditorExpanded(Path);
     private void ExpandEditor() => Form.SetEditorExpanded(Path, true);
     private void ToggleOptionalEditors() => Form.SetEditorExpanded(Path, !OptionalEditorsExpanded);
@@ -113,6 +138,11 @@ public partial class ConfigurationField
     private bool HasChoices => Schema.Keywords.TryGetProperty("enum", out _);
     private JsonElement Choices => Schema.Keywords.GetProperty("enum");
     private static string ChoiceIdentity(int index) => index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private string ChoiceLabel(int index, JsonElement value)
+    {
+        string label = _presentation?.Choices[index].Label ?? Display(value);
+        return label.Length == 0 ? "Empty string" : label;
+    }
     private string Selection
     {
         get
@@ -175,6 +205,19 @@ public partial class ConfigurationField
     }
     protected override void OnParametersSet()
     {
+        _presentation = Form.GetEditorPresentation(Path);
+        bool actionsMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path);
+        if (_actionsMounted != actionsMounted)
+        {
+            _actionsMounted = actionsMounted;
+            ++_actionGeneration;
+        }
+        if (!actionsMounted || !ReferenceEquals(_rootForm, Form) || _lastPrivacy != Form.SessionPrivacy)
+        {
+            _newMapKey = "";
+            _focusMapEntry = null;
+        }
+        _lastPrivacy = Form.SessionPrivacy;
         bool controlMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path) && Type is not ("object" or "array");
         if (_controlMounted != controlMounted)
         {
@@ -250,6 +293,79 @@ public partial class ConfigurationField
         _focusNewRow = Count;
         if (!Form.AddListItem(Path)) _focusNewRow = -1;
     }
+    private bool IsCurrentAction(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation) =>
+        !_disposed && _actionsMounted && generation == _actionGeneration && ReferenceEquals(Form, form) &&
+        Form.InputRevision == revision && Path.SequenceEqual(path) && Form.CanEdit(Path);
+
+    private void OmitCurrent(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (IsCurrentAction(form, path, revision, generation)) Omit();
+    }
+    private void UpdateMapKey(string? key, DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (!IsCurrentAction(form, path, revision, generation)) return;
+        _newMapKey = key ?? "";
+        _invalidMapKey = false;
+    }
+
+    private void Reset(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (IsCurrentAction(form, path, revision, generation)) { Form.ResetValue(Path); _invalid = false; _ = NotifyValidityAsync(); }
+    }
+    private void Suggest(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (IsCurrentAction(form, path, revision, generation)) { Form.ApplySuggestion(Path); _invalid = false; _ = NotifyValidityAsync(); }
+    }
+    private void SupplyNull(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (IsCurrentAction(form, path, revision, generation)) { Form.SetNull(Path); _invalid = false; _ = NotifyValidityAsync(); }
+    }
+    private void ChooseVariant(string? choice, DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (IsCurrentAction(form, path, revision, generation) &&
+            int.TryParse(choice, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int index))
+        {
+            Form.SelectVariant(Path, index);
+            _ = NotifyValidityAsync();
+        }
+    }
+    private void AddMapEntry(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (!IsCurrentAction(form, path, revision, generation) || ObjectSchema.AdditionalProperties is not { } entrySchema) return;
+        if (Value is { ValueKind: JsonValueKind.Object } current && current.TryGetProperty(_newMapKey, out _))
+        {
+            _invalidMapKey = true;
+            return;
+        }
+        string[] entryPath = [.. Path, _newMapKey];
+        try { _ = DefinitionPath.FromSegments(entryPath); }
+        catch (ArgumentException) { _invalidMapKey = true; return; }
+        JsonElement initial = entrySchema.Type switch
+        {
+            DefinitionNodeType.Text => JsonSerializer.SerializeToElement(""),
+            DefinitionNodeType.Boolean => JsonSerializer.SerializeToElement(false),
+            DefinitionNodeType.WholeNumber or DefinitionNodeType.Number => JsonSerializer.SerializeToElement(0),
+            DefinitionNodeType.Sequence => JsonSerializer.SerializeToElement(Array.Empty<object>()),
+            _ => JsonSerializer.SerializeToElement(new Dictionary<string, object>())
+        };
+        _invalidMapKey = !Form.SetValue(entryPath, initial);
+        if (!_invalidMapKey)
+        {
+            _focusMapEntry = _newMapKey;
+            ++_mapFocusGeneration;
+            _newMapKey = "";
+        }
+        _ = NotifyValidityAsync();
+    }
+    private void RemoveMapEntry(string name, DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    {
+        if (IsCurrentAction(form, path, revision, generation))
+        {
+            Form.EditValue([.. Path, name], null);
+            _focusMapEntry = null;
+            _ = NotifyValidityAsync();
+        }
+    }
     private void SupplyObject() { _focusObjectChildren = true; if (!Form.SupplyObject(Path)) _focusObjectChildren = false; }
     private void SupplyList() { if (Form.SetValue(Path, JsonSerializer.SerializeToElement(Array.Empty<object>()))) _focusAdd = true; }
     private void Remove(int index)
@@ -291,5 +407,12 @@ public partial class ConfigurationField
         return schema.Properties.Any(child => CanFocus(child.Value, path.Append(child.Key).ToArray()));
     }
     private static string Display(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
-    public void Dispose() { _disposed = true; if (_invalid) { _invalid = false; _ = NotifyValidityAsync(); } GC.SuppressFinalize(this); }
+    public void Dispose()
+    {
+        _disposed = true;
+        _newMapKey = "";
+        _focusMapEntry = null;
+        if (_invalid) { _invalid = false; _ = NotifyValidityAsync(); }
+        GC.SuppressFinalize(this);
+    }
 }

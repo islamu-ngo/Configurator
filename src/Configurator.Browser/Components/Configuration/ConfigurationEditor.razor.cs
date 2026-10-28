@@ -15,7 +15,9 @@ public partial class ConfigurationEditor
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
     [Inject] private BrowserOfflinePolicy Offline { get; set; } = null!;
     [Inject] private IServiceProvider Services { get; set; } = null!;
+    [Inject] private AppearanceThemeService Appearance { get; set; } = null!;
     [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
+    [Parameter] public string? InitialLocale { get; set; }
     private SetupDefinition? _pinned;
     private DefinitionFormModel? _form;
     private readonly SetupPresentationSession _session = new(new WeakReferenceMessenger());
@@ -32,6 +34,13 @@ public partial class ConfigurationEditor
     private string _statusCode = "workspace-ready";
     private string _importArtifact = string.Empty;
     private string? _selectedSection;
+    private string? _sectionLocale;
+    private string DisplayDirection => Appearance.Current.Direction == "auto" ? _form!.Direction : Appearance.Current.Direction;
+    protected override void OnInitialized() => Appearance.Changed += AppearanceChanged;
+    private void AppearanceChanged(object? sender, EventArgs args)
+    {
+        if (!_disposed) _ = InvokeAsync(StateHasChanged);
+    }
     private string? _focusField;
     private IReadOnlyList<string> _focusPath = [];
     private long _focusGeneration;
@@ -79,7 +88,9 @@ public partial class ConfigurationEditor
             .Where(artifact => DefinitionImport.CanImport(Definition, artifact.Id)).ToArray();
         _ready = false;
         _beginPending = true;
-        _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+        _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets, BrowserLaunchSelection.EditingCapabilities);
+        if (InitialLocale is not null && !_form.SelectLocale(InitialLocale))
+            throw new InvalidOperationException("locale-unsupported");
         IndexSections();
         _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;
@@ -112,13 +123,14 @@ public partial class ConfigurationEditor
             });
     }
 
-    private DefinitionFormExperience SelectedExperience => _form!.Experiences.Single(item => item.Id == _form.SelectedExperienceId);
+    private DefinitionFormExperience SelectedExperience => _form!.DisplayExperiences.Single(item => item.Id == _form.SelectedExperienceId);
     private SetupArtifactDefinition[] ImportableArtifacts { get; set; } = [];
     private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields, string? Description);
     private void IndexSections()
     {
         _observedDiscoverySelection = _form!.DiscoverySelection;
-        _editorSections = _form.Sections.ToDictionary(section => section.Id, section =>
+        _sectionLocale = _form.Locale;
+        _editorSections = _form.DisplaySections.ToDictionary(section => section.Id, section =>
             new EditorSection(section.Id, section.Title, section.Fields, section.Description),
             StringComparer.Ordinal);
     }
@@ -152,7 +164,8 @@ public partial class ConfigurationEditor
         string fieldId = diagnostic.FieldId;
         SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId);
         if (field is null) return;
-        string[] path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
+        IReadOnlyList<string> path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
+        if (diagnostic.Location is { } location && !_form!.TryResolveCorrection(fieldId, location, out path)) return;
         bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
@@ -218,6 +231,7 @@ public partial class ConfigurationEditor
     }
     private void ViewChanged(object? sender, EventArgs args)
     {
+        if (_sectionLocale != _form!.Locale) IndexSections();
         _search?.Refresh(this, _searchLease);
         // Discovery owns its input events and rerenders its own query results.
         if (!ReferenceEquals(_observedDiscoverySelection, _form!.DiscoverySelection))
@@ -244,6 +258,10 @@ public partial class ConfigurationEditor
             case "guided": _form!.SetDisclosureOverride(SetupFieldDisclosure.Guided); break;
             case "advanced": _form!.SetDisclosureOverride(SetupFieldDisclosure.Advanced); break;
         }
+    }
+    private void ChangeLocale(ChangeEventArgs args)
+    {
+        if (args.Value is string locale) _form!.SelectLocale(locale);
     }
     private void ChangeDensity(ChangeEventArgs args)
     {
@@ -591,6 +609,7 @@ public partial class ConfigurationEditor
     }
     public async ValueTask DisposeAsync()
     {
+        Appearance.Changed -= AppearanceChanged;
         if (_disposed) return;
         long navigationLease = _navigationLease;
         Task retirement = _outputRetirement;

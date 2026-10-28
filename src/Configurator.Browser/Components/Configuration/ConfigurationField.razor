@@ -14,6 +14,10 @@
     else
     {
     string type = Type;
+    var actionForm = Form;
+    IReadOnlyList<string> actionPath = Path.ToArray();
+    long actionRevision = Form.InputRevision;
+    long actionGeneration = _actionGeneration;
     string error = Error;
     bool canEdit = Form.CanEdit(Path);
     bool required = Required;
@@ -24,9 +28,26 @@
         <fieldset @ref="_group" tabindex="-1" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
                   aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())" disabled="@(!canEdit)">
             <legend>@Title @(required ? "(required)" : "(optional)")
-                <ConfigurationFieldActions Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required"
-                                           CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled" OnOmit="Omit" GetBindings="InspectorBindings" />
+                <ConfigurationFieldActions Schema="Schema" Presentation="_presentation" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required" InputRevision="actionRevision"
+                                           CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled"
+                                           OnOmit="@(() => OmitCurrent(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           OnReset="@(() => Reset(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           OnSuggest="@(() => Suggest(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           OnNull="@(() => SupplyNull(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           GetBindings="InspectorBindings" />
             </legend>
+            @if (Schema.Variants.Count > 0)
+            {
+                <MudSelect T="string" Label="@(Title + " type")" InputId="@(ControlId + "-variant")"
+                           Value="@VariantSelection" Disabled="@(!canEdit)" data-variant-owner="@ControlId"
+                           ValueChanged="@(choice => ChooseVariant(choice, actionForm, actionPath, actionRevision, actionGeneration))">
+                    @for (int variant = 0; variant < Schema.Variants.Count; variant++)
+                    {
+                        int variantIndex = variant;
+                        <MudSelectItem T="string" Value="@ChoiceIdentity(variantIndex)">@Form.GetVariantTitle(Path, variantIndex)</MudSelectItem>
+                    }
+                </MudSelect>
+            }
             @if (HasOptionalChildren)
             {
                 <button type="button" class="button button--secondary configuration-field__disclosure"
@@ -35,30 +56,58 @@
                     @(OptionalEditorsExpanded ? "Hide optional settings" : "Show optional settings")
                 </button>
             }
-            @if (type == "object")
+            @if (Value is { ValueKind: JsonValueKind.Null })
+            {
+                <p class="configuration-field__help">Null is supplied. Reset or choose another value to continue editing.</p>
+            }
+            else if (type == "object")
             {
                 @if (Value is null)
                 {
-                    <button type="button" class="button button--secondary" @onclick="SupplyObject">Supply @Title object</button>
+                    <button type="button" class="button button--secondary" data-action="supply-object"
+                            @onclick="@(() => { if (IsCurrentAction(actionForm, actionPath, actionRevision, actionGeneration)) SupplyObject(); })">Supply @Title object</button>
                 }
                 bool focusRemaining = FocusFirstControl || _focusObjectChildren;
-                @foreach (var child in Schema.Properties)
+                @foreach (var child in ObjectSchema.Properties)
                 {
                     string childId = child.Key;
                     string[] childPath = Path.Append(childId).ToArray();
                     bool focusChild = focusRemaining && CanFocus(child.Value, childPath);
                     if (focusChild) focusRemaining = false;
                     <ConfigurationField @key="childId" Form="Form" Schema="child.Value" Path="childPath" Validation="Validation" ValidationChanged="ValidationChanged"
-                                        TitleOverride="@(child.Value.Keywords.TryGetProperty("title", out var childTitle) ? childTitle.GetString() : string.IsNullOrWhiteSpace(childId) ? "Setting" : childId)"
-                                        RequiredOverride="@Schema.Required.Contains(childId, StringComparer.Ordinal)"
+                                        TitleOverride="@(Form.GetEditorPresentation(childPath)?.Title ?? (string.IsNullOrWhiteSpace(childId) ? "Setting" : childId))"
+                                        RequiredOverride="@ObjectSchema.Required.Contains(childId, StringComparer.Ordinal)"
                                         InheritedSecret="isSecret" InheritedSensitive="isMasked" FocusFirstControl="focusChild" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+                }
+                @foreach (JsonProperty entry in MapEntries)
+                {
+                    string name = entry.Name;
+                    string[] entryPath = Path.Append(name).ToArray();
+                    <div class="configuration-field__row" @key="Form.GetEditorIdentity(entryPath)">
+                        <ConfigurationField Form="Form" Schema="ObjectSchema.AdditionalProperties!" Path="entryPath"
+                                            Validation="Validation" ValidationChanged="ValidationChanged" TitleOverride="@name"
+                                            InheritedSecret="isSecret" InheritedSensitive="isMasked"
+                                            FocusFirstControl="@(_focusMapEntry == name)" FocusGeneration="_mapFocusGeneration" FocusPath="FocusPath" />
+                        <button type="button" class="button button--secondary" data-action="remove-map-entry"
+                                @onclick="@(() => RemoveMapEntry(name, actionForm, actionPath, actionRevision, actionGeneration))">Remove entry</button>
+                    </div>
+                }
+                @if (ObjectSchema.AdditionalProperties is not null)
+                {
+                    <MudTextField T="string" Label="@(Title + " new entry key")" InputId="@(ControlId + "-new-key")"
+                                  Value="@_newMapKey" MaxLength="65536" Immediate="true" Disabled="@(!canEdit)"
+                                  Error="_invalidMapKey" ErrorText="Use a valid bounded key that is not already present."
+                                  ValueChanged="@(key => UpdateMapKey(key, actionForm, actionPath, actionRevision, actionGeneration))" />
+                    <button type="button" class="button button--secondary" data-action="add-map-entry" disabled="@(!canEdit)"
+                            @onclick="@(() => AddMapEntry(actionForm, actionPath, actionRevision, actionGeneration))">Add entry</button>
                 }
             }
             else
             {
                 @if (Value is null)
                 {
-                    <button type="button" class="button button--secondary" data-action="supply-list" @onclick="SupplyList">Supply an empty @Title list</button>
+                    <button type="button" class="button button--secondary" data-action="supply-list"
+                            @onclick="@(() => { if (IsCurrentAction(actionForm, actionPath, actionRevision, actionGeneration)) SupplyList(); })">Supply an empty @Title list</button>
                 }
                 @for (int index = 0; index < Count; index++)
                 {
@@ -67,10 +116,12 @@
                         <ConfigurationField Form="Form" Schema="ItemSchema" Path="@Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray()" Validation="Validation" ValidationChanged="ValidationChanged"
                                             TitleOverride="@(Title + " item")" RequiredOverride="true"
                                             InheritedSecret="isSecret" InheritedSensitive="isMasked" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && (FocusPath.Count > Path.Count ? FocusPath[Path.Count] == row.ToString(CultureInfo.InvariantCulture) : row == (FocusRow >= 0 ? FocusRow : 0)))" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
-                        <button type="button" class="button button--secondary" aria-label="@($"Remove {Title} item {row + 1}")" @onclick="() => Remove(row)">Remove item @(row + 1)</button>
+                        <button type="button" class="button button--secondary" aria-label="@($"Remove {Title} item {row + 1}")"
+                                @onclick="@(() => { if (IsCurrentAction(actionForm, actionPath, actionRevision, actionGeneration)) Remove(row); })">Remove item @(row + 1)</button>
                     </div>
                 }
-                <button @ref="_addButton" type="button" class="button button--secondary" data-action="add-item" disabled="@(Count >= MaximumItems)" @onclick="Add">Add @Title item</button>
+                <button @ref="_addButton" type="button" class="button button--secondary" data-action="add-item" disabled="@(Count >= MaximumItems)"
+                        @onclick="@(() => { if (IsCurrentAction(actionForm, actionPath, actionRevision, actionGeneration)) Add(); })">Add @Title item</button>
                 <p>@Count / @MaximumItems items</p>
             }
         </fieldset>
@@ -81,8 +132,13 @@
         {
             <div class="configuration-field__heading">
                 <p class="configuration-field__label"><strong>@Title</strong> <span class="configuration-field__requirement">@(required ? "Required" : "Optional")</span></p>
-                <ConfigurationFieldActions Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required"
-                                           CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled" OnOmit="Omit" GetBindings="InspectorBindings" />
+                <ConfigurationFieldActions Schema="Schema" Presentation="_presentation" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required" InputRevision="actionRevision"
+                                           CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled"
+                                           OnOmit="@(() => OmitCurrent(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           OnReset="@(() => Reset(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           OnSuggest="@(() => Suggest(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           OnNull="@(() => SupplyNull(actionForm, actionPath, actionRevision, actionGeneration))"
+                                           GetBindings="InspectorBindings" />
             </div>
             <p data-secret-denied>Secret entry is disabled for this workspace. Enable it deliberately above, or complete a downloaded draft locally.</p>
         }
@@ -90,8 +146,13 @@
         {
         <div class="configuration-field__heading">
             <label id="@(ControlId + "-label")" for="@ControlId" @onclick="() => FocusScalarAsync()">@Title <span class="configuration-field__requirement">@(required ? "Required" : "Optional")</span></label>
-            <ConfigurationFieldActions Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required"
-                                       CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled" OnOmit="Omit" GetBindings="InspectorBindings" />
+            <ConfigurationFieldActions Schema="Schema" Presentation="_presentation" Path="Path" ControlId="@ControlId" Title="@Title" Required="@required" InputRevision="actionRevision"
+                                       CanEdit="@canEdit" SecretsEnabled="@SecretsEnabled"
+                                       OnOmit="@(() => OmitCurrent(actionForm, actionPath, actionRevision, actionGeneration))"
+                                       OnReset="@(() => Reset(actionForm, actionPath, actionRevision, actionGeneration))"
+                                       OnSuggest="@(() => Suggest(actionForm, actionPath, actionRevision, actionGeneration))"
+                                       OnNull="@(() => SupplyNull(actionForm, actionPath, actionRevision, actionGeneration))"
+                                       GetBindings="InspectorBindings" />
         </div>
         @if ((type == "boolean" || HasChoices) && !isMasked)
         {
@@ -117,7 +178,8 @@
                     int choiceIndex = 0;
                     @foreach (JsonElement choice in Choices.EnumerateArray())
                     {
-                        <MudSelectItem T="string" Value="@ChoiceIdentity(choiceIndex++)">@(Display(choice).Length == 0 ? "Empty string" : Display(choice))</MudSelectItem>
+                        int index = choiceIndex++;
+                        <MudSelectItem T="string" Value="@ChoiceIdentity(index)">@ChoiceLabel(index, choice)</MudSelectItem>
                     }
                 }
             </AppSelectField>

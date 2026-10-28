@@ -22,19 +22,21 @@ public sealed class BrowserExportLifecycleTests
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         source["presentation"] = JsonNode.Parse("""
             {
-              "defaultExperience": "sections",
+              "defaultJourney": "sections",
+              "navigation": "sections",
               "sections": [
-                {"id":"general","title":"General","fields":["mode","replicas","hostname"]},
-                {"id":"private","title":"Private access","fields":["credential"]}
+                {"id":"general","title":"General","pointers":["/mode","/replicas","/hostname"]},
+                {"id":"private","title":"Private access","pointers":["/credential"]}
               ],
-              "experiences": [
-                {"id":"sections","title":"Sections","initialDisclosure":"advanced","navigation":"sections","sections":["general","private"]}
+              "journeys": [
+                {"id":"sections","title":"Sections","sections":["general","private"]}
               ]
             }
             """);
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, definition));
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("retained.test");
         component.Find("#secret-consent").Change(true);
@@ -67,6 +69,7 @@ public sealed class BrowserExportLifecycleTests
             source["revision"] = 2;
             SetupDefinition newer = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
             component.Render(parameters => parameters.Add(item => item.Definition, newer));
+            await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
             replacement = component.FindComponents<ConfigurationField>()[0].Instance.Form;
             component.Find("[data-field='hostname'] input").Input("replacement.test");
             await component.InvokeAsync(() => callback switch

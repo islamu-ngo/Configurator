@@ -14,7 +14,7 @@ public sealed class LaunchRouteTests
     public async Task NeutralLaunchOffersConditionalFieldsAndSecretDeferredDraft()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
-        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("69cdb122-41d2-4fab-9b82-7929a889c726"));
+        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("9b6a7b3e-45bf-4485-8fa1-d7888938c09b"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
@@ -57,9 +57,12 @@ public sealed class LaunchRouteTests
         publicInput.CopyTo(publicBytes);
         using JsonDocument raw = JsonDocument.Parse(publicBytes.ToArray());
         await Assert.That(raw.RootElement.TryGetProperty("answers", out _)).IsFalse();
-        await Assert.That(raw.RootElement.GetProperty("fields").EnumerateArray()
-            .Where(field => field.GetProperty("sensitivity").GetString() != "public")
-            .All(field => !field.TryGetProperty("default", out _))).IsTrue();
+        await Assert.That(raw.RootElement.GetProperty("configuration").GetProperty("properties").EnumerateObject()
+            .Select(property => property.Value)
+            .Where(field => field.GetProperty("x-configurator").GetProperty("sensitivity").GetString() != "public")
+            .All(field => !field.TryGetProperty("default", out _) &&
+                !field.GetProperty("x-configurator").TryGetProperty("initialValue", out _) &&
+                !field.GetProperty("x-configurator").TryGetProperty("suggestedValue", out _))).IsTrue();
         await Assert.That(raw.RootElement.GetProperty("artifacts").EnumerateArray()
             .All(artifact =>
             {
@@ -80,7 +83,7 @@ public sealed class LaunchRouteTests
     public async Task ExternalBundledDefinitionKeepsNativeDigestAndOffersFullLocalControls()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
-        var definition = registry.Current.Resolve(Guid.Parse("a4bcfaa6-9979-43e5-b1f5-00d552618cdf"));
+        var definition = registry.Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}&entry=environment");
@@ -104,7 +107,7 @@ public sealed class LaunchRouteTests
 
     [Test]
     [Arguments("not-a-guid", "", "family-invalid")]
-    [Arguments("69CDB122-41D2-4FAB-9B82-7929A889C726", "", "family-invalid")]
+    [Arguments("9B6A7B3E-45BF-4485-8FA1-D7888938C09B", "", "family-invalid")]
     [Arguments("00000000-0000-0000-0000-000000000000", "", "family-invalid")]
     [Arguments("11111111-1111-1111-1111-111111111111", "", "family-unknown")]
     [Arguments(BrowserFixture.Family, "?appVersion=2.0", "version-incompatible")]

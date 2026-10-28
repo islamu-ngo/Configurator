@@ -16,7 +16,7 @@
             <p>Publisher claim: @selected.Definition.Publisher. A family GUID does not authenticate a publisher.</p>
         </details>
     </section>
-    <ConfigurationEditor @key="selected" @ref="_editor" Definition="@selected.Definition" />
+    <ConfigurationEditor @key="selected" @ref="_editor" Definition="@selected.Definition" InitialLocale="@selected.Locale" />
 }
 else
 {

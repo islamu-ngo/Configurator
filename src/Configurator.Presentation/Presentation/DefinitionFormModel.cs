@@ -384,6 +384,22 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
+    public string? GetVariantTitle(IReadOnlyList<string> path, int index)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) ||
+                index < 0 || index >= node.Schema.Variants.Count) return null;
+            DefinitionNode branch = node.Schema.Variants[index];
+            JsonElement discriminator = branch.Properties[node.Schema.Discriminator!].Keywords.GetProperty("const");
+            string fallback = branch.Keywords.TryGetProperty("title", out JsonElement title) ? title.GetString()!
+                : discriminator.ValueKind == JsonValueKind.String ? discriminator.GetString()! : discriminator.GetRawText();
+            return _localization.Text(Locale, node.SchemaPath + "/oneOf/" +
+                index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/title", fallback);
+        }
+    }
+
     public DefinitionEditorPresentation? GetEditorPresentation(IReadOnlyList<string> path)
     {
         lock (_gate)

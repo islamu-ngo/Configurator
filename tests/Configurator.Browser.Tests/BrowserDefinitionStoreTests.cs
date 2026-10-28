@@ -79,7 +79,7 @@ public sealed class BrowserDefinitionStoreTests
         var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
         registry.Replace([]);
         JsonNode changed = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        changed["title"] = "Conflicting revision";
+        changed["project"]!["name"] = "Conflicting revision";
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(changed.ToJsonString()));
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
@@ -162,9 +162,9 @@ public sealed class BrowserDefinitionStoreTests
         await using var context = BrowserFixture.Context();
         var registry = new BrowserDefinitionRegistry([]);
         JsonNode node = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        node["title"] = " Authored title ";
-        node["publisher"] = " Authored publisher ";
-        node["applicationId"] = " Authored application ";
+        node["project"]!["name"] = " Authored title ";
+        node["project"]!["publisher"] = " Authored publisher ";
+        node["project"]!["id"] = " Authored application ";
         node["applicationVersions"] = new JsonArray(" Compatibility label ");
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);

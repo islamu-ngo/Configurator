@@ -16,13 +16,13 @@ public sealed class BrowserCollectionWorkflowTests
     public async Task OmittingInvalidObjectClearsItsDraftAndPreservesSibling(bool nested)
     {
         JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        document["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
-              {"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
-              {"id":"count","type":"integer","title":"Count","sensitivity":"public","disclosure":"guided"},
-              {"id":"inner","type":"object","title":"Inner","sensitivity":"public","disclosure":"guided","properties":[
-                {"id":"count","type":"integer","title":"Inner count","sensitivity":"public","disclosure":"guided"}]}]}
-            """));
+        BrowserFixture.WithField(document, "settings", """
+            {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "inner":{"type":"object","title":"Inner","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+                "count":{"type":"integer","title":"Inner count","x-configurator":{"sensitivity":"public","detail":"standard"}}}}}}
+            """, "schema.integer");
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
@@ -55,9 +55,10 @@ public sealed class BrowserCollectionWorkflowTests
     public async Task EmptyStringRowAndContainerOmissionPreserveSiblingAnswers()
     {
         JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        document["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"tags","type":"list","title":"Tags","itemType":"string","sensitivity":"public","disclosure":"guided"}
-            """));
+        BrowserFixture.WithField(document, "tags", """
+            {"type":"array","title":"Tags","items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+             "x-configurator":{"sensitivity":"public","detail":"standard"}}
+            """, "schema.array");
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
             SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
@@ -77,11 +78,17 @@ public sealed class BrowserCollectionWorkflowTests
     public async Task DuplicateRowDiagnosticConnectsOnlyAffectedRowAndCollectionControls()
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        definition["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"tenants","type":"list","title":"Tenants","group":"Rows","sensitivity":"public","disclosure":"guided","itemType":"object","maxItems":3,
-             "uniqueBy":["name"],"properties":[
-              {"id":"name","type":"string","title":"Tenant name","sensitivity":"public","disclosure":"guided","required":true}]}
-            """));
+        BrowserFixture.WithField(definition, "tenants", """
+            {"type":"array","title":"Tenants","maxItems":3,"x-configurator":{"sensitivity":"public","detail":"standard","uniqueBy":"/name"},
+             "items":{"type":"object","additionalProperties":false,"required":["name"],"x-configurator":{"sensitivity":"public"},"properties":{
+              "name":{"type":"string","title":"Tenant name","x-configurator":{"sensitivity":"public","detail":"standard"}}}}}
+            """, "schema.array", "schema.bounds", "schema.uniqueBy");
+        definition["presentation"] = JsonNode.Parse("""
+            {"defaultJourney":"setup","navigation":"sections",
+             "sections":[{"id":"general","title":"General","pointers":["/mode","/replicas","/hostname","/credential"]},
+               {"id":"rows","title":"Rows","pointers":["/tenants"]}],
+             "journeys":[{"id":"setup","title":"Setup","sections":["general","rows"]}]}
+            """);
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
@@ -127,12 +134,12 @@ public sealed class BrowserCollectionWorkflowTests
     public async Task TypedObjectRowsPreserveSurvivorIdentityAndRemovePrivateValues()
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        definition["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"tenants","type":"list","title":"Tenants","sensitivity":"sensitive","disclosure":"guided","itemType":"object","maxItems":3,
-             "uniqueBy":["name"],"properties":[
-              {"id":"name","type":"string","title":"Tenant name","sensitivity":"sensitive","disclosure":"guided","required":true},
-              {"id":"credential","type":"string","title":"Tenant secret","sensitivity":"secret","disclosure":"guided"}]}
-            """));
+        BrowserFixture.WithField(definition, "tenants", """
+            {"type":"array","title":"Tenants","maxItems":3,"x-configurator":{"sensitivity":"sensitive","detail":"standard","uniqueBy":"/name"},
+             "items":{"type":"object","additionalProperties":false,"required":["name"],"x-configurator":{"sensitivity":"sensitive"},"properties":{
+              "name":{"type":"string","title":"Tenant name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
+              "credential":{"type":"string","title":"Tenant secret","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}}
+            """, "schema.array", "schema.bounds", "schema.uniqueBy");
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
@@ -160,13 +167,18 @@ public sealed class BrowserCollectionWorkflowTests
     public async Task SevenFieldTypesUseTypedControlsWithoutCompoundJsonTextareas()
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        foreach (string field in new[]
-        {
-            """{"id":"count","type":"integer","title":"Count","sensitivity":"public","disclosure":"guided"}""",
-            """{"id":"rate","type":"number","title":"Rate","sensitivity":"public","disclosure":"guided"}""",
-            """{"id":"tags","type":"list","title":"Tags","sensitivity":"public","disclosure":"guided","itemType":"string","maxItems":3}""",
-            """{"id":"settings","type":"object","title":"Settings","sensitivity":"sensitive","disclosure":"guided","properties":[{"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"public","disclosure":"guided"}]}"""
-        }) definition["fields"]!.AsArray().Add(JsonNode.Parse(field));
+        BrowserFixture.WithField(definition, "count",
+            """{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"standard"}}""", "schema.integer");
+        BrowserFixture.WithField(definition, "rate",
+            """{"type":"number","title":"Rate","x-configurator":{"sensitivity":"public","detail":"standard"}}""", "schema.number");
+        BrowserFixture.WithField(definition, "tags", """
+            {"type":"array","title":"Tags","maxItems":3,"x-configurator":{"sensitivity":"public","detail":"standard"},
+             "items":{"type":"string","x-configurator":{"sensitivity":"public"}}}
+            """, "schema.array", "schema.bounds");
+        BrowserFixture.WithField(definition, "settings", """
+            {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive","detail":"standard"},
+             "properties":{"enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard"}}}}
+            """);
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));

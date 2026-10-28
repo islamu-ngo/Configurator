@@ -17,10 +17,11 @@ public sealed class BrowserTypedPrivacyTests
     {
         await using var context = BrowserFixture.Context();
         var provider = context.Render<MudBlazor.MudPopoverProvider>();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
-            {"id":"emptyChoice","type":"enum","title":"Empty choice","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("emptyChoice", """
+            {"type":"string","title":"Empty choice","enum":["","other"],"x-configurator":{"sensitivity":"public","detail":"standard"}}
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await component.InvokeAsync(() => form.SetDisclosureOverride(SetupFieldDisclosure.Guided));
         Task OpenAsync(string field) => component.InvokeAsync(() => component.FindComponents<ConfigurationField>()
             .Single(item => string.Join('.', item.Instance.Path) == field).FindComponent<MudBlazor.MudSelect<string>>().Instance.OpenMenu());
         await OpenAsync("emptyChoice");
@@ -45,14 +46,14 @@ public sealed class BrowserTypedPrivacyTests
     public async Task EmptyEnumSelectionAndAccessibleOmissionHaveDistinctIdentities()
     {
         await using var context = BrowserFixture.Context();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
-            {"id":"emptyChoice","type":"enum","title":"Empty choice","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("emptyChoice", """
+            {"type":"string","title":"Empty choice","enum":["","other"],"x-configurator":{"sensitivity":"public","detail":"standard"}}
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         var editor = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["emptyChoice"]));
         var options = editor.FindComponents<MudBlazor.MudSelectItem<string>>();
         await Assert.That(options[0].Instance.Value).IsNotEqualTo(options[1].Instance.Value);
-        await BrowserFixture.NotifyChoiceAsync(component, "emptyChoice", options[1].Instance.Value!);
+        await component.InvokeAsync(() => editor.FindComponent<MudBlazor.MudSelect<string>>().Instance.ValueChanged.InvokeAsync(options[1].Instance.Value));
         await Assert.That(form.Snapshot().Values["emptyChoice"].GetRawText()).IsEqualTo("\"\"");
         var omit = await BrowserFixture.OpenOmissionAsync(context, component, "emptyChoice");
         await Assert.That(omit.GetAttribute("aria-label")).IsEqualTo("Omit Empty choice");
@@ -66,10 +67,10 @@ public sealed class BrowserTypedPrivacyTests
     public async Task NestedSecretOmissionStaysAbsentAndOrdinaryEmptyStringStaysSupplied()
     {
         await using var context = BrowserFixture.Context();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
-            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
-              {"id":"ordinary","type":"string","title":"Ordinary setting","sensitivity":"public","disclosure":"guided"},
-              {"id":"secret","type":"string","title":"Secret setting","sensitivity":"secret","disclosure":"guided"}]}
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("settings", """
+            {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "ordinary":{"type":"string","title":"Ordinary setting","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "secret":{"type":"string","title":"Secret setting","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
             """)));
         await component.Find("[data-field='settings.ordinary'] input").InputAsync(new ChangeEventArgs { Value = "erase" });
         await component.Find("[data-field='settings.ordinary'] input").InputAsync(new ChangeEventArgs { Value = "" });
@@ -84,9 +85,9 @@ public sealed class BrowserTypedPrivacyTests
     public async Task RejectedNestedEditFencesImportBeforeAnyTypedValueExists()
     {
         await using var context = BrowserFixture.Context();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
-            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
-              {"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"sensitive","disclosure":"guided"}]}
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("settings", """
+            {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"sensitive","detail":"standard"}}}}
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long before = form.InputRevision;
@@ -127,10 +128,10 @@ public sealed class BrowserTypedPrivacyTests
     public async Task SensitiveChildrenAreMaskedButEditableWithoutSecretConsent()
     {
         await using var context = BrowserFixture.Context();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
-            {"id":"settings","type":"object","title":"Settings","sensitivity":"sensitive","disclosure":"guided","properties":[
-              {"id":"ordinary","type":"string","title":"Private setting","sensitivity":"public","disclosure":"guided"},
-              {"id":"secret","type":"string","title":"Secret setting","sensitivity":"secret","disclosure":"guided"}]}
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("settings", """
+            {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive","detail":"standard"},"properties":{
+              "ordinary":{"type":"string","title":"Private setting","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "secret":{"type":"string","title":"Secret setting","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
             """)));
         var ordinary = component.Find("[data-field='settings.ordinary'] input");
         await Assert.That(ordinary.GetAttribute("type")).IsEqualTo("password");
@@ -150,11 +151,12 @@ public sealed class BrowserTypedPrivacyTests
     public async Task TypedFalseAndExplicitEmptyCollectionsRemainDistinctFromAbsence()
     {
         await using var context = BrowserFixture.Context();
-        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("""
-            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
-              {"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"public","disclosure":"guided"},
-              {"id":"names","type":"list","title":"Names","sensitivity":"public","disclosure":"guided","itemType":"string","maxItems":3}]}
-            """)));
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("settings", """
+            {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "names":{"type":"array","title":"Names","x-configurator":{"sensitivity":"public","detail":"standard"},
+                "items":{"type":"string","x-configurator":{"sensitivity":"public"}},"maxItems":3}}}
+            """, "schema.array", "schema.bounds")));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
         await BrowserFixture.NotifyChoiceAsync(component, "settings.enabled", "false");
@@ -170,16 +172,17 @@ public sealed class BrowserTypedPrivacyTests
     [Test]
     public async Task SuppliedOptionalCompoundWithRequiredSecretOffersDraftOrConsentRecovery()
     {
-        JsonNode document = JsonNode.Parse(WithField("""
-            {"id":"settings","type":"object","title":"Settings","sensitivity":"public","disclosure":"guided","properties":[
-              {"id":"ordinary","type":"string","title":"Ordinary setting","sensitivity":"public","disclosure":"guided"},
-              {"id":"secret","type":"string","title":"Required secret","sensitivity":"secret","disclosure":"guided","required":true}]}
+        JsonNode document = JsonNode.Parse(WithField("settings", """
+            {"type":"object","title":"Settings","additionalProperties":false,"required":["secret"],
+             "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "ordinary":{"type":"string","title":"Ordinary setting","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "secret":{"type":"string","title":"Required secret","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
             """).CanonicalBytes.Span)!;
-        var fields = document["fields"]!.AsArray();
-        fields.Remove(fields.Single(item => item!["id"]!.GetValue<string>() == "credential"));
+        document["configuration"]!["properties"]!.AsObject().Remove("credential");
+        document["configuration"]!["required"] = new JsonArray("mode", "replicas", "hostname");
         var members = document["artifacts"]![0]!["projection"]!["members"]!.AsObject();
         members.Remove("credential");
-        members["settings"] = JsonNode.Parse("""{"op":"copy","field":"settings"}""");
+        members["settings"] = JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/settings"}}""");
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
@@ -199,10 +202,10 @@ public sealed class BrowserTypedPrivacyTests
         await Assert.That(component.Markup).DoesNotContain("synthetic-compound-secret");
     }
 
-    private static SetupDefinition WithField(string field)
+    private static SetupDefinition WithField(string name, string schema, params string[] capabilities)
     {
         JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        document["fields"]!.AsArray().Add(JsonNode.Parse(field));
+        BrowserFixture.WithField(document, name, schema, capabilities);
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
     }
 }

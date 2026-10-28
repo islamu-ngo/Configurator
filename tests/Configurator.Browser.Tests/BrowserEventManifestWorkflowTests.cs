@@ -15,7 +15,7 @@ public sealed class BrowserEventManifestWorkflowTests
     [Arguments(3)]
     public async Task CompleteEventManifestContainsExactlyTypedTenantRowsAndNoInactiveArtifacts(int count)
     {
-        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("a4bcfaa6-9979-43e5-b1f5-00d552618cdf"));
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
         await using var context = BrowserFixture.Context();
         var module = context.JSInterop.SetupModule("./browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(true);
@@ -32,6 +32,8 @@ public sealed class BrowserEventManifestWorkflowTests
             await component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
             await component.Find($"[data-field='configuration-manifest.tenants.{index}.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "tenant-" + index });
             await component.Find($"[data-field='configuration-manifest.tenants.{index}.spec.displayName'] input").InputAsync(new ChangeEventArgs { Value = "Tenant " + index });
+            foreach (string name in new[] { "settings", "documents", "legalDocuments" })
+                await component.Find($"[data-field='configuration-manifest.tenants.{index}.spec.{name}'] > fieldset > button[data-action='supply-object']").ClickAsync(new MouseEventArgs());
             tenants.Add(new JsonObject
             {
                 ["metadata"] = new JsonObject { ["name"] = "tenant-" + index },

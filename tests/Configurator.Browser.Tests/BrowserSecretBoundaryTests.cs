@@ -11,11 +11,11 @@ public sealed class BrowserSecretBoundaryTests
     public async Task NestedSecretDenialKeepsOrdinarySiblingAndStartsReplacementWithoutConsent()
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        source["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"profile","type":"object","title":"Profile","sensitivity":"public","disclosure":"guided","properties":[
-              {"id":"name","type":"string","title":"Name","sensitivity":"public","disclosure":"guided"},
-              {"id":"token","type":"string","title":"Token","sensitivity":"secret","disclosure":"guided"}]}
-            """));
+        BrowserFixture.WithField(source, "profile", """
+            {"type":"object","title":"Profile","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "token":{"type":"string","title":"Token","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
+            """);
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
@@ -87,12 +87,12 @@ public sealed class BrowserSecretBoundaryTests
     public async Task SecretContainerMasksEveryDescendantScalarAfterConsent()
     {
         JsonNode definition = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        definition["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"private","type":"object","title":"Private settings","sensitivity":"secret","disclosure":"guided","properties":[
-              {"id":"enabled","type":"boolean","title":"Enabled","sensitivity":"public","disclosure":"guided"},
-              {"id":"count","type":"integer","title":"Count","sensitivity":"public","disclosure":"guided"},
-              {"id":"mode","type":"enum","title":"Mode","sensitivity":"public","disclosure":"guided","choices":["single","cluster"]}]}
-            """));
+        BrowserFixture.WithField(definition, "private", """
+            {"type":"object","title":"Private settings","additionalProperties":false,"x-configurator":{"sensitivity":"secret","detail":"standard"},"properties":{
+              "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "mode":{"type":"string","title":"Mode","enum":["single","cluster"],"x-configurator":{"sensitivity":"public","detail":"standard"}}}}
+            """, "schema.integer");
         SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));

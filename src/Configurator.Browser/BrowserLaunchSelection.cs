@@ -2,6 +2,7 @@ namespace Configurator.Browser;
 
 using Configurator.Core;
 using Configurator.Core.Definitions;
+using System.Collections.Frozen;
 
 public sealed class BrowserLaunchException(string code) : Exception(code)
 {
@@ -11,6 +12,15 @@ public sealed class BrowserLaunchException(string code) : Exception(code)
 /// <summary>Captures the exact admitted document, not a mutable registry lookup.</summary>
 public sealed record BrowserLaunchSelection(SetupDefinition Definition, string Entry, string Locale)
 {
+    internal static IReadOnlySet<string> EditingCapabilities { get; } = new[]
+    {
+        "predicate.item", "predicate.root", "projection.copy", "projection.index", "projection.list",
+        "projection.literal", "projection.object", "projection.omit", "projection.repeat", "relationship.presence",
+        "schema.array", "schema.boolean", "schema.bounds", "schema.const", "schema.enum", "schema.integer",
+        "schema.notBlank", "schema.nullable", "schema.number", "schema.object", "schema.string",
+        "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef", "schema.multipleOf",
+        "schema.uniqueItems", "schema.assertFormat", "values.initial", "values.suggested"
+    }.ToFrozenSet(StringComparer.Ordinal);
     public static BrowserLaunchSelection Resolve(
         SetupDefinitionRegistry registry, string familyId, string query)
     {
@@ -61,8 +71,10 @@ public sealed record BrowserLaunchSelection(SetupDefinition Definition, string E
         {
             throw new BrowserLaunchException(exception.Code);
         }
+        if (definition.RequiredCapabilities.Any(capability => !EditingCapabilities.Contains(capability)))
+            throw new BrowserLaunchException("capability-unsupported");
         string entry = selectors.GetValueOrDefault("entry") ?? definition.EntryPoints[0];
-        string locale = selectors.GetValueOrDefault("locale") ?? definition.Locales[0];
+        string locale = selectors.GetValueOrDefault("locale") ?? new DefinitionLocalization(definition).DefaultLocale;
         if (!definition.EntryPoints.Contains(entry, StringComparer.Ordinal))
             throw new BrowserLaunchException("entry-unknown");
         if (!definition.Locales.Contains(locale, StringComparer.Ordinal))

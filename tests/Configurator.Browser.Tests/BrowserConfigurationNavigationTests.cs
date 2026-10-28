@@ -52,15 +52,15 @@ public sealed class BrowserConfigurationNavigationTests
     public async Task MechanicalFallbackPreservesAuthoredTitlesAndExactKeys()
     {
         JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        document["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"HTTPServer_URL","type":"string","title":"HTTPServer_URL","sensitivity":"public","disclosure":"guided"}
-            """));
-        document["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"authored_key","type":"string","title":"Publisher's exact wording","sensitivity":"public","disclosure":"guided"}
-            """));
-        document["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"optional_note","type":"string","title":"Optional note","sensitivity":"public","disclosure":"advanced"}
-            """));
+        BrowserFixture.WithField(document, "HTTPServer_URL", """
+            {"type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}}
+            """);
+        BrowserFixture.WithField(document, "authored_key", """
+            {"type":"string","title":"Publisher's exact wording","x-configurator":{"sensitivity":"public","detail":"standard"}}
+            """);
+        BrowserFixture.WithField(document, "optional_note", """
+            {"type":"string","title":"Optional note","x-configurator":{"sensitivity":"public","detail":"advanced"}}
+            """);
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
@@ -108,7 +108,8 @@ public sealed class BrowserConfigurationNavigationTests
 
         component.Find("#configuration-experience").Change("inspect-settings");
         await Assert.That(form.SelectedExperienceId).IsEqualTo("inspect-settings");
-        await Assert.That(component.Find("[data-navigation]").GetAttribute("data-navigation")).IsEqualTo("sections");
+        await Assert.That(component.Find("[data-navigation]").GetAttribute("data-navigation")).IsEqualTo("wizard");
+        await Assert.That(component.FindAll("[data-section]")[0].GetAttribute("data-section")).IsEqualTo("credentials");
         component.Find("#configuration-detail").Change("advanced");
         await Assert.That(form.DisclosureOverride).IsEqualTo(SetupFieldDisclosure.Advanced);
         component.Find("#configuration-detail").Change("essential");
@@ -116,7 +117,7 @@ public sealed class BrowserConfigurationNavigationTests
         component.Find("#configuration-experience").Change("quick-start");
         await Assert.That(form.DisclosureOverride).IsEqualTo(SetupFieldDisclosure.Essential);
 
-        await Assert.That(component.Find("[data-navigation]").GetAttribute("data-navigation")).IsEqualTo("guided");
+        await Assert.That(component.Find("[data-navigation]").GetAttribute("data-navigation")).IsEqualTo("wizard");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("preparation-ready");
         await Assert.That(form.InputRevision).IsEqualTo(revision);
@@ -128,14 +129,14 @@ public sealed class BrowserConfigurationNavigationTests
     public async Task InvalidNestedAdvancedInputRemainsReachableAndBlocksPreparationAfterSwitchingViews()
     {
         JsonNode document = JsonNode.Parse(GroupedDefinition().CanonicalBytes.Span)!;
-        document["fields"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"options","type":"object","title":"Options","group":"Advanced settings","sensitivity":"public","disclosure":"advanced","properties":[
-              {"id":"dotted.count","type":"integer","title":"Count","sensitivity":"public","disclosure":"advanced"}]}
-            """));
+        BrowserFixture.WithField(document, "options", """
+            {"type":"object","additionalProperties":false,"title":"Options","x-configurator":{"sensitivity":"public","detail":"advanced"},"properties":{
+              "dotted.count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"advanced"}}}}
+            """, "schema.object", "schema.integer");
         document["presentation"]!["sections"]!.AsArray().Add(JsonNode.Parse("""
-            {"id":"tuning","title":"Advanced settings","disclosure":"advanced","fields":["options"]}
+            {"id":"tuning","title":"Advanced settings","pointers":["/options"]}
             """));
-        foreach (JsonNode? experience in document["presentation"]!["experiences"]!.AsArray())
+        foreach (JsonNode? experience in document["presentation"]!["journeys"]!.AsArray())
             experience!["sections"]!.AsArray().Add("tuning");
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         await using var context = BrowserFixture.Context();
@@ -144,6 +145,7 @@ public sealed class BrowserConfigurationNavigationTests
         component.Find("[data-field='hostname'] input").Input("example.test");
         await Assert.That(component.FindAll("[data-field='options.dotted.count'] input")).IsEmpty();
         component.Find("#configuration-experience").Change("inspect-settings");
+        component.Find("#configuration-detail").Change("advanced");
         component.Find("[data-section='tuning']").Click();
         component.Find("[data-field='options.dotted.count'] input").Input("invalid-number");
         component.Find("[data-section='connection']").Click();
@@ -169,16 +171,14 @@ public sealed class BrowserConfigurationNavigationTests
     private static SetupDefinition GroupedDefinition()
     {
         JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
-        foreach (JsonNode? field in document["fields"]!.AsArray())
-            field!["group"] = field["id"]!.GetValue<string>() == "credential" ? "Security" : "General";
         document["presentation"] = JsonNode.Parse("""
-            {"defaultExperience":"quick-start","sections":[
-              {"id":"connection","title":"General","fields":["mode","replicas","hostname"]},
-              {"id":"credentials","title":"Security","fields":["credential"]}],
-             "experiences":[
-              {"id":"quick-start","title":"Connect service","initialDisclosure":"guided","navigation":"guided",
+            {"defaultJourney":"quick-start","navigation":"wizard","sections":[
+              {"id":"connection","title":"General","pointers":["/mode","/replicas","/hostname"]},
+              {"id":"credentials","title":"Security","pointers":["/credential"]}],
+             "journeys":[
+              {"id":"quick-start","title":"Connect service",
                "sections":["connection","credentials"]},
-              {"id":"inspect-settings","title":"Inspect configuration","initialDisclosure":"advanced","navigation":"sections",
+              {"id":"inspect-settings","title":"Inspect configuration",
                "sections":["credentials","connection"]}]}
             """);
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));

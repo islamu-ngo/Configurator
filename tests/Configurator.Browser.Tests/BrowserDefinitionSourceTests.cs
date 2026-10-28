@@ -11,16 +11,19 @@ using Microsoft.JSInterop;
 public sealed class BrowserDefinitionSourceTests
 {
     internal const string AuthoringJson = """
-        {"$schema":"urn:islamu:configurator:authoring:v1",
+        {"$schema":"urn:islamu:configurator:authoring:v2",
          "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
          "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
-         "fields":{"HOST":{"type":"string","sensitivity":"public","required":true},
-           "settings":{"type":"object","properties":{"secret":{"type":"string","sensitivity":"secret"}}}},
+         "configuration":{"type":"object","additionalProperties":false,"required":["HOST"],
+           "x-configurator":{"sensitivity":"public"},"properties":{
+             "HOST":{"type":"string","x-configurator":{"sensitivity":"public"}},
+             "settings":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+               "properties":{"secret":{"type":"string","x-configurator":{"sensitivity":"secret"}}}}}},
          "outputs":{"settings.json":{"format":"json"}}}
         """;
     internal const string AuthoringYaml = """
         # synthetic-local-comment-not-retained
-        $schema: urn:islamu:configurator:authoring:v1
+        $schema: urn:islamu:configurator:authoring:v2
         identity:
           familyId: f93a6b9f-c210-47a9-b90b-434954040282
           revision: 1
@@ -28,17 +31,23 @@ public sealed class BrowserDefinitionSourceTests
           id: local.service
           name: Local Service
         applicationVersions: ["1.0"]
-        fields:
-          HOST:
-            type: string
-            sensitivity: public
-            required: true
-          settings:
-            type: object
-            properties:
-              secret:
-                type: string
-                sensitivity: secret
+        configuration:
+          type: object
+          additionalProperties: false
+          required: [HOST]
+          x-configurator: {sensitivity: public}
+          properties:
+            HOST:
+              type: string
+              x-configurator: {sensitivity: public}
+            settings:
+              type: object
+              additionalProperties: false
+              x-configurator: {sensitivity: public}
+              properties:
+                secret:
+                  type: string
+                  x-configurator: {sensitivity: secret}
         outputs:
           settings.json:
             format: json
@@ -140,7 +149,7 @@ public sealed class BrowserDefinitionSourceTests
         SetupDefinition admitted = await source.ReadLocalAsync(input);
         await Assert.That(admitted.Digest).IsEqualTo(BrowserFixture.Definition.Digest);
         JsonNode conflict = JsonNode.Parse(admitted.CanonicalBytes.Span)!;
-        conflict["title"] = "Different content at the same revision";
+        conflict["project"]!["name"] = "Different content at the same revision";
         using var invalid = new MemoryStream(Encoding.UTF8.GetBytes(conflict.ToJsonString()));
         await Assert.That(async () => { await source.ReadLocalAsync(invalid); }).Throws<BrowserLaunchException>();
         await Assert.That(registry.Current.Resolve(admitted.FamilyId).Digest).IsEqualTo(admitted.Digest);

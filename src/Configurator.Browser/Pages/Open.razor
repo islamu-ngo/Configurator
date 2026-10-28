@@ -24,7 +24,7 @@
     </section>
     @if (_workspaceOpen)
     {
-        <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" />
+        <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" InitialLocale="@selection.Locale" />
         <AppButton Variant="Variant.Outlined" OnClick="ConfirmDiscardAsync">Discard this workspace to choose another definition</AppButton>
     }
     else
@@ -33,7 +33,7 @@
         <label><input type="checkbox" @bind="_publicSafeConfirmed" /> I confirm this definition is safe to retain as public metadata</label>
         <div class="actions">
             <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">Retain definition for offline use</AppButton>
-            <AppButton OnClick="OpenWorkspace">Open configuration workspace</AppButton>
+            <AppButton data-action="open-workspace" OnClick="OpenWorkspace">Open configuration workspace</AppButton>
         </div>
         @if (_shareLink is { } shareLink)
         {
@@ -195,7 +195,8 @@
             using Stream stream = args.File.OpenReadStream(BrowserDefinitionSource.MaximumDocumentBytes);
             SetupDefinition definition = await _source.ReadLocalAsync(stream, yaml: extension is ".yaml" or ".yml");
             if (_disposed || generation != _generation) return;
-            _selection = new(definition, definition.EntryPoints[0], definition.Locales[0]);
+            _selection = BrowserLaunchSelection.Resolve(new SetupDefinitionRegistry([definition]),
+                definition.FamilyId.ToString("D"), "");
             _statusCode = "source-admitted";
             _status = "Local definition admitted. Open a fresh workspace with secret entry disabled.";
         }
@@ -222,8 +223,14 @@
         _shareLink = null;
         _loading = false;
         _fileKey++;
-        try { Registry.Admit(definition); _selection = new(definition, definition.EntryPoints[0], definition.Locales[0]); }
+        try
+        {
+            Registry.Admit(definition);
+            _selection = BrowserLaunchSelection.Resolve(new SetupDefinitionRegistry([definition]),
+                definition.FamilyId.ToString("D"), "");
+        }
         catch (SetupDefinitionException exception) { Reject(exception.Code); }
+        catch (BrowserLaunchException exception) { Reject(exception.Code); }
         _publicSafeConfirmed = false;
     }
 

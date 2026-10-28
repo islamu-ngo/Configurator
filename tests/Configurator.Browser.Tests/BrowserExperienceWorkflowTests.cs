@@ -126,7 +126,7 @@ public sealed class BrowserExperienceWorkflowTests
         using var form = new DefinitionFormModel(Definition());
         var component = context.Render<BrowserCredentialEntryTests.EmittedInputField>(parameters => parameters
             .Add(item => item.Form, form).Add(item => item.Path, ["options", "host"])
-            .Add(item => item.Schema, form.Definition.Fields[1].Properties[0].Node));
+            .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "options").Node.Properties["host"]));
         object callback = component.Instance.CaptureInput();
         foreach (string text in new[] { "e", "ex", "example.test" })
             await component.InvokeAsync(() => callback switch
@@ -163,6 +163,8 @@ public sealed class BrowserExperienceWorkflowTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, Definition()));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await component.InvokeAsync(() => form.SupplyObject(["options"]));
         await Assert.That(component.FindAll("[data-workflow-step]").Count).IsEqualTo(3);
         await Assert.That(component.Find("[data-required-count]").GetAttribute("data-required-count")).IsEqualTo("3");
         await Assert.That(component.Find("[data-ready-count]").GetAttribute("data-ready-count")).IsEqualTo("0");
@@ -183,6 +185,7 @@ public sealed class BrowserExperienceWorkflowTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, Definition()));
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "essential" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
         await Assert.That(component.FindAll("[data-field='options.limit'] input")).IsEmpty();
@@ -204,6 +207,7 @@ public sealed class BrowserExperienceWorkflowTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, Definition()));
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "essential" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.Find("[data-field='options'] button[data-action='expand-optional']")
             .ClickAsync(new MouseEventArgs());
@@ -247,30 +251,34 @@ public sealed class BrowserExperienceWorkflowTests
     private static SetupDefinition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-        [{"id":"enabled","type":"boolean","required":true,"title":"Enable service",
-          "sensitivity":"public","disclosure":"essential","help":"Choose the service behavior.",
-          "guidance":{"instructions":"Acquire this value locally and review target instructions before applying configuration.",
-            "links":[{"title":"Configuration guide","url":"https://docs.example.test/configure"}]}},
-         {"id":"options","type":"object","required":true,"title":"Connection",
-          "sensitivity":"public","disclosure":"guided","properties":[
-            {"id":"host","type":"string","required":true,"title":"Host","sensitivity":"public","disclosure":"guided"},
-            {"id":"port","type":"integer","required":true,"title":"Port","sensitivity":"public","disclosure":"guided"},
-            {"id":"limit","type":"integer","title":"Optional limit","sensitivity":"public","disclosure":"advanced"},
-            {"id":"api_token","type":"string","title":"Optional issuer token","sensitivity":"secret","disclosure":"advanced"}]},
-         {"id":"extra","type":"string","title":"Extra setting","sensitivity":"public","disclosure":"advanced"}]
+        source["configuration"] = JsonNode.Parse("""
+        {"type":"object","additionalProperties":false,"required":["enabled","options"],
+         "x-configurator":{"sensitivity":"public"},"properties":{
+          "enabled":{"type":"boolean","title":"Enable service","description":"Choose the service behavior.",
+            "x-configurator":{"sensitivity":"public","detail":"basic",
+              "guidance":{"instructions":"Acquire this value locally and review target instructions before applying configuration.",
+                "links":[{"title":"Configuration guide","url":"https://docs.example.test/configure"}]}}},
+          "options":{"type":"object","title":"Connection","additionalProperties":false,"required":["host","port"],
+            "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "host":{"type":"string","title":"Host","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "port":{"type":"integer","title":"Port","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "limit":{"type":"integer","title":"Optional limit","x-configurator":{"sensitivity":"public","detail":"advanced"}},
+              "api_token":{"type":"string","title":"Optional issuer token","x-configurator":{"sensitivity":"secret","detail":"advanced"}}}},
+          "extra":{"type":"string","title":"Extra setting","x-configurator":{"sensitivity":"public","detail":"advanced"}}}}
         """);
         source["presentation"] = JsonNode.Parse("""
-        {"defaultExperience":"connect","sections":[
-          {"id":"decisions","title":"Connection","description":"Authored connection context.","fields":["enabled","options"]},
-          {"id":"tuning","title":"Optional tuning","disclosure":"advanced","fields":["extra"]}],
-         "experiences":[
-          {"id":"connect","title":"Connect service","description":"Authored connection experience.","initialDisclosure":"essential","navigation":"guided",
+        {"defaultJourney":"connect","navigation":"wizard","sections":[
+          {"id":"decisions","title":"Connection","description":"Authored connection context.","pointers":["/enabled","/options"]},
+          {"id":"tuning","title":"Optional tuning","pointers":["/extra"]}],
+         "journeys":[
+          {"id":"connect","title":"Connect service","description":"Authored connection experience.",
            "sections":["decisions","tuning"]},
-          {"id":"inspect","title":"Inspect settings","initialDisclosure":"advanced","navigation":"sections",
+          {"id":"inspect","title":"Inspect settings",
            "sections":["tuning","decisions"]}]}
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.boolean", "schema.integer",
+            "schema.object", "schema.string");
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

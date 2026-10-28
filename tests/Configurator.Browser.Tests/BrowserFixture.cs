@@ -36,6 +36,17 @@ internal static class BrowserFixture
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
     }
 
+    internal static void WithField(JsonNode definition, string name, string schema, params string[] capabilities)
+    {
+        definition["configuration"]!["properties"]![name] = JsonNode.Parse(schema);
+        SetCapabilities(definition, definition["requiredCapabilities"]!.AsArray()
+            .Select(item => item!.GetValue<string>()).Concat(capabilities).ToArray());
+    }
+
+    internal static void SetCapabilities(JsonNode definition, params string[] capabilities) =>
+        definition["requiredCapabilities"] = new JsonArray(capabilities.Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal).Select(value => (JsonNode?)JsonValue.Create(value)).ToArray());
+
     internal static BunitContext Context(BrowserDefinitionRegistry? registry = null)
     {
         var context = new BunitContext();
@@ -98,7 +109,16 @@ internal static class BrowserFixture
         var editor = component.FindComponents<ConfigurationField>()
             .Single(item => string.Join('.', item.Instance.Path) == field);
         var choice = editor.FindComponent<MudSelect<string>>();
-        return component.InvokeAsync(() => choice.Instance.ValueChanged.InvokeAsync(value));
+        string selection = value;
+        // Resolve canonical declared values, never translated labels or ordinal aliases.
+        if (editor.Instance.Schema.Keywords.TryGetProperty("enum", out JsonElement choices))
+        {
+            int index = choices.EnumerateArray().Select((item, ordinal) => (item, ordinal)).Single(candidate =>
+                candidate.item.ValueKind == JsonValueKind.String ? candidate.item.GetString() == value
+                    : candidate.item.GetRawText() == value).ordinal;
+            selection = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        return component.InvokeAsync(() => choice.Instance.ValueChanged.InvokeAsync(selection));
     }
 
     internal static byte[] Template(string selections = """{"mode":"single"}""", SetupDefinition? definition = null)

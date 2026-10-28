@@ -1,66 +1,76 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "profile": "bounded-v2",
   "familyId": "d66d02af-6a66-4396-9717-452e8eb9541b",
   "revision": 1,
-  "applicationId": "example.service",
+  "project": {
+    "id": "example.service",
+    "name": "Example service",
+    "publisher": "Example publisher (unverified)"
+  },
   "applicationVersions": ["1.0"],
-  "publisher": "Example publisher (unverified)",
-  "title": "Example service",
   "entryPoints": ["setup"],
   "locales": ["en"],
-  "fields": [
-    {
-      "id": "mode",
-      "type": "enum",
-      "title": "Deployment mode",
-      "help": "Choose a declared public deployment option.",
-      "sensitivity": "public",
-      "disclosure": "essential",
-      "required": true,
-      "choices": ["single", "cluster"]
-    },
-    {
-      "id": "replicas",
-      "type": "boolean",
-      "title": "Enable replicas",
-      "sensitivity": "public",
-      "disclosure": "guided",
-      "required": true,
-      "activeWhen": {"op": "equals", "field": "mode", "value": "cluster"}
-    },
-    {
-      "id": "hostname",
-      "type": "string",
-      "title": "Service hostname",
-      "help": "Provide this value only in a native client.",
-      "sensitivity": "public",
-      "disclosure": "guided",
-      "required": true,
-      "validator": "hostname"
-    },
-    {
-      "id": "credential",
-      "type": "string",
-      "title": "Service credential",
-      "sensitivity": "secret",
-      "disclosure": "essential",
-      "required": true
-    }
+  "requiredCapabilities": [
+    "predicate.root",
+    "projection.copy",
+    "projection.object",
+    "schema.assertFormat",
+    "schema.boolean",
+    "schema.enum",
+    "schema.object",
+    "schema.string"
   ],
+  "configuration": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["mode", "replicas", "hostname", "credential"],
+    "x-configurator": {"sensitivity": "public"},
+    "properties": {
+      "mode": {
+        "type": "string",
+        "title": "Deployment mode",
+        "description": "Choose a declared public deployment option.",
+        "x-configurator": {"sensitivity": "public", "detail": "basic"},
+        "enum": ["single", "cluster"]
+      },
+      "replicas": {
+        "type": "boolean",
+        "title": "Enable replicas",
+        "x-configurator": {
+          "sensitivity": "public",
+          "detail": "standard",
+          "applicableWhen": {"op": "equals", "reference": {"scope": "root", "path": "/mode"}, "value": "cluster"}
+        }
+      },
+      "hostname": {
+        "type": "string",
+        "title": "Service hostname",
+        "description": "Provide this value only in a native client.",
+        "format": "hostname",
+        "x-configurator": {"sensitivity": "public", "detail": "standard", "assertFormat": true}
+      },
+      "credential": {
+        "type": "string",
+        "title": "Service credential",
+        "x-configurator": {"sensitivity": "secret", "detail": "basic"}
+      }
+    }
+  },
   "artifacts": [
     {
       "id": "config",
       "format": "json",
       "fileName": "service.json",
-      "applySemantics": "create",
-      "restart": "process",
+      "targetUpdateMode": "create",
+      "restartRequirement": "process",
       "projection": {
         "op": "object",
         "members": {
-          "mode": {"op": "copy", "field": "mode"},
-          "replicas": {"op": "copy", "field": "replicas"},
-          "hostname": {"op": "copy", "field": "hostname"},
-          "credential": {"op": "copy", "field": "credential"}
+          "mode": {"op": "copy", "reference": {"scope": "root", "path": "/mode"}},
+          "replicas": {"op": "copy", "reference": {"scope": "root", "path": "/replicas"}},
+          "hostname": {"op": "copy", "reference": {"scope": "root", "path": "/hostname"}},
+          "credential": {"op": "copy", "reference": {"scope": "root", "path": "/credential"}}
         }
       }
     }

@@ -316,28 +316,37 @@ public sealed class BrowserIncrementalMountTests
         long revision = 1, bool sectioned = false)
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
-        var fields = new JsonArray();
+        var properties = new JsonObject();
         for (int index = 0; index < 36; index++)
-            fields.Add(new JsonObject
+            properties[prefix + index] = new JsonObject
             {
-                ["id"] = prefix + index,
                 ["type"] = "string",
                 ["title"] = "Setting " + index,
-                ["sensitivity"] = secret && index == 1 ? "secret" : "public",
-                ["disclosure"] = index < 4 ? "essential" : advancedTail ? "advanced" : "guided"
-            });
+                ["x-configurator"] = new JsonObject
+                {
+                    ["sensitivity"] = secret && index == 1 ? "secret" : "public",
+                    ["detail"] = index < 4 ? "basic" : advancedTail ? "advanced" : "standard"
+                }
+            };
         source["revision"] = revision;
-        source["fields"] = fields;
+        source["configuration"] = new JsonObject
+        {
+            ["type"] = "object",
+            ["additionalProperties"] = false,
+            ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+            ["properties"] = properties
+        };
         source.Remove("presentation");
         if (sectioned)
             source["presentation"] = JsonNode.Parse("""
-                {"defaultExperience":"all","sections":[
-                  {"id":"first","title":"First section","fields":["setting0","setting1","setting2","setting3","setting4","setting5","setting6","setting7","setting8","setting9","setting10","setting11","setting12","setting13","setting14","setting15","setting16","setting17"]},
-                  {"id":"second","title":"Second section","fields":["setting18","setting19","setting20","setting21","setting22","setting23","setting24","setting25","setting26","setting27","setting28","setting29","setting30","setting31","setting32","setting33","setting34","setting35"]}],
-                 "experiences":[
-                  {"id":"all","title":"All settings","initialDisclosure":"guided","navigation":"sections","sections":["first","second"]}]}
+                {"defaultJourney":"all","navigation":"sections","sections":[
+                  {"id":"first","title":"First section","pointers":["/setting0","/setting1","/setting2","/setting3","/setting4","/setting5","/setting6","/setting7","/setting8","/setting9","/setting10","/setting11","/setting12","/setting13","/setting14","/setting15","/setting16","/setting17"]},
+                  {"id":"second","title":"Second section","pointers":["/setting18","/setting19","/setting20","/setting21","/setting22","/setting23","/setting24","/setting25","/setting26","/setting27","/setting28","/setting29","/setting30","/setting31","/setting32","/setting33","/setting34","/setting35"]}],
+                 "journeys":[
+                  {"id":"all","title":"All settings","sections":["first","second"]}]}
                 """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
+        source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.object", "schema.string");
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 
