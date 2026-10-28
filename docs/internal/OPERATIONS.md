@@ -79,6 +79,78 @@ production host. Headless tests, actual rendering, package checks and target
 acceptance are distinct evidence. These results do not qualify another host,
 manual native picker, screen reader, legal review, signer or target application.
 
+### Final definition delivery and responsibility
+
+Distribution commit `55c951d` contains the qualified runtime/package repairs;
+`764cb59` promotes the current reference/cookbook. The final solution Release
+build, solution format and post-distribution native release range all exited 0.
+Core's final owner gate passed 217 tests. Earlier phase-specific CLI,
+Presentation, Browser and artifact evidence remains in its owning phase record;
+the final build is not a claim that every suite was rerun after prose changes.
+
+The portable adoption exercise used the installed Linux x64 executable to fork
+the public qualification source to a fresh family, check/lint it, discover the
+built-in authoring schema and build revision 1. Receipts used command v3 and
+authoring/runtime 2/2. Lint correctly reported unspecified restart/update advice.
+Synthetic prefill, validation and create succeeded; native output was `0600`
+and byte-equal to the actual Browser/CLI/Terminal artifact with SHA-256
+`71d540aa2e56214f2f78f7a6d76edbff6f1588a9c2dee550a669cb9f77378fbe`.
+Incomplete synthetic input returned exit 3 with two value-free required
+corrections. Complete preparation still reported target acceptance unassessed
+and host-validation readiness incomplete; these are deliberately separate axes.
+No private source discovery or target process was used.
+
+A public-schema exercise additionally admitted an explicitly acknowledged bounded
+integer/nullable-string schema and reported twelve transformation diagnostics,
+including discarded default and bounded numeric conversion. An otherwise
+equivalent schema using unsupported `pattern` returned exit 65 with
+`schema-keyword-unsupported`, even with acknowledgment, and created no output.
+Portable/router native validation and all five validator self-tests passed.
+The four guidance documents passed local-link/fence checks. Adding their missing
+H1 title required a final package refresh; the intervening shipped-copy test
+correctly detected stale bytes rather than being weakened.
+
+| Scenario | Delivered owner / evidence |
+| --- | --- |
+| S01 | Core v2 admission and generated runtime schema; legacy/unknown contracts reject |
+| S02 | Core exact paths/canonicalization and typed adapter qualification |
+| S03 | Core syntax/expansion/evaluation budgets and conformance owner |
+| S04 | Core effective resolver; shared initialization regression owner |
+| S05 | Core snapshot and Presentation editing; actual null/omit/reset controls |
+| S06 | Core exact numeric, Unicode and presence conformance |
+| S07 | Recursive node admission, typed maps/variants; native D19 and actual Browser |
+| S08 | Core scoped predicates and row conformance; shared adapter projection |
+| S09 | Core local relationship conformance, separate from activation ordering |
+| S10 | Core assertion-context and explicit lexical-format vectors |
+| S11 | Core inherited privacy and public-literal admission; store recursive privacy cases |
+| S12 | Core safe coordinates and current client correction; no dynamic-key serialization |
+| S13 | Authoring source maps and CLI structured bounded diagnostics |
+| S14 | Core serializer-compatible mapping admission |
+| S15 | Core scoped bounded projection/repeat composition |
+| S16 | Core atomic bounded inverse; actual synthetic native prefill |
+| S17 | Core draft dependency/completion policy and actual Browser incomplete draft |
+| S18 | Core/Presentation digest identity and pinned history; fresh v2 generated families |
+| S19 | Derived capability handshake and four client admission owners |
+| S20 | Presentation reachable required/error fallback and client navigation owners |
+| S21 | Typed choice/suggestion editing; actual duplicate-label and null selection |
+| S22 | Inert help/localization; actual locale-preserved output and RTL rendering |
+| S23 | Presentation operation generations; actual Browser consent/held-transfer fence |
+| S24 | Core importer structured retained/converted/advisory/discarded/unsupported ledger |
+| S25 | CLI v3 strict consumers and schema/lint; real standalone discovery/check/build |
+| S26 | Advisory update/restart metadata; target acceptance remains unassessed |
+| S27 | Four native/static publications, schemas/examples/ratchets and Architecture 73 |
+| S28 | Promoted public/technical reference; native metadata/link/fence checker |
+| S29 | Portable native validators and actual fresh-family synthetic command sequence |
+| S30 | This separated conformance/client/package/target evidence record |
+| S31 | Core closed vocabulary and inert bounded extensions; no execution/ref fetch |
+| S32 | Exact declared application versions and active revision pinning, not ranges |
+
+The [v2 ADR](adr/ADR-definition-standard-v2.md) retains decisions and rejected
+alternatives. The [I-VSD execution checkpoint](../../islamic-value-sensitive-design/workstreams/i-vsd-definition-standard-redesign.md#executed-mitigation-review-2026-10-28)
+retains all eight pairs and residual responsibility. General assertions,
+declared version ranges and external target/adopter trials have separate
+bounded backlogs. None is a hidden incomplete branch of this selected profile.
+
 ## Verification Policy
 
 Use SDK 10.0.302 and Microsoft.Testing.Platform. Set the current workstation

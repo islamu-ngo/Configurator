@@ -1,5 +1,11 @@
 # Configurator Repository Foundation
 
+> **Audience:** Contributors | Maintainers | AI agents
+> **Status:** Current repository authority and transfer boundaries
+> **Owner:** Configurator maintainers
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `docs/internal/OPERATIONS.md`
+
 ## Target-first authority
 
 The MIT utility prepares bounded configuration artifacts offline. It does not
@@ -188,15 +194,20 @@ hosting remains an operator action.
 ## Definition contract documentation
 
 The [current adopter reference](../../public/definition-reference.md) records
-implemented v1 required/optional properties, root fallback versus nested
-creation-time defaults, import limitations, and cross-client presentation
-differences. Its technical owners remain the [Core contract](../CORE_DEFINITION_CONTRACT.md)
+qualified bounded-v2 required/optional properties, exact recursive names,
+explicit omission/reset/null and shared initialization, bounded inverses, and
+cross-client capability and presentation limits. Its technical owners remain the [Core contract](../CORE_DEFINITION_CONTRACT.md)
 and [authoring contract](../MAINTAINER_AUTHORING.md). The
 [definition-standard audit](../reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md)
-retains source-backed findings and official-source research separately from
-future implementation. Documentation corrections do not add recursive item
-schemas, nullability, localized definitions, richer inverses, or new runtime
-capabilities.
+retains its original source-backed findings and official-source research as
+history, not current implementation evidence. The
+[accepted v2 decisions](../adr/ADR-definition-standard-v2.md) and
+[conformance profile](../DEFINITION_CONFORMANCE_PROFILE.md) preserve the delivered
+architecture outside active task memory. [Operations](../OPERATIONS.md#definition-v2-qualification)
+separates executed synthetic, actual-client and package checks from unproved
+target acceptance, stakeholder usability, translation review and other hosts.
+Definition authoring/runtime v2, machine v3 and private answer v1 are independent.
+No Event transport, signer, live apply or compatibility interpreter was added.
 
 ## Verification and provenance
 

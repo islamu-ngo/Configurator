@@ -17,6 +17,54 @@ Last Updated: 2026-10-28
 
 ## Implementation Evidence Checkpoint
 
+### Executed mitigation review, 2026-10-28
+
+The original planning assessment below is retained as history. Execution through
+distribution commit `55c951d` implements the selected bounded-v2 controls rather
+than merely documenting proposals. The current public standard and technical
+conformance profile describe those controls. This checkpoint supersedes the
+earlier checkpoint's statement that runtime controls have not been implemented;
+it does not replace the original design-input hashes or infer human outcomes.
+
+The affected people are authors maintaining public requirements and operators
+entering private configuration. One Core evaluator now gives their supplied,
+omitted, reset, null and initialized values the same meaning across adapters.
+Typed choices retain their value when labels change; private dynamic names stay
+local while safe diagnostic coordinates support correction. This reduces
+avoidable ambiguity without promising that a synthetic workflow represents
+every operator's understanding or target requirements.
+
+Executed evidence is recorded in
+[Operations](../../docs/internal/OPERATIONS.md#definition-v2-qualification).
+It includes the Release solution build and format, Core 217, Desktop 229,
+Terminal 106, actual-package Architecture 73, store 48, and all 19 real X11
+guards in both English and Arabic. Actual published Browser, standalone CLI
+and Terminal checks cover typed editing, safe incomplete drafts, locale-invariant
+output, import and deliberate export. Browser revocation fenced a held clipboard
+completion without restoring denied output; an already authorized external
+transfer remains outside revocation. Cache inspection covered 166 responses
+and found no synthetic answer canaries. These are scoped engineering results,
+not target acceptance, complete network noninterference or stakeholder proof.
+
+| Stable finding / mitigation | Delivered provider control and evidence | Remaining disposition and owner |
+| --- | --- | --- |
+| IVSD-F001 / IVSD-M001 | One recursive effective-value policy; Core conformance and actual null/omit/reset/draft controls | Engineering mitigation implemented; operator comprehension remains open, adopter-trial owner |
+| IVSD-F002 / IVSD-M002 | Exact paths, row-scoped predicates, local relationships and reachable correction; typed adapter/native guards | Engineering mitigation implemented; representative complex-workflow usability remains open, client maintainers |
+| IVSD-F003 / IVSD-M003 | Inherited privacy, private-key-safe locations, generation/consent fences and observed cache exclusion | Engineering mitigation implemented on qualified surfaces; custody remains a continuing security responsibility, Core/Presentation/Browser owners |
+| IVSD-F004 / IVSD-M004 | Inert help, typed localized choices, fallback and readable RTL alignment with unchanged output | Engineering mitigation implemented; translation fidelity, full bidi shaping and human comprehension remain open, localization/adopter owners |
+| IVSD-F005 / IVSD-M005 | Mandatory capability refusal and typed controls in four adapters; real supported-client qualification | Engineering mitigation implemented; other hosts, assistive technology and representative users remain unqualified, client owners |
+| IVSD-F006 / IVSD-M006 | Typed serializer admission, bounded atomic inverse and structured transformation ledger | Engineering mitigation implemented; application semantic acceptance remains open, target integrators |
+| IVSD-F007 / IVSD-M007 | Canonical identity pinning, fresh v2 families, bounded vocabulary and exact version selection | Engineering mitigation implemented; trust promotion/publication and declared version ranges are separate owned work |
+| IVSD-F008 / IVSD-M008 | Current reference/cookbook, strict machine handshake and separated package/client/target receipts | Engineering claim boundary implemented; adoption guidance and final durable evidence are tracked in the execution ledger, not inferred from counts |
+
+All eight pairs retain their stable IDs and original rationale below. They stay
+open for the stated continuing or human-evidence responsibilities; this report
+does not call missing stakeholder, translation, scholarly or target evidence
+resolved. The
+[target/adopter trials](../../dev/backlog/definition-profile-target-adoption-trials.md)
+own a concrete route to that evidence. No religious-legal judgment, product
+certification, remote publication, Event authority or new host is asserted.
+
 On 2026-10-28 the user explicitly invoked implement-tasks for full execution
 in the current checkout, without a worktree or backward compatibility. Statements
 below about unapproved implementation describe the original planning cutoff;
@@ -795,12 +843,36 @@ updates and the external digest of this report. The report does not hash itself.
 Later task-checkbox/status changes require separate execution-evidence hashes;
 they must not be represented as matching this original reviewed baseline.
 
+### Executed design and follow-up binding
+
+Native `sha256sum` on 2026-10-28 bound the following delivered design and
+responsibility inputs. The plan digest still matches revision 1. The changed
+backlogs intentionally do not match the planning baseline above; their graduation
+records delivered v2 behavior and retains independently owned future work.
+Execution-ledger checkboxes and final packet receipts are mutable metadata,
+not a claim that the original reviewed tasks hash remained unchanged.
+
+| Executed review input | SHA-256 |
+| --- | --- |
+| Revision-1 plan | `8f1e1a836b0a6555d387df37df84c8e0205edb4dfdca59825f8181c2bcfef841` |
+| Reviewed execution ledger before final packet receipt | `d739faee65fcefebde629b8e2d3cab7c97188127dd65a895c67f5579f17d3625` |
+| Advanced assertion boundary | `73c6c014f716798c15f94512496247ad629edba23399ffb91bdce90fd051633e` |
+| Version-range boundary | `140da3a832cdf87b2907630192d7e925799748c9993bf49e7f59a55264c1d735` |
+| Target/adopter trials | `d40e286e8faaf5a062b1887881ec53b221717a101edb075036960a8deffa4c84` |
+| Maintainer extensions | `6cf3faefcdae261a6fbef567caab31cd0400ccb37bf88c017542435b522d1b84` |
+| Event delivery boundary | `f09bb97ad85e3b6b446b79982f60ae51f2d15bfe313ff9e7f0ed6bd33f8f13f2` |
+
+The subsequent final execution-ledger binding and closure receipt are retained in the
+task-owned context, separately from the immutable planning binding. This report
+does not hash itself or treat a receipt as target/stakeholder acceptance.
+
 ## Review Lifecycle
 
 | Date | Previous status | New status | Trigger | Evidence/replacement |
 | --- | --- | --- | --- | --- |
 | 2026-10-28 | none | draft | Requested bounded planning-mode assessment | E01-E06; IVSD-F001 through IVSD-F008 remain open; final triad review and hashes pending |
 | 2026-10-28 | draft / ready-for-planning | current / plan-aligned | Parent reviewed final revision-1 decisions, scenarios, tasks, and scoped backlog boundaries | E07-E13, final mapping and native input digests above; all eight pairs remain open; no implementation, stakeholder, operational, or scholarly validation |
+| 2026-10-28 | current / plan-aligned planning baseline | current / plan-aligned with scoped engineering evidence | Approved implementation and actual supported-client qualification through `55c951d`, public promotion `764cb59` | Executed mitigation checkpoint and Operations; all eight pairs retain continuing/human-evidence ownership; no target, scholarly, translation-quality or other-host certification |
 
 Stable IDs survive wording, ownership, or mapping refinements. Findings remain
 open until evidence supports an explicit resolved, accepted-with-owner,

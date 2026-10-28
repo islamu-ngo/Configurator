@@ -103,3 +103,51 @@ Last Updated: 2026-10-10 Europe/Brussels
 - `docs/internal/OPERATIONS.md`
 
 **Promotion Consideration**: The package destination and sidecar policy are documented in Packaging; retain this entry as the failure mechanism and regression rationale.
+
+[2026-10-28 Europe/Brussels] — Mixed maps need two schema-preserving child collections
+
+**Context**: Actual-client qualification of definition-standard v2 exercised an object with a declared required string child and typed integer `additionalProperties`. Core v2 admission/evaluation was delivered; this was a Desktop projection defect, not deferred map support.
+
+**Symptom / Observation**: A dynamic-only map exercise did not establish that fixed and dynamic children coexist with different schemas. The corrected D19 guard now requires the fixed string caption beside a literal-key integer entry, focuses the missing fixed child and checks an independently specified JSON result (`tests/Configurator.Desktop.NativeHost/Program.cs:540`).
+
+**Root Cause**: A typed additional-properties schema applies only to undeclared keys. Treating every object member as a dynamic entry loses each fixed child's own type, requiredness and public title, and can wrongly give declared children private dynamic-key labels.
+
+**Resolution**: `MapFieldViewModel` constructs stable `Children` from declared property schemas and separate `Entries` from `AdditionalProperties`; both participate in descendants, correction focus and disposal. Entry creation excludes declared names, and maximum-property accounting counts all supplied members, not just dynamic entries. The recorded Phase 12 Red/Green and final Desktop owner passed 229 tests; the affected typed class passed six. Qualification commit `55c951d` records all 19 real X11 guards in English and Arabic, including mixed-map D19. No commands were rerun for this journal append; exact executed commands/results remain with parent-owned Operations.
+
+**Why This Matters for Future Work**: A pure typed-map test cannot prove a mixed map. Use a fixed child whose schema differs from the additional-properties schema and independently verify missing-required correction plus emitted meaning. Preserve one shared answer owner; two schema-specific view collections are projections, not duplicate answer state.
+
+**References**:
+- `src/Configurator.Desktop/ViewModels/Fields/MapFieldViewModel.cs:20`
+- `src/Configurator.Desktop/ViewModels/Fields/MapFieldViewModel.cs:52`
+- `tests/Configurator.Desktop.NativeHost/Program.cs:540`
+- `tests/Configurator.Desktop.NativeHost/Program.cs:581`
+- `docs/internal/adr/ADR-definition-standard-v2.md`
+- `docs/internal/OPERATIONS.md`
+- Qualification commit: `55c951d`
+
+**Promotion Consideration**:
+- [x] Stays in journal only (regression and actual-surface qualification lesson); the supported recursive shape is already preserved in the v2 ADR/profile.
+
+[2026-10-28 Europe/Brussels] — RTL alignment and presence updates must preserve editing
+
+**Context**: Real Terminal package qualification of definition-standard v2 exercised Arabic direction metadata, Latin fallback/technical text and transitions from omitted to supplied input. These observations complemented shared Core semantics rather than establishing a second client evaluator.
+
+**Symptom / Observation**: Actual probes exposed reversed glyph order under RTL and a stale omitted annotation after inline editing. Fixing metadata display must not replace the editor or disturb its input/correction state.
+
+**Root Cause**: Blanket RightLeft direction reverses Latin fallback and technical text; RTL metadata needs end alignment without that reversal. The presence annotation is a projection of current answer origin and must refresh when the answer changes, without rebuilding the active editor.
+
+**Resolution**: `SetupTerminalWindow` keeps metadata text in logical order and selects `Alignment.End` for RTL. Presence text refreshes inline while retaining editor identity. `RtlLocaleAlignsMetadataWithoutReversingLatinFallback` guards alignment and unchanged answers/revision; `InlineEditsRefreshPresenceWithoutReplacingTheEditor` guards origin-label refresh and the same editor instance. Recorded final Terminal owner: 106 passed, zero failed/skipped. Corrected packages were observed at 82x28 with keyboard navigation, masked literal-key entry, retained invalid-draft correction and typed/null/reset/suggestion actions. The recorded import/prepare/Arabic/protected-save flow matched Browser/CLI bytes and Linux mode 600. These are inherited `55c951d` qualification facts; no build, test or interactive command ran for this append.
+
+**Why This Matters for Future Work**: Locale metadata does not license glyph reversal or editor reconstruction. Verify logical technical text and uninterrupted input separately from output invariance. English/Arabic local-client evidence does not prove translation quality, stakeholder usability, scholarly review, target acceptance or protected save on another host.
+
+**References**:
+- `src/Configurator.Terminal/SetupTerminalWindow.cs:410`
+- `src/Configurator.Terminal/SetupTerminalWindow.cs:419`
+- `tests/Configurator.Terminal.Tests/SetupTerminalGuiAdapterTests.cs:21`
+- `tests/Configurator.Terminal.Tests/SetupTerminalGuiAdapterTests.cs:37`
+- `docs/internal/OPERATIONS.md`
+- `dev/backlog/definition-profile-target-adoption-trials.md`
+- Qualification commit: `55c951d`
+
+**Promotion Consideration**:
+- [x] Stays in journal only (Terminal rendering/update regression rationale); the v2 ADR retains inert, output-invariant localization and separate qualification boundaries.
