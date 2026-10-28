@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5ZX9CNBMHAHHKPZG4AMGXJA
+Title: "support typed v2 configuration and shared corrections"
+Type: feat
+Scope: desktop
+Summary: "Edit typed maps, provider alternatives and nullable values through shared intent and correction semantics with localized native controls."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Retired map and variant editors cannot mutate current answers. Protected descendants remain masked and native publication retains create-only ownership."
+  Migration:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Use explicit null, reset, omission and suggestion actions. Enum identity uses typed ordinals, not displayed labels; reselecting a provider preserves its payload."
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Core node facts drive conditional required labels. Language changes only public metadata and automatic direction; explicit direction remains available."
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Literal map keys and selected provider children have typed controls and revision-scoped corrections. Physical native-host qualification remains separate."

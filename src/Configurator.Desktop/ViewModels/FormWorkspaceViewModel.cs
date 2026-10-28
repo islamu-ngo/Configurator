@@ -16,6 +16,8 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private readonly FormFieldFactory _factory = new();
     private DefinitionFormModel? _form;
     private IReadOnlyList<FieldViewModel> _fields = [];
+    private IReadOnlyList<DefinitionFormExperience> _experiences = [];
+    private string? _experienceLocale;
     private bool _disposed;
 
     [ObservableProperty]
@@ -24,6 +26,10 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FlowDirection))]
     private bool _isRightToLeft;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FlowDirection))]
+    private bool _followLocaleDirection = true;
+    partial void OnIsRightToLeftChanged(bool value) => FollowLocaleDirection = false;
 
     public FormWorkspaceViewModel(IMessenger messenger)
     {
@@ -43,7 +49,15 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     public DefinitionFormModel? Form => _form;
     public IReadOnlyList<FieldViewModel> Fields => _fields;
-    public IReadOnlyList<DefinitionFormExperience> Experiences => Form?.Experiences ?? [];
+    public IReadOnlyList<DefinitionFormExperience> Experiences => _experiences;
+    public IReadOnlyList<string> Locales => Form?.Definition.Locales ?? [];
+    public string LocaleLabel => Configurator.Desktop.Resources.DesktopActionText.LocaleLabel;
+    public string FollowLocaleDirectionLabel => Configurator.Desktop.Resources.DesktopActionText.FollowLocaleDirectionLabel;
+    public string? SelectedLocale
+    {
+        get => Form?.Locale;
+        set { if (!_disposed && value is not null) Form?.SelectLocale(value); }
+    }
     public DefinitionFormExperience? SelectedExperience
     {
         get => Experiences.FirstOrDefault(experience => experience.Id == Form?.SelectedExperienceId);
@@ -60,9 +74,11 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
             if (!_disposed) Form?.SetAllSectionsExpanded(value);
         }
     }
-    public FlowDirection FlowDirection => IsRightToLeft ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+    public FlowDirection FlowDirection => (FollowLocaleDirection ? Form?.Direction == "rtl" : IsRightToLeft)
+        ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
     public FieldViewModel? FirstError => Fields.FirstOrDefault(item => item.IsVisible && item.HasError);
-    public FieldViewModel? FirstVisible => Fields.FirstOrDefault(item => item.IsVisible);
+    public FieldViewModel? FirstVisible => Fields.FirstOrDefault(item => item.IsVisible && item.IsRequired)
+        ?? Fields.FirstOrDefault(item => item.IsVisible);
     public bool CanValidate => !_disposed && !IsBusy && Form is not null;
     public IRelayCommand ValidateCommand { get; }
 
@@ -76,6 +92,8 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         _factory.Dispose();
         _form?.Dispose();
         _form = form;
+        _experiences = form?.DisplayExperiences ?? [];
+        _experienceLocale = form?.Locale;
         if (form is not null)
         {
             _fields = _factory.Create(form);
@@ -88,6 +106,9 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         OnPropertyChanged(nameof(Experiences));
         OnPropertyChanged(nameof(SelectedExperience));
         OnPropertyChanged(nameof(OptionalEditorsExpanded));
+        OnPropertyChanged(nameof(Locales));
+        OnPropertyChanged(nameof(SelectedLocale));
+        OnPropertyChanged(nameof(FlowDirection));
         NotifyFieldState();
         ValidateCommand.NotifyCanExecuteChanged();
         _messenger.Send(new FormWorkspaceChangedMessage(form));
@@ -107,6 +128,14 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     private void ViewChanged(object? sender, EventArgs args)
     {
+        if (_experienceLocale != Form?.Locale)
+        {
+            _experienceLocale = Form?.Locale;
+            _experiences = Form?.DisplayExperiences ?? [];
+            OnPropertyChanged(nameof(Experiences));
+        }
+        OnPropertyChanged(nameof(SelectedLocale));
+        OnPropertyChanged(nameof(FlowDirection));
         OnPropertyChanged(nameof(SelectedExperience));
         OnPropertyChanged(nameof(OptionalEditorsExpanded));
         NotifyFieldState();

@@ -62,6 +62,10 @@ public sealed class FormFieldFactory : IDisposable
             DefinitionNodeType.WholeNumber or DefinitionNodeType.Number =>
                 new NumericFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
             DefinitionNodeType.Boolean => new BooleanFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
+            DefinitionNodeType.Mapping when schema.Variants.Count > 0 =>
+                new VariantFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
+            DefinitionNodeType.Mapping when schema.AdditionalProperties is not null =>
+                new MapFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
             DefinitionNodeType.Mapping => new ObjectFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
             DefinitionNodeType.Sequence => new ListFieldViewModel(schema, name, required, parent, listItem, inheritedMasking),
             _ => throw new InvalidOperationException("Unknown admitted field type.")

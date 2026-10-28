@@ -221,10 +221,11 @@ public sealed class DesktopLocalSelectionTests
         using var directory = new TemporaryDirectory();
         string path = Path.Combine(directory.Path, "source.json");
         await File.WriteAllTextAsync(path, """
-            {"$schema":"urn:islamu:configurator:authoring:v1",
+            {"$schema":"urn:islamu:configurator:authoring:v2",
              "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
              "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
-             "fields":{"HOST":{"type":"string","sensitivity":"public","default":"example.test"}},
+             "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "HOST":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"example.test"}}}},
              "outputs":{"settings.json":{"format":"json"}}}
             """);
         using var shell = DesktopTestContext.Root();
@@ -234,7 +235,7 @@ public sealed class DesktopLocalSelectionTests
         var digest = shell.Workspace.Form.Definition.Digest;
         string yamlPath = Path.Combine(directory.Path, "source.yaml");
         await File.WriteAllTextAsync(yamlPath, """
-            $schema: urn:islamu:configurator:authoring:v1
+            $schema: urn:islamu:configurator:authoring:v2
             identity:
               familyId: f93a6b9f-c210-47a9-b90b-434954040282
               revision: 1
@@ -242,11 +243,17 @@ public sealed class DesktopLocalSelectionTests
               id: local.service
               name: Local Service
             applicationVersions: ["1.0"]
-            fields:
-              HOST:
-                type: string
+            configuration:
+              type: object
+              additionalProperties: false
+              x-configurator:
                 sensitivity: public
-                default: example.test
+              properties:
+                HOST:
+                  type: string
+                  x-configurator:
+                    sensitivity: public
+                    initialValue: example.test
             outputs:
               settings.json:
                 format: json

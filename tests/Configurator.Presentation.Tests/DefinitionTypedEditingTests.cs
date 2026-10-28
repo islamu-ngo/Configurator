@@ -118,6 +118,10 @@ public sealed class DefinitionTypedEditingTests
         await Assert.That(form.EditValue(["provider", "count"], "3")).IsTrue();
         await Assert.That(form.EditValue(["provider", "other"], "hidden")).IsFalse();
         await Assert.That(form.Snapshot().Values["provider"].GetProperty("count").GetInt32()).IsEqualTo(3);
+        long beforeReselection = form.InputRevision;
+        await Assert.That(form.SelectVariant(["provider"], 0)).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(beforeReselection + 1);
+        await Assert.That(form.Snapshot().Values["provider"].GetProperty("count").GetInt32()).IsEqualTo(3);
         long revision = form.InputRevision;
         await Assert.That(form.SelectVariant(["provider"], 1)).IsTrue();
         await Assert.That(form.Snapshot().Values["provider"].GetRawText()).IsEqualTo("""{"kind":"second"}""");

@@ -6,6 +6,7 @@ using Configurator.Core.Definitions;
 /// <summary>One current input revision's private derived facts, without another answer tree.</summary>
 internal sealed class DefinitionFormFacts
 {
+    private readonly Dictionary<string, DefinitionNodeState> _nodes = new(StringComparer.Ordinal);
     private readonly DefinitionFormIndex _index;
     private readonly HashSet<string> _activeFields;
     private readonly Dictionary<string, string[]> _correctionPaths = new(StringComparer.Ordinal);
@@ -29,6 +30,7 @@ internal sealed class DefinitionFormFacts
         foreach (DefinitionNodeState node in validation.Nodes)
         {
             if (!form.TryCorrectionPath(node.FieldId, node.Location, validation, out IReadOnlyList<string> path)) continue;
+            _nodes[index.PathKey(path)] = node;
             if (node.IsActive && (node.HasError || node.IsObligation && node.IsMissing))
                 AddPrefixes(path, correction: true);
             if (node.IsActive && node.IsRequired) AddPrefixes(path, correction: false);
@@ -164,6 +166,7 @@ internal sealed class DefinitionFormFacts
     internal IEnumerable<string[]> CorrectionPaths => _correctionPaths.Values;
     internal IEnumerable<string[]> PromotionPaths => _promotionPaths.Values;
     internal bool IsActive(string fieldId) => _activeFields.Contains(fieldId);
+    internal DefinitionNodeState? EditorState(IReadOnlyList<string> path) => _nodes.GetValueOrDefault(_index.PathKey(path));
     internal bool NeedsCorrection(IReadOnlyList<string> path) =>
         _correctionPaths.ContainsKey(_index.PathKey(path));
     internal bool HasRequiredDescendant(IReadOnlyList<string> path) =>

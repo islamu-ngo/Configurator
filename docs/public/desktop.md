@@ -8,7 +8,7 @@ Everything runs locally on your workstation. The desktop client makes no network
 
 ## Installation & Launch
 
-On x86_64 Arch Linux, install the native [pacman development package](packaging.md#arch-linux-development-package). It provides the `islamu-configurator-desktop` binary and desktop application launcher for X11 and Wayland sessions without requiring an external .NET runtime.
+On x86_64 Arch Linux, install the native [pacman development package](packaging.md#3-arch-linux-pacman-package). It provides the `islamu-configurator-desktop` binary and desktop application launcher for X11 and Wayland sessions without requiring an external .NET runtime.
 
 To launch from a local source repository:
 
@@ -76,7 +76,7 @@ Navigate quickly using native keyboard controls:
 | `Ctrl + Enter` | Prepare the currently selected artifact or bundle |
 | `Escape` | Cancel active background operation or discard prepared bundle |
 | `Alt + <Letter>` | Activate button matching the underlined access key |
-| `RTL Toggle` | Switch layout direction between left-to-right and right-to-left |
+| Direction controls | Follow the definition locale's direction, or explicitly override left-to-right/right-to-left layout |
 
 ---
 
@@ -84,11 +84,25 @@ Navigate quickly using native keyboard controls:
 
 ### Form Controls
 
-Fields dynamically render native controls matching their declared types:
+Fields dynamically render native controls matching their admitted v2 types:
 - **Strings and Numbers:** Ordinary text inputs validating invariant decimal formatting.
-- **Booleans and Enums:** Dropdown selectors or radio groups, including an explicit unset choice.
+- **Booleans:** Three-state checkboxes distinguish true, false and not supplied.
+- **Enums:** Dropdown choices retain their declared ordinal and exact JSON type/value. Labels are display metadata, not identity: two choices with the same localized label remain distinct, and an empty-string choice is not **Not supplied**.
 - **Protected Secrets:** Password-masked controls. Protected booleans and enums use masked inputs instead of open dropdowns to avoid leaking values.
-- **Explicit Omission:** Empty strings (`""`) and admitted empty enum choices are valid explicit values. To leave a setting unconfigured, choose **Clear** or **Not supplied** so declared defaults apply.
+
+### Presence, Initialization and Suggestions
+
+These actions have different effects:
+
+- **Set null:** Available for nullable fields; supplies a present JSON `null`, not an absent value.
+- **Clear / Not supplied:** Explicitly omits the setting and suppresses its `initialValue`. Empty strings (`""`), false, zero and empty containers are supplied values, not omission. For a string list item, **Clear** retains an empty-string row; use **Remove item** to delete it.
+- **Reset:** Removes the supplied override and explicit omission so eligible `x-configurator.initialValue` initialization can apply again. It does not promise a value where no initialization is declared.
+- **Apply suggestion:** Deliberately adopts `x-configurator.suggestedValue`; a suggestion never fills answers automatically. Suggestion actions are withheld for protected fields or containers with protected descendants.
+
+Standard JSON Schema `default` is descriptive only and is never inserted.
+Initialization is resolved by the shared engine, including eligible children of
+present containers; it does not create absent containers merely because their
+children are required or initialized.
 
 ### Container Management
 
@@ -96,6 +110,8 @@ Structured configuration objects and lists provide explicit lifecycle controls:
 
 - **Objects:** Click **Supply** to include an object container, even if empty (`{}`). Browsing empty child fields does not create the object. Click **Clear** to omit the container completely.
 - **Lists:** Click **Add item** to append a new item row; click **Remove item** to delete the selected row.
+- **Typed Maps:** Enter a literal key, then choose **Add entry**; **Remove entry** deletes that key and its value. Keys are exact and case-sensitive: dots, slashes and numeric-looking names are not navigation syntax. Duplicate keys, invalid bounded paths and additions beyond the declared `maxProperties` (or the engine's mapping ceiling) are blocked. Declared `minProperties` and value constraints still govern validation, so removing an entry can leave a correction to make. Surviving entry editors retain their identity.
+- **Discriminated Branches:** Select a declared branch to edit its typed children. Reselecting the current branch preserves its data. Switching to another branch replaces the old payload with the new discriminator; only eligible shared initialization fills missing children. Old branch editors are disposed, not retained as a hidden answer cache.
 - **Independent Child Validation:** Editing or correcting one child field does not invalidate healthy sibling fields. Unfinished drafts remain preserved while navigating between containers.
 
 ### Journeys and Disclosure
@@ -103,14 +119,28 @@ Structured configuration objects and lists provide explicit lifecycle controls:
 Setup definitions can organize configuration into guided experiences:
 
 - **Experience Selector:** Switch between authored journeys (e.g., *Recommended*, *Production*) or neutral *Configure*.
-- **Optional Editors:** Toggle **Optional editors** to reveal advanced settings. Turning it off restores authored defaults without discarding entered values.
+- **Optional Editors:** Toggle **Show optional editors** to expand optional detail. Turning it off returns to authored disclosure without changing answers, initialization or current preparation.
 - **Error Visibility:** Missing required answers and active validation errors remain visible and accessible regardless of the active journey.
+
+### Definition Language and Direction
+
+The definition locale selector uses admitted public translations with base-text
+fallback for field titles/descriptions, choice labels and branch titles.
+Instructions, units, choice explanations and static guidance links also feed
+accessible help. Literal map keys are local answer data, not translated labels.
+Changing locale does not change typed values, answer revision or prepared output.
+
+**Follow locale direction** is enabled initially. Changing **Right-to-left
+layout** selects an explicit direction override; enable follow-direction again
+to resume the locale's direction. Neither direction control changes language.
+Definition metadata localization is separate from shipped action text selected
+by the process UI culture; this is not a complete Desktop translation claim.
 
 ### Validation and Preparation
 
 Before generating files, verify answers and bundle readiness:
 
-1. **Validate Answers:** Evaluates all field constraints and automatically moves focus to the first invalid visible field.
+1. **Validate Answers:** Evaluates shared constraints and requests correction focus on the first visible error. Ordinary containers route focus toward a visible failing child; map and branch editors provide their key input or branch selector as correction destinations. Required/error paths remain reachable even when optional detail is collapsed.
 2. **Select Artifacts:** Choose individual declared artifacts or check multiple outputs under **Bundle outputs**.
 3. **Prepare Artifact / Bundle:** Staging validates full bundle composition, formats templates, and displays output digests without revealing secret plaintext.
 
@@ -157,3 +187,17 @@ Closing the window while background reads or writes are active triggers cooperat
 - **Automatic Settlement:** The window waits up to two seconds for active disk operations to finish before exiting cleanly.
 - **Stay Open:** If operations are still running after the deadline, choose **Stay open** to keep the window accessible while work settles.
 - **Force Close:** Choose **Force close** to terminate immediately. If forced, check target directories manually to inspect any partially written files.
+
+## Answer Custody and Qualification Limits
+
+Answers and drafts remain transient local workspace state, not a persistent
+answer store or public metadata. Replacing or closing the workspace disposes
+its editors; answer edits invalidate preparation. Managed input strings cannot
+promise secure memory erasure. Prepared artifacts remain private and saving
+still crosses the native protected-save boundary above; typed controls and
+localized metadata grant no target acceptance or apply authority.
+
+Phase 10 typed v2 control documentation does not qualify a physical native host
+or installed package. Headless window/control tests cannot establish those
+properties, native assistive-technology behavior or translation quality.
+Definition-standard-redesign Phase 12 qualification remains separate.

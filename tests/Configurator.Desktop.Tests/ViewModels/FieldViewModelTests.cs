@@ -18,21 +18,28 @@ public sealed class FieldViewModelTests
     public async Task ImportedSiblingsAndRetainedDraftSurviveAnUnrelatedImportAndPathEdit()
     {
         var source = JsonNode.Parse(DesktopApplicationTests.Definition())!.AsObject();
-        source["fields"] = JsonNode.Parse("""
-            [{"id":"settings.part","title":"Settings","type":"object","sensitivity":"public","disclosure":"essential",
-              "properties":[
-                {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
-                {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]},
-             {"id":"other.part","title":"Other","type":"string","sensitivity":"public","disclosure":"essential"}]
+        source.Remove("presentation");
+        source["configuration"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+              "settings.part":{"title":"Settings","type":"object","additionalProperties":false,
+                "x-configurator":{"sensitivity":"public","detail":"basic"},"properties":{
+                  "count.part":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                  "note.part":{"title":"Note","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}},
+              "other.part":{"title":"Other","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}
+            """);
+        source["requiredCapabilities"] = JsonNode.Parse("""
+            ["projection.copy","projection.object","schema.integer","schema.object","schema.string"]
             """);
         source["artifacts"] = JsonNode.Parse("""
-            [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-              "projection":{"op":"object","members":{"settings":{"op":"copy","field":"settings.part"},"other":{"op":"copy","field":"other.part"}}}}]
+            [{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+              "projection":{"op":"object","members":{
+                "settings":{"op":"copy","reference":{"scope":"root","path":"/settings.part"}},
+                "other":{"op":"copy","reference":{"scope":"root","path":"/other.part"}}}}}]
             """);
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
-        var settings = (ObjectFieldViewModel)fields[0];
+        var settings = (ObjectFieldViewModel)fields.Single(field => field.Id == "settings.part");
         var count = settings.Children[0];
         var note = settings.Children[1];
         var imported = await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(
@@ -57,12 +64,12 @@ public sealed class FieldViewModelTests
     public async Task InvalidNestedDraftDoesNotPoisonHealthySiblingOrAcceptedSnapshot()
     {
         using var form = Form("""
-            {"id":"settings.part","title":"Settings","type":"object","sensitivity":"public","disclosure":"essential",
-             "default":{"count.part":2,"note.part":"healthy"},
-             "properties":[
-               {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
-               {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}
-            """);
+            {"settings.part":{"title":"Settings","type":"object","additionalProperties":false,
+             "x-configurator":{"sensitivity":"public","detail":"basic","initialValue":{"count.part":2,"note.part":"healthy"}},
+             "properties":{
+               "count.part":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}},
+               "note.part":{"title":"Note","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}}
+            """, ["projection.literal", "schema.integer", "schema.object", "schema.string", "values.initial"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -74,8 +81,10 @@ public sealed class FieldViewModelTests
             await Assert.That(count.HasError).IsTrue();
             await Assert.That(note.HasError).IsFalse();
             await Assert.That(form.ReadDraftText(["settings.part", "count.part"])).IsEqualTo("unfinished-number");
-            await Assert.That(form.Snapshot().Values["settings.part"].GetRawText())
+            await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/settings.part"), out var initialized)).IsTrue();
+            await Assert.That(initialized.GetRawText())
                 .IsEqualTo("""{"count.part":2,"note.part":"healthy"}""");
+            await Assert.That(form.Snapshot().Values.ContainsKey("settings.part")).IsFalse();
             note.Text = "changed";
             await Assert.That(count.Text).IsEqualTo("unfinished-number");
             await Assert.That(form.HasInputErrors).IsTrue();
@@ -94,12 +103,13 @@ public sealed class FieldViewModelTests
     public async Task SharedRowRemovalKeepsSurvivorEditorDraftIdentityAndOrigins()
     {
         using var form = Form("""
-            {"id":"rows.part","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
-             "default":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}],
-             "properties":[
-               {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
-               {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}
-            """);
+            {"rows.part":{"title":"Rows","type":"array",
+             "x-configurator":{"sensitivity":"public","detail":"basic",
+               "initialValue":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}]},
+             "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "count.part":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}},
+               "note.part":{"title":"Note","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}}}
+            """, ["projection.literal", "schema.array", "schema.integer", "schema.object", "schema.string", "values.initial"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -127,11 +137,13 @@ public sealed class FieldViewModelTests
     public async Task SharedContainerPresenceRefreshDoesNotSupplyUntouchedSiblings()
     {
         using var form = Form("""
-            {"id":"settings","title":"Settings","type":"object","sensitivity":"public","disclosure":"essential",
-             "properties":[
-               {"id":"empty.object","title":"Empty object","type":"object","properties":[],"sensitivity":"public","disclosure":"essential"},
-               {"id":"empty.list","title":"Empty list","type":"list","itemType":"string","maxItems":0,"sensitivity":"public","disclosure":"essential"}]}
-            """);
+            {"settings":{"title":"Settings","type":"object","additionalProperties":false,
+             "x-configurator":{"sensitivity":"public","detail":"basic"},"properties":{
+               "empty.object":{"title":"Empty object","type":"object","additionalProperties":false,"properties":{},
+                 "x-configurator":{"sensitivity":"public","detail":"basic"}},
+               "empty.list":{"title":"Empty list","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                 "maxItems":0,"x-configurator":{"sensitivity":"public","detail":"basic"}}}}}
+            """, ["projection.literal", "schema.array", "schema.bounds", "schema.object", "schema.string"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -139,15 +151,16 @@ public sealed class FieldViewModelTests
             var settings = (ObjectFieldViewModel)fields.Single();
             long revision = form.InputRevision;
             form.SetAllSectionsExpanded(true);
-            settings.Children[0].ClearCommand.Execute(null);
-            await Assert.That(form.InputRevision).IsEqualTo(revision);
+            // Reset is a deliberate intent, but does not materialize an untouched container.
+            settings.Children[0].ResetCommand.Execute(null);
+            await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
             await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
             await Assert.That(form.SupplyObject(["settings", "empty.object"])).IsTrue();
             await Assert.That(form.Snapshot().Values["settings"].GetRawText()).IsEqualTo("""{"empty.object":{}}""");
             await Assert.That(form.SupplyList(["settings", "empty.list"])).IsTrue();
             await Assert.That(JsonElement.DeepEquals(form.Snapshot().Values["settings"],
                 JsonSerializer.Deserialize<JsonElement>("""{"empty.object":{},"empty.list":[]}"""))).IsTrue();
-            settings.Children[0].ClearCommand.Execute(null);
+            settings.Children.Single(child => child.Id == "empty.object").ClearCommand.Execute(null);
             await Assert.That(form.Snapshot().Values["settings"].GetRawText()).IsEqualTo("""{"empty.list":[]}""");
             settings.ClearCommand.Execute(null);
             await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
@@ -159,9 +172,9 @@ public sealed class FieldViewModelTests
     public async Task OptionalAdvancedSecretDoesNotOpenBecauseItIsProtected()
     {
         using var form = Form("""
-            {"id":"token","title":"Token","type":"string","sensitivity":"secret","disclosure":"advanced",
-             "consequence":"Acquire a token only if this optional integration is needed."}
-            """);
+            {"token":{"title":"Token","type":"string","x-configurator":{"sensitivity":"secret","detail":"advanced",
+             "guidance":{"instructions":"Acquire a token only if this optional integration is needed."}}}}
+            """, ["projection.literal", "schema.object", "schema.string"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -183,9 +196,11 @@ public sealed class FieldViewModelTests
     public async Task LiteralNestedPathsFollowSurvivingListMembershipForCorrections()
     {
         using var form = Form("""
-            {"id":"rows.list","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
-             "properties":[{"id":"value.part","title":"Value","type":"string","maxLength":2,"sensitivity":"secret","disclosure":"advanced"}]}
-            """);
+            {"rows.list":{"title":"Rows","type":"array","x-configurator":{"sensitivity":"public","detail":"basic"},
+             "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "value.part":{"title":"Value","type":"string","maxLength":2,
+                 "x-configurator":{"sensitivity":"secret","detail":"advanced"}}}}}}
+            """, ["projection.literal", "schema.array", "schema.bounds", "schema.object", "schema.string"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -223,8 +238,8 @@ public sealed class FieldViewModelTests
     public async Task EmptyEnumSelectionSurvivesRefreshAndClearMeansOmission()
     {
         using var form = Form("""
-            {"id":"value","title":"Value","type":"enum","choices":["","other"],"sensitivity":"public","disclosure":"guided"}
-            """);
+            {"value":{"title":"Value","type":"string","enum":["","other"],"x-configurator":{"sensitivity":"public","detail":"standard"}}}
+            """, ["projection.literal", "schema.enum", "schema.object", "schema.string"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -252,8 +267,8 @@ public sealed class FieldViewModelTests
     public async Task DefaultEmptyStringAndErasedStringRemainSuppliedUntilClear()
     {
         using var form = Form("""
-            {"id":"value","title":"Value","type":"string","default":"","sensitivity":"public","disclosure":"guided"}
-            """);
+            {"value":{"title":"Value","type":"string","x-configurator":{"sensitivity":"public","detail":"standard","initialValue":""}}}
+            """, ["projection.literal", "schema.object", "schema.string", "values.initial"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -263,7 +278,9 @@ public sealed class FieldViewModelTests
             form.SetAllSectionsExpanded(true);
             factory.Refresh();
             await Assert.That(form.InputRevision).IsEqualTo(before);
-            await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
+            await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/value"), out var initialized)).IsTrue();
+            await Assert.That(initialized.GetRawText()).IsEqualTo("\"\"");
+            await Assert.That(form.Snapshot().Values.ContainsKey("value")).IsFalse();
             field.Text = "erase";
             field.Text = "";
             await Assert.That(form.Snapshot().Values["value"].GetRawText()).IsEqualTo("\"\"");
@@ -290,17 +307,20 @@ public sealed class FieldViewModelTests
     }
 
     [Test]
-    [Arguments("string")]
-    [Arguments("enum")]
-    [Arguments("boolean")]
-    [Arguments("integer")]
-    [Arguments("number")]
-    public async Task EveryNonPublicScalarMasksAndSuppressesChoiceDisclosure(string type)
+    [Arguments("string", false)]
+    [Arguments("string", true)]
+    [Arguments("boolean", false)]
+    [Arguments("integer", false)]
+    [Arguments("number", false)]
+    public async Task EveryNonPublicScalarMasksAndSuppressesChoiceDisclosure(string type, bool hasChoices)
     {
-        string extra = type == "enum" ? ""","choices":["synthetic-private-choice","other"]""" : "";
-        using var form = Form($$"""
-            {"id":"value","title":"Protected","help":"Declared help","type":"{{type}}","sensitivity":"sensitive","disclosure":"guided"{{extra}}}
-            """);
+        string extra = hasChoices ? ""","enum":["synthetic-private-choice","other"]""" : "";
+        using var form = Form($$$"""
+            {"value":{"title":"Protected","description":"Declared help","type":"{{{type}}}",
+             "x-configurator":{"sensitivity":"sensitive","detail":"standard"}{{{extra}}}}}
+            """, hasChoices
+                ? ["projection.literal", "schema.enum", "schema.object", "schema.string"]
+                : new[] { "projection.literal", "schema." + type, "schema.object" }.Order(StringComparer.Ordinal).ToArray());
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -326,9 +346,10 @@ public sealed class FieldViewModelTests
     public async Task SensitivityIsInheritedThroughObjectListRows()
     {
         using var form = Form("""
-            {"id":"rows","title":"Rows","type":"list","itemType":"object","sensitivity":"secret","disclosure":"guided",
-             "properties":[{"id":"count","title":"Count","type":"integer","sensitivity":"public","disclosure":"guided"}]}
-            """);
+            {"rows":{"title":"Rows","type":"array","x-configurator":{"sensitivity":"secret","detail":"standard"},
+             "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "count":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"standard"}}}}}}
+            """, ["projection.literal", "schema.array", "schema.integer", "schema.object"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -347,12 +368,13 @@ public sealed class FieldViewModelTests
     public async Task EffectiveContainerSensitivityMasksPublicSiblingsAndSuppressesRecommendations()
     {
         using var form = Form("""
-            {"id":"owner","title":"Owner","type":"object","sensitivity":"public","disclosure":"guided",
-             "properties":[
-               {"id":"name","title":"Name","type":"string","sensitivity":"sensitive","disclosure":"guided"},
-               {"id":"age","title":"Age","type":"integer","recommended":7,"sensitivity":"public","disclosure":"guided"},
-               {"id":"mode","title":"Mode","type":"enum","choices":["first","second"],"sensitivity":"public","disclosure":"guided"}]}
-            """);
+            {"owner":{"title":"Owner","type":"object","additionalProperties":false,
+             "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+               "name":{"title":"Name","type":"string","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
+               "age":{"title":"Age","type":"integer","x-configurator":{"suggestedValue":7,"sensitivity":"public","detail":"standard"}},
+               "mode":{"title":"Mode","type":"string","enum":["first","second"],
+                 "x-configurator":{"sensitivity":"public","detail":"standard"}}}}}
+            """, ["projection.literal", "schema.enum", "schema.integer", "schema.object", "schema.string", "values.suggested"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -361,7 +383,7 @@ public sealed class FieldViewModelTests
             await Assert.That(owner.RequiresMasking).IsTrue();
             await Assert.That(owner.Children.All(field => field.PasswordChar == '●')).IsTrue();
             var age = owner.Children.Single(field => field.Id == "age");
-            await Assert.That(age.UseRecommendedCommand.CanExecute(null)).IsFalse();
+            await Assert.That(age.ApplySuggestionCommand.CanExecute(null)).IsFalse();
             await Assert.That(((EnumFieldViewModel)owner.Children.Single(field => field.Id == "mode")).Choices.Count).IsEqualTo(0);
         }
         finally { Dispose(fields); }
@@ -371,9 +393,9 @@ public sealed class FieldViewModelTests
     public async Task ScalarEditsImportsAndActionsSynchronizeBothDirections()
     {
         using var form = Form("""
-            {"id":"value","title":"Value","type":"integer","sensitivity":"public","disclosure":"guided",
-             "minimum":1,"maximum":9,"recommended":4}
-            """);
+            {"value":{"title":"Value","type":"integer","minimum":1,"maximum":9,
+             "x-configurator":{"sensitivity":"public","detail":"standard","suggestedValue":4}}}
+            """, ["projection.literal", "schema.bounds", "schema.integer", "schema.object", "values.suggested"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -383,7 +405,7 @@ public sealed class FieldViewModelTests
             await Assert.That(form.Fields.Single().Text).IsEqualTo("3");
             form.Fields.Single().Text = "7";
             await Assert.That(field.Text).IsEqualTo("7");
-            field.UseRecommendedCommand.Execute(null);
+            field.ApplySuggestionCommand.Execute(null);
             await Assert.That(form.Fields.Single().Text).IsEqualTo("4");
             field.ClearCommand.Execute(null);
             await Assert.That(form.Fields.Single().Text).IsEmpty();
@@ -429,13 +451,14 @@ public sealed class FieldViewModelTests
     public async Task StructuredEditingPreservesTypedValuesDefaultsAndOptionalOmission()
     {
         using var form = Form("""
-            {"id":"settings","title":"Settings","type":"object","sensitivity":"public","disclosure":"guided",
-             "properties":[
-               {"id":"count","title":"Count","type":"integer","default":2,"sensitivity":"public","disclosure":"guided"},
-               {"id":"mode","title":"Mode","type":"enum","choices":["one","two"],"sensitivity":"public","disclosure":"guided"},
-               {"id":"note","title":"Note","type":"string","sensitivity":"public","disclosure":"guided"},
-               {"id":"nested","title":"Nested","type":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[]}]}
-            """);
+            {"settings":{"title":"Settings","type":"object","additionalProperties":false,"required":["nested"],
+             "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+               "count":{"title":"Count","type":"integer","x-configurator":{"initialValue":2,"sensitivity":"public","detail":"standard"}},
+               "mode":{"title":"Mode","type":"string","enum":["one","two"],"x-configurator":{"sensitivity":"public","detail":"standard"}},
+               "note":{"title":"Note","type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}},
+               "nested":{"title":"Nested","type":"object","additionalProperties":false,"properties":{},
+                 "x-configurator":{"sensitivity":"public","detail":"standard"}}}}}
+            """, ["projection.literal", "schema.enum", "schema.integer", "schema.object", "schema.string", "values.initial"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -443,6 +466,8 @@ public sealed class FieldViewModelTests
             var obj = (ObjectFieldViewModel)fields.Single();
             await Assert.That(form.Fields.Single().Text).IsEmpty();
             obj.SupplyCommand.Execute(null);
+            // Requiredness does not initialize an absent container.
+            obj.Children.Single(field => field.Id == "nested").SupplyCommand.Execute(null);
             obj.Children.Single(field => field.Id == "mode").Text = "two";
             using var json = JsonDocument.Parse(form.Fields.Single().Text);
             await Assert.That(json.RootElement.GetProperty("count").GetInt32()).IsEqualTo(2);
@@ -465,11 +490,13 @@ public sealed class FieldViewModelTests
     public async Task BoundedRowsPreserveDefaultsAndEmptyJsonValuesOnRemoval()
     {
         using var form = Form("""
-            {"id":"rows","title":"Rows","type":"list","itemType":"object","maxItems":2,"sensitivity":"public","disclosure":"guided",
-             "properties":[
-               {"id":"enabled","title":"Enabled","type":"boolean","default":false,"sensitivity":"public","disclosure":"guided"},
-               {"id":"aliases","title":"Aliases","type":"list","itemType":"string","required":true,"sensitivity":"public","disclosure":"guided"}]}
-            """);
+            {"rows":{"title":"Rows","type":"array","maxItems":2,"x-configurator":{"sensitivity":"public","detail":"standard"},
+             "items":{"type":"object","additionalProperties":false,"required":["aliases"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "enabled":{"title":"Enabled","type":"boolean","x-configurator":{"sensitivity":"public","detail":"standard","initialValue":false}},
+                 "aliases":{"title":"Aliases","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":""}},
+                   "x-configurator":{"sensitivity":"public","detail":"standard","initialValue":[]}}}}}}
+            """, ["projection.literal", "schema.array", "schema.boolean", "schema.bounds", "schema.object", "schema.string", "values.initial"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -479,7 +506,7 @@ public sealed class FieldViewModelTests
             var first = list.Items.Single();
             var aliases = (ListFieldViewModel)((ObjectFieldViewModel)first).Children.Single(field => field.Id == "aliases");
             aliases.AddItemCommand.Execute(null);
-            await Assert.That(form.Fields.Single().Text).IsEqualTo("""[{"enabled":false,"aliases":[""]}]""");
+            await Assert.That(form.Fields.Single().Text).IsEqualTo("""[{"aliases":[""],"enabled":false}]""");
             list.AddItemCommand.Execute(null);
             await Assert.That(list.AddItemCommand.CanExecute(null)).IsFalse();
             list.AddItemCommand.Execute(null);
@@ -488,7 +515,7 @@ public sealed class FieldViewModelTests
             list.RemoveItemCommand.Execute(first);
             await Assert.That(list.FocusRequestVersion > focusBeforeRemoval).IsTrue();
             first.Text = "ignored";
-            await Assert.That(form.Fields.Single().Text).IsEqualTo("""[{"enabled":false,"aliases":[]}]""");
+            await Assert.That(form.Fields.Single().Text).IsEqualTo("""[{"aliases":[],"enabled":false}]""");
             list.RemoveItemCommand.Execute(list.Items.Single());
             await Assert.That(form.Fields.Single().Text).IsEqualTo("[]");
             list.ClearCommand.Execute(null);
@@ -515,8 +542,9 @@ public sealed class FieldViewModelTests
     public async Task OptionalEssentialFieldStaysVisibleAndReportsStringBounds()
     {
         using var form = Form("""
-            {"id":"note","title":"Note","type":"string","sensitivity":"public","disclosure":"essential","minLength":1,"maxLength":8}
-            """);
+            {"note":{"title":"Note","type":"string","minLength":1,"maxLength":8,
+             "x-configurator":{"sensitivity":"public","detail":"basic"}}}
+            """, ["projection.literal", "schema.bounds", "schema.object", "schema.string"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -533,8 +561,9 @@ public sealed class FieldViewModelTests
     public async Task ListRemovalRespectsDeclaredMinimumAndRejectsForeignRows()
     {
         using var form = Form("""
-            {"id":"rows","title":"Rows","type":"list","itemType":"integer","minItems":1,"maxItems":2,"sensitivity":"public","disclosure":"guided"}
-            """);
+            {"rows":{"title":"Rows","type":"array","items":{"type":"integer","x-configurator":{"sensitivity":"public","initialValue":0}},
+             "minItems":1,"maxItems":2,"x-configurator":{"sensitivity":"public","detail":"standard"}}}
+            """, ["projection.literal", "schema.array", "schema.bounds", "schema.integer", "schema.object", "values.initial"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
@@ -566,15 +595,16 @@ public sealed class FieldViewModelTests
             var result = await session.Dispatch(() =>
             {
                 using var form = Form("""
-                    {"id":"settings","title":"Settings","type":"object","sensitivity":"secret","disclosure":"guided",
-                     "properties":[
-                       {"id":"name","title":"Name","type":"string","sensitivity":"public","disclosure":"guided"},
-                       {"id":"mode","title":"Mode","type":"enum","choices":["synthetic-choice","other"],"sensitivity":"public","disclosure":"guided"},
-                       {"id":"enabled","title":"Enabled","type":"boolean","sensitivity":"public","disclosure":"guided"},
-                       {"id":"count","title":"Count","type":"integer","sensitivity":"public","disclosure":"guided"},
-                       {"id":"ratio","title":"Ratio","type":"number","sensitivity":"public","disclosure":"guided"},
-                       {"id":"aliases","title":"Aliases","type":"list","itemType":"string","sensitivity":"public","disclosure":"guided"}]}
-                    """);
+                    {"settings":{"title":"Settings","type":"object","additionalProperties":false,
+                     "x-configurator":{"sensitivity":"secret","detail":"standard"},"properties":{
+                       "name":{"title":"Name","type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}},
+                       "mode":{"title":"Mode","type":"string","enum":["synthetic-choice","other"],"x-configurator":{"sensitivity":"public","detail":"standard"}},
+                       "enabled":{"title":"Enabled","type":"boolean","x-configurator":{"sensitivity":"public","detail":"standard"}},
+                       "count":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"standard"}},
+                       "ratio":{"title":"Ratio","type":"number","x-configurator":{"sensitivity":"public","detail":"standard"}},
+                       "aliases":{"title":"Aliases","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                         "x-configurator":{"sensitivity":"public","detail":"standard"}}}}}
+                    """, ["projection.literal", "schema.array", "schema.boolean", "schema.enum", "schema.integer", "schema.number", "schema.object", "schema.string"]);
                 form.Fields.Single().Text = """
                     {"name":"synthetic-answer","mode":"synthetic-choice","enabled":true,"count":42,"ratio":0.5}
                     """;
@@ -607,7 +637,8 @@ public sealed class FieldViewModelTests
                     row.Text = "synthetic-alias";
                     Dispatcher.UIThread.RunJobs();
                     bool recursive = row.PasswordChar == '●' && form.Fields.Single().Text.Contains("synthetic-alias", StringComparison.Ordinal);
-                    list.Items.Single().ClearCommand.Execute(null);
+                    // Erasing a supplied string is distinct from explicit omission.
+                    list.Items.Single().Text = "";
                     using var cleared = JsonDocument.Parse(form.Fields.Single().Text);
                     recursive &= cleared.RootElement.GetProperty("aliases")[0].GetString() == "";
                     var add = window.GetLogicalDescendants().OfType<Button>()
@@ -621,7 +652,7 @@ public sealed class FieldViewModelTests
                     focus &= add.IsFocused;
                     fields.Single().ClearCommand.Execute(null);
                     Dispatcher.UIThread.RunJobs();
-                    focus &= inputs.Single(control => AutomationProperties.GetName(control) == "Name").IsFocused;
+                    focus &= add.IsFocused;
                     return (masked, named, choicesHidden, synchronized, recursive, actionNames, focus);
                 }
                 finally { window.Close(); Dispose(fields); }
@@ -637,14 +668,22 @@ public sealed class FieldViewModelTests
         finally { await Task.Run(session.Dispose).ConfigureAwait(false); }
     }
 
-    private static DefinitionFormModel Form(string? field = null)
+    private static DefinitionFormModel Form(string? properties = null, string[]? capabilities = null)
     {
         JsonObject source = JsonNode.Parse(DesktopApplicationTests.Definition())!.AsObject();
-        if (field is not null)
+        if (properties is not null)
         {
-            source["fields"] = new JsonArray(JsonNode.Parse(field));
+            source.Remove("presentation");
+            source["configuration"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = false,
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+                ["properties"] = JsonNode.Parse(properties)
+            };
+            source["requiredCapabilities"] = new JsonArray(capabilities!.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray());
             source["artifacts"] = JsonNode.Parse("""
-                [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+                [{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
                   "projection":{"op":"literal","value":{}}}]
                 """);
         }

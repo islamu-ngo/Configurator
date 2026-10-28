@@ -28,6 +28,48 @@ public sealed class DesktopApplicationTests
 
     [Test]
     [NotInParallel]
+    public async Task ShippedTypedMapsVariantsNullActionsAndLocaleKeepTheirBindings()
+    {
+        var result = await InWindow(window =>
+        {
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            shell.Loader.LoadDefinition(ViewModels.DefinitionV2EditingTests.Definition().CanonicalBytes.ToArray());
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var form = shell.Workspace.Form!;
+            var choice = (EnumFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "choice");
+            long beforeLocale = form.InputRevision;
+            shell.Workspace.SelectedLocale = "ar";
+            Dispatcher.UIThread.RunJobs();
+            bool localeIsViewOnly = form.InputRevision == beforeLocale && form.Snapshot().Values.Count == 0 &&
+                choice.SelectedIndex == 1 && choice.Choices[1].Label == "Translated equal";
+            var map = (MapFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "named");
+            TextBox key = window.GetLogicalDescendants().OfType<TextBox>().Single(control =>
+                ReferenceEquals(control.DataContext, map) && AutomationProperties.GetName(control) == map.NewKeyLabel);
+            key.Text = "literal/key";
+            Dispatcher.UIThread.RunJobs();
+            Click(window.GetLogicalDescendants().OfType<Button>().Single(button => ReferenceEquals(button.Command, map.AddEntryCommand)));
+            Dispatcher.UIThread.RunJobs();
+            FieldViewModel entry = map.Entries.Single();
+            window.GetLogicalDescendants().OfType<TextBox>().Single(control => ReferenceEquals(control.DataContext, entry)).Text = "7";
+            Dispatcher.UIThread.RunJobs();
+            var provider = (VariantFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "provider");
+            window.GetLogicalDescendants().OfType<ComboBox>().Single(control => ReferenceEquals(control.DataContext, provider)).SelectedIndex = 1;
+            Dispatcher.UIThread.RunJobs();
+            Click(window.GetLogicalDescendants().OfType<Button>().Single(button => ReferenceEquals(button.Command, choice.SetNullCommand)));
+            Dispatcher.UIThread.RunJobs();
+            return (localeIsViewOnly, mapValue: form.Snapshot().Values["named"].GetProperty("literal/key").GetInt32(),
+                provider: form.Snapshot().Values["provider"].GetProperty("kind").GetString(),
+                nullSupplied: form.Snapshot().Values["choice"].ValueKind == JsonValueKind.Null);
+        });
+        await Assert.That(result.localeIsViewOnly).IsTrue();
+        await Assert.That(result.mapValue).IsEqualTo(7);
+        await Assert.That(result.provider).IsEqualTo("second");
+        await Assert.That(result.nullSupplied).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
     [Arguments("en")]
     [Arguments("ar")]
     public async Task ShippedContainerActionsSupplyAndClearEmptyValuesWithoutBrowsingEdits(string culture)
@@ -39,12 +81,19 @@ public sealed class DesktopApplicationTests
             try
             {
                 var source = JsonNode.Parse(Definition())!.AsObject();
-                source["fields"] = JsonNode.Parse("""
-                    [{"id":"empty.object","title":"Empty object","type":"object","properties":[],"sensitivity":"public","disclosure":"essential"},
-                     {"id":"empty.list","title":"Empty list","type":"list","itemType":"string","maxItems":0,"sensitivity":"public","disclosure":"essential"}]
+                source["configuration"] = JsonNode.Parse("""
+                    {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                      "empty.object":{"title":"Empty object","type":"object","additionalProperties":false,"properties":{},
+                        "x-configurator":{"sensitivity":"public","detail":"basic"}},
+                      "empty.list":{"title":"Empty list","type":"array","maxItems":0,
+                        "items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                        "x-configurator":{"sensitivity":"public","detail":"basic"}}}}
+                    """);
+                source["requiredCapabilities"] = JsonNode.Parse("""
+                    ["projection.literal","schema.array","schema.bounds","schema.object","schema.string"]
                     """);
                 source["artifacts"] = JsonNode.Parse("""
-                    [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+                    [{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
                       "projection":{"op":"literal","value":{}}}]
                     """);
                 var shell = (DesktopShellViewModel)window.DataContext!;
@@ -105,15 +154,20 @@ public sealed class DesktopApplicationTests
         var result = await InWindow(window =>
         {
             var source = JsonNode.Parse(Definition())!.AsObject();
-            source["fields"] = JsonNode.Parse("""
-                [{"id":"rows.part","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
-                  "default":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}],
-                  "properties":[
-                    {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
-                    {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}]
+            source["configuration"] = JsonNode.Parse("""
+                {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                  "rows.part":{"title":"Rows","type":"array",
+                    "x-configurator":{"sensitivity":"public","detail":"basic",
+                      "initialValue":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}]},
+                    "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                      "count.part":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                      "note.part":{"title":"Note","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}}}}
+                """);
+            source["requiredCapabilities"] = JsonNode.Parse("""
+                ["projection.literal","schema.array","schema.integer","schema.object","schema.string","values.initial"]
                 """);
             source["artifacts"] = JsonNode.Parse("""
-                [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
+                [{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
                   "projection":{"op":"literal","value":{}}}]
                 """);
             var shell = (DesktopShellViewModel)window.DataContext!;
@@ -181,7 +235,7 @@ public sealed class DesktopApplicationTests
             var shell = (DesktopShellViewModel)window.DataContext!;
             TextBox name = Input<TextBox>(window, "Service name");
             name.Text = "Desktop service";
-            Input<ComboBox>(window, "Mode").SelectedItem = "remote";
+            Input<ComboBox>(window, "Mode").SelectedIndex = 2;
             Input<CheckBox>(window, "Enabled").IsChecked = false;
             Input<TextBox>(window, "Port").Text = "8443";
             Input<TextBox>(window, "Ratio").Text = "1.25";
@@ -311,6 +365,8 @@ public sealed class DesktopApplicationTests
             string status = shell.Status;
             bool initiallyHidden = !note.IsVisible;
             experience.SelectedItem = shell.Workspace.Experiences.Single(item => item.Id == "inspection");
+            // Journeys select layout in v2; optional detail is a deliberate view action.
+            optional.IsChecked = true;
             Dispatcher.UIThread.RunJobs();
             bool selected = shell.Workspace.Form.SelectedExperienceId == "inspection" && note.IsVisible;
             experience.SelectedItem = shell.Workspace.Experiences.Single(item => item.Id == "deployment");
@@ -349,11 +405,12 @@ public sealed class DesktopApplicationTests
         var result = await InWindow(window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
-            Input<ComboBox>(window, "Mode").SelectedItem = "remote";
+            Input<ComboBox>(window, "Mode").SelectedIndex = 2;
+            Dispatcher.UIThread.RunJobs();
             Input<TextBox>(window, "Port").Text = "invalid-number";
             Dispatcher.UIThread.RunJobs();
             bool activeInvalid = shell.Workspace.Form!.HasInputErrors;
-            Input<ComboBox>(window, "Mode").SelectedItem = "local";
+            Input<ComboBox>(window, "Mode").SelectedIndex = 1;
             window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
             Dispatcher.UIThread.RunJobs();
             var port = shell.Workspace.Fields.Single(field => field.Id == "port");
@@ -821,20 +878,30 @@ public sealed class DesktopApplicationTests
         var result = await InWindow(window =>
         {
             using JsonDocument schema = JsonDocument.Parse("""
-            {"id":"rows","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"guided","maxItems":2,
-             "properties":[
-               {"id":"name","title":"Row name","type":"string","sensitivity":"public","disclosure":"guided","required":true},
-               {"id":"password","title":"Row password","type":"string","sensitivity":"secret","disclosure":"guided"},
-               {"id":"aliases","title":"Aliases","type":"list","itemType":"string","required":true,"sensitivity":"public","disclosure":"guided"},
-               {"id":"localizations","title":"Localizations","type":"list","itemType":"object","required":true,"sensitivity":"public","disclosure":"guided","properties":[
-                 {"id":"locale","title":"Locale","type":"string","sensitivity":"public","disclosure":"guided"}]},
-               {"id":"settings","title":"Settings","type":"object","sensitivity":"public","disclosure":"guided","required":true,"properties":[]}]}
+            {"title":"Rows","type":"array","maxItems":2,"x-configurator":{"sensitivity":"public","detail":"standard"},
+             "items":{"type":"object","additionalProperties":false,"required":["name","aliases","localizations","settings"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "name":{"title":"Row name","type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}},
+                 "password":{"title":"Row password","type":"string","x-configurator":{"sensitivity":"secret","detail":"standard"}},
+                 "aliases":{"title":"Aliases","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                   "x-configurator":{"sensitivity":"public","detail":"standard"}},
+                 "localizations":{"title":"Localizations","type":"array","x-configurator":{"sensitivity":"public","detail":"standard"},
+                   "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                     "locale":{"title":"Locale","type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}}}}},
+                 "settings":{"title":"Settings","type":"object","additionalProperties":false,"properties":{},
+                   "x-configurator":{"sensitivity":"public","detail":"standard"}}}}}
             """);
             JsonObject source = JsonNode.Parse(Definition())!.AsObject();
-            source["fields"] = new JsonArray(JsonNode.Parse(schema.RootElement.GetRawText()));
+            source["configuration"] = JsonNode.Parse("""
+                {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{}}
+                """);
+            source["configuration"]!["properties"]!["rows"] = JsonNode.Parse(schema.RootElement.GetRawText());
+            source["requiredCapabilities"] = JsonNode.Parse("""
+                ["projection.copy","projection.object","schema.array","schema.bounds","schema.object","schema.string"]
+                """);
             source["artifacts"] = JsonNode.Parse("""
-            [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-              "projection":{"op":"object","members":{"rows":{"op":"copy","field":"rows"}}}}]
+            [{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
+              "projection":{"op":"object","members":{"rows":{"op":"copy","reference":{"scope":"root","path":"/rows"}}}}}]
             """);
             var shell = (DesktopShellViewModel)window.DataContext!;
             shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
@@ -846,6 +913,11 @@ public sealed class DesktopApplicationTests
             TextBox password = editor.GetLogicalDescendants().OfType<TextBox>().Single(input => AutomationProperties.GetName(input) == "Row password");
             name.Text = "first";
             password.Text = "synthetic-secret";
+            // Required containers remain absent until explicitly supplied in v2.
+            var row = (ObjectFieldViewModel)((ListFieldViewModel)shell.Workspace.Fields.Single()).Items.Single();
+            var settings = row.Children.Single(field => field.Id == "settings");
+            Click(editor.GetLogicalDescendants().OfType<Button>()
+                .Single(button => ReferenceEquals(button.Command, settings.SupplyCommand)));
             Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Add item to Aliases"));
             Dispatcher.UIThread.RunJobs();
             editor.GetLogicalDescendants().OfType<TextBox>().Single(input => AutomationProperties.GetName(input) == "Aliases item").Text = "alias";
@@ -989,27 +1061,41 @@ public sealed class DesktopApplicationTests
     internal static byte[] Definition(long revision = 1) => Encoding.UTF8.GetBytes(
         """
         {
-          "schemaVersion":1,"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
-          "revision":REVISION,"applicationId":"example.service","applicationVersions":["1.0"],
-          "publisher":"example","title":"Example setup","entryPoints":["setup"],"locales":["en"],
-          "fields":[
-            {"id":"name","type":"string","title":"Service name","required":true,"default":"Example service","sensitivity":"public","disclosure":"essential"},
-            {"id":"mode","type":"enum","title":"Mode","choices":["local","remote"],"default":"local","sensitivity":"public","disclosure":"guided","consequence":"Remote mode needs a declared port."},
-            {"id":"enabled","type":"boolean","title":"Enabled","default":true,"sensitivity":"public","disclosure":"guided"},
-            {"id":"port","type":"integer","title":"Port","minimum":1,"maximum":65535,"default":443,"sensitivity":"public","disclosure":"guided","activeWhen":{"op":"equals","field":"mode","value":"remote"}},
-            {"id":"ratio","type":"number","title":"Ratio","default":1,"sensitivity":"public","disclosure":"guided"},
-            {"id":"owner","type":"object","title":"Owner","sensitivity":"public","disclosure":"guided","properties":[
-              {"id":"name","type":"string","title":"Owner name","sensitivity":"sensitive","disclosure":"guided"},
-              {"id":"age","type":"integer","title":"Owner age","sensitivity":"public","disclosure":"guided"}
-            ]},
-            {"id":"hosts","type":"list","itemType":"string","title":"Hosts","sensitivity":"public","disclosure":"guided","maxItems":3},
-            {"id":"note","type":"string","title":"Advanced note","sensitivity":"public","disclosure":"advanced","maxLength":8}
-          ],
+          "schemaVersion":2,"profile":"bounded-v2","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
+          "revision":REVISION,"project":{"id":"example.service","name":"Example setup","publisher":"example"},
+          "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["en"],
+          "requiredCapabilities":["predicate.root","projection.copy","projection.list","projection.object",
+            "schema.array","schema.boolean","schema.bounds","schema.enum","schema.integer","schema.notBlank",
+            "schema.number","schema.object","schema.string","values.initial"],
+          "configuration":{"type":"object","additionalProperties":false,"required":["name"],
+            "x-configurator":{"sensitivity":"public"},"properties":{
+              "name":{"type":"string","title":"Service name",
+                "x-configurator":{"initialValue":"Example service","notBlank":true,"sensitivity":"public","detail":"basic"}},
+              "mode":{"type":"string","title":"Mode","enum":["local","remote"],"description":"Remote mode needs a declared port.",
+                "x-configurator":{"initialValue":"local","sensitivity":"public","detail":"basic"}},
+              "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"initialValue":true,"sensitivity":"public","detail":"standard"}},
+              "port":{"type":"integer","title":"Port","minimum":1,"maximum":65535,
+                "x-configurator":{"initialValue":443,"sensitivity":"public","detail":"standard",
+                  "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/mode"},"value":"remote"}}},
+              "ratio":{"type":"number","title":"Ratio","x-configurator":{"initialValue":1,"sensitivity":"public","detail":"standard"}},
+              "owner":{"type":"object","title":"Owner","additionalProperties":false,
+                "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+                  "name":{"type":"string","title":"Owner name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
+                  "age":{"type":"integer","title":"Owner age","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+              "hosts":{"type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                "title":"Hosts","maxItems":3,"x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "note":{"type":"string","title":"Advanced note","maxLength":8,"x-configurator":{"sensitivity":"public","detail":"advanced"}}
+            }},
           "artifacts":[
-            {"id":"config","format":"json","fileName":"service.json","applySemantics":"create","restart":"process","projection":{"op":"object","members":{"name":{"op":"copy","field":"name"},"owner":{"op":"copy","field":"owner"},"hosts":{"op":"copy","field":"hosts"}}}},
-            {"id":"environment","format":"dotenv","fileName":"service.env","applySemantics":"create","restart":"process","projection":{"op":"object","members":{"NAME":{"op":"copy","field":"name"}}}},
-            {"id":"yaml","format":"yaml","fileName":"service.yaml","applySemantics":"replace","restart":"none","projection":{"op":"object","members":{"name":{"op":"copy","field":"name"}}}},
-            {"id":"notes","format":"markdown","fileName":"notes.md","applySemantics":"generationOnly","restart":"none","projection":{"op":"list","items":[{"op":"copy","field":"name"}]}}
+            {"id":"config","format":"json","fileName":"service.json","targetUpdateMode":"create","restartRequirement":"process",
+              "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}},
+                "owner":{"op":"copy","reference":{"scope":"root","path":"/owner"}},"hosts":{"op":"copy","reference":{"scope":"root","path":"/hosts"}}}}},
+            {"id":"environment","format":"dotenv","fileName":"service.env","targetUpdateMode":"create","restartRequirement":"process",
+              "projection":{"op":"object","members":{"NAME":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}},
+            {"id":"yaml","format":"yaml","fileName":"service.yaml","targetUpdateMode":"replace","restartRequirement":"none",
+              "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}},
+            {"id":"notes","format":"markdown","fileName":"notes.md","targetUpdateMode":"generationOnly","restartRequirement":"none",
+              "projection":{"op":"list","items":[{"op":"copy","reference":{"scope":"root","path":"/name"}}]}}
           ]
         }
         """.Replace("REVISION", revision.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal));
@@ -1018,11 +1104,11 @@ public sealed class DesktopApplicationTests
     {
         JsonObject source = JsonNode.Parse(Definition(2))!.AsObject();
         source["presentation"] = JsonNode.Parse("""
-            {"defaultExperience":"deployment",
-             "sections":[{"id":"service","title":"Service settings","fields":["name","mode","enabled","port","ratio","owner","hosts","note"]}],
-             "experiences":[
-               {"id":"deployment","title":"Prepare deployment","initialDisclosure":"guided","navigation":"sections","sections":["service"]},
-               {"id":"inspection","title":"Inspect all settings","initialDisclosure":"advanced","navigation":"sections","sections":["service"]}]}
+            {"defaultJourney":"deployment","navigation":"sections",
+             "sections":[{"id":"service","title":"Service settings","pointers":["/name","/mode","/enabled","/port","/ratio","/owner","/hosts","/note"]}],
+             "journeys":[
+               {"id":"deployment","title":"Prepare deployment","sections":["service"]},
+               {"id":"inspection","title":"Inspect all settings","sections":["service"]}]}
             """);
         return Encoding.UTF8.GetBytes(source.ToJsonString());
     }

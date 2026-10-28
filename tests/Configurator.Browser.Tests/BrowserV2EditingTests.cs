@@ -15,6 +15,23 @@ public sealed class BrowserV2EditingTests
 {
     private static readonly string?[] ChoiceOrdinals = ["", "0", "1", "2"];
     [Test]
+    public async Task ConditionalRequiredLabelsFollowCoreFactsRatherThanStaticSchemaHints()
+    {
+        using var form = Form();
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
+        var field = context.Render<ConfigurationField>(parameters => parameters
+            .Add(component => component.Form, form).Add(component => component.Path, ["settings", "value"])
+            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "settings")
+                .Node.Properties["value"]));
+        await Assert.That(field.Find(".configuration-field__requirement").TextContent).IsEqualTo("Optional");
+        form.SetValue(["settings", "enabled"], JsonSerializer.SerializeToElement(true));
+        field.Render();
+        await Assert.That(field.Find(".configuration-field__requirement").TextContent).IsEqualTo("Required");
+        form.SetValue(["settings", "enabled"], JsonSerializer.SerializeToElement(false));
+        field.Render();
+        await Assert.That(field.Find(".configuration-field__requirement").TextContent).IsEqualTo("Optional");
+    }
+    [Test]
     public async Task LocalFilePickerUsesDeclaredDefaultLocaleBeforeAnswerCollection()
     {
         using var seed = Form();
@@ -135,6 +152,10 @@ public sealed class BrowserV2EditingTests
          "identity":{"familyId":"104f9cb6-a3bd-498f-a0c0-10d57a7d4732","revision":1},
          "project":{"id":"browser-typed","name":"Browser typed"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+           "settings":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public","initialValue":{}},
+             "properties":{"enabled":{"type":"boolean","x-configurator":{"sensitivity":"public","initialValue":false}},
+               "value":{"type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}}},
+             "if":{"properties":{"enabled":{"const":true}},"required":["enabled"]},"then":{"required":["value"]}},
            "map":{"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{"type":"integer","x-configurator":{"sensitivity":"public"}}},
            "choice":{"type":["integer","null"],"enum":[1,2,null],"title":"Choice","x-configurator":{"sensitivity":"public","detail":"basic",
              "initialValue":1,"suggestedValue":2,"choices":[{"value":1,"label":"Equal"},{"value":2,"label":"Equal"},{"value":null,"label":"Null"}]}},

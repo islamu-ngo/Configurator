@@ -1,5 +1,11 @@
 # Definition-driven Avalonia Desktop
 
+> **Audience:** Contributors | Integrators | AI agents
+> **Status:** Implemented typed v2 adapters; physical host qualification is separate
+> **Owner:** Desktop
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/Presentation/`
+
 Desktop remains on the centrally pinned Avalonia 12.1.3 packages. It references
 Presentation and Artifacts, with Core types available through those references.
 It has no target-specific DTO, catalogue, manifest, or identity workflow.
@@ -25,7 +31,7 @@ operations:
 - `Loader.LoadDefinition(ReadOnlyMemory<byte>, bool yaml = false)`: admit a supplied
   local document through `SetupDefinitionCodec`; useful for host integration and
   tests without a filesystem read.
-- `Workspace.Form`, `Workspace.Fields`, `Workspace.DisplayMode`,
+- `Workspace.Form`, `Workspace.Fields`, `Workspace.SelectedExperience`,
   `Loader.DefinitionPin` and `Publisher` artifact properties: typed editing and
   byte-free metadata. `Form` is local
   editor state containing answers, not a public/remote projection.
@@ -54,11 +60,13 @@ operations:
 
 `DefinitionFormModel` owns a frozen admitted definition, typed field input text,
 input revision, validation, and cloned snapshots. Desktop's `FormFieldFactory`
-projects inputs into string, enum, numeric, boolean, object and list viewmodels.
+projects inputs into string, enum, numeric, boolean, object, list, typed-map and
+discriminated-variant viewmodels.
 Compiled `DataTemplate` bindings render native inputs and recursive collections
 from those binding/focus projections; they are not another semantic answer tree.
-Scalar drafts use `EditValue` with literal path segments, recommendations use
-`SetValue`, and list actions use `AddListItem` / `RemoveListItem`. The form retains
+Scalar drafts use `EditValue` with literal path segments; deliberate suggestion,
+null, reset and branch actions use the shared form APIs described below. List
+actions use `AddListItem` / `RemoveListItem`. The form retains
 invalid nested drafts beside the last accepted values. Literal shared diagnostics
 identify the failing leaf without assigning its error to healthy siblings.
 Dots in field IDs are not path separators. Preparation still rejects active
@@ -70,10 +78,58 @@ zero-capacity lists, and preserve existing contents when supplied again.
 Browsing and refreshing leave absence unchanged. **Clear** removes the selected
 path without reconstructing siblings; clearing an absent nested path does not
 materialize its ancestors. String list-item Clear retains an empty string row;
-Remove item deletes the row. Declared default fallback remains shared policy.
+Remove item deletes the row. Clear records omission, suppressing initialization;
+it does not request default fallback.
 List projections reconcile the form's value-free logical row tokens, retaining
 surviving viewmodels, controls, drafts and per-path provenance across sibling
 edits/removal and unrelated imports.
+
+### Typed v2 identity and lifecycle
+
+`EnumFieldViewModel.Choices` retains one item per declared enum ordinal, with a
+leading **Not supplied** sentinel. `SelectedIndex` writes the exact declared
+`JsonElement`, never a parsed label; refresh matches typed values with
+`JsonElement.DeepEquals`. Shared `SelectChoice` offers the same ordinal-to-value
+contract. Localized or duplicate labels cannot merge choices, and an admitted
+empty string remains distinct from omission. Protected enums expose no open
+choice collection and retain masked text editing; public booleans use native
+three-state checkboxes.
+
+`MapFieldViewModel` projects `AdditionalProperties` through `FormFieldFactory`.
+Entries reconcile by exact ordinal key equality, retaining surviving editors
+and disposing removed projections. `NewKey` is a literal segment validated by
+`DefinitionPath.FromSegments`; no dot splitting, case-folding or numeric-key
+reinterpretation occurs. Add is disabled for duplicate keys, invalid paths and
+the `maxProperties` ceiling, falling back to
+`SetupCompositionLimits.DefaultMappingEntries` when no bound is declared.
+The shared mutation boundary still enforces answer budgets; Core validation
+owns `minProperties`, value constraints and readiness. Add supplies a typed
+starter value and requests focus on its editor; remove omits that literal entry
+and returns focus to the map key input. Dynamic keys stay local, not public
+diagnostic metadata.
+
+`VariantFieldViewModel` exposes declared ordinal choices with public titles from
+`GetVariantTitle`. `DefinitionValidator.SelectVariant` selects the active schema;
+the adapter does not interpret general combinators. `SelectVariant` reselects
+the current branch by updating only its discriminator, preserving other data.
+A different branch replaces the payload with its discriminator only; Core
+resolves eligible initialization. When the selected schema changes, Desktop
+disposes the previous child projections before creating the new typed children.
+There is no inactive-branch answer cache, and disposed editors ignore late edits.
+
+`FieldViewModel` exposes distinct `SetNullCommand`, `ClearCommand`,
+`ResetCommand` and `ApplySuggestionCommand`. Nullable `SetNull` supplies JSON
+null; `SetValue(path, null)` omits instead. `ResetValue` removes the override and
+omission so `x-configurator.initialValue` becomes eligible again without copying
+effective values into the supplied snapshot. `ApplySuggestion` explicitly adopts
+`x-configurator.suggestedValue`; Desktop withholds its action for protected
+nodes or protected descendants. Standard `default` is descriptive, not an
+initialization or recommendation action. Supplied false, zero, empty strings and
+containers remain values. Required or initialized children never materialize an
+absent parent. These actions use the existing input revision and preparation
+invalidation path, not a second answer tree.
+
+### Refresh, localization and correction focus
 
 `MainWindow` declaratively hosts fields in an `ItemsControl`. Bindings update
 visibility, errors and values without rebuilding the form on each keystroke.
@@ -84,30 +140,51 @@ Roots do not also subscribe to shared input/property events. Workspace message
 notifications do not run another field pass. The factory detaches and disposes
 projections before form replacement; imported controls cannot create another
 answer revision or invalidate a successfully imported status afterward.
-Essential mode is a desktop narrowing of Guided: it retains required, invalid,
-protected, consequential, and essentially disclosed active fields. Advanced
-shows all active fields. Shared Core validation always sees all answers,
-independent of disclosure. Effective parent sensitivity masks all child controls;
+Visibility comes from shared `IsEditorVisible`: authored experience/disclosure
+and optional expansion never change answers. Required/error paths remain
+reachable when optional detail is collapsed. Shared Core validation always sees
+all answers, independent of disclosure. Effective parent sensitivity masks child
+value controls;
 protected scalar values use masked input rather than exposing choices through
 an unmasked selection popup.
 
 Native control names and help are set through Avalonia AutomationProperties.
 Tab order follows the logical form, access keys use native buttons, and keyboard
-shortcuts bind to commands through native key bindings. Validation focuses errors;
-list mutation preserves usable focus through declarative focus requests and a
-view-owned focus behavior. The RTL switch binds FlowDirection. Headless control
-tests check actual focus and key routing, not just label/property presence.
-New Supply and touched Clear labels, automation names and help come from
+shortcuts bind to commands through native key bindings. Validation requests focus
+through `FirstError.RequestFocus`; ordinary containers prefer a visible failing
+descendant, while map and variant projections signal their key input or branch
+selector. `TryResolveCorrection` resolves revision-bound typed diagnostic
+coordinates locally before marking nested errors; private map keys are not
+serialized into status. List mutation preserves usable focus through declarative
+focus requests and a view-owned focus behavior. Headless control tests check
+actual focus and key routing, not just label/property presence.
+Supply, Clear, suggestion, reset, null, map-add and locale action resources come from
 `Resources/DesktopActionText` through `ResourceManager` and `CurrentUICulture`.
-Neutral and exact Arabic resources cover these actions only. The RTL switch
-changes layout, not culture; there is no new language selector or complete
-Desktop translation claim. Childless/zero-capacity containers have a reachable
+These shipped resources are separate from definition localization; neither
+implies complete Desktop translation. Childless/zero-capacity containers have a reachable
 Supply focus destination even when there is no editable descendant or enabled
 Add item action.
 Selection buttons return focus after cancellation/failure; successful intake
 focuses the first visible field. Closing disposes the shell, fencing outstanding
 selection as well as private saves. Code-behind contains initialization and
 window lifecycle disposal only; it does not assemble fields or handle actions.
+
+`FormWorkspaceViewModel.Locales` and `SelectedLocale` select admitted public
+definition metadata through `SelectLocale`. `GetEditorPresentation` refreshes
+titles/descriptions, enum labels, and accessible help assembled from instructions,
+units, choice explanations and static guidance links, with base-text fallback.
+`GetVariantTitle` localizes declared branch titles; map entry titles remain exact
+local keys. `DisplayExperiences` supplies localized journey titles. This is
+metadata-only `ViewChanged`: no answer revision, typed enum identity, schema pin
+or prepared output changes, and no guidance retrieval is performed.
+
+`FollowLocaleDirection` starts true, deriving `FlowDirection` from the selected
+definition locale. Changing `IsRightToLeft` disables following and selects an
+explicit layout override; re-enabling following resumes locale direction.
+Definition locale does not set process `CurrentUICulture`, and layout changes
+do not translate shipped shell/action text. Answers and drafts stay transient
+inside the existing form; localized projections introduce no persistence or
+publication authority.
 
 ## Preparation and protected publication
 
@@ -208,6 +285,15 @@ See the [ownership decision](adr/ADR-cross-platform-quality-ownership.md).
 
 ## Verification
 
+Phase 10 typed v2 controls use the existing headless Desktop surface; commands
+below are verification entrypoints, not an execution receipt for this document
+update. No builds or tests were run for this documentation-only change.
+Headless window/control evidence cannot qualify a physical native host,
+installed payload, native assistive technology or translation quality.
+Definition-standard-redesign Phase 12 retains actual-host/package qualification;
+the earlier native evidence below is historical, not qualification of this
+typed v2 increment.
+
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"
 dotnet build src/Configurator.Desktop/Configurator.Desktop.csproj --configuration Release --verbosity quiet
@@ -229,6 +315,10 @@ See the [public workflow](../public/desktop.md) and
 [Core definition contract](CORE_DEFINITION_CONTRACT.md).
 
 ## Native qualification
+
+The following records earlier qualification scopes. It does not establish
+Phase 10 typed-map, variant, nullable or localized-metadata behavior on a
+physical native host or in an installed package.
 
 `tests/Configurator.Desktop.NativeHost` initializes the actual App/classic
 lifetime on the main thread, checks the X11 platform handle and Linux x64 RID,

@@ -4,8 +4,20 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="SupplyLabel" xml:space="preserve"><value>_Supply</value></data>
   <data name="SupplyName" xml:space="preserve"><value>Supply {0}</value></data>
-  <data name="SupplyHelp" xml:space="preserve"><value>Supply this container, preserving existing contents and declared defaults.</value></data>
+  <data name="SupplyHelp" xml:space="preserve"><value>Supply this container, preserving existing contents and declared initialization.</value></data>
   <data name="ClearLabel" xml:space="preserve"><value>_Clear</value></data>
   <data name="ClearName" xml:space="preserve"><value>Clear {0}</value></data>
   <data name="ClearHelp" xml:space="preserve"><value>Omit this answer. A string list item is reset to an empty string; use Remove item to remove its row.</value></data>
+  <data name="SuggestionLabel" xml:space="preserve"><value>_Use suggestion</value></data>
+  <data name="SuggestionName" xml:space="preserve"><value>Use the declared suggestion for {0}</value></data>
+  <data name="ResetLabel" xml:space="preserve"><value>_Reset</value></data>
+  <data name="ResetName" xml:space="preserve"><value>Reset {0}</value></data>
+  <data name="ResetHelp" xml:space="preserve"><value>Remove the override and omission so declared initialization can apply. This does not copy an initialized value into supplied answers.</value></data>
+  <data name="NullLabel" xml:space="preserve"><value>Supply _null</value></data>
+  <data name="NullName" xml:space="preserve"><value>Supply explicit null for {0}</value></data>
+  <data name="NewKeyLabel" xml:space="preserve"><value>New entry key (empty is allowed)</value></data>
+  <data name="AddEntryLabel" xml:space="preserve"><value>_Add entry</value></data>
+  <data name="AddEntryName" xml:space="preserve"><value>Add an entry to {0}</value></data>
+  <data name="LocaleLabel" xml:space="preserve"><value>Language</value></data>
+  <data name="FollowLocaleDirectionLabel" xml:space="preserve"><value>Follow definition direction</value></data>
 </root>

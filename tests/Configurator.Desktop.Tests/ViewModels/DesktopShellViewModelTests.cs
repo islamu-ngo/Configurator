@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Core;
 using Configurator.Core.Artifacts;
+using Configurator.Core.Definitions;
 using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
@@ -56,7 +57,11 @@ public sealed class DesktopShellViewModelTests
         await Assert.That(shell.Status).IsEqualTo(definition ? "definition-invalid:source-limit" : "import-unreadable");
         await Assert.That(stream.Borrowed.ToArray().All(value => value == 0)).IsTrue();
         if (definition) await Assert.That(shell.Workspace.Form).IsNull();
-        else await Assert.That(shell.Workspace.Form!.Snapshot().Values["name"].GetString()).IsEqualTo("Example service");
+        else
+        {
+            await Assert.That(shell.Workspace.Form!.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/name"), out var initialized)).IsTrue();
+            await Assert.That(initialized.GetString()).IsEqualTo("Example service");
+        }
     }
 
     private sealed class ChangedInputStream(byte[] bytes, long reportedLength) : MemoryStream(bytes)
@@ -115,8 +120,11 @@ public sealed class DesktopShellViewModelTests
                 await Assert.That(await acquiring).IsFalse();
                 await Assert.That(shell.IsBusy).IsFalse();
                 if (definition) await Assert.That(shell.Workspace.Form).IsNull();
-                else await Assert.That(shell.Workspace.Form!.Snapshot().Values["name"].GetString())
-                    .IsEqualTo("Example service");
+                else
+                {
+                    await Assert.That(shell.Workspace.Form!.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/name"), out var initialized)).IsTrue();
+                    await Assert.That(initialized.GetString()).IsEqualTo("Example service");
+                }
                 return true;
             }, CancellationToken.None);
             await stream.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -513,7 +521,7 @@ public sealed class DesktopShellViewModelTests
     {
         JsonObject source = JsonNode.Parse(DesktopApplicationTests.Definition())!.AsObject();
         source["artifacts"]![0]!["projection"]!["when"] =
-            JsonNode.Parse("""{"op":"equals","field":"mode","value":"remote"}""");
+            JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/mode"},"value":"remote"}""");
         using var shell = CreateShell();
         shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await Assert.That(shell.Publisher.PrepareBundle()).IsFalse();
@@ -537,7 +545,7 @@ public sealed class DesktopShellViewModelTests
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         await Assert.That(shell.Workspace.FirstError).IsNotNull();
         var owner = (ObjectFieldViewModel)shell.Workspace.FirstError!;
-        await Assert.That(owner.Children.Single(item => item.Id == "name").FocusRequestVersion > 0).IsTrue();
+        await Assert.That(owner.Children.Single(item => item.Id == "age").FocusRequestVersion > 0).IsTrue();
         await Assert.That(await shell.Publisher.PrepareAsync()).IsFalse();
     }
 
@@ -673,8 +681,17 @@ public sealed class DesktopShellViewModelTests
     [Test]
     public async Task ExperienceAndExpansionChangesPreservePinnedInputsAndPreparation()
     {
+        JsonObject source = JsonNode.Parse(DesktopApplicationTests.Definition(2))!.AsObject();
+        source["presentation"] = JsonNode.Parse("""
+            {"defaultJourney":"deployment","navigation":"sections",
+             "sections":[{"id":"service","title":"Service settings",
+               "pointers":["/name","/mode","/enabled","/port","/ratio","/owner","/hosts","/note"]}],
+             "journeys":[
+               {"id":"deployment","title":"Prepare deployment","sections":["service"]},
+               {"id":"inspection","title":"Inspect all settings","sections":["service"]}]}
+            """);
         using var shell = CreateShell();
-        shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+        shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
         var form = shell.Workspace.Form!;
         var preparation = shell.Publisher.Preparation;
@@ -686,6 +703,8 @@ public sealed class DesktopShellViewModelTests
         await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "note").IsVisible).IsFalse();
         await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "owner").IsVisible).IsTrue();
         shell.Workspace.SelectedExperience = shell.Workspace.Experiences.Single(item => item.Id == "inspection");
+        // Journeys no longer declare disclosure; expansion is an explicit workspace action.
+        shell.Workspace.OptionalEditorsExpanded = true;
         await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "note").IsVisible).IsTrue();
         await Assert.That(form.SelectedExperienceId).IsEqualTo("inspection");
         form.SelectExperience("deployment");

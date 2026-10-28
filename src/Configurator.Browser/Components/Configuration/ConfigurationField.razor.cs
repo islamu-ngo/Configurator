@@ -122,7 +122,7 @@ public partial class ConfigurationField
     }
     private bool HasHelp => !string.IsNullOrWhiteSpace(Help)
         || InputPurposeHelp is not null || IsMasked && (Type == "boolean" || HasChoices);
-    private bool Required => RequiredOverride ?? false;
+    private bool Required => Form.GetEditorState(Path)?.IsRequired ?? RequiredOverride ?? false;
     private bool HasOptionalChildren => ContainsOptionalProperty(ObjectSchema);
     private bool OptionalEditorsExpanded => Form.IsEditorExpanded(Path);
     private void ExpandEditor() => Form.SetEditorExpanded(Path, true);

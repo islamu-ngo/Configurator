@@ -4,8 +4,20 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="SupplyLabel" xml:space="preserve"><value>_توفير</value></data>
   <data name="SupplyName" xml:space="preserve"><value>توفير {0}</value></data>
-  <data name="SupplyHelp" xml:space="preserve"><value>توفير هذه الحاوية مع الحفاظ على محتوياتها الحالية والقيم الافتراضية المعلنة.</value></data>
+  <data name="SupplyHelp" xml:space="preserve"><value>توفير هذه الحاوية مع الحفاظ على محتوياتها الحالية والتهيئة المعلنة.</value></data>
   <data name="ClearLabel" xml:space="preserve"><value>_مسح</value></data>
   <data name="ClearName" xml:space="preserve"><value>مسح {0}</value></data>
   <data name="ClearHelp" xml:space="preserve"><value>عدم توفير هذه الإجابة. يُعاد عنصر القائمة النصي إلى نص فارغ؛ استخدم إزالة العنصر لحذف صفه.</value></data>
+  <data name="SuggestionLabel" xml:space="preserve"><value>_استخدام الاقتراح</value></data>
+  <data name="SuggestionName" xml:space="preserve"><value>استخدام الاقتراح المعلن للحقل {0}</value></data>
+  <data name="ResetLabel" xml:space="preserve"><value>_إعادة ضبط</value></data>
+  <data name="ResetName" xml:space="preserve"><value>إعادة ضبط {0}</value></data>
+  <data name="ResetHelp" xml:space="preserve"><value>إزالة القيمة المتجاوزة وعدم التوفير للسماح بالتهيئة المعلنة، دون نسخها إلى الإجابات المقدمة.</value></data>
+  <data name="NullLabel" xml:space="preserve"><value>توفير _null</value></data>
+  <data name="NullName" xml:space="preserve"><value>توفير null صريح للحقل {0}</value></data>
+  <data name="NewKeyLabel" xml:space="preserve"><value>مفتاح إدخال جديد (يمكن تركه فارغاً)</value></data>
+  <data name="AddEntryLabel" xml:space="preserve"><value>_إضافة إدخال</value></data>
+  <data name="AddEntryName" xml:space="preserve"><value>إضافة إدخال إلى {0}</value></data>
+  <data name="LocaleLabel" xml:space="preserve"><value>اللغة</value></data>
+  <data name="FollowLocaleDirectionLabel" xml:space="preserve"><value>اتباع اتجاه التعريف</value></data>
 </root>

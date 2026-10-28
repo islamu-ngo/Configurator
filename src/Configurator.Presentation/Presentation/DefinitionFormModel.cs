@@ -384,6 +384,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
+    public DefinitionNodeState? GetEditorState(IReadOnlyList<string> path)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return Facts.EditorState(path);
+        }
+    }
+
     public string? GetVariantTitle(IReadOnlyList<string> path, int index)
     {
         lock (_gate)
@@ -477,6 +486,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             index < 0 || index >= node.Schema.Variants.Count || node.Schema.Discriminator is not { } discriminator)
             return false;
         JsonElement value = node.Schema.Variants[index].Properties[discriminator].Keywords.GetProperty("const");
+        if (ReadValue(path) is { } current &&
+            ReferenceEquals(DefinitionValidator.SelectVariant(node.Schema, current), node.Schema.Variants[index]))
+            return SetValue([.. path, discriminator], value);
         return SetValue(path, JsonSerializer.SerializeToElement(new Dictionary<string, JsonElement>
             { [discriminator] = value }));
     }

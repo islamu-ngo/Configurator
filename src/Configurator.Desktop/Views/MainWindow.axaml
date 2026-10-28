@@ -53,10 +53,18 @@
           <CheckBox Name="OptionalEditors" Content="Show _optional editors"
                     AutomationProperties.Name="Show optional editors"
                     IsChecked="{Binding Workspace.OptionalEditorsExpanded, Mode=TwoWay}" />
+          <TextBlock Text="{Binding Workspace.LocaleLabel}" />
+          <ComboBox Name="DefinitionLocale" ItemsSource="{Binding Workspace.Locales}"
+                    SelectedItem="{Binding Workspace.SelectedLocale, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding Workspace.LocaleLabel}" />
         </StackPanel>
-        <CheckBox Grid.Column="1" Content="_Right-to-left layout" VerticalAlignment="Bottom"
-                  AutomationProperties.Name="Use right-to-left layout"
-                  IsChecked="{Binding Workspace.IsRightToLeft, Mode=TwoWay}" />
+        <StackPanel Grid.Column="1" VerticalAlignment="Bottom">
+          <CheckBox Content="{Binding Workspace.FollowLocaleDirectionLabel}"
+                    AutomationProperties.Name="{Binding Workspace.FollowLocaleDirectionLabel}"
+                    IsChecked="{Binding Workspace.FollowLocaleDirection, Mode=TwoWay}" />
+          <CheckBox Content="_Right-to-left layout" AutomationProperties.Name="Use right-to-left layout"
+                    IsChecked="{Binding Workspace.IsRightToLeft, Mode=TwoWay}" />
+        </StackPanel>
       </Grid>
     </StackPanel>
       <ItemsControl Name="Fields" ItemsSource="{Binding Workspace.Fields}">

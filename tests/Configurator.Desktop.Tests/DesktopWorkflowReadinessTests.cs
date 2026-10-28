@@ -13,7 +13,7 @@ public sealed class DesktopWorkflowReadinessTests
     {
         JsonObject source = JsonNode.Parse(DesktopApplicationTests.Definition())!.AsObject();
         source["artifacts"]![0]!["projection"]!["when"] = JsonNode.Parse("""
-            {"op":"equals","field":"mode","value":"remote"}
+            {"op":"equals","reference":{"scope":"root","path":"/mode"},"value":"remote"}
             """);
         using var shell = DesktopTestContext.Root();
         shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));

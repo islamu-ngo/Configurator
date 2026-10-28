@@ -25,6 +25,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private DefinitionFormModel? _form;
     private DefinitionFieldInput? _input;
     private FieldViewModel? _root;
+    private DefinitionEditorPresentation? _presentation;
     private readonly string _name;
     private string _id;
 
@@ -40,11 +41,15 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _isRequired = required;
         ClearCommand = new RelayCommand(Clear, () => !IsDisposed);
         SupplyCommand = new RelayCommand(Supply, () => !IsDisposed && IsContainer);
-        UseRecommendedCommand = new RelayCommand(UseRecommended, () => !IsDisposed && HasRecommended);
+        ApplySuggestionCommand = new RelayCommand(ApplySuggestion, () => !IsDisposed && HasSuggestion);
+        ResetCommand = new RelayCommand(() => { if (!IsDisposed) { Form.ResetValue(FullPath()); RequestFocus(); } }, () => !IsDisposed);
+        SetNullCommand = new RelayCommand(() => { if (!IsDisposed) { Form.SetNull(FullPath()); RequestFocus(); } }, () => !IsDisposed && CanSetNull);
         RemoveCommand = new RelayCommand(() =>
         {
             if (Parent is ListFieldViewModel list) list.RemoveItemCommand.Execute(this);
-        }, () => !IsDisposed && Parent is ListFieldViewModel list && list.RemoveItemCommand.CanExecute(this));
+            else if (Parent is MapFieldViewModel map) map.RemoveEntryCommand.Execute(this);
+        }, () => !IsDisposed && (Parent is ListFieldViewModel list && list.RemoveItemCommand.CanExecute(this) ||
+            Parent is MapFieldViewModel map && map.RemoveEntryCommand.CanExecute(this)));
     }
 
     protected DefinitionNode Schema { get; }
@@ -61,6 +66,13 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     {
         get
         {
+            if (Parent is MapFieldViewModel)
+            {
+                string key = string.IsNullOrWhiteSpace(_name) || _name.Any(char.IsControl) ? JsonSerializer.Serialize(_name) : _name;
+                return key.Length <= 256 ? key : key[..256];
+            }
+            if (IsListItem && ReadMetadata("title").Length == 0) return $"{Parent!.Title} item";
+            if (_presentation?.Title is { Length: > 0 } localized) return localized;
             if (Parent is null && _input is not null) return _input.Definition.Title;
             if (ReadMetadata("title") is { Length: > 0 } title) return title;
             if (IsListItem) return $"{Parent!.Title} item";
@@ -76,11 +88,28 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public string SupplyLabel => DesktopActionText.SupplyLabel;
     public string SupplyName => DesktopActionText.SupplyName(Title);
     public string SupplyHelp => DesktopActionText.SupplyHelp;
-    public bool IsContainer => this is ObjectFieldViewModel or ListFieldViewModel;
-    public string RecommendedName => $"Use recommended value for {Title}";
+    public bool IsContainer => Schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence;
+    public string SuggestionLabel => DesktopActionText.SuggestionLabel;
+    public string SuggestionName => DesktopActionText.SuggestionName(Title);
+    public string ResetLabel => DesktopActionText.ResetLabel;
+    public string ResetName => DesktopActionText.ResetName(Title);
+    public string ResetHelp => DesktopActionText.ResetHelp;
+    public string NullLabel => DesktopActionText.NullLabel;
+    public string NullName => DesktopActionText.NullName(Title);
+    public bool CanSetNull => Schema.IsNullable;
     public string RemoveItemName => $"Remove item from {Parent?.Title ?? Title}";
-    public string Help => ReadMetadata("description");
-    public string HelpText => Help is { Length: > 0 } help ? help : Title;
+    public string Help => _presentation?.Description ?? ReadMetadata("description");
+    public string HelpText
+    {
+        get
+        {
+            if (_presentation is not { } display) return Help is { Length: > 0 } help ? help : Title;
+            string text = string.Join(Environment.NewLine, new[] { Help, display.Instructions, display.Units }
+                .Concat(display.Choices.Select(choice => choice.Explanation))
+                .Concat(display.Links.Select(link => link.Title + ": " + link.Url)).Where(item => !string.IsNullOrWhiteSpace(item)));
+            return text.Length > 0 ? text : Title;
+        }
+    }
     public string Group => string.Empty;
     public string Consequence => string.Empty;
     public string Format => ReadMetadata("format");
@@ -91,7 +120,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public char PasswordChar => RequiresMasking ? '●' : '\0';
     public bool IsPublic => !RequiresMasking;
     public bool HasProtectedDescendants => RequiresMasking || Descendants.Any(child => child.HasProtectedDescendants);
-    public bool HasRecommended => !HasProtectedDescendants && TryExtensionValue("suggestedValue", out _);
+    public bool HasSuggestion => !HasProtectedDescendants && TryExtensionValue("suggestedValue", out _);
     public bool HasError { get => _hasError; private set => SetProperty(ref _hasError, value); }
     public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
     public bool IsRequired { get => _isRequired; private set => SetProperty(ref _isRequired, value); }
@@ -101,7 +130,9 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public int SupplyFocusRequestVersion => _supplyFocusRequestVersion;
     public IRelayCommand ClearCommand { get; }
     public IRelayCommand SupplyCommand { get; }
-    public IRelayCommand UseRecommendedCommand { get; }
+    public IRelayCommand ApplySuggestionCommand { get; }
+    public IRelayCommand ResetCommand { get; }
+    public IRelayCommand SetNullCommand { get; }
     public IRelayCommand RemoveCommand { get; }
 
     /// <summary>Native draft text; every deliberate edit goes to the shared literal path.</summary>
@@ -111,7 +142,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         set
         {
             value ??= string.Empty;
-            if (IsDisposed || _editing || _text == value || Root._form is null) return;
+            if (IsDisposed || _editing || Root._form is null) return;
             _editing = true;
             try
             {
@@ -149,10 +180,11 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
 
     protected virtual void NotifyValue() { }
     /// <summary>Signals the View focus bridge; structured nodes route to the first visible descendant.</summary>
-    public void RequestFocus()
+    public virtual void RequestFocus()
     {
         if (IsDisposed) return;
-        if (Descendants.FirstOrDefault(child => child.IsVisible) is { } first)
+        if ((Descendants.FirstOrDefault(child => child.IsVisible && child.HasError) ??
+            Descendants.FirstOrDefault(child => child.IsVisible)) is { } first)
         {
             first.RequestFocus();
             return;
@@ -192,11 +224,16 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private void RefreshNode(IReadOnlyList<string> path, JsonElement? value, bool active,
         IReadOnlyList<DefinitionDiagnostic> diagnostics)
     {
+        _presentation = Form.GetEditorPresentation(path);
+        if (Form.GetEditorState(path) is { } nodeState) IsRequired = nodeState.IsRequired;
         Load(value);
         IsVisible = Form.IsEditorVisible(path);
         HasError = active && (Form.HasInputError(path) || diagnostics.Any(diagnostic =>
-            diagnostic.FieldId == path[0] && diagnostic.RelativePath.Count >= path.Count - 1 &&
-            diagnostic.RelativePath.Take(path.Count - 1).SequenceEqual(path.Skip(1))));
+            diagnostic.FieldId == path[0] && (diagnostic.Location is { } location
+                ? Form.TryResolveCorrection(diagnostic.FieldId, location, out IReadOnlyList<string> resolved) &&
+                    resolved.Take(path.Count).SequenceEqual(path, StringComparer.Ordinal)
+                : diagnostic.RelativePath.Count >= path.Count - 1 &&
+                    diagnostic.RelativePath.Take(path.Count - 1).SequenceEqual(path.Skip(1)))));
         if (!IsContainer && !_editing && Form.ReadDraftText(path) is { } draft)
         {
             SetProperty(ref _text, draft, nameof(Text));
@@ -215,8 +252,18 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         }
         OnPropertyChanged(nameof(ErrorText));
         OnPropertyChanged(nameof(HasProtectedDescendants));
-        OnPropertyChanged(nameof(HasRecommended));
-        UseRecommendedCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Help));
+        OnPropertyChanged(nameof(HelpText));
+        OnPropertyChanged(nameof(ClearName));
+        OnPropertyChanged(nameof(SupplyName));
+        OnPropertyChanged(nameof(SuggestionName));
+        OnPropertyChanged(nameof(ResetName));
+        OnPropertyChanged(nameof(NullName));
+        OnPropertyChanged(nameof(RemoveItemName));
+        OnPropertyChanged(nameof(HasSuggestion));
+        ApplySuggestionCommand.NotifyCanExecuteChanged();
         RemoveCommand.NotifyCanExecuteChanged();
     }
 
@@ -232,16 +279,16 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         else Form.SetValue(FullPath(), null);
         RequestFocus();
     }
-    private void UseRecommended()
+    private void ApplySuggestion()
     {
-        if (IsDisposed || !HasRecommended) return;
-        if (TryExtensionValue("suggestedValue", out var suggested)) Form.SetValue(FullPath(), suggested);
+        if (IsDisposed || !HasSuggestion) return;
+        Form.ApplySuggestion(FullPath());
         RequestFocus();
     }
     private void Supply()
     {
         if (IsDisposed) return;
-        bool supplied = this is ObjectFieldViewModel ? Form.SupplyObject(FullPath()) : Form.SupplyList(FullPath());
+        bool supplied = Schema.Type == DefinitionNodeType.Mapping ? Form.SupplyObject(FullPath()) : Form.SupplyList(FullPath());
         if (supplied) RequestFocus();
     }
     private string ReadMetadata(string name) => Schema.Keywords.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
@@ -261,7 +308,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         schema.Variants.Any(HasNonPublicSchema);
     internal static string Display(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         if (IsDisposed) return;
         IsDisposed = true;
@@ -272,7 +319,9 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _text = string.Empty;
         ClearCommand.NotifyCanExecuteChanged();
         SupplyCommand.NotifyCanExecuteChanged();
-        UseRecommendedCommand.NotifyCanExecuteChanged();
+        ApplySuggestionCommand.NotifyCanExecuteChanged();
+        ResetCommand.NotifyCanExecuteChanged();
+        SetNullCommand.NotifyCanExecuteChanged();
         GC.SuppressFinalize(this);
     }
 }
