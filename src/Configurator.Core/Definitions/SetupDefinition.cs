@@ -1,7 +1,7 @@
 namespace Configurator.Core.Definitions;
 
-using System.Collections.ObjectModel;
 using System.Collections.Frozen;
+using System.Collections.ObjectModel;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -154,18 +154,19 @@ public sealed class SetupFieldDefinition
         Data.TryGetProperty("x-configurator", out var metadata) && metadata.TryGetProperty(name, out var value)
             ? value.Clone() : null;
 
-    internal static SetupFieldSensitivity SensitivityOf(DefinitionNode node)
+    /// <summary>Returns the declared node sensitivity, before inherited and descendant floors.</summary>
+    public static SetupFieldSensitivity SensitivityOf(DefinitionNode node)
     {
         JsonElement keywords = node.Keywords;
         if (keywords.TryGetProperty("writeOnly", out var writeOnly) && writeOnly.GetBoolean())
             return SetupFieldSensitivity.Secret;
         return keywords.TryGetProperty("x-configurator", out var metadata)
             && metadata.TryGetProperty("sensitivity", out var sensitivity) ? sensitivity.GetString() switch
-        {
-            "public" => SetupFieldSensitivity.Public,
-            "secret" => SetupFieldSensitivity.Secret,
-            _ => SetupFieldSensitivity.Sensitive
-        } : SetupFieldSensitivity.Sensitive;
+            {
+                "public" => SetupFieldSensitivity.Public,
+                "secret" => SetupFieldSensitivity.Secret,
+                _ => SetupFieldSensitivity.Sensitive
+            } : SetupFieldSensitivity.Sensitive;
     }
 
     internal static SetupFieldSensitivity EffectiveSensitivity(DefinitionNode node,

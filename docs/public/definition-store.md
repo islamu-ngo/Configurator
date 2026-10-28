@@ -17,7 +17,7 @@ Definitions contributed to the repository are validated, compiled, and bundled i
 ```mermaid
 flowchart LR
     SRC["store/ folder<br/>• configurator.yaml<br/>• curation.json<br/>• releases/*.json"] --> BUILD["BuildDefinitionStore.cs<br/>(Validates constraints & schemas)"]
-    BUILD --> ASSETS["wwwroot/definition-store/<br/>• index.json<br/>• releases/ snapshots"]
+    BUILD --> ASSETS["wwwroot/definition-store/<br/>• index.json<br/>• definitions/ snapshots"]
     ASSETS --> PWA["Bundled Browser PWA<br/>(Cached locally for offline discovery)"]
 
     style SRC fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
@@ -45,6 +45,13 @@ When you open the Configurator WebAssembly application:
 
 > [!NOTE]
 > The store is entirely optional. If you run a custom or private Configurator build without a bundled store, the **Open** tab remains fully operational for loading local files or deep-link URLs.
+
+The current store generation uses definition v2. Its two checked examples have
+fresh families at revision 1; pre-release v1 definitions remain historical Git
+evidence rather than selectable current revisions. Existing v1 family/revision
+identities were not repinned, and the browser does not migrate private answers.
+Within a v2 family, historical revisions remain immutable. Local compilation or
+catalog inclusion does not authenticate a publisher or prove target acceptance.
 
 ---
 

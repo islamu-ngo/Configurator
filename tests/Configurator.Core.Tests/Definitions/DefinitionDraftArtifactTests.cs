@@ -1,5 +1,5 @@
-using System.Text;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
@@ -293,7 +293,8 @@ public sealed class DefinitionDraftArtifactTests
                 """{"op":"copy","reference":{"scope":"root","path":"/blob"}}""");
         document["outputs"]!["service1.json"] = new JsonObject
         {
-            ["id"] = "invalid", ["format"] = "json",
+            ["id"] = "invalid",
+            ["format"] = "json",
             ["projection"] = new JsonObject { ["op"] = "object", ["members"] = members }
         };
         using DefinitionDraftBundleResult result = DefinitionDraftArtifactComposer.ComposeBundle(

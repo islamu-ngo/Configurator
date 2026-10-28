@@ -1,0 +1,29 @@
+Change-Id: CHG-01M5ZX9EGVNZ56KMGT7Y6X46M5
+Title: "ship qualified v2 schemas examples and package contracts"
+Type: fix
+Scope: definitions
+Summary: "Ship one admitted v2 definition generation with strict command v3 package consumers and separately recorded actual client evidence."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/packaging.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: documented
+    Detail: "Store admission traverses every typed node using Core sensitivity floors. Native guards retain create-only writes and browser probes keep answers out of public cache/network channels."
+  Migration:
+    Reference: store/README.md
+    Disposition: documented
+    Detail: "The two checked Store examples start fresh v2 families. Named v1 snapshots remain Git history; no old family/revision, pinned baseline or publication authority is repinned."
+  Configuration:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: documented
+    Detail: "Packages carry authoring v2/runtime 2, command v3 and private answers v1. Fixed map members retain their schemas and public titles independently of typed additional entries."
+  OpenAPI:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/OPERATIONS.md
+    Disposition: documented
+    Detail: "Actual Linux x64, X11, Terminal and published Browser evidence is distinct from headless assertions and target acceptance. Terminal presence labels and RTL fallback text reflect current typed intent."

@@ -1,5 +1,5 @@
-using Spectre.Console;
 using System.Text.Json;
+using Spectre.Console;
 
 namespace Configurator.Cli;
 

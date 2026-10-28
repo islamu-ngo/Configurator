@@ -6,10 +6,10 @@ using Configurator.Browser.Components.Configuration;
 using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
-using MudBlazor;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor;
 
 public sealed class BrowserV2EditingTests
 {

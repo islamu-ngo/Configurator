@@ -241,7 +241,9 @@ public sealed class SetupCliMachineBoundaryTests
             await File.WriteAllTextAsync(source, definition.ToJsonString());
             await File.WriteAllTextAsync(input, new JsonObject
             {
-                ["answerContractVersion"] = 1, ["values"] = answers, ["omitted"] = new JsonArray()
+                ["answerContractVersion"] = 1,
+                ["values"] = answers,
+                ["omitted"] = new JsonArray()
             }.ToJsonString());
             var info = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "Configurator.Cli.exe" : "Configurator.Cli"))
             { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
@@ -353,20 +355,25 @@ public sealed class SetupCliMachineBoundaryTests
             string name = "field" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
             fields[name] = new JsonObject
             {
-                ["type"] = "string", ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" }, ["title"] = "Field"
+                ["type"] = "string",
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+                ["title"] = "Field"
             };
             required.Add(name);
         }
         definition["configuration"]!["properties"] = fields;
         definition["configuration"]!["required"] = required;
-        definition["outputs"] = new JsonObject { ["output.json"] = new JsonObject
+        definition["outputs"] = new JsonObject
         {
-            ["id"] = "config",
-            ["format"] = "json",
-            ["targetUpdateMode"] = "create",
-            ["restartRequirement"] = "none",
-            ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject() }
-        } };
+            ["output.json"] = new JsonObject
+            {
+                ["id"] = "config",
+                ["format"] = "json",
+                ["targetUpdateMode"] = "create",
+                ["restartRequirement"] = "none",
+                ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject() }
+            }
+        };
         fixture.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
         fixture.Files["answers.json"] = """{"answerContractVersion":1,"values":{},"omitted":[]}"""u8.ToArray();
         string[] arguments = ["artifact", operation, "--definition", "definition.json", "--artifact", "config",

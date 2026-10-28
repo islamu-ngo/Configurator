@@ -345,7 +345,8 @@ public sealed class DefinitionProfileConformanceTests
         {
             ["text"] = new JsonObject
             {
-                ["type"] = "string", ["description"] = new string('x', 4096),
+                ["type"] = "string",
+                ["description"] = new string('x', 4096),
                 ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" }
             }
         };

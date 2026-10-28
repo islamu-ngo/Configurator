@@ -41,7 +41,8 @@ public sealed class DefinitionImportTests
             await Assert.That(JsonElement.DeepEquals(result.Answers!.Values["options"],
                 JsonSerializer.SerializeToElement(new Dictionary<string, object>
                 {
-                    ["db/host"] = "host", ["~port"] = 7
+                    ["db/host"] = "host",
+                    ["~port"] = 7
                 }))).IsTrue();
             await Assert.That(result.ProvidedFields.SequenceEqual(["options"])).IsTrue();
             DefinitionArtifactResult roundTrip = DefinitionArtifactComposer.Compose(definition, "nested", result.Answers);
@@ -58,7 +59,8 @@ public sealed class DefinitionImportTests
         {
             ["options"] = JsonSerializer.SerializeToElement(new Dictionary<string, object>
             {
-                ["db/host"] = "old", ["~port"] = 9
+                ["db/host"] = "old",
+                ["~port"] = 9
             })
         });
         byte[] bytes = """{"out":{"literal/name":"new"}}"""u8.ToArray();

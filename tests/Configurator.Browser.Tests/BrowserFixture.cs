@@ -10,8 +10,8 @@ using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
-using MudBlazor.Services;
 using MudBlazor;
+using MudBlazor.Services;
 
 internal static class BrowserFixture
 {

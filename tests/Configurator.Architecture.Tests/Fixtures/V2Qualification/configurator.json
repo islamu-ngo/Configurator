@@ -1,0 +1,75 @@
+{
+  "$schema": "urn:islamu:configurator:authoring:v2",
+  "identity": { "familyId": "104f9cb6-a3bd-498f-a0c0-10d57a7d4732", "revision": 2 },
+  "project": { "id": "synthetic.qualification", "name": "Synthetic v2 qualification", "publisher": "Synthetic" },
+  "applicationVersions": ["1"],
+  "configuration": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["publicName", "token"],
+    "x-configurator": { "sensitivity": "public" },
+    "properties": {
+      "publicName": {
+        "type": "string", "title": "Public name", "minLength": 1,
+        "description": "Local synthetic qualification value.",
+        "x-configurator": { "sensitivity": "public", "detail": "basic" }
+      },
+      "token": {
+        "type": "string", "title": "Synthetic token", "minLength": 1,
+        "x-configurator": { "sensitivity": "secret", "detail": "basic" }
+      },
+      "map": {
+        "type": "object", "title": "Typed map", "maxProperties": 2,
+        "x-configurator": { "sensitivity": "public", "detail": "basic" },
+        "additionalProperties": {
+          "type": "integer", "minimum": 1,
+          "x-configurator": { "sensitivity": "public", "detail": "basic" }
+        }
+      },
+      "choice": {
+        "type": ["integer", "null"], "title": "Typed choice", "enum": [1, 2, null],
+        "x-configurator": {
+          "sensitivity": "public", "detail": "basic", "initialValue": 1, "suggestedValue": 2,
+          "choices": [
+            { "value": 1, "label": "Equal", "explanation": "First integer." },
+            { "value": 2, "label": "Equal", "explanation": "Second integer." },
+            { "value": null, "label": "Null" }
+          ],
+          "guidance": {
+            "instructions": "Choose a typed value.\nTechnical punctuation: / ~ .",
+            "links": [{ "title": "Inert reference", "url": "https://example.invalid/docs#typed" }]
+          }
+        }
+      },
+      "provider": {
+        "type": "object", "title": "Provider",
+        "x-configurator": { "sensitivity": "public", "detail": "basic" },
+        "oneOf": [
+          {
+            "type": "object", "title": "First provider", "additionalProperties": false, "required": ["kind"],
+            "x-configurator": { "sensitivity": "public" },
+            "properties": {
+              "kind": { "type": "string", "const": "first", "x-configurator": { "sensitivity": "public", "detail": "basic" } },
+              "count": { "type": "integer", "title": "Provider count", "x-configurator": { "sensitivity": "public", "detail": "basic" } }
+            }
+          },
+          {
+            "type": "object", "title": "Second provider", "additionalProperties": false, "required": ["kind"],
+            "x-configurator": { "sensitivity": "public" },
+            "properties": {
+              "kind": { "type": "string", "const": "second", "x-configurator": { "sensitivity": "public", "detail": "basic" } },
+              "other": { "type": "string", "title": "Provider text", "x-configurator": { "sensitivity": "public", "detail": "basic" } }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "localization": {
+    "defaultLocale": "en",
+    "translations": {
+      "ar": { "direction": "rtl", "overrides": { "/configuration/properties/choice/title": "Translated typed choice" } }
+    }
+  },
+  "outputs": { "config.json": { "format": "json" } }
+}

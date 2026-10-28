@@ -117,6 +117,7 @@
   <DataTemplate x:Key="MapFieldTemplate" DataType="fields:MapFieldViewModel" x:DataType="fields:MapFieldViewModel">
     <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <ItemsControl ItemsSource="{Binding Children}" Margin="16,0,0,0" />
       <ItemsControl ItemsSource="{Binding Entries}" Margin="16,0,0,0">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="fields:FieldViewModel">

@@ -260,7 +260,8 @@ internal static class SetupCliDefinitionHandlers
             foreach ((string name, _) in configuration["properties"]!.AsObject())
                 bindings[name] = new JsonObject
                 {
-                    ["scope"] = "root", ["path"] = DefinitionPath.FromSegments([name]).ToPointer()
+                    ["scope"] = "root",
+                    ["path"] = DefinitionPath.FromSegments([name]).ToPointer()
                 };
             source["outputs"]![".env"]!["bindings"] = bindings;
         }
@@ -282,11 +283,11 @@ internal static class SetupCliDefinitionHandlers
         while (location.Length > 256 || location.Any(char.IsControl))
             location = location[..location.LastIndexOf('/')];
         return new(transformation.Code.ToLowerInvariant(), location, transformation.Classification switch
-            {
-                "unsupported" => "error",
-                "advisory" or "discarded" => "warning",
-                _ => "info"
-            });
+        {
+            "unsupported" => "error",
+            "advisory" or "discarded" => "warning",
+            _ => "info"
+        });
     }
 
     private static async Task<SetupCliCommandResult> PublishAsync(ISetupCliPublicFilePreparation[] prepared,

@@ -8,12 +8,47 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Configurator.Terminal;
 using global::Terminal.Gui.App;
+using global::Terminal.Gui.Drawing;
 using global::Terminal.Gui.Input;
+using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
 using global::Terminal.Gui.Views;
 
 public sealed class SetupTerminalGuiAdapterTests
 {
+    [Test]
+    [NotInParallel]
+    public async Task RtlLocaleAlignsMetadataWithoutReversingLatinFallback()
+    {
+        using var harness = new Harness(initialize: true, manualDispatch: true);
+        long revision = harness.Form.InputRevision;
+        string name = harness.Form.Snapshot().Values["name"].GetString()!;
+        await harness.ChangeView(() => harness.Form.SelectLocale("ar"));
+        Label label = harness.Window.SubViews.OfType<Label>()
+            .Single(item => item.Text.StartsWith("1/", StringComparison.Ordinal));
+        await Assert.That(label.TextDirection).IsEqualTo(TextDirection.LeftRight_TopBottom);
+        await Assert.That(label.TextAlignment).IsEqualTo(Alignment.End);
+        await Assert.That(harness.Form.InputRevision).IsEqualTo(revision);
+        await Assert.That(harness.Form.Snapshot().Values["name"].GetString()).IsEqualTo(name);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task InlineEditsRefreshPresenceWithoutReplacingTheEditor()
+    {
+        using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
+            "value":{"title":"Value","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
+            """)));
+        Label label = harness.Window.SubViews.OfType<Label>()
+            .Single(item => item.Text.StartsWith("1/1 Value ", StringComparison.Ordinal));
+        var editor = harness.Window.PublicInput;
+        await Assert.That(label.Text).Contains(" | " + SetupTerminalText.Get("Omitted"));
+        editor.Text = "supplied";
+        await Assert.That(harness.Form.Snapshot().Values["value"].GetString()).IsEqualTo("supplied");
+        await Assert.That(label.Text).DoesNotContain(" | " + SetupTerminalText.Get("Omitted"));
+        await Assert.That(ReferenceEquals(editor, harness.Window.PublicInput)).IsTrue();
+    }
+
     [Test]
     public async Task ExplicitEmptyEnumChoiceIsNotOmission()
     {

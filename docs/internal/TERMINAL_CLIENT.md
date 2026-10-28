@@ -91,7 +91,8 @@ labels with base fallback; shipped action resources remain culture-selected.
 choice explanations, credential acquisition guidance and static links.
 `HelpPages` bounds the visible two-line page, preserves multiline navigation,
 and replaces control characters without interpreting terminal escapes or markup.
-No guidance fetch occurs. Full RTL shaping and platform accessibility require
+No guidance fetch occurs. RTL alignment preserves logical glyph order rather
+than reversing Latin fallback or technical text. Full RTL shaping and platform accessibility require
 separate surface evidence.
 
 Next correction resolves typed locations through `TryResolveCorrection` and

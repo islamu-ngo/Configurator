@@ -1,12 +1,88 @@
 namespace Configurator.Desktop.Tests.ViewModels;
 
+using System.Text.Json;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Presentation;
-using System.Text.Json;
 
 public sealed class DefinitionV2EditingTests
 {
+    [Test]
+    public async Task MixedMapKeepsDeclaredEditorsSeparateFromLiteralAdditionalEntries()
+    {
+        using var form = new DefinitionFormModel(SetupDefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v2",
+             "identity":{"familyId":"380d5cdd-e1a1-4ddd-91c1-05f42486c0e8","revision":1},
+             "project":{"id":"mixed-map","name":"Mixed map"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "mixed":{"type":"object","maxProperties":3,"required":["label","mode"],
+                 "x-configurator":{"sensitivity":"public","detail":"basic"},
+                 "properties":{
+                   "label":{"type":"string","title":"Display label","minLength":1,"x-configurator":{"sensitivity":"public","detail":"basic"}},
+                   "mode":{"type":"boolean","enum":[true,false],"x-configurator":{"sensitivity":"public","detail":"basic"}}},
+                 "additionalProperties":{"type":"integer","minimum":1,"x-configurator":{"sensitivity":"public","detail":"basic"}}}}},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """u8.ToArray()));
+        using var factory = new FormFieldFactory();
+        var map = (MapFieldViewModel)factory.Create(form).Single();
+        form.SetValue(["mixed"], JsonSerializer.SerializeToElement(new { label = "ready" }));
+        await Assert.That(map.Entries.Count).IsEqualTo(0);
+        var label = (StringFieldViewModel)map.Children.Single(child => child.Id == "label");
+        var mode = (EnumFieldViewModel)map.Children.Single(child => child.Id == "mode");
+        await Assert.That(label.Title).IsEqualTo("Display label");
+        await Assert.That(label.Text).IsEqualTo("ready");
+        await Assert.That(mode.IsRequired).IsTrue();
+        await Assert.That(mode.HasError).IsTrue();
+        int focus = mode.FocusRequestVersion;
+        map.RequestFocus();
+        await Assert.That(mode.FocusRequestVersion).IsEqualTo(focus + 1);
+        await Assert.That(mode.RemoveCommand.CanExecute(null)).IsFalse();
+        map.NewKey = "mode";
+        await Assert.That(map.AddEntryCommand.CanExecute(null)).IsFalse();
+        mode.SelectedIndex = 2;
+        await Assert.That(form.Snapshot().Values["mixed"].GetProperty("mode").GetBoolean()).IsFalse();
+        label.Text = "";
+        await Assert.That(label.HasError).IsTrue();
+        focus = label.FocusRequestVersion;
+        map.RequestFocus();
+        await Assert.That(label.FocusRequestVersion).IsEqualTo(focus + 1);
+        label.Text = "corrected";
+        map.NewKey = "Label";
+        map.AddEntryCommand.Execute(null);
+        var entry = (NumericFieldViewModel)map.Entries.Single();
+        await Assert.That(entry.Id).IsEqualTo("Label");
+        await Assert.That(entry.HasError).IsTrue();
+        focus = entry.FocusRequestVersion;
+        map.RequestFocus();
+        await Assert.That(entry.FocusRequestVersion).IsEqualTo(focus + 1);
+        entry.Text = "7";
+        await Assert.That(form.Snapshot().Values["mixed"].GetProperty("Label").GetInt32()).IsEqualTo(7);
+        await Assert.That(form.Validate().IsReady).IsTrue();
+        map.NewKey = "literal/key";
+        await Assert.That(map.AddEntryCommand.CanExecute(null)).IsFalse();
+        map.RemoveEntryCommand.Execute(entry);
+        await Assert.That(map.AddEntryCommand.CanExecute(null)).IsTrue();
+        map.AddEntryCommand.Execute(null);
+        FieldViewModel literal = map.Entries.Single();
+        literal.Text = "8";
+        label.ClearCommand.Execute(null);
+        await Assert.That(label.HasError).IsTrue();
+        await Assert.That(ReferenceEquals(label, map.Children.Single(child => child.Id == "label"))).IsTrue();
+        label.Text = "restored";
+        await Assert.That(ReferenceEquals(mode, map.Children.Single(child => child.Id == "mode"))).IsTrue();
+        await Assert.That(ReferenceEquals(literal, map.Entries.Single())).IsTrue();
+        await Assert.That(form.Snapshot().Values["mixed"].GetProperty("literal/key").GetInt32()).IsEqualTo(8);
+        long revision = form.InputRevision;
+        entry.Text = "99";
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        factory.Dispose();
+        label.Text = "retired";
+        mode.SelectedIndex = 1;
+        literal.Text = "99";
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(map.AddEntryCommand.CanExecute(null)).IsFalse();
+    }
+
     [Test]
     public async Task MapEntriesKeepLiteralIdentityAndSafeCorrectionFactsAcrossRemoval()
     {

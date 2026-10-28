@@ -2,16 +2,16 @@
 
 > **Audience:** Maintainers and contributors
 > **Owner:** Native definition-store builder; Browser discovery adapter
-> **Source anchors:** `eng/configurator/BuildDefinitionStore.cs`, `store/`, `schemas/definition-store-curation-v1.schema.json`
+> **Source Anchors:** `eng/configurator/BuildDefinitionStore.cs`, `store/`, `schemas/definition-store-curation-v1.schema.json`
 > **Status:** Optional static discovery; no publisher authentication or host authority
-> **Last Verified:** 2026-10-10
+> **Last Verified:** 2026-10-28
 
 ## Ownership and flow
 
 `BuildDefinitionStore.cs` is a native file-based .NET tool referencing Core only.
 It parses one root-confined JSON or YAML source through
 `DefinitionAuthoringCodec` and `DefinitionAuthoringCompiler`, admits historical
-JSON releases through `SetupDefinitionCodec`, verifies project application/family agreement and uses
+v2 JSON releases through `SetupDefinitionCodec`, verifies project application/family agreement and uses
 `SetupDefinitionRegistry` for global same-revision conflicts. It then derives a
 deterministic index and canonical public snapshots. Core does not depend on
 store curation, Browser or UI packages. Discovery does not evaluate definitions
@@ -59,9 +59,12 @@ uniqueness, source admission, identities and public-data limits.
 
 License is public attribution text, not a machine-proven license approval.
 Maintainers must verify distribution authority and terms. Repository links are
-not fetched by the builder. Core rejects nonpublic defaults/recommendations and
-defaults covering protected descendants. The builder also rejects choices on
-effective secret fields; sensitive enum vocabulary can be public metadata.
+not fetched by the builder. Core rejects protected public literals and
+initialization/suggestions covering protected descendants. The builder also
+rejects choices on effective secret nodes, traversing declared properties, list
+items, typed map values and every provider branch. It uses Core's
+`SetupFieldDefinition.SensitivityOf` for declared sensitivity and retains inherited
+floors; sensitive enum vocabulary can remain public metadata.
 Human review must still inspect prose, public
 literals and purportedly public values: admission cannot classify every secret.
 No private answers, executable hooks, imported image/font assets or install
@@ -93,6 +96,32 @@ every historical snapshot to survive unchanged in the candidate output. The
 baseline cannot overlap input, output or schema destinations. Baseline metadata
 does not replace current source metadata. `--require-baseline` rejects omission;
 local packaging without it establishes admission/freshness, not trusted history.
+
+### Pre-release v2 generation boundary
+
+The approved standard cutover retires v1 active inputs without reassigning their
+canonical identities. Their exact historical content remains in Git.
+`Configurator.DefinitionSchemaGenerator --renew-store-families` derives the two
+checked store sources from the admitted v2 examples, carries public distribution
+metadata, and invokes `DefinitionAuthoringIdentityEditor.Fork` for fresh families.
+It validates the four named v1 snapshots before writes, admits all candidates,
+creates fresh revision 1 releases and then retires only the named v1 files.
+This is a one-time source-generation operation, not a runtime compatibility
+interpreter or a baseline bypass.
+
+The ordinary baseline validator is unchanged: it refuses missing, rewritten,
+rebound or unsupported history. An old v1 inventory is not a promoted v2 history
+authority. Publication trust activation and remote release remain outside this
+local cutover.
+
+The native file app explicitly enables its JSON reflection runtime setting to
+match the existing Core/JIT serialization contract. SDK file-app defaults
+otherwise caused `authoring-invalid` before the first synthetic fixture could
+be admitted. Core serialization was not replaced to work around that host
+setting. The executed v2 self-test has 48 passing cases, including recursive
+protected-choice rejection and immutable-history guards. Actual store generation
+and freshness checks admit two v2 revisions; these are local conformance results,
+not publisher authentication, legal review or target acceptance.
 
 The index root has `schemaVersion: 1` and `projects`. Projects use ordinal
 `projectId` order; revisions use ascending numeric order. Each project has:

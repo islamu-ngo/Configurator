@@ -6,7 +6,7 @@ compatibility or grant permission to apply configuration. Configurator also
 opens local definitions and independent public HTTPS links without this store.
 
 Each folder contains one `configurator.yaml`, `configurator.yml` or
-`configurator.json`. Start with the [minimal example](minimal-self-hosted/configurator.yaml).
+`configurator.json`. Start with the [minimal example](minimal-self-hosted/configurator.json).
 Its project declares the name, description, public repository and the license
 applicable to distributing the definition. The shared authoring compiler derives
 runtime fields, outputs, identity and discovery metadata from that source.
@@ -43,10 +43,28 @@ cannot be replaced. CI supplies `--baseline <pinned-target-inventory>
 --require-baseline` from a separate target-commit checkout, so deleting or
 rewriting contribution files cannot erase previously admitted history.
 
-The historical neutral revision 2 and Event revision 5 releases are unchanged
-copies of existing Configurator public resources. The neutral copy retains its
-original formatting; publication canonicalizes it without changing its digest.
-The Event snapshot remains MIT-transferred Configurator material; Event's
+## Definition v2 generation
+
+The pre-release v2 cutover starts fresh families for the two checked examples.
+The former v1 authoring sources and neutral revisions 2/3 and Event revisions
+5/6 remain historical evidence in Git, not active store inputs. Their old
+family/revision identities were not assigned new content. There is no v1
+runtime interpreter or automatic answer migration.
+
+`Configurator.DefinitionSchemaGenerator --renew-store-families` performs this
+one-time cutover from the qualified v2 examples. It validates the named v1
+snapshots before changing files, carries forward public redistribution metadata,
+allocates identities through the native identity editor, admits both candidates
+before writing, and creates each new revision 1 snapshot without overwriting an
+existing release. It rejects a second cutover of an already-v2 source.
+
+The current neutral family is `289f3d1c-21ed-4888-9de3-3897d2d3fc1d`; the
+current Event family is `d532b75d-5b62-4276-a03b-2bec28155d3d`. Both start at
+revision 1. Subsequent v2 revisions retain their history under the ordinary
+rules above. Old pinned v1 inventories are not silently accepted as a promoted
+v2 history baseline; local generation does not establish publication authority.
+
+Event definitions remain MIT-transferred Configurator material. Event's
 application and third-party components retain their own terms.
 
 See the [contribution guide](../CONTRIBUTING.md),

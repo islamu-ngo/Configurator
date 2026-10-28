@@ -1,7 +1,7 @@
 namespace Configurator.Presentation;
 
-using Configurator.Core.Definitions;
 using System.Text.Json;
+using Configurator.Core.Definitions;
 
 public sealed class DefinitionChoicePresentation
 {

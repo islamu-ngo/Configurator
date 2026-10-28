@@ -60,7 +60,8 @@ public sealed class DefinitionObjectListTests
         JsonNode metadata = sequenceIntermediate["items"]!["properties"]!["metadata"]!.DeepClone();
         sequenceIntermediate["items"]!["properties"]!["metadata"] = new JsonObject
         {
-            ["type"] = "array", ["items"] = metadata,
+            ["type"] = "array",
+            ["items"] = metadata,
             ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" }
         };
         foreach (string field in new[]

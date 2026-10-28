@@ -107,7 +107,7 @@ internal static class CliPackageValidation
                      "revision":1,"project":{"id":"example.service","name":"Package service","publisher":"example"},"applicationVersions":["1.0"],
                      "entryPoints":["setup"],"locales":["en"],
                      "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
-                     "configuration":{"type":"object","required":["service.name"],"properties":{
+                      "configuration":{"type":"object","additionalProperties":false,"required":["service.name"],"properties":{
                         "service.name":{"type":"string","title":"Service name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}}}},
                      "artifacts":[{"id":"config","format":"json","fileName":"service.json",
                         "targetUpdateMode":"create","restartRequirement":"process",

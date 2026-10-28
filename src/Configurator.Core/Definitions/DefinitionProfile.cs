@@ -1,8 +1,8 @@
 namespace Configurator.Core.Definitions;
 
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Security.Cryptography;
 using Configurator.Core.Composition;
 
 /// <summary>Bounded exact-key syntax primitives; schema admission remains the codec's responsibility.</summary>

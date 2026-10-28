@@ -1,8 +1,8 @@
 namespace Configurator.Browser.Tests;
 
 using Bunit;
-using Configurator.Browser.Layout;
 using Configurator.Browser.Components.Configuration;
+using Configurator.Browser.Layout;
 using Configurator.Browser.Pages;
 using Configurator.Browser.Services;
 using Configurator.Presentation;

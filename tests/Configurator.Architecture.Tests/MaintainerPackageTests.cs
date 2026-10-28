@@ -37,7 +37,7 @@ public sealed class MaintainerPackageTests
                  "revision":1,"project":{"id":"example.service","name":"Installed service","publisher":"example"},"applicationVersions":["1.0"],
                  "entryPoints":["setup"],"locales":["en"],
                  "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
-                 "configuration":{"type":"object","required":["service.name"],"properties":{
+                 "configuration":{"type":"object","additionalProperties":false,"required":["service.name"],"properties":{
                     "service.name":{"type":"string","title":"Service name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}}}},
                  "artifacts":[{"id":"config","format":"json","fileName":"service.json",
                     "targetUpdateMode":"create","restartRequirement":"process",
@@ -116,6 +116,50 @@ public sealed class MaintainerPackageTests
     }
 
     [Test]
+    [Arguments("authoring", "configurator-authoring-v2.schema.json", "urn:islamu:configurator:authoring:v2")]
+    [Arguments("runtime", "setup-definition-v2.schema.json", "urn:islamu:configurator:setup-definition:v2")]
+    [Arguments("answers", "configurator-answers-v1.schema.json", "urn:islamu:configurator:answers:v1")]
+    [Arguments("command", "islamu-configurator-command-v3.schema.json", "https://schemas.islamu.org/configurator/command/v3/schema.json")]
+    public async Task PublishedCliSchemaDiscoveryMatchesDistributedContract(string kind, string fileName, string id)
+    {
+        string package = ReleaseTestPaths.NativeCliPackage;
+        string executable = Path.Combine(package, ReleaseTestPaths.CliExecutableName);
+        var result = await ReleaseTestPaths.RunInDirectory(package, executable,
+            "definition", "schema", "--kind", kind, "--machine");
+        await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.Output);
+        await Assert.That(result.StandardError).IsEmpty();
+        await Assert.That(Encoding.UTF8.GetByteCount(result.Output)).IsLessThanOrEqualTo(65_536);
+        await Assert.That(result.Output.EndsWith('\n')).IsTrue();
+        await Assert.That(result.Output.Count(character => character == '\n')).IsEqualTo(1);
+        using JsonDocument receipt = JsonDocument.Parse(result.Output);
+        JsonElement root = receipt.RootElement;
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v3");
+        await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo("definition");
+        await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo("schema");
+        await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(0);
+        await Assert.That(root.GetProperty("targetAcceptance").GetString()).IsEqualTo("unassessed");
+        await Assert.That(root.GetProperty("artifacts").EnumerateArray()).IsEmpty();
+        JsonElement schema = root.GetProperty("schema");
+        await Assert.That(schema.GetProperty("kind").GetString()).IsEqualTo(kind);
+        await Assert.That(schema.GetProperty("id").GetString()).IsEqualTo(id);
+        await Assert.That(schema.GetProperty("profile").GetString()).IsEqualTo("bounded-v2");
+        await Assert.That(schema.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
+        await Assert.That(schema.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
+        await Assert.That(schema.GetProperty("answerContractVersion").GetInt32()).IsEqualTo(1);
+        byte[] distributedBytes = await File.ReadAllBytesAsync(Path.Combine(package, "schemas", fileName));
+        using JsonDocument distributed = JsonDocument.Parse(distributedBytes);
+        await Assert.That(distributed.RootElement.GetProperty("$id").GetString()).IsEqualTo(id);
+        await Assert.That(JsonElement.DeepEquals(schema.GetProperty("document"), distributed.RootElement)).IsTrue();
+        await Assert.That(schema.GetProperty("digest").GetString())
+            .IsEqualTo(ReleaseTestPaths.Hash(DefinitionProfile.CanonicalizeJson(distributedBytes)));
+        using JsonDocument runtime = JsonDocument.Parse(
+            await File.ReadAllBytesAsync(Path.Combine(package, "schemas/setup-definition-v2.schema.json")));
+        await Assert.That(schema.GetProperty("capabilities").EnumerateArray().Select(item => item.GetString()))
+            .IsEquivalentTo(runtime.RootElement.GetProperty("properties").GetProperty("requiredCapabilities")
+                .GetProperty("items").GetProperty("enum").EnumerateArray().Select(item => item.GetString()));
+    }
+
+    [Test]
     public async Task PublishedCliCompilesOneSourceWithoutStoreAndRetainsImmutableRelease()
     {
         string package = ReleaseTestPaths.NativeCliPackage;
@@ -141,9 +185,10 @@ public sealed class MaintainerPackageTests
                  "identity":{"familyId":"d8b0a60f-27ee-4262-a2b3-3af0e12d5034","revision":1},
                  "project":{"id":"example.service","name":"Example Service"},
                  "applicationVersions":["1.0.0"],
-                 "configuration":{"type":"object","properties":{"SERVICE_PORT":{"type":"integer","minimum":1,"maximum":65535,
+                 "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+                    "properties":{"SERVICE_PORT":{"type":"integer","minimum":1,"maximum":65535,
                     "x-configurator":{"sensitivity":"public","initialValue":8080}}}},
-                 "outputs":{".env":{"format":"dotenv"}}}
+                 "outputs":{".env":{"format":"dotenv","bindings":{"SERVICE_PORT":{"scope":"root","path":"/SERVICE_PORT"}}}}}
                 """);
             byte[] original = await File.ReadAllBytesAsync(source);
             var check = await ReleaseTestPaths.Run(executable, "definition", "check", "--source", source, "--machine");
@@ -164,6 +209,15 @@ public sealed class MaintainerPackageTests
             SetupDefinition admitted = SetupDefinitionCodec.ParseJson(compiled);
             await Assert.That(admitted.ApplicationId).IsEqualTo("example.service");
             await Assert.That(admitted.Fields.Single().Id).IsEqualTo("SERVICE_PORT");
+            await Assert.That(admitted.ApplicationVersions).IsEquivalentTo(["1.0.0"]);
+            await Assert.That(compiled.SequenceEqual(admitted.CanonicalBytes.ToArray())).IsTrue();
+            using (JsonDocument receipt = JsonDocument.Parse(build.Output))
+            {
+                await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString())
+                    .IsEqualTo("islamu-configurator-command/v3");
+                await Assert.That(receipt.RootElement.GetProperty("artifacts")[0].GetProperty("digest").GetString())
+                    .IsEqualTo(ReleaseTestPaths.Hash(compiled));
+            }
             var repeat = await ReleaseTestPaths.Run(executable, "definition", "build", "--source", source, "--output", output, "--machine");
             await Assert.That(repeat.ExitCode).IsEqualTo(0).Because(repeat.Output);
             await Assert.That(ReleaseTestPaths.Hash(await File.ReadAllBytesAsync(output)))

@@ -4,9 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -36,7 +34,8 @@ internal static class Program
         "D12-event-one-tenant", "D12-event-two-tenants", "D12-event-three-tenants",
         "D09-close-disposes-workspace", "D14-physical-settlement-receipt",
         "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force",
-        "D18-shared-editing-presence-localized-actions"
+        "D18-shared-editing-presence-localized-actions",
+        "D19-typed-map-variant-null-reset-locale"
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
@@ -149,8 +148,11 @@ internal static class Program
             string invalid = Path.Combine(directory, "invalid.json");
             await File.WriteAllTextAsync(invalid, "{}");
             await LoadAsync(window, shell, invalid, false);
-            _ = SetupDefinitionCodec.ParseJson(await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")));
-            await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json"), true);
+            string definitionPath = Path.Combine(directory, "native-definition.json");
+            byte[] definition = NativeDefinition();
+            _ = SetupDefinitionCodec.ParseJson(definition);
+            await File.WriteAllBytesAsync(definitionPath, definition);
+            await LoadAsync(window, shell, definitionPath, true);
             Require(shell.Loader.DefinitionPin.Contains(workspace.Form!.Definition.Digest.Value, StringComparison.Ordinal), "pin-missing");
             window.GetControl<TextBox>("OutputDirectory").Text = directory;
             Require(window.GetControl<ComboBox>("Artifact").SelectedIndex >= 0 &&
@@ -183,7 +185,7 @@ internal static class Program
 
             _currentCheck = "D03-activation-disclosure";
             Require(!Editor(window, "Port").IsVisible && !Editor(window, "Advanced note").IsVisible, "inactive-disclosure");
-            Input<ComboBox>(window, "Mode").SelectedItem = "remote";
+            SelectChoice(window, shell, "mode", "Mode", "remote");
             await FlushAsync();
             Require(Editor(window, "Port").IsVisible, "activation");
             long revision = workspace.Form.InputRevision;
@@ -193,7 +195,7 @@ internal static class Program
                 workspace.Form.InputRevision == revision, "expansion-mutates-input");
             window.GetControl<CheckBox>("OptionalEditors").IsChecked = false;
             await FlushAsync();
-            Require(!Editor(window, "Advanced note").IsVisible, "authored-default-not-restored");
+            Require(!Editor(window, "Advanced note").IsVisible, "authored-detail-not-restored");
             window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
             await FlushAsync();
             Input<TextBox>(window, "Advanced note").Text = "too-long-note";
@@ -202,7 +204,7 @@ internal static class Program
             await FlushAsync();
             Require(Editor(window, "Advanced note").IsVisible && Editor(window, "Owner").IsVisible, "invalid-hidden");
             Input<TextBox>(window, "Advanced note").Text = "";
-            Input<ComboBox>(window, "Mode").SelectedItem = "local";
+            SelectChoice(window, shell, "mode", "Mode", "local");
             await FlushAsync();
             await CaptureAsync(window, "edited");
             Pass();
@@ -215,8 +217,9 @@ internal static class Program
                 ("environment", "import.env", "NAME=dotenv-imported\n")
             })
             {
+                _currentStep = "import-" + id;
                 Select(window, shell, id);
-                Click(Named<Button>(window, DesktopActionText.ClearName("Service name")));
+                Click(Named<Button>(window, DesktopActionText.ResetName("Service name")));
                 await FlushAsync();
                 string path = Path.Combine(directory, file);
                 await File.WriteAllTextAsync(path, content);
@@ -319,6 +322,10 @@ internal static class Program
             await SharedEditingAsync();
             Pass();
 
+            _currentCheck = "D19-typed-map-variant-null-reset-locale";
+            await StructuredEditingAsync(window, shell, directory);
+            Pass();
+
             for (int count = 1; count <= 3; count++)
             {
                 _currentCheck = count switch { 1 => "D12-event-one-tenant", 2 => "D12-event-two-tenants", _ => "D12-event-three-tenants" };
@@ -347,6 +354,89 @@ internal static class Program
         }
     }
 
+    private static byte[] NativeDefinition() => SetupDefinitionSourceCodec.ParseJson("""
+        {
+          "$schema":"urn:islamu:configurator:authoring:v2",
+          "identity":{"familyId":"8508c82b-2f4a-42b5-af54-0e48c8c89a6e","revision":1},
+          "project":{"id":"example.native-qualification","name":"Native qualification fixture","publisher":"example"},
+          "applicationVersions":["1.0"],"entryPoints":["setup"],
+          "configuration":{"type":"object","additionalProperties":false,"required":["name"],
+            "x-configurator":{"sensitivity":"public"},"properties":{
+              "name":{"type":"string","title":"Service name","default":"Descriptive only",
+                "x-configurator":{"initialValue":"Example service","sensitivity":"public","detail":"basic"}},
+              "mode":{"type":"string","title":"Mode","enum":["local","remote"],
+                "description":"Remote mode enables the port.",
+                "x-configurator":{"initialValue":"local","sensitivity":"public","detail":"standard"}},
+              "port":{"type":"integer","title":"Port","minimum":1,"maximum":65535,
+                "x-configurator":{"initialValue":443,"sensitivity":"public","detail":"standard",
+                  "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/mode"},"value":"remote"}}},
+              "owner":{"type":"object","title":"Owner","additionalProperties":false,
+                "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+                  "name":{"type":"string","title":"Owner name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
+                  "age":{"type":"integer","title":"Owner age","x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+              "hosts":{"type":"array","title":"Hosts","maxItems":3,
+                "items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                "x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "note":{"type":"string","title":"Advanced note","maxLength":8,
+                "x-configurator":{"sensitivity":"public","detail":"advanced"}}
+            },
+            "if":{"properties":{"mode":{"const":"remote"}},"required":["mode"]},"then":{"required":["port"]}},
+          "outputs":{
+            "service.json":{"id":"config","format":"json","targetUpdateMode":"create","restartRequirement":"process",
+              "bindings":{"/name":{"scope":"root","path":"/name"},"/owner":{"scope":"root","path":"/owner"},
+                "/hosts":{"scope":"root","path":"/hosts"}}},
+            "service.env":{"id":"environment","format":"dotenv","targetUpdateMode":"create","restartRequirement":"process",
+              "bindings":{"NAME":{"scope":"root","path":"/name"}}},
+            "service.yaml":{"id":"yaml","format":"yaml","targetUpdateMode":"replace","restartRequirement":"none",
+              "bindings":{"/name":{"scope":"root","path":"/name"}}},
+            "remote.json":{"id":"remote","format":"json","targetUpdateMode":"create","restartRequirement":"none",
+              "projection":{"op":"object","when":{"op":"equals","reference":{"scope":"root","path":"/mode"},"value":"remote"},
+                "members":{"port":{"op":"copy","reference":{"scope":"root","path":"/port"}}}}}
+          }
+        }
+        """u8.ToArray()).CanonicalBytes.ToArray();
+
+    private static byte[] EditingDefinition() => SetupDefinitionSourceCodec.ParseJson("""
+        {
+          "$schema":"urn:islamu:configurator:authoring:v2",
+          "identity":{"familyId":"8508c82b-2f4a-42b5-af54-0e48c8c89a6e","revision":2},
+          "project":{"id":"example.native-editing","name":"Native structured editing","publisher":"example"},
+          "applicationVersions":["1.0"],
+          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+            "empty.object":{"title":"Empty object","type":"object","additionalProperties":false,"properties":{},
+              "x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "empty.list":{"title":"Empty list","type":"array","maxItems":0,
+              "items":{"type":"string","x-configurator":{"sensitivity":"public"}},
+              "x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "rows.part":{"title":"Rows","type":"array",
+              "x-configurator":{"sensitivity":"public","detail":"basic",
+                "initialValue":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}]},
+              "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                "count.part":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                "note.part":{"title":"Note","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}},
+            "named":{"title":"Named values","type":"object","maxProperties":2,"required":["caption"],
+              "properties":{"caption":{"type":"string","title":"Fixed caption","minLength":1,
+                "x-configurator":{"sensitivity":"public","detail":"basic"}}},
+              "additionalProperties":{"type":"integer","minimum":1,"x-configurator":{"sensitivity":"public","detail":"basic"}},
+              "x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "provider":{"title":"Provider","type":"object","x-configurator":{"sensitivity":"public","detail":"basic"},"oneOf":[
+              {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+                "kind":{"type":"string","const":"first","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                "count":{"title":"Branch count","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}}}},
+              {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+                "kind":{"type":"string","const":"second","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                "other":{"type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}]},
+            "choice":{"title":"Choice","type":["integer","null"],"enum":[1,2,null],"default":2,
+              "x-configurator":{"sensitivity":"public","detail":"basic","initialValue":1,"suggestedValue":2,
+                "choices":[{"value":1,"label":"Equal"},{"value":2,"label":"Equal"},{"value":null,"label":"Null"}]}}
+          }},
+          "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{
+            "/configuration/properties/choice/x-configurator/choices/0/label":"Translated equal",
+            "/configuration/properties/choice/x-configurator/choices/1/label":"Translated equal"}}}},
+          "outputs":{"config.json":{"id":"config","format":"json","targetUpdateMode":"create","restartRequirement":"process"}}
+        }
+        """u8.ToArray()).CanonicalBytes.ToArray();
+
     private static async Task SharedEditingAsync()
     {
         string culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -356,22 +446,7 @@ internal static class Program
         try
         {
             window.Show();
-            var source = JsonNode.Parse(await File.ReadAllBytesAsync(
-                Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")))!;
-            source["fields"] = JsonNode.Parse("""
-                [{"id":"empty.object","title":"Empty object","type":"object","properties":[],"sensitivity":"public","disclosure":"essential"},
-                 {"id":"empty.list","title":"Empty list","type":"list","itemType":"string","maxItems":0,"sensitivity":"public","disclosure":"essential"},
-                 {"id":"rows.part","title":"Rows","type":"list","itemType":"object","sensitivity":"public","disclosure":"essential",
-                  "default":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}],
-                  "properties":[
-                    {"id":"count.part","title":"Count","type":"integer","sensitivity":"public","disclosure":"essential"},
-                    {"id":"note.part","title":"Note","type":"string","sensitivity":"public","disclosure":"essential"}]}]
-                """);
-            source["artifacts"] = JsonNode.Parse("""
-                [{"id":"config","format":"json","fileName":"config.json","applySemantics":"create","restart":"process",
-                  "projection":{"op":"literal","value":{}}}]
-                """);
-            Require(shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString())), "editing-definition");
+            Require(shell.Loader.LoadDefinition(EditingDefinition()), "editing-definition");
             await FlushAsync();
             var form = shell.Workspace.Form!;
             long revision = form.InputRevision;
@@ -380,7 +455,8 @@ internal static class Program
             await FlushAsync();
             Require(form.InputRevision == revision && !form.Snapshot().Values.ContainsKey("empty.object") &&
                 !form.Snapshot().Values.ContainsKey("empty.list"), "browsing-supplied-answer");
-            foreach (FieldViewModel field in shell.Workspace.Fields.Take(2))
+            foreach (FieldViewModel field in shell.Workspace.Fields.Where(field =>
+                field.Id is "empty.object" or "empty.list"))
             {
                 Button[] buttons = window.GetLogicalDescendants().OfType<Button>()
                     .Where(button => ReferenceEquals(button.DataContext, field)).ToArray();
@@ -400,14 +476,15 @@ internal static class Program
                 await FlushAsync();
                 Require(supply.IsFocused && !form.Snapshot().Values.ContainsKey(field.Id), "clear-presence-or-focus");
             }
-            var list = (ListFieldViewModel)shell.Workspace.Fields[2];
+            var list = (ListFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "rows.part");
             var survivor = (ObjectFieldViewModel)list.Items[1];
             TextBox count = window.GetLogicalDescendants().OfType<TextBox>()
-                .Single(control => ReferenceEquals(control.DataContext, survivor.Children[0]));
+                .Single(control => ReferenceEquals(control.DataContext, survivor.Children.Single(child => child.Id == "count.part")));
             Require(count.Focus(), "row-focus");
             count.Text = "unfinished-number";
             await FlushAsync();
-            Require(survivor.Children[0].HasError && !survivor.Children[1].HasError, "sibling-error-leak");
+            Require(survivor.Children.Single(child => child.Id == "count.part").HasError &&
+                !survivor.Children.Single(child => child.Id == "note.part").HasError, "sibling-error-leak");
             Require(form.RemoveListItem(["rows.part"], 0), "row-removal");
             await FlushAsync();
             Require(ReferenceEquals(list.Items.Single(), survivor) && count.IsFocused &&
@@ -420,6 +497,126 @@ internal static class Program
                 "corrected-row");
         }
         finally { window.Close(); }
+    }
+
+    private static async Task StructuredEditingAsync(MainWindow window, DesktopShellViewModel shell, string directory)
+    {
+        Require(shell.Loader.LoadDefinition(EditingDefinition()), "structured-definition");
+        await FlushAsync();
+        var workspace = shell.Workspace;
+        var form = workspace.Form!;
+        var publisher = shell.Publisher;
+        var choice = (EnumFieldViewModel)workspace.Fields.Single(field => field.Id == "choice");
+        ComboBox choices = Input<ComboBox>(window, "Choice");
+        Require(choice.Choices[1].Label == choice.Choices[2].Label &&
+            choices.SelectedIndex == 1 && !form.Snapshot().Values.ContainsKey("choice"), "initial-not-descriptive-default");
+        choices.SelectedIndex = 2;
+        await FlushAsync();
+        Require(form.Snapshot().Values["choice"].GetInt32() == 2, "equal-label-typed-choice");
+        Click(CommandButton(window, choice.SetNullCommand));
+        await FlushAsync();
+        Require(form.Snapshot().Values["choice"].ValueKind == JsonValueKind.Null, "explicit-null-not-supplied");
+        Click(CommandButton(window, choice.ClearCommand));
+        await FlushAsync();
+        Require(!form.Snapshot().Values.ContainsKey("choice") && choices.SelectedIndex == 0, "omission-restores-initial");
+        Click(CommandButton(window, choice.ResetCommand));
+        await FlushAsync();
+        Require(!form.Snapshot().Values.ContainsKey("choice") && choices.SelectedIndex == 1, "reset-not-initial");
+        Click(CommandButton(window, choice.ApplySuggestionCommand));
+        await FlushAsync();
+        Require(form.Snapshot().Values["choice"].GetInt32() == 2, "deliberate-suggestion");
+        Click(CommandButton(window, choice.ResetCommand));
+        await FlushAsync();
+
+        var map = (MapFieldViewModel)workspace.Fields.Single(field => field.Id == "named");
+        window.GetLogicalDescendants().OfType<TextBox>().Single(control =>
+            ReferenceEquals(control.DataContext, map) && AutomationProperties.GetName(control) == map.NewKeyLabel).Text = "literal/key";
+        await FlushAsync();
+        Click(CommandButton(window, map.AddEntryCommand));
+        await FlushAsync();
+        FieldViewModel entry = map.Entries.Single();
+        TextBox number = window.GetLogicalDescendants().OfType<TextBox>()
+            .Single(control => ReferenceEquals(control.DataContext, entry));
+        FieldViewModel caption = map.Children.Single(child => child.Id == "caption");
+        TextBox captionInput = Input<TextBox>(window, "Fixed caption");
+        Require(caption is StringFieldViewModel && caption.IsRequired &&
+            captionInput.IsVisible, "mixed-map-fixed-schema");
+        Require(!workspace.Validate(), "mixed-map-missing-fixed-ready");
+        await FlushAsync();
+        Require(captionInput.IsFocused, "mixed-map-fixed-correction");
+        captionInput.Text = "fixed caption";
+        await FlushAsync();
+        number.Text = "unfinished-number";
+        await FlushAsync();
+        Require(entry.HasError && !workspace.Validate(), "map-invalid-draft-ready");
+        number.Text = "7";
+        await FlushAsync();
+        Require(!entry.HasError && form.Snapshot().Values["named"].GetProperty("literal/key").GetInt32() == 7,
+            "map-key-or-value-not-typed");
+
+        var provider = (VariantFieldViewModel)workspace.Fields.Single(field => field.Id == "provider");
+        Input<ComboBox>(window, "Provider").SelectedItem = provider.Choices[0];
+        await FlushAsync();
+        TextBox retired = Input<TextBox>(window, "Branch count");
+        retired.Text = "5";
+        await FlushAsync();
+        Select(window, shell, "config");
+        window.GetControl<TextBox>("OutputDirectory").Text = directory;
+        await PrepareAsync(window, shell);
+        Input<ComboBox>(window, "Provider").SelectedItem = provider.Choices[1];
+        await FlushAsync();
+        Require(!publisher.CanSave && !publisher.CanSaveBundle &&
+            form.Snapshot().Values["provider"].GetRawText() == """{"kind":"second"}""", "branch-keeps-stale-output");
+        long switchedRevision = form.InputRevision;
+        retired.Text = "99";
+        await FlushAsync();
+        Require(form.InputRevision == switchedRevision &&
+            form.Snapshot().Values["provider"].GetRawText() == """{"kind":"second"}""", "retired-branch-writes-answer");
+
+        window.GetControl<TextBox>("FileName").Text = "typed-before.json";
+        await PrepareAsync(window, shell);
+        await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
+        string beforePath = Path.Combine(directory, "typed-before.json");
+        await VerifyJsonAsync(beforePath, """
+            {"choice":1,"named":{"caption":"fixed caption","literal/key":7},"provider":{"kind":"second"},
+             "rows.part":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}]}
+            """);
+        window.GetControl<TextBox>("FileName").Text = "typed-after.json";
+        await PrepareAsync(window, shell);
+        var prepared = publisher.Preparation;
+        long revision = form.InputRevision;
+        JsonElement answers = JsonSerializer.SerializeToElement(form.Snapshot().Values);
+        foreach (string locale in new[] { "ar", "en" })
+        {
+            var changed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void ViewChanged(object? sender, EventArgs args)
+            {
+                if (form.Locale == locale) changed.TrySetResult();
+            }
+            form.ViewChanged += ViewChanged;
+            try
+            {
+                window.GetControl<ComboBox>("DefinitionLocale").SelectedItem = locale;
+                await changed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await FlushAsync();
+            }
+            finally { form.ViewChanged -= ViewChanged; }
+            Require(form.InputRevision == revision && ReferenceEquals(prepared, publisher.Preparation) && publisher.CanSave &&
+                JsonElement.DeepEquals(answers, JsonSerializer.SerializeToElement(form.Snapshot().Values)) &&
+                choice.SelectedIndex == 1 && choice.Choices[1].Label == choice.Choices[2].Label &&
+                choice.Choices[1].Label == (locale == "ar" ? "Translated equal" : "Equal") &&
+                window.FlowDirection == (locale == "ar" ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight) &&
+                ReferenceEquals(number, window.GetLogicalDescendants().OfType<TextBox>()
+                    .Single(control => ReferenceEquals(control.DataContext, entry))), "locale-mutates-answer-or-preparation");
+            await CaptureAsync(window, "typed-editing-" + locale);
+        }
+        await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
+        string afterPath = Path.Combine(directory, "typed-after.json");
+        byte[] beforeBytes = await File.ReadAllBytesAsync(beforePath);
+        byte[] afterBytes = await File.ReadAllBytesAsync(afterPath);
+        Require(beforeBytes.AsSpan().SequenceEqual(afterBytes) &&
+            OperatingSystem.IsLinux() && File.GetUnixFileMode(beforePath) == (UnixFileMode.UserRead | UnixFileMode.UserWrite) &&
+            File.GetUnixFileMode(afterPath) == (UnixFileMode.UserRead | UnixFileMode.UserWrite), "locale-output-or-protection");
     }
 
     private static async Task CloseLifecycleAsync()
@@ -446,7 +643,7 @@ internal static class Program
             try
             {
                 window.Show();
-                shell.Loader.LoadDefinition(await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")));
+                Require(shell.Loader.LoadDefinition(NativeDefinition()), "close-definition");
                 await FlushAsync();
                 Select(window, shell, "environment");
                 await PrepareAsync(window, shell);
@@ -501,7 +698,7 @@ internal static class Program
                     shell.Workspace.Form is null && !shell.Publisher.CanSave &&
                     borrowed.ToArray().All(value => value == 0), "close-late-callback-or-cleanup");
                 Require(shell.Publisher.PublicationHistory.Single().Outcomes.Single().Result is
-                    { InstallationEstablished: true, VerificationSucceeded: true }, "close-installation-lost");
+                { InstallationEstablished: true, VerificationSucceeded: true }, "close-installation-lost");
                 Pass();
             }
             finally
@@ -573,7 +770,7 @@ internal static class Program
         try
         {
             window.Show();
-            shell.Loader.LoadDefinition(await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "NativeDefinition.json")));
+            Require(shell.Loader.LoadDefinition(NativeDefinition()), "settlement-definition");
             await FlushAsync();
             Select(window, shell, "environment");
             await PrepareAsync(window, shell);
@@ -651,7 +848,7 @@ internal static class Program
     {
         _currentStep = "event-load";
         await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json"), true);
-        Input<ComboBox>(window, "Artifact to prepare").SelectedItem = "configuration-manifest";
+        SelectChoice(window, shell, "operation", "Artifact to prepare", "configuration-manifest");
         window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
         Select(window, shell, "configuration-manifest");
         await FlushAsync();
@@ -670,6 +867,11 @@ internal static class Program
             await FlushAsync();
             tenants.GetLogicalDescendants().OfType<TextBox>().Where(control => AutomationProperties.GetName(control) == "Tenant identifier").ElementAt(index).Text = "tenant-" + index.ToString(CultureInfo.InvariantCulture);
             tenants.GetLogicalDescendants().OfType<TextBox>().Where(control => AutomationProperties.GetName(control) == "Display name").ElementAt(index).Text = "Tenant " + index.ToString(CultureInfo.InvariantCulture);
+            var rows = (ListFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "configuration-manifest.tenants");
+            var row = (ObjectFieldViewModel)rows.Items[index];
+            var specification = (ObjectFieldViewModel)row.Children.Single(field => field.Id == "spec");
+            foreach (string member in new[] { "settings", "documents", "legalDocuments" })
+                Click(CommandButton(window, specification.Children.Single(field => field.Id == member).SupplyCommand));
         }
         await FlushAsync();
         _currentStep = "event-prepare";
@@ -737,7 +939,7 @@ internal static class Program
             Click(window.GetControl<Button>(button));
             if (finished()) completion.TrySetResult();
             try { await completion.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
-            catch (TimeoutException) { throw new QualificationException("action-timeout:" + button); }
+            catch (TimeoutException) { throw new QualificationException("action-timeout:" + button + ":" + shell.Status); }
             await FlushAsync();
         }
         finally
@@ -749,6 +951,18 @@ internal static class Program
 
     private static void Select(MainWindow window, DesktopShellViewModel shell, string id) =>
         window.GetControl<ComboBox>("Artifact").SelectedItem = shell.Publisher.Artifacts.Single(item => item.Id == id);
+
+    private static void SelectChoice(MainWindow window, DesktopShellViewModel shell, string fieldId, string title, string value)
+    {
+        JsonElement choices = shell.Workspace.Form!.Definition.Fields.Single(field => field.Id == fieldId)
+            .Node.Keywords.GetProperty("enum");
+        int index = choices.EnumerateArray().Select((choice, position) => (choice, position))
+            .Single(item => item.choice.ValueKind == JsonValueKind.String && item.choice.GetString() == value).position;
+        Input<ComboBox>(window, title).SelectedIndex = index + 1;
+    }
+
+    private static Button CommandButton(Control owner, System.Windows.Input.ICommand command) =>
+        owner.GetLogicalDescendants().OfType<Button>().Single(button => ReferenceEquals(button.Command, command));
 
     private static void Include(MainWindow window, string id, bool selected)
     {
@@ -795,15 +1009,23 @@ internal static class Program
                     catch (TimeoutException) { throw new QualificationException("capture-resize-timeout"); }
                     window.UpdateLayout();
                     await FlushAsync();
-                    foreach (bool end in new[] { false, true })
+                    foreach (string position in state.StartsWith("typed-editing-", StringComparison.Ordinal)
+                        ? new[] { "", "middle", "end" } : new[] { "", "end" })
                     {
-                        scroll.Offset = end ? new Vector(0, scroll.Extent.Height - scroll.Viewport.Height) : default;
+                        double distance = Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height);
+                        scroll.Offset = new Vector(0, position == "end" ? distance : 0);
+                        if (position == "middle")
+                        {
+                            Point anchor = Input<TextBox>(window, "Fixed caption").TranslatePoint(default, scroll)
+                                ?? throw new QualificationException("capture-map-anchor");
+                            scroll.Offset = new Vector(0, Math.Max(0, scroll.Offset.Y + anchor.Y - 60));
+                        }
                         var rendered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                         window.RequestAnimationFrame(_ => rendered.TrySetResult());
                         await rendered.Task.WaitAsync(TimeSpan.FromSeconds(10));
                         using var bitmap = new RenderTargetBitmap(new PixelSize(width, height));
                         bitmap.Render(window);
-                        bitmap.Save(Path.Combine(_captureDirectory, $"{state}-{name}-{theme.Key}{(end ? "-end" : "")}.png"),
+                        bitmap.Save(Path.Combine(_captureDirectory, $"{state}-{name}-{theme.Key}{(position.Length == 0 ? "" : "-" + position)}.png"),
                             PngBitmapEncoderOptions.Default);
                     }
                 }

@@ -1,8 +1,8 @@
 namespace Configurator.Presentation.Tests;
 
 using System.Text.Json;
-using Configurator.Core.Definitions;
 using Configurator.Core.Artifacts;
+using Configurator.Core.Definitions;
 
 public sealed class DefinitionTypedEditingTests
 {

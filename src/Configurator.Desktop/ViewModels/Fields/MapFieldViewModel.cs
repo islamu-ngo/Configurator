@@ -10,21 +10,27 @@ using Configurator.Desktop.Resources;
 public sealed class MapFieldViewModel : FieldViewModel
 {
     private readonly ObservableCollection<FieldViewModel> _entries = [];
+    private int _suppliedMembers;
     private string _newKey = "";
 
     internal MapFieldViewModel(DefinitionNode schema, string name, bool required,
         FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
         : base(schema, name, required, parent, listItem, inheritedMasking)
     {
+        Children = Array.AsReadOnly(schema.Properties
+            .Select(property => FormFieldFactory.Project(property.Value, property.Key,
+                schema.Required.Contains(property.Key, StringComparer.Ordinal), this, false)).ToArray());
         Entries = new(_entries);
-        AddEntryCommand = new RelayCommand(AddEntry, () => !IsDisposed && _entries.Count < MaximumEntries &&
-            !_entries.Any(entry => entry.Id == NewKey) && ValidKey());
+        AddEntryCommand = new RelayCommand(AddEntry, () => !IsDisposed && _suppliedMembers < MaximumEntries &&
+            !Schema.Properties.ContainsKey(NewKey) &&
+            !_entries.Any(entry => string.Equals(entry.Id, NewKey, StringComparison.Ordinal)) && ValidKey());
         RemoveEntryCommand = new RelayCommand<FieldViewModel>(RemoveEntry,
             entry => !IsDisposed && entry is not null && _entries.Contains(entry));
     }
 
     public ReadOnlyObservableCollection<FieldViewModel> Entries { get; }
-    internal override IEnumerable<FieldViewModel> Descendants => Entries;
+    public IReadOnlyList<FieldViewModel> Children { get; }
+    internal override IEnumerable<FieldViewModel> Descendants => Children.Concat(Entries);
     public int MaximumEntries => Schema.Keywords.TryGetProperty("maxProperties", out JsonElement maximum)
         ? maximum.GetInt32() : SetupCompositionLimits.DefaultMappingEntries;
     public string NewKey
@@ -46,6 +52,8 @@ public sealed class MapFieldViewModel : FieldViewModel
     {
         string[] names = value is { ValueKind: JsonValueKind.Object } mapping
             ? mapping.EnumerateObject().Select(property => property.Name).ToArray() : [];
+        _suppliedMembers = names.Length;
+        names = names.Where(name => !Schema.Properties.ContainsKey(name)).ToArray();
         var retained = names.ToHashSet(StringComparer.Ordinal);
         for (int index = _entries.Count - 1; index >= 0; index--)
             if (!retained.Contains(_entries[index].Id))
@@ -111,7 +119,13 @@ public sealed class MapFieldViewModel : FieldViewModel
         if (Form.EditValue([.. FullPath(), entry!.Id], null)) RequestFocus();
     }
 
-    public override void RequestFocus() => SignalFocus();
+    public override void RequestFocus()
+    {
+        if (IsDisposed) return;
+        if (Descendants.FirstOrDefault(child => child.IsVisible && child.HasError) is { } invalid)
+            invalid.RequestFocus();
+        else SignalFocus();
+    }
     public override void Dispose()
     {
         if (IsDisposed) return;

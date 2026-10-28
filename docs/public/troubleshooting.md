@@ -10,6 +10,13 @@ This searchable guide provides diagnostic steps and recovery procedures for comm
 
 ---
 
+## Existing-file import conflicts
+
+An `answer-conflict` protects deliberate current answers or omission. If you
+intend to adopt the imported value, reset that specific location before
+retrying. Omit is not a reset: it suppresses initialization and is itself answer
+intent. Inspect conflicts rather than blindly clearing unrelated answers.
+
 ## Diagnostic Mental Model
 
 For authoring errors, run `definition check --source configurator.yaml --machine`.

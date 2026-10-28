@@ -1,5 +1,5 @@
-using System.Reflection;
 using System.Diagnostics;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -124,7 +124,8 @@ public sealed class DefinitionBundleTests
                 """{"op":"copy","reference":{"scope":"root","path":"/service.name"}}""");
         root["outputs"]!["service1.json"] = new JsonObject
         {
-            ["id"] = "bad", ["format"] = "json",
+            ["id"] = "bad",
+            ["format"] = "json",
             ["projection"] = new JsonObject { ["op"] = "object", ["members"] = members }
         };
         DefinitionBundleResult result = DefinitionBundleComposer.Compose(DefinitionFixture.Parse(root.ToJsonString()),

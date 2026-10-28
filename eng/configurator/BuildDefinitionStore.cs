@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property JsonSerializerIsReflectionEnabledByDefault=true
 #:property AssemblyName=Configurator.DefinitionStoreBuilder
 #:property RootNamespace=Configurator.Engineering
 #:project ../../src/Configurator.Core/Configurator.Core.csproj
@@ -98,7 +99,7 @@ internal static class DefinitionStoreBuilder
                     || revision < 1 || name != revision.ToString(CultureInfo.InvariantCulture) + ".json")
                     throw new StoreException("store-path-invalid");
                 SetupDefinition definition = SetupDefinitionCodec.ParseJson(ReadBounded(path, MaximumDefinitionBytes, "document-limit"));
-                CheckPublicFields(definition.Fields);
+                CheckPublicNode(definition.Configuration, SetupFieldSensitivity.Public);
                 if (definition.Revision != revision || definition.FamilyId != current.FamilyId || definition.ApplicationId != current.ApplicationId)
                     throw new StoreException("store-identity-mismatch");
                 definitions.Add(definition);
@@ -188,7 +189,7 @@ internal static class DefinitionStoreBuilder
             ["tags"] = curation["tags"]?.DeepClone() ?? new JsonArray()
         };
         SetupDefinition definition = DefinitionAuthoringCompiler.Compile(source);
-        CheckPublicFields(definition.Fields);
+        CheckPublicNode(definition.Configuration, SetupFieldSensitivity.Public);
         return (metadata, definition);
     }
 
@@ -312,7 +313,7 @@ internal static class DefinitionStoreBuilder
                 RequireUnlinked(path);
                 byte[] bytes = ReadBounded(path, MaximumDefinitionBytes, "document-limit");
                 SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes);
-                CheckPublicFields(definition.Fields);
+                CheckPublicNode(definition.Configuration, SetupFieldSensitivity.Public);
                 if (definition.FamilyId != family || definition.ApplicationId != application || definition.Revision != number
                     || definition.Digest.Value != revision.GetProperty("digest").GetString()
                     || !bytes.AsSpan().SequenceEqual(definition.CanonicalBytes.Span))
@@ -359,14 +360,15 @@ internal static class DefinitionStoreBuilder
         }
     }
 
-    private static void CheckPublicFields(IEnumerable<SetupFieldDefinition> fields)
+    private static void CheckPublicNode(DefinitionNode node, SetupFieldSensitivity inherited)
     {
-        foreach (SetupFieldDefinition field in fields)
-        {
-            if (field.Sensitivity == SetupFieldSensitivity.Secret && field.Choices.Count != 0)
-                throw new StoreException("store-public-data-invalid");
-            CheckPublicFields(field.Properties);
-        }
+        var sensitivity = (SetupFieldSensitivity)Math.Max((int)inherited, (int)SetupFieldDefinition.SensitivityOf(node));
+        if (sensitivity == SetupFieldSensitivity.Secret && node.Keywords.TryGetProperty("enum", out _))
+            throw new StoreException("store-public-data-invalid");
+        foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants))
+            CheckPublicNode(child, sensitivity);
+        if (node.Items is { } items) CheckPublicNode(items, sensitivity);
+        if (node.AdditionalProperties is { } additional) CheckPublicNode(additional, sensitivity);
     }
 
     private static int Generate(string source, string output, string schema, bool check, string? baseline = null)
@@ -456,11 +458,14 @@ internal static class DefinitionStoreBuilder
             void Check(string name, Action<string> assertion)
             {
                 string source = Path.Combine(temporary, name);
-                Seed(source);
-                try { assertion(source); passed++; Console.WriteLine("PASS " + name); }
+                try { Seed(source); assertion(source); passed++; Console.WriteLine("PASS " + name); }
                 catch (Exception exception) when (exception is StoreException or SetupDefinitionException or InvalidOperationException
                     or IOException or UnauthorizedAccessException or JsonException or ArgumentException)
-                { failed++; Console.WriteLine("FAIL " + name); }
+                {
+                    failed++;
+                    Console.WriteLine("FAIL " + name + (exception is SetupDefinitionException definition ? ":" + definition.Code
+                        : exception is StoreException store ? ":" + store.Code : ""));
+                }
             }
             void Reject(string name, string code, Action<string> mutate) => Check(name, source =>
             {
@@ -522,20 +527,45 @@ internal static class DefinitionStoreBuilder
             {
                 var fields = new JsonObject();
                 for (int field = 0; field < 1025; field++) fields.Add("field-" + field.ToString(CultureInfo.InvariantCulture),
-                    new JsonObject { ["type"] = "string", ["sensitivity"] = "public" });
-                data["fields"] = fields;
+                    new JsonObject { ["type"] = "string", ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" } });
+                data["configuration"]!["properties"] = fields;
             }));
             Reject("duplicate-project-id", "store-project-duplicate", source => SeedProject(source, "beta", "alpha"));
             Reject("family-mismatch", "store-identity-mismatch", source => AddDefinition(source, data => data["familyId"] = "ccdfc000-34f0-4d65-b07d-68d6b5f840ca"));
-            Reject("application-mismatch", "store-identity-mismatch", source => AddDefinition(source, data => data["applicationId"] = "example.other"));
-            Reject("conflicting-revision", "revision-conflict", source => Definition(source, data => data["title"] = "Changed content"));
-            Reject("secret-default", "default-invalid", source => Definition(source, data => { data["fields"]![0]!["sensitivity"] = "secret"; data["fields"]![0]!["default"] = "synthetic-public-canary"; }));
-            Reject("nested-secret-default", "default-invalid", source => Definition(source, data => data["fields"] = JsonNode.Parse("""
-                [{"id":"credentials","type":"object","title":"Credentials","sensitivity":"public","disclosure":"essential","default":{"token":"synthetic-public-canary"},"properties":[{"id":"token","type":"string","title":"Token","sensitivity":"secret","disclosure":"essential"}]}]
+            Reject("application-mismatch", "store-identity-mismatch", source => AddDefinition(source, data => data["project"]!["id"] = "example.other"));
+            Reject("conflicting-revision", "revision-conflict", source => Definition(source, data => data["project"]!["name"] = "Changed content"));
+            Reject("secret-default", "public-value-protected", source => Definition(source, data =>
+            {
+                data["configuration"]!["properties"]!["mode"]!["x-configurator"]!["sensitivity"] = "secret";
+                data["configuration"]!["properties"]!["mode"]!["default"] = "synthetic-public-canary";
+            }));
+            Reject("nested-secret-default", "public-value-protected", source => Definition(source, data => data["configuration"]!["properties"] = JsonNode.Parse("""
+                {"credentials":{"type":"object","additionalProperties":false,"title":"Credentials","x-configurator":{"sensitivity":"public","detail":"basic"},
+                 "default":{"token":"synthetic-public-canary"},"properties":{"token":{"type":"string","title":"Token","x-configurator":{"sensitivity":"secret","detail":"basic"}}}}}
                 """)));
-            Reject("protected-choices", "store-public-data-invalid", source => Definition(source, data => data["fields"] = JsonNode.Parse("""
-                [{"id":"mode","type":"enum","title":"Mode","sensitivity":"secret","disclosure":"essential","choices":["synthetic-public-canary"]}]
-                """)));
+            Reject("protected-choices", "store-public-data-invalid", source =>
+            {
+                Source(source, data => data["configuration"]!["properties"]!["mode"] = JsonNode.Parse("""
+                    {"type":"string","title":"Mode","enum":["synthetic-public-canary"],"x-configurator":{"sensitivity":"secret","detail":"basic"}}
+                    """));
+                File.Delete(Path.Combine(source, "alpha/releases/2.json"));
+            });
+            Reject("protected-array-choices", "store-public-data-invalid", source =>
+            {
+                Source(source, data => data["configuration"]!["properties"]!["mode"] = JsonNode.Parse("""
+                    {"type":"array","x-configurator":{"sensitivity":"public"},
+                     "items":{"type":"string","enum":["synthetic-public-canary"],"x-configurator":{"sensitivity":"secret"}}}
+                    """));
+                File.Delete(Path.Combine(source, "alpha/releases/2.json"));
+            });
+            Reject("protected-map-choices", "store-public-data-invalid", source =>
+            {
+                Source(source, data => data["configuration"]!["properties"]!["mode"] = JsonNode.Parse("""
+                    {"type":"object","x-configurator":{"sensitivity":"public"},
+                     "additionalProperties":{"type":"string","enum":["synthetic-public-canary"],"x-configurator":{"sensitivity":"secret"}}}
+                    """));
+                File.Delete(Path.Combine(source, "alpha/releases/2.json"));
+            });
             Reject("unlisted-answer-file", "store-layout-invalid", source => File.WriteAllText(Path.Combine(source, "alpha/answers.json"), "{}"));
             Reject("revision-count-limit", "store-revision-limit", source =>
             {
@@ -570,6 +600,7 @@ internal static class DefinitionStoreBuilder
                     string id = "project-" + number.ToString(CultureInfo.InvariantCulture);
                     SeedProject(source, id, id);
                     Change(Path.Combine(source, id, "configurator.json"), data => data["project"]!["description"] = new string('\u0627', 2048));
+                    File.Delete(Path.Combine(source, id, "releases/2.json"));
                 }
             });
             Check("freshness-check-and-no-source-output", source =>
@@ -671,7 +702,7 @@ internal static class DefinitionStoreBuilder
             });
             HistoryReject("history-rewrite", "store-history-rewritten", (source, _) =>
             {
-                Definition(source, data => data["title"] = "Changed history");
+                Definition(source, data => data["project"]!["name"] = "Changed history");
                 Source(source, data => { data["identity"]!["revision"] = 3; data["project"]!["name"] = "Changed public title"; });
             });
             HistoryReject("history-revision-removed", "store-history-missing", (source, _) =>
@@ -732,7 +763,19 @@ internal static class DefinitionStoreBuilder
             ["project"] = new JsonObject { ["id"] = projectId, ["name"] = "Example service", ["publisher"] = "Example",
                 ["description"] = "Synthetic public definition.", ["repository"] = "https://example.invalid/repository", ["definitionLicense"] = "MIT" },
             ["applicationVersions"] = new JsonArray("1.0"),
-            ["fields"] = new JsonObject { ["mode"] = new JsonObject { ["type"] = "string", ["title"] = "Mode", ["sensitivity"] = "public", ["disclosure"] = "essential" } },
+            ["configuration"] = new JsonObject
+            {
+                ["type"] = "object", ["additionalProperties"] = false,
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+                ["properties"] = new JsonObject
+                {
+                    ["mode"] = new JsonObject
+                    {
+                        ["type"] = "string", ["title"] = "Mode",
+                        ["x-configurator"] = new JsonObject { ["sensitivity"] = "public", ["detail"] = "basic" }
+                    }
+                }
+            },
             ["outputs"] = new JsonObject { ["service.json"] = new JsonObject { ["id"] = "settings", ["format"] = "json" } }
         };
         byte[] bytes = Encoding.UTF8.GetBytes(authoring.ToJsonString(JsonOptions));

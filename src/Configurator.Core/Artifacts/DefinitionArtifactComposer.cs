@@ -1,7 +1,7 @@
 namespace Configurator.Core.Artifacts;
 
-using System.Globalization;
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -206,63 +206,63 @@ public static class DefinitionArtifactComposer
                     case "omit": return (false, null);
                     case "literal": return Copy(projection.GetProperty("value"), depth);
                     case "copy":
-                    {
-                        JsonElement reference = projection.GetProperty("reference");
-                        var selected = Select(reference, itemSchema, itemPath);
-                        CheckUnknown(selected.Path);
-                        bool present = DefinitionValidator.TryResolveReference(reference, validation.Values, item, out JsonElement value);
-                        return draft ? CopyField(selected.Schema, present ? value : null, selected.Path, outputPath,
-                            depth, selected.SecretAncestor) : present ? Copy(value, depth) : (false, null);
-                    }
+                        {
+                            JsonElement reference = projection.GetProperty("reference");
+                            var selected = Select(reference, itemSchema, itemPath);
+                            CheckUnknown(selected.Path);
+                            bool present = DefinitionValidator.TryResolveReference(reference, validation.Values, item, out JsonElement value);
+                            return draft ? CopyField(selected.Schema, present ? value : null, selected.Path, outputPath,
+                                depth, selected.SecretAncestor) : present ? Copy(value, depth) : (false, null);
+                        }
                     case "index":
                         budget.Node(depth);
                         return (true, JsonValue.Create(index!.Value));
                     case "object":
-                    {
-                        budget.Node(depth);
-                        var mapping = new JsonObject();
-                        foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
                         {
-                            var child = Project(member.Value, item, index, itemSchema, itemPath,
-                                outputPath + "/" + Pointer(member.Name), depth + 1);
-                            if (!child.Include) continue;
-                            budget.Scalar(member.Name);
-                            mapping.Add(member.Name, child.Node);
+                            budget.Node(depth);
+                            var mapping = new JsonObject();
+                            foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
+                            {
+                                var child = Project(member.Value, item, index, itemSchema, itemPath,
+                                    outputPath + "/" + Pointer(member.Name), depth + 1);
+                                if (!child.Include) continue;
+                                budget.Scalar(member.Name);
+                                mapping.Add(member.Name, child.Node);
+                            }
+                            return (true, mapping);
                         }
-                        return (true, mapping);
-                    }
                     case "list":
-                    {
-                        budget.Node(depth);
-                        var array = new JsonArray();
-                        foreach (JsonElement entry in projection.GetProperty("items").EnumerateArray())
                         {
-                            var child = Project(entry, item, index, itemSchema, itemPath,
-                                outputPath + "/" + array.Count.ToString(CultureInfo.InvariantCulture), depth + 1);
-                            if (child.Include) array.Add(child.Node);
+                            budget.Node(depth);
+                            var array = new JsonArray();
+                            foreach (JsonElement entry in projection.GetProperty("items").EnumerateArray())
+                            {
+                                var child = Project(entry, item, index, itemSchema, itemPath,
+                                    outputPath + "/" + array.Count.ToString(CultureInfo.InvariantCulture), depth + 1);
+                                if (child.Include) array.Add(child.Node);
+                            }
+                            return (true, array);
                         }
-                        return (true, array);
-                    }
                     case "repeat":
-                    {
-                        JsonElement reference = projection.GetProperty("reference");
-                        var selected = Select(reference, itemSchema, itemPath);
-                        CheckUnknown(selected.Path);
-                        if (!DefinitionValidator.TryResolveReference(reference, validation.Values, item, out JsonElement source)) return (false, null);
-                        if (source.ValueKind != JsonValueKind.Array) throw new SetupDefinitionException("repeat-source");
-                        budget.Node(depth);
-                        var repeated = new JsonArray();
-                        int position = 0;
-                        foreach (JsonElement entry in source.EnumerateArray())
                         {
-                            int itemIndex = position++;
-                            var child = Project(projection.GetProperty("item"), entry, itemIndex, selected.Schema.Items,
-                                selected.Path + "/" + itemIndex.ToString(CultureInfo.InvariantCulture),
-                                outputPath + "/" + repeated.Count.ToString(CultureInfo.InvariantCulture), depth + 1);
-                            if (child.Include) repeated.Add(child.Node);
+                            JsonElement reference = projection.GetProperty("reference");
+                            var selected = Select(reference, itemSchema, itemPath);
+                            CheckUnknown(selected.Path);
+                            if (!DefinitionValidator.TryResolveReference(reference, validation.Values, item, out JsonElement source)) return (false, null);
+                            if (source.ValueKind != JsonValueKind.Array) throw new SetupDefinitionException("repeat-source");
+                            budget.Node(depth);
+                            var repeated = new JsonArray();
+                            int position = 0;
+                            foreach (JsonElement entry in source.EnumerateArray())
+                            {
+                                int itemIndex = position++;
+                                var child = Project(projection.GetProperty("item"), entry, itemIndex, selected.Schema.Items,
+                                    selected.Path + "/" + itemIndex.ToString(CultureInfo.InvariantCulture),
+                                    outputPath + "/" + repeated.Count.ToString(CultureInfo.InvariantCulture), depth + 1);
+                                if (child.Include) repeated.Add(child.Node);
+                            }
+                            return (true, repeated);
                         }
-                        return (true, repeated);
-                    }
                     default: throw new SetupDefinitionException("projection-operation");
                 }
             }

@@ -196,7 +196,7 @@ internal sealed class SetupTerminalWindow : Window
     internal bool IsImportBusy => _importOperation.IsBusy;
     internal Task ShutdownCompletion => _shutdown;
     internal Task SaveCompletion => _saveObservation;
-    private IReadOnlyList<SetupTerminalFieldEditor.Slot> VisibleSlots =>
+    private SetupTerminalFieldEditor.Slot[] VisibleSlots =>
         _editor.Slots.Where(slot => _operation.Form.IsEditorVisible(slot.FullPath)).ToArray();
 
     private Button Button(string key, int x, int y, Action action)
@@ -225,7 +225,7 @@ internal sealed class SetupTerminalWindow : Window
 
     private void EditorChanged()
     {
-        if (_loading) return;
+        if (_loading || _disposed || Volatile.Read(ref _closeRequested) != 0) return;
         _draftEdited = true;
         _confirmRemove = false;
         _importOperation.RequestCancellationAsync();
@@ -237,6 +237,7 @@ internal sealed class SetupTerminalWindow : Window
             return;
         }
         Status(CommitField() ? "InputChanged" : "DraftInvalid");
+        ShowFieldLabel(VisibleSlots.Length);
         RefreshCommands();
     }
 
@@ -271,10 +272,10 @@ internal sealed class SetupTerminalWindow : Window
     {
         CommitField();
         var slots = VisibleSlots;
-        if (slots.Count == 0) { ShowField(); return; }
+        if (slots.Length == 0) { ShowField(); return; }
         int current = _slot is null ? 0 : slots.ToList().FindIndex(slot =>
             slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
-        _fieldIndex = (Math.Max(0, current) + delta + slots.Count) % slots.Count;
+        _fieldIndex = (Math.Max(0, current) + delta + slots.Length) % slots.Length;
         if (_slot is { IsObjectList: true } collection && delta > 0)
         {
             string[] rowPath = [.. collection.Path, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)];
@@ -385,15 +386,10 @@ internal sealed class SetupTerminalWindow : Window
                 int current = slots.ToList().FindIndex(slot => slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
                 if (current >= 0) _fieldIndex = current;
             }
-            _fieldIndex = Math.Clamp(_fieldIndex, 0, Math.Max(0, slots.Count - 1));
-            _slot = slots.Count == 0 ? null : slots[_fieldIndex];
+            _fieldIndex = Math.Clamp(_fieldIndex, 0, Math.Max(0, slots.Length - 1));
+            _slot = slots.Length == 0 ? null : slots[_fieldIndex];
             if (_slot?.IsList == true) _itemIndex = Math.Clamp(_itemIndex, 0, SetupTerminalFieldEditor.LastItemPosition(_slot));
-            _fieldLabel.Text = _slot is null ? SetupTerminalText.Get("NoFields")
-                : Safe($"{_fieldIndex + 1}/{slots.Count} {_slot.Title} ({_slot.ScalarType})"
-                    + (_slot.IsList ? $" [{_itemIndex + 1}/{SetupTerminalFieldEditor.ItemCount(_slot) + 1}]" : "")
-                    + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + SetupTerminalText.Get("Required") : "")
-                    + (SetupTerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + SetupTerminalText.Get("NullValue")
-                        : _operation.Form.AnswerOrigin(_slot.FullPath) == DefinitionAnswerOrigin.Omitted ? " | " + SetupTerminalText.Get("Omitted") : ""));
+            ShowFieldLabel(slots.Length);
             ShowHelp();
             if (_slot is not null)
             {
@@ -412,13 +408,20 @@ internal sealed class SetupTerminalWindow : Window
             _locale.Text = SetupTerminalText.Get("Locale") + ": " + _operation.Form.Locale + " (" + _operation.Form.Direction + ")";
             _locale.Enabled = _operation.Form.Definition.Locales.Count > 1;
             bool rtl = _operation.Form.Direction == "rtl";
-            _fieldLabel.TextDirection = _help.TextDirection = _experience.TextDirection = rtl
-                ? TextDirection.RightLeft_TopBottom : TextDirection.LeftRight_TopBottom;
+            // Align RTL metadata without reversing Latin fallback or technical text.
+            _fieldLabel.TextDirection = _help.TextDirection = _experience.TextDirection = TextDirection.LeftRight_TopBottom;
             _fieldLabel.TextAlignment = _help.TextAlignment = _experience.TextAlignment = rtl ? Alignment.End : Alignment.Start;
             RefreshCommands();
         }
         finally { _loading = false; }
     }
+
+    private void ShowFieldLabel(int count) => _fieldLabel.Text = _slot is null ? SetupTerminalText.Get("NoFields")
+        : Safe($"{_fieldIndex + 1}/{count} {_slot.Title} ({_slot.ScalarType})"
+            + (_slot.IsList ? $" [{_itemIndex + 1}/{SetupTerminalFieldEditor.ItemCount(_slot) + 1}]" : "")
+            + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + SetupTerminalText.Get("Required") : "")
+            + (SetupTerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + SetupTerminalText.Get("NullValue")
+                : _operation.Form.AnswerOrigin(_slot.FullPath) == DefinitionAnswerOrigin.Omitted ? " | " + SetupTerminalText.Get("Omitted") : ""));
 
     private void SetEditorVisibility()
     {

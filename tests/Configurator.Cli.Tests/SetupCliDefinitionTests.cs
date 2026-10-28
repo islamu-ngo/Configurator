@@ -580,8 +580,12 @@ public sealed class SetupCliDefinitionTests
             DenyExistsPath = route switch { "anchor-exists" => anchor, "initial-exists" => source, _ => null },
             DenyReadPath = route switch
             {
-                "source" or "fork" => source, "anchor-read" => anchor,
-                "environment" => example, "schema" => schema, "schema-reference" => reference, _ => null
+                "source" or "fork" => source,
+                "anchor-read" => anchor,
+                "environment" => example,
+                "schema" => schema,
+                "schema-reference" => reference,
+                _ => null
             },
             DenyPrepare = route == "staging"
         };

@@ -10,6 +10,15 @@ ISLAMU Configurator Browser is a static, client-side web application built with 
 
 All form processing, schema validation, and file composition execute entirely inside your browser's local sandbox. No configuration answers or generated files are ever transmitted to an application server.
 
+## Published scope
+
+The AOT client has been inspected at desktop and mobile widths, including typed
+maps/providers, null/reset/suggestion, localized public help, RTL presentation
+and consent revocation. A real staged worker did not replace a live workspace.
+Warmed public Store discovery and pinned snapshot admission worked with the asset
+host stopped. These observations are separate from headless assertions and do
+not qualify every browser or assistive technology.
+
 ## Typed editing and language
 
 The workspace edits the admitted v2 schema directly. Typed maps keep literal keys,

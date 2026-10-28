@@ -267,7 +267,9 @@ public sealed class DefinitionPresentationAdmissionTests
                 """{"type":"string","title":"Root","x-configurator":{"sensitivity":"public"}}""");
             sections.Add(new JsonObject
             {
-                ["id"] = "section-" + suffix, ["title"] = "Section", ["pointers"] = new JsonArray("/root-" + suffix)
+                ["id"] = "section-" + suffix,
+                ["title"] = "Section",
+                ["pointers"] = new JsonArray("/root-" + suffix)
             });
             sectionIds.Add("section-" + suffix);
         }
@@ -275,18 +277,24 @@ public sealed class DefinitionPresentationAdmissionTests
         for (int index = 0; index < 16; index++)
             journeys.Add(new JsonObject
             {
-                ["id"] = "journey-" + index, ["title"] = "Journey", ["sections"] = sectionIds.DeepClone()
+                ["id"] = "journey-" + index,
+                ["title"] = "Journey",
+                ["sections"] = sectionIds.DeepClone()
             });
         runtime["presentation"] = new JsonObject
         {
-            ["defaultJourney"] = "journey-0", ["sections"] = sections, ["journeys"] = journeys
+            ["defaultJourney"] = "journey-0",
+            ["sections"] = sections,
+            ["journeys"] = journeys
         };
         SetupDefinition admitted = Compile(runtime);
         await Assert.That(admitted.Presentation!.Sections.Count).IsEqualTo(64);
         await Assert.That(admitted.Presentation.Experiences.Count).IsEqualTo(16);
         journeys.Add(new JsonObject
         {
-            ["id"] = "overflow", ["title"] = "Overflow", ["sections"] = sectionIds.DeepClone()
+            ["id"] = "overflow",
+            ["title"] = "Overflow",
+            ["sections"] = sectionIds.DeepClone()
         });
         await Reject(() => Compile(runtime));
         journeys.RemoveAt(16);
@@ -436,8 +444,12 @@ public sealed class DefinitionPresentationAdmissionTests
                    "credential":{"kind":"password","acquisition":"existing"}}}}}
                 """)!;
             source["configuration"]!["properties"]!["TOKEN"] = array
-                ? new JsonObject { ["type"] = "array", ["items"] = container,
-                    ["x-configurator"] = new JsonObject { ["sensitivity"] = "secret" } }
+                ? new JsonObject
+                {
+                    ["type"] = "array",
+                    ["items"] = container,
+                    ["x-configurator"] = new JsonObject { ["sensitivity"] = "secret" }
+                }
                 : container;
             SetupDefinition definition = Compile(source);
             await Assert.That(definition.Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);

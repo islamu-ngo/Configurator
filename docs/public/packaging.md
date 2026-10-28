@@ -6,6 +6,21 @@ You do not need to install the .NET SDK to run standalone packages—only to bui
 
 ---
 
+## Definition contracts and qualification
+
+Current packages carry authoring v2, runtime schema version 2 (`bounded-v2`),
+command envelope v3 and private answer contract v1. These versions are
+independent. Retired public definition/command schemas are not packaged.
+The optional Store uses fresh v2 families; old v1 identities remain historical
+Git evidence and are not silently migrated or repinned.
+
+Linux x64 qualification includes real native create-only writes, X11 controls,
+a Terminal process and published Browser desktop/mobile flows. Browser downloads
+do not inherit native restricted-save guarantees. Package, rendering and schema
+checks do not establish another host's support, publisher authentication, signer
+activation or target acceptance. Exact evidence and reproduction commands belong
+to the [operations record](../internal/OPERATIONS.md#definition-v2-qualification).
+
 ## Quick Install & Binary Matrix
 
 | Surface | Target Platform / Architecture | Runtime Identifier (RID) | Package Executable / Output Root |
@@ -155,7 +170,7 @@ The browser output in `artifacts/configurator/browser/wwwroot/` consists entirel
 
 - It can be served by any static file server (Nginx, Caddy, Apache, GitHub Pages, Cloudflare Pages, AWS S3).
 - No backend API, application server, or database is required.
-- Detailed hosting guidance, Content Security Policy (CSP) headers, and Docker container instructions are documented in the [Browser Guide](browser.md#hosting).
+- Detailed hosting guidance, Content Security Policy (CSP) headers, and Docker container instructions are documented in the [Browser Guide](browser.md).
 
 ---
 

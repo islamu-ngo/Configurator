@@ -1,8 +1,8 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
 using System.Text.Json;
-using Configurator.Core.Definitions;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Configurator.Core.Definitions;
 
 public sealed class EnumFieldViewModel : FieldViewModel
 {

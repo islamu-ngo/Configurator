@@ -104,9 +104,12 @@ internal sealed class SetupCliOutcomeLedger
                 Exit = !cleanupFailed && blockedRejections
                     && publication.Outcomes.Any(item => item.Result is { InstallationEstablished: false })
                     && publication.Outcomes.All(item => !item.Unknown && (item.Result is null or { Succeeded: true }
-                        or { InstallationEstablished: false, Status: ProtectedArtifactStatus.UnsupportedPlatform or ProtectedArtifactStatus.TargetExists
+                        or
+                    {
+                        InstallationEstablished: false, Status: ProtectedArtifactStatus.UnsupportedPlatform or ProtectedArtifactStatus.TargetExists
                             or ProtectedArtifactStatus.TargetChanged or ProtectedArtifactStatus.PermissionDenied
-                            or ProtectedArtifactStatus.UnsafeTarget or ProtectedArtifactStatus.InvalidRequest }))
+                            or ProtectedArtifactStatus.UnsafeTarget or ProtectedArtifactStatus.InvalidRequest
+                    }))
                     ? SetupCliExitCode.Blocked : SetupCliExitCode.Io,
                 Completion = "failed",
                 Diagnostics = [new(cleanupFailed ? "publication-cleanup-failed" : "publication-failed", "/output", "error")]

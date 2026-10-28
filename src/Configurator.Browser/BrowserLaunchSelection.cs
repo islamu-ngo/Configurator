@@ -1,8 +1,8 @@
 namespace Configurator.Browser;
 
+using System.Collections.Frozen;
 using Configurator.Core;
 using Configurator.Core.Definitions;
-using System.Collections.Frozen;
 
 public sealed class BrowserLaunchException(string code) : Exception(code)
 {

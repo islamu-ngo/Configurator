@@ -20,8 +20,7 @@ public sealed class StandalonePackageTests
             "schemas/setup-definition-v2.schema.json", "schemas/islamu-configurator-command-v3.schema.json",
             "contracts/package.json", "contracts/native-release-capabilities.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
-        foreach (string retired in new[] { "islamu-configurator-command-v1.schema.json", "islamu-configurator-command-v2.schema.json" })
-            await Assert.That(File.Exists(Path.Combine(directory, "schemas", retired))).IsFalse();
+        await AssertPackagedDefinitionContracts(directory);
         using JsonDocument contract = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "contracts/package.json")));
         await Assert.That(contract.RootElement.GetProperty("surface").GetString()).IsEqualTo(surface);
         await Assert.That(contract.RootElement.GetProperty("executableName").GetString()).IsEqualTo(executable);
@@ -71,6 +70,7 @@ public sealed class StandalonePackageTests
             "_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js",
             "contracts/browser-release-capabilities.json", "schemas/setup-definition-v2.schema.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
+        await AssertPackagedDefinitionContracts(directory);
         using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "manifest.webmanifest")));
         JsonElement icons = manifest.RootElement.GetProperty("icons");
         await Assert.That(icons.GetArrayLength()).IsGreaterThan(0);
@@ -112,6 +112,34 @@ public sealed class StandalonePackageTests
             await Assert.That(capabilities.GetProperty(enabled).GetBoolean()).IsTrue().Because(enabled);
         foreach (string disabled in new[] { "persistence", "answerPersistence", "nativeProtectedSave", "targetAuthentication", "targetApply", "telemetry" })
             await Assert.That(capabilities.GetProperty(disabled).GetBoolean()).IsFalse().Because(disabled);
+    }
+
+    private static async Task AssertPackagedDefinitionContracts(string directory)
+    {
+        byte[] baselineBytes = File.ReadAllBytes(Path.Combine(directory, "contracts/frozen-contract-baseline.json"));
+        await Assert.That(ReleaseTestPaths.Hash(baselineBytes)).IsEqualTo(ReleaseTestPaths.Hash(
+            File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, "eng/configurator/generated/frozen-contract-baseline.json"))));
+        using JsonDocument baseline = JsonDocument.Parse(baselineBytes);
+        foreach ((string fileName, string? digestProperty) in new (string, string?)[]
+        {
+            ("setup-definition-v2.schema.json", "definitionSchemaSha256"),
+            ("configurator-authoring-v2.schema.json", "authoringSchemaSha256"),
+            ("islamu-configurator-command-v3.schema.json", "commandSchemaSha256"),
+            ("configurator-answers-v1.schema.json", null)
+        })
+        {
+            byte[] distributed = File.ReadAllBytes(Path.Combine(directory, "schemas", fileName));
+            string digest = ReleaseTestPaths.Hash(distributed);
+            await Assert.That(digest).IsEqualTo(ReleaseTestPaths.Hash(
+                File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, "schemas", fileName)))).Because(fileName);
+            if (digestProperty is not null)
+                await Assert.That(digest).IsEqualTo(baseline.RootElement.GetProperty(digestProperty).GetString()).Because(fileName);
+        }
+        foreach (string retired in new[] { "setup-definition-v1.schema.json", "configurator-authoring-v1.schema.json",
+            "islamu-configurator-command-v1.schema.json", "islamu-configurator-command-v2.schema.json" })
+            await Assert.That(File.Exists(Path.Combine(directory, "schemas", retired))).IsFalse().Because(retired);
+        await Assert.That(baseline.RootElement.GetProperty("targetApply").GetBoolean()).IsFalse();
+        await Assert.That(baseline.RootElement.GetProperty("signedPublicationEnabled").GetBoolean()).IsFalse();
     }
 
     private static async Task AssertTerminalDependencyNotices(string directory, bool expected)

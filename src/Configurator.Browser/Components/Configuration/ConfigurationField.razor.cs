@@ -1,9 +1,9 @@
 namespace Configurator.Browser.Components.Configuration;
 
 using System.Text.Json;
+using Configurator.Browser.Components.Common;
 using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
-using Configurator.Browser.Components.Common;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;

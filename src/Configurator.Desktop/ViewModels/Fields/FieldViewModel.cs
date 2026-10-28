@@ -66,7 +66,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     {
         get
         {
-            if (Parent is MapFieldViewModel)
+            if (Parent is MapFieldViewModel map && !map.Schema.Properties.ContainsKey(Id))
             {
                 string key = string.IsNullOrWhiteSpace(_name) || _name.Any(char.IsControl) ? JsonSerializer.Serialize(_name) : _name;
                 return key.Length <= 256 ? key : key[..256];

@@ -3,7 +3,7 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented local engineering procedures; publication not activated
 > **Owner:** Packaging/Release
-> **Last Verified:** 2026-10-09
+> **Last Verified:** 2026-10-28
 > **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `global.json`, `eng/agent-workflow/`, `eng/release/`
 
 This selective transfer uses the AI-agent operational section from Event
@@ -24,6 +24,60 @@ or acquire host administration authority.
 
 Do not use service-recovery or direct-database instructions from Event as
 Configurator operating procedures.
+
+## Definition v2 qualification
+
+The 2026-10-28 local qualification used SDK 10.0.302 and Linux x64. The durable
+public input is
+`tests/Configurator.Architecture.Tests/Fixtures/V2Qualification/configurator.json`.
+Entered answers, downloaded artifacts and screenshots were synthetic and
+temporary; no private answer fixture is shipped.
+
+All three native surfaces and both store-free/store-enabled AOT Browser variants
+were physically published. The complete Architecture owner passed 73 tests;
+the strict CLI package validator retained four accepted and 63 rejected receipt
+cases. Store conformance passed 48 cases, and native generation/freshness admitted
+two fresh v2 revision-1 families. Their retired v1 identities were not repinned
+or promoted as a new trusted baseline.
+
+Actual X11 runs passed all eighteen retained guards plus D19 in English and
+Arabic. D19 now covers declared fixed members alongside typed map entries,
+required correction, branch replacement, nullable intent, locale-only byte
+preservation and real protected output. Light/dark desktop and minimum-size
+captures were inspected. The Desktop owner passed 229 tests, with the affected
+typed class passing six.
+
+The actual published Terminal was exercised at an 82-by-28 outer terminal frame:
+keyboard choice/navigation, masked literal-key entry, invalid-draft correction,
+map/provider editing, reset/suggestion/null, native import and protected save.
+Its output matched actual Browser and CLI bytes, with native mode `0600`.
+Publication consumed private state, and the successful process exited 0.
+Follow-up rendering checks preserve readable Latin fallback under right-aligned
+RTL metadata; complete bidirectional shaping and assistive technology remain
+separate claims. The Terminal owner passed 106 tests.
+
+The published Browser was inspected at 1440-by-900 and 390-by-844, including
+dark/RTL layout, focus, multiline inert help, typed values, explicit secret
+consent, truthful incomplete drafts and deliberate reveal/copy/download.
+Locale changes preserved actual artifact bytes. A held clipboard completion
+after revocation did not restore denied output or stale copied status. An
+already-authorized external clipboard transfer is not revocable afterward.
+The probe found no answer canaries in network/worker/storage channels or in
+166 cached responses totaling 74,465,760 bytes. A real new worker waited without
+replacing the live workspace. Cached store discovery and pinned snapshot
+admission also worked with the local asset host stopped.
+
+For repeatable static-package inspection, run the loopback-only native helper:
+
+```bash
+dotnet run --file eng/configurator/ServePublishedBrowser.cs -- \
+  "$PWD/artifacts/configurator/browser/wwwroot" 7084
+```
+
+It serves public assets and SPA navigation routes, not answer endpoints or a
+production host. Headless tests, actual rendering, package checks and target
+acceptance are distinct evidence. These results do not qualify another host,
+manual native picker, screen reader, legal review, signer or target application.
 
 ## Verification Policy
 
@@ -63,7 +117,7 @@ No warning suppression, hidden skip or test weakening is an acceptable repair.
 ## CLI cancellation and interrupted publication
 
 The [CLI contract](CLI_CONTRACT.md#async-lifetime-and-owned-input) defines the
-cooperative async lifetime; the [operator guide](../public/cli.md#cooperative-cancellation)
+cooperative async lifetime; the [operator guide](../public/cli.md)
 describes its process behavior. Ctrl+C and Unix SIGTERM request cancellation of
 one invocation. Repeated signals do not create additional receipt attempts.
 Owned input byte buffers are cleared and native preparations are disposed; this

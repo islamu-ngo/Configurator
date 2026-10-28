@@ -113,26 +113,28 @@ public static class SetupCliCommandSchemaMetadata
             }),
             ["schema"] = ObjectSchema(["kind", "id", "digest", "profile", "authoringContractVersion",
                 "runtimeSchemaVersion", "answerContractVersion", "capabilities", "document"], new()
-            {
-                ["kind"] = Enum(["authoring", "runtime", "answers", "command"]),
-                ["id"] = Enum(["urn:islamu:configurator:authoring:v2", "urn:islamu:configurator:setup-definition:v2",
+                {
+                    ["kind"] = Enum(["authoring", "runtime", "answers", "command"]),
+                    ["id"] = Enum(["urn:islamu:configurator:authoring:v2", "urn:islamu:configurator:setup-definition:v2",
                     "urn:islamu:configurator:answers:v1", "https://schemas.islamu.org/configurator/command/v3/schema.json"]),
-                ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
-                ["profile"] = new JsonObject { ["const"] = "bounded-v2" },
-                ["authoringContractVersion"] = new JsonObject { ["const"] = 2 },
-                ["runtimeSchemaVersion"] = new JsonObject { ["const"] = 2 },
-                ["answerContractVersion"] = new JsonObject { ["const"] = 1 },
-                ["capabilities"] = new JsonObject
-                {
-                    ["type"] = "array", ["maxItems"] = 64, ["uniqueItems"] = true,
-                    ["items"] = Enum(Configurator.Core.Definitions.DefinitionProfile.Capabilities)
-                },
-                ["document"] = new JsonObject
-                {
-                    ["type"] = "object",
-                    ["$ref"] = "https://json-schema.org/draft/2020-12/schema"
-                }
-            }),
+                    ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
+                    ["profile"] = new JsonObject { ["const"] = "bounded-v2" },
+                    ["authoringContractVersion"] = new JsonObject { ["const"] = 2 },
+                    ["runtimeSchemaVersion"] = new JsonObject { ["const"] = 2 },
+                    ["answerContractVersion"] = new JsonObject { ["const"] = 1 },
+                    ["capabilities"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["maxItems"] = 64,
+                        ["uniqueItems"] = true,
+                        ["items"] = Enum(Configurator.Core.Definitions.DefinitionProfile.Capabilities)
+                    },
+                    ["document"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["$ref"] = "https://json-schema.org/draft/2020-12/schema"
+                    }
+                }),
             ["artifact"] = ObjectSchema(["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"], new()
             {
                 ["id"] = String(1, 128, "^[A-Za-z][A-Za-z0-9._-]*$"),

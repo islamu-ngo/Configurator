@@ -1,5 +1,11 @@
 # Configurator packaging ownership
 
+> **Audience:** Contributors | Integrators | AI agents
+> **Status:** Implemented local packaging; publication authority not activated
+> **Owner:** Packaging/Release
+> **Last Verified:** 2026-10-28
+> **Source Anchors:** `eng/configurator/Configurator.Release.proj`, `src/`, `tests/Configurator.Architecture.Tests/`
+
 `global.json` selects both the SDK and workload-set versions. Before the first
 restore on a clean SDK installation, `dotnet workload update` initializes the
 pinned manifests, including on native-only and public-data CI jobs. The command
@@ -122,6 +128,15 @@ requests must not return `index.html`. Base path, worker scope and manifest
 must agree. Worker activation waits for a clean lifecycle across tabs; a package
 does not prove real browser update/network/cache behavior.
 
+## Qualified definition generation
+
+The admitted generation uses authoring v2/runtime 2, command v3 and private
+answers v1. Package tests compare distributed schemas and frozen baselines with
+their owning generators, then execute real package consumers. The optional
+store's v1 active inputs were retired through native fresh-family generation,
+not a compatibility reader or historical digest rewrite. See
+[the exact client evidence](OPERATIONS.md#definition-v2-qualification).
+
 ## Browser container
 
 `src/Configurator.Browser/Dockerfile` builds from the repository root and invokes
@@ -180,7 +195,7 @@ methods, and boot the served app in a real browser. Apply the existing Browser
 package tests to the extracted static tree. A local rootless Linux image check
 does not qualify Docker Desktop, another architecture, a production TLS proxy
 or the complete browser/assistive-technology matrix. The
-[public guide](../public/browser.md#container-image) owns operator commands.
+[public guide](../public/browser.md#docker-container) owns operator commands.
 
 ### Verified .NET image (2026-10-20)
 
@@ -326,7 +341,7 @@ admission is not proof that every workflow works on a host; Windows Server canno
 qualify Windows clients, and a glibc result cannot qualify musl. No wider
 Terminal/Desktop native matrix or cross-platform protected-save claim is added.
 
-The [public operating-system boundaries](../public/packaging.md#cli-operating-system-boundaries)
+The [public operating-system boundaries](../public/packaging.md#2-verify-your-host-environment)
 record .NET 10 OS/lifecycle and libc eligibility, Windows 7 exclusion and native
 dependency limits. The Linux writer additionally requires kernel/filesystem
 anonymous-file support, procfs descriptor linking, atomic create-only publication
@@ -456,7 +471,7 @@ Version admission accepts only `0.0.0.dev` plus a fourteen-digit UTC timestamp.
 The default timestamp identifies a local development build; this route does not
 admit stable releases or bypass promoted-release/signing authority. It is separate
 from future qualified installer assembly and its readiness evidence gate.
-See the [operator commands](../public/packaging.md#arch-linux-development-package).
+See the [operator commands](../public/packaging.md#3-arch-linux-pacman-package).
 
 The package-specific native integration check takes two successive development
 archives and verifies real pacman metadata, declared host dependencies, standalone

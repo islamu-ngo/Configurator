@@ -2,11 +2,11 @@ namespace Configurator.Core.Definitions;
 
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Security.Cryptography;
-using Configurator.Core.Composition;
 using Configurator.Core.Artifacts;
+using Configurator.Core.Composition;
 
 public sealed class SetupFieldState
 {
@@ -767,8 +767,11 @@ public static class DefinitionValidator
         IReadOnlySet<string> unknown)
     {
         var operands = new JsonArray();
-        JsonObject Reference(string name) => new() { ["scope"] = "root",
-            ["path"] = DefinitionPath.FromSegments([name]).ToPointer() };
+        JsonObject Reference(string name) => new()
+        {
+            ["scope"] = "root",
+            ["path"] = DefinitionPath.FromSegments([name]).ToPointer()
+        };
         if (guard.TryGetProperty("required", out var required))
             foreach (JsonElement name in required.EnumerateArray())
                 operands.Add(new JsonObject { ["op"] = "exists", ["reference"] = Reference(name.GetString()!) });
@@ -776,12 +779,24 @@ public static class DefinitionValidator
             foreach (JsonProperty property in properties.EnumerateObject())
             {
                 bool constant = property.Value.TryGetProperty("const", out var expected);
-                var assertion = new JsonObject { ["op"] = constant ? "equals" : "in", ["reference"] = Reference(property.Name),
+                var assertion = new JsonObject
+                {
+                    ["op"] = constant ? "equals" : "in",
+                    ["reference"] = Reference(property.Name),
                     [constant ? "value" : "values"] = JsonNode.Parse(
-                        (constant ? expected : property.Value.GetProperty("enum")).GetRawText()) };
-                operands.Add(new JsonObject { ["op"] = "any", ["operands"] = new JsonArray(
-                    new JsonObject { ["op"] = "not", ["operands"] = new JsonArray(
-                        new JsonObject { ["op"] = "exists", ["reference"] = Reference(property.Name) }) }, assertion) });
+                        (constant ? expected : property.Value.GetProperty("enum")).GetRawText())
+                };
+                operands.Add(new JsonObject
+                {
+                    ["op"] = "any",
+                    ["operands"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["op"] = "not",
+                        ["operands"] = new JsonArray(
+                        new JsonObject { ["op"] = "exists", ["reference"] = Reference(property.Name) })
+                    }, assertion)
+                });
             }
         return EvaluateCondition(Element(new JsonObject { ["op"] = "all", ["operands"] = operands }), values, unknown);
     }

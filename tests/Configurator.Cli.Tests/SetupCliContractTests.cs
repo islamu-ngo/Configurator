@@ -217,13 +217,19 @@ public sealed class SetupCliContractTests
 
     private static JsonObject SourceLocation() => new()
     {
-        ["schemaPath"] = "/configuration/properties/a~1b~0c", ["documentIndex"] = 0,
-        ["startLine"] = 1, ["startColumn"] = 2, ["endLine"] = 1, ["endColumn"] = 3
+        ["schemaPath"] = "/configuration/properties/a~1b~0c",
+        ["documentIndex"] = 0,
+        ["startLine"] = 1,
+        ["startColumn"] = 2,
+        ["endLine"] = 1,
+        ["endColumn"] = 3
     };
 
     private static JsonObject CorrectionLocation() => new()
     {
-        ["inputRevision"] = long.MaxValue, ["fieldId"] = "", ["segments"] = new JsonArray(
+        ["inputRevision"] = long.MaxValue,
+        ["fieldId"] = "",
+        ["segments"] = new JsonArray(
             new JsonObject { ["kind"] = "property", ["propertyName"] = "" },
             new JsonObject { ["kind"] = "arrayRow", ["index"] = 0 },
             new JsonObject { ["kind"] = "mapEntry", ["index"] = 4095 })
@@ -246,10 +252,14 @@ public sealed class SetupCliContractTests
         root["invocation"]!["operation"] = "schema";
         root["schema"] = new JsonObject
         {
-            ["kind"] = kind, ["id"] = id,
+            ["kind"] = kind,
+            ["id"] = id,
             ["digest"] = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(document))),
-            ["profile"] = "bounded-v2", ["authoringContractVersion"] = 2, ["runtimeSchemaVersion"] = 2,
-            ["answerContractVersion"] = 1, ["capabilities"] = new JsonArray("schema.object"),
+            ["profile"] = "bounded-v2",
+            ["authoringContractVersion"] = 2,
+            ["runtimeSchemaVersion"] = 2,
+            ["answerContractVersion"] = 1,
+            ["capabilities"] = new JsonArray("schema.object"),
             ["document"] = JsonNode.Parse(document)
         };
     }

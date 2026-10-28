@@ -150,12 +150,17 @@ public sealed class StandaloneArchitectureTests
     public async Task NeutralDefinitionComposesWithoutEventAndRemainsRestricted()
     {
         SetupDefinition definition = SetupDefinitionCodec.ParseJson("""
-            {"schemaVersion":1,"familyId":"9284f310-9901-411b-8024-c14444dce5db","revision":1,
-             "applicationId":"neutral.service","applicationVersions":["1"],"publisher":"Example",
-             "title":"Neutral","entryPoints":["setup"],"locales":["en"],
-             "fields":[{"id":"mode","type":"enum","title":"Mode","sensitivity":"public","disclosure":"essential","choices":["local","remote"],"required":true}],
-             "artifacts":[{"id":"config","format":"json","fileName":"service.json","applySemantics":"create","restart":"process",
-                "projection":{"op":"object","members":{"mode":{"op":"copy","field":"mode"}}}}]}
+            {"schemaVersion":2,"profile":"bounded-v2","familyId":"9284f310-9901-411b-8024-c14444dce5db","revision":1,
+             "project":{"id":"neutral.service","name":"Neutral","publisher":"Example"},
+             "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
+             "requiredCapabilities":["projection.copy","projection.object","schema.enum","schema.object","schema.string"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["mode"],
+                "x-configurator":{"sensitivity":"public"},"properties":{
+                   "mode":{"type":"string","title":"Mode","enum":["local","remote"],
+                      "x-configurator":{"sensitivity":"public","detail":"basic"}}}},
+             "artifacts":[{"id":"config","format":"json","fileName":"service.json",
+                "targetUpdateMode":"create","restartRequirement":"process",
+                "projection":{"op":"object","members":{"mode":{"op":"copy","reference":{"scope":"root","path":"/mode"}}}}}]}
             """u8.ToArray());
         var answers = new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>
         {
@@ -163,6 +168,7 @@ public sealed class StandaloneArchitectureTests
         });
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "config", answers);
         await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(result.Artifact!.Bytes.Span.SequenceEqual("""{"mode":"local"}"""u8)).IsTrue();
         await Assert.That(result.Artifact!.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
         using var publicStream = new MemoryStream();
         await Assert.That(() => ProtectedArtifactWriter.WritePublic(publicStream, SetupArtifactKind.Configuration, result.Artifact.Bytes))
@@ -181,10 +187,12 @@ public sealed class StandaloneArchitectureTests
             .IsEqualTo(ReleaseTestPaths.Hash(System.Text.Encoding.UTF8.GetBytes(DefinitionAuthoringSchema.Generate())));
         await Assert.That(baseline.RootElement.GetProperty("commandSchemaSha256").GetString())
             .IsEqualTo(ReleaseTestPaths.Hash(SetupCliCommandSchemaMetadata.GenerateSchema()));
-        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/setup-definition-v1.schema.json")))
+        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/setup-definition-v2.schema.json")))
             .IsEqualTo(DefinitionSchema.Generate());
-        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-authoring-v1.schema.json")))
+        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-authoring-v2.schema.json")))
             .IsEqualTo(DefinitionAuthoringSchema.Generate());
+        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-answers-v1.schema.json")))
+            .IsEqualTo(DefinitionSchema.GenerateAnswers());
         await Assert.That(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, SetupCliCommandSchemaMetadata.RelativePath)))
             .IsEquivalentTo(SetupCliCommandSchemaMetadata.GenerateSchema());
         await Assert.That(baseline.RootElement.GetProperty("signedPublicationEnabled").GetBoolean()).IsFalse();

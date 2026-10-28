@@ -490,7 +490,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             ReferenceEquals(DefinitionValidator.SelectVariant(node.Schema, current), node.Schema.Variants[index]))
             return SetValue([.. path, discriminator], value);
         return SetValue(path, JsonSerializer.SerializeToElement(new Dictionary<string, JsonElement>
-            { [discriminator] = value }));
+        { [discriminator] = value }));
     }
 
     /// <summary>Adopts a suggestion only through an explicit current-workspace edit.</summary>

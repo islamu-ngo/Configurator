@@ -137,7 +137,8 @@ minimum viewport.
 **Locale** cycles declared definition languages with base-text fallback. Language
 changes public metadata, not answer values, schema identity, input revision or
 prepared output. Shipped English/Arabic action resources follow process UI
-culture separately. Terminal rendering is not a claim of full bidirectional
+culture separately. RTL metadata is right-aligned without reversing Latin
+fallback labels or technical punctuation. Terminal rendering is not a claim of full bidirectional
 layout or assistive-technology qualification.
 
 **Next correction** resolves current shared diagnostics to a reachable editor,

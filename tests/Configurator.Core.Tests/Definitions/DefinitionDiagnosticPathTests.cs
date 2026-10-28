@@ -1,9 +1,9 @@
 namespace Configurator.Core.Tests.Definitions;
 
-using Configurator.Core.Definitions;
-using Configurator.Core.Definitions.Authoring;
 using System.Text;
 using System.Text.Json;
+using Configurator.Core.Definitions;
+using Configurator.Core.Definitions.Authoring;
 
 public sealed class DefinitionDiagnosticPathTests
 {

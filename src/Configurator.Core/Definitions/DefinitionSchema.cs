@@ -18,7 +18,8 @@ public static class DefinitionSchema
             ["values"] = new JsonObject { ["type"] = "object" },
             ["omitted"] = new JsonObject
             {
-                ["type"] = "array", ["uniqueItems"] = true,
+                ["type"] = "array",
+                ["uniqueItems"] = true,
                 ["items"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^(?:/(?:[^~]|~[01])*)*$" }
             }
         }, "answerContractVersion", "values", "omitted");
@@ -30,19 +31,30 @@ public static class DefinitionSchema
     {
         var project = Closed(new JsonObject
         {
-            ["id"] = Text(256), ["name"] = Text(256), ["publisher"] = Text(256),
-            ["description"] = Text(4096), ["repository"] = Text(2048), ["definitionLicense"] = Text(256)
+            ["id"] = Text(256),
+            ["name"] = Text(256),
+            ["publisher"] = Text(256),
+            ["description"] = Text(4096),
+            ["repository"] = Text(2048),
+            ["definitionLicense"] = Text(256)
         }, source ? ["id", "name"] : ["id", "name", "publisher"]);
         JsonObject artifact = Closed(new JsonObject
         {
-            ["id"] = Text(128), ["fileName"] = Text(128), ["format"] = Choice(DefinitionVocabulary.Formats),
+            ["id"] = Text(128),
+            ["fileName"] = Text(128),
+            ["format"] = Choice(DefinitionVocabulary.Formats),
             ["targetUpdateMode"] = Choice(DefinitionVocabulary.TargetUpdateModes),
-            ["restartRequirement"] = Choice(DefinitionVocabulary.RestartRequirements), ["projection"] = Ref("projection")
+            ["restartRequirement"] = Choice(DefinitionVocabulary.RestartRequirements),
+            ["projection"] = Ref("projection")
         }, "id", "fileName", "format", "targetUpdateMode", "restartRequirement", "projection");
         JsonObject properties = new()
         {
-            ["project"] = project, ["applicationVersions"] = Strings(128, 128), ["entryPoints"] = Strings(128, 128),
-            ["configuration"] = Ref("node"), ["presentation"] = Presentation(), ["localization"] = Localization(),
+            ["project"] = project,
+            ["applicationVersions"] = Strings(128, 128),
+            ["entryPoints"] = Strings(128, 128),
+            ["configuration"] = Ref("node"),
+            ["presentation"] = Presentation(),
+            ["localization"] = Localization(),
             ["annotations"] = new JsonObject { ["type"] = "object" }
         };
         JsonObject schema;
@@ -58,14 +70,19 @@ public static class DefinitionSchema
             output["properties"]!.AsObject().Remove("fileName");
             output["properties"]!["bindings"] = new JsonObject
             {
-                ["type"] = "object", ["minProperties"] = 1, ["maxProperties"] = 1024,
+                ["type"] = "object",
+                ["minProperties"] = 1,
+                ["maxProperties"] = 1024,
                 ["additionalProperties"] = Ref("reference")
             };
             output["required"] = new JsonArray("format");
             output["not"] = new JsonObject { ["required"] = new JsonArray("bindings", "projection") };
             properties["outputs"] = new JsonObject
             {
-                ["type"] = "object", ["minProperties"] = 1, ["maxProperties"] = 64, ["additionalProperties"] = output
+                ["type"] = "object",
+                ["minProperties"] = 1,
+                ["maxProperties"] = 64,
+                ["additionalProperties"] = output
             };
             schema = Closed(properties, "$schema", "identity", "project", "applicationVersions", "configuration", "outputs");
             Header(schema, DefinitionAuthoringCodec.SchemaId, "Configurator authoring v2");
@@ -79,7 +96,9 @@ public static class DefinitionSchema
             properties["locales"] = Strings(128, 128);
             properties["requiredCapabilities"] = new JsonObject
             {
-                ["type"] = "array", ["uniqueItems"] = true, ["items"] = Choice(DefinitionProfile.Capabilities.ToArray())
+                ["type"] = "array",
+                ["uniqueItems"] = true,
+                ["items"] = Choice(DefinitionProfile.Capabilities.ToArray())
             };
             properties["artifacts"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 64, ["items"] = artifact };
             schema = Closed(properties, "schemaVersion", "profile", "familyId", "revision", "project", "applicationVersions",
@@ -89,10 +108,16 @@ public static class DefinitionSchema
         schema["$defs"] = new JsonObject
         {
             ["node"] = Node(),
-            ["reference"] = Closed(new JsonObject { ["scope"] = Choice("root", "item"), ["path"] = new JsonObject
+            ["reference"] = Closed(new JsonObject
             {
-                ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^(?:/(?:[^~]|~[01])*)*$"
-            } }, "scope", "path"),
+                ["scope"] = Choice("root", "item"),
+                ["path"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["maxLength"] = 65536,
+                    ["pattern"] = "^(?:/(?:[^~]|~[01])*)*$"
+                }
+            }, "scope", "path"),
             ["projection"] = Projection(),
             ["predicate"] = Predicate()
         };
@@ -108,56 +133,87 @@ public static class DefinitionSchema
     {
         JsonObject properties = new()
         {
-            ["type"] = new JsonObject { ["oneOf"] = new JsonArray(Choice(DefinitionVocabulary.FieldTypes), new JsonObject
+            ["type"] = new JsonObject
             {
-                ["type"] = "array", ["minItems"] = 2, ["maxItems"] = 2, ["uniqueItems"] = true,
-                ["items"] = Choice(DefinitionVocabulary.FieldTypes.Concat(["null"]).ToArray()),
-                ["contains"] = new JsonObject { ["const"] = "null" }
-            }) },
-            ["title"] = Text(256), ["description"] = Text(4096), ["format"] = Text(256),
+                ["oneOf"] = new JsonArray(Choice(DefinitionVocabulary.FieldTypes), new JsonObject
+                {
+                    ["type"] = "array",
+                    ["minItems"] = 2,
+                    ["maxItems"] = 2,
+                    ["uniqueItems"] = true,
+                    ["items"] = Choice(DefinitionVocabulary.FieldTypes.Concat(["null"]).ToArray()),
+                    ["contains"] = new JsonObject { ["const"] = "null" }
+                })
+            },
+            ["title"] = Text(256),
+            ["description"] = Text(4096),
+            ["format"] = Text(256),
             ["properties"] = new JsonObject { ["type"] = "object", ["additionalProperties"] = Ref("node") },
             ["$defs"] = new JsonObject { ["type"] = "object", ["maxProperties"] = 1024, ["additionalProperties"] = Ref("node") },
             ["$ref"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^#/" },
             ["oneOf"] = new JsonObject { ["type"] = "array", ["minItems"] = 2, ["maxItems"] = 16, ["items"] = Ref("node") },
             ["if"] = new JsonObject
             {
-                ["type"] = "object", ["additionalProperties"] = false, ["minProperties"] = 1,
+                ["type"] = "object",
+                ["additionalProperties"] = false,
+                ["minProperties"] = 1,
                 ["properties"] = new JsonObject
                 {
                     ["required"] = Strings(1024, 65536),
                     ["properties"] = new JsonObject
                     {
-                        ["type"] = "object", ["maxProperties"] = 1024,
+                        ["type"] = "object",
+                        ["maxProperties"] = 1024,
                         ["additionalProperties"] = new JsonObject
                         {
                             ["oneOf"] = new JsonArray(
                                 Closed(new JsonObject { ["const"] = new JsonObject() }, "const"),
-                                Closed(new JsonObject { ["enum"] = new JsonObject
+                                Closed(new JsonObject
                                 {
-                                    ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 256,
-                                    ["items"] = new JsonObject()
-                                } }, "enum"))
+                                    ["enum"] = new JsonObject
+                                    {
+                                        ["type"] = "array",
+                                        ["minItems"] = 1,
+                                        ["maxItems"] = 256,
+                                        ["items"] = new JsonObject()
+                                    }
+                                }, "enum"))
                         }
                     }
                 }
             },
-            ["then"] = RequiredAssertion(), ["else"] = RequiredAssertion(),
+            ["then"] = RequiredAssertion(),
+            ["else"] = RequiredAssertion(),
             ["dependentRequired"] = new JsonObject
             {
-                ["type"] = "object", ["maxProperties"] = 1024,
+                ["type"] = "object",
+                ["maxProperties"] = 1024,
                 ["additionalProperties"] = Strings(1024, 65536)
             },
             ["required"] = new JsonObject { ["type"] = "array", ["uniqueItems"] = true, ["items"] = new JsonObject { ["type"] = "string" } },
-            ["additionalProperties"] = new JsonObject { ["oneOf"] = new JsonArray(
-                new JsonObject { ["const"] = false }, Ref("node")) }, ["items"] = Ref("node"),
+            ["additionalProperties"] = new JsonObject
+            {
+                ["oneOf"] = new JsonArray(
+                new JsonObject { ["const"] = false }, Ref("node"))
+            },
+            ["items"] = Ref("node"),
             ["multipleOf"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
             ["uniqueItems"] = new JsonObject { ["type"] = "boolean" },
-            ["enum"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 256, ["uniqueItems"] = true,
-                ["items"] = new JsonObject { ["type"] = new JsonArray("string", "boolean", "integer", "number", "null") } },
+            ["enum"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["minItems"] = 1,
+                ["maxItems"] = 256,
+                ["uniqueItems"] = true,
+                ["items"] = new JsonObject { ["type"] = new JsonArray("string", "boolean", "integer", "number", "null") }
+            },
             ["const"] = new JsonObject { ["type"] = new JsonArray("string", "boolean", "integer", "number", "null") },
-            ["default"] = new JsonObject(), ["examples"] = new JsonObject { ["type"] = "array", ["maxItems"] = 256 },
-            ["readOnly"] = new JsonObject { ["type"] = "boolean" }, ["writeOnly"] = new JsonObject { ["type"] = "boolean" },
-            ["deprecated"] = new JsonObject { ["type"] = "boolean" }, ["x-configurator"] = Extension()
+            ["default"] = new JsonObject(),
+            ["examples"] = new JsonObject { ["type"] = "array", ["maxItems"] = 256 },
+            ["readOnly"] = new JsonObject { ["type"] = "boolean" },
+            ["writeOnly"] = new JsonObject { ["type"] = "boolean" },
+            ["deprecated"] = new JsonObject { ["type"] = "boolean" },
+            ["x-configurator"] = Extension()
         };
         foreach (string name in new[] { "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum" })
             properties[name] = new JsonObject { ["type"] = "number" };
@@ -192,9 +248,12 @@ public static class DefinitionSchema
 
     private static JsonObject Extension() => Closed(new JsonObject
     {
-        ["sensitivity"] = Choice(DefinitionVocabulary.Sensitivities), ["initialValue"] = new JsonObject(),
-        ["suggestedValue"] = new JsonObject(), ["notBlank"] = new JsonObject { ["type"] = "boolean" },
-        ["detail"] = Choice("basic", "standard", "advanced"), ["units"] = Text(128),
+        ["sensitivity"] = Choice(DefinitionVocabulary.Sensitivities),
+        ["initialValue"] = new JsonObject(),
+        ["suggestedValue"] = new JsonObject(),
+        ["notBlank"] = new JsonObject { ["type"] = "boolean" },
+        ["detail"] = Choice("basic", "standard", "advanced"),
+        ["units"] = Text(128),
         ["uniqueBy"] = new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = 65536 },
         ["applicableWhen"] = Ref("predicate"),
         ["assertFormat"] = new JsonObject { ["type"] = "boolean" },
@@ -206,15 +265,23 @@ public static class DefinitionSchema
         ["guidance"] = Closed(new JsonObject
         {
             ["instructions"] = Text(4096),
-            ["links"] = new JsonObject { ["type"] = "array", ["maxItems"] = 4, ["items"] = Closed(new JsonObject
+            ["links"] = new JsonObject
             {
-                ["title"] = Text(128), ["url"] = Text(2048)
-            }, "title", "url") },
+                ["type"] = "array",
+                ["maxItems"] = 4,
+                ["items"] = Closed(new JsonObject
+                {
+                    ["title"] = Text(128),
+                    ["url"] = Text(2048)
+                }, "title", "url")
+            },
             ["searchTerms"] = Strings(16, 64, minimum: 0)
         }),
         ["choices"] = new JsonObject
         {
-            ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 256,
+            ["type"] = "array",
+            ["minItems"] = 1,
+            ["maxItems"] = 256,
             ["items"] = Closed(new JsonObject { ["value"] = new JsonObject(), ["label"] = Text(256), ["explanation"] = Text(2048) }, "value", "label")
         }
     });
@@ -256,8 +323,10 @@ public static class DefinitionSchema
             {
                 properties["operands"] = new JsonObject
                 {
-                    ["type"] = "array", ["minItems"] = 1,
-                    ["maxItems"] = operation == "not" ? 1 : 4096, ["items"] = Ref("predicate")
+                    ["type"] = "array",
+                    ["minItems"] = 1,
+                    ["maxItems"] = operation == "not" ? 1 : 4096,
+                    ["items"] = Ref("predicate")
                 };
                 required.Add("operands");
             }
@@ -283,29 +352,49 @@ public static class DefinitionSchema
 
     private static JsonObject Presentation() => Closed(new JsonObject
     {
-        ["defaultJourney"] = Text(64), ["navigation"] = Choice("wizard", "sections"),
-        ["sections"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 64,
+        ["defaultJourney"] = Text(64),
+        ["navigation"] = Choice("wizard", "sections"),
+        ["sections"] = new JsonObject
+        {
+            ["type"] = "array",
+            ["minItems"] = 1,
+            ["maxItems"] = 64,
             ["items"] = Closed(new JsonObject
             {
-                ["id"] = Text(64), ["title"] = Text(128), ["description"] = Text(2048),
+                ["id"] = Text(64),
+                ["title"] = Text(128),
+                ["description"] = Text(2048),
                 ["pointers"] = new JsonObject { ["type"] = "array", ["uniqueItems"] = true, ["items"] = new JsonObject { ["type"] = "string" } }
-            }, "id", "title", "pointers") },
-        ["journeys"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 16,
+            }, "id", "title", "pointers")
+        },
+        ["journeys"] = new JsonObject
+        {
+            ["type"] = "array",
+            ["minItems"] = 1,
+            ["maxItems"] = 16,
             ["items"] = Closed(new JsonObject
             {
-                ["id"] = Text(64), ["title"] = Text(128), ["description"] = Text(2048), ["sections"] = Strings(64, 64)
-            }, "id", "title", "sections") }
+                ["id"] = Text(64),
+                ["title"] = Text(128),
+                ["description"] = Text(2048),
+                ["sections"] = Strings(64, 64)
+            }, "id", "title", "sections")
+        }
     }, "sections", "journeys", "defaultJourney");
 
     private static JsonObject Localization() => Closed(new JsonObject
     {
         ["defaultLocale"] = Text(128),
-        ["translations"] = new JsonObject { ["type"] = "object", ["maxProperties"] = 128,
+        ["translations"] = new JsonObject
+        {
+            ["type"] = "object",
+            ["maxProperties"] = 128,
             ["additionalProperties"] = Closed(new JsonObject
             {
                 ["direction"] = Choice("ltr", "rtl"),
                 ["overrides"] = new JsonObject { ["type"] = "object", ["additionalProperties"] = Text(4096) }
-            }) }
+            })
+        }
     }, "defaultLocale", "translations");
 
     private static void Header(JsonObject schema, string id, string title)
@@ -318,15 +407,22 @@ public static class DefinitionSchema
     private static JsonObject Text(int maximum) => new() { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = maximum };
     private static JsonObject Choice(params string[] values) => new()
     {
-        ["type"] = "string", ["enum"] = new JsonArray(values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray())
+        ["type"] = "string",
+        ["enum"] = new JsonArray(values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray())
     };
     private static JsonObject Strings(int maximum, int length, int minimum = 1) => new()
     {
-        ["type"] = "array", ["minItems"] = minimum, ["maxItems"] = maximum, ["uniqueItems"] = true, ["items"] = Text(length)
+        ["type"] = "array",
+        ["minItems"] = minimum,
+        ["maxItems"] = maximum,
+        ["uniqueItems"] = true,
+        ["items"] = Text(length)
     };
     private static JsonObject Closed(JsonObject properties, params string[] required) => new()
     {
-        ["type"] = "object", ["properties"] = properties, ["additionalProperties"] = false,
+        ["type"] = "object",
+        ["properties"] = properties,
+        ["additionalProperties"] = false,
         ["required"] = new JsonArray(required.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray())
     };
     internal static string Render(JsonObject schema) => schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
