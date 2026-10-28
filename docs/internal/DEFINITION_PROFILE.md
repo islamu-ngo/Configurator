@@ -11,6 +11,35 @@ This document owns lowering, evaluation, privacy and qualification mechanisms.
 The [current Core contract](CORE_DEFINITION_CONTRACT.md) remains v1 until the
 coordinated cutover. A Draft scenario below is a requirement, not passing evidence.
 
+## Dormant primitive foundation
+
+Phase 2 introduces compiler-ready shape and syntax primitives, not an active v2
+source/runtime interpreter. `DefinitionPath.Parse` and `FromSegments` snapshot
+at most 32 exact tokens within the 65536-character pointer budget; value equality
+uses the encoded ordinal pointer. `ToPointer` is deliberate access to location
+data; `ToString` remains opaque because tokens may be private.
+
+`DefinitionNode` snapshots ordered properties, local required names, item/map
+schemas and variants. Structural equality compares that immutable shape.
+Cached expanded-node, scalar-character and depth totals charge each referenced
+child occurrence, so shared metadata references cannot evade tree-expansion
+budgets. Creating a node neither admits assertions nor evaluates answers.
+
+`DefinitionProfile.CanonicalizeJson` and `CanonicalizeYaml` select explicit
+`CompositionKeyPolicy.Exact` in the existing bounded parsers and delegate numeric
+identity to the existing `DefinitionJson` owner. Exact-mode canonical numbers
+have no exponent, no redundant fractional zeroes, and normalize negative zero
+to `0`; object names sort ordinally. System.Text.Json's default escaping emits
+non-ASCII characters as Unicode escapes (uppercase hex digits), with standard
+short control escapes; there is no BOM or insignificant whitespace.
+The conformance corpus independently fixes those actual bytes, including
+combining characters and surrogate pairs.
+
+Existing codecs, generic composition, and directory reading retain their current
+collision-safe policy until the coordinated cutover. In particular generic
+composition still rejects case/NFC collisions. No compatibility interpreter,
+second canonicalizer, answer tree, or new package is introduced.
+
 ## Control and data flow
 
 ```text

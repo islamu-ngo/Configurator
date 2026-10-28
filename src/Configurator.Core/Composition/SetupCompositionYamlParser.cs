@@ -11,7 +11,7 @@ internal static partial class SetupCompositionYamlParser
     private static partial Regex JsonNumberPattern();
     internal static CompositionMap Parse(
         ReadOnlyMemory<byte> bytes, SetupCompositionLimits limits, CancellationToken cancellationToken,
-        CompositionBudget? sharedBudget = null)
+        CompositionBudget? sharedBudget = null, CompositionKeyPolicy keyPolicy = CompositionKeyPolicy.CollisionSafe)
     {
         if (bytes.IsEmpty)
             throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
@@ -44,7 +44,7 @@ internal static partial class SetupCompositionYamlParser
             reader.Advance();
 
             var budget = sharedBudget ?? new CompositionBudget(limits);
-            CompositionNode root = ReadNode(reader, budget, limits, 1, cancellationToken);
+            CompositionNode root = ReadNode(reader, budget, limits, 1, keyPolicy, cancellationToken);
             if (root is not CompositionMap map)
                 throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
             reader.Require<DocumentEnd>();
@@ -82,7 +82,7 @@ internal static partial class SetupCompositionYamlParser
 
     private static CompositionNode ReadNode(
         EventReader reader, CompositionBudget budget, SetupCompositionLimits limits,
-        int depth, CancellationToken cancellationToken)
+        int depth, CompositionKeyPolicy keyPolicy, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         budget.Node(depth);
@@ -108,14 +108,14 @@ internal static partial class SetupCompositionYamlParser
                     throw new SetupCompositionException(SetupCompositionFailureCode.InvalidKey);
                 RejectNodeAuthority(keyScalar);
                 string key = keyScalar.Value;
-                if (string.IsNullOrEmpty(key) || key == "<<"
+                if (keyPolicy != CompositionKeyPolicy.Exact && string.IsNullOrEmpty(key) || key == "<<"
                     || ConvertScalar(keyScalar, budget).Kind != CompositionScalarKind.String)
                     throw new SetupCompositionException(key == "<<"
                         ? SetupCompositionFailureCode.UnsupportedYamlGrammar
                         : SetupCompositionFailureCode.InvalidKey);
                 reader.Advance();
-                CompositionNode value = ReadNode(reader, budget, limits, checked(depth + 1), cancellationToken);
-                SetupCompositionNormalizer.AddKey(entries, identities, key, value);
+                CompositionNode value = ReadNode(reader, budget, limits, checked(depth + 1), keyPolicy, cancellationToken);
+                SetupCompositionNormalizer.AddKey(entries, identities, key, value, keyPolicy);
             }
             reader.Advance();
             return new CompositionMap(entries);
@@ -129,7 +129,7 @@ internal static partial class SetupCompositionYamlParser
             {
                 if (checked(entries.Count + 1) > limits.SequenceEntries)
                     throw new SetupCompositionException(SetupCompositionFailureCode.LimitExceeded);
-                entries.Add(ReadNode(reader, budget, limits, checked(depth + 1), cancellationToken));
+                entries.Add(ReadNode(reader, budget, limits, checked(depth + 1), keyPolicy, cancellationToken));
             }
             reader.Advance();
             return new CompositionSequence(entries.AsReadOnly());
@@ -139,6 +139,8 @@ internal static partial class SetupCompositionYamlParser
         {
             RejectNodeAuthority(scalar);
             CompositionScalar result = ConvertScalar(scalar, budget);
+            if (keyPolicy == CompositionKeyPolicy.Exact && result.Kind == CompositionScalarKind.String)
+                SetupCompositionNormalizer.ValidateExactText(result.Value!);
             reader.Advance();
             return result;
         }

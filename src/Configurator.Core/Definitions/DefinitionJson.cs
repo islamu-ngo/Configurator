@@ -8,17 +8,19 @@ using Configurator.Core.Composition;
 
 internal static class DefinitionJson
 {
-    internal static byte[] Canonicalize(JsonElement value, CompositionBudget? budget = null)
+    internal static byte[] Canonicalize(JsonElement value, CompositionBudget? budget = null,
+        CompositionKeyPolicy keyPolicy = CompositionKeyPolicy.CollisionSafe)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
-            Write(writer, value, budget ?? new CompositionBudget(SetupCompositionLimits.Default), 1);
+            Write(writer, value, budget ?? new CompositionBudget(SetupCompositionLimits.Default), 1, keyPolicy);
         if (buffer.WrittenCount > SetupCompositionLimits.DefaultAggregateSourceBytes)
             throw new SetupDefinitionException("document-limit");
         return buffer.WrittenSpan.ToArray();
     }
 
-    private static void Write(Utf8JsonWriter writer, JsonElement value, CompositionBudget budget, int depth)
+    private static void Write(Utf8JsonWriter writer, JsonElement value, CompositionBudget budget, int depth,
+        CompositionKeyPolicy keyPolicy)
     {
         try { budget.Node(depth); }
         catch (SetupCompositionException) { throw new SetupDefinitionException("document-limit"); }
@@ -28,15 +30,17 @@ internal static class DefinitionJson
                 JsonProperty[] properties = value.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal).ToArray();
                 if (properties.Length > SetupCompositionLimits.DefaultMappingEntries)
                     throw new SetupDefinitionException("document-limit");
-                var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var keys = new HashSet<string>(keyPolicy == CompositionKeyPolicy.Exact
+                    ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
                 writer.WriteStartObject();
                 foreach (JsonProperty property in properties)
                 {
-                    if (!keys.Add(property.Name.Normalize(NormalizationForm.FormC)))
+                    if (!keys.Add(keyPolicy == CompositionKeyPolicy.Exact
+                        ? property.Name : property.Name.Normalize(NormalizationForm.FormC)))
                         throw new SetupDefinitionException("duplicate-member");
                     Scalar(property.Name, budget);
                     writer.WritePropertyName(property.Name);
-                    Write(writer, property.Value, budget, depth + 1);
+                    Write(writer, property.Value, budget, depth + 1, keyPolicy);
                 }
                 writer.WriteEndObject();
                 break;
@@ -44,7 +48,7 @@ internal static class DefinitionJson
                 if (value.GetArrayLength() > SetupCompositionLimits.DefaultSequenceEntries)
                     throw new SetupDefinitionException("document-limit");
                 writer.WriteStartArray();
-                foreach (JsonElement item in value.EnumerateArray()) Write(writer, item, budget, depth + 1);
+                foreach (JsonElement item in value.EnumerateArray()) Write(writer, item, budget, depth + 1, keyPolicy);
                 writer.WriteEndArray();
                 break;
             case JsonValueKind.String:
@@ -53,7 +57,7 @@ internal static class DefinitionJson
                 writer.WriteStringValue(text);
                 break;
             case JsonValueKind.Number:
-                writer.WriteRawValue(Number(value));
+                writer.WriteRawValue(Number(value, keyPolicy));
                 break;
             case JsonValueKind.True: writer.WriteBooleanValue(true); break;
             case JsonValueKind.False: writer.WriteBooleanValue(false); break;
@@ -62,7 +66,7 @@ internal static class DefinitionJson
         }
     }
 
-    private static string Number(JsonElement value)
+    private static string Number(JsonElement value, CompositionKeyPolicy keyPolicy)
     {
         string text = value.GetRawText();
         string[] parts = text.Split(['e', 'E']);
@@ -78,7 +82,8 @@ internal static class DefinitionJson
         int power = parts.Length > 1 ? int.Parse(parts[1], CultureInfo.InvariantCulture) : 0;
         if (scale - power > 28 && digits.Length > 0)
             throw new SetupDefinitionException("number-range");
-        return number == 0 ? "0" : number.ToString("G29", CultureInfo.InvariantCulture);
+        return number == 0 ? "0" : number.ToString(keyPolicy == CompositionKeyPolicy.Exact
+            ? "0.############################" : "G29", CultureInfo.InvariantCulture);
     }
 
     private static void Scalar(string text, CompositionBudget budget)

@@ -1,7 +1,6 @@
 namespace Configurator.Core.Composition;
 
 using System.Buffers;
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
@@ -24,6 +23,8 @@ internal enum CompositionScalarKind
     Null,
     JsonNumber
 }
+
+internal enum CompositionKeyPolicy { CollisionSafe, Exact }
 
 internal sealed class CompositionBudget
 {
@@ -58,9 +59,11 @@ internal sealed class CompositionBudget
 
 internal static class SetupCompositionNormalizer
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+
     internal static CompositionMap ParseJson(
         ReadOnlyMemory<byte> bytes, SetupCompositionLimits limits, CancellationToken cancellationToken,
-        CompositionBudget? sharedBudget = null)
+        CompositionBudget? sharedBudget = null, CompositionKeyPolicy keyPolicy = CompositionKeyPolicy.CollisionSafe)
     {
         if (bytes.IsEmpty)
             throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
@@ -79,7 +82,7 @@ internal static class SetupCompositionNormalizer
                 MaxDepth = limits.NestingDepth
             });
             var budget = sharedBudget ?? new CompositionBudget(limits);
-            CompositionNode root = FromJson(document.RootElement, 1, budget, limits, cancellationToken);
+            CompositionNode root = FromJson(document.RootElement, 1, budget, limits, keyPolicy, cancellationToken);
             return root as CompositionMap
                 ?? throw new SetupCompositionException(SetupCompositionFailureCode.InvalidDocument);
         }
@@ -116,7 +119,7 @@ internal static class SetupCompositionNormalizer
 
     private static CompositionNode FromJson(
         JsonElement element, int depth, CompositionBudget budget, SetupCompositionLimits limits,
-        CancellationToken cancellationToken)
+        CompositionKeyPolicy keyPolicy, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         budget.Node(depth);
@@ -131,8 +134,9 @@ internal static class SetupCompositionNormalizer
                     {
                         if (checked(++count) > limits.MappingEntries)
                             throw new SetupCompositionException(SetupCompositionFailureCode.LimitExceeded);
+                        if (keyPolicy == CompositionKeyPolicy.Exact) budget.Scalar(property.Name);
                         AddKey(entries, identities, property.Name,
-                            FromJson(property.Value, checked(depth + 1), budget, limits, cancellationToken));
+                            FromJson(property.Value, checked(depth + 1), budget, limits, keyPolicy, cancellationToken), keyPolicy);
                     }
                     return new CompositionMap(entries);
                 }
@@ -143,7 +147,7 @@ internal static class SetupCompositionNormalizer
                     {
                         if (checked(entries.Count + 1) > limits.SequenceEntries)
                             throw new SetupCompositionException(SetupCompositionFailureCode.LimitExceeded);
-                        entries.Add(FromJson(item, checked(depth + 1), budget, limits, cancellationToken));
+                        entries.Add(FromJson(item, checked(depth + 1), budget, limits, keyPolicy, cancellationToken));
                     }
                     return new CompositionSequence(entries.AsReadOnly());
                 }
@@ -151,6 +155,7 @@ internal static class SetupCompositionNormalizer
                 {
                     string value = element.GetString()!;
                     budget.Scalar(value);
+                    if (keyPolicy == CompositionKeyPolicy.Exact) ValidateExactText(value);
                     return new CompositionScalar(CompositionScalarKind.String, value);
                 }
             case JsonValueKind.Number:
@@ -174,18 +179,33 @@ internal static class SetupCompositionNormalizer
 
     internal static void AddKey(
         SortedDictionary<string, CompositionNode> entries, Dictionary<string, string> identities,
-        string key, CompositionNode value)
+        string key, CompositionNode value, CompositionKeyPolicy keyPolicy = CompositionKeyPolicy.CollisionSafe)
     {
-        if (string.IsNullOrEmpty(key))
+        if (keyPolicy != CompositionKeyPolicy.Exact && string.IsNullOrEmpty(key))
             throw new SetupCompositionException(SetupCompositionFailureCode.InvalidKey);
         if (entries.ContainsKey(key))
             throw new SetupCompositionException(SetupCompositionFailureCode.DuplicateKey);
+        if (keyPolicy == CompositionKeyPolicy.Exact)
+        {
+            ValidateExactText(key);
+            entries.Add(key, value);
+            return;
+        }
 
         string normalized = key.Normalize(NormalizationForm.FormC);
         if (identities.TryGetValue(normalized, out _))
             throw new SetupCompositionException(SetupCompositionFailureCode.KeyCollision);
         identities.Add(normalized, key);
         entries.Add(key, value);
+    }
+
+    internal static void ValidateExactText(string text)
+    {
+        try { _ = StrictUtf8.GetByteCount(text); }
+        catch (EncoderFallbackException)
+        {
+            throw new SetupCompositionException(SetupCompositionFailureCode.InvalidScalar);
+        }
     }
 
     private static void MergeInto(
