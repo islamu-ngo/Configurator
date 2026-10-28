@@ -77,32 +77,49 @@ are independent. The CLI envelope remains v2; the authoring/runtime handshake is
 
 ### Recursive configuration grammar
 
-Configuration is a non-null object. Every object declares
-`additionalProperties: false`; arrays declare recursive `items`. Properties use
+Configuration is a non-null object. Objects declare
+`additionalProperties: false` or a recursive typed value schema; arrays declare recursive `items`. Properties use
 exact names; required sets refer to distinct locally declared names. Scalars are
 string, boolean, integer and number; container types are object and array.
 Nullable form contains exactly one base type plus `"null"`.
 
-Enums are distinct homogeneous non-null scalar values compatible with the base
-type, with optional typed choice labels/explanations. Scalar const is admitted.
-Bounds are minimum/maximum, minLength/maxLength, minItems/maxItems and
-minProperties/maxProperties in their applicable type contexts. String length
-counts Unicode scalars. `format` is a string annotation, not an assertion.
+Enums are distinct homogeneous scalar values compatible with the base type;
+nullable types may additionally enumerate null. Optional choice labels preserve
+typed identity. Scalar const is admitted. Bounds include inclusive/exclusive
+minimum/maximum, positive exact multipleOf, minLength/maxLength, minItems/maxItems,
+uniqueItems and minProperties/maxProperties in their type contexts. String
+length counts Unicode scalars. Format is annotation unless assertFormat is true.
 `readOnly`, `deprecated`, `examples` are annotations subject to privacy/budgets;
 writeOnly true raises secret sensitivity.
 
 Closed `x-configurator` admits sensitivity, initialValue, suggestedValue,
-notBlank, detail, units, guidance, credential, choices, uniqueBy and applicableWhen.
+notBlank, detail, units, guidance, credential, choices, uniqueBy, applicableWhen and assertFormat.
 Missing sensitivity is sensitive. `uniqueBy` follows a concrete item-relative
 pointer through required object properties to a non-null string. Effective
 container sensitivity includes inherited floors and protected descendants.
 Public literal metadata cannot launder private initial/suggested/default/example/
 const content through ancestor or child labels.
 
-Typed maps, variants, exclusive bounds, multipleOf, uniqueItems, arbitrary regex,
-asserted formats, general combinators and source maps remain later work.
-Runtime nodes do not accept `$defs`/`$ref`; the narrower schema importer may
-resolve bounded supplied local references before compilation.
+Typed map entries use the same resolver and constraints as declared children.
+Diagnostics/completion metadata use bounded entry ordinals, not private keys.
+Discriminated oneOf admits 2-16 closed object branches with exactly one eligible
+common required scalar const property; ambiguous/duplicate selectors reject.
+Nullability is handled outside branch selection. Configuration-root maps,
+variants and property bounds use the same owner, not client-side special cases.
+
+Local `$defs`/`$ref` resolve from the configuration root under existing node,
+depth, scalar and reference-stack budgets. Fragments begin `#/$defs/`; percent
+encoding, remote/dynamic/cyclic references reject. Declarations are checked even
+when unused; reference expansion cannot hide unsupported assertions or amplify
+metadata beyond the work budget. Reference annotation merging preserves the
+strongest sensitivity and writeOnly floor. Arbitrary regex, general combinators
+and source maps remain later work.
+
+Asserted formats are hostname, email-address, uri and http-url. They perform
+bounded lexical checks only; their exact ASCII domains are in the
+[public registry](../public/definition-standard.md#asserted-format-registry).
+Uniqueness uses canonical bytes and hash buckets with structural confirmation,
+clearing temporary canonical byte buffers; hashes are not value-equality proof.
 
 ### Paths, conditions and presence relationships
 
@@ -164,7 +181,7 @@ must not seed required containers or maintain a second effective-value policy.
 
 Admission/editor validation does not prove every runtime output composable, a
 target validator equivalent, or every client qualified. Broader/nested conditions,
-maps/variants, advanced assertions, format assertions, source maps, expanded
+source maps, expanded
 localization policy and machine v3 retain their later-phase status.
 
 ## Artifact preparation and inverse import

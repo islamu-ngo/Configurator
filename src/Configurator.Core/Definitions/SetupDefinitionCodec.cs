@@ -35,6 +35,7 @@ public static class SetupDefinitionCodec
             return new SetupDefinition(parsed.RootElement, canonical, configuration);
         }
         catch (SetupDefinitionException) { throw; }
+        catch (SetupCompositionException) { throw new SetupDefinitionException("definition-limit"); }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException
             or FormatException or ArgumentException or OverflowException)
         {
@@ -73,11 +74,15 @@ public static class SetupDefinitionCodec
         if (project.TryGetProperty("repository", out var repository)) PublicUrl(repository, fragment: false);
         foreach (string name in new[] { "applicationVersions", "entryPoints", "locales" })
             Strings(document.GetProperty(name), 128, 128, nonempty: true);
-        DefinitionNode configuration = ReadNode(document.GetProperty("configuration"), capabilities, true, false);
+        JsonElement configurationSource = document.GetProperty("configuration");
+        DefinitionNode configuration = ReadNode(configurationSource, capabilities, true, false,
+            configurationSource, new(StringComparer.Ordinal), new(SetupCompositionLimits.Default), 1);
         if (configuration.Type != DefinitionNodeType.Mapping || configuration.IsNullable)
             throw new SetupDefinitionException("configuration-object-required");
         if (configuration.Properties.Count > 1024) throw new SetupDefinitionException("document-limit");
-        foreach (DefinitionNode child in configuration.Properties.Values) RejectNestedRelationships(child);
+        foreach (DefinitionNode child in configuration.Properties.Values.Concat(configuration.Variants.SelectMany(branch => branch.Properties.Values)))
+            RejectNestedRelationships(child);
+        if (configuration.AdditionalProperties is { } rootMap) RejectNestedRelationships(rootMap);
         ValidateApplicability(configuration, capabilities);
         if (document.TryGetProperty("annotations", out var annotations) && annotations.ValueKind != JsonValueKind.Object)
             throw new SetupDefinitionException("annotations-invalid");
@@ -114,17 +119,72 @@ public static class SetupDefinitionCodec
         {
             if (node.Keywords.TryGetProperty("if", out _) || node.Keywords.TryGetProperty("dependentRequired", out _))
                 throw new SetupDefinitionException("relationship-context");
-            foreach (DefinitionNode child in node.Properties.Values) RejectNestedRelationships(child);
+            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)) RejectNestedRelationships(child);
             if (node.Items is { } items) RejectNestedRelationships(items);
+            if (node.AdditionalProperties is { } map) RejectNestedRelationships(map);
         }
     }
 
-    private static DefinitionNode ReadNode(JsonElement schema, SortedSet<string> capabilities, bool publicAncestors, bool secretAncestors)
+    private static DefinitionNode ReadNode(JsonElement schema, SortedSet<string> capabilities, bool publicAncestors,
+        bool secretAncestors, JsonElement schemaRoot, HashSet<string> references, CompositionBudget budget, int depth)
     {
+        budget.Node(depth);
+        if (schema.TryGetProperty("$defs", out JsonElement definitions))
+        {
+            if (definitions.ValueKind != JsonValueKind.Object || definitions.EnumerateObject().Count() > 1024)
+                throw new SetupDefinitionException("schema-reference");
+            foreach (JsonProperty definition in definitions.EnumerateObject())
+                _ = ReadNode(definition.Value, capabilities, publicAncestors, secretAncestors,
+                    schemaRoot, references, budget, depth + 1);
+            capabilities.Add("schema.localRef");
+        }
+        if (schema.TryGetProperty("$ref", out JsonElement reference))
+        {
+            Only(schema, "$ref", "title", "description", "readOnly", "writeOnly", "deprecated", "examples", "default", "x-configurator", "$defs");
+            string pointer = reference.GetString()!;
+            if (!pointer.StartsWith("#/$defs/", StringComparison.Ordinal) || pointer.Contains('%') ||
+                references.Count >= 32 || !references.Add(pointer)) throw new SetupDefinitionException("schema-reference");
+            try
+            {
+                JsonElement target = schemaRoot;
+                DefinitionPath path = DefinitionPath.Parse(pointer[1..]);
+                for (int index = 0; index < path.Segments.Count; index++)
+                {
+                    if (target.ValueKind == JsonValueKind.Object && target.TryGetProperty(path.Segments[index], out target)) continue;
+                    if (target.ValueKind == JsonValueKind.Array && path.TryGetArrayIndex(index, out int position) &&
+                        position < target.GetArrayLength()) { target = target[position]; continue; }
+                    throw new SetupDefinitionException("schema-reference");
+                }
+                JsonObject merged = JsonNode.Parse(target.GetRawText())!.AsObject();
+                foreach (JsonProperty annotation in schema.EnumerateObject())
+                {
+                    if (annotation.Name is "$ref" or "$defs") continue;
+                    if (annotation.Name == "writeOnly" && merged["writeOnly"]?.GetValue<bool>() == true) continue;
+                    if (annotation.Name == "x-configurator")
+                    {
+                        JsonObject incoming = JsonNode.Parse(annotation.Value.GetRawText())!.AsObject();
+                        JsonObject previous = merged["x-configurator"] as JsonObject ?? new();
+                        string oldSensitivity = previous["sensitivity"]?.GetValue<string>() ?? "sensitive";
+                        string newSensitivity = incoming["sensitivity"]?.GetValue<string>() ?? "sensitive";
+                        foreach ((string name, JsonNode? value) in incoming)
+                            if (name != "sensitivity") previous[name] = value?.DeepClone();
+                        previous["sensitivity"] = oldSensitivity == "secret" || newSensitivity == "secret" ? "secret"
+                            : oldSensitivity == "sensitive" || newSensitivity == "sensitive" ? "sensitive" : "public";
+                        merged["x-configurator"] = previous;
+                    }
+                    else merged[annotation.Name] = JsonNode.Parse(annotation.Value.GetRawText());
+                }
+                capabilities.Add("schema.localRef");
+                using JsonDocument expanded = JsonDocument.Parse(merged.ToJsonString());
+                return ReadNode(expanded.RootElement, capabilities, publicAncestors, secretAncestors,
+                    schemaRoot, references, budget, depth);
+            }
+            finally { references.Remove(pointer); }
+        }
         Only(schema, "type", "title", "description", "enum", "const", "properties", "required", "additionalProperties",
             "items", "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems", "minProperties",
             "maxProperties", "format", "default", "readOnly", "writeOnly", "deprecated", "examples", "x-configurator",
-            "if", "then", "dependentRequired");
+            "if", "then", "dependentRequired", "$defs", "oneOf", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "uniqueItems");
         JsonElement type = schema.GetProperty("type");
         bool nullable = type.ValueKind == JsonValueKind.Array;
         string spelling;
@@ -158,7 +218,7 @@ public static class SetupDefinitionCodec
         if (hasExtension)
         {
             Only(extension, "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "credential", "choices", "units",
-                "uniqueBy", "applicableWhen");
+                "uniqueBy", "applicableWhen", "assertFormat");
             if (extension.TryGetProperty("sensitivity", out var declared))
             {
                 sensitivity = declared.GetString()!;
@@ -170,13 +230,32 @@ public static class SetupDefinitionCodec
         var properties = new Dictionary<string, DefinitionNode>(StringComparer.Ordinal);
         var required = new List<string>();
         DefinitionNode? items = null;
+        DefinitionNode? map = null;
+        var variants = new List<DefinitionNode>();
+        if (schema.TryGetProperty("oneOf", out JsonElement alternatives))
+        {
+            if (nodeType != DefinitionNodeType.Mapping || alternatives.ValueKind != JsonValueKind.Array ||
+                alternatives.GetArrayLength() is < 2 or > 16 || schema.TryGetProperty("properties", out _) ||
+                schema.TryGetProperty("required", out _) || schema.TryGetProperty("additionalProperties", out _))
+                throw new SetupDefinitionException("schema-variant");
+            foreach (JsonElement alternative in alternatives.EnumerateArray())
+                variants.Add(ReadNode(alternative, capabilities, publicContext, secretContext, schemaRoot, references, budget, depth + 1));
+            capabilities.Add("schema.variant");
+        }
         if (nodeType == DefinitionNodeType.Mapping)
         {
-            if (!schema.TryGetProperty("additionalProperties", out var additional) || additional.ValueKind != JsonValueKind.False)
+            if (variants.Count == 0 && (!schema.TryGetProperty("additionalProperties", out var additional) ||
+                additional.ValueKind is not (JsonValueKind.False or JsonValueKind.Object)))
                 throw new SetupDefinitionException("map-semantics-unsupported");
+            if (schema.TryGetProperty("additionalProperties", out var typedMap) && typedMap.ValueKind == JsonValueKind.Object)
+            {
+                map = ReadNode(typedMap, capabilities, publicContext, secretContext, schemaRoot, references, budget, depth + 1);
+                capabilities.Add("schema.map");
+            }
             if (schema.TryGetProperty("properties", out var children))
                 foreach (JsonProperty child in children.EnumerateObject())
-                    properties.Add(child.Name, ReadNode(child.Value, capabilities, publicContext, secretContext));
+                    properties.Add(child.Name, ReadNode(child.Value, capabilities, publicContext, secretContext,
+                        schemaRoot, references, budget, depth + 1));
             if (schema.TryGetProperty("required", out var requiredNames))
             {
                 foreach (JsonElement name in requiredNames.EnumerateArray())
@@ -224,14 +303,16 @@ public static class SetupDefinitionCodec
                 if (!properties.ContainsKey(name.GetString()!) || !seen.Add(name.GetString()!))
                     throw new SetupDefinitionException("relationship-invalid");
         }
-        if (nodeType == DefinitionNodeType.Sequence) items = ReadNode(schema.GetProperty("items"), capabilities, publicContext, secretContext);
+        if (nodeType == DefinitionNodeType.Sequence) items = ReadNode(schema.GetProperty("items"), capabilities, publicContext, secretContext,
+            schemaRoot, references, budget, depth + 1);
         else if (schema.TryGetProperty("items", out _)) throw new SetupDefinitionException("constraint-context");
         foreach ((string low, string high, DefinitionNodeType owner) in new[]
         {
             ("minLength", "maxLength", DefinitionNodeType.Text),
             ("minItems", "maxItems", DefinitionNodeType.Sequence),
             ("minProperties", "maxProperties", DefinitionNodeType.Mapping),
-            ("minimum", "maximum", DefinitionNodeType.Number)
+            ("minimum", "maximum", DefinitionNodeType.Number),
+            ("exclusiveMinimum", "exclusiveMaximum", DefinitionNodeType.Number)
         })
         {
             decimal? lower = Bound(low);
@@ -249,11 +330,61 @@ public static class SetupDefinitionCodec
                 return number;
             }
         }
+        if (schema.TryGetProperty("multipleOf", out JsonElement multiple))
+        {
+            if (nodeType is not (DefinitionNodeType.Number or DefinitionNodeType.WholeNumber) || multiple.GetDecimal() <= 0)
+                throw new SetupDefinitionException("constraint-context");
+            capabilities.Add("schema.multipleOf");
+        }
+        decimal? lowerBound = null, upperBound = null;
+        bool lowerExclusive = false, upperExclusive = false;
+        foreach (string name in new[] { "minimum", "exclusiveMinimum", "maximum", "exclusiveMaximum" })
+        {
+            if (!schema.TryGetProperty(name, out JsonElement bound)) continue;
+            decimal number = bound.GetDecimal();
+            if (name is "minimum" or "exclusiveMinimum")
+            {
+                if (!lowerBound.HasValue || number > lowerBound.Value)
+                {
+                    lowerBound = number;
+                    lowerExclusive = name == "exclusiveMinimum";
+                }
+                else if (number == lowerBound.Value) lowerExclusive |= name == "exclusiveMinimum";
+            }
+            else if (!upperBound.HasValue || number < upperBound.Value)
+            {
+                upperBound = number;
+                upperExclusive = name == "exclusiveMaximum";
+            }
+            else if (number == upperBound.Value) upperExclusive |= name == "exclusiveMaximum";
+        }
+        if (lowerBound > upperBound || lowerBound.HasValue && lowerBound == upperBound && (lowerExclusive || upperExclusive))
+            throw new SetupDefinitionException("constraint-invalid");
+        if (schema.TryGetProperty("uniqueItems", out JsonElement uniqueItems))
+        {
+            if (nodeType != DefinitionNodeType.Sequence) throw new SetupDefinitionException("constraint-context");
+            if (uniqueItems.GetBoolean()) capabilities.Add("schema.uniqueItems");
+        }
         var keywords = new JsonObject();
         foreach (JsonProperty property in schema.EnumerateObject())
-            if (property.Name is not ("properties" or "required" or "items" or "additionalProperties"))
+            if (property.Name is not ("properties" or "required" or "items" or "additionalProperties" or "$defs" or "oneOf"))
                 keywords.Add(property.Name, JsonNode.Parse(property.Value.GetRawText()));
-        var node = new DefinitionNode(nodeType, nullable, properties, required, items, keywords: JsonSerializer.SerializeToElement(keywords));
+        var node = new DefinitionNode(nodeType, nullable, properties, required, items, map, variants,
+            keywords: JsonSerializer.SerializeToElement(keywords));
+        ChargeKeywords(node.Keywords, depth);
+        void ChargeKeywords(JsonElement value, int level)
+        {
+            budget.Node(level);
+            if (value.ValueKind == JsonValueKind.Object)
+                foreach (JsonProperty property in value.EnumerateObject())
+                {
+                    budget.Scalar(property.Name);
+                    ChargeKeywords(property.Value, level + 1);
+                }
+            else if (value.ValueKind == JsonValueKind.Array)
+                foreach (JsonElement child in value.EnumerateArray()) ChargeKeywords(child, level + 1);
+            else if (value.ValueKind == JsonValueKind.String) budget.Scalar(value.GetString()!);
+        }
         if (schema.TryGetProperty("format", out _) && nodeType != DefinitionNodeType.Text)
             throw new SetupDefinitionException("constraint-context");
         if (schema.TryGetProperty("enum", out var choices))
@@ -264,6 +395,11 @@ public static class SetupDefinitionCodec
             JsonValueKind? kind = null;
             foreach (JsonElement value in choices.EnumerateArray())
             {
+                if (value.ValueKind == JsonValueKind.Null)
+                {
+                    if (!nullable || !values.Add("null")) throw new SetupDefinitionException("enum-invalid");
+                    continue;
+                }
                 JsonValueKind scalarKind = value.ValueKind == JsonValueKind.False ? JsonValueKind.True : value.ValueKind;
                 if (value.ValueKind is JsonValueKind.Array or JsonValueKind.Object or JsonValueKind.Null
                     || kind.HasValue && kind != scalarKind || !values.Add(value.GetRawText())
@@ -280,6 +416,14 @@ public static class SetupDefinitionCodec
         }
         if (hasExtension)
         {
+            if (extension.TryGetProperty("assertFormat", out JsonElement asserted))
+            {
+                bool enabled = asserted.GetBoolean();
+                if (nodeType != DefinitionNodeType.Text || enabled && (!schema.TryGetProperty("format", out JsonElement format) ||
+                    format.GetString() is not ("hostname" or "email-address" or "uri" or "http-url")))
+                    throw new SetupDefinitionException("format-unsupported");
+                if (enabled) capabilities.Add("schema.assertFormat");
+            }
             if (extension.TryGetProperty("uniqueBy", out var uniqueBy))
             {
                 if (nodeType != DefinitionNodeType.Sequence || items?.Type != DefinitionNodeType.Mapping)
@@ -331,7 +475,8 @@ public static class SetupDefinitionCodec
                 }
             }
         }
-        bool protectedTree = !publicContext || properties.Values.Any(Protected) || items is not null && Protected(items);
+        bool protectedTree = !publicContext || properties.Values.Concat(variants).Any(Protected) ||
+            items is not null && Protected(items) || map is not null && Protected(map);
         foreach (string name in new[] { "default", "const", "examples" })
             if (schema.TryGetProperty(name, out var value))
             {
@@ -356,10 +501,12 @@ public static class SetupDefinitionCodec
         node.Keywords.TryGetProperty("writeOnly", out var write) && write.GetBoolean()
         || !node.Keywords.TryGetProperty("x-configurator", out var extension)
         || !extension.TryGetProperty("sensitivity", out var sensitivity) || sensitivity.GetString() != "public"
-        || node.Properties.Values.Any(Protected) || node.Items is not null && Protected(node.Items);
+        || node.Properties.Values.Concat(node.Variants).Any(Protected) || node.Items is not null && Protected(node.Items)
+        || node.AdditionalProperties is not null && Protected(node.AdditionalProperties);
 
     private static void ValidateApplicability(DefinitionNode root, SortedSet<string> capabilities)
     {
+        foreach (DefinitionNode branch in root.Variants) ValidateApplicability(branch, capabilities);
         if (root.Keywords.TryGetProperty("x-configurator", out var rootMetadata)
             && rootMetadata.TryGetProperty("applicableWhen", out _)) throw new SetupDefinitionException("condition-context");
         var dependencies = new Dictionary<string, string[]>(StringComparer.Ordinal);
@@ -373,7 +520,9 @@ public static class SetupDefinitionCodec
                 references = DefinitionValidator.References(condition).Distinct(StringComparer.Ordinal).ToArray();
             }
             dependencies.Add(name, references);
-            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Items is null ? [] : new[] { node.Items }))
+            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)
+                .Concat(node.AdditionalProperties is null ? [] : new[] { node.AdditionalProperties })
+                .Concat(node.Items is null ? [] : new[] { node.Items }))
                 RejectNested(child);
         }
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -392,7 +541,9 @@ public static class SetupDefinitionCodec
         {
             if (node.Keywords.TryGetProperty("x-configurator", out var extension)
                 && extension.TryGetProperty("applicableWhen", out _)) throw new SetupDefinitionException("condition-context");
-            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Items is null ? [] : new[] { node.Items }))
+            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)
+                .Concat(node.AdditionalProperties is null ? [] : new[] { node.AdditionalProperties })
+                .Concat(node.Items is null ? [] : new[] { node.Items }))
                 RejectNested(child);
         }
     }

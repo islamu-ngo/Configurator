@@ -18,9 +18,10 @@ package or target. Sections marked later design are not admitted support.
 
 The base includes recursive closed objects/array items, typed enums and nullable
 types, explicit value/omission states, scoped references, root applicability and
-root presence-only relationships. Maps, variants, advanced assertions, broader/
-nested conditions, asserted formats, source maps, localization policy expansion
-and machine v3 remain later phases. No v1 fallback is provided.
+root presence-only relationships, typed maps, discriminated variants, exact
+numeric assertions, local references and explicitly asserted formats.
+Broader/nested conditions, source maps, localization policy expansion and
+machine v3 remain later phases. No v1 fallback is provided.
 
 A definition describes public configuration requirements and output mappings.
 It never contains private answers, executes code, fetches references, authenticates
@@ -69,31 +70,30 @@ basename hints, not paths or filesystem authority.
 ## Recursive schema grammar
 
 The implemented recursive grammar applies to configuration roots, properties and
-array items, without item-only aliases. Map values and variant branches below are
-later design; they are not admitted by the current base. The configuration root
-itself must be a non-null object.
+array items, map values and closed variant branches, without item-only aliases.
+The configuration root itself must be a non-null object.
 
 | Member | Allowed context and rule |
 |---|---|
 | `type` | One of `string`, `boolean`, `integer`, `number`, `object`, `array`; or an array containing exactly one base type and `null` |
 | `title`, `description` | Optional bounded inert text |
-| `enum` | Nonempty distinct homogeneous non-null scalar values compatible with the base type |
+| `enum` | Nonempty distinct homogeneous scalar values compatible with the base type; nullable types may additionally include null |
 | `const` | One compatible scalar; conflicts with enum or assertions reject |
 | `properties` | Object; exact-name keyed schema map, empty permitted |
 | `required` | Object; distinct locally declared property names; omission means none |
-| `additionalProperties` | Current objects explicitly require `false`; typed-map schema form is later design; untyped `true` rejects |
+| `additionalProperties` | Objects explicitly choose `false` or a recursive typed value schema; untyped `true` rejects |
 | `items` | Required for array; one recursive schema |
 | `minimum`, `maximum` | Current inclusive numeric bounds |
-| `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf` | Later design; numeric exact bounds/positive exact multiple |
+| `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf` | Numeric exact bounds and positive exact multiple |
 | `minLength`, `maxLength` | Strings only; nonnegative Unicode-scalar counts |
 | `minItems`, `maxItems` | Current array cardinality bounds |
-| `uniqueItems` | Later design; Boolean uniqueness assertion |
+| `uniqueItems` | Boolean structural uniqueness assertion |
 | `minProperties`, `maxProperties` | Objects only; nonnegative bounds |
 | `dependentRequired` | Current configuration-root map of local names to distinct nonempty local required-name arrays; nested form later |
-| `$defs`, `$ref` | Bounded supplied references in the separate importer; not current runtime node keywords |
+| `$defs`, `$ref` | Acyclic local schema references rooted at configuration, starting `#/$defs/`; supplied offline documents are additionally supported by the importer |
 | `if`, `then` | Current configuration-root presence-only `{required: [...]}` assertions |
 | Broader `if`/`then`, `else` | Later design; general/nested predicates and conditional assertions |
-| `oneOf` | Later design; closed object variants with a shared required scalar discriminator |
+| `oneOf` | 2-16 closed object variants with exactly one shared eligible required scalar discriminator and distinct const values |
 | `format` | String annotation; no assertion by itself |
 | `default` | Descriptive value only; never inserted |
 | `readOnly`, `writeOnly`, `deprecated`, `examples` | Inert annotations except writeOnly raises the secret floor; public values must meet privacy rules |
@@ -102,8 +102,9 @@ itself must be a non-null object.
 Missing bounds impose only the existing global budget. Reversed bounds,
 unknown members, assertions on incompatible types, invalid literal values, and
 unrepresentable numbers reject at admission. Closed objects reject undeclared
-answer members. The later typed-map design would validate each dynamic member
-using its value schema; no map form is delivered now.
+answer members unless a typed additional-properties schema validates each
+dynamic member. Discriminator selection never guesses a branch from labels;
+nullable provider values remain null outside branch selection.
 
 Unsupported constructs include tuples, general unions/combinators, arbitrary
 regular expressions, dynamic/remote/recursive references, executable validators,
@@ -118,7 +119,7 @@ unsupported assertion.
 | `initialValue` | Public valid value inserted only at eligible never-supplied locations |
 | `suggestedValue` | Public valid value adopted only by deliberate operator action |
 | `notBlank` | String-only Boolean assertion rejecting empty/whitespace text when true |
-| `assertFormat` | Later design; Boolean enabling a supported format assertion; not a current extension member |
+| `assertFormat` | String-only Boolean enabling a supported format assertion when true |
 | `uniqueBy` | Array-of-object uniqueness by an admitted concrete property pointer |
 | `applicableWhen` | Current direct configuration-property predicate using root-scoped references; nested/item predicates later |
 | `detail` | `basic`, `standard`, `advanced`; presentation only, default standard |
@@ -138,8 +139,8 @@ Integer values use signed Int64. Number values use exact decimal representation:
 at most 28 significant digits after redundant zero removal, scale at most 28,
 and explicit exponents in the range -28 through 28. Parsing must reject overflow,
 underflow, rounding, non-finite tokens, and values outside the admitted domain.
-Constraints and values use the same domain; the later multipleOf design requires
-exact arithmetic rather than rounding.
+Constraints and values use the same domain; multipleOf uses exact decimal
+remainder rather than rounding.
 
 Strings preserve exact Unicode scalar values. Unpaired surrogates, invalid UTF-8,
 and exact duplicate object members reject. Names are ordinal and case-sensitive:
@@ -149,16 +150,15 @@ not UTF-16 code units or grapheme clusters.
 
 ### Asserted format registry
 
-**Later design, not delivered support.** Current `format` is annotation only and
-`assertFormat` rejects as unknown extension vocabulary. The selected future
-registry below must be implemented and qualified before assertion use. No format
-may perform a network check.
+`format` alone is annotation. `x-configurator.assertFormat: true` enables the
+following bounded lexical checks; no check performs network I/O or proves target
+acceptance. False leaves the annotation inert.
 
-| Name | Selected lexical domain |
+| Name | Supported lexical domain |
 |---|---|
 | `hostname` | ASCII DNS labels, letters/digits/hyphens, no edge hyphens; optional trailing root dot; labels 1-63 bytes, complete hostname at most 253 bytes excluding root dot |
 | `email-address` | ASCII dot-atom local part and hostname domain; no display names, comments, quoted local parts, IP literals, or internationalized addresses |
-| `uri` | Absolute URI with a valid scheme and well-formed escapes; no whitespace/control characters |
+| `uri` | ASCII absolute URI with a valid scheme and well-formed escapes; no whitespace/control characters |
 | `http-url` | Absolute HTTP(S) URL with host and no user information; this lexical assertion does not grant retrieval permission |
 
 Both HTTP and HTTPS are lexical values for `http-url`, while definition retrieval

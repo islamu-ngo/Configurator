@@ -7,6 +7,46 @@ namespace Configurator.Core.Tests;
 public sealed class DefinitionSchemaImporterTests
 {
     [Test]
+    public async Task NullableProviderDomainChangeRequiresExplicitAcknowledgment()
+    {
+        const string schema = """
+            {"type":"object","additionalProperties":false,"properties":{"provider":{
+              "type":["object","null"],"oneOf":[
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{
+                  "kind":{"type":"string","const":"local"}}},
+                {"type":"object","additionalProperties":false,"required":["kind"],"properties":{
+                  "kind":{"type":"string","const":"remote"}}}]}}}
+            """;
+        await Assert.That(() => DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema)))
+            .Throws<DefinitionSchemaImportException>();
+        DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema),
+            acceptBoundedSemantics: true);
+        await Assert.That(imported.Transformations.Contains(
+            new("converted", "schema-nullable-variant-domain", "/properties/provider/oneOf", 0))).IsTrue();
+    }
+
+    [Test]
+    public async Task UnusedDefinitionsCannotHideUnsupportedAssertionsFromTheTransformationLedger()
+    {
+        const string schema = """
+            {"type":"object","additionalProperties":false,"properties":{},"$defs":{
+              "unused":{"type":"string","pattern":"synthetic-private-pattern","default":"synthetic-private-default"}}}
+            """;
+        try
+        {
+            DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), acceptBoundedSemantics: true);
+            throw new InvalidOperationException("Expected unsupported assertion refusal.");
+        }
+        catch (DefinitionSchemaImportException exception)
+        {
+            await Assert.That(exception.Transformations.Contains(
+                new("unsupported", "schema-keyword-unsupported", "/$defs/unused/pattern", 0))).IsTrue();
+            await Assert.That(System.Text.Json.JsonSerializer.Serialize(exception.Transformations))
+                .DoesNotContain("synthetic-private");
+        }
+    }
+
+    [Test]
     public async Task ImportsClosedObjectsArraysAndEnumsWithPrivateDefaultsRemoved()
     {
         const string schema = """
@@ -36,7 +76,8 @@ public sealed class DefinitionSchemaImporterTests
         await Assert.That(() => DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema)))
             .Throws<DefinitionSchemaImportException>();
         DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), acceptBoundedSemantics: true);
-        await Assert.That(imported.Differences).IsEquivalentTo(["schema-numeric-bounded-domain"]);
+        await Assert.That(imported.Transformations.Where(item => item.Code == "schema-numeric-bounded-domain").ToArray())
+            .IsEquivalentTo([new DefinitionSchemaTransformation("converted", "schema-numeric-bounded-domain", "/properties/count/type", 0)]);
         await Assert.That(imported.Configuration.GetProperty("properties").GetProperty("count").GetProperty("maximum").GetInt32()).IsEqualTo(20);
     }
 
@@ -61,7 +102,7 @@ public sealed class DefinitionSchemaImporterTests
         string[] fields =
         [
             """{"type":"string","pattern":".*"}""",
-            """{"type":["string","null"]}""",
+            """{"type":["string","boolean","null"]}""",
             """{"anyOf":[{"type":"string"},{"type":"boolean"}]}""",
             """{"type":"object","additionalProperties":true}""",
             """{"type":"array","prefixItems":[{"type":"boolean"}]}""",
@@ -127,8 +168,10 @@ public sealed class DefinitionSchemaImporterTests
             ["outputs"] = new JsonObject { ["config.json"] = new JsonObject { ["format"] = "json" } }
         };
         var definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
-        await Assert.That(definition.Fields[0].Help).IsEqualTo("Server address; Target schema format annotation: uri");
-        await Assert.That(definition.Fields[0].Format).IsNull();
+        await Assert.That(definition.Fields[0].Help).IsEqualTo("Server address");
+        await Assert.That(imported.Configuration.GetProperty("properties").GetProperty("address").GetProperty("format").GetString()).IsEqualTo("uri");
+        await Assert.That(imported.Configuration.GetProperty("properties").GetProperty("address").TryGetProperty("x-configurator", out var extension)
+            && extension.TryGetProperty("assertFormat", out _)).IsFalse();
     }
 
     [Test]
@@ -175,5 +218,155 @@ public sealed class DefinitionSchemaImporterTests
         await Assert.That(imported.Configuration.GetProperty("properties").EnumerateObject().Count()).IsEqualTo(4);
         foreach (var field in imported.Configuration.GetProperty("properties").EnumerateObject())
             await Assert.That(field.Value.GetProperty("type").GetString()).IsEqualTo("boolean");
+    }
+
+    [Test]
+    public async Task RecursiveScalarItemsTypedMapsAndNullableValuesRetainConstraints()
+    {
+        const string schema = """
+            {"type":"object","additionalProperties":false,"properties":{
+              "flags":{"type":"array","uniqueItems":true,"items":{"type":"boolean","enum":[true,false]}},
+              "names":{"type":"array","items":{"type":["string","null"],"minLength":2,"enum":["ab","cd",null]}},
+              "numbers":{"type":"object","minProperties":1,"maxProperties":4,
+                "additionalProperties":{"type":"array","items":{"type":["number","null"],
+                  "exclusiveMinimum":0,"exclusiveMaximum":10,"multipleOf":0.25}}},
+              "nothing":{"type":"array","items":{"type":"null"}}}}
+            """;
+        DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), acceptBoundedSemantics: true);
+        var properties = imported.Configuration.GetProperty("properties");
+        await Assert.That(properties.GetProperty("flags").GetProperty("uniqueItems").GetBoolean()).IsTrue();
+        await Assert.That(properties.GetProperty("names").GetProperty("items").GetProperty("minLength").GetInt32()).IsEqualTo(2);
+        await Assert.That(properties.GetProperty("nothing").GetProperty("items").GetProperty("enum")[0].ValueKind)
+            .IsEqualTo(System.Text.Json.JsonValueKind.Null);
+        await Assert.That(imported.Transformations.Any(entry => entry.Code == "schema-null-type-converted"
+            && entry.Classification == "converted")).IsTrue();
+        var item = properties.GetProperty("numbers").GetProperty("additionalProperties").GetProperty("items");
+        await Assert.That(item.GetProperty("multipleOf").GetDecimal()).IsEqualTo(0.25m);
+        await Assert.That(item.GetProperty("exclusiveMaximum").GetInt32()).IsEqualTo(10);
+        await Assert.That(imported.Transformations.Any(entry => entry.Code == "schema-numeric-bounded-domain"
+            && entry.Location == "/properties/numbers/additionalProperties/items/type")).IsTrue();
+    }
+
+    [Test]
+    public async Task DiscriminatedClosedObjectBranchesUseCoreAdmission()
+    {
+        const string schema = """
+            {"type":"object","additionalProperties":false,"properties":{"provider":{"type":"object","oneOf":[
+              {"type":"object","additionalProperties":false,"required":["kind","host"],"properties":{
+                "kind":{"type":"string","const":"local"},"host":{"type":"string"}}},
+              {"type":"object","additionalProperties":false,"required":["kind","token"],"properties":{
+                "kind":{"type":"string","const":"remote"},"token":{"type":"string","writeOnly":true}}}
+            ]}}}
+            """;
+        DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema));
+        await Assert.That(imported.Configuration.GetProperty("properties").GetProperty("provider").GetProperty("oneOf").GetArrayLength()).IsEqualTo(2);
+        string ambiguous = schema.Replace("\"const\":\"remote\"", "\"const\":\"local\"", StringComparison.Ordinal);
+        await Assert.That(() => DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(ambiguous), acceptBoundedSemantics: true))
+            .Throws<DefinitionSchemaImportException>();
+    }
+
+    [Test]
+    public async Task TransformationsDiscardPrivateValuesAndRetainAnnotationsWithoutInitialization()
+    {
+        const string schema = """
+            {"type":"object","additionalProperties":false,"properties":{"a/b~c":{"type":"string",
+              "default":"synthetic-default-canary","examples":["synthetic-example-canary"],
+              "format":"uri","readOnly":true,"deprecated":true}}}
+            """;
+        DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema));
+        string output = imported.Configuration.GetRawText();
+        await Assert.That(output.Contains("synthetic-", StringComparison.Ordinal)).IsFalse();
+        await Assert.That(output.Contains("initialValue", StringComparison.Ordinal)).IsFalse();
+        await Assert.That(imported.Transformations.Contains(new("discarded", "schema-default-discarded", "/properties/a~1b~0c/default", 0))).IsTrue();
+        await Assert.That(imported.Transformations.Contains(new("discarded", "schema-examples-discarded", "/properties/a~1b~0c/examples", 0))).IsTrue();
+        await Assert.That(imported.Transformations.Contains(new("advisory", "schema-format-advisory", "/properties/a~1b~0c/format", 0))).IsTrue();
+        var field = imported.Configuration.GetProperty("properties").GetProperty("a/b~c");
+        await Assert.That(field.GetProperty("format").GetString()).IsEqualTo("uri");
+        await Assert.That(field.GetProperty("readOnly").GetBoolean()).IsTrue();
+        await Assert.That(field.GetProperty("deprecated").GetBoolean()).IsTrue();
+        await Assert.That(imported.Transformations is ICollection<DefinitionSchemaTransformation> { IsReadOnly: true }).IsTrue();
+    }
+
+    [Test]
+    public async Task UnsupportedAssertionsReportSafeLocationsEvenWhenAcknowledged()
+    {
+        const string schema = """
+            {"type":"object","additionalProperties":false,"properties":{"entry":{"type":"string",
+              "pattern":"synthetic-pattern-canary","default":"synthetic-default-canary"}}}
+            """;
+        try
+        {
+            _ = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), acceptBoundedSemantics: true);
+            Assert.Fail("Unsupported assertions must reject.");
+        }
+        catch (DefinitionSchemaImportException exception)
+        {
+            await Assert.That(exception.Transformations.Contains(new("unsupported", "schema-keyword-unsupported", "/properties/entry/pattern", 0))).IsTrue();
+            await Assert.That(exception.Transformations.Any(item => item.Classification == "discarded")).IsTrue();
+            await Assert.That(exception.ToString().Contains("synthetic-", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(exception.Transformations.Any(item => item.ToString().Contains("synthetic-", StringComparison.Ordinal))).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task SuppliedDocumentOrdinalsAndNestedSecretInheritanceDoNotExposeReferenceNames()
+    {
+        const string schema = """
+            {"type":"object","additionalProperties":false,"properties":{"map":{"$ref":"private-directory/common.json#/$defs/map","writeOnly":true}}}
+            """;
+        var references = new Dictionary<string, ReadOnlyMemory<byte>>
+        {
+            ["private-directory/common.json"] = Encoding.UTF8.GetBytes("""
+                {"$defs":{"map":{"type":"object","additionalProperties":{"type":"array","items":{"type":"string",
+                  "writeOnly":false,"default":"synthetic-default-canary"}}}}}
+                """)
+        };
+        DefinitionSchemaImportResult imported = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), references);
+        var item = imported.Configuration.GetProperty("properties").GetProperty("map").GetProperty("additionalProperties").GetProperty("items");
+        await Assert.That(item.GetProperty("x-configurator").GetProperty("sensitivity").GetString()).IsEqualTo("secret");
+        await Assert.That(imported.Transformations.Contains(new("discarded", "schema-default-discarded", "/$defs/map/additionalProperties/items/default", 1))).IsTrue();
+        await Assert.That(imported.Transformations.Any(entry => entry.ToString().Contains("private-directory", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(item.TryGetProperty("default", out _)).IsFalse();
+    }
+
+    [Test]
+    public async Task CoreSemanticRejectionsCannotBeAcknowledgedAway()
+    {
+        string[] fields =
+        [
+            """{"type":"number","multipleOf":0}""",
+            """{"type":"number","exclusiveMinimum":5,"maximum":4}""",
+            """{"type":"array","items":{"type":"string","enum":["a",true]}}""",
+            """{"type":"object","additionalProperties":{"type":"string","minLength":-1}}""",
+            """
+            {"type":"object","oneOf":[
+                {"type":"object","additionalProperties":false,"properties":{"kind":{"type":"string","const":"a"}}},
+                {"type":"object","additionalProperties":false,"properties":{"kind":{"type":"string","const":"b"}}}]}
+            """
+        ];
+        foreach (string field in fields)
+        {
+            string schema = "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"value\":" + field + "}}";
+            await Assert.That(() => DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema), acceptBoundedSemantics: true))
+                .Throws<DefinitionSchemaImportException>();
+        }
+    }
+
+    [Test]
+    public async Task NumericAcknowledgmentFailureCarriesImmutableLocationLedger()
+    {
+        const string schema = """{"type":"object","additionalProperties":false,"properties":{"count":{"type":"integer"}}}""";
+        try
+        {
+            _ = DefinitionSchemaImporter.Import(Encoding.UTF8.GetBytes(schema));
+            Assert.Fail("Numeric profile conversion requires explicit acknowledgment.");
+        }
+        catch (DefinitionSchemaImportException exception)
+        {
+            await Assert.That(exception.Code).IsEqualTo("schema-bounded-semantics-required");
+            await Assert.That(exception.Transformations.Contains(new("converted", "schema-numeric-bounded-domain", "/properties/count/type", 0))).IsTrue();
+            await Assert.That(exception.Transformations is ICollection<DefinitionSchemaTransformation> { IsReadOnly: true }).IsTrue();
+            await Assert.That(exception.Transformations.Any(item => item.Classification == "unsupported")).IsFalse();
+        }
     }
 }

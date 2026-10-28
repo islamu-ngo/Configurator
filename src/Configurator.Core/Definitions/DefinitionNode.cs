@@ -60,6 +60,30 @@ public sealed record DefinitionNode
         Items = items;
         AdditionalProperties = additionalProperties;
         Variants = variantSnapshot.AsReadOnly();
+        if (variantSnapshot.Count > 0)
+        {
+            if (variantSnapshot.Count is < 2 or > 16 || propertySnapshot.Count != 0 || additionalProperties is not null)
+                throw new SetupDefinitionException("schema-variant");
+            string[] candidates = variantSnapshot[0].Required.Where(name =>
+            {
+                var constants = new HashSet<string>(StringComparer.Ordinal);
+                DefinitionNodeType? kind = null;
+                foreach (DefinitionNode variant in variantSnapshot)
+                {
+                    if (variant.IsNullable || variant.AdditionalProperties is not null || variant.Variants.Count != 0 ||
+                        !variant.Required.Contains(name, StringComparer.Ordinal) ||
+                        !variant.Properties.TryGetValue(name, out DefinitionNode? property) ||
+                        property.IsNullable || property.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence ||
+                        !property.Keywords.TryGetProperty("const", out JsonElement value) ||
+                        value.ValueKind == JsonValueKind.Null || kind.HasValue && property.Type != kind ||
+                        !constants.Add(value.GetRawText())) return false;
+                    kind = property.Type;
+                }
+                return true;
+            }).ToArray();
+            if (candidates.Length != 1) throw new SetupDefinitionException("schema-discriminator");
+            Discriminator = candidates[0];
+        }
         ExpandedNodes = 1;
         Depth = 1;
         ScalarCharacters = propertySnapshot.Keys.Sum(name => name.Length);
@@ -98,6 +122,7 @@ public sealed record DefinitionNode
     public DefinitionNode? Items { get; }
     public DefinitionNode? AdditionalProperties { get; }
     public IReadOnlyList<DefinitionNode> Variants { get; }
+    public string? Discriminator { get; }
     internal int ExpandedNodes { get; }
     internal int ScalarCharacters { get; }
     internal int Depth { get; }

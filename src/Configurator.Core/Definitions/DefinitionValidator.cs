@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Security.Cryptography;
 using Configurator.Core.Composition;
 using Configurator.Core.Artifacts;
 
@@ -112,6 +113,19 @@ public static class DefinitionValidator
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(answers);
+        DefinitionNode rootSchema = definition.Configuration;
+        if (rootSchema.Discriminator is { } discriminator)
+        {
+            if (!answers.Values.TryGetValue(discriminator, out JsonElement selection) ||
+                DiscriminatedBranch(rootSchema, selection) is not { } branch)
+                return new([], [new("value-variant", "")], new(StringComparer.Ordinal));
+            rootSchema = branch;
+        }
+        var rootSensitivity = (SetupFieldSensitivity)Math.Max(
+            (int)SetupFieldDefinition.SensitivityOf(definition.Configuration), (int)SetupFieldDefinition.SensitivityOf(rootSchema));
+        IReadOnlyList<SetupFieldDefinition> rootFields = ReferenceEquals(rootSchema, definition.Configuration) ? definition.Fields
+            : Array.AsReadOnly(rootSchema.Properties.Select(property => new SetupFieldDefinition(property.Key, property.Value,
+                rootSchema.Required.Contains(property.Key, StringComparer.Ordinal), rootSensitivity)).ToArray());
         var effective = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         var diagnostics = new List<DefinitionDiagnostic>();
         var states = new Dictionary<string, SetupFieldState>(StringComparer.Ordinal);
@@ -119,17 +133,17 @@ public static class DefinitionValidator
         var deferred = new HashSet<string>(StringComparer.Ordinal);
         var unresolved = new HashSet<string>(StringComparer.Ordinal);
         var invalidControllers = new HashSet<string>(StringComparer.Ordinal);
-        var fields = definition.Fields.ToDictionary(field => field.Name, StringComparer.Ordinal);
+        var fields = rootFields.ToDictionary(field => field.Name, StringComparer.Ordinal);
         var visiting = new HashSet<string>(StringComparer.Ordinal);
         var budget = new CompositionBudget(SetupCompositionLimits.Default);
         var missing = new List<(string Root, string Id, string[] Path)>();
         try
         {
-            if (answers.Values.Keys.Any(name => !fields.ContainsKey(name)))
+            if (rootSchema.AdditionalProperties is null && answers.Values.Keys.Any(name => !fields.ContainsKey(name)))
                 diagnostics.Add(new("field-unknown", ""));
             foreach (DefinitionPath omission in answers.Omitted)
             {
-                DefinitionNode current = definition.Configuration;
+                DefinitionNode current = rootSchema;
                 for (int index = 0; index < omission.Segments.Count; index++)
                 {
                     if (current.Type == DefinitionNodeType.Mapping &&
@@ -137,16 +151,36 @@ public static class DefinitionValidator
                         current = child;
                     else if (current.Type == DefinitionNodeType.Sequence && omission.TryGetArrayIndex(index, out int row) &&
                         row < SetupCompositionLimits.DefaultSequenceEntries) current = current.Items!;
+                    else if (current.Type == DefinitionNodeType.Mapping && current.AdditionalProperties is { } map)
+                        current = map;
                     else { diagnostics.Add(new("answer-omission", "")); break; }
                 }
             }
-            foreach (SetupFieldDefinition field in definition.Fields) Activate(field);
+            foreach (SetupFieldDefinition field in rootFields) Activate(field);
+            if (rootSchema.AdditionalProperties is { } rootMap)
+            {
+                int entry = 0;
+                foreach ((string name, JsonElement supplied) in answers.Values)
+                {
+                    if (fields.ContainsKey(name)) continue;
+                    var resolved = Resolve(rootMap, JsonNode.Parse(supplied.GetRawText()), true, [name], "",
+                        ["@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, rootSensitivity);
+                    if (resolved.Present) effective.Add(name, Element(resolved.Value));
+                    entry++;
+                }
+            }
             SettleRequirements();
+            if (!PropertyCountValid(rootSchema, effective.Count))
+                diagnostics.Add(new("value-invalid", ""));
             if (DefinitionArtifactComposer.PreparationDiagnostics.IsEnabled("ValidationCompleted"))
                 DefinitionArtifactComposer.PreparationDiagnostics.Write("ValidationCompleted", draft);
-            return new(definition.Fields.Select(field => states[field.Name]), diagnostics, effective, deferred, unresolved, nodes);
+            return new(rootFields.Select(field => states[field.Name]), diagnostics, effective, deferred, unresolved, nodes);
         }
         catch (SetupCompositionException)
+        {
+            return new([], [new("validation-limit", "")], new(StringComparer.Ordinal));
+        }
+        catch (SetupDefinitionException exception) when (exception.Code == "path-limit")
         {
             return new([], [new("validation-limit", "")], new(StringComparer.Ordinal));
         }
@@ -166,7 +200,7 @@ public static class DefinitionValidator
             JsonNode? value = supplied ? JsonNode.Parse(source.GetRawText()) : null;
             int before = diagnostics.Count;
             var resolved = Resolve(field.Node, value, supplied, [field.Name], field.Id, [], active,
-                active && field.Required, SetupFieldDefinition.SensitivityOf(definition.Configuration));
+                active && field.Required, rootSensitivity);
             if (active && resolved.Present) effective.Add(field.Name, Element(resolved.Value));
             bool error = diagnostics.Count != before;
             if (error) invalidControllers.Add(field.Name);
@@ -190,6 +224,24 @@ public static class DefinitionValidator
                 value = JsonNode.Parse(initial.GetRawText());
                 present = true;
             }
+            if (active && present && value is not null && schema.Variants.Count > 0)
+            {
+                DefinitionNode? branch = SelectVariant(schema, Element(value));
+                if (branch is null)
+                {
+                    diagnostics.Add(new("value-variant", fieldId, safePath));
+                    nodes.Add(new(fieldId, safePath, true, required, true, false, required, false, false,
+                        SetupFieldDefinition.EffectiveSensitivity(schema, inherited)));
+                    return (true, value, false);
+                }
+                var resolvedBranch = Resolve(branch, value, true, location, fieldId, safePath, true, required, sensitivity);
+                if (resolvedBranch.Valid && !LocalValueValid(schema, Element(resolvedBranch.Value)))
+                {
+                    diagnostics.Add(new("value-invalid", fieldId, safePath));
+                    return (resolvedBranch.Present, resolvedBranch.Value, false);
+                }
+                return resolvedBranch;
+            }
             bool missingSecret = active && !present && draft && sensitivity == SetupFieldSensitivity.Secret
                 && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
             if (missingSecret) deferred.Add(location[0]);
@@ -201,7 +253,7 @@ public static class DefinitionValidator
             {
                 var mapping = value as JsonObject;
                 bool childrenValid = true;
-                if (containerPresent && mapping!.Any(member => !schema.Properties.ContainsKey(member.Key)))
+                if (containerPresent && schema.AdditionalProperties is null && mapping!.Any(member => !schema.Properties.ContainsKey(member.Key)))
                 {
                     diagnostics.Add(new("value-invalid", fieldId, safePath));
                     childrenValid = false;
@@ -217,6 +269,20 @@ public static class DefinitionValidator
                     {
                         if (!child.Present) mapping!.Remove(name);
                         else if (!ReferenceEquals(mapping![name], child.Value)) mapping![name] = child.Value;
+                    }
+                }
+                if (containerPresent && schema.AdditionalProperties is { } mapSchema)
+                {
+                    int entry = 0;
+                    foreach ((string name, JsonNode? childValue) in mapping!.ToArray())
+                    {
+                        if (schema.Properties.ContainsKey(name)) continue;
+                        budget.Scalar(name);
+                        var child = Resolve(mapSchema, childValue, true, [.. location, name], fieldId,
+                            [.. safePath, "@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, sensitivity);
+                        childrenValid &= child.Valid;
+                        if (!ReferenceEquals(mapping![name], child.Value)) mapping[name] = child.Value;
+                        entry++;
                     }
                 }
                 if (active && present) valid = childrenValid && LocalValueValid(schema, Element(value));
@@ -282,7 +348,7 @@ public static class DefinitionValidator
             unknown.UnionWith(witnesses);
             unknown.UnionWith(deferred);
             CloseUncertainty();
-            foreach (SetupFieldDefinition field in definition.Fields)
+            foreach (SetupFieldDefinition field in rootFields)
             {
                 SetupFieldState previous = states[field.Name];
                 bool? applicable = field.ActiveWhen is { } condition ? EvaluateCondition(condition, effective, unknown) : true;
@@ -297,6 +363,7 @@ public static class DefinitionValidator
             for (int index = 0; index < nodes.Count; index++)
             {
                 DefinitionNodeState node = nodes[index];
+                if (node.FieldId.Length == 0) continue;
                 SetupFieldState root = states[fields.Values.First(field => field.Id == node.FieldId).Name];
                 bool active = root.IsActive && node.IsActive;
                 bool required = node.RelativePath.Count == 0 ? root.IsRequired : node.IsRequired;
@@ -317,10 +384,10 @@ public static class DefinitionValidator
                     cancellationToken.ThrowIfCancellationRequested();
                     int count = unknown.Count;
                     relationshipRequired.Clear();
-                    foreach (SetupFieldDefinition field in definition.Fields)
+                    foreach (SetupFieldDefinition field in rootFields)
                         if (field.ActiveWhen is { } condition && EvaluateCondition(condition, effective, unknown) is null)
                             unknown.Add(field.Name);
-                    JsonElement keywords = definition.Configuration.Keywords;
+                    JsonElement keywords = rootSchema.Keywords;
                     if (keywords.TryGetProperty("if", out JsonElement guard))
                     {
                         bool? holds = true;
@@ -363,20 +430,36 @@ public static class DefinitionValidator
     {
         if (!LocalValueValid(schema, value)) return false;
         if (value.ValueKind == JsonValueKind.Null) return true;
+        if (schema.Variants.Count > 0)
+            return SelectVariant(schema, value) is { } branch && ValueValid(branch, value);
         if (schema.Type == DefinitionNodeType.Mapping)
         {
-            if (value.EnumerateObject().Any(member => !schema.Properties.ContainsKey(member.Name))) return false;
+            if (schema.AdditionalProperties is null && value.EnumerateObject().Any(member => !schema.Properties.ContainsKey(member.Name))) return false;
             foreach ((string name, DefinitionNode child) in schema.Properties)
             {
                 bool present = value.TryGetProperty(name, out JsonElement supplied);
                 if (!present && schema.Required.Contains(name, StringComparer.Ordinal) || present && !ValueValid(child, supplied)) return false;
             }
+            if (schema.AdditionalProperties is { } map)
+                foreach (JsonProperty entry in value.EnumerateObject())
+                    if (!schema.Properties.ContainsKey(entry.Name) && !ValueValid(map, entry.Value)) return false;
         }
         if (schema.Type == DefinitionNodeType.Sequence)
             foreach (JsonElement item in value.EnumerateArray())
                 if (!ValueValid(schema.Items!, item)) return false;
         return true;
     }
+
+    internal static DefinitionNode? SelectVariant(DefinitionNode schema, JsonElement value)
+    {
+        if (schema.Discriminator is null || value.ValueKind != JsonValueKind.Object ||
+            !value.TryGetProperty(schema.Discriminator, out JsonElement discriminator)) return null;
+        return DiscriminatedBranch(schema, discriminator);
+    }
+
+    private static DefinitionNode? DiscriminatedBranch(DefinitionNode schema, JsonElement discriminator) =>
+        schema.Variants.FirstOrDefault(branch =>
+            JsonElement.DeepEquals(branch.Properties[schema.Discriminator!].Keywords.GetProperty("const"), discriminator));
 
     private static bool LocalValueValid(DefinitionNode schema, JsonElement value)
     {
@@ -403,24 +486,71 @@ public static class DefinitionValidator
                 || keywords.TryGetProperty("maxLength", out JsonElement maximum) && length > maximum.GetInt32()
                 || keywords.TryGetProperty("x-configurator", out JsonElement extension)
                     && extension.TryGetProperty("notBlank", out JsonElement notBlank) && notBlank.GetBoolean() && string.IsNullOrWhiteSpace(text)) return false;
+            if (keywords.TryGetProperty("x-configurator", out JsonElement formatMetadata) &&
+                formatMetadata.TryGetProperty("assertFormat", out JsonElement asserted) && asserted.GetBoolean() &&
+                !FormatMatches(keywords.GetProperty("format").GetString()!, text)) return false;
         }
         if (value.ValueKind == JsonValueKind.Number)
         {
             if (!value.TryGetDecimal(out decimal number)
                 || keywords.TryGetProperty("minimum", out JsonElement minimum) && number < minimum.GetDecimal()
-                || keywords.TryGetProperty("maximum", out JsonElement maximum) && number > maximum.GetDecimal()) return false;
+                || keywords.TryGetProperty("maximum", out JsonElement maximum) && number > maximum.GetDecimal()
+                || keywords.TryGetProperty("exclusiveMinimum", out JsonElement exclusiveMinimum) && number <= exclusiveMinimum.GetDecimal()
+                || keywords.TryGetProperty("exclusiveMaximum", out JsonElement exclusiveMaximum) && number >= exclusiveMaximum.GetDecimal()
+                || keywords.TryGetProperty("multipleOf", out JsonElement multiple) && number % multiple.GetDecimal() != 0) return false;
+        }
+        if (value.ValueKind == JsonValueKind.Array && keywords.TryGetProperty("uniqueItems", out JsonElement unique) &&
+            unique.GetBoolean())
+        {
+            var seen = new Dictionary<string, List<JsonElement>>(StringComparer.Ordinal);
+            foreach (JsonElement item in value.EnumerateArray())
+            {
+                byte[] canonical = DefinitionJson.Canonicalize(item, keyPolicy: CompositionKeyPolicy.Exact);
+                string identity;
+                try { identity = Convert.ToHexString(SHA256.HashData(canonical)); }
+                finally { CryptographicOperations.ZeroMemory(canonical); }
+                if (!seen.TryGetValue(identity, out List<JsonElement>? bucket)) seen.Add(identity, bucket = []);
+                if (bucket.Any(previous => JsonElement.DeepEquals(previous, item))) return false;
+                bucket.Add(item);
+            }
         }
         if (value.ValueKind == JsonValueKind.Array
             && (keywords.TryGetProperty("minItems", out JsonElement minItems) && value.GetArrayLength() < minItems.GetInt32()
                 || keywords.TryGetProperty("maxItems", out JsonElement maxItems) && value.GetArrayLength() > maxItems.GetInt32()
                 || DuplicateIndex(schema, value) >= 0)) return false;
-        if (value.ValueKind == JsonValueKind.Object)
-        {
-            int count = value.EnumerateObject().Count();
-            if (keywords.TryGetProperty("minProperties", out JsonElement minimum) && count < minimum.GetInt32()
-                || keywords.TryGetProperty("maxProperties", out JsonElement maximum) && count > maximum.GetInt32()) return false;
-        }
+        if (value.ValueKind == JsonValueKind.Object && !PropertyCountValid(schema, value.EnumerateObject().Count())) return false;
         return true;
+    }
+
+    private static bool PropertyCountValid(DefinitionNode schema, int count) =>
+        (!schema.Keywords.TryGetProperty("minProperties", out JsonElement minimum) || count >= minimum.GetInt32()) &&
+        (!schema.Keywords.TryGetProperty("maxProperties", out JsonElement maximum) || count <= maximum.GetInt32());
+
+    private static bool FormatMatches(string format, string text)
+    {
+        if (format == "hostname") return Hostname(text);
+        if (format == "email-address")
+        {
+            int separator = text.IndexOf('@');
+            if (separator is < 1 or > 64 || separator != text.LastIndexOf('@') || text.Length > 254) return false;
+            string local = text[..separator];
+            return local[0] != '.' && local[^1] != '.' && !local.Contains("..", StringComparison.Ordinal) &&
+                local.All(character => char.IsAsciiLetterOrDigit(character) ||
+                    ".!#$%&'*+-/=?^_`{|}~".Contains(character)) && Hostname(text[(separator + 1)..]);
+        }
+        if (text.Any(character => character <= ' ' || character >= 127) ||
+            !Uri.TryCreate(text, UriKind.Absolute, out Uri? uri) || !uri.IsWellFormedOriginalString()) return false;
+        return format == "uri" || format == "http-url" && (uri.Scheme is "http" or "https") &&
+            uri.Host.Length != 0 && uri.UserInfo.Length == 0;
+
+        static bool Hostname(string host)
+        {
+            if (host.EndsWith('.')) host = host[..^1];
+            return host.Length is > 0 and <= 253 && host.Split('.').All(label =>
+                label.Length is > 0 and <= 63 && char.IsAsciiLetterOrDigit(label[0]) &&
+                char.IsAsciiLetterOrDigit(label[^1]) &&
+                label.All(character => char.IsAsciiLetterOrDigit(character) || character == '-'));
+        }
     }
 
     private static int DuplicateIndex(DefinitionNode schema, JsonElement value)

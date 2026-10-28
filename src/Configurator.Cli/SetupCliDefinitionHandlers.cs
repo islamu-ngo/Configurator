@@ -90,7 +90,7 @@ internal static class SetupCliDefinitionHandlers
         catch (DefinitionSchemaImportException exception)
         {
             var diagnostics = new[] { new SetupCliMachineDiagnostic(exception.Code, "$.schema", "error") }
-                .Concat(exception.Differences.Select(code => new SetupCliMachineDiagnostic(code, "$.schema", "warning"))).ToArray();
+                .Concat(exception.Transformations.Select(TransformationDiagnostic)).ToArray();
             return new(SetupCliExitCode.Data, diagnostics, [], SetupCliResults.EmptyCoverage(), new("incomplete", ["schema-review-required"], []));
         }
         catch (SetupDefinitionException) { return SetupCliResults.Failure(SetupCliExitCode.Data, "definition-source-invalid", "$.source"); }
@@ -135,13 +135,13 @@ internal static class SetupCliDefinitionHandlers
                     throw new DefinitionFileException("definition-output-conflict");
         if (IsYaml(output) != (format == "yaml")) return SetupCliResults.Failure(SetupCliExitCode.Usage, "definition-source-format");
         JsonObject configuration = new() { ["type"] = "object", ["properties"] = new JsonObject(), ["additionalProperties"] = false };
-        IReadOnlyList<string> differences = [];
+        IReadOnlyList<DefinitionSchemaTransformation> transformations = [];
         if (command.FromSchema is not null)
         {
             DefinitionSchemaImportResult imported = await DefinitionSchemaSourceFiles.ImportAsync(files, maximumBytes,
                 command.FromSchema, command.AcceptBoundedSemantics, cancellationToken).ConfigureAwait(false);
             configuration = JsonNode.Parse(imported.Configuration.GetRawText())!.AsObject();
-            differences = imported.Differences;
+            transformations = imported.Transformations;
         }
         else if (command.FromEnvExample is not null)
         {
@@ -174,10 +174,25 @@ internal static class SetupCliDefinitionHandlers
         SetupDefinition compiled = DefinitionAuthoringCompiler.Compile(Parse(bytes, format == "yaml", cancellationToken));
         cancellationToken.ThrowIfCancellationRequested();
         SetupCliCommandResult result = Receipt("authoring-source", format == "yaml", bytes, "not-attempted", compiled.Digest.Value) with
-        { Diagnostics = differences.Select(code => new SetupCliMachineDiagnostic(code, "$.schema", "warning")).ToArray() };
+        { Diagnostics = transformations.Select(TransformationDiagnostic).ToArray() };
         ledger.Plan(invocation, command, result);
         using ISetupCliPublicFilePreparation preparedSource = files.PrepareCreate(output, bytes, maximumBytes, false);
         return await PublishAsync([preparedSource], result, ledger, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static SetupCliMachineDiagnostic TransformationDiagnostic(DefinitionSchemaTransformation transformation)
+    {
+        string location = "/schema/documents/" + transformation.DocumentOrdinal.ToString(CultureInfo.InvariantCulture)
+            + transformation.Location;
+        // The machine envelope bounds diagnostic pointers; retain the nearest representable schema ancestor.
+        while (location.Length > 256 || location.Any(char.IsControl))
+            location = location[..location.LastIndexOf('/')];
+        return new(transformation.Code, location, transformation.Classification switch
+            {
+                "unsupported" => "error",
+                "advisory" or "discarded" => "warning",
+                _ => "info"
+            });
     }
 
     private static async Task<SetupCliCommandResult> PublishAsync(ISetupCliPublicFilePreparation[] prepared,

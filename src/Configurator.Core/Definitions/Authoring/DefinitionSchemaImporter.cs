@@ -4,27 +4,30 @@ using System.Text.Json.Nodes;
 
 namespace Configurator.Core.Definitions.Authoring;
 
-/// <summary>Snapshots a v2 configuration schema and named preparation-domain differences requiring review.</summary>
+/// <summary>A value-free account of one public schema concept. Document zero is the supplied root.</summary>
+public sealed record DefinitionSchemaTransformation(string Classification, string Code, string Location, int DocumentOrdinal);
+
+/// <summary>Snapshots a v2 configuration schema and its explicit transformation ledger.</summary>
 public sealed class DefinitionSchemaImportResult
 {
-    internal DefinitionSchemaImportResult(JsonElement configuration, IEnumerable<string> differences)
+    internal DefinitionSchemaImportResult(JsonElement configuration, IEnumerable<DefinitionSchemaTransformation> transformations)
     {
         Configuration = configuration.Clone();
-        Differences = Array.AsReadOnly(differences.Order(StringComparer.Ordinal).ToArray());
+        Transformations = Array.AsReadOnly(transformations.ToArray());
     }
     public JsonElement Configuration { get; }
-    public IReadOnlyList<string> Differences { get; }
+    public IReadOnlyList<DefinitionSchemaTransformation> Transformations { get; }
 }
 
 public sealed class DefinitionSchemaImportException : Exception
 {
-    internal DefinitionSchemaImportException(string code, IEnumerable<string>? differences = null) : base(code)
+    internal DefinitionSchemaImportException(string code, IEnumerable<DefinitionSchemaTransformation>? transformations = null) : base(code)
     {
         Code = code;
-        Differences = Array.AsReadOnly((differences ?? []).Order(StringComparer.Ordinal).ToArray());
+        Transformations = Array.AsReadOnly((transformations ?? []).ToArray());
     }
     public string Code { get; }
-    public IReadOnlyList<string> Differences { get; }
+    public IReadOnlyList<DefinitionSchemaTransformation> Transformations { get; }
 }
 
 /// <summary>Translates a closed JSON Schema subset without granting reference, filesystem or network authority.</summary>
@@ -43,7 +46,7 @@ public static class DefinitionSchemaImporter
             int bytes = schema.Length;
             int nodes = 0;
             documents.Add("", Parse(schema, ref nodes));
-            foreach ((string name, ReadOnlyMemory<byte> content) in localReferences ?? new Dictionary<string, ReadOnlyMemory<byte>>())
+            foreach ((string name, ReadOnlyMemory<byte> content) in (localReferences ?? new Dictionary<string, ReadOnlyMemory<byte>>()).OrderBy(pair => pair.Key, StringComparer.Ordinal))
             {
                 if (!IsLocalName(name) || documents.Count >= 64 || content.Length > MaximumBytes - bytes)
                     throw new DefinitionSchemaImportException("schema-reference-bound");
@@ -51,12 +54,37 @@ public static class DefinitionSchemaImporter
                 documents.Add(name, Parse(content, ref nodes));
             }
             var importer = new Importer(documents);
-            JsonObject configuration = importer.Field(documents[""], "", 0, new HashSet<string>(StringComparer.Ordinal));
-            if (configuration["type"]!.GetValue<string>() != "object")
-                throw new DefinitionSchemaImportException("schema-closed-object-required");
-            if (!acceptBoundedSemantics && importer.Differences.Count != 0)
-                throw new DefinitionSchemaImportException("schema-bounded-semantics-required", importer.Differences);
-            return new(JsonSerializer.SerializeToElement(configuration), importer.Differences);
+            try
+            {
+                JsonObject configuration = importer.Field(documents[""], "", 0, new HashSet<string>(StringComparer.Ordinal));
+                // Compile through the ordinary Core admission path rather than duplicating its semantic evaluator.
+                var source = new JsonObject
+                {
+                    ["$schema"] = DefinitionAuthoringCodec.SchemaId,
+                    ["identity"] = new JsonObject { ["familyId"] = "69cdb122-41d2-4fab-9b82-7929a889c726", ["revision"] = 1 },
+                    ["project"] = new JsonObject { ["id"] = "schema.import", ["name"] = "Schema import" },
+                    ["applicationVersions"] = new JsonArray("1.0.0"),
+                    ["configuration"] = configuration.DeepClone(),
+                    ["outputs"] = new JsonObject { ["config.json"] = new JsonObject { ["format"] = "json" } }
+                };
+                try { _ = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(JsonSerializer.SerializeToUtf8Bytes(source))); }
+                catch (SetupDefinitionException)
+                {
+                    importer.Report("unsupported", "schema-profile-unsupported", "", "");
+                    throw new DefinitionSchemaImportException("schema-profile-unsupported");
+                }
+                if (!acceptBoundedSemantics && importer.Transformations.Any(item =>
+                    item.Code is "schema-numeric-bounded-domain" or "schema-nullable-variant-domain"))
+                    throw new DefinitionSchemaImportException("schema-bounded-semantics-required");
+                return new(JsonSerializer.SerializeToElement(configuration), importer.Transformations);
+            }
+            catch (DefinitionSchemaImportException exception)
+            {
+                if (exception.Code != "schema-bounded-semantics-required"
+                    && !importer.Transformations.Any(item => item.Classification == "unsupported"))
+                    importer.Report("unsupported", exception.Code, "", "");
+                throw new DefinitionSchemaImportException(exception.Code, importer.Transformations);
+            }
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or ArgumentException or OverflowException)
         {
@@ -97,152 +125,169 @@ public static class DefinitionSchemaImporter
 
     private sealed class Importer(IReadOnlyDictionary<string, JsonElement> documents)
     {
-        internal HashSet<string> Differences { get; } = new(StringComparer.Ordinal);
+        internal List<DefinitionSchemaTransformation> Transformations { get; } = [];
         private int _expandedNodes;
         private int _expandedBytes;
         private static readonly string[] Common = ["$schema", "$id", "$defs", "$ref", "title", "description", "$comment", "default", "examples", "readOnly", "writeOnly", "deprecated", "format"];
         private static readonly string[] ReferenceAnnotations = ["title", "description", "format", "writeOnly", "readOnly", "deprecated"];
 
-        internal JsonObject ObjectFields(JsonElement schema, string document, int depth, HashSet<string> stack)
+        internal void Report(string classification, string code, string document, string location)
         {
-            var resolved = Resolve(schema, document, stack);
-            schema = resolved.Schema;
-            document = resolved.Document;
-            try
-            {
-                Validate(schema, ["type", "properties", "required", "additionalProperties"]);
-                if (Text(schema, "type") != "object" || !schema.TryGetProperty("additionalProperties", out JsonElement additional)
-                    || additional.ValueKind != JsonValueKind.False || !schema.TryGetProperty("properties", out JsonElement properties)
-                    || properties.ValueKind != JsonValueKind.Object)
-                    throw new DefinitionSchemaImportException("schema-closed-object-required");
-                CheckExpansion(depth);
-                var required = new HashSet<string>(StringComparer.Ordinal);
-                if (schema.TryGetProperty("required", out JsonElement requiredArray))
-                {
-                    if (requiredArray.ValueKind != JsonValueKind.Array) throw new DefinitionSchemaImportException("schema-required-invalid");
-                    foreach (JsonElement item in requiredArray.EnumerateArray())
-                        if (item.ValueKind != JsonValueKind.String || !required.Add(item.GetString()!)
-                            || !properties.TryGetProperty(item.GetString()!, out _))
-                            throw new DefinitionSchemaImportException("schema-required-invalid");
-                }
-                var fields = new JsonObject();
-                foreach (JsonProperty property in properties.EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
-                {
-                    Charge(JsonSerializer.SerializeToUtf8Bytes(property.Name).Length + 1);
-                    JsonObject field = Field(property.Value, document, depth + 1, stack);
-                    if (schema.TryGetProperty("writeOnly", out JsonElement writeOnly) && writeOnly.ValueKind == JsonValueKind.True)
-                        field["x-configurator"]!["sensitivity"] = "secret";
-                    fields.Add(property.Name, field);
-                }
-                if (fields.Count > 1024) throw new DefinitionSchemaImportException("schema-field-bound");
-                return fields;
-            }
-            finally { Release(resolved.Keys, stack); }
+            if (location.Length > 4096 || Transformations.Count >= 16_384)
+                throw new DefinitionSchemaImportException("schema-transformation-bound");
+            var transformation = new DefinitionSchemaTransformation(classification, code, location,
+                documents.Keys.TakeWhile(name => name != document).Count());
+            if (!Transformations.Contains(transformation)) Transformations.Add(transformation);
         }
 
-        internal JsonObject Field(JsonElement schema, string document, int depth, HashSet<string> stack)
+        private static string At(string location, string token) => location + "/"
+            + token.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+
+        internal JsonObject Field(JsonElement schema, string document, int depth, HashSet<string> stack,
+            string location = "", bool secretAncestor = false)
         {
-            var resolved = Resolve(schema, document, stack);
+            var resolved = Resolve(schema, document, stack, location);
             schema = resolved.Schema;
             document = resolved.Document;
+            location = resolved.Location;
             try
             {
                 CheckExpansion(depth);
                 if (schema.TryGetProperty("$id", out _)) throw new DefinitionSchemaImportException("schema-resource-scope-unsupported");
-                string? type = Text(schema, "type");
-                string[] keywords = type switch
-                {
-                    "object" => ["type", "properties", "required", "additionalProperties"],
-                    "array" => ["type", "items", "minItems", "maxItems"],
-                    "string" => ["type", "enum", "minLength", "maxLength"],
-                    "integer" or "number" => ["type", "minimum", "maximum"],
-                    "boolean" => ["type"],
-                    _ => throw new DefinitionSchemaImportException("schema-type-unsupported")
-                };
-                Validate(schema, keywords);
+                string[] keywords = ["type", "properties", "required", "additionalProperties", "items", "minItems", "maxItems",
+                    "uniqueItems", "enum", "const", "minLength", "maxLength", "minimum", "maximum", "exclusiveMinimum",
+                    "exclusiveMaximum", "multipleOf", "minProperties", "maxProperties", "oneOf", "dependentRequired", "if", "then", "else"];
+                Validate(schema, keywords, document, location);
+                bool secret = secretAncestor || schema.TryGetProperty("writeOnly", out JsonElement writeOnly) && writeOnly.ValueKind == JsonValueKind.True;
                 var result = new JsonObject
                 {
-                    ["type"] = type,
-                    ["x-configurator"] = new JsonObject
-                    {
-                        ["sensitivity"] = schema.TryGetProperty("writeOnly", out JsonElement writeOnly) && writeOnly.ValueKind == JsonValueKind.True ? "secret" : "sensitive"
-                    }
+                    ["x-configurator"] = new JsonObject { ["sensitivity"] = secret ? "secret" : "sensitive" }
                 };
-                if (Annotation(schema, "title", 256) is { } title)
+                foreach (string name in new[] { "title", "description", "format" })
                 {
-                    Charge(JsonSerializer.SerializeToUtf8Bytes(title).Length);
-                    result["title"] = title;
+                    if (Annotation(schema, name, name == "description" ? 4096 : 256) is not { } annotation) continue;
+                    Charge(JsonSerializer.SerializeToUtf8Bytes(annotation).Length);
+                    result[name] = annotation;
                 }
-                string? help = Annotation(schema, "description", 4096);
-                if (Text(schema, "format") is { } format)
-                    help = (help is null ? "" : help + "; ") + "Target schema format annotation: " + format;
-                if (help is not null)
+                foreach (string name in new[] { "readOnly", "deprecated", "writeOnly" })
+                    if (schema.TryGetProperty(name, out JsonElement annotation))
+                        result[name] = JsonNode.Parse(annotation.GetRawText());
+                foreach (string name in new[] { "type", "required", "enum", "const", "uniqueItems", "dependentRequired" })
                 {
-                    ValidateText(help, 4096);
-                    Charge(JsonSerializer.SerializeToUtf8Bytes(help).Length);
-                    result["description"] = help;
+                    if (!schema.TryGetProperty(name, out JsonElement value)) continue;
+                    Charge(Encoding.UTF8.GetByteCount(value.GetRawText()));
+                    result[name] = JsonNode.Parse(value.GetRawText());
                 }
-                if (type == "object")
+                foreach (string bound in new[] { "minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties" })
+                    CopyBound(schema, result, bound, integer: true);
+                foreach (string bound in new[] { "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf" })
+                    CopyBound(schema, result, bound, integer: false);
+                if (schema.TryGetProperty("type", out JsonElement type)
+                    && (type.ValueKind == JsonValueKind.String && type.GetString() is "integer" or "number"
+                        || type.ValueKind == JsonValueKind.Array && type.EnumerateArray().Any(item =>
+                            item.ValueKind == JsonValueKind.String && item.GetString() is "integer" or "number")))
+                    Report("converted", "schema-numeric-bounded-domain", document, At(location, "type"));
+                bool container = schema.TryGetProperty("type", out JsonElement declaredType) &&
+                    (declaredType.ValueKind == JsonValueKind.String && declaredType.GetString() is "object" or "array" ||
+                     declaredType.ValueKind == JsonValueKind.Array && declaredType.EnumerateArray().Any(item =>
+                         item.ValueKind == JsonValueKind.String && item.GetString() is "object" or "array"));
+                if (!secret && (container || schema.TryGetProperty("const", out _)))
                 {
-                    result["properties"] = ObjectFields(schema, document, depth + 1, stack);
-                    result["additionalProperties"] = false;
-                    if (schema.TryGetProperty("required", out var requiredNames))
-                        result["required"] = JsonNode.Parse(requiredNames.GetRawText());
+                    // Structure and supplied public constants carry no collected answer.
+                    // Leaf answers remain sensitive, and writeOnly ancestry never lowers.
+                    result["x-configurator"]!["sensitivity"] = "public";
+                    Report("converted", container ? "schema-structure-classified-public" : "schema-constant-classified-public",
+                        document, At(location, container ? "type" : "const"));
                 }
-                else if (type == "array")
+                if (declaredType.ValueKind == JsonValueKind.String && declaredType.GetString() == "null")
                 {
-                    if (!schema.TryGetProperty("items", out JsonElement items)) throw new DefinitionSchemaImportException("schema-items-required");
-                    JsonObject item = Field(items, document, depth + 1, stack);
-                    string itemType = item["type"]!.GetValue<string>();
-                    if (itemType is not ("string" or "boolean" or "integer" or "number" or "object"))
-                        throw new DefinitionSchemaImportException("schema-item-type-unsupported");
-                    if (item.Any(pair => pair.Key is not ("type" or "x-configurator" or "required" or "title" or "description" or "properties" or "additionalProperties")))
-                        throw new DefinitionSchemaImportException("schema-item-constraint-unsupported");
+                    if (schema.TryGetProperty("enum", out JsonElement nullChoices) &&
+                        nullChoices.EnumerateArray().Any(value => value.ValueKind != JsonValueKind.Null) ||
+                        schema.TryGetProperty("const", out JsonElement nullConstant) && nullConstant.ValueKind != JsonValueKind.Null)
+                        throw new DefinitionSchemaImportException("schema-null-constraint-unsupported");
+                    result["type"] = new JsonArray("string", "null");
+                    result["enum"] = new JsonArray((JsonNode?)null);
+                    Report("converted", "schema-null-type-converted", document, At(location, "type"));
+                }
+                if (schema.TryGetProperty("oneOf", out _) && declaredType.ValueKind == JsonValueKind.Array &&
+                    declaredType.EnumerateArray().Any(item => item.ValueKind == JsonValueKind.String && item.GetString() == "null"))
+                    Report("converted", "schema-nullable-variant-domain", document, At(location, "oneOf"));
+                if (schema.TryGetProperty("$defs", out JsonElement definitions))
+                {
+                    if (definitions.ValueKind != JsonValueKind.Object) throw new DefinitionSchemaImportException("schema-object-required");
+                    var retainedDefinitions = new JsonObject();
+                    foreach (JsonProperty definition in definitions.EnumerateObject())
+                        retainedDefinitions[definition.Name] = Field(definition.Value, document, depth + 1, stack,
+                            At(At(location, "$defs"), definition.Name), secret);
+                    result["$defs"] = retainedDefinitions;
+                }
+                if (schema.TryGetProperty("properties", out JsonElement properties))
+                {
+                    if (properties.ValueKind != JsonValueKind.Object || properties.EnumerateObject().Count() > 1024)
+                        throw new DefinitionSchemaImportException("schema-field-bound");
+                    var fields = new JsonObject();
+                    foreach (JsonProperty property in properties.EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
+                    {
+                        Charge(JsonSerializer.SerializeToUtf8Bytes(property.Name).Length + 1);
+                        fields[property.Name] = Field(property.Value, document, depth + 1, stack,
+                            At(At(location, "properties"), property.Name), secret);
+                    }
+                    result["properties"] = fields;
+                }
+                if (schema.TryGetProperty("additionalProperties", out JsonElement additional))
+                {
+                    if (additional.ValueKind == JsonValueKind.False) result["additionalProperties"] = false;
+                    else if (additional.ValueKind == JsonValueKind.Object)
+                        result["additionalProperties"] = Field(additional, document, depth + 1, stack, At(location, "additionalProperties"), secret);
+                    else
+                    {
+                        Report("unsupported", "schema-untyped-map-unsupported", document, At(location, "additionalProperties"));
+                        throw new DefinitionSchemaImportException("schema-untyped-map-unsupported");
+                    }
+                }
+                if (schema.TryGetProperty("items", out JsonElement items))
+                {
+                    JsonObject item = Field(items, document, depth + 1, stack, At(location, "items"), secret);
                     result["items"] = item;
                     if (item["x-configurator"]!["sensitivity"]!.GetValue<string>() == "secret")
                         result["x-configurator"]!["sensitivity"] = "secret";
-                    CopyBound(schema, result, "minItems", integer: true);
-                    CopyBound(schema, result, "maxItems", integer: true);
                 }
-                else if (type == "string")
+                if (schema.TryGetProperty("oneOf", out JsonElement branches))
                 {
-                    if (schema.TryGetProperty("enum", out JsonElement choices))
+                    if (branches.ValueKind != JsonValueKind.Array || branches.GetArrayLength() is < 2 or > 16)
                     {
-                        if (choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() is < 1 or > 256
-                            || choices.EnumerateArray().Any(choice => choice.ValueKind != JsonValueKind.String)
-                            || choices.EnumerateArray().Select(choice => choice.GetString()).Distinct(StringComparer.Ordinal).Count() != choices.GetArrayLength())
-                            throw new DefinitionSchemaImportException("schema-enum-unsupported");
-                        Charge(Encoding.UTF8.GetByteCount(choices.GetRawText()));
-                        result["enum"] = JsonNode.Parse(choices.GetRawText());
+                        Report("unsupported", "schema-variant-unsupported", document, At(location, "oneOf"));
+                        throw new DefinitionSchemaImportException("schema-variant-unsupported");
                     }
-                    foreach (string bound in new[] { "minLength", "maxLength" })
-                        if (schema.TryGetProperty(bound, out _))
-                        {
-                            CopyBound(schema, result, bound, integer: true);
-                        }
+                    var variants = new JsonArray();
+                    int index = 0;
+                    foreach (JsonElement branch in branches.EnumerateArray())
+                        variants.Add(Field(branch, document, depth + 1, stack,
+                            At(At(location, "oneOf"), (index++).ToString(System.Globalization.CultureInfo.InvariantCulture)), secret));
+                    result["oneOf"] = variants;
                 }
-                else if (type is "integer" or "number")
-                {
-                    Differences.Add("schema-numeric-bounded-domain");
-                    CopyBound(schema, result, "minimum", integer: false);
-                    CopyBound(schema, result, "maximum", integer: false);
-                }
-                foreach ((string minimum, string maximum) in new[] { ("minLength", "maxLength"), ("minItems", "maxItems"), ("minimum", "maximum") })
-                    if (schema.TryGetProperty(minimum, out JsonElement lower) && schema.TryGetProperty(maximum, out JsonElement upper)
-                        && lower.GetDecimal() > upper.GetDecimal())
-                        throw new DefinitionSchemaImportException("schema-bound-invalid");
+                foreach (string name in new[] { "if", "then", "else" })
+                    if (schema.TryGetProperty(name, out JsonElement condition))
+                        result[name] = Condition(condition, document, At(location, name), depth + 1);
                 return result;
+            }
+            catch (DefinitionSchemaImportException exception)
+            {
+                if (!Transformations.Any(item => item.Classification == "unsupported"))
+                    Report("unsupported", exception.Code, document, location);
+                throw;
             }
             finally { Release(resolved.Keys, stack); }
         }
 
-        private (JsonElement Schema, string Document, List<string> Keys) Resolve(JsonElement schema, string document, HashSet<string> stack)
+        private (JsonElement Schema, string Document, List<string> Keys, string Location) Resolve(JsonElement schema, string document, HashSet<string> stack, string location)
         {
             var keys = new List<string>();
             var annotations = new List<JsonElement>();
             while (schema.ValueKind == JsonValueKind.Object && schema.TryGetProperty("$ref", out JsonElement reference))
             {
-                Validate(schema, []);
+                Validate(schema, [], document, location);
+                Report("converted", "schema-reference-expanded", document, At(location, "$ref"));
                 if (schema.TryGetProperty("$id", out _))
                     throw new DefinitionSchemaImportException("schema-resource-scope-unsupported");
                 if (schema.EnumerateObject().Any(property => ReferenceAnnotations.Contains(property.Name, StringComparer.Ordinal)))
@@ -265,6 +310,7 @@ public static class DefinitionSchemaImporter
                 string key = document + "#" + fragment;
                 if (!stack.Add(key) || stack.Count > 32) throw new DefinitionSchemaImportException("schema-reference-cycle");
                 keys.Add(key);
+                location = fragment;
                 bool schemaLocation = true;
                 foreach (string token in fragment.Split('/').Skip(1))
                 {
@@ -293,7 +339,7 @@ public static class DefinitionSchemaImporter
                         }
                 schema = JsonSerializer.SerializeToElement(merged);
             }
-            return (schema, document, keys);
+            return (schema, document, keys, location);
         }
 
         private static void Release(IEnumerable<string> keys, HashSet<string> stack)
@@ -329,12 +375,54 @@ public static class DefinitionSchemaImporter
             catch (SetupDefinitionException) { throw new DefinitionSchemaImportException("schema-annotation-bound"); }
         }
 
-        private static void Validate(JsonElement schema, IEnumerable<string> keywords)
+        private JsonObject Condition(JsonElement schema, string document, string location, int depth)
+        {
+            CheckExpansion(depth);
+            Validate(schema, ["required", "properties", "const", "enum"], document, location);
+            foreach (string name in new[] { "$ref", "$id", "$defs" })
+                if (schema.TryGetProperty(name, out _))
+                {
+                    Report("unsupported", "schema-condition-unsupported", document, At(location, name));
+                    throw new DefinitionSchemaImportException("schema-condition-unsupported");
+                }
+            var result = new JsonObject();
+            foreach (string name in new[] { "required", "const", "enum" })
+                if (schema.TryGetProperty(name, out JsonElement value))
+                {
+                    Charge(Encoding.UTF8.GetByteCount(value.GetRawText()));
+                    result[name] = JsonNode.Parse(value.GetRawText());
+                }
+            if (schema.TryGetProperty("properties", out JsonElement properties))
+            {
+                if (properties.ValueKind != JsonValueKind.Object) throw new DefinitionSchemaImportException("schema-object-required");
+                var fields = new JsonObject();
+                foreach (JsonProperty property in properties.EnumerateObject())
+                    fields[property.Name] = Condition(property.Value, document, At(At(location, "properties"), property.Name), depth + 1);
+                result["properties"] = fields;
+            }
+            return result;
+        }
+
+        private void Validate(JsonElement schema, IEnumerable<string> keywords, string document, string location)
         {
             if (schema.ValueKind != JsonValueKind.Object) throw new DefinitionSchemaImportException("schema-object-required");
             var allowed = new HashSet<string>(Common.Concat(keywords), StringComparer.Ordinal);
-            if (schema.EnumerateObject().Any(property => !allowed.Contains(property.Name)))
-                throw new DefinitionSchemaImportException("schema-keyword-unsupported");
+            bool unsupported = false;
+            foreach (JsonProperty property in schema.EnumerateObject())
+            {
+                string classification = property.Name switch
+                {
+                    "default" or "examples" or "$comment" => "discarded",
+                    "format" or "readOnly" or "deprecated" => "advisory",
+                    "$schema" => "converted",
+                    _ => allowed.Contains(property.Name) ? "retained" : "unsupported"
+                };
+                string code = allowed.Contains(property.Name) ? "schema-" + property.Name.TrimStart('$') + "-" + classification
+                    : "schema-keyword-unsupported";
+                Report(classification, code, document, At(location, property.Name));
+                unsupported |= classification == "unsupported";
+            }
+            if (unsupported) throw new DefinitionSchemaImportException("schema-keyword-unsupported");
             if (schema.TryGetProperty("$schema", out JsonElement dialect)
                 && dialect.GetString() != "https://json-schema.org/draft/2020-12/schema")
                 throw new DefinitionSchemaImportException("schema-dialect-unsupported");

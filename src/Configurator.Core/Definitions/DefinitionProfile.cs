@@ -20,7 +20,8 @@ public static class DefinitionProfile
         "predicate.root", "projection.copy", "projection.index", "projection.list", "projection.literal", "projection.object",
         "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
         "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
-        "schema.string", "schema.uniqueBy", "values.initial", "values.suggested"
+        "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",
+        "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "values.initial", "values.suggested"
     });
 
     public static byte[] CanonicalizeJson(ReadOnlyMemory<byte> bytes) => Canonicalize(bytes, yaml: false);

@@ -1,0 +1,30 @@
+Change-Id: CHG-01M5ZX9677C7Y22N5D202R6F26
+Title: "validate recursive items maps and provider alternatives"
+Type: feat
+Scope: definitions
+Summary: "Apply bounded configuration assertions consistently to roots, properties, items and typed map values. Admit closed discriminated providers, local schema references, exact numeric assertions and opt-in lexical formats, with explicit schema-import transformation accounting."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: documented
+    Detail: "Direct Core importer consumers must rebuild and replace Differences with the immutable structured Transformations ledger on success and refusal. No compatibility alias remains."
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Reference expansion checks unused definitions and work limits, preserves inherited sensitivity/writeOnly, and rejects cycles or remote authority. Dynamic map diagnostics and draft completion metadata use entry ordinals rather than private keys. Lexical formats perform no network operations."
+  Migration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "Review retained, converted, advisory, discarded and unsupported schema concepts by public schema pointer and document ordinal. Numeric-domain and nullable-provider-domain differences require explicit acknowledgment; unsupported assertions cannot be acknowledged away."
+  Configuration:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "Typed additionalProperties, constrained nullable/enum items, discriminated oneOf, acyclic local references, exclusive bounds, exact multipleOf, uniqueItems and opt-in asserted formats activate computed required capabilities."
+  OpenAPI:
+    Reference: docs/public/definition-reference.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definition-standard.md
+    Disposition: documented
+    Detail: "These Core capabilities do not imply complete interactive-client, package or target qualification. Formats alone remain annotations; assertFormat selects a bounded lexical check, never target acceptance, retrieval or apply authority."

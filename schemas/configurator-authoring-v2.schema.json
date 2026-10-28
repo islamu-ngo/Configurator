@@ -374,6 +374,26 @@
             "$ref": "#/$defs/node"
           }
         },
+        "$defs": {
+          "type": "object",
+          "maxProperties": 1024,
+          "additionalProperties": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "$ref": {
+          "type": "string",
+          "maxLength": 65536,
+          "pattern": "^#/"
+        },
+        "oneOf": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
         "if": {
           "type": "object",
           "properties": {
@@ -437,10 +457,24 @@
           }
         },
         "additionalProperties": {
-          "const": false
+          "oneOf": [
+            {
+              "const": false
+            },
+            {
+              "$ref": "#/$defs/node"
+            }
+          ]
         },
         "items": {
           "$ref": "#/$defs/node"
+        },
+        "multipleOf": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "uniqueItems": {
+          "type": "boolean"
         },
         "enum": {
           "type": "array",
@@ -452,7 +486,8 @@
               "string",
               "boolean",
               "integer",
-              "number"
+              "number",
+              "null"
             ]
           }
         },
@@ -515,6 +550,9 @@
             },
             "applicableWhen": {
               "$ref": "#/$defs/predicate"
+            },
+            "assertFormat": {
+              "type": "boolean"
             },
             "credential": {
               "type": "object",
@@ -627,6 +665,12 @@
         "maximum": {
           "type": "number"
         },
+        "exclusiveMinimum": {
+          "type": "number"
+        },
+        "exclusiveMaximum": {
+          "type": "number"
+        },
         "minLength": {
           "type": "integer",
           "minimum": 0,
@@ -659,12 +703,35 @@
         }
       },
       "additionalProperties": false,
-      "required": [
-        "type"
+      "required": [],
+      "oneOf": [
+        {
+          "required": [
+            "type"
+          ],
+          "not": {
+            "required": [
+              "$ref"
+            ]
+          }
+        },
+        {
+          "required": [
+            "$ref"
+          ],
+          "not": {
+            "required": [
+              "type"
+            ]
+          }
+        }
       ],
       "allOf": [
         {
           "if": {
+            "required": [
+              "type"
+            ],
             "properties": {
               "type": {
                 "anyOf": [
@@ -682,8 +749,17 @@
             }
           },
           "then": {
-            "required": [
-              "additionalProperties"
+            "anyOf": [
+              {
+                "required": [
+                  "additionalProperties"
+                ]
+              },
+              {
+                "required": [
+                  "oneOf"
+                ]
+              }
             ]
           },
           "else": {
@@ -710,6 +786,9 @@
         },
         {
           "if": {
+            "required": [
+              "type"
+            ],
             "properties": {
               "type": {
                 "anyOf": [
@@ -1095,12 +1174,26 @@
               "const": "object"
             }
           },
-          "required": [
-            "additionalProperties"
+          "anyOf": [
+            {
+              "required": [
+                "additionalProperties"
+              ]
+            },
+            {
+              "required": [
+                "oneOf"
+              ]
+            },
+            {
+              "required": [
+                "$ref"
+              ]
+            }
           ]
         }
       }
     }
   ],
-  "description": "Phase 3 closed bounded structure. Admission checks exact numbers, Unicode, references, privacy, computed capabilities and resource limits; unsupported later-phase semantics reject."
+  "description": "Bounded recursive structure. Admission checks exact numbers, Unicode, acyclic local references, discriminators, privacy, computed capabilities and resource limits; unsupported semantics reject."
 }

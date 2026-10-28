@@ -60,6 +60,29 @@ their implementing slice; accepting the base profile does not imply them.
 
 ## Control and data flow
 
+The recursive profile now admits typed additional-properties maps, constrained
+nullable/enum items, exclusive numeric bounds, exact multipleOf, structural
+uniqueItems, 2-16 closed discriminated branches and acyclic local references.
+Core applies the same assertions to roots, properties, items and map values.
+Local refs start at configuration `$defs`; admission charges expanded metadata
+and checks unused definitions. Read-only/writeOnly annotation merging cannot
+lower sensitivity. Root map keys remain private and use entry ordinals in
+diagnostic/completion metadata.
+
+The schema importer delegates final semantics to that same compiler. Its
+structured transformation ledger replaces Differences and records classifications,
+safe public schema pointers and document ordinals. Structural/public-constant
+classification is explicit; collected leaves remain sensitive and inherited
+writeOnly remains secret. Null-only schemas convert to nullable enum `[null]`.
+Numeric-domain and nullable-provider-domain differences require acknowledgment;
+unsupported assertions cannot be acknowledged away.
+
+Formats remain annotation unless assertFormat is true. The lexical registry is
+ASCII hostname, dot-atom email-address, well-formed ASCII absolute uri and
+credential-free http-url. Parsing is local and grants no retrieval authority.
+The public standard states exact syntax limits; no full RFC/target-equivalence
+or complete client qualification follows from these Core capabilities.
+
 ```text
 bounded source decoding -> authoring lowering -> runtime admission
   -> immutable SetupDefinition (recursive nodes, paths, computed capabilities)

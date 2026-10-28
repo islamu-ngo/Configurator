@@ -141,15 +141,15 @@ it is an intentional example identity replacement, not routine freshness repair.
 `--check-examples` compares canonical bytes for minimal-self-hosted,
 grafana-13.2.2 and islamu-event without writing.
 
-The parent reports source/runtime agreement **3/3** for the current fresh v2
+Native checking confirmed source/runtime agreement **3/3** for the current fresh v2
 families, recorded in the [integration guide](../docs/public/integrate-your-tool.md#complete-minimal-configuratoryaml-example).
-This documentation unit did not execute these commands. The result is not target
-acceptance or complete client/package qualification.
+The result is not target acceptance or complete client/package qualification.
 
 Root applicability and root presence-only `if.required`/`then.required` plus
 `dependentRequired` are current base support. Broader/nested conditions,
-maps/variants, advanced assertions, asserted formats, source maps, expanded
-localization policy and machine v3 are later work. Structural schemas can describe
+source maps, expanded localization policy and machine v3 are later work.
+Recursive typed maps, closed discriminated variants, local refs, exact numeric
+assertions, unique items and explicit format assertions are supported. Structural schemas can describe
 shapes whose contextual semantics still reject in Core; consult the
 [current reference](../docs/public/definition-reference.md), not editor validity
 alone. The [public standard](../docs/public/definition-standard.md) remains Draft.

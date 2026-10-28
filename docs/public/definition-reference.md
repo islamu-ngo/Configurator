@@ -65,17 +65,19 @@ array `items` recursively use the same admitted schema grammar.
 |---|---|
 | `type` | `string`, `boolean`, `integer`, `number`, `object`, `array`; nullable form is exactly one base type plus `"null"` |
 | `title`, `description` | Optional bounded inert metadata |
-| `enum` | Distinct homogeneous typed non-null scalar alternatives compatible with the base type; not a separate type |
+| `enum` | Distinct homogeneous typed scalar alternatives; nullable types may additionally include null |
 | `const` | Compatible scalar assertion |
 | `properties`, `required` | Declared object children and local presence requirements |
-| `additionalProperties` | Explicitly `false` for every object; maps are not delivered |
+| `additionalProperties` | Explicitly `false` or a recursive value schema; untyped `true` rejects |
 | `items` | Required recursive schema for arrays |
-| `minimum`, `maximum` | Inclusive integer/number bounds |
+| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf` | Exact inclusive/exclusive numeric bounds and positive exact multiple |
 | `minLength`, `maxLength` | String Unicode-scalar bounds |
-| `minItems`, `maxItems` | Array cardinality bounds |
+| `minItems`, `maxItems`, `uniqueItems` | Array cardinality and structural value uniqueness |
 | `minProperties`, `maxProperties` | Object cardinality bounds |
 | `default` | Descriptive public metadata only; never inserted |
-| `format` | String annotation only; no assertion or network validation |
+| `format` | String annotation unless explicitly enabled by `x-configurator.assertFormat`; never a network check |
+| `$defs`, `$ref` | Bounded acyclic local schema references rooted at `configuration`, beginning `#/$defs/`; no remote resolution |
+| `oneOf` | 2-16 closed object branches sharing exactly one eligible required scalar discriminator with distinct const values |
 | `readOnly`, `writeOnly`, `deprecated`, `examples` | Bounded annotations; `writeOnly: true` raises the secret floor |
 | `x-configurator` | Closed extension described below |
 | `if`/`then`, `dependentRequired` | Only the root presence relationships described under Conditions |
@@ -83,7 +85,7 @@ array `items` recursively use the same admitted schema grammar.
 The extension admits `sensitivity` (`public`, `sensitive`, `secret`), `initialValue`,
 `suggestedValue`, string `notBlank`, `detail` (`basic`, `standard`, `advanced`),
 `guidance`, `credential`, typed enum `choices`, `units`, array-object `uniqueBy`,
-and root-property `applicableWhen`. Missing sensitivity is conservatively
+root-property `applicableWhen`, and string-only `assertFormat`. Missing sensitivity is conservatively
 sensitive; missing detail projects as standard. `choices` pairs each enum value
 with a label and optional explanation. `uniqueBy` is a concrete item-relative
 pointer through required object properties to a non-null string.
@@ -173,8 +175,9 @@ At the configuration root, `if: {required: [controller]}` with
 `then: {required: [dependent]}` and `dependentRequired` are supported now.
 Names must identify local root properties. These presence-only assertions
 validate relationships, not visibility; mutual dependencies are permitted.
-Nested relationships, value-based schema conditions, `else`, maps, variants,
-advanced assertions and asserted formats remain later-phase work.
+Nested relationships, value-based schema conditions, `else` and source maps
+remain later-phase work. Recursive maps, discriminated variants, exact numeric
+assertions and unique items are admitted in the current profile.
 
 ## Presentation and guidance
 
@@ -250,24 +253,28 @@ remaining work. Draft output is not a complete accepted artifact.
 
 ## JSON Schema import
 
-Scaffolding remains narrower than native v2 authoring. The current importer
-accepts explicit scalar types, string enums, closed objects/local required sets,
-bounded homogeneous arrays and selected inclusive bounds. Supplied local
-`$defs`/`$ref` expansion is bounded; runtime configuration does not admit those
-reference keywords. Remote/dynamic/cyclic references and resource rescoping reject.
+Scaffolding accepts recursive constrained items, typed maps, nullable scalars,
+typed enums, closed discriminated branches and the corresponding numeric,
+length, cardinality and uniqueness assertions. Supplied local reference
+expansion remains offline and bounded; remote/dynamic/cyclic references and
+resource rescoping reject.
 
-Selected title/description text survives, line breaks/tabs are normalized,
-`writeOnly` raises secret classification, defaults are discarded, and format
-becomes explanatory description rather than an assertion. Ordinary imported
-nodes remain sensitive until reviewed. Numeric domain differences require
-`--accept-bounded-semantics`; required-string-whitespace and UTF-16-length
-differences are no longer the native v2 semantics.
+The result and refusal expose immutable `Transformations`, replacing difference
+strings. Each entry has a classification (retained, converted, advisory,
+discarded or unsupported), a stable code, public schema pointer and document
+ordinal, never a filesystem path or raw scalar. Defaults/examples are discarded
+and reported; format/readOnly/deprecated remain advisory annotations, not
+initialization or permissions. Collected leaves remain sensitive unless secret.
+Structural containers and supplied public constants are explicitly classified
+public with conversion records; writeOnly ancestry never lowers, and protected
+descendants still raise effective classification.
 
-Importer support does not expand merely because native v2 supports typed enums,
-nullable values, recursive items or root presence relationships. Nullable unions,
-maps, general composition/conditions, regex and unsupported item assertions still
-reject at this scaffolding boundary. Acknowledgment never waives unsupported
-assertions or privacy; compilation is not target-validator equivalence.
+A standalone null schema becomes a nullable scalar restricted to enum `[null]`,
+with a conversion record. Numeric-domain differences and the profile's nullable
+provider domain require `--accept-bounded-semantics`: the profile admits null
+outside branch selection, unlike a JSON Schema oneOf of object-only branches.
+General unions/composition, regex and unsupported assertions reject even with
+acknowledgment. Compilation is not target-validator equivalence.
 
 ## Bounds and verification limits
 

@@ -159,8 +159,9 @@ Check validates source admission, references, closed shapes, privacy, supported
 constraints and budgets. It does not establish target-validator equivalence.
 Root applicability is delivered, as are root presence-only
 `if.required`/`then.required` and `dependentRequired`. Broader or nested schema
-conditions, maps, variants, advanced assertions, asserted formats and source maps
-are later phases. Unknown semantic vocabulary rejects rather than silently
+conditions and source maps are later phases. Recursive maps, bounded provider
+branches, local references and explicit format assertions are implemented.
+Unknown semantic vocabulary rejects rather than silently
 degrading. `format` currently remains descriptive.
 
 ### Step 3: Build Canonical JSON
@@ -205,22 +206,27 @@ islamu-configurator definition init \
 The importer produces a v2 `configuration` schema, not the old `fields` map.
 It retains selected title/description and supported closed-object/scalar/array
 constraints. Defaults are discarded, ordinary nodes are sensitive, and
-`writeOnly` raises the secret floor. Format becomes explanatory description,
+`writeOnly` raises the secret floor. Format remains a separate advisory annotation,
 not asserted validation. Review classification before adding any public initial
 or suggested value; no importer infers that a hostname or port is public.
 
 ### Why `--accept-bounded-semantics` is Required
 
 The flag acknowledges encountered bounded numeric-domain differences (Int64 and
-exact bounded decimals), not arbitrary semantic losses. Native v2 requiredness
+exact bounded decimals), and nullable provider semantics that admit null outside
+branch selection. It does not acknowledge arbitrary losses. Native v2 requiredness
 is presence and string length is Unicode-scalar based; the old whitespace and
 UTF-16 differences are not the current native contract.
 
-Scaffolding remains narrower than native v2: string enums and selected homogeneous
-arrays are supported, but nullable unions, general conditions/composition, maps,
-regex and unsupported item assertions reject. Supplied local references are
-bounded; no remote fetch or executable validator is admitted. The flag cannot
-bypass unsupported assertions or privacy. See the
+Scaffolding supports constrained recursive items, typed enum/null values, maps
+and closed provider branches. General unions/composition, regex and unsupported
+assertions reject. Its structured transformation ledger distinguishes retained,
+converted, advisory, discarded and unsupported concepts by public schema location
+and document ordinal. Defaults/examples never become initialization. Structural
+containers/public constants receive explicit classification records; collected
+leaves remain sensitive and writeOnly ancestry remains secret. Supplied local
+references are bounded; no remote fetch or executable validator is admitted.
+The flag cannot bypass unsupported assertions or privacy. See the
 [import support boundary](definition-reference.md#json-schema-import).
 
 ## Private answers and qualification

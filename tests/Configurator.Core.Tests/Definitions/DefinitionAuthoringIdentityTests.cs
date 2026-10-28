@@ -131,21 +131,28 @@ public sealed class DefinitionAuthoringIdentityTests
     public async Task GeneratedSourceSchemaReferencesResolveWithinOneResource()
     {
         using JsonDocument schema = JsonDocument.Parse(DefinitionAuthoringSchema.Generate());
-        var nodes = new Stack<JsonElement>();
-        nodes.Push(schema.RootElement);
+        var nodes = new Stack<(JsonElement Node, bool DeclarationMap)>();
+        nodes.Push((schema.RootElement, false));
         var unresolved = new List<string>();
-        while (nodes.TryPop(out JsonElement node))
+        while (nodes.TryPop(out var current))
         {
+            JsonElement node = current.Node;
             if (node.ValueKind == JsonValueKind.Array)
             {
-                foreach (JsonElement child in node.EnumerateArray()) nodes.Push(child);
+                foreach (JsonElement child in node.EnumerateArray()) nodes.Push((child, false));
                 continue;
             }
             if (node.ValueKind != JsonValueKind.Object) continue;
-            if (node.TryGetProperty("$id", out JsonElement id) && id.GetString() != DefinitionAuthoringCodec.SchemaId)
+            if (!current.DeclarationMap && node.TryGetProperty("$id", out JsonElement id) &&
+                (id.ValueKind != JsonValueKind.String || id.GetString() != DefinitionAuthoringCodec.SchemaId))
                 unresolved.Add("nested-schema-resource");
-            if (node.TryGetProperty("$ref", out JsonElement reference))
+            if (!current.DeclarationMap && node.TryGetProperty("$ref", out JsonElement reference))
             {
+                if (reference.ValueKind != JsonValueKind.String || !reference.GetString()!.StartsWith("#/", StringComparison.Ordinal))
+                {
+                    unresolved.Add("invalid-local-reference");
+                    continue;
+                }
                 JsonElement target = schema.RootElement;
                 string pointer = reference.GetString()!;
                 foreach (string escaped in pointer[2..].Split('/'))
@@ -158,7 +165,8 @@ public sealed class DefinitionAuthoringIdentityTests
                     }
                 }
             }
-            foreach (JsonProperty child in node.EnumerateObject()) nodes.Push(child.Value);
+            foreach (JsonProperty child in node.EnumerateObject())
+                nodes.Push((child.Value, child.Name is "properties" or "$defs" or "patternProperties" or "dependentSchemas"));
         }
         await Assert.That(unresolved).IsEmpty();
     }

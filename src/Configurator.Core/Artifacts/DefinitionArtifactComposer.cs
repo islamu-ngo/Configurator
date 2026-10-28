@@ -139,7 +139,8 @@ public static class DefinitionArtifactComposer
             var budget = new CompositionBudget(SetupCompositionLimits.Default);
             int operations = 0;
             var unknown = validation.DeferredFields.Concat(validation.UnresolvedFields).ToHashSet(StringComparer.Ordinal);
-            var activeRoots = validation.Fields.Where(field => field.IsActive).Select(field => field.Definition.Name).ToHashSet(StringComparer.Ordinal);
+            var activeRoots = validation.Fields.Where(field => field.IsActive).Select(field => field.Definition.Name)
+                .Concat(validation.Values.Keys).ToHashSet(StringComparer.Ordinal);
             (bool include, JsonNode? output) = Project(artifact.Data.GetProperty("projection"), null, null, null, "", "", 1);
             if (!include) return new(null, [new("artifact-omitted", "")]);
             cancellationToken.ThrowIfCancellationRequested();
@@ -188,7 +189,7 @@ public static class DefinitionArtifactComposer
                     if (matches is null)
                     {
                         string? unresolved = DefinitionValidator.References(condition).FirstOrDefault(unknown.Contains);
-                        unresolvedField = unresolved is null ? "" : definition.Fields.First(field => field.Name == unresolved).Id;
+                        unresolvedField = unresolved is null ? "" : validation.Fields.FirstOrDefault(field => field.Definition.Name == unresolved)?.Id ?? "";
                         throw new SetupDefinitionException("draft-dependency-unresolved");
                     }
                     if (matches == false) return (false, null);
@@ -290,7 +291,7 @@ public static class DefinitionArtifactComposer
                 string? unresolved = path.Segments.Count == 0 ? validation.UnresolvedFields.FirstOrDefault()
                     : validation.UnresolvedFields.Contains(path.Segments[0]) ? path.Segments[0] : null;
                 if (unresolved is null) return;
-                unresolvedField = definition.Fields.First(field => field.Name == unresolved).Id;
+                unresolvedField = validation.Fields.FirstOrDefault(field => field.Definition.Name == unresolved)?.Id ?? "";
                 throw new SetupDefinitionException("draft-dependency-unresolved");
             }
 
@@ -301,17 +302,27 @@ public static class DefinitionArtifactComposer
             }
 
             (bool, JsonNode?) CopyField(DefinitionNode schema, JsonElement? value, string fieldPath,
-                string outputPath, int depth, bool secretAncestor)
+                string outputPath, int depth, bool secretAncestor, string? completionFieldPath = null,
+                string? completionOutputPath = null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DefinitionPath location = DefinitionPath.Parse(fieldPath);
                 if (location.Segments.Count > 0 && !activeRoots.Contains(location.Segments[0]))
                     return (false, null);
                 bool secret = secretAncestor || SetupFieldDefinition.SensitivityOf(schema) == SetupFieldSensitivity.Secret;
+                completionFieldPath ??= fieldPath;
+                completionOutputPath ??= outputPath;
+                if (value is { ValueKind: not JsonValueKind.Null } variantValue && schema.Variants.Count > 0)
+                {
+                    DefinitionNode branch = DefinitionValidator.SelectVariant(schema, variantValue)
+                        ?? throw new SetupDefinitionException("value-variant");
+                    return CopyField(branch, value, fieldPath, outputPath, depth, secret,
+                        completionFieldPath, completionOutputPath);
+                }
                 if (secret && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence) && !value.HasValue)
                 {
                     budget.Node(depth);
-                    completions.Add(new(artifact.Id, fieldPath, outputPath));
+                    completions.Add(new(artifact.Id, completionFieldPath, completionOutputPath));
                     return (true, schema.Type == DefinitionNodeType.Text || artifact.Format is "dotenv" or "markdown"
                         ? JsonValue.Create("") : null);
                 }
@@ -325,10 +336,26 @@ public static class DefinitionArtifactComposer
                     {
                         bool exists = value.Value.TryGetProperty(name, out JsonElement childValue);
                         var child = CopyField(property, exists ? childValue : null, fieldPath + "/" + Pointer(name),
-                            outputPath + "/" + Pointer(name), depth + 1, secret);
+                            outputPath + "/" + Pointer(name), depth + 1, secret,
+                            completionFieldPath + "/" + Pointer(name), completionOutputPath + "/" + Pointer(name));
                         if (!child.Item1) continue;
                         budget.Scalar(name);
                         mapping.Add(name, child.Item2);
+                    }
+                    if (schema.AdditionalProperties is { } map)
+                    {
+                        int entry = 0;
+                        foreach (JsonProperty property in value.Value.EnumerateObject())
+                        {
+                            if (schema.Properties.ContainsKey(property.Name)) continue;
+                            string ordinal = "/@entry/" + entry.ToString(CultureInfo.InvariantCulture);
+                            var child = CopyField(map, property.Value, fieldPath + "/" + Pointer(property.Name),
+                                outputPath + "/" + Pointer(property.Name), depth + 1, secret,
+                                completionFieldPath + ordinal, completionOutputPath + ordinal);
+                            budget.Scalar(property.Name);
+                            if (child.Item1) mapping.Add(property.Name, child.Item2);
+                            entry++;
+                        }
                     }
                     return (true, mapping);
                 }
@@ -339,7 +366,8 @@ public static class DefinitionArtifactComposer
                     foreach (JsonElement row in value.Value.EnumerateArray())
                     {
                         string ordinal = "/" + array.Count.ToString(CultureInfo.InvariantCulture);
-                        array.Add(CopyField(schema.Items!, row, fieldPath + ordinal, outputPath + ordinal, depth + 1, secret).Item2);
+                        array.Add(CopyField(schema.Items!, row, fieldPath + ordinal, outputPath + ordinal, depth + 1, secret,
+                            completionFieldPath + ordinal, completionOutputPath + ordinal).Item2);
                     }
                     return (true, array);
                 }

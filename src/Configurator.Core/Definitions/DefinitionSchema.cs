@@ -96,8 +96,11 @@ public static class DefinitionSchema
             ["projection"] = Projection(),
             ["predicate"] = Predicate()
         };
-        schema["allOf"] = JsonNode.Parse("""[{"properties":{"configuration":{"properties":{"type":{"const":"object"}},"required":["additionalProperties"]}}}]""");
-        schema["description"] = "Phase 3 closed bounded structure. Admission checks exact numbers, Unicode, references, privacy, computed capabilities and resource limits; unsupported later-phase semantics reject.";
+        schema["allOf"] = JsonNode.Parse("""
+            [{"properties":{"configuration":{"properties":{"type":{"const":"object"}},
+              "anyOf":[{"required":["additionalProperties"]},{"required":["oneOf"]},{"required":["$ref"]}]}}}]
+            """);
+        schema["description"] = "Bounded recursive structure. Admission checks exact numbers, Unicode, acyclic local references, discriminators, privacy, computed capabilities and resource limits; unsupported semantics reject.";
         return schema;
     }
 
@@ -113,6 +116,9 @@ public static class DefinitionSchema
             }) },
             ["title"] = Text(256), ["description"] = Text(4096), ["format"] = Text(256),
             ["properties"] = new JsonObject { ["type"] = "object", ["additionalProperties"] = Ref("node") },
+            ["$defs"] = new JsonObject { ["type"] = "object", ["maxProperties"] = 1024, ["additionalProperties"] = Ref("node") },
+            ["$ref"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^#/" },
+            ["oneOf"] = new JsonObject { ["type"] = "array", ["minItems"] = 2, ["maxItems"] = 16, ["items"] = Ref("node") },
             ["if"] = RequiredAssertion(), ["then"] = RequiredAssertion(),
             ["dependentRequired"] = new JsonObject
             {
@@ -120,27 +126,35 @@ public static class DefinitionSchema
                 ["additionalProperties"] = Strings(1024, 65536)
             },
             ["required"] = new JsonObject { ["type"] = "array", ["uniqueItems"] = true, ["items"] = new JsonObject { ["type"] = "string" } },
-            ["additionalProperties"] = new JsonObject { ["const"] = false }, ["items"] = Ref("node"),
+            ["additionalProperties"] = new JsonObject { ["oneOf"] = new JsonArray(
+                new JsonObject { ["const"] = false }, Ref("node")) }, ["items"] = Ref("node"),
+            ["multipleOf"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+            ["uniqueItems"] = new JsonObject { ["type"] = "boolean" },
             ["enum"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 256, ["uniqueItems"] = true,
-                ["items"] = new JsonObject { ["type"] = new JsonArray("string", "boolean", "integer", "number") } },
+                ["items"] = new JsonObject { ["type"] = new JsonArray("string", "boolean", "integer", "number", "null") } },
             ["const"] = new JsonObject { ["type"] = new JsonArray("string", "boolean", "integer", "number", "null") },
             ["default"] = new JsonObject(), ["examples"] = new JsonObject { ["type"] = "array", ["maxItems"] = 256 },
             ["readOnly"] = new JsonObject { ["type"] = "boolean" }, ["writeOnly"] = new JsonObject { ["type"] = "boolean" },
             ["deprecated"] = new JsonObject { ["type"] = "boolean" }, ["x-configurator"] = Extension()
         };
-        foreach (string name in new[] { "minimum", "maximum" }) properties[name] = new JsonObject { ["type"] = "number" };
+        foreach (string name in new[] { "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum" })
+            properties[name] = new JsonObject { ["type"] = "number" };
         foreach (string name in new[] { "minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties" })
             properties[name] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = int.MaxValue };
-        JsonObject node = Closed(properties, "type");
+        JsonObject node = Closed(properties);
+        node["oneOf"] = JsonNode.Parse("""
+            [{"required":["type"],"not":{"required":["$ref"]}},
+             {"required":["$ref"],"not":{"required":["type"]}}]
+            """);
         node["allOf"] = JsonNode.Parse("""
             [
               {
-                "if":{"properties":{"type":{"anyOf":[{"const":"object"},{"type":"array","contains":{"const":"object"}}]}}},
-                "then":{"required":["additionalProperties"]},
+                "if":{"required":["type"],"properties":{"type":{"anyOf":[{"const":"object"},{"type":"array","contains":{"const":"object"}}]}}},
+                "then":{"anyOf":[{"required":["additionalProperties"]},{"required":["oneOf"]}]},
                 "else":{"not":{"anyOf":[{"required":["properties"]},{"required":["required"]},{"required":["additionalProperties"]}]}}
               },
               {
-                "if":{"properties":{"type":{"anyOf":[{"const":"array"},{"type":"array","contains":{"const":"array"}}]}}},
+                "if":{"required":["type"],"properties":{"type":{"anyOf":[{"const":"array"},{"type":"array","contains":{"const":"array"}}]}}},
                 "then":{"required":["items"]},
                 "else":{"not":{"required":["items"]}}
               }
@@ -161,6 +175,7 @@ public static class DefinitionSchema
         ["detail"] = Choice("basic", "standard", "advanced"), ["units"] = Text(128),
         ["uniqueBy"] = new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = 65536 },
         ["applicableWhen"] = Ref("predicate"),
+        ["assertFormat"] = new JsonObject { ["type"] = "boolean" },
         ["credential"] = Closed(new JsonObject
         {
             ["kind"] = Choice("password", "opaque-token", "symmetric-key", "private-key", "connection-string"),

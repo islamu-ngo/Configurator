@@ -42,16 +42,18 @@ acquisition does not give handlers ambient filesystem or private-import authorit
 
 ## Fields and projections
 
-`configuration` is a non-null closed object schema. Every object explicitly
-requires `additionalProperties: false`; arrays require recursive `items`.
+`configuration` is a non-null object schema. Objects explicitly choose
+`additionalProperties: false` or a typed recursive map schema; arrays require recursive `items`.
 `properties` keys are exact names. Types are string, boolean, integer, number,
 object and array; nullable type is exactly one base type plus `"null"`.
-Enums are typed homogeneous scalar values, not a separate field type.
-Inclusive numeric, scalar-length, item/property cardinality bounds and scalar
-const are admitted. `format` is annotation only.
+Enums are typed homogeneous scalar values, optionally including null for a
+nullable type. Inclusive/exclusive numeric bounds, exact multipleOf, scalar
+length, item/property cardinality, uniqueItems and scalar const are admitted.
+Closed discriminated provider branches and acyclic configuration-root local
+references are supported. Format is annotation unless assertFormat is true.
 
 `x-configurator` admits sensitivity, initialValue, suggestedValue, notBlank,
-uniqueBy, applicableWhen, detail, guidance, credential, choices and units.
+uniqueBy, applicableWhen, assertFormat, detail, guidance, credential, choices and units.
 Public initial/suggested/default/example/const metadata must pass privacy and
 value admission. Private ancestors prevent literal-value leakage through public
 leaves; protected descendants raise effective container sensitivity.
@@ -106,8 +108,8 @@ Applicability is currently admitted on direct configuration properties with
 root-scoped predicates; nested applicability and configuration-root applicability
 reject. Root presence-only `if.required`/`then.required` and `dependentRequired`
 are delivered relationship assertions, not visibility toggles. Broader/nested
-conditions, maps, variants, advanced assertions, format assertions and source maps
-remain later-phase work.
+conditions and source maps remain later-phase work; recursive maps, variants
+and the explicit bounded assertion registry are implemented.
 
 ## Authored presentation and guidance
 
@@ -204,16 +206,24 @@ traversal with no network fallback. Bounds remain 4 MiB supplied bytes, 64
 documents, 16384 parsed nodes, 8192 expanded nodes, depth 24, reference stack 32.
 Expansion charges keys, overhead and metadata before emission.
 
-The importer emits `Configuration`, not the old Fields map. Its subset remains
-explicit scalar types/string enums, closed objects/local required sets, selected
-homogeneous arrays/inclusive bounds and bounded supplied local `$defs`/`$ref`.
-This is narrower than native v2: nullable unions, general conditions/combinators,
-maps, regex and unsupported array-item constraints still reject. Nested resource
-scopes reject. Selected text survives with line breaks/tabs normalized; defaults
-are discarded, ordinary nodes sensitive, writeOnly secret, format explanatory.
+The importer emits `Configuration` and immutable `Transformations`, replacing
+the old difference-string API. Each transformation contains Classification,
+Code, Location (a bounded public schema pointer) and DocumentOrdinal. No record
+contains raw scalar values or native paths. Recursive constrained/enum/nullable
+items, typed maps, branches and bounded local refs reach ordinary Core admission.
+General unions/combinators, regex, unsupported assertions and nested resource
+scopes reject, including assertions in unused retained definitions.
+
+Selected text survives with line breaks/tabs normalized. Defaults/examples are
+discarded and reported; format/readOnly/deprecated retain advisory annotations.
+Answer-bearing leaves default sensitive; writeOnly ancestry is secret.
+Structural containers and public const declarations receive explicit public
+classification conversion records without lowering protected descendants.
+Standalone null schemas convert to a nullable scalar with enum `[null]`.
 
 Strict import reports `schema-bounded-semantics-required` for encountered
-`schema-numeric-bounded-domain`; acknowledgment permits that named difference,
+`schema-numeric-bounded-domain` or `schema-nullable-variant-domain`;
+acknowledgment permits those named differences,
 never unsupported assertions or privacy loss. Native v2 no longer substitutes
 required-string-whitespace or UTF-16-length semantics. CLI compiles before source
 creation; import is not proof of target-validator equivalence.

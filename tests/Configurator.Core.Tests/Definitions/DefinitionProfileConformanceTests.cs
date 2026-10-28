@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 
@@ -6,6 +8,258 @@ namespace Configurator.Core.Tests.Definitions;
 
 public sealed class DefinitionProfileConformanceTests
 {
+    [Test]
+    public async Task TypedMapsValidateRecursiveItemsWithoutPublishingPrivateEntryNames()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"object","additionalProperties":{"type":"array","items":{
+              "type":"string","enum":["one","two"],"x-configurator":{"sensitivity":"public"}},
+              "x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public"}}
+            """);
+        using DefinitionArtifact? artifact = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id,
+            DefinitionFixture.Answers("""{"value":{"A":["one"],"a":["two"]}}""")).Artifact;
+        await Assert.That(artifact is not null).IsTrue();
+        await Assert.That(Encoding.UTF8.GetString(artifact!.Bytes.Span))
+            .IsEqualTo("""{"value":{"A":["one"],"a":["two"]}}""");
+        DefinitionValidationResult invalid = DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":{"synthetic-private-entry":["synthetic-private-answer"]}}"""));
+        await Assert.That(invalid.IsReady).IsFalse();
+        string diagnostic = JsonSerializer.Serialize(invalid.Diagnostics);
+        await Assert.That(diagnostic).DoesNotContain("synthetic-private-entry");
+        await Assert.That(diagnostic).DoesNotContain("synthetic-private-answer");
+    }
+
+    [Test]
+    public async Task NullableConstrainedItemsPreserveNullAndEnforceExactAssertions()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"array","uniqueItems":true,"items":{"type":["number","null"],
+              "exclusiveMinimum":0,"exclusiveMaximum":3,"multipleOf":0.5,
+              "x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public"}}
+            """);
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":[null,0.5,2]}""")).IsReady).IsTrue();
+        foreach (string values in new[] { "[0]", "[3]", "[0.1]", "[1,1]", "[null,null]" })
+            await Assert.That(DefinitionValidator.Validate(definition,
+                DefinitionFixture.Answers("{\"value\":" + values + "}")).IsReady).IsFalse();
+    }
+
+    [Test]
+    public async Task DiscriminatedProvidersSelectOneClosedBranchAndRetainNullablePresence()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":["object","null"],"x-configurator":{"sensitivity":"public"},"oneOf":[
+              {"type":"object","additionalProperties":false,"required":["kind","endpoint"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "kind":{"type":"string","const":"remote","x-configurator":{"sensitivity":"public"}},
+                 "endpoint":{"type":"string","minLength":1,"x-configurator":{"sensitivity":"public"}}}},
+              {"type":"object","additionalProperties":false,"required":["kind","path"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "kind":{"type":"string","const":"local","x-configurator":{"sensitivity":"public"}},
+                 "path":{"type":"string","minLength":1,"x-configurator":{"sensitivity":"public"}}}}]}
+            """);
+        foreach (string value in new[] { "null", """{"kind":"remote","endpoint":"offline"}""", """{"kind":"local","path":"data"}""" })
+        {
+            string answers = "{\"value\":" + value + "}";
+            using DefinitionArtifact? artifact = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id,
+                DefinitionFixture.Answers(answers)).Artifact;
+            await Assert.That(artifact is not null).IsTrue();
+            using JsonDocument actual = JsonDocument.Parse(artifact!.Bytes);
+            using JsonDocument expected = JsonDocument.Parse(answers);
+            await Assert.That(JsonElement.DeepEquals(actual.RootElement, expected.RootElement)).IsTrue();
+        }
+        foreach (string value in new[] { """{"kind":"missing"}""", """{"kind":"remote"}""",
+            """{"kind":"local","path":"data","endpoint":"extra"}""" })
+            await Assert.That(DefinitionValidator.Validate(definition,
+                DefinitionFixture.Answers("{\"value\":" + value + "}")).IsReady).IsFalse();
+    }
+
+    [Test]
+    public async Task LocalReferencesExpandUnderOneConfigurationRootAndCyclesReject()
+    {
+        JsonNode source = JsonNode.Parse(SourceV2)!;
+        source["configuration"] = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+             "$defs":{"text":{"type":"string","minLength":2,"x-configurator":{"sensitivity":"public"}}},
+             "properties":{"value":{"type":"array","items":{"$ref":"#/$defs/text"},
+               "x-configurator":{"sensitivity":"public"}}}}
+            """);
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":["ok"]}""")).IsReady).IsTrue();
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"value":["x"]}""")).IsReady).IsFalse();
+        source["configuration"]!["$defs"]!["text"] = JsonNode.Parse("""{"$ref":"#/$defs/text"}""");
+        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<SetupDefinitionException>();
+    }
+
+    [Test]
+    public async Task AssertedFormatsAreOptInAndNeverGrantNetworkOrCredentialAuthority()
+    {
+        SetupDefinition descriptive = WithValueSchema("""
+            {"type":"string","format":"hostname","x-configurator":{"sensitivity":"public"}}
+            """);
+        await Assert.That(DefinitionValidator.Validate(descriptive,
+            DefinitionFixture.Answers("""{"value":"not a hostname"}""")).IsReady).IsTrue();
+        foreach ((string format, string valid, string invalid) in new[]
+        {
+            ("hostname", "service.example", "-service.example"),
+            ("email-address", "operator@example.invalid", "a..b@example.invalid"),
+            ("uri", "urn:example:offline", "not a URI"),
+            ("http-url", "https://example.invalid/docs#section", "https://user:password@example.invalid/")
+        })
+        {
+            SetupDefinition asserted = WithValueSchema("{\"type\":\"string\",\"format\":\"" + format +
+                "\",\"x-configurator\":{\"sensitivity\":\"public\",\"assertFormat\":true}}");
+            await Assert.That(DefinitionValidator.Validate(asserted,
+                DefinitionFixture.Answers("{\"value\":" + JsonSerializer.Serialize(valid) + "}")).IsReady).IsTrue();
+            await Assert.That(DefinitionValidator.Validate(asserted,
+                DefinitionFixture.Answers("{\"value\":" + JsonSerializer.Serialize(invalid) + "}")).IsReady).IsFalse();
+        }
+    }
+
+    private static SetupDefinition WithValueSchema(string schema)
+    {
+        JsonNode source = JsonNode.Parse(SourceV2)!;
+        source["configuration"]!["properties"] = new JsonObject { ["value"] = JsonNode.Parse(schema) };
+        return SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+    }
+
+    [Test]
+    public async Task ConfigurationRootMapsAndBoundsUseTheSameRecursiveOwner()
+    {
+        JsonNode source = JsonNode.Parse(SourceV2)!;
+        source["configuration"] = JsonNode.Parse("""
+            {"type":"object","minProperties":1,"maxProperties":2,"x-configurator":{"sensitivity":"public"},
+             "additionalProperties":{"type":"integer","minimum":0,"x-configurator":{"sensitivity":"public"}}}
+            """);
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using DefinitionArtifact? artifact = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id,
+            DefinitionFixture.Answers("""{"A":1,"a":2}""")).Artifact;
+        await Assert.That(artifact is not null).IsTrue();
+        await Assert.That(Encoding.UTF8.GetString(artifact!.Bytes.Span)).IsEqualTo("""{"A":1,"a":2}""");
+        foreach (string answers in new[] { "{}", """{"A":1,"a":2,"b":3}""", """{"synthetic-private-entry":-1}""" })
+        {
+            DefinitionValidationResult result = DefinitionValidator.Validate(definition, DefinitionFixture.Answers(answers));
+            await Assert.That(result.IsReady).IsFalse();
+            await Assert.That(JsonSerializer.Serialize(result.Diagnostics)).DoesNotContain("synthetic-private-entry");
+        }
+    }
+
+    [Test]
+    public async Task ConfigurationRootProvidersValidateAndComposeTheirSelectedProperties()
+    {
+        JsonNode source = JsonNode.Parse(SourceV2)!;
+        source["configuration"] = JsonNode.Parse("""
+            {"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+              {"type":"object","additionalProperties":false,"required":["kind","amount"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                "kind":{"type":"string","const":"count","x-configurator":{"sensitivity":"public"}},
+                "amount":{"type":"integer","minimum":1,"x-configurator":{"sensitivity":"public"}}}},
+              {"type":"object","additionalProperties":false,"required":["kind","name"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                "kind":{"type":"string","const":"name","x-configurator":{"sensitivity":"public"}},
+                "name":{"type":"string","minLength":1,"x-configurator":{"sensitivity":"public"}}}}]}
+            """);
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        foreach (string answers in new[] { """{"amount":2,"kind":"count"}""", """{"kind":"name","name":"sample"}""" })
+        {
+            using DefinitionArtifact? artifact = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id,
+                DefinitionFixture.Answers(answers)).Artifact;
+            await Assert.That(artifact is not null).IsTrue();
+            await Assert.That(Encoding.UTF8.GetString(artifact!.Bytes.Span)).IsEqualTo(answers);
+        }
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"kind":"count","amount":0}""")).IsReady).IsFalse();
+        await Assert.That(DefinitionValidator.Validate(definition,
+            DefinitionFixture.Answers("""{"kind":"unknown"}""")).IsReady).IsFalse();
+    }
+
+    [Test]
+    public async Task RecursivePrivacyAndReferenceExpansionCannotLaunderPublicValues()
+    {
+        await Assert.That(() => WithValueSchema("""
+            {"type":"object","additionalProperties":{"type":"string","x-configurator":{
+             "sensitivity":"secret","initialValue":"synthetic-private-initial"}},
+             "x-configurator":{"sensitivity":"public"}}
+            """)).Throws<SetupDefinitionException>();
+        JsonNode source = JsonNode.Parse(SourceV2)!;
+        source["configuration"]!["$defs"] = JsonNode.Parse("""
+            {"secret":{"type":"string","writeOnly":true,"x-configurator":{"sensitivity":"secret"}}}
+            """);
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+            {"value":{"$ref":"#/$defs/secret","writeOnly":false,"x-configurator":{
+             "sensitivity":"public","suggestedValue":"synthetic-private-suggestion"}}}
+            """);
+        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<SetupDefinitionException>();
+        source["configuration"]!["$defs"] = JsonNode.Parse(
+            """{"unused":{"type":"string","executable":"synthetic-executable"}}""");
+        source["configuration"]!["properties"] = new JsonObject();
+        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<SetupDefinitionException>();
+    }
+
+    [Test]
+    public async Task ReferenceAmplificationIsBoundedBeforeAnExpandedSchemaEscapesAdmission()
+    {
+        JsonNode source = JsonNode.Parse(SourceV2)!;
+        source["configuration"]!["$defs"] = new JsonObject
+        {
+            ["text"] = new JsonObject
+            {
+                ["type"] = "string", ["description"] = new string('x', 4096),
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" }
+            }
+        };
+        var properties = new JsonObject();
+        for (int index = 0; index < 300; index++)
+            properties["field" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)] =
+                new JsonObject { ["$ref"] = "#/$defs/text" };
+        source["configuration"]!["properties"] = properties;
+        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<SetupDefinitionException>();
+    }
+
+    [Test]
+    public async Task DeferredMapSecretsNeverExposePrivateKeysThroughCompletionMetadata()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{
+              "type":"object","additionalProperties":false,"required":["label","credential"],
+              "x-configurator":{"sensitivity":"public"},"properties":{
+                "label":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                "credential":{"type":"string","x-configurator":{"sensitivity":"secret"}}}}}
+            """);
+        using DefinitionDraftArtifactResult result = DefinitionDraftArtifactComposer.Compose(definition, definition.Artifacts[0].Id,
+            DefinitionFixture.Answers("""{"value":{"synthetic-private-key":{"label":"public"}}}"""));
+        await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(result.Completions.Count).IsEqualTo(1);
+        await Assert.That(result.Completions[0].FieldPath).IsEqualTo("/value/@entry/0/credential");
+        await Assert.That(JsonSerializer.Serialize(result.Completions)).DoesNotContain("synthetic-private-key");
+        await Assert.That(JsonSerializer.Serialize(result.Diagnostics)).DoesNotContain("synthetic-private-key");
+        await Assert.That(result.IsDraft).IsTrue();
+    }
+
+    [Test]
+    public async Task DynamicEntryPointerOverflowRejectsWithBoundedValueFreeDiagnostics()
+    {
+        SetupDefinition definition = WithValueSchema("""
+            {"type":"object","additionalProperties":{"type":"string","x-configurator":{"sensitivity":"public"}},
+             "x-configurator":{"sensitivity":"public"}}
+            """);
+        string key = "synthetic-private-key" + new string('~', 32_768);
+        using JsonDocument answers = JsonDocument.Parse(JsonSerializer.Serialize(
+            new Dictionary<string, Dictionary<string, string>> { ["value"] = new() { [key] = "synthetic-private-value" } }));
+        var snapshot = new SetupAnswerSnapshot(1, answers.RootElement.EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value, StringComparer.Ordinal));
+        DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id, snapshot);
+        await Assert.That(result.Artifact).IsNull();
+        await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("validation-limit");
+        await Assert.That(JsonSerializer.Serialize(result.Diagnostics)).DoesNotContain("synthetic-private");
+    }
+
     private const string SourceV2 = """
         {
           "$schema":"urn:islamu:configurator:authoring:v2",
