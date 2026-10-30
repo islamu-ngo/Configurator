@@ -321,6 +321,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            RetireImportComparison();
             bool hasProtectedRoots = false;
             foreach (DefinitionFieldInput field in Fields.Where(field => field.RequiresMasking))
             {
@@ -916,14 +917,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(read);
         SetupAnswerSnapshot original;
         HashSet<string> replaceableDefaults;
-        lock (_gate)
+        long generation;
+        using (BeginMutation())
         {
+            RetireImportComparison();
             if (SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)
                 return new(false, null, "import-secret-consent-required");
             original = Snapshot();
-            replaceableDefaults = Fields.Where(field => field.IsPristineDefault &&
-                !_omitted.Any(path => path.Segments[0] == field.Definition.Id))
-                .Select(field => field.Definition.Id).ToHashSet(StringComparer.Ordinal);
+            generation = _importGeneration;
+            replaceableDefaults = ReplaceableImportDefaults();
         }
         if (cancellationToken.IsCancellationRequested)
             return new(false, null, "import-cancelled");
@@ -938,39 +940,42 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (cancellationToken.IsCancellationRequested) return new(false, null, "import-cancelled");
             DefinitionImportResult result = DefinitionImport.Assess(Definition, artifactId, bytes, original, replaceableDefaults);
             if (!result.Succeeded) return result;
-            using (BeginMutation())
-            {
-                if (_disposed || cancellationToken.IsCancellationRequested || InputRevision != original.InputRevision)
-                    return new(false, null, "import-stale");
-                if (SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)
-                {
-                    DefinitionFieldInput? denied = Fields.FirstOrDefault(field =>
-                        result.Answers!.Values.TryGetValue(field.Definition.Name, out JsonElement value) &&
-                        DefinitionSecretPolicy.ContainsSecret(field.Definition.Node, value,
-                            DefinitionSecretPolicy.IsSecret(Definition.Configuration)));
-                    if (denied is not null)
-                        return new(false, null, "import-secret-consent-required")
-                        {
-                            Diagnostic = new("import-secret-consent-required", denied.Definition.Id)
-                        };
-                }
-                foreach (DefinitionFieldInput field in Fields.Where(field => result.ProvidedFields.Contains(field.Definition.Id)))
-                    if (result.Answers!.Values.TryGetValue(field.Definition.Name, out JsonElement value))
-                    {
-                        ClearRowIdentities([field.Definition.Id]);
-                        field.SetImported(value);
-                    }
-                _omitted.Clear();
-                _omitted.UnionWith(result.Answers!.Omitted.Select(path => DefinitionPath.FromSegments([
-                    Definition.Fields.Single(field => field.Name == path.Segments[0]).Id, .. path.Segments.Skip(1)])));
-                OnInputChanged();
-                return result;
-            }
+            return AdoptImportedResult(result, original.InputRevision, generation, cancellationToken);
         }
         finally
         {
             if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(bytes, out ArraySegment<byte> buffer))
                 System.Security.Cryptography.CryptographicOperations.ZeroMemory(buffer.AsSpan());
+        }
+    }
+
+    private DefinitionImportResult AdoptImportedResult(DefinitionImportResult result, long revision,
+        long generation, CancellationToken cancellationToken)
+    {
+        using (BeginMutation())
+        {
+            if (!ImportIsCurrent(generation, revision, cancellationToken))
+                return new(false, null, "import-stale");
+            if (!HasImportStorage(result.Answers!))
+                return new(false, null, "import-workspace-unsupported");
+            DefinitionFieldInput? pendingDraft = Fields.FirstOrDefault(field =>
+                result.ProvidedFields.Contains(field.Definition.Id) && field.InputDiagnosticCode is not null);
+            if (pendingDraft is not null)
+                return new(false, null, "answer-conflict")
+                {
+                    Diagnostic = new("answer-conflict", pendingDraft.Definition.Id)
+                };
+            foreach (DefinitionFieldInput field in Fields.Where(field => result.ProvidedFields.Contains(field.Definition.Id)))
+                if (result.Answers!.Values.TryGetValue(field.Definition.Name, out JsonElement value))
+                {
+                    ClearRowIdentities([field.Definition.Id]);
+                    field.SetImported(value);
+                }
+            _omitted.Clear();
+            _omitted.UnionWith(result.Answers!.Omitted.Select(path => DefinitionPath.FromSegments([
+                Definition.Fields.Single(field => field.Name == path.Segments[0]).Id, .. path.Segments.Skip(1)])));
+            OnInputChanged();
+            return result;
         }
     }
 
@@ -986,6 +991,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
+        RetireImportComparison();
         _facts = null;
         _orderedEntries = null;
         _relevantEntries = null;
@@ -1017,6 +1023,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (_disposed) return;
             _disposed = true;
+            RetireImportComparison();
             _editing.Clear();
             _omitted.Clear();
             _facts = null;
@@ -1029,6 +1036,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _view.Clear();
             InputChanged = null;
             ViewChanged = null;
+            ImportComparisonChanged = null;
         }
     }
 

@@ -186,24 +186,61 @@ actual zeroization contract.
 
 `DefinitionPresentationOperation` captures the
 definition, artifact ID and input revision for a workspace execution.
-`DefinitionFormModel.ImportAsync` captures the current immutable answer snapshot
+`DefinitionFormModel.ImportAsync` requires Browser raw-input consent before
+invoking its reader, even under a public-only definition: obsolete content can
+contain unknown credentials. It captures the current immutable answer snapshot
 before reading an existing file. After Core assesses its declared inverse, the
 form applies cloned imported typed values as one revision only if the captured revision
-still matches and cancellation/disposal have not invalidated the operation.
+and import generation still match and cancellation/disposal have not invalidated
+the operation.
 Core returns immutable `ProvidedFields` metadata from the actual parsed mappings,
 not a value comparison. Only those roots are applied and assigned imported
 provenance; unmentioned drafts, row identities and origins survive. Presentation
 captures pristine default roots under the same gate as the original snapshot
 and passes replacement permission to Core. Explicit-equal-default edits and
 invalid drafts do not qualify; Core still checks the full merged answer budget.
+An imported root with a pending invalid draft refuses even if its recovered
+value equals the last committed value; adoption cannot erase that draft.
+
+`DefinitionImportState.cs` extends the same partial form and mutation gate with
+one disposable current assessment, not another answer store or lock.
+`CompareAsync` captures generation/revision/privacy before acquisition, calls
+Core inspection independently of current answers, computes current autofill
+eligibility, then publishes only if those identities remain current.
+`ImportComparison` exposes only the detached immutable report. Publication and
+retirement raise `ImportComparisonChanged`, not `InputChanged` or the ordinary
+`ViewChanged` editor-refresh event. That separation preserves prepared output and
+active client drafts as well as committed form state.
+
+`ImportAutofillCode` and `CanAdoptImportComparison` describe current workspace
+eligibility separately from the file report's `AutofillEligible`.
+`AdoptImportComparison` rechecks strict merge, consent, revision and pending drafts,
+then uses the same atomic adoption transaction as direct import. Comparison grants
+no overwrite permission. Failure retains existing work and exposes a value-free
+reason; recovery is separate-copy repair/reimport, never partial adoption.
+
+`ExplainImportFinding` returns declared schema metadata and a static enclosing
+path only for a finding in the current report. It stops before array rows,
+dynamic map names and unresolved branches. It neither focuses a current entity
+nor mints `DefinitionCorrectionLocation` from imported ordinals. After adoption,
+normal current validation supplies fresh revision-bound correction tokens.
+
+Edits, raw private clearing, replacement, cancellation, purpose/artifact change,
+navigation and disposal retire pending/current comparison authority through
+`ClearImportComparison` and existing adapter generations. Revocation denies
+access synchronously before asynchronous physical cleanup. Clearing retires a
+comparison even when a public-only workspace contains no protected answer root.
+Owned consumed bytes are cleared in `finally`; retiring managed trees does not
+promise physical erasure of all string copies.
+
 Browser mounts the positive effects list only at the Review workflow location.
 It consumes value-free projection entries, origin metadata and declared output
 bindings; it never reads answers for review markup. Change uses literal typed
 paths and shared focus promotion; returning refreshes validation without an
 answer revision or automatic consent.
 Known import failures retain their typed Core diagnostic through the existing
-operation generation fence. Consent rejection identifies an admitted root and
-offers only checkbox focus; inactive-field recovery uses shared active
+operation generation fence. Raw-input consent rejection grants only checkbox
+focus, not current-field correction authority; inactive-field recovery uses shared active
 controller metadata. Other recovery reuses literal correction focus. The editor
 clears this recovery capability with every input/output invalidation, import
 format change or workspace replacement, so an old rejected file cannot direct

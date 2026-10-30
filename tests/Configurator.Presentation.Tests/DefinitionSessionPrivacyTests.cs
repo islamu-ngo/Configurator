@@ -117,14 +117,35 @@ public sealed class DefinitionSessionPrivacyTests
     {
         byte[] bytes = """{"settings":{"name":"safe","password":"synthetic-vault-marker-729"}}"""u8.ToArray();
         using var browser = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
-        DefinitionImportResult result = await browser.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(bytes));
+        bool consumed = false;
+        DefinitionImportResult result = await browser.ImportAsync("config", _ =>
+        {
+            consumed = true;
+            return Task.FromResult<ReadOnlyMemory<byte>>(bytes);
+        });
         await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.Code).IsEqualTo("import-secret-consent-required");
+        await Assert.That(consumed).IsFalse();
         await Assert.That(result.ToString()).DoesNotContain("synthetic-vault-marker-729");
-        await Assert.That(bytes.All(item => item == 0)).IsTrue();
+        await Assert.That(bytes.AsSpan().SequenceEqual(
+            """{"settings":{"name":"safe","password":"synthetic-vault-marker-729"}}"""u8)).IsTrue();
         await Assert.That(browser.InputRevision).IsEqualTo(0);
         using var native = new DefinitionFormModel(Definition());
         native.Fields.Single().Text = """{"name":"safe","password":"native-secret"}""";
         await Assert.That(native.Validate().IsReady).IsTrue();
+    }
+
+    [Test]
+    public async Task ConsentedImportClearsConsumedPrivateBytesAfterRejection()
+    {
+        byte[] bytes = """{"settings":{"synthetic-obsolete-key":"synthetic-private-value"}}"""u8.ToArray();
+        using var browser = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        DefinitionImportResult result = await browser.ImportAsync("config",
+            _ => Task.FromResult<ReadOnlyMemory<byte>>(bytes));
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(bytes.All(item => item == 0)).IsTrue();
+        await Assert.That(result.ToString()).DoesNotContain("synthetic-private");
+        await Assert.That(browser.InputRevision).IsEqualTo(0);
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
