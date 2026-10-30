@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -31,6 +32,8 @@ internal static class SetupCliArtifactHandlers
 
         if (command.Operation is "check-existing" or "prefill")
             return await AssessExistingAsync(command, invocation, definition, artifact, ledger, cancellationToken);
+        if (command.Operation == "compare")
+            return await CompareAsync(command, invocation, definition, artifact, cancellationToken);
 
         SetupAnswerSnapshot answers = await SetupCliIoOperations.AnswersAsync(invocation,
             command.Answers ?? command.Input!, command.InputRevision, cancellationToken);
@@ -134,6 +137,75 @@ internal static class SetupCliArtifactHandlers
             "public", "none", "none")]);
     }
 
+    private static async Task<SetupCliCommandResult> CompareAsync(SetupCliCommand command, SetupCliInvocation invocation,
+        SetupDefinition definition, SetupArtifactDefinition artifact, CancellationToken cancellationToken)
+    {
+        using SetupCliInputBuffer source = await SetupCliIoOperations.ReadAsync(invocation, command.Input!, cancellationToken);
+        using DefinitionImportAssessment assessment = DefinitionImport.Inspect(definition, artifact.Id, source.Bytes, cancellationToken);
+        DefinitionImportReport report = assessment.Report;
+        string compatibility = report.Compatibility switch
+        {
+            DefinitionImportCompatibility.Compatible => "compatible",
+            DefinitionImportCompatibility.ChangesRequired => "changes-required",
+            DefinitionImportCompatibility.Incomplete => "incomplete",
+            DefinitionImportCompatibility.Unsupported => "unsupported",
+            DefinitionImportCompatibility.InvalidInput => "invalid-input",
+            _ => throw new InvalidOperationException("assessment-classification")
+        };
+        SetupCliExitCode exit = report.Compatibility switch
+        {
+            DefinitionImportCompatibility.InvalidInput => SetupCliExitCode.Data,
+            DefinitionImportCompatibility.Unsupported => SetupCliExitCode.Blocked,
+            DefinitionImportCompatibility.ChangesRequired => SetupCliExitCode.Validation,
+            _ when !report.CoverageComplete || !report.InventoryComplete => SetupCliExitCode.Incomplete,
+            DefinitionImportCompatibility.Incomplete => SetupCliExitCode.Incomplete,
+            _ => SetupCliExitCode.Success
+        };
+        SetupCliMachineFinding[] findings = report.Findings.Select(finding => new SetupCliMachineFinding(
+            finding.Kind switch
+            {
+                DefinitionImportFindingKind.MissingRequired => "missing-required",
+                DefinitionImportFindingKind.InvalidSuppliedValue => "invalid-supplied-value",
+                DefinitionImportFindingKind.UnrecognizedInput => "unrecognized-input",
+                DefinitionImportFindingKind.StructuralOutputChange => "structural-output-change",
+                DefinitionImportFindingKind.Unassessed => "unassessed",
+                DefinitionImportFindingKind.ContextDerivedValue => "context-derived-value",
+                _ => throw new InvalidOperationException("assessment-finding")
+            }, finding.Code,
+            finding.Source is { } location ? new(Array.AsReadOnly(location.Ordinals.ToArray())) : null,
+            finding.Schema is { } schema ? new(schema.FieldId, BoundedSchemaPath(schema.RelativePath)) : null))
+            .OrderBy(item => item.Classification, StringComparer.Ordinal)
+            .ThenBy(item => item.Code, StringComparer.Ordinal)
+            .ThenBy(item => JsonSerializer.Serialize(item.Schema, SetupCliJsonContext.Default.SetupCliMachineFindingSchema), StringComparer.Ordinal)
+            .ThenBy(item => JsonSerializer.Serialize(item.Source, SetupCliJsonContext.Default.SetupCliMachineFindingSource), StringComparer.Ordinal)
+            .ToArray();
+        return new(exit, report.ExecutionCompleted ? [] : [new(report.Code, "/input", "error")],
+            [], SetupCliResults.EmptyCoverage(), new("unassessed", [], []))
+        {
+            DefinitionDigest = report.DefinitionDigest,
+            Completion = report.ExecutionCompleted ? "completed" : "failed",
+            Preparation = "not-evaluated",
+            Assessment = new(report.DefinitionDigest, artifact.Id, compatibility,
+                report.CoverageComplete ? "complete" : "incomplete", report.InventoryComplete ? "complete" : "stopped",
+                report.AutofillEligible ? "eligible" : "ineligible", report.RetainedFindingCount, report.TotalFindingCount)
+            { Findings = Array.AsReadOnly(findings) }
+        };
+    }
+
+    // Long declared paths navigate to a safe enclosing schema, never a private imported key.
+    private static ReadOnlyCollection<string> BoundedSchemaPath(IReadOnlyList<string> path)
+    {
+        var result = new List<string>();
+        int characters = 0;
+        foreach (string segment in path.Take(32))
+        {
+            if (segment.Length > 256 - characters) break;
+            characters += segment.Length;
+            result.Add(segment);
+        }
+        return result.AsReadOnly();
+    }
+
     private static async Task<SetupCliCommandResult> AssessExistingAsync(SetupCliCommand command, SetupCliInvocation invocation,
         SetupDefinition definition, SetupArtifactDefinition artifact, SetupCliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
@@ -142,7 +214,8 @@ internal static class SetupCliArtifactHandlers
                 new Dictionary<string, JsonElement>(StringComparer.Ordinal))
             : await SetupCliIoOperations.AnswersAsync(invocation, command.Answers, command.InputRevision, cancellationToken);
         using SetupCliInputBuffer source = await SetupCliIoOperations.ReadAsync(invocation, command.Input!, cancellationToken);
-        DefinitionImportResult result = DefinitionImport.Assess(definition, artifact.Id, source.Bytes, current);
+        using DefinitionImportAssessment assessment = DefinitionImport.Inspect(definition, artifact.Id, source.Bytes, cancellationToken);
+        DefinitionImportResult result = assessment.AssessAutofill(current, cancellationToken: cancellationToken);
         if (!result.Succeeded)
             return SetupCliResults.Failure(result.Code == "answer-conflict" ? SetupCliExitCode.Validation
                 : result.Code == "inverse-unsupported" || result.Code == "import-unsupported"

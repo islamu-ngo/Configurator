@@ -88,7 +88,7 @@ public sealed class SetupCliApplication
             cancellationToken.ThrowIfCancellationRequested();
             if ((command.Detail is not null || command.Offset != 0 || command.Limit != 16 || command.ExpectedDetailDigest is not null)
                 && !(command.Family == "definition" && command.Operation is "check" or "lint"
-                    || command.Family == "artifact" && command.Operation is "validate" or "check-existing" or "bundle-check"))
+                    || command.Family == "artifact" && command.Operation is "validate" or "check-existing" or "compare" or "bundle-check"))
                 return SetupCliResults.Failure(SetupCliExitCode.Usage, "detail-read-only-required");
             return command.Family switch
             {

@@ -31,14 +31,14 @@ public sealed class SetupCliDefinitionTests
     [Arguments("authoring", "urn:islamu:configurator:authoring:v2")]
     [Arguments("runtime", "urn:islamu:configurator:setup-definition:v2")]
     [Arguments("answers", "urn:islamu:configurator:answers:v1")]
-    [Arguments("command", "https://schemas.islamu.org/configurator/command/v3/schema.json")]
+    [Arguments("command", "https://schemas.islamu.org/configurator/command/v4/schema.json")]
     public async Task SchemaDiscoveryUsesOnlyBuiltInPublicMetadataWithoutFileAuthority(string kind, string id)
     {
         var io = new CliFixture();
         await Assert.That(await io.RunAsync("definition", "schema", "--kind", kind, "--machine"))
             .IsEqualTo(SetupCliExitCode.Success);
         using JsonDocument output = JsonDocument.Parse(io.StandardOutput);
-        await Assert.That(output.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v3");
+        await Assert.That(output.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
         JsonElement schema = output.RootElement.GetProperty("schema");
         await Assert.That(schema.GetProperty("kind").GetString()).IsEqualTo(kind);
         await Assert.That(schema.GetProperty("document").GetProperty("$id").GetString()).IsEqualTo(id);

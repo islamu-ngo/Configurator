@@ -43,6 +43,7 @@ internal sealed record SetupCliCommandResult(
     internal string? Preparation { get; init; }
     internal string Cleanup { get; init; } = "not-required";
     internal SetupCliMachineSchema? Schema { get; init; }
+    internal SetupCliMachineAssessment? Assessment { get; init; }
 }
 
 internal static class SetupCliResults

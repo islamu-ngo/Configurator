@@ -41,10 +41,10 @@ public sealed class SetupCliContractTests
     }
 
     [Test]
-    public async Task MachineVersionThreeRejectsRetiredAndUnknownEnvelopesWithoutCompatibility()
+    public async Task MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility()
     {
         foreach (string version in new[] { "islamu-configurator-command/v1", "islamu-configurator-command/v2",
-            "islamu-configurator-command/v4", "2", "" })
+            "islamu-configurator-command/v3", "islamu-configurator-command/v5", "2", "" })
             await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(
                 root => root["schemaVersion"] = version))).Contains("machine-version");
         foreach (string operation in new[] { "check", "build", "lint" })
@@ -493,7 +493,7 @@ public sealed class SetupCliContractTests
         Action<JsonObject>[] mutations =
         [
             detail => detail["offset"] = -1,
-            detail => detail["offset"] = 2049,
+            detail => detail["offset"] = 4097,
             detail => detail["limit"] = 0,
             detail => detail["limit"] = 33,
             detail => detail["total"] = 4097,
@@ -534,7 +534,12 @@ public sealed class SetupCliContractTests
                 ["offset"] = 0,
                 ["limit"] = 32,
                 ["total"] = 32,
+                ["retainedCount"] = 32,
+                ["returnedCount"] = 32,
+                ["nextOffset"] = null,
+                ["terminal"] = true,
                 ["digest"] = root["detailDigest"]!.DeepClone(),
+                ["findings"] = new JsonArray(),
                 ["coverage"] = new JsonArray(),
                 ["diagnostics"] = new JsonArray(Enumerable.Range(0, 32).Select(_ => (JsonNode)Diagnostic()).ToArray())
             };
@@ -561,7 +566,12 @@ public sealed class SetupCliContractTests
             ["offset"] = 0,
             ["limit"] = 16,
             ["total"] = root["coverage"]!["coveredCount"]!.GetValue<int>() + root["coverage"]!["missingCount"]!.GetValue<int>(),
+            ["retainedCount"] = 1,
+            ["returnedCount"] = 1,
+            ["nextOffset"] = null,
+            ["terminal"] = true,
             ["digest"] = root["detailDigest"]!.DeepClone(),
+            ["findings"] = new JsonArray(),
             ["diagnostics"] = new JsonArray(),
             ["coverage"] = new JsonArray(CoverageEntry("service.name"))
         };
@@ -570,6 +580,61 @@ public sealed class SetupCliContractTests
     }
 
     private static JsonObject CoverageEntry(string id) => new() { ["id"] = id, ["state"] = "covered" };
+
+    [Test]
+    public async Task IndependentAssessmentVerifierRejectsAuthorityInventoryAndProgressContradictions()
+    {
+        JsonObject root = JsonNode.Parse(SetupCliMachineContractVerifier.GoodFixture())!.AsObject();
+        root["invocation"]!["operation"] = "compare";
+        root["status"] = "validation";
+        root["exitCategory"] = "validation";
+        root["exitCode"] = 2;
+        root["preparation"] = "not-evaluated";
+        root["readiness"]!["state"] = "unassessed";
+        root["artifacts"] = new JsonArray();
+        root["assessment"] = new JsonObject
+        {
+            ["definitionDigest"] = new string('a', 64), ["artifactId"] = "config", ["compatibility"] = "changes-required",
+            ["coverage"] = "incomplete", ["inventory"] = "stopped", ["autofill"] = "ineligible", ["retainedCount"] = 3000
+        };
+        root["detail"] = new JsonObject
+        {
+            ["kind"] = "findings", ["offset"] = 2998, ["limit"] = 32, ["retainedCount"] = 3000, ["returnedCount"] = 1,
+            ["nextOffset"] = 2999, ["terminal"] = false, ["digest"] = root["detailDigest"]!.DeepClone(),
+            ["diagnostics"] = new JsonArray(), ["coverage"] = new JsonArray(),
+            ["findings"] = new JsonArray(new JsonObject
+            {
+                ["classification"] = "unrecognized-input", ["code"] = "input-unrecognized",
+                ["source"] = new JsonObject { ["ordinals"] = new JsonArray(2998) }
+            })
+        };
+        byte[] Encode(JsonObject value) => System.Text.Encoding.UTF8.GetBytes(value.ToJsonString() + "\n");
+        await Assert.That(SetupCliMachineContractVerifier.Validate(Encode(root))).IsEmpty();
+        foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
+        {
+            value => value.Remove("assessment"),
+            value => value["assessment"]!["total"] = 3000,
+            value => value["assessment"]!["retainedCount"] = 4097,
+            value => value["assessment"]!["compatibility"] = "compatible",
+            value => value["completion"] = "failed",
+            value => value["preparation"] = "ready",
+            value => value["targetAcceptance"] = "accepted",
+            value => value["detail"]!["nextOffset"] = 3030,
+            value => value["detail"]!["returnedCount"] = 32,
+            value => value["detail"]!["terminal"] = true,
+            value => value["detail"]!["total"] = 3000,
+            value => value["detail"]!["findings"] = new JsonArray(),
+            value => value["detail"]!["findings"]![0]!["value"] = "private",
+            value => value["detail"]!["findings"]![0]!["source"]!["key"] = "private",
+            value => value["detail"]!["findings"]![0]!["correction"] = new JsonObject(),
+            value => value["detail"]!["findings"]![0]!["source"]!["ordinals"] = new JsonArray(4096)
+        })
+        {
+            JsonObject broken = root.DeepClone().AsObject();
+            mutate(broken);
+            await Assert.That(SetupCliMachineContractVerifier.Validate(Encode(broken)).Count).IsGreaterThan(0);
+        }
+    }
 
     [Test]
     public async Task ActualCommandGrammarRejectsAliasesUnknownDuplicateMixedAndMissingOptions()
@@ -693,7 +758,7 @@ public sealed class SetupCliContractTests
         [
             (["--help", "--machine"], "cli", "help", "root", [], ["catalogue", "artifact", "env", "definition", "doctor"]),
             (["artifact", "--help", "--machine"], "artifact", "help", "branch", ["artifact"],
-                ["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "prefill", "bundle-check", "bundle-create", "preview"]),
+                ["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create", "preview"]),
             (["artifact", "bundle-create", "--help", "--machine"], "artifact", "bundle-create", "leaf", ["artifact", "bundle-create"], [])
         ];
         foreach (var item in cases)

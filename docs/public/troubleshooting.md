@@ -73,7 +73,7 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v3",
+  "schemaVersion": "islamu-configurator-command/v4",
   "status": "success",
   "exitCode": 0,
   "completion": "completed",
@@ -621,31 +621,58 @@ Configurator enforces strict data admission through `SetupDefinitionCodec` and `
 
 ---
 
-### 3. Unmapped Keys (`import-invalid`)
+### 3. Unmapped Existing-File Content
 
-**Cause:** When using **Import existing configuration** (or CLI `--answers`), the imported `.env` or JSON file contains configuration keys that have no corresponding projection mapping in the definition.
+**Cause:** The existing `.env`, JSON or YAML file contains members outside the
+selected artifact's current projection. `artifact compare` can report these
+without adopting them; strict `prefill` refuses unaccounted content atomically.
+`--answers` supplies an optional current workspace to prefill, not an import mode.
 
 > [!IMPORTANT]
 > **Strict Rejection Policy:**
 > Configurator deliberately refuses imports with unknown keys. Silent omission of unmapped keys could cause operators to lose vital secrets, certificates, or custom configuration parameters without realizing it.
 
 **Step-by-Step Recovery:**
-1. Inspect the import failure diagnostic:
-   ```text
-   import-invalid: Unmapped keys found in imported file: [CUSTOM_METRICS_TOKEN, LEGACY_PORT]
+1. Inspect value-free findings:
+   ```bash
+   islamu-configurator artifact compare --definition configurator.yaml \
+     --artifact environment --input existing.env --machine --detail findings
    ```
-2. If the settings are obsolete or no longer used by the application, remove those keys from your `.env` or JSON file and retry the import.
+   `unrecognized-input` findings identify source ordinals, never raw private key
+   names or values. They are not current-workspace correction tokens. Follow
+   `nextOffset` and the sanitized detail digest for further pages; do not advance
+   by the requested limit. A stopped inventory exposes only a lower bound.
+2. If the settings are obsolete, repair a separate copy of the file, retain the
+   original unchanged, then compare the repaired copy. Exit 2 is a completed
+   assessment requiring changes, not a parse failure; exit 3 means incomplete
+   coverage without known blocking changes. Neither grants target acceptance.
 3. If the settings are legitimate application options, update the setup definition to declare those fields and include them in the artifact projection:
    ```yaml
-   fields:
-     - id: "custom.metrics.token"
-       type: "string"
-       title: "Custom Metrics Token"
-       sensitivity: "restricted"
-       projection:
-         dotenv: "CUSTOM_METRICS_TOKEN"
+   configuration:
+     type: object
+     additionalProperties: false
+     properties:
+       CUSTOM_METRICS_TOKEN:
+         type: string
+         title: Custom metrics token
+         x-configurator:
+           sensitivity: secret
+   outputs:
+     .env:
+       id: environment
+       format: dotenv
+       bindings:
+         CUSTOM_METRICS_TOKEN:
+           scope: root
+           path: /CUSTOM_METRICS_TOKEN
    ```
-4. Re-import the configuration once the definition declares all necessary keys.
+   This is a source fragment: preserve the definition's v2 discriminator,
+   identity, project, application versions and other fields. Public schema names
+   are not a reason to print actual unknown names from an imported file.
+4. Run `definition check --source configurator.yaml`, then compare again.
+   If autofill is eligible, use `artifact prefill` with a new restricted answer
+   destination. If it refuses, repair the separate copy rather than clearing
+   unrelated workspace answers or silently dropping input.
 
 ---
 

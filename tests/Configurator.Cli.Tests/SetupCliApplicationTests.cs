@@ -88,6 +88,12 @@ public sealed class SetupCliApplicationTests
             "--input", "existing.json", "--machine"];
         await Assert.That(await io.RunAsync(["artifact", "check-existing", .. args])).IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        using (JsonDocument receipt = JsonDocument.Parse(io.StandardOutput))
+        {
+            await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+            await Assert.That(receipt.RootElement.TryGetProperty("assessment", out _)).IsFalse();
+            await Assert.That(receipt.RootElement.GetProperty("preparation").GetString()).IsEqualTo("ready");
+        }
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-import-marker");
         await Assert.That(await io.RunAsync(["artifact", "prefill", .. args, "--output", "prefilled.json"]))
             .IsEqualTo(SetupCliExitCode.Success);

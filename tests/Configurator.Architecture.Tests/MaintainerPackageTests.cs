@@ -93,7 +93,7 @@ public sealed class MaintainerPackageTests
         await Assert.That(result.Output.Count(character => character == '\n')).IsEqualTo(1);
         using JsonDocument receipt = JsonDocument.Parse(result.Output);
         JsonElement root = receipt.RootElement;
-        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v3");
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
         await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo("artifact");
         await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo(operation);
         await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(exitCode);
@@ -119,7 +119,7 @@ public sealed class MaintainerPackageTests
     [Arguments("authoring", "configurator-authoring-v2.schema.json", "urn:islamu:configurator:authoring:v2")]
     [Arguments("runtime", "setup-definition-v2.schema.json", "urn:islamu:configurator:setup-definition:v2")]
     [Arguments("answers", "configurator-answers-v1.schema.json", "urn:islamu:configurator:answers:v1")]
-    [Arguments("command", "islamu-configurator-command-v3.schema.json", "https://schemas.islamu.org/configurator/command/v3/schema.json")]
+    [Arguments("command", "islamu-configurator-command-v4.schema.json", "https://schemas.islamu.org/configurator/command/v4/schema.json")]
     public async Task PublishedCliSchemaDiscoveryMatchesDistributedContract(string kind, string fileName, string id)
     {
         string package = ReleaseTestPaths.NativeCliPackage;
@@ -133,7 +133,7 @@ public sealed class MaintainerPackageTests
         await Assert.That(result.Output.Count(character => character == '\n')).IsEqualTo(1);
         using JsonDocument receipt = JsonDocument.Parse(result.Output);
         JsonElement root = receipt.RootElement;
-        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v3");
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
         await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo("definition");
         await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo("schema");
         await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(0);
@@ -196,7 +196,7 @@ public sealed class MaintainerPackageTests
             using (JsonDocument result = JsonDocument.Parse(check.Output))
             {
                 await Assert.That(result.RootElement.GetProperty("schemaVersion").GetString())
-                    .IsEqualTo("islamu-configurator-command/v3");
+                    .IsEqualTo("islamu-configurator-command/v4");
                 await Assert.That(result.RootElement.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
                 await Assert.That(result.RootElement.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
             }
@@ -214,7 +214,7 @@ public sealed class MaintainerPackageTests
             using (JsonDocument receipt = JsonDocument.Parse(build.Output))
             {
                 await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString())
-                    .IsEqualTo("islamu-configurator-command/v3");
+                    .IsEqualTo("islamu-configurator-command/v4");
                 await Assert.That(receipt.RootElement.GetProperty("artifacts")[0].GetProperty("digest").GetString())
                     .IsEqualTo(ReleaseTestPaths.Hash(compiled));
             }

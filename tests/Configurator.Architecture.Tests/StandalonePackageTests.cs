@@ -17,7 +17,7 @@ public sealed class StandalonePackageTests
         string directory = Path.Combine(ReleaseTestPaths.PackageRoot, surface, "linux-x64");
         await Assert.That(File.Exists(Path.Combine(directory, executable))).IsTrue();
         foreach (string path in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md",
-            "schemas/setup-definition-v2.schema.json", "schemas/islamu-configurator-command-v3.schema.json",
+            "schemas/setup-definition-v2.schema.json", "schemas/islamu-configurator-command-v4.schema.json",
             "contracts/package.json", "contracts/native-release-capabilities.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
         await AssertPackagedDefinitionContracts(directory);
@@ -124,7 +124,7 @@ public sealed class StandalonePackageTests
         {
             ("setup-definition-v2.schema.json", "definitionSchemaSha256"),
             ("configurator-authoring-v2.schema.json", "authoringSchemaSha256"),
-            ("islamu-configurator-command-v3.schema.json", "commandSchemaSha256"),
+            ("islamu-configurator-command-v4.schema.json", "commandSchemaSha256"),
             ("configurator-answers-v1.schema.json", null)
         })
         {
@@ -136,7 +136,8 @@ public sealed class StandalonePackageTests
                 await Assert.That(digest).IsEqualTo(baseline.RootElement.GetProperty(digestProperty).GetString()).Because(fileName);
         }
         foreach (string retired in new[] { "setup-definition-v1.schema.json", "configurator-authoring-v1.schema.json",
-            "islamu-configurator-command-v1.schema.json", "islamu-configurator-command-v2.schema.json" })
+            "islamu-configurator-command-v1.schema.json", "islamu-configurator-command-v2.schema.json",
+            "islamu-configurator-command-v3.schema.json" })
             await Assert.That(File.Exists(Path.Combine(directory, "schemas", retired))).IsFalse().Because(retired);
         await Assert.That(baseline.RootElement.GetProperty("targetApply").GetBoolean()).IsFalse();
         await Assert.That(baseline.RootElement.GetProperty("signedPublicationEnabled").GetBoolean()).IsFalse();

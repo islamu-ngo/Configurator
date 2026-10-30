@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6639BQNMJV5EBZBXZB273E7
+Title: "Replace machine v3 with explicit configuration assessments"
+Type: feat
+Scope: cli
+Summary: "Move machine consumers to command v4 with separate execution, compatibility, coverage, inventory and autofill facts. Retrieve bounded finding pages using returnedCount and nextOffset. Command v3 and its schema are removed without an alias; authoring/runtime v2 and private answers v1 are unchanged. Local comparison never establishes target acceptance."
+Group: artifact-import-comparison
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Replace the command v3 envelope/schema with v4. Read independent assessment facts and follow returnedCount/nextOffset rather than requested page size; no old emitter or alias remains."
+  Security:
+    Reference: docs/SECURITY_OVERVIEW.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Update machine consumers and distributed schema references to command v4. Authoring/runtime v2 and private answer contract v1 remain unchanged."
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Use artifact compare before deliberate prefill. Completed comparison can require changes or have incomplete coverage; preparation and target acceptance remain unassessed."

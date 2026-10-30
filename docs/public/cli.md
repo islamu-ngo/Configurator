@@ -11,7 +11,8 @@ For portable bounded-v2 adoption, start with the
 [integration workflow](integrating.md), then the
 [definition reference](definition-reference.md) and
 [cookbook](definition-cookbook.md). Public authoring/runtime contracts are v2,
-private answers are v1, and machine receipts are v3; those versions are independent.
+private answers are v1, and machine receipts are v4; those versions are independent.
+Machine v3 and its schema are retired without an adapter or alias.
 
 ## Qualified pre-release scope
 
@@ -79,6 +80,7 @@ The CLI uses strict, case-sensitive option parsing:
 | `artifact export` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Publish artifact using canonical output writer |
 | `artifact import` | `--definition`, `--artifact`, `--input`, `--output`, `--expected-revision`, `--revision-field` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Prepare an import artifact with explicit revision binding |
 | `artifact check-existing` | `--definition`, `--artifact`, `--input` | `--answers`, `--input-revision` | Verify if a local file can be reverse-mapped to answers |
+| `artifact compare` | `--definition`, `--artifact`, `--input` | `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Assess an existing file against the selected definition without changing answers or files |
 | `artifact prefill` | `--definition`, `--artifact`, `--input`, `--output` | `--answers`, `--input-revision`, `--format`, `--dry-run` | Ingest local configuration into a JSON answer workspace |
 | `artifact bundle-check` | `--definition`, repeated `--artifact`, `--input` | `--input-revision` | Validate multi-artifact bundle readiness |
 | `artifact bundle-create` | `--definition`, repeated `--artifact`, `--input`, `--output` | `--input-revision`, `--dry-run` | Create all bundle artifacts in the target directory |
@@ -175,6 +177,14 @@ islamu-configurator env render \
 Prepare, validate, diff, and generate application artifacts:
 
 ```bash
+# Assess an existing configuration before attempting autofill
+islamu-configurator artifact compare \
+  --definition setup.json \
+  --artifact config \
+  --input existing-service.json \
+  --detail findings --limit 16 \
+  --machine
+
 # Create a single protected configuration artifact
 islamu-configurator artifact create \
   --definition setup.json \
@@ -219,6 +229,45 @@ islamu-configurator artifact bundle-create \
   --machine
 ```
 
+### Existing-file assessment and recovery
+
+`artifact compare` reports what the supplied file establishes, without inserting
+initial values or preparing an answer workspace. Its `assessment` object separates
+`compatibility`, `coverage`, `inventory` and `autofill`. Root `completion` describes
+execution: a completed comparison can return exit 2 (`changes-required`) or exit 3
+(`incomplete`). Standalone comparison always has `preparation: "not-evaluated"`,
+workspace readiness `unassessed` and `targetAcceptance: "unassessed"`.
+
+Compatibility is `compatible`, `changes-required`, `incomplete`, `unsupported` or
+`invalid-input`. Coverage is `complete` or `incomplete`; inventory is `complete`
+or `stopped`; autofill is `eligible` or `ineligible`. `retainedCount` is the number
+of available findings, up to 4,096. A complete inventory also supplies exact
+`total`; a stopped inventory omits `total` because its retained count is only a
+lower bound. A short display page does not make the assessment incomplete.
+
+Use `--detail findings` to retrieve stable classifications and codes with safe
+source ordinals and declared schema locations. These are not workspace correction
+tokens. Unknown member names and private values are never recovery coordinates.
+Declared schema paths may stop at a bounded enclosing ancestor.
+
+For every detail kind (`findings`, `diagnostics`, `coverage`), use the returned
+`nextOffset`, not `offset + limit`, and pass `detail.digest` as
+`--expected-detail-digest`. Legal offsets run from 0 through retained count,
+including a terminal empty page, at most 4,096. Limits are 1–32, default 16.
+`returnedCount` can be smaller than requested to preserve the shared 8,192-byte
+detail/diagnostic budget within the 65,536-byte receipt. `terminal: true` has
+`nextOffset: null`; a nonterminal page always advances. A finding that cannot
+fit fails with `detail-item-unencodable`, never an empty repeating continuation.
+The digest binds the sanitized assessment, not exact private bytes or authenticity:
+two files differing only in private values can have the same digest.
+
+Strict `prefill` remains a separate deliberate operation that creates a restricted
+answer snapshot; `check-existing` checks that same adoption path. If comparison
+completes but autofill refuses, repair a separate copy and re-run comparison before
+prefilling. Keep the original unchanged. `diff` compares byte/projection results,
+and `import` prepares revision-bound target output; neither is an alias for compare.
+See [Import and compare](import-and-compare.md) for the complete workflow.
+
 ### Authoring Maintainer Definitions
 
 Create, validate, compile, and increment setup definition sources:
@@ -255,13 +304,13 @@ islamu-configurator doctor --machine
 
 ## Machine Contract (`--machine`)
 
-In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v3` schema. It provides deterministic, structured facts about operation results, file publication, and validation diagnostics.
+In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v4` schema. It provides deterministic, structured facts about operation results, file publication, validation diagnostics and existing-file assessment.
 
 ### 1. Successful Artifact Creation
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v3",
+  "schemaVersion": "islamu-configurator-command/v4",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "create",
@@ -312,7 +361,7 @@ When validation fails, diagnostics include fixed error codes, RFC 6901 structura
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v3",
+  "schemaVersion": "islamu-configurator-command/v4",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "validate",
@@ -372,7 +421,7 @@ Query detailed coverage or diagnostics using pagination options (`--detail cover
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v3",
+  "schemaVersion": "islamu-configurator-command/v4",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "validate",
@@ -395,8 +444,13 @@ Query detailed coverage or diagnostics using pagination options (`--detail cover
     "offset": 0,
     "limit": 2,
     "total": 2,
+    "retainedCount": 2,
+    "returnedCount": 2,
+    "nextOffset": null,
+    "terminal": true,
     "digest": "9b12c8a34ef018293a4b5c6d7e8f90123456789abcdef0123456789abcdef01",
     "diagnostics": [],
+    "findings": [],
     "coverage": [
       {
         "id": "service.name",
@@ -432,11 +486,11 @@ The CLI uses standard, predictable POSIX-compatible exit codes:
 | Exit Code | Category | Meaning |
 | --- | --- | --- |
 | `0` | `success` | Operation completed successfully |
-| `2` | `validation` | Field validation or projection constraints failed |
-| `3` | `incomplete` | Required answer fields are missing |
-| `4` | `blocked` | Action blocked by privacy constraint, missing consent, or unsupported host |
+| `2` | `validation` | Field/projection constraints failed, or comparison established required changes even with incomplete coverage |
+| `3` | `incomplete` | Required answers are missing, or comparison coverage/evaluation is incomplete without known blockers |
+| `4` | `blocked` | Privacy/host boundary refused, or the selected inverse is unsupported |
 | `64` | `usage` | Invalid command-line arguments or syntax error |
-| `65` | `data` | Malformed JSON/YAML or definition admission rejection |
+| `65` | `data` | Malformed input/admission refusal, stale detail digest or explicit page-reporting failure |
 | `70` | `internal` | Unexpected internal engine failure |
 | `74` | `io` | I/O failure (file bounds exceeded, protected write blocked, or stdout broken) |
 | `130` | `cancelled` | Operation cancelled cooperatively via `SIGINT` (`Ctrl+C`) or `SIGTERM` |

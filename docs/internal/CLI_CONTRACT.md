@@ -1,5 +1,11 @@
 # CLI contract
 
+> **Audience:** Contributors | Maintainers
+> **Status:** Machine v4 implemented; package qualification pending
+> **Owner:** CLI
+> **Last Verified:** 2026-10-30
+> **Source Anchors:** `src/Configurator.Cli/SetupCliApplication.cs`, `src/Configurator.Cli/SetupCliMachineOutput.cs`, `schemas/islamu-configurator-command-v4.schema.json`
+
 The CLI references only Configurator.Core, Configurator.Artifacts and the admitted
 Spectre packages. The public [command usage](../public/cli.md) documents all
 options, input semantics, confidentiality and exits.
@@ -68,14 +74,28 @@ answers with `SetupAnswerSnapshot`. `SetupCliArtifactHandlers` uses
 `DefinitionImport` inverse; no compiled target DTO, catalogue or transport occurs.
 For ordinary artifact operations, input represents answers. `artifact
 check-existing` and `artifact prefill` instead read a local projected file for
-one selected artifact. Only present, unconditional top-level `copy` members of
-a JSON, YAML or dotenv root object can prefill answers. Duplicate, unknown,
-conditional, transformed, inactive, invalid or conflicting input rejects the
-whole candidate. Missing fields stay missing; this does not establish full
+one selected artifact. `DefinitionImport.Inspect` owns recovered evidence and its
+detached value-free report; `AssessAutofill` on that owner rechecks the current
+snapshot. The bounded Core projection capability determines supported inverses,
+including structural literals, fixed lists and lossless one-to-one repeats.
+Unknown, incompatible, inactive, invalid or conflicting input rejects strict
+autofill atomically. Missing fields stay missing; this does not establish full
 native readiness or target acceptance. `--answers` on these two operations is
 an optional existing answer workspace, and `prefill` writes one new restricted
 answer snapshot to a create-only destination. Its values never enter the
 machine envelope.
+
+`artifact compare --definition <local> --artifact <id> --input <existing-file>`
+uses Core inspection directly and disposes the owned assessment and input buffer.
+It writes no artifact or answer snapshot. Its detached `assessment` contains
+definition/artifact identity, compatibility, coverage, inventory, autofill
+eligibility, retained count and, only for complete inventories, exact total.
+It has no candidate, private bytes, closure over values or correction token.
+Root completion comes from inspection, not exit-zero inference; preparation is
+`not-evaluated`, readiness is `unassessed`, and target acceptance remains
+`unassessed`. Malformed/admission refusal exits 65, unsupported inverse 4, known
+changes 2 even with incomplete coverage, otherwise incomplete coverage/evaluation
+3, and compatibility 0. Usage/I/O/cancellation retain 64/74/130.
 Host-specific imports must describe their fields/request projection as data.
 With `--answers`, input is a prepared artifact and the answers provide a
 recomposition proof: bounded Core JSON/YAML normalization, dotenv parsing, or
@@ -273,21 +293,31 @@ share one 8,192-byte optional budget. `diagnosticsTotal` and `diagnosticsOmitted
 remain exact, and specific publication/cleanup error codes remain reportable
 without replaying effects. Detailed lists are not repeated in every artifact.
 
-`--detail diagnostics|coverage`, `--offset` (0–2,048, default 0), `--limit`
+`--detail diagnostics|coverage|findings`, `--offset` (0–4,096, default 0), `--limit`
 (1–32, default 16) and `--expected-detail-digest` are admitted only by read-only
 `definition check`, `definition lint`, `artifact validate`, `artifact check-existing` and
-`artifact bundle-check`. A page includes kind, offset, requested limit, total,
-digest and sanitized diagnostic or coverage entries. Byte limits can return fewer
-entries than requested; advance by the actual count. The ordinary operation exit
+`artifact bundle-check` and `artifact compare`. Findings detail requires an
+assessment. A page includes kind, offset, requested limit, retainedCount,
+returnedCount, nextOffset, terminal, digest and separate diagnostic, coverage and
+finding arrays. Only the selected kind is populated. Complete inventories also
+carry exact total; stopped inventories omit total and expose a retained-count
+lower bound. Every retained finding is addressable, including beyond offset
+2,048. The terminal offset equals retained count and returns an empty terminal
+page. Byte limits can return fewer entries than requested; advance by nextOffset,
+which equals offset plus returnedCount, never the requested limit. Terminal
+pages set nextOffset null. Empty nonterminal pages reject explicitly with
+`detail-item-unencodable`; out-of-range offsets reject. The ordinary operation exit
 continues to describe validation, not just page retrieval.
 
 Noninitial pages require the expected digest; any supplied mismatch rejects with
 `detail-digest-mismatch` and performs no publication. The digest binds the public
 definition digest, operation, selected IDs and sanitized structural/status view,
-including covered/missing IDs and safe diagnostics. It never hashes private
-answers or persists them. Same-view private-value changes need not change it.
+including covered/missing IDs, safe diagnostics and canonical ordered assessment
+facts/findings. Findings order by classification, code, schema and source coordinates.
+It never hashes private answers or persists them. Same-view private-value changes
+need not change it; this digest is not authentication or a private file digest.
 
-Machine v3 diagnostics carry mutually exclusive optional `source` and
+Machine v4 diagnostics carry mutually exclusive optional `source` and
 `correction` objects. `SetupCliDefinitionHandlers` preserves compiler codes and
 public source-map coordinates; importer keyword codes are lowercased to the
 machine code vocabulary. `SetupCliResults.Diagnostic` converts Core correction
@@ -297,6 +327,11 @@ digest. Pointers retain a safe ancestor within 256 characters; corrections retai
 at most 32 typed segments and 256 aggregate declared-name characters. The input
 revision fences correction use. Source offsets are one-based line/column and a
 zero-based document index; collection coordinates are zero-based ordinals.
+Assessment findings instead carry `classification`, `code`, optional
+`source.ordinals` and optional `schema` (`fieldId`, `relativePath`). Source
+ordinals belong only to the assessed file, not current workspace entities.
+Schema paths stop at an enclosing ancestor within 32 segments and 256 aggregate
+characters; no private dynamic key or value is serialized.
 
 `definition lint` shares check admission and read-only continuation, then emits
 warnings for descriptive defaults, advisory formats and absent output update or
@@ -308,10 +343,10 @@ independent versions 2/2/1; text mode emits the public document only. Neither
 operation grants revision, publication or target-acceptance authority.
 
 `SetupCliCommandSchemaMetadata.GenerateSchema()` generates the closed
-`islamu-configurator-command/v3` envelope plus registry operation/option metadata.
+`islamu-configurator-command/v4` envelope plus registry operation/option metadata.
 The generator's `--write` and `--check` locate `Configurator.slnx`; `--stdout`
 returns schema bytes without needing a repository checkout.
-The native generator retires command v1 and v2 through owned-output cleanup; the
+The native generator retires command v1, v2 and v3 through owned-output cleanup; the
 `RefreshConfiguratorSchemas` packaging stage refreshes only owned packaged schemas.
 Authoring/runtime v2 remain current: changing the command receipt does not change
 their vocabularies. The independent specification/verifier must migrate with the

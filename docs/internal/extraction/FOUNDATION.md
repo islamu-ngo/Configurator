@@ -206,8 +206,35 @@ history, not current implementation evidence. The
 architecture outside active task memory. [Operations](../OPERATIONS.md#definition-v2-qualification)
 separates executed synthetic, actual-client and package checks from unproved
 target acceptance, stakeholder usability, translation review and other hosts.
-Definition authoring/runtime v2, machine v3 and private answer v1 are independent.
+At that qualification milestone, definition authoring/runtime v2, machine v3 and
+private answer v1 were independent; that historical evidence is not machine v4
+package qualification.
 No Event transport, signer, live apply or compatibility interpreter was added.
+
+## Configuration import assessment boundary
+
+Ordinary configuration exports now have a bounded inspection path distinct from
+strict atomic autofill. Core compiles supported inverse instructions and
+observations, then uses the sole validator without initialization. Missing
+represented values, unobserved scope and context-derived selectors stay distinct;
+resource stops retain known blockers without compatibility claims. The private
+assessment owner exposes only detached value-free report facts.
+
+Machine v4 replaces v3 with independent completion, compatibility, coverage,
+inventory and autofill facts, plus bounded finding continuation. A completed
+comparison does not evaluate preparation or target acceptance. Authoring/runtime
+v2 and private answers v1 are unchanged; no compatibility interpreter is added.
+The [machine contract](../CLI_CONTRACT.md) owns the wire and paging details.
+
+Source coordinates, schema explanations and current workspace correction tokens
+are different authorities. Refused autofill returns no candidate correction
+token; successful adoption requires fresh current validation. Interactive
+comparison uses existing Presentation generations and privacy custody, preserving
+answers, drafts and prepared output. It grants no overwrite or apply authority.
+See [the assessment contract](../IMPORT_COMPARISON.md),
+[the accepted decision](../adr/ADR-artifact-import-comparison.md) and
+[operator workflow](../../public/import-and-compare.md). Actual client/package
+qualification remains separately recorded in Operations.
 
 ## Verification and provenance
 

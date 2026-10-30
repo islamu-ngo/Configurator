@@ -11,7 +11,7 @@ This directory contains generated structural JSON Schemas for definition authori
 | [`configurator-authoring-v2.schema.json`](configurator-authoring-v2.schema.json) | Describes current compact maintainer source (`configurator.yaml` or `configurator.json`). | Tool authors, IDE validation, compiler preflight. | YAML / JSON |
 | [`setup-definition-v2.schema.json`](setup-definition-v2.schema.json) | Describes canonical runtime schemaVersion 2/profile bounded-v2 definitions. | `Configurator.Core`, definition store, runtime clients. | Canonical JSON |
 | [`configurator-answers-v1.schema.json`](configurator-answers-v1.schema.json) | Describes the private answerContractVersion 1 envelope with values and explicit omitted pointers. | Local answer tooling; never a public definition/cache payload. | Private JSON |
-| [`islamu-configurator-command-v3.schema.json`](islamu-configurator-command-v3.schema.json) | Defines the structured machine envelope emitted by CLI commands when `--machine` is invoked. | CI/CD pipelines, automated scripts, AI coding agents. | JSON |
+| [`islamu-configurator-command-v4.schema.json`](islamu-configurator-command-v4.schema.json) | Defines machine receipts, independent existing-file assessments and advancing bounded finding pages. | CI/CD pipelines, automated scripts, AI coding agents. | JSON |
 | [`definition-store-curation-v1.schema.json`](definition-store-curation-v1.schema.json) | Validates catalog metadata and project curation records (`curation.json`) for the Definition Store. | Store builders, catalog contributors. | JSON |
 
 ---
@@ -102,9 +102,14 @@ not bounded metadata IDs. Standard `default` never inserts answers;
 reset removes override and suppression. No initialized child creates an absent
 container.
 
-Command results still use envelope v3; successful authoring check/build reports
+Command results use envelope v4; successful authoring check/build reports
 authoringContractVersion 2/runtimeSchemaVersion 2. Answer v1 and store v1 are
 independent contracts, not compatibility fallbacks for definition v1.
+Command v3 is removed without an alias. Assessment inventory retains up to 4,096
+findings; only a complete inventory has an exact `total`. Detail pages expose
+`returnedCount`, `nextOffset` and `terminal`, so byte-shortened pages still
+advance. `artifact compare` reports preparation `not-evaluated` and target
+acceptance `unassessed`. See the [CLI contract](../docs/internal/CLI_CONTRACT.md).
 
 The schemas in this directory describe Configurator contracts, not the target application's schema. An application's own public JSON Schema is a different input: it can scaffold a compact source only through the bounded [JSON Schema importer](../docs/public/definition-reference.md#json-schema-import). Its transformation ledger records retained, converted, advisory, discarded and unsupported concepts; numeric-domain/nullable-branch acknowledgment never bypasses unsupported assertions. Defaults/examples are not private initialization and `writeOnly` ancestry remains secret. Generated schema validity does not establish target-application acceptance.
 
@@ -184,7 +189,7 @@ presence/const/enum guards with `then.required`, optional `else.required` and
 `dependentRequired`, not arbitrary conditional subschemas. Recursive typed maps,
 closed discriminated variants, bounded local refs, exact numeric assertions,
 unique items and opt-in format assertions share the same Core admission.
-Definition-only source maps and command v3 diagnostics are implemented;
+Definition-only source maps and command v4 diagnostics are implemented;
 localization overrides address existing public text and do not change answers.
 Structural schemas can still describe shapes whose contextual semantics reject
 in Core. Consult the [reference](../docs/public/definition-reference.md),

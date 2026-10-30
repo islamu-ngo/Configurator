@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Configurator.Artifacts;
@@ -156,8 +157,62 @@ public sealed record SetupCliMachineArtifact(string Kind, string MediaType, stri
 }
 
 public sealed record SetupCliMachineCoverageEntry(string Id, string State);
-public sealed record SetupCliMachineDetail(string Kind, int Offset, int Limit, int Total, string Digest,
-    IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics, IReadOnlyList<SetupCliMachineCoverageEntry> Coverage);
+public sealed record SetupCliMachineFindingSource
+{
+    public SetupCliMachineFindingSource(IReadOnlyList<int> ordinals) => Ordinals = Array.AsReadOnly(ordinals.ToArray());
+    public IReadOnlyList<int> Ordinals { get; }
+}
+public sealed record SetupCliMachineFindingSchema
+{
+    public SetupCliMachineFindingSchema(string fieldId, IReadOnlyList<string> relativePath)
+    {
+        FieldId = fieldId;
+        RelativePath = Array.AsReadOnly(relativePath.ToArray());
+    }
+    public string FieldId { get; }
+    public IReadOnlyList<string> RelativePath { get; }
+}
+public sealed record SetupCliMachineFinding(string Classification, string Code,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SetupCliMachineFindingSource? Source,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SetupCliMachineFindingSchema? Schema);
+public sealed record SetupCliMachineAssessment(string DefinitionDigest, string ArtifactId, string Compatibility,
+    string Coverage, string Inventory, string Autofill, int RetainedCount,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Total)
+{
+    private ReadOnlyCollection<SetupCliMachineFinding> _findings = Array.AsReadOnly(Array.Empty<SetupCliMachineFinding>());
+    [JsonIgnore] public IReadOnlyList<SetupCliMachineFinding> Findings
+    {
+        get => _findings;
+        init => _findings = Array.AsReadOnly(value.ToArray());
+    }
+}
+public sealed record SetupCliMachineDetail(string Kind, int Offset, int Limit, int RetainedCount,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Total, string Digest,
+    IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics, IReadOnlyList<SetupCliMachineCoverageEntry> Coverage,
+    IReadOnlyList<SetupCliMachineFinding> Findings)
+{
+    private ReadOnlyCollection<SetupCliMachineDiagnostic> _diagnostics = Array.AsReadOnly(Diagnostics.ToArray());
+    private ReadOnlyCollection<SetupCliMachineCoverageEntry> _coverage = Array.AsReadOnly(Coverage.ToArray());
+    private ReadOnlyCollection<SetupCliMachineFinding> _findings = Array.AsReadOnly(Findings.ToArray());
+    public IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics
+    {
+        get => _diagnostics;
+        init => _diagnostics = Array.AsReadOnly(value.ToArray());
+    }
+    public IReadOnlyList<SetupCliMachineCoverageEntry> Coverage
+    {
+        get => _coverage;
+        init => _coverage = Array.AsReadOnly(value.ToArray());
+    }
+    public IReadOnlyList<SetupCliMachineFinding> Findings
+    {
+        get => _findings;
+        init => _findings = Array.AsReadOnly(value.ToArray());
+    }
+    public int ReturnedCount => Diagnostics.Count + Coverage.Count + Findings.Count;
+    public bool Terminal => Offset + ReturnedCount == RetainedCount;
+    public int? NextOffset => Terminal ? null : Offset + ReturnedCount;
+}
 public sealed record SetupCliMachineEnvelope
 {
     private readonly SetupCliMachineDiagnostic[] _diagnostics;
@@ -194,6 +249,8 @@ public sealed record SetupCliMachineEnvelope
     public string DetailDigest { get; init; } = "";
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SetupCliMachineDetail? Detail { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SetupCliMachineAssessment? Assessment { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SetupCliHelpView? Help { get; init; }
     public IReadOnlyList<SetupCliMachineDiagnostic> Diagnostics => Array.AsReadOnly((SetupCliMachineDiagnostic[])_diagnostics.Clone());

@@ -31,8 +31,8 @@ internal abstract class SetupCliCommandSettings : CommandSettings, ISetupCliComm
             : Machine && output == "-" ? "machine-artifact-stdout" : null;
 
     protected string? ValidateDetail(string? detail, int offset, int limit, string? expectedDigest) =>
-        detail is not null && (detail is not ("diagnostics" or "coverage") || !Machine) ? "detail-invalid"
-            : offset is < 0 or > 2048 ? "detail-offset-invalid"
+        detail is not null && (detail is not ("diagnostics" or "coverage" or "findings") || !Machine) ? "detail-invalid"
+            : offset is < 0 or > 4096 ? "detail-offset-invalid"
             : limit is < 1 or > 32 ? "detail-limit-invalid"
             : expectedDigest is not null && !IsDigest(expectedDigest) ? "detail-digest-invalid" : null;
 
@@ -112,7 +112,7 @@ internal sealed class CatalogueItemSettings : CatalogueListSettings
         base.Bind(family, operation, invocationMode) with { Key = Key };
 }
 
-internal class ArtifactInputSettings : DefinitionSettings
+internal class ArtifactCompareSettings : DefinitionSettings
 {
     [CommandOption("--artifact <ID>")]
     public string? Artifact { get; set; }
@@ -120,18 +120,26 @@ internal class ArtifactInputSettings : DefinitionSettings
     [CommandOption("--input <PATH>")]
     public string? Input { get; set; }
 
+    protected override string? ValidateRequired() => base.ValidateRequired()
+        ?? (string.IsNullOrEmpty(Artifact) ? "artifact-required" : null)
+        ?? (string.IsNullOrEmpty(Input) ? "input-required" : null);
+
+    protected override string? ValidateValues() => base.ValidateValues()
+        ?? (Artifact is not null && !IsIdentifier(Artifact) ? "identifier-invalid" : null);
+
+    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+        base.Bind(family, operation, invocationMode) with { Artifact = Artifact, Input = Input };
+}
+
+internal class ArtifactInputSettings : ArtifactCompareSettings
+{
     [CommandOption("--input-revision <NUMBER>")]
     public string InputRevision { get; set; } = "0";
 
     [CommandOption("--answers <PATH>")]
     public string? Answers { get; set; }
 
-    protected override string? ValidateRequired() => base.ValidateRequired()
-        ?? (string.IsNullOrEmpty(Artifact) ? "artifact-required" : null)
-        ?? (string.IsNullOrEmpty(Input) ? "input-required" : null);
-
     protected override string? ValidateValues() => base.ValidateValues()
-        ?? (Artifact is not null && !IsIdentifier(Artifact) ? "identifier-invalid" : null)
         ?? ValidateInputRevision(InputRevision) ?? ValidateStdin(Input, Answers);
 
     public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>

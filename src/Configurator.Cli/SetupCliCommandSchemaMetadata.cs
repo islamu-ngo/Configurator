@@ -15,7 +15,7 @@ public sealed record SetupCliRegisteredCommandMetadata(
 
 public static class SetupCliCommandSchemaMetadata
 {
-    public const string RelativePath = "schemas/islamu-configurator-command-v3.schema.json";
+    public const string RelativePath = "schemas/islamu-configurator-command-v4.schema.json";
     public static IReadOnlyList<SetupCliRegisteredCommandMetadata> Commands { get; } =
         SetupCliCommandRegistry.Families.Select(family => new SetupCliRegisteredCommandMetadata(
                 family.Name,
@@ -116,7 +116,7 @@ public static class SetupCliCommandSchemaMetadata
                 {
                     ["kind"] = Enum(["authoring", "runtime", "answers", "command"]),
                     ["id"] = Enum(["urn:islamu:configurator:authoring:v2", "urn:islamu:configurator:setup-definition:v2",
-                    "urn:islamu:configurator:answers:v1", "https://schemas.islamu.org/configurator/command/v3/schema.json"]),
+                    "urn:islamu:configurator:answers:v1", "https://schemas.islamu.org/configurator/command/v4/schema.json"]),
                     ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
                     ["profile"] = new JsonObject { ["const"] = "bounded-v2" },
                     ["authoringContractVersion"] = new JsonObject { ["const"] = 2 },
@@ -165,17 +165,85 @@ public static class SetupCliCommandSchemaMetadata
                 ["id"] = String(1, 128, "^[A-Za-z][A-Za-z0-9._-]*$"),
                 ["state"] = Enum(["covered", "missing"])
             }),
-            ["detail"] = ObjectSchema(["kind", "offset", "limit", "total", "digest", "diagnostics", "coverage"], new()
+            ["assessment"] = ObjectSchema(["definitionDigest", "artifactId", "compatibility", "coverage", "inventory",
+                "autofill", "retainedCount"], new()
             {
-                ["kind"] = Enum(["diagnostics", "coverage"]),
-                ["offset"] = Integer(0, 2048),
+                ["definitionDigest"] = String(null, null, "^[0-9a-f]{64}$"),
+                ["artifactId"] = String(1, 128, "^[A-Za-z][A-Za-z0-9._-]*$"),
+                ["compatibility"] = Enum(["compatible", "changes-required", "incomplete", "unsupported", "invalid-input"]),
+                ["coverage"] = Enum(["complete", "incomplete"]),
+                ["inventory"] = Enum(["complete", "stopped"]),
+                ["autofill"] = Enum(["eligible", "ineligible"]),
+                ["retainedCount"] = Integer(0, 4096),
+                ["total"] = Integer(0, 4096)
+            }),
+            ["finding"] = ObjectSchema(["classification", "code"], new()
+            {
+                ["classification"] = Enum(["missing-required", "invalid-supplied-value", "unrecognized-input",
+                    "structural-output-change", "unassessed", "context-derived-value"]),
+                ["code"] = String(1, 96, "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"),
+                ["source"] = Ref("findingSource"),
+                ["schema"] = Ref("findingSchema")
+            }),
+            ["findingSource"] = ObjectSchema(["ordinals"], new()
+            {
+                ["ordinals"] = new JsonObject { ["type"] = "array", ["maxItems"] = 32, ["items"] = Integer(0, 4095) }
+            }),
+            ["findingSchema"] = ObjectSchema(["fieldId", "relativePath"], new()
+            {
+                ["fieldId"] = String(0, 128, "^(?:[A-Za-z][A-Za-z0-9._-]*)?$"),
+                ["relativePath"] = new JsonObject
+                {
+                    ["type"] = "array", ["maxItems"] = 32,
+                    ["items"] = String(0, 256, "^[\\s\\S]*$")
+                }
+            }),
+            ["detail"] = ObjectSchema(["kind", "offset", "limit", "retainedCount", "returnedCount", "nextOffset", "terminal",
+                "digest", "diagnostics", "coverage", "findings"], new()
+            {
+                ["kind"] = Enum(["diagnostics", "coverage", "findings"]),
+                ["offset"] = Integer(0, 4096),
                 ["limit"] = Integer(1, 32),
+                ["retainedCount"] = Integer(0, 4096),
+                ["returnedCount"] = Integer(0, 32),
+                ["nextOffset"] = new JsonObject { ["oneOf"] = new JsonArray(Integer(0, 4096), new JsonObject { ["type"] = "null" }) },
+                ["terminal"] = new JsonObject { ["type"] = "boolean" },
                 ["total"] = Integer(0, 4096),
                 ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
                 ["diagnostics"] = BoundedArray("diagnostic", 32),
-                ["coverage"] = BoundedArray("coverageEntry", 32)
+                ["coverage"] = BoundedArray("coverageEntry", 32),
+                ["findings"] = BoundedArray("finding", 32)
             })
         };
+        definitions["assessment"]!["oneOf"] = new JsonArray(
+            new JsonObject
+            {
+                ["properties"] = new JsonObject { ["inventory"] = new JsonObject { ["const"] = "complete" } },
+                ["required"] = Array(["total"])
+            },
+            new JsonObject
+            {
+                ["properties"] = new JsonObject { ["inventory"] = new JsonObject { ["const"] = "stopped" } },
+                ["not"] = new JsonObject { ["required"] = Array(["total"]) }
+            });
+        definitions["detail"]!["oneOf"] = new JsonArray(
+            new JsonObject
+            {
+                ["properties"] = new JsonObject
+                {
+                    ["terminal"] = new JsonObject { ["const"] = true },
+                    ["nextOffset"] = new JsonObject { ["type"] = "null" }
+                }
+            },
+            new JsonObject
+            {
+                ["properties"] = new JsonObject
+                {
+                    ["terminal"] = new JsonObject { ["const"] = false },
+                    ["nextOffset"] = Integer(1, 4096),
+                    ["returnedCount"] = Integer(1, 32)
+                }
+            });
         definitions["diagnostic"]!["not"] = new JsonObject { ["required"] = Array(["source", "correction"]) };
         definitions["correctionSegment"]!["oneOf"] = new JsonArray(
             new JsonObject
@@ -195,7 +263,7 @@ public static class SetupCliCommandSchemaMetadata
             ("authoring", "urn:islamu:configurator:authoring:v2"),
             ("runtime", "urn:islamu:configurator:setup-definition:v2"),
             ("answers", "urn:islamu:configurator:answers:v1"),
-            ("command", "https://schemas.islamu.org/configurator/command/v3/schema.json")
+            ("command", "https://schemas.islamu.org/configurator/command/v4/schema.json")
         }.Select(pair => (JsonNode?)new JsonObject
         {
             ["properties"] = new JsonObject
@@ -234,7 +302,7 @@ public static class SetupCliCommandSchemaMetadata
                 }).ToArray())
             },
             ["$schema"] = "https://json-schema.org/draft/2020-12/schema",
-            ["$id"] = "https://schemas.islamu.org/configurator/command/v3/schema.json",
+            ["$id"] = "https://schemas.islamu.org/configurator/command/v4/schema.json",
             ["type"] = "object",
             ["additionalProperties"] = false,
             ["required"] = Array(["schemaVersion", "invocation", "status", "exitCategory", "exitCode", "dryRun",
@@ -242,14 +310,14 @@ public static class SetupCliCommandSchemaMetadata
                 "diagnosticsOmitted", "detailDigest", "diagnostics", "artifacts", "coverage", "readiness"]),
             ["properties"] = new JsonObject
             {
-                ["schemaVersion"] = new JsonObject { ["const"] = "islamu-configurator-command/v3" },
+                ["schemaVersion"] = new JsonObject { ["const"] = "islamu-configurator-command/v4" },
                 ["invocation"] = Ref("invocation"),
                 ["status"] = ExitNames(),
                 ["exitCategory"] = ExitNames(),
                 ["exitCode"] = new JsonObject { ["enum"] = new JsonArray(System.Enum.GetValues<SetupCliExitCode>().Select(value => (int)value).Append(130).Distinct().Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()) },
                 ["dryRun"] = new JsonObject { ["type"] = "boolean" },
                 ["completion"] = Enum(["completed", "failed", "cancelled"]),
-                ["preparation"] = new JsonObject { ["enum"] = new JsonArray(null, "ready", "incomplete", "blocked") },
+                ["preparation"] = new JsonObject { ["enum"] = new JsonArray(null, "ready", "incomplete", "blocked", "not-evaluated") },
                 ["targetAcceptance"] = new JsonObject { ["const"] = "unassessed" },
                 ["cleanup"] = Enum(["not-required", "completed", "failed", "unknown"]),
                 ["delivery"] = new JsonObject { ["const"] = "attempt" },
@@ -257,6 +325,7 @@ public static class SetupCliCommandSchemaMetadata
                 ["diagnosticsOmitted"] = Integer(0, 4096),
                 ["detailDigest"] = String(null, null, "^[0-9a-f]{64}$"),
                 ["detail"] = Ref("detail"),
+                ["assessment"] = Ref("assessment"),
                 ["help"] = Ref("help"),
                 ["schema"] = Ref("schema"),
                 ["diagnostics"] = BoundedArray("diagnostic", 16),

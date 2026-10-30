@@ -14,30 +14,30 @@ internal static class SetupCliMachineOutput
             : "help";
         SetupCliMachineDiagnostic[] diagnostics = result.Diagnostics.Select(Sanitize).ToArray();
         string digest = DetailDigest(command, result, diagnostics);
-        SetupCliMachineDetail? detail = Detail(command, result, diagnostics, digest);
+        SetupCliMachineDetail? detail = HasDetailFailure(result) ? null : Detail(command, result, diagnostics, digest);
         SetupCliMachineDiagnostic[] inline = diagnostics.OrderByDescending(IsOperational).Take(16).ToArray();
         int inlineBudget = detail is null ? 8192 : 4096;
         while (inline.Sum(DiagnosticBytes) > inlineBudget) inline = inline[..^1];
         int budget = 8192 - inline.Sum(DiagnosticBytes);
         if (detail is not null)
         {
-            while (JsonSerializer.SerializeToUtf8Bytes(detail, SetupCliJsonContext.Default.SetupCliMachineDetail).Length > budget
-                && detail.Diagnostics.Count + detail.Coverage.Count > 0)
-                detail = detail.Diagnostics.Count > 0 ? detail with { Diagnostics = detail.Diagnostics.SkipLast(1).ToArray() }
-                    : detail with { Coverage = detail.Coverage.SkipLast(1).ToArray() };
+            detail = FitDetail(detail, budget);
+            if (!detail.Terminal && detail.ReturnedCount == 0) throw new IOException("detail-item-unencodable");
         }
         string category = SetupCliResults.Lower(result.Exit);
-        var envelope = new SetupCliMachineEnvelope("islamu-configurator-command/v3",
+        var envelope = new SetupCliMachineEnvelope("islamu-configurator-command/v4",
             new(family, operation, "machine"), category, category, (int)result.Exit, command.DryRun,
             inline, result.Artifacts, result.Coverage with { DetailDigest = digest }, result.Readiness)
         {
-            Completion = result.Completion == "cancelled" ? "cancelled" : result.Exit == SetupCliExitCode.Success ? "completed" : "failed",
+            Completion = result.Assessment is not null ? result.Completion
+                : result.Completion == "cancelled" ? "cancelled" : result.Exit == SetupCliExitCode.Success ? "completed" : "failed",
             Preparation = result.Preparation,
             Cleanup = result.Cleanup,
             DiagnosticsTotal = diagnostics.Length,
             DiagnosticsOmitted = diagnostics.Length - inline.Length,
             DetailDigest = digest,
             Detail = detail,
+            Assessment = result.Assessment,
             Help = result.Help,
             AuthoringContractVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
             RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
@@ -62,23 +62,52 @@ internal static class SetupCliMachineOutput
     internal static SetupCliCommandResult ValidateDetail(SetupCliCommand command, SetupCliCommandResult result)
     {
         if (command.Detail is null) return result;
+        if (command.Detail == "findings" && result.Assessment is null)
+            return command.Operation == "compare" && result.Exit != SetupCliExitCode.Success ? result
+                : SetupCliResults.Failure(SetupCliExitCode.Usage, "detail-kind-unavailable", "/detail");
         string digest = DetailDigest(command, result, result.Diagnostics.Select(Sanitize).ToArray());
-        return command.Offset > 0 && command.ExpectedDetailDigest != digest
-            || command.ExpectedDetailDigest is not null && command.ExpectedDetailDigest != digest
-            ? SetupCliResults.Failure(SetupCliExitCode.Data, "detail-digest-mismatch", "/detail") : result;
+        if (command.Offset > 0 && command.ExpectedDetailDigest != digest
+            || command.ExpectedDetailDigest is not null && command.ExpectedDetailDigest != digest)
+            return SetupCliResults.Failure(SetupCliExitCode.Data, "detail-digest-mismatch", "/detail");
+        SetupCliMachineDetail detail = Detail(command, result, result.Diagnostics.Select(Sanitize).ToArray(), digest)!;
+        if (detail.RetainedCount is < 0 or > 4096 || command.Offset > detail.RetainedCount)
+            return SetupCliResults.Failure(SetupCliExitCode.Data, "detail-offset-invalid", "/detail");
+        // Reserve the same inline budget as Serialize; all legal pages must make progress.
+        int inlineBytes = result.Diagnostics.Select(Sanitize).OrderByDescending(IsOperational).Take(16).Sum(DiagnosticBytes);
+        SetupCliMachineDetail fitted = FitDetail(detail, 8192 - Math.Min(4096, inlineBytes));
+        return !fitted.Terminal && fitted.ReturnedCount == 0
+            ? SetupCliResults.Failure(SetupCliExitCode.Data, "detail-item-unencodable", "/detail") : result;
+    }
+
+    private static bool HasDetailFailure(SetupCliCommandResult result) =>
+        result.Diagnostics.Any(item => item.Code.StartsWith("detail-", StringComparison.Ordinal));
+
+    private static SetupCliMachineDetail FitDetail(SetupCliMachineDetail detail, int budget)
+    {
+        while (JsonSerializer.SerializeToUtf8Bytes(detail, SetupCliJsonContext.Default.SetupCliMachineDetail).Length > budget
+            && detail.ReturnedCount > 0)
+            detail = detail.Findings.Count > 0 ? detail with { Findings = detail.Findings.SkipLast(1).ToArray() }
+                : detail.Diagnostics.Count > 0 ? detail with { Diagnostics = detail.Diagnostics.SkipLast(1).ToArray() }
+                : detail with { Coverage = detail.Coverage.SkipLast(1).ToArray() };
+        return detail;
     }
 
     private static SetupCliMachineDetail? Detail(SetupCliCommand command, SetupCliCommandResult result,
         SetupCliMachineDiagnostic[] diagnostics, string digest)
     {
         if (command.Detail is null) return null;
+        if (command.Detail == "findings")
+            return result.Assessment is { } assessment
+                ? new("findings", command.Offset, command.Limit, assessment.RetainedCount, assessment.Total, digest,
+                    [], [], assessment.Findings.Skip(command.Offset).Take(command.Limit).ToArray()) : null;
         if (command.Detail == "diagnostics")
-            return new("diagnostics", command.Offset, command.Limit, diagnostics.Length, digest,
-                diagnostics.Skip(command.Offset).Take(command.Limit).ToArray(), []);
+            return new("diagnostics", command.Offset, command.Limit, diagnostics.Length, diagnostics.Length, digest,
+                diagnostics.Skip(command.Offset).Take(command.Limit).ToArray(), [], []);
         SetupCliMachineCoverageEntry[] entries = result.Coverage.CoveredKeys.Select(id => new SetupCliMachineCoverageEntry(id, "covered"))
             .Concat(result.Coverage.MissingKeys.Select(id => new SetupCliMachineCoverageEntry(id, "missing")))
             .OrderBy(item => item.Id, StringComparer.Ordinal).ThenBy(item => item.State, StringComparer.Ordinal).ToArray();
-        return new("coverage", command.Offset, command.Limit, entries.Length, digest, [], entries.Skip(command.Offset).Take(command.Limit).ToArray());
+        return new("coverage", command.Offset, command.Limit, entries.Length, entries.Length, digest,
+            [], entries.Skip(command.Offset).Take(command.Limit).ToArray(), []);
     }
 
     private static string DetailDigest(SetupCliCommand command, SetupCliCommandResult result, SetupCliMachineDiagnostic[] diagnostics)
@@ -98,6 +127,12 @@ internal static class SetupCliMachineOutput
         foreach (string key in result.Coverage.CoveredKeys) { Add("covered"); Add(key); }
         foreach (string key in result.Coverage.MissingKeys) { Add("missing"); Add(key); }
         Add(result.Readiness.State);
+        if (result.Assessment is { } assessment)
+        {
+            Add(JsonSerializer.Serialize(assessment, SetupCliJsonContext.Default.SetupCliMachineAssessment));
+            foreach (SetupCliMachineFinding finding in assessment.Findings)
+                Add(JsonSerializer.Serialize(finding, SetupCliJsonContext.Default.SetupCliMachineFinding));
+        }
         return Convert.ToHexStringLower(hash.GetHashAndReset());
         void Add(string value)
         {

@@ -10,6 +10,22 @@ namespace Configurator.Cli.Tests;
 public sealed class SetupCliMachineBoundaryTests
 {
     [Test]
+    [Arguments(3000, SetupCliExitCode.Data)]
+    [Arguments(4096, SetupCliExitCode.Data)]
+    [Arguments(4097, SetupCliExitCode.Usage)]
+    public async Task FullInventoryOffsetsReachContinuationValidationRatherThanOldGrammarLimit(int offset, SetupCliExitCode expected)
+    {
+        var fixture = new CliFixture();
+        await Assert.That(await fixture.ArtifactAsync("validate", "config", "--detail", "coverage",
+            "--offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--expected-detail-digest", new string('0', 64))).IsEqualTo(expected);
+        await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
+        using JsonDocument receipt = JsonDocument.Parse(fixture.StandardOutput);
+        await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+        await Assert.That(receipt.RootElement.TryGetProperty("detail", out _)).IsFalse();
+    }
+
+    [Test]
     public async Task CoreCorrectionsPreserveTypedSafeCoordinatesWithoutPrivateMapKeys()
     {
         var fixture = new CliFixture();

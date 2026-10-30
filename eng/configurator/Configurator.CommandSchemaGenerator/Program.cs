@@ -20,7 +20,8 @@ try
     if (current is null) throw new InvalidDataException("repository-root-not-found");
     string path = Path.Combine(current.FullName, SetupCliCommandSchemaMetadata.RelativePath.Replace('/', Path.DirectorySeparatorChar));
     string[] retiredPaths = [Path.Combine(current.FullName, "schemas", "islamu-configurator-command-v1.schema.json"),
-        Path.Combine(current.FullName, "schemas", "islamu-configurator-command-v2.schema.json")];
+        Path.Combine(current.FullName, "schemas", "islamu-configurator-command-v2.schema.json"),
+        Path.Combine(current.FullName, "schemas", "islamu-configurator-command-v3.schema.json")];
     if (args[0] == "--check")
     {
         if (retiredPaths.Any(File.Exists) || !File.Exists(path) || !File.ReadAllBytes(path).AsSpan().SequenceEqual(expected))

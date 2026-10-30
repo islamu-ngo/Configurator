@@ -68,7 +68,7 @@ public sealed class SetupCliParsingTests
             "--artifact=config", "--input=--machine", "--text")).IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(io.MaximumRead).IsGreaterThan(0);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput))
-            .DoesNotContain("islamu-configurator-command/v3");
+            .DoesNotContain("islamu-configurator-command/v4");
         await Assert.That(io.StandardError).IsEmpty();
     }
 
@@ -80,9 +80,9 @@ public sealed class SetupCliParsingTests
         await Assert.That(await io.RunAsync("doctor", "--", "--machine")).IsEqualTo(SetupCliExitCode.Usage);
         await Assert.That(io.MaximumRead).IsEqualTo(0);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput))
-            .DoesNotContain("islamu-configurator-command/v3");
+            .DoesNotContain("islamu-configurator-command/v4");
         await Assert.That(Encoding.UTF8.GetString(io.StandardError))
-            .DoesNotContain("islamu-configurator-command/v3");
+            .DoesNotContain("islamu-configurator-command/v4");
     }
 
     [Test]
@@ -145,7 +145,7 @@ public sealed class SetupCliParsingTests
                 "--input", "answers.json", "--machine"],
             [.. input, "--detail", "synthetic-private-marker"],
             [.. input, "--offset", "-1"],
-            [.. input, "--offset", "2049"],
+            [.. input, "--offset", "4097"],
             [.. input, "--limit", "0"],
             [.. input, "--limit", "33"],
             [.. input, "--detail", "diagnostics", "--offset", "-1"],

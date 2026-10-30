@@ -130,7 +130,7 @@ does not prove real browser update/network/cache behavior.
 
 ## Qualified definition generation
 
-The admitted generation uses authoring v2/runtime 2, command v3 and private
+The admitted generation uses authoring v2/runtime 2, command v4 and private
 answers v1. Package tests compare distributed schemas and frozen baselines with
 their owning generators, then execute real package consumers. The optional
 store's v1 active inputs were retired through native fresh-family generation,
@@ -294,13 +294,21 @@ synthetic definition/answer workspace, verifies its inputs remain unchanged and
 requires no output file. No owner-source execution substitutes for these calls.
 
 Each receipt must be one LF-terminated UTF-8 object, without BOM, CR, terminal
-controls, stderr or more than 65,536 bytes. The checkout-owned command v3 schema
+controls, stderr or more than 65,536 bytes. The checkout-owned command v4 schema
 enforces required fields, closed nested objects, duplicate-key rejection, types,
 enum/constant vocabulary, string/array/numeric bounds and patterns. Additional
 checks bind invocation, process/receipt exit, status/completion, diagnostics
 accounting, root help commands and ordered artifact bytes/digests to the expected
 operation. Restricted artifact installation/verification facts remain separate
 from target acceptance (`unassessed`) and result delivery (`attempt`).
+The comparison cohort executes `artifact compare`, checks independent assessment
+facts and follows all 3,000 retained synthetic findings through `nextOffset` to
+the terminal page without changing the input. A stopped inventory has no exact
+total. The verifier also checks returned-count progress, byte budgets and
+value-free finding coordinates. Self-tests exercise hostile continuation and
+assessment envelopes independently of product serialization. Regenerate packages
+before qualification: the schema refresh retires command v3 rather than retaining
+a compatibility artifact.
 
 Linux executes protected create and an existing-file conflict, verifies exact
 bytes and owner-only mode, and proves the conflict did not overwrite the file.

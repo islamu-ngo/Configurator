@@ -9,8 +9,12 @@ You do not need to install the .NET SDK to run standalone packages—only to bui
 ## Definition contracts and qualification
 
 Current packages carry authoring v2, runtime schema version 2 (`bounded-v2`),
-command envelope v3 and private answer contract v1. These versions are
+command envelope v4 and private answer contract v1. These versions are
 independent. Retired public definition/command schemas are not packaged.
+Machine consumers must migrate directly from v3 to v4 assessment and continuation
+fields; no v3 envelope or schema is retained. Use `nextOffset`/`returnedCount`,
+not the requested page size. Comparison completion is separate from compatibility,
+workspace preparation and target acceptance; see the [CLI guide](cli.md).
 The optional Store uses fresh v2 families; old v1 identities remain historical
 Git evidence and are not silently migrated or repinned.
 

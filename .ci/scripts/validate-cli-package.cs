@@ -22,7 +22,7 @@ internal static class CliPackageValidation
         try
         {
             string root = Directory.GetCurrentDirectory();
-            byte[] schemaBytes = await File.ReadAllBytesAsync(Path.Combine(root, "schemas/islamu-configurator-command-v3.schema.json"));
+            byte[] schemaBytes = await File.ReadAllBytesAsync(Path.Combine(root, "schemas/islamu-configurator-command-v4.schema.json"));
             using JsonDocument schema = JsonDocument.Parse(schemaBytes);
             if (arguments is ["--self-test"]) return SelfTest(schema.RootElement);
             Require(arguments is ["--package-directory", _, "--expected-rid", _]);
@@ -39,7 +39,7 @@ internal static class CliPackageValidation
             Require(package.GetProperty("executableName").GetString() == "islamu-configurator");
             Require(package.GetProperty("protectedExportHosts").EnumerateArray().Select(item => item.GetString()).SequenceEqual(["linux"]));
             string executable = Path.Combine(directory, OperatingSystem.IsWindows() ? "islamu-configurator.exe" : "islamu-configurator");
-            byte[] packagedSchema = await File.ReadAllBytesAsync(Path.Combine(directory, "schemas/islamu-configurator-command-v3.schema.json"));
+            byte[] packagedSchema = await File.ReadAllBytesAsync(Path.Combine(directory, "schemas/islamu-configurator-command-v4.schema.json"));
             Console.WriteLine($"CLI_PACKAGE_IDENTITY rid={rid} host={RuntimeInformation.RuntimeIdentifier} executableSha256={Hash(await File.ReadAllBytesAsync(executable))} contractSha256={Hash(contractBytes)} packagedSchemaSha256={Hash(packagedSchema)} validatorSchemaSha256={Hash(schemaBytes)}");
 
             int failures = 0;
@@ -62,7 +62,8 @@ internal static class CliPackageValidation
             {
                 Require(packagedSchema.AsSpan().SequenceEqual(schemaBytes));
                 Require(!File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v1.schema.json"))
-                    && !File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v2.schema.json")));
+                    && !File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v2.schema.json"))
+                    && !File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v3.schema.json")));
                 return Task.CompletedTask;
             });
             await Cohort("doctor", async () =>
@@ -150,6 +151,44 @@ internal static class CliPackageValidation
                         Require(!File.Exists(target) && Directory.GetFiles(workspace).Length == 2);
                     }
                 });
+                await Cohort("comparison-and-complete-finding-continuation", async () =>
+                {
+                    string existing = Path.Combine(workspace, "existing.json");
+                    await File.WriteAllBytesAsync(existing, expected);
+                    string[] comparison = ["artifact", "compare", "--definition", "definition.json", "--artifact", "config",
+                        "--input", "existing.json", "--machine", "--detail", "findings", "--limit", "32"];
+                    var compatible = await ExecuteAsync(workspace, executable, comparison);
+                    using (JsonDocument document = Envelope(compatible, schema.RootElement, "artifact", "compare", 0))
+                        Require(document.RootElement.GetProperty("assessment").GetProperty("compatibility").GetString() == "compatible");
+                    var supplied = new JsonObject { ["name"] = "synthetic-package-service" };
+                    for (int index = 0; index < 3000; index++) supplied["synthetic-unknown-" + index] = true;
+                    byte[] original = Encoding.UTF8.GetBytes(supplied.ToJsonString());
+                    await File.WriteAllBytesAsync(existing, original);
+                    int offset = 0;
+                    string? digest = null;
+                    var seen = new HashSet<string>(StringComparer.Ordinal);
+                    while (true)
+                    {
+                        string[] continuation = digest is null ? [] : ["--offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            "--expected-detail-digest", digest];
+                        var result = await ExecuteAsync(workspace, executable, [.. comparison, .. continuation]);
+                        using JsonDocument document = Envelope(result, schema.RootElement, "artifact", "compare", 2);
+                        JsonElement report = document.RootElement.GetProperty("assessment");
+                        Require(report.GetProperty("retainedCount").GetInt32() == 3000 && report.GetProperty("total").GetInt32() == 3000);
+                        JsonElement page = document.RootElement.GetProperty("detail");
+                        foreach (JsonElement finding in page.GetProperty("findings").EnumerateArray())
+                            Require(seen.Add(finding.GetProperty("source").GetProperty("ordinals").GetRawText()));
+                        digest = page.GetProperty("digest").GetString()!;
+                        if (page.GetProperty("terminal").GetBoolean()) break;
+                        offset = page.GetProperty("nextOffset").GetInt32();
+                    }
+                    Require(seen.Count == 3000 && (await File.ReadAllBytesAsync(existing)).AsSpan().SequenceEqual(original));
+                    var last = await ExecuteAsync(workspace, executable,
+                        [.. comparison, "--offset", "3000", "--expected-detail-digest", digest!]);
+                    using JsonDocument terminal = Envelope(last, schema.RootElement, "artifact", "compare", 2);
+                    Require(terminal.RootElement.GetProperty("detail").GetProperty("terminal").GetBoolean());
+                    Require(terminal.RootElement.GetProperty("detail").GetProperty("returnedCount").GetInt32() == 0);
+                });
             }
             finally { Directory.Delete(workspace, recursive: true); }
             Console.WriteLine($"CLI_PACKAGE_RESULT {(failures == 0 ? "passed" : "failed")} failedCohorts={failures}");
@@ -197,17 +236,25 @@ internal static class CliPackageValidation
             Require(root.GetProperty("invocation").GetProperty("commandFamily").GetString() == family);
             Require(root.GetProperty("invocation").GetProperty("operation").GetString() == operation);
             Require(root.GetProperty("exitCode").GetInt32() == expectedExit);
-            string category = expectedExit switch { 0 => "success", 4 => "blocked", 74 => "io", _ => throw new InvalidDataException() };
+            string category = expectedExit switch { 0 => "success", 2 => "validation", 3 => "incomplete", 4 => "blocked",
+                65 => "data", 74 => "io", _ => throw new InvalidDataException() };
             Require(root.GetProperty("status").GetString() == category && root.GetProperty("exitCategory").GetString() == category);
-            Require(root.GetProperty("completion").GetString() == (expectedExit == 0 ? "completed" : "failed"));
+            Require(root.GetProperty("completion").GetString() == (expectedExit == 0 || operation == "compare" && expectedExit is 2 or 3 ? "completed" : "failed"));
             Require(!root.GetProperty("dryRun").GetBoolean());
-            Require(!root.TryGetProperty("detail", out _) && !root.TryGetProperty("authoringContractVersion", out _)
+            Require((operation == "compare" || !root.TryGetProperty("detail", out _)) && !root.TryGetProperty("authoringContractVersion", out _)
                 && !root.TryGetProperty("runtimeSchemaVersion", out _) && !root.TryGetProperty("schema", out _));
             Require(root.TryGetProperty("help", out _) == (operation == "help"));
             Require(root.GetProperty("diagnosticsTotal").GetInt32() == root.GetProperty("diagnostics").GetArrayLength()
                 + root.GetProperty("diagnosticsOmitted").GetInt32());
             if (expectedExit == 0) Require(root.GetProperty("diagnosticsTotal").GetInt32() == 0);
-            else Require(root.GetProperty("diagnosticsTotal").GetInt32() > 0);
+            else if (operation != "compare") Require(root.GetProperty("diagnosticsTotal").GetInt32() > 0);
+            if (root.TryGetProperty("assessment", out JsonElement assessment))
+            {
+                Require(operation == "compare" && family == "artifact");
+                Assessment(root, assessment);
+            }
+            else Require(operation != "compare");
+            if (root.TryGetProperty("detail", out JsonElement detail)) Detail(root, detail);
             foreach (JsonElement diagnostic in root.GetProperty("diagnostics").EnumerateArray())
                 if (diagnostic.TryGetProperty("source", out JsonElement source))
                 {
@@ -219,6 +266,51 @@ internal static class CliPackageValidation
             return document;
         }
         catch { document.Dispose(); throw; }
+    }
+
+    private static void Assessment(JsonElement root, JsonElement assessment)
+    {
+        Require(root.GetProperty("preparation").GetString() == "not-evaluated");
+        Require(root.GetProperty("readiness").GetProperty("state").GetString() == "unassessed");
+        Require(root.GetProperty("artifacts").GetArrayLength() == 0);
+        bool complete = assessment.GetProperty("inventory").GetString() == "complete";
+        Require(assessment.TryGetProperty("total", out JsonElement total) == complete);
+        if (complete) Require(total.GetInt32() == assessment.GetProperty("retainedCount").GetInt32());
+        int expected = assessment.GetProperty("compatibility").GetString() switch
+        {
+            "compatible" => 0, "changes-required" => 2, "incomplete" => 3, "unsupported" => 4, "invalid-input" => 65,
+            _ => throw new InvalidDataException()
+        };
+        Require(root.GetProperty("exitCode").GetInt32() == expected);
+        if (expected == 0) Require(complete && assessment.GetProperty("coverage").GetString() == "complete");
+    }
+
+    private static void Detail(JsonElement root, JsonElement detail)
+    {
+        Require(detail.GetProperty("digest").GetString() == root.GetProperty("detailDigest").GetString());
+        Require(Encoding.UTF8.GetByteCount(detail.GetRawText())
+            + root.GetProperty("diagnostics").EnumerateArray().Sum(item => Encoding.UTF8.GetByteCount(item.GetRawText())) <= 8192);
+        int count = detail.GetProperty("diagnostics").GetArrayLength() + detail.GetProperty("coverage").GetArrayLength()
+            + detail.GetProperty("findings").GetArrayLength();
+        int offset = detail.GetProperty("offset").GetInt32();
+        int retained = detail.GetProperty("retainedCount").GetInt32();
+        Require(detail.GetProperty("returnedCount").GetInt32() == count && count <= detail.GetProperty("limit").GetInt32());
+        Require(offset <= retained && offset + count <= retained);
+        bool terminal = offset + count == retained;
+        Require(detail.GetProperty("terminal").GetBoolean() == terminal);
+        Require(terminal ? detail.GetProperty("nextOffset").ValueKind == JsonValueKind.Null
+            : count > 0 && detail.GetProperty("nextOffset").GetInt32() == offset + count);
+        if (detail.GetProperty("kind").GetString() == "findings")
+        {
+            JsonElement assessment = root.GetProperty("assessment");
+            Require(detail.GetProperty("diagnostics").GetArrayLength() == 0 && detail.GetProperty("coverage").GetArrayLength() == 0);
+            Require(retained == assessment.GetProperty("retainedCount").GetInt32());
+            Require(detail.TryGetProperty("total", out JsonElement total) == assessment.TryGetProperty("total", out JsonElement expected));
+            if (total.ValueKind != JsonValueKind.Undefined) Require(total.GetInt32() == expected.GetInt32());
+            foreach (JsonElement finding in detail.GetProperty("findings").EnumerateArray())
+                if (finding.TryGetProperty("schema", out JsonElement location))
+                    Require(location.GetProperty("relativePath").EnumerateArray().Sum(item => item.GetString()!.Length) <= 256);
+        }
     }
 
     // Interpret only the bounded vocabulary used by the repository-owned command schema.
@@ -258,6 +350,7 @@ internal static class CliPackageValidation
                 "string" => value.ValueKind == JsonValueKind.String,
                 "boolean" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
                 "integer" => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
+                "null" => value.ValueKind == JsonValueKind.Null,
                 _ => false
             });
         if (value.ValueKind == JsonValueKind.Object)
@@ -342,7 +435,7 @@ internal static class CliPackageValidation
     private static int SelfTest(JsonElement schema)
     {
         const string good = """
-            {"schemaVersion":"islamu-configurator-command/v3","invocation":{"commandFamily":"artifact","operation":"validate","mode":"machine"},"status":"success","exitCategory":"success","exitCode":0,"dryRun":false,"completion":"completed","preparation":"ready","targetAcceptance":"unassessed","cleanup":"not-required","delivery":"attempt","diagnosticsTotal":0,"diagnosticsOmitted":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","diagnostics":[],"artifacts":[{"id":"config","kind":"definition-artifact","mediaType":"application/json","digest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sensitivity":"restricted","pathIntent":"input","writeStatus":"none","installation":"not-applicable","verification":"not-applicable"}],"coverage":{"coveredCount":1,"missingCount":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"readiness":{"state":"ready","missingCount":0,"blockedCount":0}}
+            {"schemaVersion":"islamu-configurator-command/v4","invocation":{"commandFamily":"artifact","operation":"validate","mode":"machine"},"status":"success","exitCategory":"success","exitCode":0,"dryRun":false,"completion":"completed","preparation":"ready","targetAcceptance":"unassessed","cleanup":"not-required","delivery":"attempt","diagnosticsTotal":0,"diagnosticsOmitted":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","diagnostics":[],"artifacts":[{"id":"config","kind":"definition-artifact","mediaType":"application/json","digest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sensitivity":"restricted","pathIntent":"input","writeStatus":"none","installation":"not-applicable","verification":"not-applicable"}],"coverage":{"coveredCount":1,"missingCount":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"readiness":{"state":"ready","missingCount":0,"blockedCount":0}}
             """;
         int rejected = 0;
         void Check(string text, bool valid, int exit = 0, byte[]? error = null)
@@ -366,6 +459,7 @@ internal static class CliPackageValidation
             obj => obj.Remove("schemaVersion"),
             obj => obj["schemaVersion"] = "islamu-configurator-command/v1",
             obj => obj["schemaVersion"] = "islamu-configurator-command/v2",
+            obj => obj["schemaVersion"] = "islamu-configurator-command/v3",
             obj => obj["invocation"]!["mode"] = "text",
             obj => obj["invocation"]!["operation"] = "create",
             obj => obj["invocation"]!["unknown"] = true,
@@ -485,7 +579,72 @@ internal static class CliPackageValidation
             obj["diagnostics"]![0]!["source"] = sourceLocation.DeepClone();
             obj["diagnostics"]![0]!["correction"] = correctionLocation.DeepClone();
         }, false);
-        Console.WriteLine($"CLI_PACKAGE_SELF_TEST passed accepted=4 rejected={rejected}");
+        JsonObject comparison = JsonNode.Parse(good)!.AsObject();
+        comparison["invocation"]!["operation"] = "compare";
+        comparison["status"] = "validation";
+        comparison["exitCategory"] = "validation";
+        comparison["exitCode"] = 2;
+        comparison["preparation"] = "not-evaluated";
+        comparison["readiness"]!["state"] = "unassessed";
+        comparison["artifacts"] = new JsonArray();
+        comparison["assessment"] = new JsonObject
+        {
+            ["definitionDigest"] = new string('a', 64), ["artifactId"] = "config",
+            ["compatibility"] = "changes-required", ["coverage"] = "complete", ["inventory"] = "complete",
+            ["autofill"] = "ineligible", ["retainedCount"] = 3000, ["total"] = 3000
+        };
+        comparison["detail"] = new JsonObject
+        {
+            ["kind"] = "findings", ["offset"] = 2999, ["limit"] = 32, ["retainedCount"] = 3000,
+            ["total"] = 3000, ["returnedCount"] = 1, ["nextOffset"] = null, ["terminal"] = true,
+            ["digest"] = comparison["detailDigest"]!.DeepClone(), ["diagnostics"] = new JsonArray(), ["coverage"] = new JsonArray(),
+            ["findings"] = new JsonArray(new JsonObject
+            {
+                ["classification"] = "unrecognized-input", ["code"] = "input-unrecognized",
+                ["source"] = new JsonObject { ["ordinals"] = new JsonArray(2999) }
+            })
+        };
+        int assessmentAccepted = 0;
+        void CheckComparison(Action<JsonObject>? mutate, bool valid)
+        {
+            JsonObject candidate = comparison.DeepClone().AsObject();
+            mutate?.Invoke(candidate);
+            bool accepted = true;
+            try
+            {
+                using JsonDocument document = Envelope((2, Encoding.UTF8.GetBytes(candidate.ToJsonString() + "\n"), []),
+                    schema, "artifact", "compare", 2);
+            }
+            catch (Exception exception) when (IsInputError(exception)) { accepted = false; }
+            Require(accepted == valid);
+            if (valid) assessmentAccepted++; else rejected++;
+        }
+        CheckComparison(null, true);
+        CheckComparison(obj =>
+        {
+            obj["assessment"]!["inventory"] = "stopped";
+            obj["assessment"]!["coverage"] = "incomplete";
+            obj["assessment"]!.AsObject().Remove("total");
+            obj["detail"]!.AsObject().Remove("total");
+        }, true);
+        foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
+        {
+            obj => obj["completion"] = "failed",
+            obj => obj["preparation"] = "ready",
+            obj => obj["assessment"]!["compatibility"] = "compatible",
+            obj => obj["assessment"]!["total"] = 4097,
+            obj => obj["assessment"]!["inventory"] = "stopped",
+            obj => obj["assessment"]!["value"] = "private",
+            obj => obj["detail"]!["offset"] = 4097,
+            obj => obj["detail"]!["returnedCount"] = 32,
+            obj => obj["detail"]!["nextOffset"] = 3000,
+            obj => obj["detail"]!["terminal"] = false,
+            obj => obj["detail"]!["digest"] = new string('b', 64),
+            obj => obj["detail"]!["findings"]![0]!["source"]!["privateKey"] = "private",
+            obj => obj["detail"]!["findings"]![0]!["correction"] = correctionLocation.DeepClone(),
+            obj => obj["detail"]!["findings"] = new JsonArray()
+        }) CheckComparison(mutate, false);
+        Console.WriteLine($"CLI_PACKAGE_SELF_TEST passed accepted={4 + assessmentAccepted} rejected={rejected}");
         return 0;
     }
 

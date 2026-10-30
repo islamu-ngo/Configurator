@@ -24,8 +24,12 @@ internal static partial class SetupCliMachineContractVerifier
         ["$.artifacts[]"] = ["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"],
         ["$.coverage"] = ["coveredCount", "missingCount", "detailDigest"],
         ["$.readiness"] = ["state", "missingCount", "blockedCount"],
-        ["$.detail"] = ["kind", "offset", "limit", "total", "digest", "diagnostics", "coverage"],
+        ["$.assessment"] = ["definitionDigest", "artifactId", "compatibility", "coverage", "inventory", "autofill", "retainedCount"],
+        ["$.detail"] = ["kind", "offset", "limit", "retainedCount", "returnedCount", "nextOffset", "terminal", "digest", "diagnostics", "coverage", "findings"],
         ["$.detail.coverage[]"] = ["id", "state"],
+        ["$.detail.findings[]"] = ["classification", "code"],
+        ["$.detail.findings[].source"] = ["ordinals"],
+        ["$.detail.findings[].schema"] = ["fieldId", "relativePath"],
         ["$.help"] = ["scope", "commandPath", "commands", "options"],
         ["$.help.options[]"] = ["name", "requiresValue", "repeatable"]
     };
@@ -33,7 +37,9 @@ internal static partial class SetupCliMachineContractVerifier
     private static readonly Dictionary<string, string[]> Allowed = Required.ToDictionary(
         item => item.Key, item => item.Key switch
         {
-            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema"],
+            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema", "assessment"],
+            "$.assessment" or "$.detail" => [.. item.Value, "total"],
+            "$.detail.findings[]" => [.. item.Value, "source", "schema"],
             "$.diagnostics[]" => [.. item.Value, "line", "column", "byteOffset", "source", "correction"],
             "$.diagnostics[].correction.segments[]" => [.. item.Value, "propertyName", "index"],
             _ => item.Value
@@ -57,7 +63,7 @@ internal static partial class SetupCliMachineContractVerifier
     internal static IReadOnlyList<string> InspectSchema(JsonObject schema)
     {
         var errors = new List<string>();
-        if (schema["$id"]?.GetValue<string>() != "https://schemas.islamu.org/configurator/command/v3/schema.json")
+        if (schema["$id"]?.GetValue<string>() != "https://schemas.islamu.org/configurator/command/v4/schema.json")
         {
             errors.Add("schema-id");
         }
@@ -80,6 +86,10 @@ internal static partial class SetupCliMachineContractVerifier
             ["$.coverage"] = schema["$defs"]!["coverage"]!.AsObject(),
             ["$.readiness"] = schema["$defs"]!["readiness"]!.AsObject(),
             ["$.detail"] = schema["$defs"]!["detail"]!.AsObject(),
+            ["$.assessment"] = schema["$defs"]!["assessment"]!.AsObject(),
+            ["$.detail.findings[]"] = schema["$defs"]!["finding"]!.AsObject(),
+            ["$.detail.findings[].source"] = schema["$defs"]!["findingSource"]!.AsObject(),
+            ["$.detail.findings[].schema"] = schema["$defs"]!["findingSchema"]!.AsObject(),
             ["$.detail.coverage[]"] = schema["$defs"]!["coverageEntry"]!.AsObject(),
             ["$.help"] = schema["$defs"]!["help"]!.AsObject(),
             ["$.help.options[]"] = schema["$defs"]!["helpOption"]!.AsObject()
@@ -90,11 +100,23 @@ internal static partial class SetupCliMachineContractVerifier
                 || !obj["properties"]!.AsObject().Select(property => property.Key).ToHashSet(StringComparer.Ordinal).SetEquals(Allowed[path]))
                 errors.Add("schema-object-contract:" + path);
         }
-        if (schema["properties"]!["schemaVersion"]!["const"]!.GetValue<string>() != "islamu-configurator-command/v3"
+        if (schema["properties"]!["schemaVersion"]!["const"]!.GetValue<string>() != "islamu-configurator-command/v4"
             || schema["properties"]!["diagnostics"]!["maxItems"]!.GetValue<int>() != 16
             || schema["$defs"]!["detail"]!["properties"]!["diagnostics"]!["maxItems"]!.GetValue<int>() != 32
-            || schema["$defs"]!["detail"]!["properties"]!["coverage"]!["maxItems"]!.GetValue<int>() != 32)
+            || schema["$defs"]!["detail"]!["properties"]!["coverage"]!["maxItems"]!.GetValue<int>() != 32
+            || schema["$defs"]!["detail"]!["properties"]!["findings"]!["maxItems"]!.GetValue<int>() != 32
+            || schema["$defs"]!["detail"]!["properties"]!["offset"]!["maximum"]!.GetValue<int>() != 4096)
             errors.Add("schema-response-bounds");
+        if (!JsonNode.DeepEquals(schema["$defs"]!["assessment"]!["oneOf"], JsonNode.Parse("""
+            [{"properties":{"inventory":{"const":"complete"}},"required":["total"]},
+             {"properties":{"inventory":{"const":"stopped"}},"not":{"required":["total"]}}]
+            """))
+            || !JsonNode.DeepEquals(schema["$defs"]!["detail"]!["oneOf"], JsonNode.Parse("""
+            [{"properties":{"terminal":{"const":true},"nextOffset":{"type":"null"}}},
+             {"properties":{"terminal":{"const":false},"nextOffset":{"type":"integer","minimum":1,"maximum":4096},
+               "returnedCount":{"type":"integer","minimum":1,"maximum":32}}}]
+            """)))
+            errors.Add("schema-inventory-continuation");
         InspectStructuredFields(schema, errors);
         if (!schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()).ToHashSet()
             .SetEquals(SetupCliContractSpecification.ExitCodes.Values))
@@ -190,6 +212,7 @@ internal static partial class SetupCliMachineContractVerifier
             ValidateCoverage(root["coverage"] as JsonObject, "$.coverage", errors);
             ValidateReadiness(root["readiness"] as JsonObject, "$.readiness", errors);
             ValidateSummary(root, errors);
+            ValidateAssessment(root, errors);
             if (root.ContainsKey("detail")) ValidateDetail(root, errors);
             if (root.ContainsKey("help") || root["invocation"]?["operation"]?.GetValue<string>() == "help"
                 && root["exitCode"]?.GetValue<int>() == 0) ValidateHelp(root, errors);
@@ -277,7 +300,7 @@ internal static partial class SetupCliMachineContractVerifier
         const string digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         var root = new JsonObject
         {
-            ["schemaVersion"] = "islamu-configurator-command/v3",
+            ["schemaVersion"] = "islamu-configurator-command/v4",
             ["invocation"] = new JsonObject { ["commandFamily"] = "artifact", ["operation"] = "validate", ["mode"] = "machine" },
             ["status"] = "success",
             ["exitCategory"] = "success",
@@ -493,7 +516,7 @@ internal static partial class SetupCliMachineContractVerifier
         {
             errors.Add("machine-exit-mismatch");
         }
-        if (root["schemaVersion"]?.GetValue<string>() != "islamu-configurator-command/v3")
+        if (root["schemaVersion"]?.GetValue<string>() != "islamu-configurator-command/v4")
         {
             errors.Add("machine-version");
         }
@@ -762,7 +785,7 @@ internal static partial class SetupCliMachineContractVerifier
             || (exitCode == 0 && completion != "completed"))
             errors.Add("machine-completion-contradiction");
         string? preparation = root["preparation"]?.GetValue<string>();
-        if (preparation is not (null or "ready" or "incomplete" or "blocked"))
+        if (preparation is not (null or "ready" or "incomplete" or "blocked" or "not-evaluated"))
             errors.Add("machine-preparation-contradiction");
         if (!IsInteger(root["diagnosticsTotal"], 0, 4096) || !IsInteger(root["diagnosticsOmitted"], 0, 4096)
             || root["diagnosticsTotal"]!.GetValue<int>() != (root["diagnostics"] as JsonArray)?.Count + root["diagnosticsOmitted"]!.GetValue<int>())
@@ -781,9 +804,12 @@ internal static partial class SetupCliMachineContractVerifier
         }
         ValidateObject(detail, "$.detail", errors);
         ValidateDiagnostics(detail["diagnostics"] as JsonArray, 32, errors);
-        if (!IsInteger(detail["offset"], 0, 2048) || !IsInteger(detail["limit"], 1, 32) || !IsInteger(detail["total"], 0, 4096)
+        if (!IsInteger(detail["offset"], 0, 4096) || !IsInteger(detail["limit"], 1, 32)
+            || !IsInteger(detail["retainedCount"], 0, 4096)
+            || detail.ContainsKey("total") && !IsInteger(detail["total"], 0, 4096)
             || detail["digest"]?.GetValue<string>() != root["detailDigest"]?.GetValue<string>()
-            || Encoding.UTF8.GetByteCount(detail.ToJsonString(new JsonSerializerOptions { WriteIndented = false })) > 8192)
+            || Encoding.UTF8.GetByteCount(detail.ToJsonString(new JsonSerializerOptions { WriteIndented = false }))
+                + (root["diagnostics"] as JsonArray)?.Sum(item => Encoding.UTF8.GetByteCount(item!.ToJsonString())) > 8192)
             errors.Add("machine-detail-bounds");
         if (detail["coverage"] is not JsonArray coverage || coverage.Count > 32)
         {
@@ -803,25 +829,116 @@ internal static partial class SetupCliMachineContractVerifier
         if (!ids.SequenceEqual(ids.Order(StringComparer.Ordinal), StringComparer.Ordinal) || ids.Distinct(StringComparer.Ordinal).Count() != ids.Count)
             errors.Add("machine-detail-coverage-order");
         int diagnosticCount = (detail["diagnostics"] as JsonArray)?.Count ?? 0;
-        int total = detail["total"]?.GetValue<int>() ?? -1;
+        int retained = detail["retainedCount"]?.GetValue<int>() ?? -1;
+        int? total = detail["total"]?.GetValue<int>();
+        if (detail["findings"] is not JsonArray findings || findings.Count > 32)
+        {
+            errors.Add("machine-detail-findings");
+            return;
+        }
+        ValidateFindings(findings, errors);
         int count;
         switch (detail["kind"]?.GetValue<string>())
         {
             case "diagnostics":
                 count = diagnosticCount;
-                if (coverage.Count != 0 || total != root["diagnosticsTotal"]?.GetValue<int>()) errors.Add("machine-detail-kind");
+                if (coverage.Count != 0 || findings.Count != 0 || total != root["diagnosticsTotal"]?.GetValue<int>() || total != retained)
+                    errors.Add("machine-detail-kind");
                 break;
             case "coverage":
                 count = coverage.Count;
-                if (diagnosticCount != 0 || total != root["coverage"]?["coveredCount"]?.GetValue<int>() + root["coverage"]?["missingCount"]?.GetValue<int>())
+                if (diagnosticCount != 0 || findings.Count != 0 || total != retained
+                    || total != root["coverage"]?["coveredCount"]?.GetValue<int>() + root["coverage"]?["missingCount"]?.GetValue<int>())
+                    errors.Add("machine-detail-kind");
+                break;
+            case "findings":
+                count = findings.Count;
+                if (diagnosticCount != 0 || coverage.Count != 0 || root["assessment"] is not JsonObject assessment
+                    || retained != assessment["retainedCount"]?.GetValue<int>()
+                    || total != assessment["total"]?.GetValue<int>())
                     errors.Add("machine-detail-kind");
                 break;
             default:
                 errors.Add("machine-detail-kind");
                 return;
         }
-        if (count > detail["limit"]?.GetValue<int>() || count > Math.Max(0, total - (detail["offset"]?.GetValue<int>() ?? 0)))
+        int offset = detail["offset"]?.GetValue<int>() ?? -1;
+        bool terminal = offset + count == retained;
+        if (offset > retained || count > detail["limit"]?.GetValue<int>() || count > Math.Max(0, retained - offset)
+            || detail["returnedCount"]?.GetValue<int>() != count
+            || detail["terminal"]?.GetValue<bool>() != terminal
+            || terminal && detail["nextOffset"] is not null
+            || !terminal && (count == 0 || detail["nextOffset"]?.GetValue<int>() != offset + count))
             errors.Add("machine-detail-page");
+    }
+
+    private static void ValidateAssessment(JsonObject root, List<string> errors)
+    {
+        if (!root.ContainsKey("assessment"))
+        {
+            if (root["invocation"]?["operation"]?.GetValue<string>() == "compare" && !root.ContainsKey("help")
+                && root["completion"]?.GetValue<string>() == "completed") errors.Add("machine-assessment-required");
+            return;
+        }
+        if (root["assessment"] is not JsonObject assessment) { errors.Add("machine-assessment-object"); return; }
+        ValidateObject(assessment, "$.assessment", errors);
+        string? compatibility = assessment["compatibility"]?.GetValue<string>();
+        string? coverage = assessment["coverage"]?.GetValue<string>();
+        string? inventory = assessment["inventory"]?.GetValue<string>();
+        string? autofill = assessment["autofill"]?.GetValue<string>();
+        int retained = assessment["retainedCount"]?.GetValue<int>() ?? -1;
+        if (!DigestPattern().IsMatch(assessment["definitionDigest"]?.GetValue<string>() ?? "")
+            || !KeyPattern().IsMatch(assessment["artifactId"]?.GetValue<string>() ?? "")
+            || assessment["artifactId"]!.GetValue<string>().Length > 128
+            || compatibility is not ("compatible" or "changes-required" or "incomplete" or "unsupported" or "invalid-input")
+            || coverage is not ("complete" or "incomplete") || inventory is not ("complete" or "stopped")
+            || autofill is not ("eligible" or "ineligible") || retained is < 0 or > 4096)
+            errors.Add("machine-assessment-shape");
+        if (inventory == "complete" ? assessment["total"]?.GetValue<int>() != retained : assessment.ContainsKey("total"))
+            errors.Add("machine-assessment-total");
+        int expectedExit = compatibility switch
+        {
+            "invalid-input" => 65, "unsupported" => 4, "changes-required" => 2,
+            "incomplete" => 3, "compatible" when coverage == "complete" && inventory == "complete" => 0, _ => -1
+        };
+        if (root["exitCode"]?.GetValue<int>() != expectedExit
+            || root["completion"]?.GetValue<string>() != (compatibility is "invalid-input" or "unsupported" ? "failed" : "completed")
+            || root["invocation"]?["commandFamily"]?.GetValue<string>() != "artifact"
+            || root["invocation"]?["operation"]?.GetValue<string>() != "compare"
+            || root["preparation"]?.GetValue<string>() != "not-evaluated"
+            || root["readiness"]?["state"]?.GetValue<string>() != "unassessed"
+            || root["artifacts"] is not JsonArray { Count: 0 })
+            errors.Add("machine-assessment-meaning");
+    }
+
+    private static void ValidateFindings(JsonArray findings, List<string> errors)
+    {
+        foreach (JsonNode? node in findings)
+        {
+            if (node is not JsonObject finding) { errors.Add("machine-finding-object"); continue; }
+            ValidateObject(finding, "$.detail.findings[]", errors);
+            string code = finding["code"]?.GetValue<string>() ?? "";
+            if (!SetupCliContractSpecification.FindingClassifications.Contains(finding["classification"]?.GetValue<string>() ?? "")
+                || code.Length is < 1 or > 96 || !CodePattern().IsMatch(code)) errors.Add("machine-finding-shape");
+            if (finding.ContainsKey("source"))
+            {
+                if (finding["source"] is not JsonObject source) { errors.Add("machine-finding-source"); continue; }
+                ValidateObject(source, "$.detail.findings[].source", errors);
+                if (source["ordinals"] is not JsonArray ordinals || ordinals.Count > 32
+                    || ordinals.Any(item => !IsInteger(item, 0, 4095))) errors.Add("machine-finding-source");
+            }
+            if (finding.ContainsKey("schema"))
+            {
+                if (finding["schema"] is not JsonObject schema) { errors.Add("machine-finding-schema"); continue; }
+                ValidateObject(schema, "$.detail.findings[].schema", errors);
+                string id = schema["fieldId"]?.GetValue<string>() ?? "";
+                if (schema["fieldId"] is not JsonValue fieldId || !fieldId.TryGetValue<string>(out _)
+                    || id.Length > 128 || id.Length > 0 && !KeyPattern().IsMatch(id)
+                    || schema["relativePath"] is not JsonArray path || path.Count > 32
+                    || path.Any(item => item is not JsonValue value || !value.TryGetValue<string>(out _))
+                    || path.Sum(item => item!.GetValue<string>().Length) > 256) errors.Add("machine-finding-schema");
+            }
+        }
     }
 
     private static bool IsInteger(JsonNode? node, long minimum, long maximum) =>

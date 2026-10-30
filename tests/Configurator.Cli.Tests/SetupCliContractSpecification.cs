@@ -14,7 +14,7 @@ internal static class SetupCliContractSpecification
             new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
             {
                 ["catalogue"] = new HashSet<string>(["list", "show", "describe"], StringComparer.Ordinal),
-                ["artifact"] = new HashSet<string>(["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "prefill", "bundle-check", "bundle-create", "preview"], StringComparer.Ordinal),
+                ["artifact"] = new HashSet<string>(["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create", "preview"], StringComparer.Ordinal),
                 ["env"] = new HashSet<string>(["render", "validate"], StringComparer.Ordinal),
                 ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal),
                 ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "schema"], StringComparer.Ordinal)
@@ -26,7 +26,7 @@ internal static class SetupCliContractSpecification
             ["authoring"] = "urn:islamu:configurator:authoring:v2",
             ["runtime"] = "urn:islamu:configurator:setup-definition:v2",
             ["answers"] = "urn:islamu:configurator:answers:v1",
-            ["command"] = "https://schemas.islamu.org/configurator/command/v3/schema.json"
+            ["command"] = "https://schemas.islamu.org/configurator/command/v4/schema.json"
         });
 
     internal static readonly IReadOnlySet<string> Capabilities = new HashSet<string>(
@@ -35,6 +35,10 @@ internal static class SetupCliContractSpecification
             "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
             "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",
             "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "values.initial", "values.suggested"], StringComparer.Ordinal);
+
+    internal static readonly IReadOnlySet<string> FindingClassifications = new HashSet<string>(
+        ["missing-required", "invalid-supplied-value", "unrecognized-input", "structural-output-change",
+            "unassessed", "context-derived-value"], StringComparer.Ordinal);
 
     internal static bool IsInvocation(string family, string operation) =>
         Operations.TryGetValue(family, out IReadOnlySet<string>? operations)
