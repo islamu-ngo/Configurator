@@ -898,8 +898,12 @@ internal static partial class SetupCliMachineContractVerifier
             errors.Add("machine-assessment-total");
         int expectedExit = compatibility switch
         {
-            "invalid-input" => 65, "unsupported" => 4, "changes-required" => 2,
-            "incomplete" => 3, "compatible" when coverage == "complete" && inventory == "complete" => 0, _ => -1
+            "invalid-input" => 65,
+            "unsupported" => 4,
+            "changes-required" => 2,
+            "incomplete" => 3,
+            "compatible" when coverage == "complete" && inventory == "complete" => 0,
+            _ => -1
         };
         if (root["exitCode"]?.GetValue<int>() != expectedExit
             || root["completion"]?.GetValue<string>() != (compatibility is "invalid-input" or "unsupported" ? "failed" : "completed")

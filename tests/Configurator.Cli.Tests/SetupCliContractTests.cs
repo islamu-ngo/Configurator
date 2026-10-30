@@ -594,17 +594,30 @@ public sealed class SetupCliContractTests
         root["artifacts"] = new JsonArray();
         root["assessment"] = new JsonObject
         {
-            ["definitionDigest"] = new string('a', 64), ["artifactId"] = "config", ["compatibility"] = "changes-required",
-            ["coverage"] = "incomplete", ["inventory"] = "stopped", ["autofill"] = "ineligible", ["retainedCount"] = 3000
+            ["definitionDigest"] = new string('a', 64),
+            ["artifactId"] = "config",
+            ["compatibility"] = "changes-required",
+            ["coverage"] = "incomplete",
+            ["inventory"] = "stopped",
+            ["autofill"] = "ineligible",
+            ["retainedCount"] = 3000
         };
         root["detail"] = new JsonObject
         {
-            ["kind"] = "findings", ["offset"] = 2998, ["limit"] = 32, ["retainedCount"] = 3000, ["returnedCount"] = 1,
-            ["nextOffset"] = 2999, ["terminal"] = false, ["digest"] = root["detailDigest"]!.DeepClone(),
-            ["diagnostics"] = new JsonArray(), ["coverage"] = new JsonArray(),
+            ["kind"] = "findings",
+            ["offset"] = 2998,
+            ["limit"] = 32,
+            ["retainedCount"] = 3000,
+            ["returnedCount"] = 1,
+            ["nextOffset"] = 2999,
+            ["terminal"] = false,
+            ["digest"] = root["detailDigest"]!.DeepClone(),
+            ["diagnostics"] = new JsonArray(),
+            ["coverage"] = new JsonArray(),
             ["findings"] = new JsonArray(new JsonObject
             {
-                ["classification"] = "unrecognized-input", ["code"] = "input-unrecognized",
+                ["classification"] = "unrecognized-input",
+                ["code"] = "input-unrecognized",
                 ["source"] = new JsonObject { ["ordinals"] = new JsonArray(2998) }
             })
         };

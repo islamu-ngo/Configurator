@@ -180,7 +180,8 @@ public sealed record SetupCliMachineAssessment(string DefinitionDigest, string A
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Total)
 {
     private ReadOnlyCollection<SetupCliMachineFinding> _findings = Array.AsReadOnly(Array.Empty<SetupCliMachineFinding>());
-    [JsonIgnore] public IReadOnlyList<SetupCliMachineFinding> Findings
+    [JsonIgnore]
+    public IReadOnlyList<SetupCliMachineFinding> Findings
     {
         get => _findings;
         init => _findings = Array.AsReadOnly(value.ToArray());

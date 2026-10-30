@@ -278,7 +278,8 @@ public sealed class ArtifactComparisonTests
     private static SetupCliCommandResult FindingResult(SetupCliMachineFinding[] findings, bool complete) =>
         new(SetupCliExitCode.Validation, [], [], SetupCliResults.EmptyCoverage(), new("unassessed", [], []))
         {
-            Completion = "completed", Preparation = "not-evaluated",
+            Completion = "completed",
+            Preparation = "not-evaluated",
             Assessment = new(new string('a', 64), "config", "changes-required", complete ? "complete" : "incomplete",
                 complete ? "complete" : "stopped", "ineligible", findings.Length, complete ? findings.Length : null)
             { Findings = findings }

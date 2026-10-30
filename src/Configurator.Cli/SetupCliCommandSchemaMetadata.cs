@@ -167,16 +167,16 @@ public static class SetupCliCommandSchemaMetadata
             }),
             ["assessment"] = ObjectSchema(["definitionDigest", "artifactId", "compatibility", "coverage", "inventory",
                 "autofill", "retainedCount"], new()
-            {
-                ["definitionDigest"] = String(null, null, "^[0-9a-f]{64}$"),
-                ["artifactId"] = String(1, 128, "^[A-Za-z][A-Za-z0-9._-]*$"),
-                ["compatibility"] = Enum(["compatible", "changes-required", "incomplete", "unsupported", "invalid-input"]),
-                ["coverage"] = Enum(["complete", "incomplete"]),
-                ["inventory"] = Enum(["complete", "stopped"]),
-                ["autofill"] = Enum(["eligible", "ineligible"]),
-                ["retainedCount"] = Integer(0, 4096),
-                ["total"] = Integer(0, 4096)
-            }),
+                {
+                    ["definitionDigest"] = String(null, null, "^[0-9a-f]{64}$"),
+                    ["artifactId"] = String(1, 128, "^[A-Za-z][A-Za-z0-9._-]*$"),
+                    ["compatibility"] = Enum(["compatible", "changes-required", "incomplete", "unsupported", "invalid-input"]),
+                    ["coverage"] = Enum(["complete", "incomplete"]),
+                    ["inventory"] = Enum(["complete", "stopped"]),
+                    ["autofill"] = Enum(["eligible", "ineligible"]),
+                    ["retainedCount"] = Integer(0, 4096),
+                    ["total"] = Integer(0, 4096)
+                }),
             ["finding"] = ObjectSchema(["classification", "code"], new()
             {
                 ["classification"] = Enum(["missing-required", "invalid-supplied-value", "unrecognized-input",
@@ -194,26 +194,27 @@ public static class SetupCliCommandSchemaMetadata
                 ["fieldId"] = String(0, 128, "^(?:[A-Za-z][A-Za-z0-9._-]*)?$"),
                 ["relativePath"] = new JsonObject
                 {
-                    ["type"] = "array", ["maxItems"] = 32,
+                    ["type"] = "array",
+                    ["maxItems"] = 32,
                     ["items"] = String(0, 256, "^[\\s\\S]*$")
                 }
             }),
             ["detail"] = ObjectSchema(["kind", "offset", "limit", "retainedCount", "returnedCount", "nextOffset", "terminal",
                 "digest", "diagnostics", "coverage", "findings"], new()
-            {
-                ["kind"] = Enum(["diagnostics", "coverage", "findings"]),
-                ["offset"] = Integer(0, 4096),
-                ["limit"] = Integer(1, 32),
-                ["retainedCount"] = Integer(0, 4096),
-                ["returnedCount"] = Integer(0, 32),
-                ["nextOffset"] = new JsonObject { ["oneOf"] = new JsonArray(Integer(0, 4096), new JsonObject { ["type"] = "null" }) },
-                ["terminal"] = new JsonObject { ["type"] = "boolean" },
-                ["total"] = Integer(0, 4096),
-                ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
-                ["diagnostics"] = BoundedArray("diagnostic", 32),
-                ["coverage"] = BoundedArray("coverageEntry", 32),
-                ["findings"] = BoundedArray("finding", 32)
-            })
+                {
+                    ["kind"] = Enum(["diagnostics", "coverage", "findings"]),
+                    ["offset"] = Integer(0, 4096),
+                    ["limit"] = Integer(1, 32),
+                    ["retainedCount"] = Integer(0, 4096),
+                    ["returnedCount"] = Integer(0, 32),
+                    ["nextOffset"] = new JsonObject { ["oneOf"] = new JsonArray(Integer(0, 4096), new JsonObject { ["type"] = "null" }) },
+                    ["terminal"] = new JsonObject { ["type"] = "boolean" },
+                    ["total"] = Integer(0, 4096),
+                    ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
+                    ["diagnostics"] = BoundedArray("diagnostic", 32),
+                    ["coverage"] = BoundedArray("coverageEntry", 32),
+                    ["findings"] = BoundedArray("finding", 32)
+                })
         };
         definitions["assessment"]!["oneOf"] = new JsonArray(
             new JsonObject
