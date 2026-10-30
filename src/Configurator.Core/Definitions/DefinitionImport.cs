@@ -2,6 +2,7 @@ namespace Configurator.Core.Definitions;
 
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
@@ -11,64 +12,186 @@ public sealed record DefinitionImportResult(bool Succeeded, SetupAnswerSnapshot?
 {
     public IReadOnlyList<string> ProvidedFields { get; init; } = [];
     public DefinitionDiagnostic? Diagnostic { get; init; }
+    public DefinitionImportSchemaLocation? Schema { get; init; }
     public override string ToString() => $"{nameof(DefinitionImportResult)}:{Code}";
 }
 
 public static class DefinitionImport
 {
+    public static DefinitionImportCapability GetCapability(SetupDefinition definition, string artifactId)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        try
+        {
+            bool supported = DefinitionImportProjection.TryCompile(definition, artifactId, new(CancellationToken.None),
+                out _, out string code);
+            return new(supported, code);
+        }
+        catch (DefinitionImportLimitException) { return new(false, "inverse-limit"); }
+    }
+
+    public static bool CanImport(SetupDefinition definition, string artifactId) =>
+        GetCapability(definition, artifactId).StrictAutofillSupported;
+
+    /// <summary>Inspects one ordinary artifact without initialization or workspace mutation.</summary>
+    public static DefinitionImportAssessment Inspect(SetupDefinition definition, string artifactId,
+        ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        cancellationToken.ThrowIfCancellationRequested();
+        var work = new DefinitionImportWork(cancellationToken);
+        var findings = new List<DefinitionImportFinding>();
+        var reportedDiagnostics = new HashSet<DefinitionDiagnostic>();
+        var fieldsById = definition.Fields.ToDictionary(field => field.Id, StringComparer.Ordinal);
+        string publicArtifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId)?.Id ?? "";
+        DefinitionImportEvidence? evidence = null;
+        bool inventory = true;
+        bool coverage = true;
+        bool autofill = false;
+        string? refusal = null;
+        try
+        {
+            if (!DefinitionImportProjection.TryCompile(definition, artifactId, work, out var projection, out string code))
+                return Terminal(code, DefinitionImportCompatibility.Unsupported);
+            JsonElement input = Parse(projection!.Artifact.Format, bytes, cancellationToken);
+            DefinitionImportEvidence recovered = projection.Recover(definition, input, work, Add);
+            evidence = recovered;
+            DefinitionValidationResult validation = DefinitionValidator.ValidateSupplied(definition, evidence, work,
+                diagnostic => RecordDiagnostic(recovered, diagnostic), cancellationToken);
+            foreach (string name in validation.UnresolvedFields)
+            {
+                work.Visit();
+                SetupFieldDefinition? field = definition.Fields.FirstOrDefault(item => item.Name == name);
+                if (field is null || findings.Any(item => item.Kind == DefinitionImportFindingKind.Unassessed && item.Schema?.FieldId == field.Id)) continue;
+                coverage = false;
+                Add(new(DefinitionImportFindingKind.Unassessed, "condition-unobserved",
+                    evidence.Source(DefinitionPath.FromSegments([name])), new(field.Id, [])));
+            }
+            foreach (DefinitionPath path in evidence.Assignments)
+            {
+                work.Visit();
+                if (!evidence.TryValue(path, out JsonElement supplied)) continue;
+                if (validation.TryGetEffectiveValue(path, out JsonElement effective) && RetainsMembers(supplied, effective, work)) continue;
+                // Unresolved activity cannot silently discard represented input.
+                coverage = false;
+                Add(new(DefinitionImportFindingKind.Unassessed, "mapping-unresolved",
+                    evidence.Source(path), DefinitionImportProjection.SchemaLocation(definition, path)));
+            }
+            refusal = StructuralRefusal();
+            if (refusal is null)
+                autofill = Merge(definition, evidence, new(0, new Dictionary<string, JsonElement>()), null,
+                    cancellationToken, work).Succeeded;
+        }
+        catch (DefinitionImportLimitException)
+        {
+            inventory = false;
+            coverage = false;
+            refusal = "assessment-limit";
+        }
+        catch (Exception exception) when (exception is SetupCompositionException or JsonException or SetupDefinitionException
+            or OverflowException or InvalidOperationException or DecoderFallbackException)
+        {
+            return Terminal("input-invalid", DefinitionImportCompatibility.InvalidInput);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        bool changes = findings.Any(item => item.Kind is DefinitionImportFindingKind.MissingRequired
+            or DefinitionImportFindingKind.InvalidSuppliedValue or DefinitionImportFindingKind.UnrecognizedInput
+            or DefinitionImportFindingKind.StructuralOutputChange);
+        DefinitionImportCompatibility compatibility = changes ? DefinitionImportCompatibility.ChangesRequired
+            : !coverage || !inventory ? DefinitionImportCompatibility.Incomplete : DefinitionImportCompatibility.Compatible;
+        string resultCode = compatibility switch
+        {
+            DefinitionImportCompatibility.ChangesRequired => "changes-required",
+            DefinitionImportCompatibility.Incomplete => "assessment-incomplete",
+            _ => "compatible"
+        };
+        return new(new(definition.Digest.ToString(), publicArtifact, resultCode, compatibility, true,
+            coverage && inventory, inventory, autofill && inventory, findings, work.Units, work.InverseNodes,
+            work.ValidationNodes), definition, evidence, refusal);
+
+        void Add(DefinitionImportFinding finding)
+        {
+            work.Visit();
+            if (findings.Count == SetupCompositionLimits.DefaultSequenceEntries) throw new DefinitionImportLimitException();
+            findings.Add(finding);
+        }
+        void RecordDiagnostic(DefinitionImportEvidence observed, DefinitionDiagnostic diagnostic)
+        {
+            if (!reportedDiagnostics.Add(diagnostic)) return;
+            DefinitionImportFindingKind kind = diagnostic.Code switch
+            {
+                "value-required" => DefinitionImportFindingKind.MissingRequired,
+                "value-unobserved" or "condition-unobserved" or "value-partially-observed" or "validation-limit" =>
+                    DefinitionImportFindingKind.Unassessed,
+                _ => DefinitionImportFindingKind.InvalidSuppliedValue
+            };
+            if (kind == DefinitionImportFindingKind.Unassessed) coverage = false;
+            if (diagnostic.Code == "validation-limit") inventory = false;
+            fieldsById.TryGetValue(diagnostic.FieldId, out SetupFieldDefinition? field);
+            var safe = new List<string>();
+            foreach (DefinitionLocationSegment segment in diagnostic.Location?.Segments ?? [])
+            {
+                if (segment.Kind != DefinitionLocationSegmentKind.Property) break;
+                safe.Add(segment.PropertyName!);
+            }
+            Add(new(kind, diagnostic.Code,
+                observed.Source(DefinitionPath.FromSegments(field is null ? [] : [field.Name]),
+                    diagnostic.Location?.Segments ?? [], work),
+                field is null ? null : new(field.Id, safe)));
+        }
+        string? StructuralRefusal() => findings.Any(item => item.Kind == DefinitionImportFindingKind.StructuralOutputChange ||
+            item.Code == "input-unrecognized") ? "inverse-unsupported" : null;
+        DefinitionImportAssessment Terminal(string code, DefinitionImportCompatibility compatibility) =>
+            new(new(definition.Digest.ToString(), publicArtifact, code, compatibility, false, false, true,
+                false, [], work.Units, work.InverseNodes, work.ValidationNodes), refusal: code);
+    }
+
     public static DefinitionImportResult Assess(SetupDefinition definition, string artifactId,
         ReadOnlyMemory<byte> bytes, SetupAnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults = null)
     {
-        ArgumentNullException.ThrowIfNull(definition);
-        ArgumentNullException.ThrowIfNull(current);
-        if (!TryMappings(definition, artifactId, out SetupArtifactDefinition? artifact,
-            out Dictionary<DefinitionPath, DefinitionPath> mappings, out string code)) return Failed(code);
+        using DefinitionImportAssessment assessment = Inspect(definition, artifactId, bytes);
+        return assessment.AssessAutofill(current, replaceableDefaults);
+    }
+
+    internal static DefinitionImportResult Merge(SetupDefinition definition, DefinitionImportEvidence evidence,
+        SetupAnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults, CancellationToken cancellationToken,
+        DefinitionImportWork? work = null)
+    {
+        bool ownsWork = work is null;
+        work ??= new(cancellationToken);
         try
         {
-            if (bytes.IsEmpty || bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
-                return Failed("input-invalid");
-            Dictionary<string, JsonElement>? input = Parse(artifact!.Format, bytes);
-            if (input is null) return Failed("input-invalid");
-            var supplied = new Dictionary<DefinitionPath, JsonElement>();
-            if (!Collect(JsonSerializer.SerializeToElement(input), DefinitionPath.Parse("")))
-                return Failed("inverse-unsupported");
-            if (supplied.Count == 0) return Failed("input-invalid");
-
             var values = current.Values.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
             var imported = new HashSet<string>(StringComparer.Ordinal);
             var assignments = new Dictionary<DefinitionPath, JsonElement>();
-            foreach ((DefinitionPath path, JsonElement value) in supplied)
+            foreach (DefinitionPath path in evidence.Assignments)
             {
+                work.Visit();
+                if (!evidence.TryValue(path, out JsonElement value)) continue;
                 if (path.Segments.Count == 0)
-                {
-                    if (value.ValueKind != JsonValueKind.Object) return Failed("input-invalid");
                     foreach (JsonProperty member in value.EnumerateObject())
                         assignments.Add(DefinitionPath.FromSegments([member.Name]), member.Value);
-                }
                 else assignments.Add(path, value);
             }
-            foreach ((DefinitionPath path, JsonElement value) in assignments.OrderBy(item => item.Key.ToPointer(), StringComparer.Ordinal))
+            foreach ((DefinitionPath path, JsonElement answer) in assignments.OrderBy(item => item.Key.ToPointer(), StringComparer.Ordinal))
             {
+                work.Visit();
                 string field = path.Segments[0];
                 imported.Add(field);
-                JsonElement answer = value;
                 SetupFieldDefinition? descriptor = definition.Fields.FirstOrDefault(item => item.Name == field);
                 DefinitionDiagnostic? conflict = descriptor is null ? null : new("answer-conflict", descriptor.Id);
-                if (artifact.Format == "dotenv" && !TryDotenvValue(
-                    SourceNode(definition.Configuration, path)!, value.GetString()!, out answer))
-                    return Failed("inverse-unsupported");
                 foreach (DefinitionPath omitted in current.Omitted)
                 {
-                    if (IsPrefix(omitted, path) || IsPrefix(path, omitted)
-                        && TrySelect(answer, omitted, path.Segments.Count, out _))
+                    work.Visit();
+                    if (DefinitionImportProjection.IsPrefix(omitted, path) ||
+                        DefinitionImportProjection.IsPrefix(path, omitted) && TrySelect(answer, omitted, path.Segments.Count, out _))
                         return Failed("answer-conflict", conflict);
                 }
                 bool replaceable = descriptor is not null && replaceableDefaults?.Contains(descriptor.Id) == true;
                 if (path.Segments.Count == 1)
                 {
-                    if (values.TryGetValue(field, out JsonElement previous)
-                        && !JsonElement.DeepEquals(previous, answer) && !replaceable)
-                        return Failed("answer-conflict", conflict);
+                    if (values.TryGetValue(field, out JsonElement previous) &&
+                        !JsonElement.DeepEquals(previous, answer) && !replaceable) return Failed("answer-conflict", conflict);
                     values[field] = answer;
                     continue;
                 }
@@ -91,125 +214,43 @@ public static class DefinitionImport
                     container = created;
                 }
                 string leaf = path.Segments[^1];
-                if (container.TryGetPropertyValue(leaf, out JsonNode? prior)
-                    && !JsonElement.DeepEquals(JsonSerializer.SerializeToElement(prior), answer) && !replaceable)
+                if (container.TryGetPropertyValue(leaf, out JsonNode? prior) &&
+                    !JsonElement.DeepEquals(JsonSerializer.SerializeToElement(prior), answer) && !replaceable)
                     return Failed("answer-conflict", conflict);
                 container[leaf] = JsonNode.Parse(answer.GetRawText());
                 values[field] = JsonSerializer.SerializeToElement(root);
             }
-
             var candidate = new SetupAnswerSnapshot(checked(current.InputRevision + 1), values, current.Omitted);
-            DefinitionValidationResult validation = DefinitionValidator.Validate(definition, candidate);
-            var rejected = validation.Fields.FirstOrDefault(field =>
-                imported.Contains(field.Definition.Name) && (!field.IsActive || field.HasError));
-            if (rejected is not null)
-                return Failed("import-field-invalid", validation.Diagnostics.FirstOrDefault(item => item.FieldId == rejected.Id)
-                    ?? new("import-field-invalid", rejected.Id));
+            DefinitionValidationResult validation = DefinitionValidator.ValidateImport(definition, candidate, work, cancellationToken);
+            var rejected = validation.Fields.FirstOrDefault(field => imported.Contains(field.Definition.Name) && !field.IsActive);
+            if (rejected is not null) return Failed("import-field-invalid", new("import-field-invalid", rejected.Id));
             if (validation.Diagnostics.FirstOrDefault(item => item.Code != "value-required") is { } diagnostic)
                 return Failed("import-field-invalid", definition.Fields.Any(field => field.Id == diagnostic.FieldId) ? diagnostic : null);
             foreach ((DefinitionPath path, JsonElement value) in assignments)
             {
-                if (!validation.TryGetEffectiveValue(path, out JsonElement effective) || !RetainsMembers(value, effective))
+                if (!validation.TryGetEffectiveValue(path, out JsonElement effective) || !RetainsMembers(value, effective, work))
                 {
                     SetupFieldDefinition? descriptor = definition.Fields.FirstOrDefault(field => field.Name == path.Segments[0]);
                     return Failed("import-field-invalid", descriptor is null ? null : new("import-field-invalid", descriptor.Id));
                 }
             }
+            cancellationToken.ThrowIfCancellationRequested();
             return new(true, candidate, "import-ready")
             {
                 ProvidedFields = Array.AsReadOnly(definition.Fields.Where(field => imported.Contains(field.Name))
                     .Select(field => field.Id).ToArray())
             };
-
-            bool Collect(JsonElement value, DefinitionPath target)
-            {
-                if (mappings.TryGetValue(target, out DefinitionPath? source))
-                {
-                    supplied.Add(source, value);
-                    return true;
-                }
-                if (value.ValueKind != JsonValueKind.Object || !mappings.Keys.Any(path => IsPrefix(target, path)))
-                    return false;
-                foreach (JsonProperty member in value.EnumerateObject())
-                    if (!Collect(member.Value, DefinitionPath.FromSegments(target.Segments.Append(member.Name))))
-                        return false;
-                return true;
-            }
         }
-        catch (Exception exception) when (exception is SetupCompositionException or JsonException
-            or SetupDefinitionException or OverflowException or InvalidOperationException)
+        catch (DefinitionImportLimitException) when (ownsWork)
+        {
+            return Failed("assessment-limit");
+        }
+        catch (Exception exception) when (exception is SetupCompositionException or JsonException or SetupDefinitionException
+            or OverflowException or InvalidOperationException)
         {
             return Failed("input-invalid");
         }
     }
-
-    public static bool CanImport(SetupDefinition definition, string artifactId) =>
-        TryMappings(definition, artifactId, out _, out _, out _);
-
-    private static bool TryMappings(SetupDefinition definition, string artifactId,
-        out SetupArtifactDefinition? artifact, out Dictionary<DefinitionPath, DefinitionPath> mappings, out string code)
-    {
-        artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
-        mappings = new();
-        code = "import-unsupported";
-        if (artifact is null || artifact.Format is not ("dotenv" or "json" or "yaml"))
-            return false;
-
-        code = "inverse-unsupported";
-        var collected = new Dictionary<DefinitionPath, DefinitionPath>();
-        bool ambiguous = false;
-        bool dotenv = artifact.Format == "dotenv";
-        bool supported;
-        try { supported = Visit(artifact.Data.GetProperty("projection"), DefinitionPath.Parse("")); }
-        catch (SetupDefinitionException exception) when (exception.Code == "path-limit") { return false; }
-        if (ambiguous) code = "inverse-ambiguous";
-        if (!supported || collected.Count == 0) return false;
-        mappings = collected;
-        return true;
-
-        bool Visit(JsonElement projection, DefinitionPath target)
-        {
-            if (projection.TryGetProperty("when", out _)) return false;
-            if (projection.GetProperty("op").GetString() == "object")
-            {
-                if (dotenv && target.Segments.Count != 0) return false;
-                foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
-                    if (!Visit(member.Value, DefinitionPath.FromSegments(target.Segments.Append(member.Name)))) return false;
-                return true;
-            }
-            if (projection.GetProperty("op").GetString() != "copy") return false;
-            JsonElement reference = projection.GetProperty("reference");
-            if (reference.GetProperty("scope").GetString() != "root") return false;
-            DefinitionPath path = DefinitionPath.Parse(reference.GetProperty("path").GetString()!);
-            DefinitionNode? node = SourceNode(definition.Configuration, path);
-            if (node is null || dotenv && (target.Segments.Count != 1 || node.IsNullable
-                || node.JsonType is not ("string" or "boolean" or "integer" or "number"))) return false;
-            if (collected.Values.Any(other => IsPrefix(other, path) || IsPrefix(path, other)))
-            {
-                ambiguous = true;
-                return false;
-            }
-            collected.Add(target, path);
-            return true;
-        }
-    }
-
-    private static DefinitionNode? SourceNode(DefinitionNode root, DefinitionPath path)
-    {
-        DefinitionNode node = root;
-        foreach (string segment in path.Segments)
-        {
-            if (node.Type != DefinitionNodeType.Mapping) return null;
-            if (node.Properties.TryGetValue(segment, out DefinitionNode? child)) node = child;
-            else if (node.AdditionalProperties is { } additional) node = additional;
-            else return null;
-        }
-        return node;
-    }
-
-    private static bool IsPrefix(DefinitionPath prefix, DefinitionPath path) =>
-        prefix.Segments.Count <= path.Segments.Count
-        && prefix.Segments.SequenceEqual(path.Segments.Take(prefix.Segments.Count), StringComparer.Ordinal);
 
     private static bool TrySelect(JsonElement value, DefinitionPath path, int start, out JsonElement selected)
     {
@@ -220,26 +261,26 @@ public static class DefinitionImport
             {
                 if (!selected.TryGetProperty(path.Segments[index], out selected)) return false;
             }
-            else if (selected.ValueKind == JsonValueKind.Array && path.TryGetArrayIndex(index, out int position)
-                && position < selected.GetArrayLength()) selected = selected[position];
+            else if (selected.ValueKind == JsonValueKind.Array && path.TryGetArrayIndex(index, out int position) &&
+                position < selected.GetArrayLength()) selected = selected[position];
             else return false;
         }
         return true;
     }
 
-    // Inspect only the validator's resolved tree: source applicability is owned by Core validation.
-    private static bool RetainsMembers(JsonElement supplied, JsonElement effective)
+    private static bool RetainsMembers(JsonElement supplied, JsonElement effective, DefinitionImportWork work)
     {
+        work.Visit();
         if (supplied.ValueKind == JsonValueKind.Object)
             return effective.ValueKind == JsonValueKind.Object && supplied.EnumerateObject().All(member =>
-                effective.TryGetProperty(member.Name, out JsonElement child) && RetainsMembers(member.Value, child));
+                effective.TryGetProperty(member.Name, out JsonElement child) && RetainsMembers(member.Value, child, work));
         if (supplied.ValueKind == JsonValueKind.Array)
-            return effective.ValueKind == JsonValueKind.Array && supplied.GetArrayLength() == effective.GetArrayLength()
-                && supplied.EnumerateArray().Zip(effective.EnumerateArray()).All(pair => RetainsMembers(pair.First, pair.Second));
-        return true;
+            return effective.ValueKind == JsonValueKind.Array && supplied.GetArrayLength() == effective.GetArrayLength() &&
+                supplied.EnumerateArray().Zip(effective.EnumerateArray()).All(pair => RetainsMembers(pair.First, pair.Second, work));
+        return JsonElement.DeepEquals(supplied, effective);
     }
 
-    private static bool TryDotenvValue(DefinitionNode field, string text, out JsonElement value)
+    internal static bool TryDotenvValue(DefinitionNode field, string text, out JsonElement value)
     {
         value = JsonSerializer.SerializeToElement(text);
         if (field.Type == DefinitionNodeType.Text) return true;
@@ -255,8 +296,7 @@ public static class DefinitionImport
             return value.GetRawText() == text;
         }
         if (field.Type == DefinitionNodeType.Number && decimal.TryParse(text,
-            NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
-            CultureInfo.InvariantCulture, out decimal number))
+            NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal number))
         {
             value = JsonSerializer.SerializeToElement(number);
             return value.GetRawText() == text;
@@ -264,31 +304,50 @@ public static class DefinitionImport
         return false;
     }
 
-    private static Dictionary<string, JsonElement>? Parse(string format, ReadOnlyMemory<byte> bytes)
+    private static JsonElement Parse(string format, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)
     {
+        if (bytes.IsEmpty || bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
+            throw new SetupDefinitionException("input-invalid");
+        cancellationToken.ThrowIfCancellationRequested();
         if (format == "dotenv")
         {
             DotenvParseResult parsed = DotenvCodec.Parse(bytes);
-            if (!parsed.Succeeded) return null;
+            if (!parsed.Succeeded) throw new SetupDefinitionException("input-invalid");
             var entries = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (DotenvEntry entry in parsed.Document!.Entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (entry.Value is null || !entries.TryAdd(entry.Key, JsonSerializer.SerializeToElement(entry.Value)))
-                    return null;
-            return entries;
+                    throw new SetupDefinitionException("input-invalid");
+            }
+            return JsonSerializer.SerializeToElement(entries);
         }
-        CompositionMap normalized = format == "yaml"
-            ? SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default, CancellationToken.None, keyPolicy: CompositionKeyPolicy.Exact)
-            : SetupCompositionNormalizer.ParseJson(bytes, SetupCompositionLimits.Default, CancellationToken.None, keyPolicy: CompositionKeyPolicy.Exact);
-        byte[] normalizedBytes = SetupCompositionNormalizer.WriteJson(normalized, CancellationToken.None);
+        byte[] normalized;
+        if (format == "yaml")
+            normalized = SetupCompositionNormalizer.WriteJson(SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default,
+                cancellationToken, keyPolicy: CompositionKeyPolicy.Exact), cancellationToken);
+        else
+        {
+            _ = new UTF8Encoding(false, true).GetCharCount(bytes.Span);
+            using JsonDocument parsed = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = SetupCompositionLimits.DefaultNestingDepth });
+            normalized = DefinitionJson.Canonicalize(parsed.RootElement, keyPolicy: CompositionKeyPolicy.Exact);
+        }
         try
         {
-            using JsonDocument document = JsonDocument.Parse(normalizedBytes);
-            return document.RootElement.EnumerateObject().ToDictionary(
-                item => item.Name, item => item.Value.Clone(), StringComparer.Ordinal);
+            cancellationToken.ThrowIfCancellationRequested();
+            using JsonDocument document = JsonDocument.Parse(normalized);
+            return document.RootElement.Clone();
         }
-        finally { CryptographicOperations.ZeroMemory(normalizedBytes); }
+        finally { CryptographicOperations.ZeroMemory(normalized); }
     }
 
     private static DefinitionImportResult Failed(string code, DefinitionDiagnostic? diagnostic = null) =>
-        new(false, null, code) { Diagnostic = diagnostic };
+        new(false, null, code)
+        {
+            Diagnostic = diagnostic is null ? null : new DefinitionDiagnostic(diagnostic.Code, diagnostic.FieldId),
+            Schema = diagnostic is null || diagnostic.FieldId.Length == 0 ? null :
+                new(diagnostic.FieldId, (diagnostic.Location?.Segments ?? [])
+                    .TakeWhile(segment => segment.Kind == DefinitionLocationSegmentKind.Property)
+                    .Select(segment => segment.PropertyName!))
+        };
 }

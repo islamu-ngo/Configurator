@@ -1,0 +1,30 @@
+Change-Id: CHG-01M66B293SG18BTMC6M4ZK46VJ
+Title: "Assess represented configuration without inventing evidence"
+Type: feat
+Scope: artifacts
+Summary: "Add bounded evidence-aware assessment and move failed import metadata to a schema-only address. Failed imports no longer expose candidate workspace correction locations; callers use Schema and obtain current correction authority only after adoption."
+Group: artifact-import-comparison
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Failed artifact imports no longer expose candidate workspace correction locations. Read the separate Schema address for admitted metadata; obtain current correction tokens only after successful adoption and validation."
+  Security:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "Keep source ordinals, declared schema and current workspace authority separate. Browser raw input requires custody consent before consumption even for public-only definitions."
+  Migration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Replace failed-import Diagnostic.RelativePath navigation with Schema metadata explanations. Revalidate an adopted workspace to acquire fresh revision-bound correction authority."
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Compare represented configuration without inferring historical releases or target acceptance. Fill fields remains explicit and atomic; incomplete coverage is not compatibility."

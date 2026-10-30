@@ -33,18 +33,30 @@ public sealed class EventDefinitionFormTests
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    public async Task EventManifestImportReportsDeclaredInverseLimitRegardlessOfConsent(bool consent)
+    public async Task EventManifestImportRecoversCheckedManifestWithoutChangingItsPublicValues(bool consent)
     {
         using var form = new DefinitionFormModel(await Definition(), consent
             ? DefinitionSessionPrivacy.BrowserSecretsEnabled : DefinitionSessionPrivacy.BrowserNoSecrets);
         form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"));
         SetupAnswerSnapshot original = form.Snapshot();
+        bool consumed = false;
         DefinitionImportResult result = await form.ImportAsync("configuration-manifest", token =>
-            ReadArtifact(token));
-        await Assert.That(result.Code).IsEqualTo("inverse-unsupported");
-        await Assert.That(result.Succeeded).IsFalse();
-        await Assert.That(form.Snapshot().InputRevision).IsEqualTo(original.InputRevision);
-        await Assert.That(form.Snapshot().Values.Keys).IsEquivalentTo(original.Values.Keys);
+        {
+            consumed = true;
+            return ReadArtifact(token);
+        });
+        await Assert.That(consumed).IsEqualTo(consent);
+        await Assert.That(result.Code).IsEqualTo(consent ? "import-ready" : "import-secret-consent-required");
+        await Assert.That(result.Succeeded).IsEqualTo(consent);
+        await Assert.That(form.Snapshot().InputRevision).IsEqualTo(original.InputRevision + (consent ? 1 : 0));
+        if (!consent)
+        {
+            await Assert.That(form.Snapshot().Values.Keys).IsEquivalentTo(original.Values.Keys);
+            return;
+        }
+        await Assert.That(form.Snapshot().Values["configuration-manifest.metadata.name"].GetString()).IsEqualTo("example-deployment");
+        await Assert.That(form.Snapshot().Values["configuration-manifest.tenants"][0]
+            .GetProperty("metadata").GetProperty("name").GetString()).IsEqualTo("community");
     }
 
     [Test]

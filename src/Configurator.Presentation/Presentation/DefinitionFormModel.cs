@@ -918,6 +918,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         HashSet<string> replaceableDefaults;
         lock (_gate)
         {
+            if (SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)
+                return new(false, null, "import-secret-consent-required");
             original = Snapshot();
             replaceableDefaults = Fields.Where(field => field.IsPristineDefault &&
                 !_omitted.Any(path => path.Segments[0] == field.Definition.Id))

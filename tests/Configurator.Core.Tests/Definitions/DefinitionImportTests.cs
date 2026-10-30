@@ -221,7 +221,7 @@ public sealed class DefinitionImportTests
     }
 
     [Test]
-    public async Task WholeArraysAndLiteralNumericPropertiesImportButRepeatsDoNot()
+    public async Task WholeArraysLiteralNumericPropertiesAndIdentityRepeatsImport()
     {
         JsonNode source = NestedSource("json");
         source["configuration"]!["properties"]!["options"]!["properties"]!["0"] =
@@ -242,9 +242,9 @@ public sealed class DefinitionImportTests
              "item":{"op":"copy","reference":{"scope":"item","path":""}}}
             """);
         SetupDefinition repeated = DefinitionFixture.Parse(source.ToJsonString());
-        await Assert.That(DefinitionImport.CanImport(repeated, "nested")).IsFalse();
+        await Assert.That(DefinitionImport.CanImport(repeated, "nested")).IsTrue();
         await Assert.That(DefinitionImport.Assess(repeated, "nested",
-            """{"array":["one"]}"""u8.ToArray(), Empty()).Answers).IsNull();
+            """{"array":["one"]}"""u8.ToArray(), Empty()).Answers!.Values["tags"].GetRawText()).IsEqualTo("""["one"]""");
     }
 
     private static SetupDefinition NestedDefinition(string format) => DefinitionFixture.Parse(NestedSource(format).ToJsonString());
@@ -285,8 +285,10 @@ public sealed class DefinitionImportTests
         await Assert.That(result.Succeeded).IsFalse();
         await Assert.That(result.Answers).IsNull();
         await Assert.That(result.Diagnostic!.FieldId).IsEqualTo("options");
-        await Assert.That(result.Diagnostic.RelativePath.Count).IsEqualTo(1);
-        await Assert.That(result.Diagnostic.RelativePath[0]).IsEqualTo("db.host");
+        await Assert.That(result.Diagnostic.Location).IsNull();
+        await Assert.That(result.Schema!.FieldId).IsEqualTo("options");
+        await Assert.That(result.Schema.RelativePath.Count).IsEqualTo(1);
+        await Assert.That(result.Schema.RelativePath[0]).IsEqualTo("db.host");
         await Assert.That(result.ToString()).DoesNotContain("synthetic-private-import");
     }
 
@@ -304,7 +306,7 @@ public sealed class DefinitionImportTests
         await Assert.That(result.ProvidedFields).Contains("enabled");
         await Assert.That(result.ProvidedFields).Contains("service.name");
         await Assert.That(DefinitionImport.CanImport(definition, "config")).IsTrue();
-        await Assert.That(DefinitionImport.CanImport(definition, "transformed")).IsFalse();
+        await Assert.That(DefinitionImport.CanImport(definition, "transformed")).IsTrue();
         await Assert.That(result.ToString()).DoesNotContain("private-import-marker");
     }
 

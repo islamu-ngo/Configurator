@@ -271,22 +271,65 @@ The local `Configurator.Core.Preparation` diagnostic listener exposes public
 artifact IDs and a draft-mode Boolean, never answers or retained measurements.
 See [single-pass ownership](adr/ADR-single-pass-preparation-ownership.md).
 
-`DefinitionImport.Assess`/`CanImport` share a narrower inverse admission for
-unconditional unambiguous direct copies in JSON/YAML/dotenv. Unknown input,
-transform/conditional/repeat ambiguity, inactive mappings and nonreplaceable
-conflicts reject atomically. Nested object targets reconstruct exact object-only
-source paths; numeric declared names are properties, while array-index selectors
-have no inverse. Whole-root/whole-container copies retain declared typed-map
-entries and reject undeclared members through Core validation. Overlapping
-source paths, including ancestor/descendant copies, reject as ambiguous.
-Unaddressable target pointers refuse within the same bounded inverse domain.
-Successful immutable prefill does not mutate current
-workspace or imply readiness. Provenance-owned replaceable defaults are distinct
-from permission to overwrite arbitrary answers or reset explicit omissions.
-Imported members must survive the validator's effective-tree projection; the
-importer does not reevaluate applicability or silently discard inactive input.
-Rejection returns no answer
-snapshot and no private-value diagnostic authority.
+`DefinitionImport.GetCapability` describes bounded inspection and strict-autofill
+support separately. The inverse admits exact direct copies, objects, structural
+literals, fixed lists with stable positions, complete one-to-one repeats and
+ordinal checks in supported JSON/YAML/dotenv projections. One unambiguous,
+schema-valid public scalar equality selector may establish artifact context;
+it is not a file-observed answer. Filtered rows, overlapping source assignments,
+guessed hidden values and unsupported conditions refuse. Numeric declared names
+remain properties; arbitrary source array-index mappings are not inferred.
+
+`DefinitionImport.Inspect` owns one recovered-evidence snapshot and returns a
+disposable assessment with a detached immutable value-free report. It checks
+structural metadata and accounts for unknown input without printing private
+names or values. The sole validator's supplied-evidence mode disables
+initialization and distinguishes observed value, proved absence, unobserved and
+context-derived value. A whole copy proves its subtree; projected children do
+not prove an entire object's completeness or cardinality.
+
+Unknown/invalid controllers, including objects with invalid variant selectors,
+remain unknown to dependent rules. Proven absence
+retains existing missing-reference and property-assertion semantics.
+Missing required is reported only where applicable absence is proved;
+unrepresented obligations remain unassessed. Initialization cannot hide absent
+file members. Normal `Validate` and `ValidateDraft` retain workspace semantics.
+
+Partial root copies cannot establish whole-root property-count coverage.
+Unproved minimum/maximum coverage remains unassessed, while a represented-member
+lower bound that already exceeds a maximum is a known blocker. Proved
+missing-required facts are emitted before subsequent traversal can hit a limit.
+
+The report separates completion, compatibility, coverage, inventory and file-level
+autofill eligibility. Bounded work or retention stops preserve known blockers
+and report incomplete coverage/inventory with a retained lower bound, not an
+invented exact total. Safe diagnostic facts are emitted during the same
+validation traversal, so a later limit cannot discard earlier findings. Paging
+does not repeat validation or change assessment completeness.
+
+`DefinitionImport.Assess` remains strict atomic prefill over these same
+primitives; the owned assessment's `AssessAutofill` rechecks a current snapshot.
+Unknown content, structural mismatch, invalid supplied values, inactive mappings
+and nonreplaceable conflicts cannot partially apply. Provenance-owned replaceable
+defaults do not grant permission to overwrite explicit answers or omissions.
+Imported members must survive the existing validator's effective-tree projection;
+the importer does not implement another conditional evaluator. Strict rejection
+returns no candidate. Successful prefill remains private answer data, not a
+readiness or target-acceptance claim.
+
+Strict failure retains only the public root diagnostic and a separate `Schema`
+address. That address preserves admitted literal property names and stops before
+rows or dynamic entries. It never contains a candidate's future
+`DefinitionCorrectionLocation`; successful adoption must be followed by ordinary
+current-workspace validation for correction authority.
+
+File coordinates, declared schema locations and current-workspace correction
+tokens are distinct authorities. Inspection never mints workspace corrections
+from imported row/map ordinals. All raw import is potentially secret-bearing;
+interactive acquisition/custody and deliberate adoption remain with Presentation
+and its thin adapters. See [assessment boundaries](IMPORT_COMPARISON.md) and
+[the operator workflow](../public/import-and-compare.md). Actual client and
+resource qualification is recorded separately from this semantic contract.
 
 ## Presentation, guidance and credentials
 
