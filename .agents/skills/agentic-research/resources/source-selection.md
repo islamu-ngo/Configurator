@@ -17,14 +17,14 @@ The answer exists in this repository. Examples:
 
 | Question Type | Where To Look |
 |---------------|---------------|
-| Controller/handler behavior | `Event.API/Controllers/`, `Event.Application/Features/` |
+| Offline admission/preparation behavior | `src/Configurator.Core/`, `docs/internal/CORE_DEFINITION_CONTRACT.md` |
 | DI registration | `**/DependencyInjection.cs`, `Program.cs` |
-| Middleware pipeline order | `Event.API/Program.cs` |
-| Blazor component behavior | `Explore.Blazor.Client/` |
-| Domain entity rules | `Event.Domain/Entities/`, `docs/internal/DOMAIN.md` |
+| Workspace state and stale operations | `src/Configurator.Presentation/`, `docs/internal/PRESENTATION_STATE.md` |
+| Blazor component behavior | `src/Configurator.Browser/` |
+| Native restricted output | `src/Configurator.Artifacts/`, `docs/internal/PROTECTED_ARTIFACTS.md` |
 | Repo conventions | `AGENTS.md`, `docs/internal/GOVERNANCE.md`, `docs/internal/QUICK_REFERENCE.md` |
-| Test expectations | `Event.Architecture.Tests/`, `docs/internal/TESTING.md` |
-| Config/settings | `docs/internal/CONFIGURATION.md`, `appsettings*.json` |
+| Test expectations | `tests/Configurator.*.Tests/`, `PROJECTS.md`, `docs/internal/TESTING.md` |
+| Config/settings | `docs/internal/CLI_CONTRACT.md`, `docs/internal/LAUNCH_CONTRACT.md` |
 
 ## Escalate To Official Docs When
 

@@ -24,15 +24,16 @@
    - Runtime behavior (middleware, DI, background services)
    - Security-sensitive flows (auth, tenant isolation, secrets)
    - Cross-layer dependencies (Domain → Application → Infrastructure)
-3. Architecture test compliance is mandatory for any code change: `dotnet test --project tests/Event.Architecture.Tests/Event.Architecture.Tests.csproj`
+3. Use actual affected-owner checks from `PROJECTS.md`; broaden to architecture
+   only when the changed boundary calls for it. Prose needs no product suite.
 
 ## Verification Commands Quick Reference
 
 | Check | Command |
 |-------|---------|
 | Build | `dotnet build --configuration Release --verbosity quiet` |
-| Architecture tests | `dotnet test --project tests/Event.Architecture.Tests/Event.Architecture.Tests.csproj --configuration Release --verbosity quiet` |
+| Architecture tests (affected boundary only) | `dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --verbosity quiet` |
 | Unit tests | `dotnet test --project <TestProject>.csproj --configuration Release --verbosity quiet` |
 | JSON syntax | Open file in editor or use `jq . < file.json` |
-| Hook build | `dotnet build` in `.agents/hooks/` directory |
+| Hook changes | Inspect the actual file-based hook entrypoint and use its documented native command, not a nonexistent hook project |
 | Link validation | Verify target files exist at referenced paths |
