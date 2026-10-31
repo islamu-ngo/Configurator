@@ -1,6 +1,6 @@
 ---
 name: criticality-guardrail
-description: Load when working on Tier 0 Sovereign (payments, money, orders), Tier 1 Security (auth, tenancy, migrations), or Tier 2 Privacy (PII, erasure) tasks to enforce advanced model tier, Invariant-Breaker adversarial tests, and zero-PII telemetry validation.
+description: "Load for Configurator definition admission, sensitivity, trust, browser custody, operation-generation or protected-output changes needing adversarial invariant analysis; not for ordinary prose or cosmetic UI."
 type: guardrail
 enforcement: block
 priority: critical
@@ -14,6 +14,27 @@ priority: critical
 # Criticality Guardrail & Dynamic Tier Execution
 
 ## Rules
+
+1. Resolve the actual intent's criticality and the target
+   [criticality rule](../../rules/work-criticality-matrix.md). Use advanced
+   reasoning for unresolved privacy/trust decisions.
+2. Ask only about material unsettled requirements. Approved contracts proceed
+   without a routine interview.
+3. Establish runtime-failing invariant tests before privacy/security fixes:
+   bounded admission, immutable identity, sensitivity floors, transient browser
+   custody, stale-result fencing and competing create-only native writes.
+4. Trace caller/callee and data flow to actual sinks; use bounded symbols/reads
+   if graph coverage is absent. Never require nonexistent backend machinery.
+5. Verify through affected-owner native commands in `PROJECTS.md` and record
+   exact outcomes. No diagnostic values, private paths or answer-bearing logs.
+
+## Historical Event Criticality Model
+
+The DTEM, database/outbox/redaction rules, adversarial recipes and execution
+sequence below are historical Event reference. They do not mandate payment,
+tenancy, migration, telemetry or MAD infrastructure in Configurator.
+The linked archetypes remain reusable recipes only where a real target
+invariant matches; do not create services to satisfy an example.
 
 1. **Model Capability Escalation**: Any task touching Tier 0 (`sovereign`), Tier 1 (`security`), or Tier 2 (`privacy`) MUST execute using an `advanced` capability model tier.
 2. **Proactive Intake Clarification Gate**: When a task resolves to Tier 0, 1, or 2, the agent is strictly forbidden from writing code immediately. If requirements, edge cases, or threat boundaries are underspecified, the agent MUST run a proactive `/grill-me` alignment interview first.

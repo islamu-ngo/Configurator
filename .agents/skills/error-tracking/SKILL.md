@@ -1,6 +1,6 @@
 ---
 name: error-tracking
-description: "Load for .NET observability changes involving structured logs/Loki, Prometheus metrics, OpenTelemetry traces, exception handling, correlation IDs, dashboards, alerts, or production error diagnosis; not for ordinary business validation errors."
+description: "Load for Configurator exception handling or value-safe native diagnostics; backend Loki, Prometheus, OTEL and HTTP examples are reference-only, not a telemetry requirement."
 type: guardrail
 enforcement: suggest
 priority: high
@@ -18,7 +18,19 @@ priority: high
 >
 > Placeholders use `{Placeholder}` syntax - `docs/internal/TEMPLATE_GLOSSARY.md` is an Event source reference, historical only.
 
-## Non‑Inferable Rules (Must Follow)
+## Configurator Rules
+
+- Keep diagnostics bounded and value-safe; do not emit answers, artifacts,
+  credentials, raw exceptions or private paths.
+- Preserve cancellation and explicit failure outcomes at the actual owner.
+  Use the CLI/output contract or existing client status mechanism, not invented
+  HTTP middleware or ProblemDetails.
+- Browser has no telemetry or answer-bearing requests. Do not add an
+  observability service to satisfy a transferred backend example.
+- Load a linked resource only for a matching unresolved diagnostic decision;
+  backend HTTP/metrics/log-stack resources below are historical Event reference.
+
+## Historical Backend Rules (Reference Only)
 - **Do not swallow exceptions.**
 - Use RFC 7807 ProblemDetails for API errors.
 - **Sentry is not used** — use OTEL + Prometheus + Loki.
@@ -31,7 +43,7 @@ priority: high
 - **PerformanceBehavior** (Native operation pipeline): Warning for >500ms, error for >3000ms. Includes handler name and elapsed time.
 - **Rate limiting 429**: Rejection response is RFC 6585 ProblemDetails with `Retry-After` when available plus `X-RateLimit-Limit` and `X-RateLimit-Remaining`.
 
-## Resources (Read Before Applying)
+## Historical And Reusable Resources (Select Only The Relevant Topic)
 - [api-exception-handling.md](resources/api-exception-handling.md)
 - [api-error-responses.md](resources/api-error-responses.md)
 - [native-operation-logging.md](resources/native-operation-logging.md)
