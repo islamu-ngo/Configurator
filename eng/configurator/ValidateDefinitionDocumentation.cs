@@ -6,13 +6,15 @@ using System.Text.RegularExpressions;
 
 if (args is ["--self-test"])
     return DocumentationCheck.SelfTest();
+bool linksOnly = args.Length > 0 && args[0] == "--links-only";
+if (linksOnly) args = args[1..];
 if (args.Length < 2 || args.Any(argument => argument.StartsWith("--", StringComparison.Ordinal)))
 {
-    Console.Error.WriteLine("Usage: dotnet run --file eng/configurator/ValidateDefinitionDocumentation.cs -- ROOT FILE... | --self-test");
+    Console.Error.WriteLine("Usage: dotnet run --file eng/configurator/ValidateDefinitionDocumentation.cs -- [--links-only] ROOT FILE... | --self-test");
     return 64;
 }
 
-return DocumentationCheck.Run(args[0], args[1..], Console.Out, Console.Error);
+return DocumentationCheck.Run(args[0], args[1..], Console.Out, Console.Error, checkMetadata: !linksOnly);
 
 /// <summary>
 /// Checks explicit Markdown operands, not a recursive documentation crawl or a full Markdown renderer.
@@ -24,7 +26,7 @@ internal sealed class DocumentationCheck(string root, TextWriter errors)
     private int errorCount;
     private int linkCount;
 
-    internal static int Run(string rootOperand, string[] operands, TextWriter output, TextWriter errors)
+    internal static int Run(string rootOperand, string[] operands, TextWriter output, TextWriter errors, bool checkMetadata = true)
     {
         try
         {
@@ -40,7 +42,7 @@ internal sealed class DocumentationCheck(string root, TextWriter errors)
                     if (!IsMarkdown(path))
                         throw new InvalidDataException("INPUT_NOT_MARKDOWN");
                     Document document = check.Load(path);
-                    check.Metadata(path, document);
+                    if (checkMetadata) check.Metadata(path, document);
                     foreach ((int line, string target) in document.Links)
                         check.Link(path, line, target);
                 }
@@ -325,6 +327,12 @@ internal sealed class DocumentationCheck(string root, TextWriter errors)
             Expect(["missing.md"], 1, "INPUT_UNAVAILABLE");
             Expect(["file(1).txt"], 1, "INPUT_NOT_MARKDOWN");
             Expect(["../outside.md"], 1, "PATH_OUTSIDE_ROOT");
+            File.WriteAllText(Path.Combine(directory, "docs/internal/page.md"), "# Different metadata contract\n[valid](../../page.md#repeat)\n");
+            Expect(["docs/internal/page.md"], 0, "errors=0", checkMetadata: false);
+            File.WriteAllText(Path.Combine(directory, "docs/internal/page.md"), "# Different metadata contract\n[broken](#absent)\n");
+            Expect(["docs/internal/page.md"], 1, "ANCHOR_MISSING", checkMetadata: false);
+            File.WriteAllText(Path.Combine(directory, "docs/internal/page.md"), "# Different metadata contract\n```\n");
+            Expect(["docs/internal/page.md"], 1, "FENCE_UNCLOSED", checkMetadata: false);
             Console.WriteLine($"configurator-definition-documentation-self-test-valid: {cases} cases");
             return 0;
 
@@ -334,11 +342,11 @@ internal sealed class DocumentationCheck(string root, TextWriter errors)
                 Expect(["invalid.md"], 1, code);
             }
 
-            void Expect(string[] operands, int expectedExit, string expectedCode)
+            void Expect(string[] operands, int expectedExit, string expectedCode, bool checkMetadata = true)
             {
                 using var output = new StringWriter(CultureInfo.InvariantCulture);
                 using var errors = new StringWriter(CultureInfo.InvariantCulture);
-                int exit = Run(directory, operands, output, errors);
+                int exit = Run(directory, operands, output, errors, checkMetadata);
                 string result = output.ToString() + errors;
                 if (exit != expectedExit || !result.Contains(expectedCode, StringComparison.Ordinal))
                     throw new InvalidOperationException($"documentation-self-test-failed: case {cases + 1}\n{result}");

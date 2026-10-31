@@ -1,0 +1,111 @@
+name: Documentation quality
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - '**/*.md'
+      - '.agents/**'
+      - '.omo/rules/**'
+      - '.github/instructions/**'
+      - '.github/copilot-instructions.md'
+      - '.cursorrules'
+      - '.repomix/**'
+      - 'schemas/**'
+      - 'eng/knowledge/**'
+      - 'eng/configurator/ValidateDefinitionDocumentation.cs'
+      - 'eng/configurator/Configurator.CommandSchemaGenerator/**'
+      - 'src/Configurator.Cli/**'
+      - 'src/Configurator.Core/**'
+      - 'src/Configurator.Artifacts/**'
+      - '.editorconfig'
+      - 'global.json'
+      - 'Directory.*'
+      - 'NuGet.Config'
+      - '.gitignore'
+      - '.github/workflows/docs-quality.yml'
+  pull_request:
+    paths:
+      - '**/*.md'
+      - '.agents/**'
+      - '.omo/rules/**'
+      - '.github/instructions/**'
+      - '.github/copilot-instructions.md'
+      - '.cursorrules'
+      - '.repomix/**'
+      - 'schemas/**'
+      - 'eng/knowledge/**'
+      - 'eng/configurator/ValidateDefinitionDocumentation.cs'
+      - 'eng/configurator/Configurator.CommandSchemaGenerator/**'
+      - 'src/Configurator.Cli/**'
+      - 'src/Configurator.Core/**'
+      - 'src/Configurator.Artifacts/**'
+      - '.editorconfig'
+      - 'global.json'
+      - 'Directory.*'
+      - 'NuGet.Config'
+      - '.gitignore'
+      - '.github/workflows/docs-quality.yml'
+  workflow_dispatch:
+    inputs:
+      audit:
+        description: Run the separate retained-history audit (may fail)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  current:
+    name: Current documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TMPDIR: ${{ runner.temp }}
+    steps:
+      - name: Checkout public repository inputs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Check native knowledge and Markdown contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --file eng/knowledge/Knowledge.cs -- --self-test
+          dotnet run --file eng/configurator/ValidateDefinitionDocumentation.cs -- --self-test
+          dotnet run --project eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj -- --check
+          dotnet run --file eng/knowledge/RenderCommandReference.cs -- --self-test
+          dotnet run --file eng/knowledge/RenderCommandReference.cs -- --check
+          dotnet run --file eng/knowledge/Knowledge.cs -- links current
+
+  historical-audit:
+    name: Retained history audit (not current qualification)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.audit }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TMPDIR: ${{ runner.temp }}
+    steps:
+      - name: Checkout public repository inputs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Audit retained knowledge without suppressing failures
+        run: dotnet run --file eng/knowledge/Knowledge.cs -- links audit

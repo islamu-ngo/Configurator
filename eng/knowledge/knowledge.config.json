@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "explicitPaths": [
+    ".agents/contract/intents.yaml",
+    ".agents/contract/schema.json",
+    ".agents/benchmarks/cold-start-tasks.yaml",
+    ".agents/benchmarks/documentation-navigation.yaml",
+    ".agents/skills/implement-tasks/resources/event-execution-reference.md",
+    ".agents/skills/implementation-plan/resources/event-planning-reference.md",
+    ".agents/reference/event-context-engineering.md",
+    ".cursorrules",
+    ".repomix/repomix.docs.config.json",
+    ".repomix/README.md",
+    "eng/knowledge/Knowledge.cs",
+    "eng/knowledge/RenderCommandReference.cs",
+    "eng/knowledge/README.md",
+    "eng/knowledge/knowledge.config.json",
+    "docs/internal/STATUS.md",
+    "docs/internal/KNOWLEDGE_MAP.md",
+    "docs/internal/DEVELOPER_GUIDE.md",
+    "docs/internal/FIRST_CONTRIBUTION.md",
+    "docs/internal/CONTRIBUTOR_RECIPES.md",
+    "docs/internal/DOCUMENTATION_STYLE_GUIDE.md",
+    "docs/public/cli-command-reference.md",
+    "islamic-value-sensitive-design/README.md",
+    "docs/internal/adr/README.md",
+    "docs/internal/reports/DOCUMENTATION_MIGRATION_2026-10-30.md"
+  ],
+  "entryPaths": [
+    "AGENTS.md",
+    "PROJECTS.md",
+    "AI_REVIEW.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "docs/README.md",
+    "docs/internal/QUICK_REFERENCE.md",
+    "docs/internal/GOVERNANCE.md",
+    "docs/internal/DOCUMENTATION_ARCHITECTURE.md",
+    "docs/internal/ARCHITECTURE.md",
+    ".agents/CONTEXT_ENGINEERING.md",
+    ".agents/contract/intents.yaml",
+    ".agents/contract/schema.json",
+    ".agents/rules/README.md"
+  ],
+  "profiles": {
+    "current": [
+      "docs/public/", "docs/internal/", "schemas/readme.md",
+      "examples/readme.md", "eng/knowledge/readme.md",
+      "islamic-value-sensitive-design/readme.md"
+    ],
+    "definitions": [
+      "definition", "maintainer", "integrat", "launch", "core",
+      "schemas/", "examples/", "store/", "skills/configurator"
+    ],
+    "clients": [
+      "browser", "desktop", "terminal", "cli", "presentation",
+      "native-output", "protected_artifacts", "packaging", "comparison",
+      "import", "launch", "accessibility", "blazor", "design-system"
+    ],
+    "agents": [
+      ".agents/", ".omo/rules/", ".github/", "claude.md", ".cursorrules",
+      "dev/_journal/", "eng/knowledge/", "eng/release/"
+    ],
+    "audit": []
+  }
+}
