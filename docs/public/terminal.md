@@ -154,19 +154,53 @@ Definitions can author tailored configuration journeys (e.g., *Recommended*, *Ad
 - **Persistent Errors:** Active validation errors and required fields remain accessible regardless of the selected journey.
 - **Preserved Drafts:** Rejected input text is preserved when switching views, allowing you to correct mistakes without starting over.
 
-### Prefilling and Importing Existing Files
+### Comparing And Filling From Existing Files
 
-You can prefill answers by importing existing local `.json`, `.yaml`, or `.env` files:
+Use an ordinary local `.json`, `.yaml`, or `.env` export under the selected
+definition. Comparison is the default action; filling fields is deliberate.
 
 1. Use **Cycle artifact** to select the target declared artifact.
 2. Enter the path to your existing configuration file in **Import file**.
-3. Activate **Import selected artifact**.
+3. Activate **Compare file**. Comparison and deliberate adoption yield between
+   bounded work batches so cancellation remains available. The busy state clears
+   only after owned input and work finish cleanup. Comparison does not commit the active editor or change
+   answers, valid/invalid pending text, origins, omissions or prepared output.
+4. Use **Next finding** to inspect each retained finding. Severity text remains
+   meaningful in monochrome. Declared schema titles explain the relevant schema;
+   imported row numbers never select unrelated current rows or map entries.
+5. Read coverage, inventory and autofill eligibility separately. Choose
+   **Fill fields** only when you want atomic adoption.
 
 ```text
-Local File (.env / JSON / YAML) ──> Structural Ingestion (≤ 4 MiB) ──> Form Answers
+Local file -> bounded local read (4 MiB maximum) -> private assessment
+                                               -> deliberate atomic Fill fields
 ```
 
-Imports support direct top-level copy mappings. If an import file contains unknown keys, conflicting answers, or syntax errors, the entire import is rejected cleanly without altering your current form answers. The import path field clears immediately when reading begins, and any manual edit during an import cancels the stale operation.
+Supported inverses recover represented values and proved presence information,
+including supported nested copies and complete repetitions. Unrepresented work
+remains unassessed; initialization does not conceal absent file members.
+Comparison can explain unknown or obsolete input without printing private names
+or values. It does not infer renamed settings or a historical source release.
+
+Fill fields protects explicit answers, omissions and pending drafts; only untouched
+initialization may be replaced. Unknown content, structural changes, invalid
+values and conflicts refuse the entire adoption. If comparison completes but
+autofill is unavailable, review and repair a separate copy and compare it again.
+Missing required work can remain unfinished after otherwise admissible adoption.
+
+The path field clears when reading begins, including its undo history, so Undo
+cannot restore the consumed path. **Clear private state** also removes discarded
+ordinary draft text from undo history. Comparison preserves the active editor's
+current draft and editing history.
+Edits, cancellation, artifact changes,
+private clearing and disposal invalidate old work while its existing read owner
+finishes physical cleanup. Reports are transient and private. Comparison never
+overwrites the source or grants application apply/acceptance authority.
+See [Import and compare](import-and-compare.md) for result and custody boundaries.
+
+[Operations](../internal/OPERATIONS.md) records actual published-process
+observations separately from native Core resource measurements and headless
+checks. Those records do not qualify every host or assistive tool.
 
 ### Saving and Verifying Configuration
 
@@ -195,7 +229,10 @@ Use **Save history** to cycle through the 16 most recent save attempts to inspec
 
 To protect sensitive configuration data:
 - **Clear Private State:** Removes all entered secrets and invalidates prepared bundles while preserving non-sensitive public settings.
-- **Closing the Session:** Exiting or sending termination signals (`SIGINT`, `SIGTERM`) flushes private memory buffers and detaches UI callbacks.
+- **Closing the Session:** Exiting or sending termination signals (`SIGINT`,
+  `SIGTERM`) cancels application-owned operations, clears the owned secret-edit
+  buffer and retires private references. Physical operations retain their
+  buffers until settlement; managed strings cannot be universally erased.
 - **Graceful Shutdown:** Configurator waits up to two seconds for active disk operations to finish before exiting. If an operation cannot be verified before exit, status indicates an unknown outcome so you can inspect destination files manually.
 
 Deterministic adapter/control tests and actual interactive process qualification

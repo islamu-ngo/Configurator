@@ -29,10 +29,33 @@
   <data name="SelectOutput" xml:space="preserve"><value>Toggle _output</value></data>
   <data name="Selected" xml:space="preserve"><value>selected</value></data>
   <data name="NotSelected" xml:space="preserve"><value>not selected</value></data>
-  <data name="ImportSelected" xml:space="preserve"><value>_Import selected artifact</value></data>
+  <data name="ImportSelected" xml:space="preserve"><value>Compare fi_le</value></data>
+  <data name="FillFields" xml:space="preserve"><value>_Fill fields</value></data>
+  <data name="NextFinding" xml:space="preserve"><value>Next findin_g</value></data>
+  <data name="ComparisonCompatible" xml:space="preserve"><value>Compatible in assessed scope</value></data>
+  <data name="ComparisonChangesRequired" xml:space="preserve"><value>Changes required</value></data>
+  <data name="ComparisonIncomplete" xml:space="preserve"><value>Assessment incomplete</value></data>
+  <data name="ComparisonUnsupported" xml:space="preserve"><value>Unsupported inverse</value></data>
+  <data name="ComparisonInvalidInput" xml:space="preserve"><value>Invalid input</value></data>
+  <data name="CoverageComplete" xml:space="preserve"><value>Coverage complete</value></data>
+  <data name="CoverageIncomplete" xml:space="preserve"><value>Coverage incomplete</value></data>
+  <data name="InventoryComplete" xml:space="preserve"><value>Finding inventory complete</value></data>
+  <data name="InventoryIncomplete" xml:space="preserve"><value>Retained findings only; exact total unknown</value></data>
+  <data name="AutofillEligible" xml:space="preserve"><value>Deliberate Fill fields is available.</value></data>
+  <data name="AutofillRefused" xml:space="preserve"><value>Fill fields is unavailable.</value></data>
+  <data name="ComparisonRecovery" xml:space="preserve"><value>Review and repair a separate copy, then compare again. Target acceptance is unassessed.</value></data>
+  <data name="FindingInformation" xml:space="preserve"><value>INFO</value></data>
+  <data name="FindingError" xml:space="preserve"><value>ERROR</value></data>
+  <data name="FindingMissingRequired" xml:space="preserve"><value>Missing required</value></data>
+  <data name="FindingInvalidSuppliedValue" xml:space="preserve"><value>Invalid for this definition</value></data>
+  <data name="FindingUnrecognizedInput" xml:space="preserve"><value>Unrecognized input</value></data>
+  <data name="FindingStructuralOutputChange" xml:space="preserve"><value>Structural output change</value></data>
+  <data name="FindingUnassessed" xml:space="preserve"><value>Unassessed</value></data>
+  <data name="FindingContextDerivedValue" xml:space="preserve"><value>Public context-derived selector</value></data>
   <data name="ImportReady" xml:space="preserve"><value>Supported fields imported. Review the masked answers and validate.</value></data>
   <data name="ImportReading" xml:space="preserve"><value>Reading local artifact. Editing or clearing cancels this import.</value></data>
-  <data name="ImportCancelled" xml:space="preserve"><value>Import cancelled. Waiting for the existing read to finish cleanup.</value></data>
+  <data name="ImportAdopting" xml:space="preserve"><value>Filling fields from the retained comparison. Editing or clearing cancels this import.</value></data>
+  <data name="ImportCancelled" xml:space="preserve"><value>Import cancelled. Waiting for pending work to finish cleanup.</value></data>
   <data name="ShutdownWaiting" xml:space="preserve"><value>Closing; cancelling pending work and waiting up to two seconds for cleanup.</value></data>
   <data name="ShutdownUnknown" xml:space="preserve"><value>Closing with work still unresolved. Created files may remain; review them before retrying.</value></data>
   <data name="ImportFailed" xml:space="preserve"><value>Import rejected; answers were not changed.</value></data>

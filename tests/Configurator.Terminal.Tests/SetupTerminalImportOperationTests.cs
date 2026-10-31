@@ -14,6 +14,70 @@ using global::Terminal.Gui.Views;
 public sealed class SetupTerminalImportOperationTests
 {
     [Test]
+    public async Task ProductionCheckpointSuspendsTheCurrentOwnerSlice()
+    {
+        using var owner = new ControlledTerminalSynchronizationContext();
+        Task checkpoint = Task.CompletedTask;
+        await owner.InvokeAsync(() =>
+        {
+            checkpoint = SetupTerminalWindow.YieldToApplicationAsync(CancellationToken.None).AsTask();
+            // The owner cannot process its posted continuation until this action returns.
+            if (checkpoint.IsCompleted) throw new InvalidOperationException("checkpoint-did-not-suspend-owner");
+        });
+        await checkpoint.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ConsumedOrClearedImportPathCannotBeRestoredByUndo(bool compare)
+    {
+        using var owner = new ControlledTerminalSynchronizationContext();
+        var read = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Harness? harness = null;
+        try
+        {
+            await owner.InvokeAsync(() =>
+            {
+                harness = new Harness(owner, (_, _) => read.Task);
+                harness.ImportPath.Text = "synthetic-private-import.json";
+                if (compare) harness.Button("ImportSelected").InvokeCommand(Command.Accept);
+                else harness.Window.ClearPrivateState();
+                harness.ImportPath.Undo();
+                if (harness.ImportPath.Text.Length != 0)
+                    throw new InvalidOperationException("discarded-import-path-restored");
+            });
+        }
+        finally
+        {
+            read.TrySetResult("""{"name":"synthetic"}"""u8.ToArray());
+            if (harness is not null) await harness.Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            await owner.InvokeAsync(() => harness?.Dispose());
+        }
+    }
+
+    [Test]
+    public async Task ClearedPublicDraftCannotBeRestoredByUndo()
+    {
+        using var owner = new ControlledTerminalSynchronizationContext();
+        Harness? harness = null;
+        try
+        {
+            await owner.InvokeAsync(() =>
+            {
+                harness = new Harness(owner, (_, _) => Task.FromResult<ReadOnlyMemory<byte>>(ReadOnlyMemory<byte>.Empty));
+                harness.Window.PublicInput.Text = "synthetic-private-draft";
+                harness.Window.ClearPrivateState();
+                string cleared = harness.Window.PublicInput.Text;
+                harness.Window.PublicInput.Undo();
+                if (harness.Window.PublicInput.Text != cleared)
+                    throw new InvalidOperationException("discarded-public-draft-restored");
+            });
+        }
+        finally { await owner.InvokeAsync(() => harness?.Dispose()); }
+    }
+
+    [Test]
     [Arguments(-1)]
     [Arguments(1)]
     [Arguments(4 * 1024 * 1024)]
@@ -365,6 +429,99 @@ public sealed class SetupTerminalImportOperationTests
         finally { await owner.InvokeAsync(() => harness?.Dispose()); }
     }
 
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    [Arguments(true, true)]
+    public async Task FillCommandReturnsDuringCooperativeAdoptionAndCloseDrainsIt(bool retained, bool close)
+    {
+        using var owner = new ControlledTerminalSynchronizationContext();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Harness? harness = null;
+        bool suspend = !retained;
+        int reads = 0;
+        try
+        {
+            await owner.InvokeAsync(() =>
+            {
+                harness = new Harness(owner, (_, _) =>
+                {
+                    Interlocked.Increment(ref reads);
+                    return Task.FromResult<ReadOnlyMemory<byte>>("""{"name":"filled-value"}"""u8.ToArray());
+                }, timeProvider: new CloseClock(), cooperativeYield: async token =>
+                {
+                    if (!suspend || harness!.Form.ImportComparison is null) return;
+                    entered.TrySetResult();
+                    try { await release.Task.WaitAsync(token); }
+                    finally
+                    {
+                        exiting.TrySetResult();
+                        await cleanup.Task;
+                    }
+                });
+                if (retained)
+                {
+                    harness.ImportPath.Text = "synthetic-import.json";
+                    harness.Button("ImportSelected").InvokeCommand(Command.Accept);
+                }
+                else harness.Import();
+            });
+            if (retained)
+            {
+                await harness!.Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+                await owner.InvokeAsync(() =>
+                {
+                    var report = harness.Form.ImportComparison;
+                    if (report is null) throw new InvalidOperationException("comparison-not-retained");
+                    suspend = true;
+                    harness.Button("FillFields").InvokeCommand(Command.Accept);
+                    if (!ReferenceEquals(report, harness.Form.ImportComparison))
+                        throw new InvalidOperationException("fill-replaced-retained-report");
+                    if (harness.Window.StatusText != SetupTerminalText.Get("ImportAdopting"))
+                        throw new InvalidOperationException("retained-adoption-status-not-shown");
+                });
+            }
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await owner.InvokeAsync(() =>
+            {
+                if (!harness!.Window.IsImportBusy || harness.Window.ImportCompletion.IsCompleted ||
+                    harness.Form.InputRevision != 0)
+                    throw new InvalidOperationException("fill-command-did-not-return-during-adoption");
+                if (close) harness.Window.RequestStopFromSignal();
+                else release.TrySetResult();
+            });
+            await exiting.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(harness!.Window.ImportCompletion.IsCompleted).IsFalse();
+            if (close) await Assert.That(harness.Window.ShutdownCompletion.IsCompleted).IsFalse();
+            cleanup.TrySetResult();
+            await harness.Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            if (close) await harness.Window.ShutdownCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(reads).IsEqualTo(1);
+            await owner.InvokeAsync(() =>
+            {
+                if (close)
+                {
+                    if (harness.Form.Snapshot().Values.Count != 0 || harness.Form.ImportComparison is not null)
+                        throw new InvalidOperationException("closed-adoption-published");
+                }
+                else if (harness.Form.Snapshot().Values["name"].GetString() != "filled-value" ||
+                    harness.Window.StatusText != SetupTerminalText.Get("ImportReady"))
+                    throw new InvalidOperationException("fill-did-not-settle-on-owner");
+            });
+        }
+        finally
+        {
+            release.TrySetResult();
+            cleanup.TrySetResult();
+            if (harness is not null) await harness.Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            await owner.InvokeAsync(() => harness?.Dispose());
+        }
+    }
+
     private sealed class Harness : IDisposable
     {
         private readonly IApplication _application;
@@ -374,7 +531,8 @@ public sealed class SetupTerminalImportOperationTests
             Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>> reader,
             TimeProvider? timeProvider = null, Action<Action>? dispatch = null,
             Func<CancellationToken, Task>? beforePublication = null, bool nativeDispatch = false,
-            string? outputDirectory = null, Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null)
+            string? outputDirectory = null, Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null,
+            Func<CancellationToken, ValueTask>? cooperativeYield = null)
         {
             _application = Application.Create();
             _application.Init("dotnet");
@@ -387,7 +545,8 @@ public sealed class SetupTerminalImportOperationTests
             Workspace = _session.CreateWorkspace(id, Operation);
             Workspace.Activate();
             Window = new SetupTerminalWindow(_application, Workspace, Operation, Secret, reader,
-                nativeDispatch ? null : dispatch ?? owner.Dispatch, timeProvider);
+                nativeDispatch ? null : dispatch ?? owner.Dispatch, timeProvider,
+                cooperativeYield: nativeDispatch ? null : cooperativeYield ?? (_ => ValueTask.CompletedTask));
             Window.Frame = new Rectangle(0, 0, 100, 30);
             Window.ApplyViewportPolicy(Window.Frame.Size);
         }
@@ -402,7 +561,7 @@ public sealed class SetupTerminalImportOperationTests
         internal void Import()
         {
             ImportPath.Text = "synthetic-import.json";
-            Button("ImportSelected").InvokeCommand(Command.Accept);
+            Button("FillFields").InvokeCommand(Command.Accept);
         }
 
         internal Button Button(string key) => Window.SubViews.OfType<Button>()

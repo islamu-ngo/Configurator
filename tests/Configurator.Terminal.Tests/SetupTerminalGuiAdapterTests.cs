@@ -8,7 +8,6 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Configurator.Terminal;
 using global::Terminal.Gui.App;
-using global::Terminal.Gui.Drawing;
 using global::Terminal.Gui.Input;
 using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
@@ -553,6 +552,53 @@ public sealed class SetupTerminalGuiAdapterTests
 
     [Test]
     [NotInParallel]
+    [Arguments("2")]
+    [Arguments("synthetic-invalid-draft")]
+    public async Task CompareAndFindingControlsPreserveTheActualEditorAndPreparedState(string text)
+    {
+        string directory = Directory.CreateTempSubdirectory("terminal-comparison-").FullName;
+        try
+        {
+            string input = Path.Combine(directory, "existing.json");
+            await File.WriteAllTextAsync(input, """{"count":"synthetic-private-import"}""");
+            var source = EditingSource("""
+                "count":{"title":"Count","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}}
+                """);
+            source["outputs"]!["config.json"]!["projection"] = System.Text.Json.Nodes.JsonNode.Parse("""
+                {"op":"object","members":{"count":{"op":"copy","reference":{"scope":"root","path":"/count"}}}}
+                """);
+            using var form = new DefinitionFormModel(SetupDefinitionSourceCodec.ParseJson(
+                System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+            form.SetValue(["count"], System.Text.Json.JsonSerializer.SerializeToElement(1));
+            using var harness = new Harness(initialize: true, form: form, directory: directory, manualDispatch: true);
+            harness.Window.PublicInput.Text = text;
+            SetupAnswerSnapshot original = form.Snapshot();
+            bool prepared = await harness.Operation.PrepareAsync();
+            TextField path = harness.Window.SubViews.OfType<TextField>().Single(field => field.Y == 14);
+            path.Text = input;
+            Button compare = harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("ImportSelected"));
+            await Assert.That(compare.InvokeCommand(Command.Accept)).IsTrue();
+            await harness.CompleteImport();
+
+            await Assert.That(form.ImportComparison).IsNotNull();
+            await Assert.That(form.InputRevision).IsEqualTo(original.InputRevision);
+            await Assert.That(form.Snapshot().Values["count"].GetRawText()).IsEqualTo(original.Values["count"].GetRawText());
+            await Assert.That(harness.Window.PublicInput.Text).IsEqualTo(text);
+            await Assert.That(harness.Operation.IsPrepared).IsEqualTo(prepared);
+            Button next = harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == SetupTerminalText.Get("NextFinding"));
+            await Assert.That(next.InvokeCommand(Command.Accept)).IsTrue();
+            await Assert.That(form.InputRevision).IsEqualTo(original.InputRevision);
+            await Assert.That(harness.Window.PublicInput.Text).IsEqualTo(text);
+            await Assert.That(harness.Window.StatusText).DoesNotContain("synthetic-private-import");
+            await Assert.That(harness.Operation.IsPrepared).IsEqualTo(prepared);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Test]
+    [NotInParallel]
     public async Task NativeImportAndOutputSelectionPrepareTheDeclaredBundleWithoutRenderingPrivateAnswers()
     {
         if (!OperatingSystem.IsLinux()) return;
@@ -567,7 +613,7 @@ public sealed class SetupTerminalGuiAdapterTests
                 .Single(field => field.Y == 14);
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == SetupTerminalText.Get("ImportSelected"));
+                .Single(button => button.Text == SetupTerminalText.Get("FillFields"));
             await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
             await harness.CompleteImport();
             await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
@@ -603,7 +649,7 @@ public sealed class SetupTerminalGuiAdapterTests
                 .Single(field => field.Y == 14);
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == SetupTerminalText.Get("ImportSelected"));
+                .Single(button => button.Text == SetupTerminalText.Get("FillFields"));
             await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
             await harness.CompleteImport();
             await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
@@ -877,7 +923,8 @@ public sealed class SetupTerminalGuiAdapterTests
             Workspace = _session.CreateWorkspace(id, Operation);
             Workspace.Activate();
             Window = new SetupTerminalWindow(_application, Workspace, Operation, Secret,
-                dispatch: manualDispatch ? callback => _dispatch.Writer.TryWrite(callback) : null);
+                dispatch: manualDispatch ? callback => _dispatch.Writer.TryWrite(callback) : null,
+                cooperativeYield: _ => ValueTask.CompletedTask);
             Window.Frame = new Rectangle(0, 0, 100, 30);
             Window.ApplyViewportPolicy(Window.Frame.Size);
         }

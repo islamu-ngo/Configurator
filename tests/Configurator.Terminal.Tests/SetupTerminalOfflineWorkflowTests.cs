@@ -486,7 +486,8 @@ public sealed class SetupTerminalOfflineWorkflowTests
             SetupWorkspaceId.TryCreate("definition", out var id);
             _workspace = _session.CreateWorkspace(id, Operation);
             _workspace.Activate();
-            Window = new(_application, _workspace, Operation, _secret, dispatch: callback => callback());
+            Window = new(_application, _workspace, Operation, _secret, dispatch: callback => callback(),
+                cooperativeYield: _ => ValueTask.CompletedTask);
             Window.Frame = new System.Drawing.Rectangle(0, 0, 100, 30);
             Window.ApplyViewportPolicy(Window.Frame.Size);
         }

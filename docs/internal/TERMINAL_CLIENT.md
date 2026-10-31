@@ -64,7 +64,9 @@ does not prevent field navigation or editing existing items.
 `SetupTerminalWindow` uses native focusable controls with keyboard buttons,
 bounded layout and English/Arabic resource parity. Small terminals hide editing
 controls rather than overlapping them. The current editor is committed before
-validation, import, preparation or navigation; type errors prevent that transition.
+ordinary validation, preparation or editor navigation; type errors prevent that
+transition. Comparison and finding/schema explanation explicitly bypass these
+committing paths.
 Choice cycling first commits the visible draft, so invalid input remains visible
 and valid pending input becomes the starting choice. Removing an existing list
 item requires pressing Remove item twice; navigation or editing cancels the
@@ -117,7 +119,8 @@ definition's filename is never treated as an arbitrary path authority.
 
 The import field accepts a local file for the artifact at the cursor, whether or
 not that artifact is selected for output. `SetupTerminalImportOperation` starts
-one observed read and returns from the Import callback immediately. Synchronous
+one observed read and returns from the action callback immediately. Compare is
+the default action; Fill fields is a separate deliberate action. Synchronous
 file open/stat runs at the owned background boundary; the bounded file body uses
 asynchronous reads. Its captured definition digest, artifact ID, form revision
 and editor generation fence admission. Uncommitted edits, import-path or target
@@ -127,14 +130,46 @@ The path field clears when the attempt starts.
 
 Completion dispatch uses pinned `IApplication.Invoke`, with a second lifetime
 and generation check inside the callback. Only then does
-`DefinitionFormModel.ImportAsync` receive the already-read bytes on the UI owner;
-its Core mapping admits supported direct copies and rejects conflicting,
-transformed or inactive inputs. Form admission has no pending I/O at that point.
+the shared form receive already-read bytes on the UI owner. Both purposes use
+cooperative `CompareAsync`; explicit Fill then awaits strict
+`AdoptImportComparisonAsync`. Comparison never routes
+through the applying handler, `CommitField`, `MoveField`, `MoveItem` or current
+correction navigation. Form admission has no pending I/O at that point.
 The read owner zeroes buffers on every exit, including canceled and rejected late
 reads, and retires cancellation sources after their callbacks complete. Successful
-import refreshes and focuses the editor. Failures expose stable codes, never file
+autofill refreshes and focuses the editor. Comparison instead updates only report
+controls and subscribes to `ImportComparisonChanged`, not ordinary `ViewChanged`.
+Its summary separates compatibility, coverage, inventory and eligibility;
+Next finding walks the retained immutable inventory without another answer tree.
+Severity words accompany findings in monochrome. `ExplainImportFinding` provides
+declared schema metadata without resolving imported ordinals into current rows.
+No report action writes the active editor or manufactures workspace entities.
+Failures expose stable codes, never file
 contents, exception messages or paths. The adapter does not rely on a terminal
-synchronization context being installed.
+synchronization context being installed for physical read dispatch.
+
+Fill fields after comparison calls tracked `StartAdoption` on the same import
+owner, skips physical acquisition and awaits `AdoptImportComparisonAsync`, which rechecks the
+current shared revision, consent, conflicts and drafts. Refusal retains existing
+work and explains separate-copy repair/reimport, not partial recovery.
+The production cooperative callback suspends the current slice with
+`Task.Yield` and checks cancellation on both sides of that boundary. It does not
+wait for the terminal's timer cadence or rely on `Invoke`, which executes inline
+on the owner thread. The operation retains its applying
+lease and completion until the suspended work and input cleanup settle. Closing
+the window drains this same completion for acquisition, comparison and adoption.
+Cancellation and purpose/artifact changes retire shared comparison ownership
+as well as the physical attempt generation. The source file is never overwritten.
+Consumed import paths clear their TextField history immediately. Explicit
+`ClearPrivateState` also clears ordinary-editor history after resetting the form;
+Compare does not clear that current draft history. Read-only comparison status
+and lifecycle feedback discard their history after replacement. This prevents
+discarded text from reappearing through Undo and prevents independent copied
+control cells from growing after the original input/proposal owners have retired.
+See [assessment authority](IMPORT_COMPARISON.md) for observation and location
+domains. [Operations](OPERATIONS.md) routes the actual published-process
+observations and separately scoped native Core resource measurements. Neither
+headless assertions nor those measurements qualify every host or assistive tool.
 
 Saving executes through `SetupPresentationWorkspace.ExecuteAsync`, which
 owns operation generations and cancellation. The bundle publisher prepares all

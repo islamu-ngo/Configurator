@@ -36,6 +36,8 @@ internal sealed class SetupTerminalWindow : Window
     private readonly SetupSecretTextField _masked;
     private readonly TextField _importPath;
     private readonly Button _import;
+    private readonly Button _fillImport;
+    private readonly Button _nextFinding;
     private readonly Button _nextOutcome;
     private readonly Button _nextAttempt;
     private readonly Button _save;
@@ -61,6 +63,7 @@ internal sealed class SetupTerminalWindow : Window
     private int _outcomeIndex;
     private int _helpPage;
     private int _correctionIndex = -1;
+    private int _comparisonIndex = -1;
     private ProtectedArtifactPublicationReceipt? _receipt;
     private int _publicationRefreshQueued;
     private bool _loading;
@@ -79,7 +82,8 @@ internal sealed class SetupTerminalWindow : Window
     internal SetupTerminalWindow(IApplication application, SetupPresentationWorkspace workspace,
         SetupTerminalArtifactOperation operation, SetupTerminalSecretBuffer secret,
         Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>>? readImport = null,
-        Action<Action>? dispatch = null, TimeProvider? timeProvider = null)
+        Action<Action>? dispatch = null, TimeProvider? timeProvider = null,
+        Func<CancellationToken, ValueTask>? cooperativeYield = null)
     {
         _application = application;
         _workspace = workspace;
@@ -88,7 +92,8 @@ internal sealed class SetupTerminalWindow : Window
         _dispatch = dispatch ?? application.Invoke;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _owner = new(this);
-        _importOperation = new(operation.Form, _dispatch, readImport);
+        _importOperation = new(operation.Form, _dispatch, readImport,
+            cooperativeYield: cooperativeYield ?? YieldToApplicationAsync);
         _importOperation.Settled += ImportSettled;
         _editor = new(operation.Form);
         Title = SetupTerminalText.Get("WindowTitle");
@@ -131,6 +136,8 @@ internal sealed class SetupTerminalWindow : Window
         var fileLabel = new Label { X = 1, Y = 14, Text = SetupTerminalText.Get("ImportFile") };
         _importPath = new TextField { X = 20, Y = 14, Width = Dim.Fill(2) };
         _import = Button("ImportSelected", 1, 15, ImportSelected);
+        _fillImport = Button("FillFields", 25, 15, FillFields);
+        _nextFinding = Button("NextFinding", 49, 15, NextComparisonFinding);
         var validate = Button("ValidateDraft", 1, 16, Validate);
         _prepare = Button("PreparePreview", 26, 16, Prepare);
         _save = Button("SaveProtected", 51, 16, Save);
@@ -165,7 +172,7 @@ internal sealed class SetupTerminalWindow : Window
             Visible = false
         };
         Add(heading, _locale, _correction, _experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
-            _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import,
+            _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import, _fillImport, _nextFinding,
             validate, _prepare, _save, _nextOutcome, _nextAttempt, _status,
             clear, close, limitations, previousItem, nextItem, removeItem, _addItem, _helpNext, _null, _reset, _suggest, itemNull, itemSuggestion);
         _normal = SubViews.ToArray();
@@ -182,6 +189,7 @@ internal sealed class SetupTerminalWindow : Window
         _operation.Invalidated += OperationInvalidated;
         _operation.PublicationChanged += PublicationChanged;
         _operation.Form.ViewChanged += FormViewChanged;
+        _operation.Form.ImportComparisonChanged += ImportComparisonChanged;
         _workspace.PropertyChanged += WorkspaceChanged;
         ViewportChanged += ViewportUpdated;
         ShowArtifact();
@@ -623,16 +631,86 @@ internal sealed class SetupTerminalWindow : Window
             + $"{artifact.FileName} | {artifact.Format} | {artifact.ApplySemantics} | {artifact.Restart}");
     }
 
-    private void ImportSelected()
+    private void ImportSelected() => StartImport(compare: true);
+
+    private void FillFields()
     {
-        if (_importOperation.IsBusy || _workspace.IsBusy || _operation.IsPublishing || !CommitField()) return;
+        if (_importOperation.IsBusy || _workspace.IsBusy || _operation.IsPublishing ||
+            Volatile.Read(ref _closeRequested) != 0) return;
+        if (_draftEdited) { Status("DraftInvalid"); return; }
+        if (_operation.Form.ImportComparison is null)
+        {
+            StartImport(compare: false);
+            return;
+        }
+        Status("ImportAdopting");
+        if (!_importOperation.StartAdoption(_operation.ArtifactId)) return;
+        RefreshCommands();
+    }
+
+    internal static async ValueTask YieldToApplicationAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // Suspend the current slice without waiting for the terminal's timer cadence.
+        await Task.Yield();
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private void StartImport(bool compare)
+    {
+        if (_importOperation.IsBusy || _workspace.IsBusy || _operation.IsPublishing ||
+            Volatile.Read(ref _closeRequested) != 0) return;
+        if (!compare && _draftEdited) { Status("DraftInvalid"); return; }
         string path = _importPath.Text;
         _loading = true;
         _importPath.Text = string.Empty;
+        _importPath.ClearHistoryChanges();
         _loading = false;
-        if (!_importOperation.Start(path, _operation.ArtifactId)) return;
+        _comparisonIndex = -1;
+        if (!_importOperation.Start(path, _operation.ArtifactId, compare)) return;
         Status("ImportReading");
         RefreshCommands();
+    }
+
+    private void ImportComparisonChanged(object? sender, EventArgs args) =>
+        DispatchToOwner(static window =>
+        {
+            if (window._operation.Form.ImportComparison is not null) window.ShowComparison();
+            window.RefreshCommands();
+        });
+
+    private void NextComparisonFinding()
+    {
+        if (_operation.Form.ImportComparison is not { Findings.Count: > 0 } report) return;
+        _comparisonIndex = (_comparisonIndex + 1) % report.Findings.Count;
+        ShowComparison();
+    }
+
+    private void ShowComparison()
+    {
+        var form = _operation.Form;
+        if (form.ImportComparison is not { } report) return;
+        string compatibility = SetupTerminalText.Get("Comparison" + report.Compatibility);
+        string coverage = SetupTerminalText.Get(report.CoverageComplete ? "CoverageComplete" : "CoverageIncomplete");
+        string inventory = SetupTerminalText.Get(report.InventoryComplete ? "InventoryComplete" : "InventoryIncomplete");
+        _help.Text = Safe($"{compatibility} | {coverage} | {inventory} | {report.RetainedFindingCount}");
+        if (_comparisonIndex >= 0 && report.Findings.Count > 0)
+        {
+            _comparisonIndex %= report.Findings.Count;
+            DefinitionImportFinding finding = report.Findings[_comparisonIndex];
+            DefinitionImportSchemaExplanation? explanation = form.ExplainImportFinding(finding);
+            string severity = SetupTerminalText.Get(finding.Kind is DefinitionImportFindingKind.Unassessed
+                or DefinitionImportFindingKind.ContextDerivedValue ? "FindingInformation" : "FindingError");
+            _help.Text += "\n" + Safe($"{_comparisonIndex + 1}/{report.RetainedFindingCount} [{severity}] " +
+                SetupTerminalText.Get("Finding" + finding.Kind) + " " + finding.Code +
+                (explanation is null ? "" : " | " + explanation.Title));
+        }
+        string eligibility = SetupTerminalText.Get(form.CanAdoptImportComparison ? "AutofillEligible" : "AutofillRefused");
+        _status.Text = Safe(eligibility + " " + form.ImportAutofillCode +
+            (form.CanAdoptImportComparison ? "" : " " + SetupTerminalText.Get("ComparisonRecovery")));
+        _status.ClearHistoryChanges();
+        _help.SetNeedsDraw();
+        _status.SetNeedsDraw();
     }
 
     private void CancelImport()
@@ -649,12 +727,17 @@ internal sealed class SetupTerminalWindow : Window
         {
             if (result.Succeeded)
             {
-                ShowField();
-                FocusInput();
-                Status("ImportReady");
+                if (result.IsComparison) ShowComparison();
+                else
+                {
+                    ShowField();
+                    FocusInput();
+                    Status("ImportReady");
+                }
             }
             else _status.Text = SetupTerminalText.Get("ImportFailed") + " " + result.Code;
         }
+        _status.ClearHistoryChanges();
         RefreshCommands();
     }
 
@@ -726,9 +809,11 @@ internal sealed class SetupTerminalWindow : Window
         _loading = true;
         _masked.ClearSensitiveState();
         _importPath.Text = string.Empty;
+        _importPath.ClearHistoryChanges();
         _operation.ClearPrivateState();
         _loading = false;
         ShowField();
+        _value.ClearHistoryChanges();
         Status("PrivateCleared");
     }
 
@@ -825,6 +910,7 @@ internal sealed class SetupTerminalWindow : Window
         _operation.Invalidated -= OperationInvalidated;
         _operation.PublicationChanged -= PublicationChanged;
         _operation.Form.ViewChanged -= FormViewChanged;
+        _operation.Form.ImportComparisonChanged -= ImportComparisonChanged;
         ViewportChanged -= ViewportUpdated;
     }
 
@@ -919,7 +1005,12 @@ internal sealed class SetupTerminalWindow : Window
         _status.SetNeedsDraw();
     }
 
-    private void Status(string key) { _status.Text = SetupTerminalText.Get(key); _status.SetNeedsDraw(); }
+    private void Status(string key)
+    {
+        _status.Text = SetupTerminalText.Get(key);
+        _status.ClearHistoryChanges();
+        _status.SetNeedsDraw();
+    }
 
     private void RefreshCommands()
     {
@@ -929,6 +1020,9 @@ internal sealed class SetupTerminalWindow : Window
             && _operation.IsPrepared;
         _prepare.Enabled = available;
         _import.Enabled = available && !string.IsNullOrWhiteSpace(_importPath.Text);
+        _fillImport.Enabled = available && !_draftEdited && (_operation.Form.ImportComparison is null
+            ? !string.IsNullOrWhiteSpace(_importPath.Text) : _operation.Form.CanAdoptImportComparison);
+        _nextFinding.Enabled = available && _operation.Form.ImportComparison is { Findings.Count: > 0 };
     }
 
     private void ViewportUpdated(object? sender, DrawEventArgs args) => ApplyViewportPolicy(args.NewViewport.Size);
@@ -939,7 +1033,8 @@ internal sealed class SetupTerminalWindow : Window
         _nextOutcome.Visible = !_tooSmall && _receipt is { Outcomes.Count: > 1 };
         _nextAttempt.Visible = !_tooSmall && _receipt is not null;
         _smallNotice.Visible = _tooSmall;
-        ShowHelp();
+        if (_operation.Form.ImportComparison is null) ShowHelp();
+        else ShowComparison();
         SetEditorVisibility();
         RefreshCommands();
     }

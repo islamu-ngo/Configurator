@@ -29,10 +29,33 @@
   <data name="SelectOutput" xml:space="preserve"><value>تبديل تحديد ال_إخراج</value></data>
   <data name="Selected" xml:space="preserve"><value>محدد</value></data>
   <data name="NotSelected" xml:space="preserve"><value>غير محدد</value></data>
-  <data name="ImportSelected" xml:space="preserve"><value>ا_ستيراد الملف المحدد</value></data>
+  <data name="ImportSelected" xml:space="preserve"><value>_مقارنة الملف</value></data>
+  <data name="FillFields" xml:space="preserve"><value>_تعبئة الحقول</value></data>
+  <data name="NextFinding" xml:space="preserve"><value>النتيجة ال_تالية</value></data>
+  <data name="ComparisonCompatible" xml:space="preserve"><value>متوافق ضمن النطاق المفحوص</value></data>
+  <data name="ComparisonChangesRequired" xml:space="preserve"><value>تغييرات مطلوبة</value></data>
+  <data name="ComparisonIncomplete" xml:space="preserve"><value>الفحص غير مكتمل</value></data>
+  <data name="ComparisonUnsupported" xml:space="preserve"><value>الاستعادة العكسية غير مدعومة</value></data>
+  <data name="ComparisonInvalidInput" xml:space="preserve"><value>إدخال غير صالح</value></data>
+  <data name="CoverageComplete" xml:space="preserve"><value>التغطية مكتملة</value></data>
+  <data name="CoverageIncomplete" xml:space="preserve"><value>التغطية غير مكتملة</value></data>
+  <data name="InventoryComplete" xml:space="preserve"><value>حصر النتائج مكتمل</value></data>
+  <data name="InventoryIncomplete" xml:space="preserve"><value>النتائج المحفوظة فقط؛ العدد الإجمالي غير معروف</value></data>
+  <data name="AutofillEligible" xml:space="preserve"><value>التعبئة الصريحة للحقول متاحة.</value></data>
+  <data name="AutofillRefused" xml:space="preserve"><value>تعبئة الحقول غير متاحة.</value></data>
+  <data name="ComparisonRecovery" xml:space="preserve"><value>راجع نسخة منفصلة وأصلحها ثم أعد المقارنة. لم يُفحص قبول التطبيق الهدف.</value></data>
+  <data name="FindingInformation" xml:space="preserve"><value>معلومة</value></data>
+  <data name="FindingError" xml:space="preserve"><value>خطأ</value></data>
+  <data name="FindingMissingRequired" xml:space="preserve"><value>قيمة مطلوبة مفقودة</value></data>
+  <data name="FindingInvalidSuppliedValue" xml:space="preserve"><value>غير صالح لهذا التعريف</value></data>
+  <data name="FindingUnrecognizedInput" xml:space="preserve"><value>إدخال غير معروف</value></data>
+  <data name="FindingStructuralOutputChange" xml:space="preserve"><value>تغيير بنيوي في المخرج</value></data>
+  <data name="FindingUnassessed" xml:space="preserve"><value>غير مفحوص</value></data>
+  <data name="FindingContextDerivedValue" xml:space="preserve"><value>اختيار عام مستنتج من السياق</value></data>
   <data name="ImportReady" xml:space="preserve"><value>تم استيراد الحقول المدعومة. راجع الإجابات المحجوبة وتحقق منها.</value></data>
   <data name="ImportReading" xml:space="preserve"><value>جارٍ قراءة الملف المحلي. يؤدي التعديل أو المسح إلى إلغاء الاستيراد.</value></data>
-  <data name="ImportCancelled" xml:space="preserve"><value>أُلغي الاستيراد. في انتظار انتهاء تنظيف القراءة الحالية.</value></data>
+  <data name="ImportAdopting" xml:space="preserve"><value>جارٍ ملء الحقول من المقارنة المحتفظ بها. يؤدي التعديل أو المسح إلى إلغاء الاستيراد.</value></data>
+  <data name="ImportCancelled" xml:space="preserve"><value>أُلغي الاستيراد. في انتظار انتهاء تنظيف العمل المعلق.</value></data>
   <data name="ShutdownWaiting" xml:space="preserve"><value>جارٍ الإغلاق وإلغاء العمل المعلق وانتظار التنظيف لمدة ثانيتين كحد أقصى.</value></data>
   <data name="ShutdownUnknown" xml:space="preserve"><value>إغلاق مع عمل لم تُحسم نتيجته. قد تبقى ملفات منشأة؛ راجعها قبل إعادة المحاولة.</value></data>
   <data name="ImportFailed" xml:space="preserve"><value>رُفض الاستيراد ولم تتغير الإجابات.</value></data>

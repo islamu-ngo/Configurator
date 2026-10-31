@@ -8,9 +8,12 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
 
-internal sealed record SetupTerminalImportResult(bool IsCurrent, bool Succeeded, string Code);
+internal sealed record SetupTerminalImportResult(bool IsCurrent, bool Succeeded, string Code)
+{
+    internal bool IsComparison { get; init; }
+}
 
-/// <summary>Owns one physical read until cleanup, and admits its bytes only on the current UI owner.</summary>
+/// <summary>Owns physical input and cooperative comparison or adoption until cleanup on the current UI owner.</summary>
 internal sealed class SetupTerminalImportOperation : IDisposable
 {
     private readonly object _gate = new();
@@ -18,6 +21,7 @@ internal sealed class SetupTerminalImportOperation : IDisposable
     private readonly Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>>? _read;
     private readonly Func<string, Stream> _openRead;
     private readonly Action<Action> _dispatch;
+    private readonly Func<CancellationToken, ValueTask> _cooperativeYield;
     private Attempt? _active;
     private long _generation;
     private bool _disposed;
@@ -25,25 +29,42 @@ internal sealed class SetupTerminalImportOperation : IDisposable
 
     internal SetupTerminalImportOperation(DefinitionFormModel form, Action<Action> dispatch,
         Func<string, CancellationToken, Task<ReadOnlyMemory<byte>>>? read = null,
-        Func<string, Stream>? openRead = null)
+        Func<string, Stream>? openRead = null,
+        Func<CancellationToken, ValueTask>? cooperativeYield = null)
     {
         _form = form;
         _dispatch = dispatch;
         _read = read;
+        _cooperativeYield = cooperativeYield ?? (_ => ValueTask.CompletedTask);
         _openRead = openRead ?? (path => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
             4096, FileOptions.Asynchronous | FileOptions.SequentialScan));
+    }
+
+    internal bool StartAdoption(string artifactId)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _active is not null) return false;
+            var attempt = new Attempt(++_generation, artifactId, _form.InputRevision, _form.Definition,
+                compare: false, adoption: true);
+            _active = attempt;
+            _completion = RunAsync(attempt, null);
+            Observe(_completion);
+            return true;
+        }
     }
 
     internal event EventHandler<SetupTerminalImportResult>? Settled;
     internal bool IsBusy { get { lock (_gate) return _active is not null; } }
     internal Task Completion { get { lock (_gate) return _completion; } }
 
-    internal bool Start(string path, string artifactId)
+    internal bool Start(string path, string artifactId, bool compare = false)
     {
         lock (_gate)
         {
             if (_disposed || _active is not null) return false;
-            var attempt = new Attempt(++_generation, artifactId, _form.InputRevision, _form.Definition);
+            _form.ClearImportComparison();
+            var attempt = new Attempt(++_generation, artifactId, _form.InputRevision, _form.Definition, compare);
             _active = attempt;
             _completion = RunAsync(attempt, path);
             Observe(_completion);
@@ -56,6 +77,7 @@ internal sealed class SetupTerminalImportOperation : IDisposable
         lock (_gate)
         {
             _generation++;
+            _form.ClearImportComparison();
             if (_active is not { } attempt || attempt.Retiring) return Task.CompletedTask;
             if (!attempt.Source.IsCancellationRequested)
             {
@@ -67,24 +89,27 @@ internal sealed class SetupTerminalImportOperation : IDisposable
         }
     }
 
-    private async Task RunAsync(Attempt attempt, string path)
+    private async Task RunAsync(Attempt attempt, string? path)
     {
         var result = new SetupTerminalImportResult(true, false, "import-failed");
         try
         {
-            if (_read is null)
+            if (!attempt.Adoption)
             {
-                attempt.Input = await BoundedFileInput.ReadAsync(() => _openRead(path),
-                    SetupCompositionLimits.DefaultAggregateSourceBytes, attempt.Token).ConfigureAwait(false);
-                attempt.Bytes = attempt.Input.Bytes;
+                if (_read is null)
+                {
+                    attempt.Input = await BoundedFileInput.ReadAsync(() => _openRead(path!),
+                        SetupCompositionLimits.DefaultAggregateSourceBytes, attempt.Token).ConfigureAwait(false);
+                    attempt.Bytes = attempt.Input.Bytes;
+                }
+                else
+                {
+                    // Injected external readers may also block before their first asynchronous suspension.
+                    attempt.Bytes = await Task.Run(() => _read(path!, attempt.Token), attempt.Token).ConfigureAwait(false);
+                }
+                if (attempt.Bytes.Length is < 1 or > SetupCompositionLimits.DefaultAggregateSourceBytes)
+                    throw new InvalidDataException();
             }
-            else
-            {
-                // Injected external readers may also block before their first asynchronous suspension.
-                attempt.Bytes = await Task.Run(() => _read(path, attempt.Token), attempt.Token).ConfigureAwait(false);
-            }
-            if (attempt.Bytes.Length is < 1 or > SetupCompositionLimits.DefaultAggregateSourceBytes)
-                throw new InvalidDataException();
             lock (_gate)
             {
                 if (!IsCurrent(attempt))
@@ -146,9 +171,15 @@ internal sealed class SetupTerminalImportOperation : IDisposable
                 if (!IsCurrent(attempt)) return;
                 attempt.Applying = true;
             }
-            DefinitionImportResult imported = await _form.ImportAsync(attempt.ArtifactId,
-                _ => Task.FromResult(attempt.Bytes), attempt.Token);
-            attempt.Result = new(true, imported.Succeeded, imported.Code ?? "import-ready");
+            if (!attempt.Adoption)
+            {
+                DefinitionImportComparisonResult compared = await _form.CompareAsync(attempt.ArtifactId,
+                    _ => Task.FromResult(attempt.Bytes), _cooperativeYield, attempt.Token);
+                attempt.Result = new(true, compared.Succeeded, compared.Code) { IsComparison = attempt.Compare };
+                if (!compared.Succeeded || attempt.Compare) return;
+            }
+            DefinitionImportResult imported = await _form.AdoptImportComparisonAsync(_cooperativeYield, attempt.Token);
+            attempt.Result = new(true, imported.Succeeded, imported.Code);
         }
         catch (Exception exception)
         {
@@ -201,18 +232,23 @@ internal sealed class SetupTerminalImportOperation : IDisposable
 
     private sealed class Attempt
     {
-        internal Attempt(long generation, string artifactId, long revision, SetupDefinition definition)
+        internal Attempt(long generation, string artifactId, long revision, SetupDefinition definition, bool compare,
+            bool adoption = false)
         {
             Generation = generation;
             ArtifactId = artifactId;
             InputRevision = revision;
             Definition = definition;
+            Compare = compare;
+            Adoption = adoption;
             Token = Source.Token;
         }
         internal long Generation { get; }
         internal string ArtifactId { get; }
         internal long InputRevision { get; }
         internal SetupDefinition Definition { get; }
+        internal bool Compare { get; }
+        internal bool Adoption { get; }
         internal CancellationTokenSource Source { get; } = new();
         internal CancellationToken Token { get; }
         internal Task Cancellation { get; set; } = Task.CompletedTask;
