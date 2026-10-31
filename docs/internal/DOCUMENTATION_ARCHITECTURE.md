@@ -36,10 +36,10 @@ or need a specific reference.
 | Audience | Start Here | Then Read |
 |---|---|---|
 | Evaluators | `README.md` | `docs/public/getting-started.md`, then the relevant client guide |
-| Local developers | `CONTRIBUTING.md`, `PROJECTS.md` | `TESTING.md`, `GOVERNANCE.md`, affected owner contract |
+| Local developers | [Developer guide](DEVELOPER_GUIDE.md), `PROJECTS.md` | `TESTING.md`, `GOVERNANCE.md`, affected owner contract |
 | Adopters | `docs/public/getting-started.md` | `definitions.md`, `native-output.md`, `packaging.md` |
 | Integrators | `docs/public/integrating.md` | `definition-cookbook.md`, `integrate-your-tool.md`, `DEFINITION_CONFORMANCE_PROFILE.md`; for launch, `launch-integration.md` and `LAUNCH_CONTRACT.md` |
-| Contributors | `PROJECTS.md` | `GOVERNANCE.md`, `QUICK_REFERENCE.md`, `DOCUMENTATION_ARCHITECTURE.md` |
+| Contributors | [First contribution](FIRST_CONTRIBUTION.md), [worked recipes](CONTRIBUTOR_RECIPES.md) | `CONTRIBUTING.md`, `GOVERNANCE.md`, `QUICK_REFERENCE.md`, [writing guide](DOCUMENTATION_STYLE_GUIDE.md) |
 | AI agents | `AGENTS.md` | Matching intent, path rules and task-owned context |
 
 ## Primary documentation and owners
@@ -61,7 +61,7 @@ navigation pages and generated inventories project it rather than replace it.
 | Browser | `LAUNCH_CONTRACT.md`, `BROWSER_UI.md`, public browser guide |
 | Terminal | `TERMINAL_CLIENT.md`, public terminal guide |
 | Desktop | `DESKTOP_CLIENT.md`, public desktop guide |
-| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `STATUS.md`, `KNOWLEDGE_MAP.md`, `docs/public/getting-started.md`, this document |
+| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `STATUS.md`, `KNOWLEDGE_MAP.md`, `DEVELOPER_GUIDE.md`, `FIRST_CONTRIBUTION.md`, `CONTRIBUTOR_RECIPES.md`, `DOCUMENTATION_STYLE_GUIDE.md`, `docs/public/getting-started.md`, this document |
 | Agent Context | `AGENTS.md`, `.agents/contract/`, `.agents/skills/`, `dev/_journal/` |
 
 ## Metadata Policy

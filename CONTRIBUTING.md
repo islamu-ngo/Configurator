@@ -21,6 +21,14 @@ ISLAMU Configurator is a purpose-agnostic, offline configuration preparation uti
 
 This guide explains **what kind of contributions are likely to be accepted** and how to submit them properly. Following it saves time for both you and the maintainers.
 
+For the practical development path, start with
+[your first contribution](docs/internal/FIRST_CONTRIBUTION.md), then choose a
+[worked contributor recipe](docs/internal/CONTRIBUTOR_RECIPES.md). The
+[developer guide](docs/internal/DEVELOPER_GUIDE.md) explains ownership and control
+flow; the [documentation style guide](docs/internal/DOCUMENTATION_STYLE_GUIDE.md)
+helps you write and verify source-grounded guidance. Contribution policy below
+still governs scope and submission.
+
 > [!IMPORTANT]
 > These guidelines may feel stricter than in many open-source projects. That is intentional.
 > Clear structure, architectural boundaries, and legal hygiene prevent maintainer burnout and keep the project sustainable long-term.
@@ -102,7 +110,10 @@ The following types of contributions are most likely to be accepted:
 All contributions must adhere to the project's architectural invariants:
 - **Clean Architecture:** Core has no Event backend, domain, wire or database dependency. Native Artifacts and shared Presentation remain independent of target application services.
 - **Definition Boundaries:** Definitions are bounded declarative data. Family/revision/digest identity pins admitted content; a GUID or publisher label does not confer trust.
-- **Public Privacy:** Browser controls accept active public enum/boolean choices only. Public templates are partial, not full native readiness or host authority.
+- **Browser Privacy:** Browser answers remain transient and local. Secret entry
+  requires explicit per-workspace consent; revocation clears secret leaves and
+  retires prepared output. Public assets and caches contain no answers or
+  artifacts. Deliberate exports are not protected native saves.
 - **Protected Output:** Native artifacts retain sensitivity floors and create-only writes. Unsupported hosts fail closed; adapters cannot add an ordinary-file fallback.
 - **Shared Generations:** Immutable workspace snapshots prevent stale preparation, import or save completion from replacing current state.
 - **Test-Driven:** Logic changes require focused behavioral invariants through actual public seams, with independent expected values.
@@ -241,6 +252,19 @@ Incomplete bug reports or reports generated purely with generic AI output may be
 ## 3. Documentation & Translation Contributions
 - **Docs:** Repository documentation lives in `docs/`, with [public operator guides](docs/README.md) alongside internal source anchors. When editing or creating repository docs, follow [`docs/internal/DOCUMENTATION_ARCHITECTURE.md`](docs/internal/DOCUMENTATION_ARCHITECTURE.md) and include source anchors.
 - **Translations:** Contributions to native resource files and documentation language packs are warmly welcomed. No Configurator Weblate deployment is assumed.
+
+Start with the [task navigation](docs/README.md), then read only the affected
+contract and public counterpart. Distinguish current requirements from proposals
+and historical evidence using the [knowledge map](docs/internal/KNOWLEDGE_MAP.md).
+When they disagree, follow the
+[reconciliation procedure](docs/internal/DOCUMENTATION_ARCHITECTURE.md#resolve-disagreements);
+do not silently turn an implementation bug into the intended contract.
+
+For prose and navigation, run the [native knowledge checks](eng/knowledge/README.md)
+on the affected current documents. Validate runnable examples against maintained
+synthetic fixtures and actual command owners. Keep partial snippets labeled,
+preserve historical evidence and record unexecuted checks honestly. Product
+builds and suites are unnecessary for pure prose.
 
 ---
 

@@ -1,106 +1,65 @@
-# Configurator Documentation Hub
+# Configurator documentation
 
-Welcome to the ISLAMU Configurator documentation. Configurator is an offline, deployment-neutral utility that turns declarative setup definitions and local user answers into candidate configuration files (`.env`, JSON, YAML). The target application independently validates and authorizes their use.
+Configurator prepares candidate configuration files from public, data-only
+definitions and private local answers. The target application independently
+validates, authorizes and applies those files.
 
-Documentation is organized into two parallel tracks:
-- **`public/` (Adopters & Integrators):** User guides, interface walkthroughs, command references, and tutorials.
-- **`internal/` (Contributors, Maintainers & AI Agents):** Core vision, rejected alternatives, architecture diagrams, engineering contracts, and invariant policies.
+Choose a task below. You do not need to read the entire corpus. The
+[knowledge map](internal/KNOWLEDGE_MAP.md) explains how current contracts,
+decisions, strategy, proposals and historical evidence relate.
 
----
+## Use or integrate Configurator
 
-## Start with Your Task
-
-| I want to… | Start here |
-|---|---|
-| Understand what Configurator is and how it works | 📖 [Overview & Mental Model](public/overview.md) |
-| Look up terms, definitions, and concepts | 📖 [Glossary](public/glossary.md) |
-| Try a 5-minute offline walkthrough with sample data | 🚀 [Quickstart Guide](public/getting-started.md) |
-| Automate configuration or run headless in CI/CD | 💻 [CLI Reference](public/cli.md) |
-| Fill in a form interactively | ⌨️ [Terminal TUI](public/terminal.md) · 🖥️ [Desktop GUI](public/desktop.md) · 🌐 [Web Browser](public/browser.md) |
-| Add configuration support to my own application | [Adopt Configurator beside your application](public/integrating.md) · [Detailed maintainer guide](public/integrate-your-tool.md) |
-| Apply supported schema and answer-state patterns | [Definition cookbook](public/definition-cookbook.md) |
-| Inspect definition syntax and field types | 🧩 [Definitions Guide](public/definitions.md) |
-| Check required properties, defaults, import limits, and client support | [Current Definition Contract Reference](public/definition-reference.md) |
-| Review the implemented bounded-v2 contract and qualification limits | [Definition Standard v2](public/definition-standard.md) · [Technical conformance profile](internal/DEFINITION_CONFORMANCE_PROFILE.md) |
-| Configure JSON Schema validation in your IDE | 📐 [Schema Catalog & IDE Setup](../schemas/README.md) |
-| Recover from a failed or interrupted save | 🛡️ [Native Output & Recovery](public/native-output.md) |
-| Troubleshoot exit codes, save failures, or UI issues | 🔧 [Troubleshooting Guide](public/troubleshooting.md) |
-| Compare with RunTipi, Backstage, Umbrel, Portainer, or Helm | ⚖️ [Architectural Comparison](public/comparison.md) |
-| Build from source or run standalone binaries | 📦 [Standalone Packaging](public/packaging.md) |
-| Deep-link an application directly into Configurator | 🔗 [Launch Integration](public/launch-integration.md) |
-| Browse or contribute to the public catalog | 🏪 [Definition Store](public/definition-store.md) |
-| Inspect historical architecture reviews & reports | 📑 [Historical Reports Index](internal/reports/README.md) |
-| Contribute code or understand architecture | 🏗️ [Architecture](internal/ARCHITECTURE.md) · [Vision & Approach](internal/VISION_AND_APPROACH.md) · [Project Map](../PROJECTS.md) |
-
----
-
-## Understand the Workflow
-
-```mermaid
-flowchart LR
-    A["1. Review Definition<br/>(Declarative schema)"] --> B["2. Supply Answers<br/>(Local & transient)"]
-    B --> C["3. Validate & Prepare<br/>(Deterministic compilation)"]
-    C --> D["4. Hand to Target<br/>(Your service applies files)"]
-```
-
-1. **Review a Definition:** Upstream authors declare questions, validation constraints, and output file projections. Definitions are pure data and contain no executable scripts.
-2. **Supply Local Answers:** Enter your answers in the CLI, Terminal, Desktop, or Browser. Real credentials stay in private, local memory.
-3. **Validate and Prepare:** Configurator checks all constraints and deterministically compiles output files. On Linux, files are written with owner-only, create-only protection.
-4. **Hand Files to the Target:** You apply the generated files to your target application (e.g., via Docker Compose, systemd, or Kubernetes). Configurator never modifies running services on your behalf.
-
-> [!IMPORTANT]
-> **Filesystem Protection Boundaries:** The native protected writer enforces create-only, owner-only (`0600`) file permissions verified on Linux. On macOS and Windows, protected saves reject without an ordinary-file fallback. Browser downloads are deliberate user-initiated exports, not native protected saves. See [Platform Boundaries](public/packaging.md#platform-limitations--alerts).
-
----
-
-## User Guides and Technical References
-
-Each public guide corresponds to an authoritative internal technical reference:
-
-| Domain | User Guide (`public/`) | Technical Source Anchor (`internal/`) |
+| Your task | Start here | Continue when needed |
 |---|---|---|
-| **Architecture & Vision** | [Overview](public/overview.md) · [Glossary](public/glossary.md) | [Vision & Approach](internal/VISION_AND_APPROACH.md) · [Architecture](internal/ARCHITECTURE.md) · [Design Alternatives](internal/DESIGN_ALTERNATIVES.md) |
-| **Definitions & Validation** | [Definitions](public/definitions.md) · [Current Reference](public/definition-reference.md) · [Standard](public/definition-standard.md) · [Cookbook](public/definition-cookbook.md) · [Schemas](../schemas/README.md) | [Core Definition Contract](internal/CORE_DEFINITION_CONTRACT.md) · [Conformance Profile](internal/DEFINITION_CONFORMANCE_PROFILE.md) · [Qualification Map](internal/DEFINITION_PROFILE.md) |
-| **Tool Authoring & Revisions** | [Integration workflow](public/integrating.md) · [Detailed maintainer guide](public/integrate-your-tool.md) | [Maintainer Authoring](internal/MAINTAINER_AUTHORING.md) |
-| **CLI & Machine Envelopes** | [CLI](public/cli.md) | [CLI Contract](internal/CLI_CONTRACT.md) |
-| **Interactive Terminal** | [Terminal](public/terminal.md) | [Terminal Client](internal/TERMINAL_CLIENT.md) · [Presentation State](internal/PRESENTATION_STATE.md) |
-| **Desktop Application** | [Desktop](public/desktop.md) | [Desktop Client](internal/DESKTOP_CLIENT.md) · [Presentation State](internal/PRESENTATION_STATE.md) |
-| **Browser WASM & Privacy** | [Browser](public/browser.md) | [Launch Contract](internal/LAUNCH_CONTRACT.md) · [Presentation State](internal/PRESENTATION_STATE.md) · [Browser UI](internal/BROWSER_UI.md) |
-| **Protected Output & Recovery** | [Native Output](public/native-output.md) | [Protected Artifacts](internal/PROTECTED_ARTIFACTS.md) |
-| **Troubleshooting & Diagnostics** | [Troubleshooting](public/troubleshooting.md) | [Operations Guide](internal/OPERATIONS.md) · [Historical Reports Index](internal/reports/README.md) |
-| **Platform Comparison** | [Comparison Matrix](public/comparison.md) | [Vision & Approach](internal/VISION_AND_APPROACH.md) · [Universal Configurator Strategy](internal/universal-configurator.md) |
-| **Target Handoff & Launch** | [Launch Integration](public/launch-integration.md) | [Launch Contract](internal/LAUNCH_CONTRACT.md) · [ADR: Definition Boundary](internal/adr/ADR-definition-runtime-boundary.md) |
-| **Standalone Packaging** | [Packaging](public/packaging.md) | [Packaging Contract](internal/PACKAGING.md) |
-| **Definition Store** | [Definition Store](public/definition-store.md) | [Store Contract](internal/DEFINITION_STORE.md) · [ADR: Optional Store](internal/adr/ADR-optional-definition-store.md) |
+| Understand the product | [Overview](public/overview.md) | [Glossary](public/glossary.md), [architecture](internal/ARCHITECTURE.md) |
+| Prepare your first files | [Runnable quickstart](public/getting-started.md) | [Native output and recovery](public/native-output.md) |
+| Automate local preparation | [CLI commands and results](public/cli.md) | [Machine contract](internal/CLI_CONTRACT.md) |
+| Fill a form | [Terminal](public/terminal.md), [Desktop](public/desktop.md), [Browser](public/browser.md) | [Support and evidence](internal/STATUS.md) |
+| Understand presence, null and defaults | [Definition mental model](public/definitions.md) | [Exact reference](public/definition-reference.md), [cookbook](public/definition-cookbook.md) |
+| Add configuration support to an application | [Adoption tutorial](public/integrating.md) | [Maintainer lifecycle](public/integrate-your-tool.md), [maintained examples](../examples/README.md) |
+| Look up syntax, versions or limits | [Definition reference](public/definition-reference.md) | [Schema catalog](../schemas/README.md), [conformance profile](internal/DEFINITION_CONFORMANCE_PROFILE.md) |
+| Understand portability and conformance | [Definition standard](public/definition-standard.md) | [Qualification obligations](internal/DEFINITION_PROFILE.md) |
+| Compare or reuse an existing configuration | [Import and compare](public/import-and-compare.md) | [Implementation and qualification status](internal/STATUS.md), [technical contract](internal/IMPORT_COMPARISON.md) |
+| Diagnose a failure | [Troubleshooting](public/troubleshooting.md) | [Safe publication recovery](public/native-output.md) |
+| Build or package a client | [Packaging guide](public/packaging.md) | [Project commands](../PROJECTS.md), [technical packaging contract](internal/PACKAGING.md) |
+| Link an application to the browser | [Launch integration](public/launch-integration.md) | [Launch trust boundary](internal/LAUNCH_CONTRACT.md) |
+| Distribute public definitions | [Optional store](public/definition-store.md) | [Store contribution instructions](../store/README.md) |
+| Compare architectural approaches | [Comparison](public/comparison.md) | [Direction and tradeoffs](internal/VISION_AND_APPROACH.md) |
 
----
+## Contribute or investigate a mechanism
 
-## Qualified pre-release evidence
+| Your task | Required route | Result |
+|---|---|---|
+| Make a first contribution | [First contribution](internal/FIRST_CONTRIBUTION.md) → [contributor recipes](internal/CONTRIBUTOR_RECIPES.md) | Complete a small source-grounded change with proportional verification |
+| Learn the developer architecture | [Developer guide](internal/DEVELOPER_GUIDE.md) → [project map](../PROJECTS.md) | Follow dependencies, data flow and ownership |
+| Change a definition assertion | [Conformance profile](internal/DEFINITION_CONFORMANCE_PROFILE.md) → [mechanism map](internal/CORE_DEFINITIONS.md) → [Core contract](internal/CORE_DEFINITION_CONTRACT.md) | Change the shared semantic owner, not a client-specific evaluator |
+| Fix typing, edits or consent | [Presentation state](internal/PRESENTATION_STATE.md) → [Browser UI](internal/BROWSER_UI.md) → [launch/custody contract](internal/LAUNCH_CONTRACT.md) | Preserve input revision, operation generation and secret custody |
+| Change machine output | [CLI contract](internal/CLI_CONTRACT.md) → [schema catalog](../schemas/README.md) → [project map](../PROJECTS.md) | Coordinate emitter, generated schema and independent consumers |
+| Fix native save or close | [Protected artifacts](internal/PROTECTED_ARTIFACTS.md) → [Terminal](internal/TERMINAL_CLIENT.md) or [Desktop](internal/DESKTOP_CLIENT.md) | Preserve physical lifetime and installed-file facts after cancellation |
+| Edit documentation | [Writing guide](internal/DOCUMENTATION_STYLE_GUIDE.md) → [documentation policy](internal/DOCUMENTATION_ARCHITECTURE.md) → [knowledge checks](../eng/knowledge/README.md) | Correct the owner and public counterpart; use proportional checks |
+| Run tests or inspect coverage | [Testing](internal/TESTING.md) → [project commands](../PROJECTS.md) | Distinguish executed tests from measured coverage |
+| Package or release | [Packaging](internal/PACKAGING.md) → [release runbook](internal/RELEASE_RUNBOOK.md) → [release tooling](../eng/release/README.md) | Keep local validation separate from publication authority |
+| Understand a design decision | [Decision index](internal/adr/README.md) | Find rationale, supersession and delivery status |
+| Locate provider-responsibility reasoning | [I-VSD assessment catalog](../islamic-value-sensitive-design/README.md) | Find governance, consultations and workstream reports with their recorded evidence limits |
+| Inspect earlier evidence | [Support index](internal/STATUS.md) → [operations records](internal/OPERATIONS.md) or [historical reports](internal/reports/README.md) | Identify the actual revision, host, scenario and evidence limits |
+| Work as an AI agent | [AGENTS.md](../AGENTS.md) → [matching intent](../.agents/contract/intents.yaml) | Load only the applicable rules, skills and headings |
 
-Parent-reported bounded-v2 qualification completed Core **217**, Desktop **229**,
-Terminal **106**, and Architecture **73** passing tests; Linux x64 X11 native
-exercises passed all **19** scenarios in both English and Arabic. The published
-AOT Browser was exercised on real desktop/mobile layouts, RTL, offline and
-custody flows. Standalone Linux x64 CLI exercises covered complete/incomplete
-preparation and create-only conflicts. This documentation update did not rerun
-qualification; the parent owns verification records.
+## Follow authority, not export order
 
-These observations do not qualify general assertions beyond bounded-v2,
-application-version ranges, target acceptance, other hosts, assistive
-technologies, translation quality, stakeholder/usability or scholarly proof.
-See [Operations](internal/OPERATIONS.md) for execution evidence and the
-[definition qualification map](internal/DEFINITION_PROFILE.md) for scope.
+`public/` explains use and adoption. `internal/` contains engineering contracts,
+procedures, decision records and evidence, whose kinds must remain distinct.
+The [documentation ownership table](internal/DOCUMENTATION_ARCHITECTURE.md#primary-documentation-and-owners)
+assigns accountability. The [disagreement procedure](internal/DOCUMENTATION_ARCHITECTURE.md#resolve-disagreements)
+explains how to reconcile conflicting claims without treating either a bug or
+an unimplemented plan as the intended contract.
 
----
+The [support index](internal/STATUS.md) is the entry point for qualification.
+Buildable pre-release packages are not official releases. Source inspection,
+unit tests, actual-host exercises, accessibility assessment and target acceptance
+are different evidence. Exact totals stay in dated records, not this navigation
+page.
 
-## Contributor Reading Paths
-
-| If you want to… | Follow this reading order |
-|---|---|
-| **Understand project vision, goals & rejected attempts** | [Vision & Approach](internal/VISION_AND_APPROACH.md) → [Design Alternatives](internal/DESIGN_ALTERNATIVES.md) → [Architecture Overview](internal/ARCHITECTURE.md) |
-| **Make a code change** | [Project Map](../PROJECTS.md) → [Quick Reference](internal/QUICK_REFERENCE.md) → affected technical reference above → [Testing Guide](internal/TESTING.md) |
-| **Understand governance & standards** | [Governance](internal/GOVERNANCE.md) → [Documentation Architecture](internal/DOCUMENTATION_ARCHITECTURE.md) |
-| **Explore architectural decisions** | [ADR Index](internal/adr/) (12 Architecture Decision Records) |
-| **Reproduce verification & package checks** | [Operations Guide](internal/OPERATIONS.md) → [Packaging Contract](internal/PACKAGING.md) |
-| **Work on releases & provenance** | [Release Runbook](internal/RELEASE_RUNBOOK.md) → [Release Tooling](../eng/release/README.md) → [IP Governance](internal/legal/IP_GOVERNANCE.md) |
-| **Work as an AI coding agent** | [AGENTS.md](../AGENTS.md) → matching intent in `.agents/contract/intents.yaml` |
+For bounded AI retrieval or offline review, use the
+[original-content context profiles](../eng/knowledge/README.md). Full history
+remains available without forcing every contributor to load it.
