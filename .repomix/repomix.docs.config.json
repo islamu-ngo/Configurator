@@ -1,0 +1,34 @@
+{
+  "include": [
+    "schemas/**/*",
+    "docs/**/*",
+    "islamic-value-sensitive-design/**/*",
+    "dev/report/**/*",
+    "dev/active/**/*",
+    "README.md",
+    "AGENTS.md",
+    "docker-compose.yml",
+    "global.json",
+    "Directory.Build.props",
+    "Directory.Packages.props"
+  ],
+  "output": {
+    "style": "markdown",
+    "filePath": ".repomix/repomix-docs.md",
+    "showLineNumbers": false,
+    "topFilesLength": 50,
+    "copyToClipboard": false
+  },
+  "ignore": {
+    "customPatterns": [
+      ".claude/hooks/**/*",
+      "**/*.log",
+      ".env*",
+      ".mcp.json",
+      ".copilot/mcp-config.json",
+      ".codex/config.toml"
+    ],
+    "useGitignore": true,
+    "useDefaultPatterns": true
+  }
+}
