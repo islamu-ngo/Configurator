@@ -1,12 +1,39 @@
 # Vision and Approach
 
 > **Audience:** Contributors | AI agents
-> **Status:** Implemented
+> **Kind:** Explanation
+> **Status:** Maintained direction; implementation and ambitions distinguished below
 > **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-27
 > **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md`, `AGENTS.md`
 
-Welcome to ISLAMU Configurator! This document outlines the core vision, architectural principles, and strategic approach governing the project. Whether you are adding a new feature, maintaining a client surface, or contributing an application definition, this guide provides the context behind our design choices.
+ISLAMU Configurator helps maintainers describe configuration requirements once
+and helps operators prepare candidate configuration files locally. A bounded,
+non-executable definition supplies data constraints, presentation metadata and
+output mappings. CLI, Terminal, Desktop and Browser share Core semantics, while
+their interaction and custody mechanisms differ. Public discovery is optional;
+the target application retains validation, authorization and apply authority.
+
+This page owns maintained product direction, not qualification records or the
+definition grammar. [Architecture](ARCHITECTURE.md) explains implemented owners;
+[support and evidence](STATUS.md) identifies what has actually been exercised.
+The user-authored strategy documents remain intact and are interpreted through
+the [knowledge map](KNOWLEDGE_MAP.md), not silently rewritten as current contracts.
+
+## Distinctions that govern the product
+
+- **Public definitions and private answers:** publish requirements and mappings,
+  not operator answers or prepared artifacts.
+- **Preparation and publication:** producing bytes does not mean installing them.
+- **Publication and application:** a saved file does not grant target acceptance
+  or permission to change a running service.
+- **Shared semantics and client controls:** Core supplies one evaluation authority;
+  interactive adapters and machine commands have different workflows.
+- **Capability and qualification:** source implementation, package admission,
+  actual-host evidence and official release are separate claims.
+
+Independent authoring/runtime, answer, command and family/revision versions are
+explained in the [definition reference](../public/definition-reference.md).
 
 ## The Configuration Experience Problem
 
@@ -24,9 +51,20 @@ Operators are left trapped between brittle, manual text editing and monolithic p
 Configurator solves this dilemma through seven concrete, focused goals:
 
 1. **Portable, Declarative Definitions:** Applications publish a single, non-executable definition (`SetupDefinition`) describing questions, constraints, relevance rules, and artifact projections without runtime plugins or scripts.
-2. **Multi-Surface Rendering Parity:** Operators experience identical validation semantics, question ordering, and defaults across Machine CLI, Terminal TUI (`Terminal.Gui`), Avalonia Desktop, and static WebAssembly (`Blazor WASM`) browsers.
+2. **Shared Semantics Across Surfaces:** Core supplies admission, validation and
+   projection semantics to Machine CLI, Terminal TUI, Avalonia Desktop and Blazor
+   WebAssembly. Controls, ordering affordances and qualified scenarios are
+   surface-specific; identical rendered interaction is not a product promise.
 3. **Strict Target Authority Separation:** Configurator is a preparation-only engine. It renders native configuration artifacts (`.env`, JSON, YAML) with high fidelity while leaving runtime enrollment, host administration, and apply actions to the target application.
-4. **Security-First Secret Custody:** Keep secrets transient in client memory with per-workspace operator consent, masked display, cryptographic generation, zero telemetry, and Linux create-only protected file writing.
+4. **Explicit Secret Custody:** Keep private answers local, mask sensitive entry,
+   require per-workspace browser consent and use create-only protected native
+   publication on qualified Linux hosts. Credential acquisition metadata is not
+   evidence of a local credential generator; such a capability needs its own
+   implementation and qualification before being described as delivered.
+   Core's `LocalSecretGenerator` does implement a 256-bit opaque URL-safe
+   environment-value generator with disposable owned buffers
+   (`src/Configurator.Core/Secrets/LocalSecretGenerator.cs`). That API does not
+   prove every definition credential descriptor has a rendered generation action.
 5. **Upstream Ownership via Deep Linking:** Maintainers keep definitions directly within their own repositories and embed "Configure Visually" deep links in their documentation, bypassing centralized store bottlenecks.
 6. **Deterministic Machine & AI Interfaces:** CLI commands output structured JSON envelopes, sanitized-view SHA-256 digests, and value-free diagnostics designed for automated pipelines and AI agents.
 7. **Conformance-Backed Version Integrity:** Support exact declared application versions and deterministic artifact generation validated by checked golden fixtures rather than runtime version heuristics.
@@ -46,7 +84,10 @@ The configuration experience is completely decoupled from the rendering surface:
 - **Browser (`Configurator.Browser`):** Zero-install, static client-side Blazor WebAssembly running entirely in the operator's browser.
 
 > [!NOTE]
-> All surfaces share the same core validation logic, state machine (`Configurator.Presentation`), and projection rules. An answer valid in the terminal is equally valid in the browser or CLI.
+> All surfaces share Core admission, validation and projection rules for supported
+> capabilities. Terminal, Desktop and Browser use the interactive
+> `Configurator.Presentation` workspace. CLI consumes Core and Artifacts directly.
+> Surface qualification and secret-entry permissions remain distinct.
 
 ### 3. Offline-First Architecture
 Configurator operates entirely without a backend server or mandatory cloud connectivity. Definitions, validation, and artifact composition run locally in memory. In the browser, Blazor WebAssembly executes within the local sandbox, loading static assets via standard service workers.
@@ -80,12 +121,14 @@ To maintain focus and avoid architectural rot, Configurator enforces strict scop
 |---|---|---|---|
 | **Bootstrap Configuration** | `.env`, database host/port, root URLs, SMTP host, HCL settings | **First-class core mission.** Guided collection, validation, and native projection. | Pure declarative compilation to target file formats. |
 | **Declarative Application State** | Keycloak realms, Authentik blueprints, Grafana data sources | **First-class, version-bounded.** Projected directly into target JSON/YAML structures. | Schema-bound generation only; no live cluster reconciliation. |
-| **Secrets & Credentials** | Database passwords, API keys, JWT secrets, TLS private keys | **Collect or generate locally.** Support masked input, local entropy generation, and secret-deferred drafts. | Transient memory custody, per-workspace consent, create-only Linux output, zero telemetry. |
+| **Secrets & Credentials** | Database passwords, API keys, JWT secrets, TLS private keys | **Collect locally.** Support sensitivity-aware input and incomplete secret-deferred drafts; do not infer generation from acquisition metadata. | Local custody, explicit browser consent, qualified Linux create-only output, no answer telemetry. Drafts can contain supplied private values and remain restricted. |
 | **Runtime Mutable State** | User accounts, active sessions, uploaded assets, job histories | **Strictly out of scope.** Belongs entirely to the running application. | Refuse runtime state synchronization, database connections, or management APIs. |
 | **Backup & Restore State** | Volume dumps, database snapshots, full instance backups | **Explicitly out of scope.** Configuration is not instance state. | Never pretend generated configuration constitutes a system backup. |
 
 > [!WARNING]
-> Never blur the line between configuration generation and runtime administration. Configurator generates the exact files a software release expects; the host application owns deployment and semantic acceptance.
+> Configurator generates files according to the selected definition. The target
+> application, not the definition or a successful preparation, establishes
+> deployment suitability and semantic acceptance.
 
 ## Deeper Reading
 

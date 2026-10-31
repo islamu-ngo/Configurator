@@ -6,11 +6,22 @@
 > **Last Verified:** 2026-10-27
 > **Source Anchors:** `PROJECTS.md`, `src/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`, `docs/internal/PRESENTATION_STATE.md`
 
-ISLAMU Configurator is a layered, offline-first configuration runtime. It transforms declarative setup definitions into verified, native configuration artifacts across multiple user surfaces while enforcing strict boundaries around secret custody and target authority.
+ISLAMU Configurator is a layered, offline-first configuration preparation utility.
+It evaluates local answers against an admitted data-only definition and prepares
+candidate native files. The target application independently decides whether
+those files are semantically valid, authorized and safe to apply.
+
+This page explains owners and control flow. [Governance](GOVERNANCE.md#dependency-rules)
+owns the compiled dependency policy; [PROJECTS.md](../../PROJECTS.md) owns project
+locations and verification commands. [Support and evidence](STATUS.md) separates
+implemented mechanisms from actual-host qualification.
 
 ## Component Architecture
 
-The codebase is organized into eight primary projects under `src/`. Dependencies strictly flow downward from presentation and client adapters toward the domain engine:
+The eight product projects under `src/` have the following dependency boundaries.
+This is an assembly-owner map, not a sequence of calls. Native clients can consume
+Core through transitive project references; the compiled-edge verifier described
+in Governance is authoritative.
 
 ```mermaid
 graph TD
@@ -56,7 +67,10 @@ graph TD
 
 ## Data Flow Pipeline
 
-The runtime processes configuration through a single-pass, deterministic pipeline:
+Interactive clients coordinate the following preparation flow through
+Presentation. CLI invokes Core and Artifacts directly; it does not instantiate
+the interactive workspace or depend on Presentation. Browser export uses its
+own consent-gated browser adapter, not the native publisher.
 
 ```mermaid
 flowchart LR
@@ -79,6 +93,13 @@ flowchart LR
 5. **Single-Pass Composition:** `DefinitionBundleComposer` prepares all active artifacts in declared order from one validated snapshot.
 6. **Protected Publication:** `ProtectedArtifactBundlePublisher` executes create-only Linux writes, recording per-file outcomes in an immutable receipt.
 
+Preparation and publication are separate operations. A successful preparation
+does not establish a filesystem write, and a write does not establish target
+acceptance. Bundle publication preflights destinations, then installs files in
+order with per-file create-only semantics. A later failure can leave an installed
+prefix; there is no whole-bundle rollback. See
+[protected output](PROTECTED_ARTIFACTS.md) for receipts and recovery.
+
 ## Key Abstractions
 
 | Abstraction | Owning Project | Role & Responsibility |
@@ -98,7 +119,14 @@ flowchart LR
 
 Contributors and automated agents must adhere to strict architectural dependency rules:
 
-- **`Configurator.Core` is Pure:** It has zero project dependencies and zero platform/system dependencies. It performs no I/O, makes no network calls, and accesses no ambient environment variables.
+- **`Configurator.Core` owns semantics without adapter dependencies:** Admission,
+  validation and projection are in-memory mechanisms. One bounded exception is
+  the reviewed Linux directory-source acquisition in
+  `Configurator.Core.Composition`, implemented by
+  `SetupCompositionDirectoryReader`. It does not permit arbitrary ambient I/O,
+  network access, an Artifacts dependency or a browser-portability claim.
+  [Relocation follow-up](../../dev/backlog/core-directory-source-boundary.md)
+  records the intended separation; the exception has not already been removed.
 - **`Configurator.Presentation` is Browser-Safe:** It depends only on `Core`. It coordinates in-memory UI state, form indexes, and workspace generations. It must **never** reference `Artifacts` or perform filesystem I/O.
 - **`Configurator.Artifacts` Owns Native File Access:** It depends only on `Core`. It contains native file operations and enforces Linux create-only permissions.
 - **`Configurator.Browser` Never Touches `Artifacts`:** It references `Presentation` and `Core`. File export occurs via deliberate browser downloads and Blob URLs; it has no access to native file protection.

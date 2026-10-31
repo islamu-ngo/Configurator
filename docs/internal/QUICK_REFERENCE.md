@@ -63,8 +63,9 @@ not product builds/tests. Engineering changes run engineering suites.
 
 ## UI Quick Rules
 
-CLI, Terminal.Gui and Avalonia adapt shared Presentation/Artifacts/Core
-contracts; Browser is static Blazor WASM over browser-safe Presentation/Core.
+CLI consumes Core and Artifacts directly, without Presentation. Terminal.Gui
+and Avalonia adapt Presentation/Artifacts/Core; Browser is static Blazor WASM
+over browser-safe Presentation/Core.
 Secret-deferred drafts remain incomplete; browser downloads cannot establish
 native file protection. Test actual
 keyboard/focus/rendering semantics and accessibility, not CSS/source text.
