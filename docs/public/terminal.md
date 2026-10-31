@@ -1,6 +1,12 @@
 # Terminal User Interface (TUI)
 
-Configurator Terminal provides a fast, full-featured Terminal User Interface (TUI) powered by Terminal.Gui v2. It prepares production-ready configuration files locally from an admitted setup definition, without requiring network access, background daemons, or remote target connectivity.
+Configurator Terminal provides a keyboard-driven Terminal User Interface (TUI)
+powered by Terminal.Gui v2. It prepares candidate configuration files locally
+from an admitted definition, without network access, background daemons or remote
+target connectivity. The target independently validates and authorizes their use.
+
+The [support index](../internal/STATUS.md) distinguishes actual Terminal process
+exercises from Desktop X11 scenarios and package admission.
 
 All inputs and intermediate states are processed strictly in local memory. Sensitive values are masked during editing and never logged to stdout, command history, or external services.
 

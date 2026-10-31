@@ -1,6 +1,12 @@
 # Desktop Configuration App
 
-Configurator Desktop is an offline graphical application built with Avalonia UI. It guides operators through configuring self-hosted applications and generates production-ready configuration files (`.env`, JSON, YAML).
+Configurator Desktop is an offline graphical application built with Avalonia UI.
+It guides operators through local configuration and prepares candidate files
+(`.env`, JSON, YAML) according to an admitted definition. The target application
+independently validates, authorizes and applies them.
+
+Use the [support index](../internal/STATUS.md) to distinguish packaged targets
+from actual-host and protected-save evidence.
 
 Everything runs locally on your workstation. The desktop client makes no network calls, contains no background telemetry, and requires no target application credentials or remote access.
 
