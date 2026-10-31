@@ -76,3 +76,19 @@ Use this checklist before proposing, authoring, or accepting code changes. It pr
 - [ ] **Commands Run & Exit Codes**: Final summary explicitly records every command run (build, test, format) with exact outcomes.
 - [ ] **Checks Not Run with Reasons**: Relevant checks omitted (e.g. unrelated native/client suites for a documentation-only change) are noted with technical justifications.
 - [ ] **Zero Fictitious Claims**: No test or build is claimed as passed unless physically executed and verified in the session.
+
+## 8. Documentation and retrieval
+
+- [ ] **Authority and scope**: Current contracts, proposed work, accepted
+  decisions and historical observations are distinguishable before relying on
+  their claims; disagreements have an explicit disposition.
+- [ ] **Reader route**: A contributor can find the responsible owner, mechanism
+  and proportional check from the documentation hub or matching agent intent.
+- [ ] **Examples and guarantees**: Runnable examples match maintained synthetic
+  fixtures and current contracts; excerpts are labeled. Preparation, publication,
+  target acceptance and actual-host qualification remain distinct.
+- [ ] **Preserved evidence**: Protected strategy, historical records, governed
+  fragments, provenance and reviewed digests were not silently rewritten.
+- [ ] **Proportional validation**: Links, anchors, metadata and affected harness
+  parity were checked; executable fixtures or tooling used their own checks.
+  An editorial review date does not renew runtime qualification.

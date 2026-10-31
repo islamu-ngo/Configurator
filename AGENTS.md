@@ -209,6 +209,13 @@ symbol or bounded range once**. Follow `.agents/CONTEXT_ENGINEERING.md`.
   relevant IP governance section; ordinary official API documentation does not
   require the full legal chain.
 
+When documents disagree, classify their kind, owner, scope and reviewed revision
+before choosing an authority. Inspect owning source and representative tests;
+distinguish documentation drift, implementation nonconformance and an unresolved
+design decision. Code can be wrong and a plan can be unimplemented. Record the
+mismatch, correct the appropriate owner, and preserve historical evidence. See
+[the disagreement procedure](docs/internal/DOCUMENTATION_ARCHITECTURE.md#resolve-disagreements).
+
 ---
 
 ## 8. Verification Baseline
