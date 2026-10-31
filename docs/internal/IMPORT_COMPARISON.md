@@ -2,7 +2,8 @@
 
 > **Audience:** Contributors | Maintainers
 > **Status:** Implemented bounded comparison; qualification is candidate-specific
-> **Owner:** Core and Presentation
+> **Owner:** Presentation
+> **Contributing reviewers:** Core owns inverse compilation and semantic evaluation
 > **Last Verified:** 2026-10-30
 > **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionImport.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Presentation/DefinitionFormModel.cs`
 

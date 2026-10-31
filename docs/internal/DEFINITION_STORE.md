@@ -1,7 +1,8 @@
 # Definition store engineering contract
 
 > **Audience:** Maintainers and contributors
-> **Owner:** Native definition-store builder; Browser discovery adapter
+> **Owner:** Core
+> **Contributing reviewers:** Native store tooling and Browser discovery
 > **Source Anchors:** `eng/configurator/BuildDefinitionStore.cs`, `store/`, `schemas/definition-store-curation-v1.schema.json`
 > **Status:** Optional static discovery; no publisher authentication or host authority
 > **Last Verified:** 2026-10-28

@@ -1,9 +1,12 @@
 # Terminal.Gui dependency decision and history
 
+> **Audience:** Contributors | Maintainers | AI agents
+> **Kind:** Accepted decision with historical evidence
 > **Status:** Implemented; approved and verified 2026-10-13
-> **Owner:** Configurator maintainers
+> **Owner:** Terminal
+> **Last Verified:** 2026-10-13
 > **Decision authority:** Project Steward's explicit instruction to delete the fork
-> **Source anchors:** `Directory.Packages.props`, `NuGet.Config`, `src/Configurator.Terminal/Configurator.Terminal.csproj`, `.ci/scripts/write-dependency-notices.cs`, `eng/configurator/dependency-notices/`
+> **Source Anchors:** `Directory.Packages.props`, `NuGet.Config`, `src/Configurator.Terminal/Configurator.Terminal.csproj`, `.ci/scripts/write-dependency-notices.cs`, `eng/configurator/dependency-notices/`
 
 ## Decision and practical effect
 

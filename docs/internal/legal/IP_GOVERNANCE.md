@@ -2,7 +2,8 @@
 
 > **Audience:** Maintainers | Contributors | AI agents | Legal reviewers
 > **Status:** Operational policy; legal conclusions and exceptions require qualified legal review
-> **Owner:** Project Steward | Contributor Experience
+> **Owner:** Project Steward
+> **Contributing reviewers:** Contributor Experience
 > **Last Verified:** 2026-10-08
 > **Source Anchors:** `LICENSE`, `THIRD-PARTY-NOTICES.md`, `Directory.Packages.props`, `Directory.Build.props`, `.ci/scripts/validate-dependency-license-policy.cs`, `docs/internal/extraction/PROVENANCE.md`
 

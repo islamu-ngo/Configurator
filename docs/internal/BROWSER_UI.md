@@ -1,5 +1,13 @@
 # Browser interface ownership
 
+> **Audience:** Contributors | AI agents
+> **Kind:** Living contract
+> **Status:** Current browser adapter ownership; published evidence is separate
+> **Owner:** Browser
+> **Last Verified:** 2026-10-30
+> **Source Anchors:** `src/Configurator.Browser/`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/OPERATIONS.md`
+> **Review basis:** Documentation/source-owner reconciliation, not a fresh browser exercise
+
 The static WebAssembly shell owns navigation and appearance. `Layout/MainLayout`
 provides skip navigation, the header, application navigation, main landmark and footer. Home,
 Store, Open configuration and Help are route destinations; the configuration
@@ -9,7 +17,7 @@ workspace remains owned by Presentation and the Browser editor.
 the SDK and workload set. CI and the Browser container build explicitly provision
 the WebAssembly tools, including Python on Linux. Debug stays interpreted.
 AOT trades a larger public payload/cache for lower managed interaction cost.
-The [public hosting guide](../public/browser.md#hosting) gives the build command;
+The [public hosting guide](../public/browser.md) gives the build command;
 [Operations](OPERATIONS.md) records exact package costs and runtime evidence.
 
 At every viewport width, application navigation expands inline from a named Menu
