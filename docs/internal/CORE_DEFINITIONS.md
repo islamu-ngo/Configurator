@@ -1,7 +1,7 @@
 # Core definitions: portable adoption mechanisms
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Owner:** Core, with native and browser adapter boundaries
+> **Owner:** Core
 > **Status:** Qualified pre-release adoption map; target and other-host acceptance remain separate
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/OPERATIONS.md`
@@ -27,8 +27,9 @@ target certification or I-VSD closure.
 | Compose outputs | `src/Configurator.Core/Artifacts/` | Complete/draft/bundle composition consumes admitted schema and snapshot; restricted disposable results bind definition/input revisions |
 | Edit and adopt | `src/Configurator.Presentation/Presentation/` | Existing immutable workspace ownership, typed editing and operation generations; stale results cannot acquire current output authority |
 
-Authoring/runtime versions are 2/2, command envelope is v3, private answers are
-v1. Family revision, exact application versions and locale are independent
+The [version reference](../public/definition-reference.md#which-document-are-you-editing)
+distinguishes authoring/runtime, command and private-answer contracts.
+Family revision, exact application versions and locale are independent
 selectors. Publisher/family labels are not authentication. The public definition
 contains neither private answers nor an execution/remote-apply extension point.
 
@@ -73,7 +74,7 @@ These mechanisms have maintained source fixtures in
 [`DefinitionProfileConformanceTests`](../../tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs);
 the class includes row relationships, map privacy, nullable exact assertions,
 closed provider selection, local references and opt-in format cases. This
-documentation unit inspected those fixtures but did not execute them.
+map identifies those fixtures; it does not claim an executed pass.
 
 ## Native identity and checked generation
 
@@ -102,7 +103,7 @@ The [schema catalog](../../schemas/README.md) records native generator commands.
 - `--renew-example-families`: intentionally fork example sources to new
   revision-1 families before writing source/runtime; not ordinary freshness repair.
 
-Command-v3 schema generation is a separate owner. Generated structural schemas
+Machine-command schema generation is a separate owner. Generated structural schemas
 cannot replace semantic admission, capability negotiation, target validation or
 actual-host testing. Source maps remain definition-only metadata outside the
 canonical digest; bounded source positions and fallback public ancestors must
@@ -111,7 +112,7 @@ not expose private values or filesystem paths.
 ## Adapter and custody boundaries
 
 The machine CLI accepts explicit local definitions and private input, and emits
-bounded v3 receipts rather than answer/artifact content on stdout. Terminal.Gui
+bounded machine receipts rather than answer/artifact content on stdout. Terminal.Gui
 and Avalonia adapt typed Presentation controls over the same Core definition.
 Browser uses the same Core/Presentation ownership without native I/O; local
 selection may compile source, while remote retrieval admits pinned public
@@ -148,13 +149,13 @@ artifact ID. Draft completions indicate unfinished work, never complete readines
 Bundle failures dispose staged output, and Presentation generations fence late
 results after edit, cancellation, replacement or disposal.
 
-`DefinitionImport.Assess`/`CanImport` recognize the narrower unconditional,
-unambiguous direct-copy inverse for JSON/YAML/dotenv. Object-only source paths
-and supported whole containers can reconstruct typed values; array-index,
-conditional/repeat/transform ambiguity, overlaps, unknown members and
-nonreplaceable conflicts reject atomically. Core validates the effective result;
-inactive imported values cannot be silently discarded. Success produces an
-immutable prefill candidate, not a workspace mutation, overwrite permission or
+Existing-file inverse import is narrower than generation. The
+[import/comparison contract](IMPORT_COMPARISON.md) owns the current admitted
+inverse algebra and its implementation/qualification status; do not freeze an
+older direct-copy-only subset into this mechanism map. Comparison observes
+represented data without editing the form. Strict autofill rejects unaccounted
+content and nonreplaceable conflicts atomically, then delegates validation to
+Core. A prefill candidate is not a workspace mutation, overwrite permission or
 readiness certificate. Default-origin replacement never resets explicit omissions.
 
 `targetUpdateMode` and `restartRequirement` are declarative recommendations,
@@ -170,6 +171,167 @@ The [example index](../../examples/README.md) names maintained pairs and
 behavioral fixture anchors without duplicating full configurations or private
 fixtures. Source inspection establishes the mechanism, not an executed pass.
 Native source/runtime freshness, rendered adapters, physical packages, target
-acceptance and I-VSD disposition require their own parent-owned evidence.
+acceptance and I-VSD disposition require their own scoped execution records.
 Historical Event receipts are provenance, not current v2 compiler or acceptance
 receipts. No completion claim transfers across those boundaries.
+
+## Follow a complete operation
+
+These are explanatory traces through current owners, not execution receipts.
+Use [STATUS](STATUS.md) for dated qualification and the
+[project map](../../PROJECTS.md) for the relevant test command.
+
+### Public source to admitted runtime
+
+1. The CLI public-source adapter acquires bounded input. The source codec
+   distinguishes the authoring discriminator from runtime JSON; it does not
+   guess a legacy format.
+2. `DefinitionAuthoringCompiler` lowers compact source into the runtime shape.
+   `SetupDefinitionCodec` admits that result again, including references,
+   sensitivity, capabilities and budgets.
+3. Canonical bytes and digest bind the family/revision. A registry conflict
+   rejects rather than silently replacing a previously admitted definition.
+4. Only the admitted definition reaches answer collection. Compiler source maps
+   are bounded public diagnostics, not private answers or execution instructions.
+
+The native definition schema generator's `--check-examples` checks maintained
+source/runtime agreement. Core conformance fixtures separately exercise behavior;
+freshness alone does not prove target acceptance.
+
+### An edit to new validation and retired output
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant Form as DefinitionFormModel
+    participant Core as Core evaluation
+    participant Output as Prepared output
+    alt Deliberate value or omission edit
+        Operator->>Form: Change answer intent
+        Form->>Form: Advance input revision
+        Form->>Core: Resolve and validate current snapshot
+        Core-->>Form: Revision-bound facts
+        Form->>Output: Retire old output authority
+        opt Late preparation captured old revision
+            Output-->>Form: Completion rejected as current output
+        end
+    else View-only change
+        Operator->>Form: Locale or disclosure change
+        Form-->>Operator: Updated view, same answer intent
+    end
+```
+
+1. A deliberate field action enters `DefinitionFormModel`'s mutation gate.
+   It changes supplied values or omission intent and advances the input revision.
+2. Core resolves effective values and validation facts for that revision.
+   `DefinitionFormFacts` owns those facts without another answer tree.
+3. Prepared output and correction coordinates captured for the old revision
+   become ineligible. A late preparation may finish, but cannot become current.
+4. View-only disclosure, locale and section changes instead publish a view
+   update, preserving answer intent and current output.
+
+The Presentation suite owns editing and stale-operation invariants. Rendered
+client tests additionally protect callbacks, focus and mount behavior; neither
+test layer substitutes for the other.
+
+### Existing-file comparison to deliberate adoption
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant Adapter as Local adapter
+    participant Core as Core inverse assessment
+    participant Workspace
+    Operator->>Adapter: Select existing configuration
+    Adapter->>Core: Bounded bytes and admitted artifact
+    Core-->>Workspace: Evidence and safe findings
+    Note over Workspace: Comparison leaves answers and output unchanged
+    Operator->>Workspace: Deliberate autofill
+    alt Unsupported or conflicting candidate
+        Workspace-->>Operator: Reject whole adoption
+    else Candidate and workspace generation remain current
+        Workspace->>Workspace: Atomic answer adoption
+    else Workspace edited or replaced
+        Workspace-->>Operator: Reject stale candidate
+    end
+```
+
+1. The local adapter acquires selected configuration bytes under its custody
+   policy. Core evaluates only the selected admitted artifact's supported inverse.
+2. Comparison produces evidence and safe findings without changing answers,
+   editor drafts, provenance, omissions or current prepared output.
+3. Autofill is a separate deliberate action. Unsupported adoption, unknown
+   content or nonreplaceable conflicts reject as a whole.
+4. A current-generation successful adoption changes the workspace atomically;
+   an edited or replaced workspace rejects a stale candidate.
+
+[IMPORT_COMPARISON](IMPORT_COMPARISON.md) owns the current implementation contract,
+supported inverse and qualification limits. This trace does not promote every
+adapter or in-progress package to qualified support.
+
+### Native publication and an interrupted bundle
+
+```mermaid
+sequenceDiagram
+    participant Core
+    participant Publisher as Artifacts publisher
+    participant Files as Native filesystem
+    participant Caller as Native caller
+    Core->>Publisher: Complete prepared immutable bundle
+    Publisher->>Files: Preflight all destinations
+    loop Prepared files in order
+        Publisher->>Files: Create-only commit
+        Files-->>Publisher: Established physical outcome
+        Publisher->>Publisher: Record outcome immediately
+    end
+    Note over Publisher,Files: Failure or cancellation can interrupt the loop
+    Publisher-->>Caller: Installed prefix and remaining outcomes
+    Caller->>Caller: Retire custody, preserve installed facts
+    Note over Caller: Recover to fresh private destinations, not rollback
+```
+
+1. Core prepares all selected outputs from one immutable snapshot. Preparation
+   failure disposes staged bytes before anything is published.
+2. Artifacts preflights all destinations. Publication then commits each prepared
+   file in order using create-only writes.
+3. If a later commit fails, earlier installed files remain. Each established
+   outcome is recorded before subsequent failure can erase that knowledge.
+4. The caller retires output custody and reports installed, unattempted and
+   unknown outcomes distinctly. Recovery selects a fresh private destination;
+   it does not overwrite the old prefix or assume rollback.
+
+[Protected artifacts](PROTECTED_ARTIFACTS.md) owns physical effects and cleanup;
+native clients own display and close policy. The Artifacts suite tests the
+writer/publisher, while actual-host evidence establishes filesystem behavior.
+
+### Browser consent denial to output retirement
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant Browser
+    participant Workspace as Presentation workspace
+    participant Buffers as Owned prepared buffers
+    Operator->>Browser: Deny secret entry
+    Browser->>Workspace: Revoke current workspace consent
+    Workspace->>Workspace: Clear secret leaves and invalidate generations
+    Browser->>Browser: Retire export references
+    Workspace->>Buffers: Clear when physical users finish
+    Buffers-->>Browser: Late completion cannot restore current output
+    Note over Operator,Browser: Earlier clipboard or download transfers remain external
+```
+
+1. The operator denies secret entry for the current workspace.
+2. Presentation recursively clears secret leaves and invalidates captured input
+   and operation authority. Browser retires prepared export references.
+3. Owned byte buffers are cleared when their physical users have finished.
+   A late preparation or clipboard completion cannot restore current output or
+   a stale success notification.
+4. Data already transferred to an external clipboard or download is outside
+   application custody. Managed strings and the browser environment cannot
+   support a forensic memory-erasure promise.
+
+The [launch contract](LAUNCH_CONTRACT.md) and
+[Presentation state](PRESENTATION_STATE.md) specify custody and lifetimes.
+Browser component tests cover denial and stale completions; published-browser
+network/storage/cache exercises are a separate evidence layer.
