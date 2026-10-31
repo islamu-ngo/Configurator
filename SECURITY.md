@@ -54,7 +54,7 @@ public assets and a retained definition; physical disconnection prevents live
 network transmission without proving the downloaded code is benign. Deferring
 secrets avoids entering them in the web app, while ordinary configuration may
 still be confidential. See the [README FAQ](README.md#faq) and
-[browser guide](docs/public/browser.md#choose-a-client-and-trust-level).
+[browser guide](docs/public/browser.md#data-custody--security-architecture).
 
 ## Protected Native Artifact Invariants
 
