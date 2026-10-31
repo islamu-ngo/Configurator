@@ -47,6 +47,10 @@ Browser package suite continues to check the static publication independently.
 
 | Project Path | Role & Responsibilities |
 |---|---|
+| `eng/knowledge/Knowledge.cs` (file-based tool) | Classified tracked-knowledge inventory, original-content context profiles and current/audit link execution; native commands and limitations in `eng/knowledge/README.md`. |
+| `.github/workflows/docs-quality.yml` | Read-only native documentation checks without the product matrix; optional manual history audit retains failure separately from current checks. |
+| `eng/knowledge/RenderCommandReference.cs` (file-based tool) | Fixed public machine-schema metadata to generated CLI Markdown; `--self-test`, `--write`, `--check` and ordered generator verification in `eng/knowledge/README.md`. |
+| `eng/configurator/ValidateDefinitionDocumentation.cs` (file-based tool) | Explicit Markdown links, supported heading anchors, fences and optional primary-document metadata; not a full Markdown renderer or semantic consistency proof. |
 | `eng/agent-workflow/src/Configurator.AgentWorkflow/Configurator.AgentWorkflow.csproj` | Intent validation and repository-native workflow policy. |
 | `eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj` | Focused workflow/intent contract tests. |
 | `eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj` | Commit/change provenance, bounded release inputs, rendering and signed-evidence validation. |
@@ -160,14 +164,26 @@ here. See `docs/internal/TERMINAL_GUI_DEPENDENCY.md` for the decision and histor
 ### Inner Loop - Fast Subtask Slicing
 
 For the concrete affected in-memory class, use the MTP `--treenode-filter`
-syntax shown in the testing guide. Do not add sleeps, polling delays, database
+syntax shown in the [testing guide](docs/internal/TESTING.md#run-commands).
+For example, after building the Core test project in Release with SDK 10.0.302:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet run --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj \
+  --configuration Release --no-build -- \
+  --treenode-filter "/*/*/DefinitionProfileConformanceTests/*" --minimum-expected-tests 1
+```
+
+This selects a concrete definition-conformance class, not every Core test.
+Choose the class protecting the behavior you change; a requiredness change does
+not justify running unrelated clients. Do not add sleeps, polling delays, database
 containers or network I/O to an algorithmic inner-loop test.
 
 ### Phase Exit - Target Project Build & Test
 
 Browser Release publication uses AOT and requires the `wasm-tools` workload
 selected by `global.json`, plus Python 3 on Linux builders. See the
-[Browser hosting guide](docs/public/browser.md#hosting) for setup. Debug remains
+[Browser hosting guide](docs/public/browser.md) for setup. Debug remains
 interpreted; the SDK performs AOT compilation during publication.
 
 ```bash
