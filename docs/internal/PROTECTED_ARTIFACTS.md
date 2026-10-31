@@ -1,5 +1,18 @@
 # Protected native artifacts
 
+> **Audience:** Contributors | Integrators | AI agents
+> **Kind:** Living contract
+> **Status:** Current native publication contract; actual-host support is separately scoped
+> **Owner:** Artifacts/Security
+> **Last Verified:** 2026-10-30
+> **Source Anchors:** `src/Configurator.Artifacts/`, `docs/internal/CLI_CONTRACT.md`, `docs/internal/PRESENTATION_STATE.md`
+> **Review basis:** Contract reconciliation; no new protected-save qualification
+
+Use this contract to distinguish prepared bytes, installed files and immediate
+verification. Operators should start with [native output and recovery](../public/native-output.md).
+The [support index](STATUS.md) identifies qualified hosts; unsupported writers
+refuse rather than fall back to ordinary files.
+
 `IProtectedArtifactWriter` separates preparation from publication. Its disposable
 preparation owns cleanup; `CommitAsync` is a one-shot create-only operation.
 The Linux writer uses anonymous-inode preparation and no-replace publication
@@ -43,6 +56,14 @@ Presentation snapshots revisions and generations, invalidates prepared output
 after edits, and disposes its owned output buffers. A stale operation cannot
 publish into the current workspace. Native adapters decide the destination;
 definition filename hints grant no filesystem authority.
+
+## Bundle preparation and publication
+
+The public guarantee is per-file create-only installation, not a whole-bundle
+transaction. Preflight can reject before any publication; a later race or
+cancellation can leave an installed prefix. Dispose private preparation
+buffers, preserve the receipt and recover in a fresh private directory. Never
+infer that failure means no file was installed.
 
 ## Bounded native input lifetime
 

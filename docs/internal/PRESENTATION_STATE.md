@@ -55,14 +55,28 @@ Core-selected variant. Revocation mutates the existing transient JSON tree
 without reparenting surviving array nodes; public nulls and safe siblings remain.
 No new answer store, evaluator, operation scheduler or transport is introduced.
 Client rendering and actual-host evidence remain separate from this shared-state
-contract. Parent-reported pre-release qualification completed Desktop 229 and
-Terminal 106 passing tests, alongside Core 217 and Architecture 73. Linux x64
-X11 passed all 19 native scenarios in both English and Arabic; the published AOT
-Browser was exercised at real desktop/mobile sizes, RTL, offline and custody
-flows. These observations do not qualify other hosts, assistive technologies,
-translation quality, stakeholder/usability or scholarly proof, or target
-acceptance. This prose unit reran none of those checks; the parent owns exact
-verification records. See the [qualification map](DEFINITION_PROFILE.md).
+contract. [Support and evidence](STATUS.md) links the recorded Desktop X11,
+Terminal process and published Browser exercises independently. Those records
+do not qualify other hosts, assistive technologies, translation quality,
+stakeholder/usability or scholarly proof, or target acceptance. See the
+[qualification map](DEFINITION_PROFILE.md) for scenario obligations.
+
+### Why a stale save can still have an installation receipt
+
+An operator starts a native save, edits the form, and then receives a completion
+from the earlier save. The edit revoked the old operation's eligibility to
+restore readiness or prepared output. It did not undo a filesystem installation.
+If the native publisher established a write, the client must retain that physical
+fact in save history without attaching the old result to current answers.
+
+The input revision identifies the answer state; the operation generation controls
+whether completion can become current; the native physical lifetime controls
+when buffers and writers can be disposed. Cancellation affects eligibility, not
+proof of rollback. An unknown outcome remains unknown until evidence establishes
+it. [Protected artifacts](PROTECTED_ARTIFACTS.md) owns installation/verification
+facts; the [Terminal](TERMINAL_CLIENT.md) and [Desktop](DESKTOP_CLIENT.md)
+contracts own close and receipt presentation. This scenario explains the
+mechanism; it is not a newly executed qualification record.
 
 Native clients and Browser use the same admitted definition and answer snapshots.
 Local compact YAML/JSON sources pass through `SetupDefinitionSourceCodec` before
