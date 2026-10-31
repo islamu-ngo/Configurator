@@ -17,7 +17,7 @@ paths:
 related_skills: [ip-clean-room, agentic-research]
 related_docs: [AGENTS.md, docs/internal/legal/IP_GOVERNANCE.md, docs/internal/QUICK_REFERENCE.md, THIRD-PARTY-NOTICES.md]
 minimum_tests: []
-related_intents: [repository-tooling, definition-engine, protected-artifacts, client-interface, agent-context, provenance-docs]
+related_intents: [repository-tooling, definition-engine, protected-artifacts, client-interface, agent-context, documentation, provenance-docs]
 ---
 
 # IP Clean-Room And Outbound-License Protection
@@ -41,6 +41,10 @@ Twin files at `.agents/rules/ip-clean-room.md` and `.omo/rules/ip-clean-room.md`
 The Steward permits copying original ISLAMU-owned scaffold text into this MIT repository. That exception does not include the 154 unlicensed Evolve example-site corpus entries or Contributor Covenant expression. Do not ingest or reconstruct either exclusion.
 
 ## Must-Reads for This Path
+
+Only externally informed or provenance/dependency decisions activate this
+resource chain. Internal copy-editing and navigation corrections reuse target
+context; do not force FOUNDATION or a source register for ordinary prose.
 - [IP Governance](../../docs/internal/legal/IP_GOVERNANCE.md)
 - [Quick Reference](../../docs/internal/QUICK_REFERENCE.md)
 - [IP Clean-Room Skill](../../.agents/skills/ip-clean-room/SKILL.md), with the first-party transfer exception above.

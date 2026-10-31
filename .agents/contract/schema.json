@@ -74,7 +74,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))(AGENTS\\.md|(?:docs|dev|schemas|islamic-value-sensitive-design)/.+\\.md|\\.agents/skills/_SKILL_SCHEMA\\.md)$"
+            "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))((?:AGENTS|PROJECTS|AI_REVIEW|CONTRIBUTING|README)\\.md|(?:docs|dev|schemas|islamic-value-sensitive-design)/.+\\.md|\\.agents/skills/_SKILL_SCHEMA\\.md)$"
           },
           "description": "Repo-relative paths; validation must verify each exists."
         },
@@ -115,7 +115,7 @@
             "type": "string",
             "pattern": "^[A-Z][A-Za-z0-9.]*Tests?$"
           },
-          "description": "Test project names (e.g. Configurator.Core.Tests). The contract validator verifies each project exists."
+          "description": "Test project names (e.g. Configurator.Core.Tests). Verify project existence separately; the lightweight YAML command checks syntax only."
         },
         "docs_to_update": {
           "type": "array",

@@ -10,7 +10,7 @@ paths:
 related_skills: [criticality-guardrail, epistemic-mad-review, grill-me]
 related_docs: [AGENTS.md, PROJECTS.md, docs/internal/QUICK_REFERENCE.md, docs/internal/OPERATIONS.md]
 minimum_tests: []
-related_intents: [repository-tooling, definition-engine, protected-artifacts, client-interface, agent-context, provenance-docs]
+related_intents: [repository-tooling, definition-engine, protected-artifacts, client-interface, browser-session-privacy, agent-context, documentation, provenance-docs]
 ---
 
 # Dynamic Work Criticality Matrix
@@ -35,8 +35,8 @@ Twin files at `.agents/rules/work-criticality-matrix.md` and `.omo/rules/work-cr
 ## Must-Reads for This Path
 - [AGENTS.md](../../AGENTS.md) - actual offline authority.
 - [Quick Reference](../../docs/internal/QUICK_REFERENCE.md) and [Operations](../../docs/internal/OPERATIONS.md).
-- [Criticality guardrail](../../.agents/skills/criticality-guardrail/SKILL.md) and its [adversarial archetypes](../../.agents/skills/criticality-guardrail/resources/adversarial-archetypes.md), applying only actual Configurator boundaries.
-- [Privacy rule](privacy-and-pii.md).
+- [Criticality guardrail](../../.agents/skills/criticality-guardrail/SKILL.md) and its [adversarial archetypes](../../.agents/skills/criticality-guardrail/resources/adversarial-archetypes.md), only for affected trust/privacy decisions.
+- [Privacy rule](privacy-and-pii.md), only when the changed behavior touches custody or disclosure.
 
 ## Anti-Patterns (Forbidden on These Paths)
 - **Uniform Trust**: Treating definition admission/protected publication like cosmetic UI.

@@ -15,7 +15,7 @@ priority: critical
 - [../../../AGENTS.md](../../../AGENTS.md)
 - [Configurator quick reference](../../../docs/internal/QUICK_REFERENCE.md)
 - [Configurator extraction provenance](../../../docs/internal/extraction/FOUNDATION.md)
-- `docs/internal/legal/IP_GOVERNANCE.md` (Event source, historical only).
+- [IP governance](../../../docs/internal/legal/IP_GOVERNANCE.md) - target transfer and third-party obligations.
 - `legal/CLA.md` (Event source, historical only; Configurator does not impose Event CLA policy).
 - `docs/internal/legal/CONTRIBUTION_GOVERNANCE.md` (Event source, historical only).
 - `docs/internal/legal/dependencies/mapperly.md` (Event source, historical only).
@@ -55,7 +55,7 @@ Dependency decision:
 
 ## Verification Hooks
 - `dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .`
-- `dotnet test --project tests/Event.Architecture.Tests/Event.Architecture.Tests.csproj --configuration Release --verbosity quiet`
+- Select affected dependency/package boundary checks from [PROJECTS.md](../../../PROJECTS.md); no product suites for prose-only provenance.
 - `git diff --check -- AGENTS.md docs/internal/legal docs/internal/QUICK_REFERENCE.md .agents/skills/ip-clean-room .agents/rules/ip-clean-room.md .agents/contract/intents.yaml .agents/skills/review-pr/SKILL.md .github/PULL_REQUEST_TEMPLATE.md dev/_journal/journal.md`
 - Manual: complete [SSO And Provenance Review](resources/sso-and-provenance-review.md) and link the evidence in the PR.
 
