@@ -1,0 +1,4 @@
+Schema-Version: fragment-group-correction.v1
+Change-Id: CHG-01M6639BQNMJV5EBZBXZB273E7
+Fragment-Sha256: b84ea23c5ac29c0f4b2de7ce8a6eb58468e6b3ed851dc566c3f0d8782485370a
+Group: artifact-import-comparison-cli

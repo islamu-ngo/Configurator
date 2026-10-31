@@ -51,6 +51,24 @@ Green or changed to make this feature pass.
 
 ### Settled Package Identities
 
+The literal `preflight-range --target main --head HEAD` returned success with
+zero commits because execution was directly on main. That empty range is not
+evidence for the authored history. The additional audit from the original base
+`cec1ad52a23ef543b70f838ebcde7c3a72a0f343` detected
+`fragment_incompatible_group:artifact-import-comparison`: the CLI, Browser,
+Desktop and artifacts fragments shared one group despite their different scopes.
+
+The supported append-only correction records split only CLI, Browser and
+Desktop membership into scope-specific groups, leaving artifacts in the original
+group. Original fragments, normalized content, identifiers, commit linkage,
+impacts and public entries remain immutable. Native `preflight-staged --target
+main` exits 0 and validates the correction schemas and each original normalized
+snapshot digest. No policy, validator, exemption or publication trust changed.
+The nonempty post-commit range result is a separate receipt in the execution
+ledger; it cannot be inferred from a main-to-itself check. Product sources,
+packages and all passing runtime qualifications are unchanged by this metadata
+repair.
+
 All listed publications exited 0. Normal and diagnostic binaries are distinct;
 ownership instrumentation does not ship in normal packages.
 
