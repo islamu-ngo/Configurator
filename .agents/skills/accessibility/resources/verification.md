@@ -10,12 +10,16 @@
 Run the smallest relevant commands, then expand when the changed surface requires it:
 
 ```bash
-dotnet test --project tests/Event.Architecture.Tests/Event.Architecture.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/AccessibilityConventionTests/*" --minimum-expected-tests 1 --no-progress --maximum-parallel-tests 1
-dotnet test --project tests/Explore.Blazor.Client.Tests/Explore.Blazor.Client.Tests.csproj --configuration Release --verbosity quiet
-dotnet build --configuration Release --verbosity quiet
+dotnet build src/Configurator.Browser/Configurator.Browser.csproj --configuration Release --verbosity quiet
+dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --verbosity quiet
 ```
 
-The architecture lane checks project conventions such as page headings, shell landmarks/live regions, and physical-direction CSS. bUnit tests prove rendered component states. Neither lane proves real keyboard, visual, browser, or assistive-technology behavior.
+Use an affected class slice during the inner loop; select broader boundary
+checks only when required by `PROJECTS.md`. The old Event architecture lane
+checked headings, landmarks and physical-direction CSS; do not assume that
+source-text gate exists here. bUnit tests can prove rendered component states,
+not real keyboard, visual, browser or assistive-technology behavior.
+Prose-only skill changes do not run these product commands.
 
 ## Rendered-DOM Assertions
 

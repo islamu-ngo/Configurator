@@ -11,17 +11,17 @@ priority: high
 <!-- ABOUTME: Accessibility guardrail for project Blazor and MudBlazor UI changes. -->
 <!-- ABOUTME: Routes agents to local WCAG 2.2 AA rules, implementation patterns, and verification evidence. -->
 
-## Must-Read Docs
+## Resources
 - Accessibility Standards: `docs/internal/ACCESSIBILITY.md` (Event source, historical only; use the transferred resources below for reusable guidance).
-- [Accessibility Resources](resources/index.md)
-- [Blazor UI Conventions](../blazor-ui-conventions/SKILL.md)
+- [Accessibility Resources](resources/index.md) - select the affected interaction or verification topic.
+- [Blazor UI Conventions](../blazor-ui-conventions/SKILL.md) - when component communication or hosting changes.
 
 ## Top 5 Invariants
 1. Prefer native semantic HTML and MudBlazor's native control output; add ARIA only when semantics are missing, and keep each control's accessible name, role, state, value, and visible-label text accurate.
 2. Every routable page has a descriptive `PageTitle`, exactly one project-required `h1`, sequential headings, and logical DOM order while relying on `MainLayout` for skip navigation, landmarks, live regions, direction, and navigation focus.
-3. Every action is keyboard operable with its native or WAI-ARIA pattern, uses no positive `tabindex`, keeps focus visible and unobscured, and restores focus after dialogs or drawers through `IAccessibilityFocusService`.
+3. Every action is keyboard operable with its native or WAI-ARIA pattern, uses no positive `tabindex`, keeps focus visible and unobscured, and restores focus after dialogs or drawers through the existing target focus mechanism. `IAccessibilityFocusService` below is an Event example, not a required Configurator service.
 4. Every form control has a programmatic label and connected help/error text, while dynamic status is announced once with polite or assertive urgency only when focus does not already convey the change.
-5. Images, color, contrast, motion, pointer targets, dragging alternatives, reflow, zoom, forced colors, and RTL logical properties satisfy `docs/internal/ACCESSIBILITY.md` and receive risk-proportionate rendered and manual verification.
+5. Images, color, contrast, motion, pointer targets, dragging alternatives, reflow, zoom, forced colors, and RTL logical properties use the transferred WCAG guidance and receive risk-proportionate rendered and manual verification; the absent Event accessibility document is not a target gate.
 
 ## Top 5 Anti-Patterns
 1. **Simulated native control:** A clickable `div`, `span`, or card recreates button or link semantics and leaves keyboard behavior incomplete.
@@ -31,6 +31,9 @@ priority: high
 5. **Automation-as-certification:** Treating architecture tests, bUnit assertions, or an automated scanner as WCAG proof leaves keyboard, zoom, visual, and assistive-technology failures undiscovered.
 
 ## Minimal Examples
+
+Historical Event labels and focus-service usage illustrate the interaction
+mechanism; use Configurator's actual controls and services.
 ```razor
 <PageTitle>Event details</PageTitle>
 <MudText Typo="Typo.h4" HtmlTag="h1">Event details</MudText>
@@ -55,9 +58,7 @@ finally
 ```
 
 ## Verification Hooks
-- `dotnet test --project tests/Event.Architecture.Tests/Event.Architecture.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/AccessibilityConventionTests/*" --minimum-expected-tests 1 --no-progress --maximum-parallel-tests 1`
-- `dotnet test --project tests/Explore.Blazor.Client.Tests/Explore.Blazor.Client.Tests.csproj --configuration Release --verbosity quiet`
-- `dotnet build --configuration Release --verbosity quiet`
+- Select affected Browser/Presentation component checks from [PROJECTS.md](../../../PROJECTS.md). No product suites for prose-only skill edits.
 - `git diff --check -- .agents/skills/accessibility`
 - Manual: complete the risk-based keyboard, zoom/reflow, theme, RTL, motion, browser accessibility-tree, and screen-reader checks in [verification.md](resources/verification.md).
 

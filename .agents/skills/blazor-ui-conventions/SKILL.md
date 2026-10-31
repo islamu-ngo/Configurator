@@ -1,6 +1,6 @@
 ---
 name: blazor-ui-conventions
-description: "Load for Blazor/MudBlazor component or page changes involving render modes, dialogs, parameters/events, HAL-gated actions, generated API clients or generated record consumption, theming, or component tests; add accessibility or CSS-isolation only when touched."
+description: "Load for Configurator Blazor/MudBlazor components, dialogs, parameters/events, immutable workspace rendering, themes or component tests; not for Event HAL, generated API clients or BFF hosting."
 type: pattern
 enforcement: suggest
 priority: high
@@ -18,6 +18,22 @@ priority: high
 - [Accessibility](../accessibility/SKILL.md) — load only when forms, dialogs, focus, keyboard, landmarks, ARIA, or contrast are touched; `docs/internal/ACCESSIBILITY.md` is an Event source reference, historical only.
 
 ## Rules
+
+- Configurator Browser is static WASM over browser-safe Presentation/Core.
+  Follow the browser path rule and launch/state contracts; do not add
+  InteractiveAuto, target authentication, HAL authority or a BFF.
+- Use `[Parameter]`/`EventCallback` with immutable workspace snapshots.
+  Operation generations fence cancelled, replaced or edited asynchronous work.
+- Use existing shared wrappers and current APIs; inspect rendered behavior,
+  keyboard/focus/status and narrow/wide layouts for visible changes.
+- Select the affected Browser/Presentation checks in `PROJECTS.md`.
+  Prose-only changes use links and metadata, not a product build.
+
+## Historical Event UI Contracts
+
+The remaining rules, workflow, commands and related backend skills are retained
+for Event reference only. Linked render-mode, generated-client, HAL, BFF and
+record resources describe that source system, not Configurator requirements.
 
 - `InteractiveAuto` is the default. Client-capable paths do not use `HttpContext`, raw access tokens, or direct component-to-API calls; they use generated clients through the established BFF/service boundary.
 - HAL `_links` is the sole authority for resource action affordances. Do not infer Edit/Delete or other resource actions from roles, claims, source type, or local state.

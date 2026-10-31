@@ -5,7 +5,12 @@
 
 # Render Modes (Lean)
 
-## Defaults
+## Configurator Hosting
+
+Configurator Browser is static Blazor WASM. It does not use server render modes,
+BFF transport or InteractiveAuto. Use the target browser/launch contracts.
+
+## Historical Event Defaults (Reference Only)
 - Use `InteractiveAuto` for most interactive pages.
 - Use `InteractiveServer` only when server-only dependencies are required.
 - Use Static SSR for purely static content.
