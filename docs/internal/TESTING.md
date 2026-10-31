@@ -11,6 +11,21 @@ Selected reusable sections from Event revision
 verification cadence, conventions and fixture responsibilities. Event historical
 test counts and database/API/BFF infrastructure do not apply.
 
+## Choose a current verification procedure
+
+| Change or question | Start here |
+|---|---|
+| Prose, navigation or documentation metadata | [Documentation checks](../../eng/knowledge/README.md); no product build or suite |
+| Executable definition examples | [Schema/example native owners](../../schemas/README.md), then affected behavioral fixtures |
+| Core or shared-state behavior | [Progressive verification](#the-3-ring-progressive-verification-model) and [project commands](../../PROJECTS.md) |
+| Rendered or native client behavior | [Test-layer selection](#choosing-the-right-test-layer), then the actual-surface gate |
+| Test execution versus coverage | [Evidence distinctions](#test-execution-versus-measured-coverage) and [safe report collection](#safe-retained-owner-reports) |
+| Published package or host claim | [Support index](STATUS.md) and [packaging contract](PACKAGING.md) |
+
+The collection investigation and measured totals retained below are historical
+evidence, not prerequisites for every test run. Follow the current commands for
+the affected owner. Editorial changes cannot renew those measurements.
+
 ## Test execution versus measured coverage
 
 Browser interaction performance uses published Release packages, not bUnit wall
@@ -119,6 +134,10 @@ the source/build identity before interpreting it. No global percentage or
 mutation gate is imposed.
 
 ### Initial collection and resolved Core instrumentation prerequisite
+
+This subsection is a retained collection-investigation record. Its attempts,
+failures and later correction explain the evidence; they are not a sequence to
+repeat for a routine contribution.
 
 On Linux x64 with SDK 10.0.302, the 2026-10-27 initial Presentation collection
 executed 155 tests: 155 passed, 0 failed, 0 skipped, exit 0. Validated assembly
@@ -254,10 +273,11 @@ that every suite passes.
 
 ### Disabled Test Governance
 
-Disabled tests are allowed only when the test still expresses required future
-behavior and cannot run in the current lane. Do not comment out `[Test]`; keep
-it active, mark it with `[Skip("Category: ... Removal: ...")]`, or delete it when
-the behavior is obsolete or unnecessary.
+Never delete, skip or weaken an existing failing test to make a change green.
+Required but unimplemented future behavior belongs in an explicit tracked
+obligation, not a claimed passing test. Existing intentional exclusions need a
+documented category, removal condition and owner; they remain unexecuted evidence,
+not completed acceptance. Do not comment out `[Test]` to hide a failure.
 
 Use `[Explicit]` for valid, intentionally opt-in runtime or release-rehearsal
 tests whose infrastructure/duration makes them unsuitable for an unfiltered

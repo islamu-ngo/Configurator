@@ -1,7 +1,8 @@
 # Documentation Architecture
 
 > **Audience:** Contributors | Adopters | Integrators | AI agents
-> **Status:** Implemented repository documentation policy
+> **Kind:** Living contract
+> **Status:** Current repository documentation policy
 > **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `README.md`, `docs/README.md`, `PROJECTS.md`, `docs/public/`, `docs/internal/`
@@ -41,18 +42,26 @@ or need a specific reference.
 | Contributors | `PROJECTS.md` | `GOVERNANCE.md`, `QUICK_REFERENCE.md`, `DOCUMENTATION_ARCHITECTURE.md` |
 | AI agents | `AGENTS.md` | Matching intent, path rules and task-owned context |
 
-## Primary documentation And Owners
+## Primary documentation and owners
 
-Each primary document has an owner category. Ownership means the category is
-responsible for accuracy, not that only that team may edit it.
+Each primary document has one accountable owner category. Other owners review
+their contributing mechanisms; shared implementation does not require an
+ambiguous documentation owner. Ownership means responsibility for accuracy,
+not exclusive editing rights. This table is the responsibility registry;
+navigation pages and generated inventories project it rather than replace it.
 
 | Owner | Primary documentation |
 |---|---|
 | Packaging/Release | `PACKAGING.md`, `OPERATIONS.md`, `RELEASE_RUNBOOK.md`, `eng/release/README.md` |
-| Core | `CORE_DEFINITION_CONTRACT.md`, `DEFINITION_CONFORMANCE_PROFILE.md`, `DEFINITION_PROFILE.md`, `MAINTAINER_AUTHORING.md`, `LAUNCH_CONTRACT.md`, definition/runtime ADR |
-| Artifacts/Security | `PROTECTED_ARTIFACTS.md`, `SECURITY.md`, IP/dependency governance |
-| Presentation | `PRESENTATION_STATE.md`, `CLI_CONTRACT.md`, `TERMINAL_CLIENT.md`, `DESKTOP_CLIENT.md`, public browser guide |
-| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `docs/public/getting-started.md`, this document |
+| Core | `CORE_DEFINITION_CONTRACT.md`, `CORE_DEFINITIONS.md`, `DEFINITION_CONFORMANCE_PROFILE.md`, `DEFINITION_PROFILE.md`, `MAINTAINER_AUTHORING.md`, `DEFINITION_STORE.md`, definition/runtime ADR |
+| Artifacts/Security | `PROTECTED_ARTIFACTS.md`, `SECURITY.md`, technical dependency-closure evidence |
+| Project Steward | `legal/IP_GOVERNANCE.md`; licensing/distribution authority remains with the Steward and existing reviewed records |
+| Presentation | `PRESENTATION_STATE.md`, `IMPORT_COMPARISON.md` (Core reviews inverse/evaluation semantics) |
+| CLI | `CLI_CONTRACT.md`, public CLI guide |
+| Browser | `LAUNCH_CONTRACT.md`, `BROWSER_UI.md`, public browser guide |
+| Terminal | `TERMINAL_CLIENT.md`, public terminal guide |
+| Desktop | `DESKTOP_CLIENT.md`, public desktop guide |
+| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `STATUS.md`, `KNOWLEDGE_MAP.md`, `docs/public/getting-started.md`, this document |
 | Agent Context | `AGENTS.md`, `.agents/contract/`, `.agents/skills/`, `dev/_journal/` |
 
 ## Metadata Policy
@@ -62,8 +71,9 @@ immediately below the title:
 
 ```markdown
 > **Audience:** Adopters | Contributors | Integrators | AI agents
-> **Status:** Implemented | Draft | Planned | Mixed
-> **Owner:** Packaging/Release | Core | Artifacts/Security | Presentation | Contributor Experience | Agent Context
+> **Kind:** Living contract | Guide | Procedure | Accepted decision | Proposal | Historical assessment | Execution record | Generated reference
+> **Status:** Current, proposed, superseded, or historical; qualify implementation separately
+> **Owner:** One accountable category from the ownership table
 > **Last Verified:** YYYY-MM-DD
 > **Source Anchors:** `path/one`, `path/two`
 ```
@@ -71,11 +81,17 @@ immediately below the title:
 Rules:
 
 - `Audience` can list multiple audience labels separated by `|`.
-- `Status` must describe the page as a whole; sections that are not implemented
-  must also be labeled in the section text.
+- `Kind` identifies what the reader can use the page for. `Status` describes
+  lifecycle, not a universal product-support claim. An accepted decision can
+  still have incomplete implementation; a current guide can describe an
+  unqualified host. Label those boundaries at the affected section.
 - `Owner` must use one of the owner categories in this page.
+  Historical approvals and assessments retain their original attribution;
+  normalization must not rewrite decision or licensing authority.
 - `Last Verified` is the date source anchors were checked, not the edit date for
-  grammar-only changes.
+  grammar-only changes. State a review basis when consequential: inspected source
+  revision, recorded execution, or editorial review. A fresh date does not renew
+  runtime evidence.
 - `Source Anchors` must point to real files or directories that prove the behavior.
 
 Legacy docs can migrate gradually. Do not add metadata mechanically to low-value
@@ -93,8 +109,39 @@ Documentation must prefer source-grounded claims over inferred behavior:
 - Roadmap or future behavior must be explicitly marked `Planned` or `Draft` and
   must not be presented as implemented.
 
-When a source anchor and a doc disagree, update the doc or create a task to
-reconcile the source. Do not preserve stale examples for narrative continuity.
+### Resolve disagreements
+
+1. Classify both documents: living requirement, guide, decision, proposal or
+   dated observation. Compare the affected owner, scope, revision and evidence.
+2. Inspect the owning source and representative tests. A test assertion is not
+   evidence that the test ran; an approved plan is not evidence of implementation.
+3. Record the mismatch and classify it as documentation drift, implementation
+   nonconformance or an unresolved design decision.
+4. Correct documentation drift with its counterpart. Preserve the intended
+   contract when code is wrong, and route the implementation defect to its owner.
+   Ask for a decision when competing requirements genuinely remain unresolved.
+
+Neither "newest document wins" nor "code always wins" is a sufficient rule.
+Do not rewrite a historical record to make it match current behavior.
+
+## Definition reading paths
+
+| Page | Primary job |
+|---|---|
+| `public/definitions.md` | Mental model, presence and worked semantic explanations |
+| `public/definition-reference.md` | Author-facing properties, versions, limits and exact lookup |
+| `public/definition-standard.md` | Profile scope, portability and conformance obligations |
+| `public/definition-cookbook.md` | Small solutions to bounded authoring problems |
+| `public/integrating.md` | Short complete application-adoption tutorial |
+| `public/integrate-your-tool.md` | Revision, distribution, schema import and maintainer lifecycle |
+| `DEFINITION_CONFORMANCE_PROFILE.md` | Normative bounded semantics |
+| `CORE_DEFINITION_CONTRACT.md` | Core API, custody, failure and composition contract |
+| `CORE_DEFINITIONS.md` | Mechanism, source/test map and end-to-end flows |
+| `DEFINITION_PROFILE.md` | Scenario obligations, evidence and residual responsibilities |
+| `MAINTAINER_AUTHORING.md` | Compiler lowering, identity and public-source filesystem authority |
+
+A public explanation must remain useful by itself. Link exact normative details
+instead of maintaining multiple competing specifications or qualification totals.
 
 ## Docs Impact Contract
 
@@ -179,14 +226,12 @@ pre-release Linux x64 and published Browser scope, not an unimplemented Draft.
 Keep the detailed vocabulary, source-observed limits and scenario obligations;
 do not replace them with a broad support label.
 
-Recorded qualification completed Core 217, Desktop 229, Terminal 106 and
-Architecture 73 passing tests; native Linux x64 X11 passed all 19 scenarios in
-both English and Arabic. Actual published AOT Browser exercises covered
-desktop/mobile, RTL, offline and custody flows. Standalone Linux x64 CLI covered
-complete preparation, incomplete answers and create-only conflicts. This
-documentation-only increment did not rerun qualification. The parent owns exact
-verification records, linked through [Operations](OPERATIONS.md), and the
-[qualification map](DEFINITION_PROFILE.md) preserves the evidence layers.
+Use [support and evidence](STATUS.md) to find scoped records in
+[Operations](OPERATIONS.md). Keep exact suite totals, package identities,
+environments and failed attempts in those records. The
+[qualification map](DEFINITION_PROFILE.md) owns scenario obligations, not a
+second execution ledger. Desktop X11 scenarios and an actual Terminal process
+are different evidence; neither qualifies the other surface.
 
 General assertions beyond the bounded profile, application-version ranges,
 target acceptance, other hosts, assistive technologies, translation quality,
@@ -194,6 +239,25 @@ stakeholder/usability and scholarly proof remain unqualified followups.
 Public and technical twins must retain those limits together. Suite counts,
 English/Arabic render observations and Browser custody exercises are not
 interchangeable with target, accessibility or stakeholder evidence.
+
+## Examples, evidence and context exports
+
+Label each example at its introduction: **runnable current**, **partial source
+or result**, **conceptual**, or **historical**. A partial JSON object is not an
+accepted input file or an exact command receipt. Runnable examples identify the
+working directory, prerequisites, shell/host, expected effect, success signal and
+safe rerun. Use maintained synthetic fixtures; never execute arbitrary fences.
+
+Preserve immutable assessments, user strategy, provenance manifests, reviewed
+digests, governed release fragments and I-VSD finding identities. Use a companion
+index when correction or relocation would alter their historical meaning.
+Record unresolved conversation-local citations as unavailable provenance; do not
+guess their source. Session-local evidence must be labeled as such.
+
+Context exports select original files. Current entrypoints and contracts precede
+history; every export identifies its revision, paths, exclusions and lifecycle
+classification. An export is a snapshot, not a new authority. See the
+[knowledge tooling](../../eng/knowledge/README.md) for inventory and profiles.
 
 ### Review a documentation-only change
 

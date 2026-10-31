@@ -2,9 +2,27 @@
 
 > **Audience:** Contributors | Maintainers | AI agents
 > **Status:** Current repository authority and transfer boundaries
-> **Owner:** Configurator maintainers
+> **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `docs/internal/OPERATIONS.md`
+
+## Current owners and retained provenance
+
+This page preserves transfer provenance and architectural context; it is not
+the current delivery ledger or a substitute for the owning contracts.
+
+| Reader need | Current owner |
+| --- | --- |
+| Implemented scope versus package, host and target qualification | [Status and evidence](../STATUS.md) |
+| Document kinds, lifecycle and user strategy relationships | [Knowledge map](../KNOWLEDGE_MAP.md) |
+| Current execution procedures and retained dated observations | [Operations](../OPERATIONS.md#current-procedure-entry) |
+| Accepted designs, proposed decisions and delivery limits | [ADR index](../adr/README.md) |
+| Immutable point-in-time assessments | [Reports index](../reports/README.md) |
+| Verification commands and documentation policy | [Project map](../../../PROJECTS.md), [Testing](../TESTING.md), [Documentation architecture](../DOCUMENTATION_ARCHITECTURE.md) |
+
+The transfer revision, component dispositions and excluded authorities described
+below remain provenance. New routes neither reinterpret the immutable transfer
+manifest nor promote historical observations into current qualification.
 
 ## Target-first authority
 
@@ -37,15 +55,19 @@ this compiler before answers; remote Browser distribution remains canonical runt
 JSON. See [maintainer source ownership](../MAINTAINER_AUTHORING.md) and
 [runtime contract](../CORE_DEFINITION_CONTRACT.md).
 
-The CLI's [command v4 contract](../CLI_CONTRACT.md) reports configuration assessments;
-authoring/runtime use v2 and private answers use v1. Repeated bundle `--artifact` selection and
+The CLI's [current machine contract](../CLI_CONTRACT.md) describes machine v4 as
+implemented, with package qualification pending. The definition-v2 qualification
+used machine v3; its evidence is retained rather than relabeled. Authoring/runtime
+use v2 and private answers use v1. Repeated bundle `--artifact` selection and
 count/digest summaries keep the full output ledger within a 65,536-byte UTF-8
 receipt. The CLI plans receipt capacity before publication and preserves written,
 not-attempted and unknown outcomes through later failures. One application emitter
 attempts delivery without Program fallback; cleanup and target acceptance remain
 independent. See the [runtime decision](../adr/ADR-cli-command-runtime.md).
-Public authoring custody, discovery/repair, portable skill lifecycle, actual-host
-qualification and installed adoption remain open, not enterprise certification.
+Public authoring custody and broader discovery/adoption duties remain separately
+bounded. Use the [status index](../STATUS.md) for executed installed-adoption and
+host evidence; neither delivered tooling nor an open follow-up is enterprise
+certification.
 
 `global.json` pins SDK 10.0.302, the tested WebAssembly workload set and
 Microsoft.Testing.Platform. Native-only and public-data CI jobs initialize the
@@ -236,8 +258,9 @@ comparison uses existing Presentation generations and privacy custody, preservin
 answers, drafts and prepared output. It grants no overwrite or apply authority.
 See [the assessment contract](../IMPORT_COMPARISON.md),
 [the accepted decision](../adr/ADR-artifact-import-comparison.md) and
-[operator workflow](../../public/import-and-compare.md). Actual client/package
-qualification remains separately recorded in Operations.
+[operator workflow](../../public/import-and-compare.md). The
+[status index](../STATUS.md#implemented-scope) routes the current implementation
+boundary; prior Operations qualifications do not qualify this increment.
 
 ## Verification and provenance
 

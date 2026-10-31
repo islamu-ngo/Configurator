@@ -226,7 +226,7 @@ The checker's limits:
 
 Keep current-check and historical-audit outcomes separate. Fix current navigation
 at its owner; preserve historical limitations in the
-[report index](../../docs/internal/reports/README.md).
+[report index](../../docs/internal/reports/README.md#classified-historical-validation-limitations).
 A green current check does not imply that historical links were repaired.
 
 ## Verification commands

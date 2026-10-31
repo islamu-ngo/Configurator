@@ -13,6 +13,28 @@ databases, API/BFF, Aspire startup and production trust are not imported.
 Configurator prepares artifacts offline; it does not apply target configuration
 or acquire host administration authority.
 
+## Current procedure entry
+
+Start with [Status and evidence](STATUS.md) to select the claim being checked,
+then use the current owner below. [Knowledge map](KNOWLEDGE_MAP.md) routes
+document kinds and lifecycle; the [ADR index](adr/README.md) separates design
+acceptance from delivery. These indexes add no runtime or publication authority.
+
+| Task | Current procedure or contract owner |
+| --- | --- |
+| Select projects and verification commands | [Project map](../../PROJECTS.md), [Testing](TESTING.md) and [Verification Policy](#verification-policy) |
+| Produce native or static packages | [Packaging](PACKAGING.md) and [public packaging guide](../public/packaging.md) |
+| Inspect a published Browser | [Browser custody and offline verification](#browser-custody-and-offline-verification), using the selected package's identity and current packaging instructions |
+| Handle interrupted CLI publication | [CLI contract](CLI_CONTRACT.md) and [cancellation procedure](#cli-cancellation-and-interrupted-publication) |
+| Save restricted native output | [Protected artifacts](PROTECTED_ARTIFACTS.md) and [native output guide](../public/native-output.md) |
+| Assess or fill from ordinary configuration | [Import/comparison contract](IMPORT_COMPARISON.md) and [operator workflow](../public/import-and-compare.md); implementation in progress, client/package qualification pending |
+| Prepare release evidence | [Release runbook](RELEASE_RUNBOOK.md); local validation is not signed-publication activation |
+| Validate documentation changes | [Native knowledge commands](../../eng/knowledge/README.md#documentation-ci) and [documentation workflow](../../.github/workflows/docs-quality.yml); current checks and optional manual historical audit have separate outcomes, hosted execution requires a later push |
+
+Machine v4 is documented as implemented in the current CLI contract, with package
+qualification pending. The machine v3 delivery evidence below remains evidence
+for its recorded candidate, not a qualification of machine v4.
+
 ## Operational Runbooks
 
 - [Packaging technical anchor](PACKAGING.md) and [adopter guide](../public/packaging.md)
@@ -27,6 +49,24 @@ or acquire host administration authority.
 
 Do not use service-recovery or direct-database instructions from Event as
 Configurator operating procedures.
+
+## Historical evidence boundary
+
+The dated qualifications and candidate records below retain their original
+headings, commands, failures, sample sets, digests and evidence locations in
+place. Some later sections interleave procedures with observations: use the
+current procedure entry above for routing, and read each observation against
+its own recorded source, package, host, date and scenario. A later pass does
+not erase an earlier failure or transfer qualification to a different payload.
+Historical commands document execution; they are not automatically the current
+procedure. No evidence records have been moved into the new indexes.
+
+Local ignored evidence paths, temporary captures and session handles are
+retained provenance references, not promises that their underlying files remain
+available in a checkout. A recorded digest identifies bytes; it does not
+establish present availability, independent reproduction or target acceptance.
+See [source/package identity and evidence availability](STATUS.md#sourcepackage-identity-and-evidence-availability)
+before reusing a historical result.
 
 ## Definition v2 qualification
 
