@@ -13,6 +13,7 @@ govern; historical Event layers never bind target paths.
 | Governing docs win | Target [Quick Reference](../../docs/internal/QUICK_REFERENCE.md) and [Governance](../../docs/internal/GOVERNANCE.md) refine the root contract |
 | Cross-reference only | Rules point at governing docs; they must not duplicate them |
 | Surgical context | Keep rules specific to file paths, not whole-project summaries |
+| Reuse loaded context | Must-read lists name evidence locations, not whole-file reloads or unconditional resource cascades |
 
 See [`_schema.md`](_schema.md) before adding or editing any rule file.
 

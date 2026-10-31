@@ -5,7 +5,11 @@
 
 # Hooks (.NET 10 / C#)
 
-Native C# hooks for Claude Code that enable skill auto-activation, Clean Architecture tracking, and build validation.
+Retained C# hook examples for Claude Code. Registration is opt-in, not evidence
+that hooks are installed or active. SkillTrigger/ContextTracker retain
+source-system suggestions and layer tracking; these are advisory historical
+metadata, not target skill activation or project ownership. Resolve the current
+intent and actual owner before applying a suggestion.
 
 ## What Are Hooks?
 
@@ -48,7 +52,11 @@ BuildCheck does not read ContextTracker state, discover a solution, cache errors
 
 ## Configuration
 
-Hooks are registered in `.claude/settings.json`. The Stop build below is an explicit engineering-owner example; select the affected project before enabling it. Omit the BuildCheck Stop entry for documentation-only work rather than running a no-argument hook or unrelated product build:
+Hooks may be registered in local `.claude/settings.json`; this is not a
+repository requirement. The Stop build below is an explicit engineering-owner
+example; select the affected project before enabling it. Omit both FormatCode
+and BuildCheck Stop entries for documentation-only work rather than running
+automatic formatting or an unrelated product build:
 
 ```json
 {

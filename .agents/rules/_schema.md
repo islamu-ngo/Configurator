@@ -57,6 +57,11 @@ their absent Event layer to satisfy this schema.
 
 ## Authoring Limits
 
+`Must Read` and related-doc lists are retrieval routes, not repeated mandatory
+bootstrap packets. Reuse injected/loaded headings at the same revision. Load
+skills and deeper resources only for a matching unresolved decision; ordinary
+prose does not activate privacy, test or provenance workflows by path alone.
+
 - Keep each path-scoped rule short and surgical.
 - Prefer tables over long prose.
 - No ASCII architecture diagrams.
