@@ -6,6 +6,11 @@ This directory contains generated structural JSON Schemas for definition authori
 
 ## Schema Overview
 
+The [generated CLI command reference](../docs/public/cli-command-reference.md)
+projects public command metadata and declared bounds from the v4 receipt schema.
+The [CLI guide](../docs/public/cli.md) owns usage and meaning; schema freshness
+must pass before [reference freshness](../eng/knowledge/README.md#generated-command-reference).
+
 | Schema File | Purpose | Primary Consumer | Authoring Format |
 |---|---|---|---|
 | [`configurator-authoring-v2.schema.json`](configurator-authoring-v2.schema.json) | Describes current compact maintainer source (`configurator.yaml` or `configurator.json`). | Tool authors, IDE validation, compiler preflight. | YAML / JSON |
@@ -179,9 +184,8 @@ it is an intentional example identity replacement, not routine freshness repair.
 grafana-13.2.2 and islamu-event without writing.
 
 The [maintained example index](../examples/README.md) names the three pairs.
-`--check-examples` reports canonical source/runtime agreement only; this
-documentation unit did not execute it or renew identities. Any current pass
-claim belongs to parent-owned verification, not this catalog. Agreement is not
+`--check-examples` reports canonical source/runtime agreement only. Any current
+pass claim requires an executed record, not this catalog. Agreement is not
 target acceptance, final physical/package completion or I-VSD closure.
 
 The source-backed profile includes root/row applicability and local

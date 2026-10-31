@@ -9,6 +9,10 @@
 The CLI references only Configurator.Core, Configurator.Artifacts and the admitted
 Spectre packages. The public [command usage](../public/cli.md) documents all
 options, input semantics, confidentiality and exits.
+The [generated command reference](../public/cli-command-reference.md) projects
+public metadata from the generated v4 schema; it is not another parser or
+semantic specification. Regenerate the schema before the reference and check
+both using the [native reference commands](../../eng/knowledge/README.md#generated-command-reference).
 
 ## Execution
 

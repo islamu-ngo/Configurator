@@ -1,6 +1,8 @@
 # Command-Line Interface (CLI)
 
-`islamu-configurator` is a high-performance, offline command-line tool. It reads declarative setup definitions and answer workspaces to deterministically validate and prepare configuration artifacts (`.env`, JSON, YAML).
+`islamu-configurator` is an offline command-line preparation tool. It reads
+bounded declarative definitions and private answer workspaces to validate and
+prepare declared configuration artifacts (`.env`, JSON, YAML).
 
 The CLI is designed for headless servers, automation pipelines, and CI/CD workflows. It never contacts target servers or administers running systems.
 
@@ -14,11 +16,19 @@ For portable bounded-v2 adoption, start with the
 private answers are v1, and machine receipts are v4; those versions are independent.
 Machine v3 and its schema are retired without an adapter or alias.
 
+For exact command, operation and option vocabulary and declared bounds, use the
+[generated command reference](cli-command-reference.md). It projects the current
+machine schema, not option meaning or host qualification. The procedures below
+and the [technical contract](../internal/CLI_CONTRACT.md) own those explanations.
+
 ## Qualified pre-release scope
 
-Parent-reported standalone Linux x64 CLI qualification exercised complete
+The repository records standalone Linux x64 CLI qualification for complete
 preparation, incomplete answers and create-only existing-file conflicts. This
-documentation update did not rerun those exercises. Qualification does not
+source-based documentation correction did not rerun those exercises. Consult
+[current status](../internal/STATUS.md) and the
+[operations record](../internal/OPERATIONS.md#definition-v2-qualification) for
+the exact evidence and its contract versions. Qualification does not
 establish target acceptance, another host's protected-save support, installed
 adoption, assistive-technology compatibility or stakeholder/scholarly proof.
 The target still owns semantic validation and permission to apply the files.
@@ -32,7 +42,18 @@ for the bounded definition mechanisms and limits.
 
 The CLI operates in two mutually exclusive output modes:
 - `--text`: Human-readable terminal output formatted using Spectre.Console.
-- `--machine`: Emits exactly one machine-readable UTF-8 JSON envelope to stdout (max 64 KiB), followed by a single newline.
+- `--machine`: Healthy delivery emits one UTF-8 JSON envelope and one trailing
+  newline, together at most 65,536 bytes. A broken stream may leave partial
+  output; no replacement envelope or automatic replay follows.
+
+All command blocks below use **Bash**, with a current packaged
+`islamu-configurator` on `PATH`, from the checkout root. For source invocation,
+complete [build prerequisites](../../PROJECTS.md), then replace that executable
+with `dotnet run --project src/Configurator.Cli --configuration Release --`;
+this may restore/build and is not an offline installation procedure.
+Read-only operations can be rerun. Write examples require an existing trusted
+parent directory and an absent destination filename; they never overwrite.
+Choose fresh destinations on a rerun and inspect partial results first.
 
 ```bash
 # Display human help
@@ -40,12 +61,56 @@ islamu-configurator --help
 
 # Generate a configuration file with machine receipt
 islamu-configurator artifact create \
-  --definition setup.json \
-  --artifact config \
-  --input answers.json \
-  --output service.json \
+  --definition examples/minimal-self-hosted/setup-definition.json \
+  --artifact configuration \
+  --input examples/minimal-self-hosted/answers/complete.json \
+  --output ./prepared-service.json \
   --machine
 ```
+
+This runnable example uses the maintained synthetic fixture and writes one
+restricted file on a supported Linux host; it does not configure a live service.
+For the remaining runnable examples, define these Bash variables once:
+
+```bash
+definition=examples/minimal-self-hosted/setup-definition.json
+answers=examples/minimal-self-hosted/answers/complete.json
+existing=examples/minimal-self-hosted/expected/service.json
+```
+
+### Private answer format and presence
+
+The following is the maintained `answers/complete.json` fixture, formatted for
+reading, not an unwrapped answer object:
+
+```json
+{
+  "answerContractVersion": 1,
+  "values": {
+    "metrics.enabled": true,
+    "service.credential": "synthetic-placeholder",
+    "service.mode": "extended",
+    "service.name": "sample"
+  },
+  "omitted": []
+}
+```
+
+Values use exact schema property names, not generated presentation field IDs.
+`service.name` is a literal root name, selected by `/service.name`, not
+`/service/name`. Names are case-sensitive and are not Unicode-normalized.
+Omissions are concrete RFC 6901 pointers (`~0` escapes tilde; `~1` escapes slash).
+Supplied and omitted locations cannot conflict, and omissions cannot overlap.
+
+Required means presence, not nonblank: false, zero, empty strings and empty
+containers remain supplied values, subject to their constraints. Null counts as
+present only where nullable. Standard `default` is descriptive and never
+inserted. `x-configurator.initialValue` initializes eligible missing values;
+explicit omission suppresses it. Reset removes the override and omission,
+restoring initialization eligibility. Suggested values require deliberate
+adoption. Children cannot initialize an absent optional container into existence.
+The fixture's literal keys and private v1 envelope are independent of runtime v2
+and command v4.
 
 ### Confidentiality & Secret Handling
 
@@ -69,8 +134,8 @@ The CLI uses strict, case-sensitive option parsing:
 | `catalogue list` | `--definition`, `--output` | `--dry-run` | List all declared field keys and structural metadata |
 | `catalogue show` | `--definition`, `--key`, `--output` | `--dry-run` | Inspect metadata for a single declared field |
 | `catalogue describe` | `--definition`, `--key`, `--output` | `--dry-run` | Inspect detailed activation and constraint metadata |
-| `env render` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run` | Render a declared dotenv artifact from answers |
-| `env validate` | `--definition`, `--artifact`, `--input` | `--input-revision` | Validate answer compatibility for a dotenv artifact |
+| `env render` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Render a declared dotenv artifact from answers |
+| `env validate` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Validate answer compatibility for a dotenv artifact |
 | `artifact create` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Generate a declared configuration artifact |
 | `artifact open` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Validate answers and stage output without writing |
 | `artifact validate` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Verify answer constraints against schema rules |
@@ -84,14 +149,35 @@ The CLI uses strict, case-sensitive option parsing:
 | `artifact prefill` | `--definition`, `--artifact`, `--input`, `--output` | `--answers`, `--input-revision`, `--format`, `--dry-run` | Ingest local configuration into a JSON answer workspace |
 | `artifact bundle-check` | `--definition`, repeated `--artifact`, `--input` | `--input-revision` | Validate multi-artifact bundle readiness |
 | `artifact bundle-create` | `--definition`, repeated `--artifact`, `--input`, `--output` | `--input-revision`, `--dry-run` | Create all bundle artifacts in the target directory |
-| `artifact preview` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run` | Validate and write protected preview output |
+| `artifact preview` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Validate and write protected preview output |
 | `doctor` | *(none)* | *(none)* | Check system writer availability and schema status |
-| `definition init` | `--project-id`, `--name`, `--application-version` | `--root`, `--output`, `--format`, `--from-env-example`, `--from-schema` | Initialize a new maintainer definition |
+| `definition init` | `--project-id`, `--name`, `--application-version` (unless forking) | `--root`, `--output`, `--format`, `--fork-from`, `--from-env-example`, `--from-schema`, `--accept-bounded-semantics` | Initialize a source, or fork to a new family with explicit output |
 | `definition check` | *(none)* | `--source`, `--root`, `--against` | Verify maintainer source syntax and canonical hash |
 | `definition lint` | *(none)* | `--source`, `--root`, `--against`, `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Admit source and report bounded authoring warnings without publication |
 | `definition schema` | *(none)* | `--kind` | Discover built-in public schemas without reading files |
 | `definition build` | *(none)* | `--source`, `--root`, `--against`, `--output`, `--id-map` | Compile maintainer source into distribution JSON |
 | `definition revise` | `--output` *(when changed)* | `--source`, `--root`, `--against` | Increment revision if source contents changed |
+
+`--machine` and `--text` are common mode options. Output is optional on
+`--dry-run` operations; no destination preflight or publication occurs.
+`--format` must match the selected artifact, not request conversion.
+`--input-revision` is a nonnegative local snapshot revision, not the definition
+revision or target revision hash.
+
+Detail options (`--detail`, `--offset`, `--limit`,
+`--expected-detail-digest`) are for read-only `definition check|lint` and
+`artifact validate|check-existing|bundle-check|compare`; they require machine
+mode. `findings` needs an assessment. Bundle selection takes up to 64 distinct,
+repeated `--artifact` flags, not CSV `--artifacts`.
+
+Normally `--input` supplies private answers. For `check-existing`, `compare`
+and `prefill`, it supplies an existing projected file. On `check-existing` and
+`prefill`, `--answers` optionally supplies the current workspace for conflict
+checks. On other operations admitting `--answers`, it supplies answers while
+`--input` becomes an artifact to verify against recomposition; `format` writes
+canonical composed bytes, not arbitrary reformatted input. At most one private
+input can use redirected stdin; definitions must be local files. Interactive
+stdin is rejected without prompting.
 
 ---
 
@@ -100,7 +186,8 @@ The CLI uses strict, case-sensitive option parsing:
 ### Authoring diagnostics and schema discovery
 
 ```bash
-islamu-configurator definition lint --source configurator.yaml --machine \
+islamu-configurator definition lint \
+  --source examples/minimal-self-hosted/configurator.yaml --machine \
   --detail diagnostics --limit 16
 islamu-configurator definition schema --kind authoring --machine
 islamu-configurator definition schema --kind command --text
@@ -127,8 +214,8 @@ Do not apply a correction after changing the input revision.
 
 Locations may stop at the nearest representable ancestor: pointers are limited
 to 256 characters; corrections to 32 segments and 256 aggregate declared-name
-characters. For omitted diagnostics, request `--detail diagnostics`, advance by
-the actual returned count, and send `--expected-detail-digest` on noninitial
+characters. For omitted diagnostics, request `--detail diagnostics`, use the
+returned `nextOffset`, and send `--expected-detail-digest` on noninitial
 pages. A digest mismatch means the public diagnostic view changed: restart at
 offset zero. Values and native paths are never recovery identifiers.
 
@@ -139,14 +226,14 @@ Inspect definition structure without supplying answers:
 ```bash
 # List all declared fields to a JSON catalogue
 islamu-configurator catalogue list \
-  --definition setup.json \
+  --definition "$definition" \
   --output catalogue.json \
   --machine
 
 # Describe constraints and activations for a specific field
 islamu-configurator catalogue describe \
-  --definition setup.json \
-  --key service.port \
+  --definition "$definition" \
+  --key service.name \
   --output field-details.json \
   --machine
 ```
@@ -158,17 +245,17 @@ Render or validate `.env` format artifacts declared in the definition:
 ```bash
 # Validate answers for a declared environment artifact
 islamu-configurator env validate \
-  --definition setup.json \
+  --definition "$definition" \
   --artifact environment \
-  --input answers.json \
+  --input "$answers" \
   --machine
 
 # Render the .env file to disk
 islamu-configurator env render \
-  --definition setup.json \
+  --definition "$definition" \
   --artifact environment \
-  --input answers.json \
-  --output .env \
+  --input "$answers" \
+  --output ./prepared.env \
   --machine
 ```
 
@@ -179,53 +266,66 @@ Prepare, validate, diff, and generate application artifacts:
 ```bash
 # Assess an existing configuration before attempting autofill
 islamu-configurator artifact compare \
-  --definition setup.json \
-  --artifact config \
-  --input existing-service.json \
+  --definition "$definition" \
+  --artifact configuration \
+  --input "$existing" \
   --detail findings --limit 16 \
   --machine
 
 # Create a single protected configuration artifact
 islamu-configurator artifact create \
-  --definition setup.json \
-  --artifact config \
-  --input answers.json \
-  --output service.json \
+  --definition "$definition" \
+  --artifact configuration \
+  --input "$answers" \
+  --output ./prepared-service-2.json \
   --machine
 
 # Prefill answers by ingesting an existing service.json file
 islamu-configurator artifact prefill \
-  --definition setup.json \
-  --artifact config \
-  --input existing-service.json \
+  --definition "$definition" \
+  --artifact configuration \
+  --input "$existing" \
   --output prefilled-answers.json \
   --machine
 
-# Compare candidate answers against a baseline
+# Compare workspaces; the same maintained fixture establishes equality
 islamu-configurator artifact diff \
-  --definition setup.json \
-  --artifact config \
-  --input candidate-answers.json \
-  --baseline baseline-answers.json \
+  --definition "$definition" \
+  --artifact configuration \
+  --input "$answers" \
+  --baseline "$answers" \
   --machine
+```
 
-# Prepare an import artifact with explicit revision binding
+The following is an **invocation template**, not runnable with the neutral
+fixture: `import-definition.json` must declare an import-semantic artifact and
+an active required string revision field copied unconditionally to a root
+output member. Supply the target's expected digest (or supported `absent`
+marker), a compatible private v1 answer file, and a fresh destination:
+
+```bash
 islamu-configurator artifact import \
-  --definition setup.json \
+  --definition import-definition.json \
   --artifact import-spec \
   --input answers.json \
   --output import.json \
   --expected-revision 8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4 \
   --revision-field target_revision \
   --machine
+```
 
-# Atomically generate a multi-artifact bundle
+This runnable bundle example composes first, preflights all destinations, then
+publishes sequentially. It is **not a whole-bundle transaction**; a later failure
+can leave a written prefix. `mktemp` gives each rerun a fresh private directory:
+
+```bash
+destination=$(mktemp -d "$HOME/configurator-bundle.XXXXXXXX")
 islamu-configurator artifact bundle-create \
-  --definition setup.json \
-  --artifact config \
+  --definition "$definition" \
+  --artifact configuration \
   --artifact environment \
-  --input answers.json \
-  --output ./prepared \
+  --input "$answers" \
+  --output "$destination" \
   --machine
 ```
 
@@ -272,6 +372,14 @@ See [Import and compare](import-and-compare.md) for the complete workflow.
 
 Create, validate, compile, and increment setup definition sources:
 
+This is a **Bash authoring workflow template**. Use a fresh local project
+directory with an existing `candidates/` subdirectory; do not run it over the
+maintained fixtures. `init` allocates a fresh family and writes public source,
+`check` is read-only, and `build` writes public runtime JSON. After an actual
+source edit, `revise` writes a separate create-only candidate; it does not replace
+the original. Inspect/adopt the candidate before building the new revision.
+Rerun checks freely; use fresh output paths for changed candidates.
+
 ```bash
 # Initialize a new maintainer definition
 islamu-configurator definition init \
@@ -280,13 +388,13 @@ islamu-configurator definition init \
   --application-version 1.0.0 \
   --format yaml
 
-# Check local source validity against canonical build
+# Check local source admission
 islamu-configurator definition check --machine
 
 # Compile canonical runtime distribution JSON
 islamu-configurator definition build --machine
 
-# Increment revision after source edits
+# After editing source, create a separately reviewable next revision
 islamu-configurator definition revise \
   --output candidates/configurator.next.yaml \
   --machine
@@ -300,6 +408,9 @@ Check environment capabilities, native writer availability, and schema authority
 islamu-configurator doctor --machine
 ```
 
+Doctor does not probe the selected output filesystem, qualify another host,
+or establish that target software will accept an artifact.
+
 ---
 
 ## Machine Contract (`--machine`)
@@ -307,6 +418,11 @@ islamu-configurator doctor --machine
 In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v4` schema. It provides deterministic, structured facts about operation results, file publication, validation diagnostics and existing-file assessment.
 
 ### 1. Successful Artifact Creation
+
+The JSON examples in this section are **illustrative receipt shapes**, not
+captured command results. Digests are stand-ins and counts describe the example;
+do not use them as fixture expectations. The generated v4 schema, not a
+documentation excerpt, defines the complete machine contract.
 
 ```json
 {
@@ -327,11 +443,11 @@ In machine mode, the CLI emits a single JSON object adhering to the `islamu-conf
   "delivery": "attempt",
   "diagnosticsTotal": 0,
   "diagnosticsOmitted": 0,
-  "detailDigest": "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0",
+  "detailDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "diagnostics": [],
   "artifacts": [
     {
-      "id": "config",
+      "id": "configuration",
       "kind": "definition-artifact",
       "mediaType": "application/json",
       "digest": "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
@@ -343,21 +459,30 @@ In machine mode, the CLI emits a single JSON object adhering to the `islamu-conf
     }
   ],
   "coverage": {
-    "coveredCount": 14,
+    "coveredCount": 4,
     "missingCount": 0,
-    "detailDigest": "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0"
+    "detailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
   },
   "readiness": {
-    "state": "ready",
-    "missingCount": 0,
+    "state": "incomplete",
+    "missingCount": 1,
     "blockedCount": 0
   }
 }
 ```
 
-### 2. Validation Failure with Diagnostics
+`preparation: "ready"` means local composition succeeded. Root readiness remains
+incomplete because host validation is required; `targetAcceptance` remains
+unassessed. `written` records installation, not proof of successful verification
+or cleanup. Check those independent facts and the process exit. Receipt delivery
+is an attempt, not a self-attested acknowledgment by its consumer.
 
-When validation fails, diagnostics include fixed error codes, RFC 6901 structural paths, and source locations:
+### 2. Incomplete Answers with Diagnostics
+
+For a missing required credential, single-artifact validation returns incomplete
+(exit 3). Answer diagnostics use value-free field metadata and typed corrections;
+compiler diagnostics instead carry optional public source coordinates.
+Prose `message` fields are not part of the diagnostic contract:
 
 ```json
 {
@@ -367,43 +492,33 @@ When validation fails, diagnostics include fixed error codes, RFC 6901 structura
     "operation": "validate",
     "mode": "machine"
   },
-  "status": "validation",
-  "exitCategory": "validation",
-  "exitCode": 2,
+  "status": "incomplete",
+  "exitCategory": "incomplete",
+  "exitCode": 3,
   "dryRun": false,
   "completion": "failed",
   "preparation": "incomplete",
   "targetAcceptance": "unassessed",
-  "cleanup": "completed",
+  "cleanup": "not-required",
   "delivery": "attempt",
   "diagnosticsTotal": 1,
   "diagnosticsOmitted": 0,
   "detailDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "diagnostics": [
     {
-      "code": "field-required-missing",
-      "path": "/database/password",
+      "code": "value-required",
+      "path": "/input",
       "severity": "error",
-      "line": 4,
-      "column": 5,
-      "byteOffset": 82
+      "correction": {
+        "inputRevision": 0,
+        "fieldId": "service.credential",
+        "segments": []
+      }
     }
   ],
-  "artifacts": [
-    {
-      "id": "config",
-      "kind": "definition-artifact",
-      "mediaType": "application/json",
-      "digest": "0000000000000000000000000000000000000000000000000000000000000000",
-      "sensitivity": "restricted",
-      "pathIntent": "output",
-      "writeStatus": "not-attempted",
-      "installation": "not-attempted",
-      "verification": "not-attempted"
-    }
-  ],
+  "artifacts": [],
   "coverage": {
-    "coveredCount": 8,
+    "coveredCount": 3,
     "missingCount": 1,
     "detailDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
@@ -417,7 +532,10 @@ When validation fails, diagnostics include fixed error codes, RFC 6901 structura
 
 ### 3. Paginated Detail Query
 
-Query detailed coverage or diagnostics using pagination options (`--detail coverage --offset 0 --limit 16`):
+Query detailed coverage or diagnostics on a read-only operation. This
+illustrative first page requests `--detail coverage --offset 0 --limit 2` and
+returns two of four covered fields; continue at `nextOffset: 2` with the returned
+digest, not the requested page size:
 
 ```json
 {
@@ -434,44 +552,56 @@ Query detailed coverage or diagnostics using pagination options (`--detail cover
   "completion": "completed",
   "preparation": "ready",
   "targetAcceptance": "unassessed",
-  "cleanup": "completed",
+  "cleanup": "not-required",
   "delivery": "attempt",
   "diagnosticsTotal": 0,
   "diagnosticsOmitted": 0,
-  "detailDigest": "9b12c8a34ef018293a4b5c6d7e8f90123456789abcdef0123456789abcdef01",
+  "detailDigest": "0000000000000000000000000000000000000000000000000000000000000000",
   "detail": {
     "kind": "coverage",
     "offset": 0,
     "limit": 2,
-    "total": 2,
-    "retainedCount": 2,
+    "total": 4,
+    "retainedCount": 4,
     "returnedCount": 2,
-    "nextOffset": null,
-    "terminal": true,
-    "digest": "9b12c8a34ef018293a4b5c6d7e8f90123456789abcdef0123456789abcdef01",
+    "nextOffset": 2,
+    "terminal": false,
+    "digest": "0000000000000000000000000000000000000000000000000000000000000000",
     "diagnostics": [],
     "findings": [],
     "coverage": [
       {
-        "id": "service.name",
+        "id": "metrics.enabled",
         "state": "covered"
       },
       {
-        "id": "database.port",
+        "id": "service.credential",
         "state": "covered"
       }
     ]
   },
   "diagnostics": [],
-  "artifacts": [],
+  "artifacts": [
+    {
+      "id": "configuration",
+      "kind": "definition-artifact",
+      "mediaType": "application/json",
+      "digest": "44499c22ed7fcfeafe85f36a2351de1769ab7df9ac2456635fca46ef7f56d026",
+      "sensitivity": "restricted",
+      "pathIntent": "input",
+      "writeStatus": "none",
+      "installation": "not-applicable",
+      "verification": "not-applicable"
+    }
+  ],
   "coverage": {
-    "coveredCount": 2,
+    "coveredCount": 4,
     "missingCount": 0,
-    "detailDigest": "9b12c8a34ef018293a4b5c6d7e8f90123456789abcdef0123456789abcdef01"
+    "detailDigest": "0000000000000000000000000000000000000000000000000000000000000000"
   },
   "readiness": {
-    "state": "ready",
-    "missingCount": 0,
+    "state": "incomplete",
+    "missingCount": 1,
     "blockedCount": 0
   }
 }
