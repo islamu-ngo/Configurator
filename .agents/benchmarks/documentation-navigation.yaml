@@ -1,0 +1,269 @@
+# Read-only acceptance exercises; preparing or parsing them does not execute them.
+version: 1
+last_updated: "2026-10-30"
+owner: "context-system-maintainers"
+
+context_budget:
+  additional_bootstrap_bytes: 12288
+  discovery_result_bytes: 40960
+  single_retrieval_bytes: 12288
+  scout_result_characters: 1500
+  duplicate_unchanged_bytes: 0
+  full_registry_reads: 0
+
+scenarios:
+  - id: contributor-docs-recipe
+    intent_id: documentation
+    summary: Find a complete documentation contribution route.
+    prompt: |
+      Read-only, starting at docs/README.md: choose the documentation recipe.
+      Name its task, real source/check owners, smallest synthetic change,
+      exact verification command, expected evidence and limits. Explain the
+      reading route, unnecessary reads and ambiguity. Do not execute the recipe.
+      Return at most 1500 characters.
+    expected_must_reads: ["docs/README.md", "docs/internal/CONTRIBUTOR_RECIPES.md", "docs/internal/DOCUMENTATION_STYLE_GUIDE.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Select the native Markdown check and public/internal owner parity."
+      - "Do not treat links or editorial review as runtime qualification."
+    notes: "Semantic outcome and unavailable budget telemetry must be recorded separately."
+
+  - id: contributor-core-recipe
+    intent_id: documentation
+    summary: Locate a Core assertion change and its narrow check.
+    prompt: |
+      Read-only, starting at docs/README.md: choose the Core assertion recipe.
+      Name its task, real source/test owners, smallest synthetic change,
+      exact verification command, expected evidence and limits. Explain the
+      reading route, unnecessary reads and ambiguity. Do not execute the recipe.
+      Return at most 1500 characters.
+    expected_must_reads: ["docs/README.md", "docs/internal/CONTRIBUTOR_RECIPES.md", "docs/internal/CORE_DEFINITIONS.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Find one shared Core semantic owner and an actual class selector."
+      - "Explain rejection and evaluation without relying on a diagram."
+    notes: "Source routing exercise, not test execution or target acceptance."
+
+  - id: contributor-cli-recipe
+    intent_id: documentation
+    summary: Trace a CLI contract change through generated projections.
+    prompt: |
+      Read-only, starting at docs/README.md: choose the CLI contract recipe.
+      Name its task, real source/test owners, smallest synthetic change,
+      exact verification command, expected evidence and limits. Explain the
+      reading route, unnecessary reads and ambiguity. Do not execute the recipe.
+      Return at most 1500 characters.
+    expected_must_reads: ["docs/README.md", "docs/internal/CONTRIBUTOR_RECIPES.md", "docs/internal/CLI_CONTRACT.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Find compiled CLI metadata, generator and renderer order."
+      - "Distinguish exact vocabulary freshness from usage and host evidence."
+    notes: "No generated-output hand edits and no compatibility aliases."
+
+  - id: contributor-editor-recipe
+    intent_id: documentation
+    summary: Trace interactive editor ownership and stale-result protection.
+    prompt: |
+      Read-only, starting at docs/README.md: choose the interactive editor recipe.
+      Name its task, real source/test owners, smallest synthetic change,
+      exact verification command, expected evidence and limits. Explain edit
+      ordering and stale-output rejection using text, plus the reading route,
+      unnecessary reads and ambiguity. Do not execute the recipe.
+      Return at most 1500 characters.
+    expected_must_reads: ["docs/README.md", "docs/internal/CONTRIBUTOR_RECIPES.md", "docs/internal/CORE_DEFINITIONS.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Separate shared answer mutation from client callbacks and view-only changes."
+      - "Name a real narrow selector; do not infer latency or accessibility proof."
+    notes: "Read prose outside Mermaid fences to assess diagram-independent comprehension."
+
+  - id: contributor-native-recipe
+    intent_id: documentation
+    summary: Trace interrupted publication without inventing rollback.
+    prompt: |
+      Read-only, starting at docs/README.md: choose the native cancellation and
+      publication recipe. Name its task, real source/test owners, smallest
+      synthetic change, exact verification command, expected evidence and limits.
+      Explain installed-prefix facts and safe recovery using text, plus the
+      reading route, unnecessary reads and ambiguity. Do not execute the recipe.
+      Return at most 1500 characters.
+    expected_must_reads: ["docs/README.md", "docs/internal/CONTRIBUTOR_RECIPES.md", "docs/internal/CORE_DEFINITIONS.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Preserve physical installed outcomes after cancellation; do not promise rollback."
+      - "Select actual owner checks and distinguish host qualification."
+    notes: "Read-only, no writes or private configuration input."
+
+  - id: docs-product-boundary
+    intent_id: documentation
+    summary: Explain the product without implying target authority.
+    prompt: |
+      Read-only, starting at README.md or docs/README.md: explain what
+      Configurator does and who accepts, authorizes and applies its output.
+      Report your reading route, unnecessary reads and unresolved ambiguity.
+    expected_must_reads: ["README.md", "docs/README.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Explain preparation-only operation, local answers and data-only definitions."
+      - "Keep target validation, authorization and apply authority independent."
+    notes: "No runtime or target-acceptance qualification."
+
+  - id: docs-requiredness-owner
+    intent_id: documentation
+    summary: Locate shared requiredness semantics and their owner tests.
+    prompt: |
+      Read-only, starting at the documentation hub: where should a contributor
+      change requiredness, and which source/test owner and verification route
+      should they use? Report routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/internal/DEFINITION_CONFORMANCE_PROFILE.md", "docs/internal/CORE_DEFINITIONS.md", "PROJECTS.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Find Core admission/evaluation and representative Core conformance fixtures."
+      - "Do not propose an independent client-specific validator."
+    notes: "Locate source/test anchors without executing them."
+
+  - id: docs-answer-presence
+    intent_id: documentation
+    summary: Distinguish values, omission, reset and initialization.
+    prompt: |
+      Read-only, starting at the documentation hub: explain default,
+      initialValue, suggestedValue, explicit omission, reset, null and absent
+      parent containers. Report routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/public/definitions.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Default does not insert answers; suggestions need deliberate adoption."
+      - "Omission suppresses initialization; reset restores eligibility."
+      - "Null is supplied presence and absent containers are not synthesized."
+    notes: "Use the maintained worked example, not private input."
+
+  - id: docs-restricted-drafts
+    intent_id: documentation
+    summary: Explain incomplete drafts without a public-data claim.
+    prompt: |
+      Read-only, starting at the documentation hub: what is a secret-deferred
+      draft, what can it contain, and can it be published as public data?
+      Report routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/public/glossary.md", "docs/public/definitions.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Only genuinely missing secrets defer; malformed supplied values still block."
+      - "Drafts can contain supplied private values, remain restricted and incomplete."
+    notes: "No private fixture reading."
+
+  - id: docs-interrupted-publication
+    intent_id: documentation
+    summary: Interpret a cancelled save without assuming rollback.
+    prompt: |
+      Read-only, starting at the documentation hub: a save is cancelled after
+      one file may have installed. Explain the receipt and safe recovery.
+      Report routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/public/native-output.md", "docs/internal/PROTECTED_ARTIFACTS.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Preserve installed-prefix facts; unknown is not proof of no write."
+      - "Distinguish installation, verification, cleanup and current readiness."
+      - "Recover without overwrite or automatic rollback."
+    notes: "No filesystem publication during this exercise."
+
+  - id: docs-scoped-verification
+    intent_id: documentation
+    summary: Find a concrete narrow check and its prerequisites.
+    prompt: |
+      Read-only, starting at the documentation hub: select a concrete
+      verification command for Core definition behavior, its prerequisites
+      and a class-level selection. Report routes and unresolved ambiguity.
+    expected_must_reads: ["docs/README.md", "PROJECTS.md", "docs/internal/TESTING.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Name the pinned SDK, temporary-directory prerequisite and Release build prerequisite."
+      - "Select an actual Core test class with a nonempty guard, not unrelated clients."
+    notes: "A proposed command is not a test pass."
+
+  - id: docs-support-evidence
+    intent_id: documentation
+    summary: Separate package, host, save and release claims.
+    prompt: |
+      Read-only, starting at the documentation hub: distinguish buildable
+      packages, Desktop/Terminal/Browser host evidence, protected-save support
+      and official release. Report routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/internal/STATUS.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Desktop X11 and actual Terminal process observations are separate."
+      - "Cross-publication does not qualify a host; browser export is not protected native save."
+      - "Local packages and configured CI do not prove official release."
+    notes: "Detailed totals stay in scoped execution records."
+
+  - id: docs-old-guidance
+    intent_id: documentation
+    summary: Resolve old Browser or CLI guidance without rewriting history.
+    prompt: |
+      Read-only, starting at the documentation hub: an older report or skill
+      names a different Browser stack or machine version. How do you find the
+      current authority? Report routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/internal/KNOWLEDGE_MAP.md", "docs/internal/DOCUMENTATION_ARCHITECTURE.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Classify owner, kind, scope and reviewed revision before relying on a claim."
+      - "Distinguish drift, implementation nonconformance and unresolved design."
+      - "Neither newest document nor code automatically overrides intended requirements."
+    notes: "Retain historical bodies and source-relative evidence limits."
+
+  - id: docs-only-contribution
+    intent_id: documentation
+    summary: Find proportional documentation contribution checks.
+    prompt: |
+      Read-only, starting at the documentation hub: what must a docs-only
+      contributor read, change and check, and what must they not claim?
+      Report routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/internal/DOCUMENTATION_ARCHITECTURE.md", "eng/knowledge/README.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Find the current owner, public counterpart and native knowledge checks."
+      - "Keep examples explicit and synthetic; do not infer a product-suite or host pass."
+    notes: "Agent policy and provenance tasks retain their distinct intent routes."
+
+  - id: docs-import-status
+    intent_id: documentation
+    summary: Distinguish accepted import design from delivered qualification.
+    prompt: |
+      Read-only, starting at the documentation hub: is ordinary-file
+      import/comparison proposed, delivered everywhere or at another status?
+      Explain how you tell, with routes, unnecessary reads and ambiguity.
+    expected_must_reads: ["docs/README.md", "docs/internal/STATUS.md", "docs/internal/IMPORT_COMPARISON.md"]
+    expected_paths_in_scope: []
+    expected_paths_forbidden: ["src/**", "tests/**", "dev/active/**"]
+    expected_verification_commands: []
+    acceptance_criteria:
+      - "Use current implementation and per-adapter evidence, not the age or detail of a plan."
+      - "Distinguish accepted design, implementation in progress and pending client/package qualification."
+    notes: "Refresh the expected disposition when the owning evidence changes."
