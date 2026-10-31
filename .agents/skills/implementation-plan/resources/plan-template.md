@@ -7,6 +7,11 @@
 
 Use this structure for `dev/active/<task-name>/<task-name>-plan.md`.
 
+Use existing plain filenames where the workstream already has them. Commit
+metadata below is for requested history planning; execution requires explicit
+authorization and uses the assigned checkout, not a forced feature branch.
+Backend terms in examples are historical illustrations, not target services.
+
 ## Header
 
 ```markdown
@@ -41,7 +46,9 @@ Lead with the concrete problem and what changes for users/operators or engineeri
 
 ### 2.0 Pre-Flight Structural Context (Blast Radius)
 
-Inject bounded Turn 1 knowledge-graph impact slice:
+Record a bounded impact slice for actual changed owners. Use graph evidence
+where covered, otherwise symbols and focused reads; no graph gate for prose.
+The following backend shape is historical reference, not target topology:
 
 ```yaml
 # Injected Structural Context (Pre-Flight Blast Radius)
@@ -174,10 +181,14 @@ Every task checkbox in `tasks.md` MUST include its explicit verification asserti
 - [ ] Task 1.2: Implement RsvpAggregate hold expiration logic and verify unit tests pass via `--treenode-filter`
 ```
 
-Do not create standalone manual-QA, documentation-review, reporting, dev-doc maintenance, or redundant verification tasks. Run no build or test command until the phase implementation is complete.
+Fold verification into its owning slice rather than inventing redundant phases.
+Failing invariant and inner-loop checks precede implementation where required;
+phase-exit checks run after the coherent slice, not after each cosmetic edit.
 
 #### Per-Phase Closing Rule: Verify, Then Commit (in `tasks.md`)
-Every implementation phase MUST end with a **Phase N Commit** task immediately after its phase-verification tasks. The approved task ledger is standing authorization for the same implementing agent to execute the commit; do not defer commit composition to a new session or require another user invocation.
+When history work is explicitly requested, place phase-owned commit contracts
+after verification and execute them within that authorization. A task ledger
+or approved implementation plan alone never authorizes Git operations.
 
 ##### Atomic Commit Slicing for Large Phases (Rule 1 & Rule 13)
 When a phase is large (touching dozens or hundreds of files) or spans multiple separable architectural concerns (domain models & invariant tests, persistence & migrations, application CQRS handlers, API endpoints, Blazor UI, documentation), planning MUST NOT create a single monolithic umbrella commit.
@@ -218,14 +229,16 @@ An override is exceptional and allowed only when explicit user feedback changed 
 
 Create any required changelog fragment, generated artifact, schema, runbook, or documentation in the phase that owns that outcome, before that phase's verification and commit. There is no final-phase-only catch-all commit.
 
-Every workstream MUST conclude with a **Knowledge Graduation & Workstream Close** step: promote any explicitly deferred scope or follow-ups to standalone backlog items in `dev/backlog/<slug>.md`, durable architectural decisions to `docs/internal/adr/`, and non-obvious lessons/quirks to `dev/_journal/domains/`. Stage and commit these persistent artifacts alongside production code before closing the workstream.
+Graduate applicable deferred scope to authorized backlog owners, decisions to
+ADRs and non-obvious lessons to the journal. Do not expand a narrow task's
+allow-list or commit artifacts without authorization.
 
 ## 7. Testing Strategy
 
 Keep this section short and high-leverage (strict **Quality over Quantity**):
-1. **Invariant Anchors**: Detail which test project (e.g., `Event.Domain.UnitTests`, `Event.Application.UnitTests`, `Event.API.IntegrationTests`, `Event.Persistence.IntegrationTests`) hosts the invariant and contract tests.
-2. **High-Leverage Adversarial Scenarios**: Prioritize high-value invariant tests (concurrency races, state machine exhaustiveness, real DB transaction boundaries, zero-PII log sinks, tenant isolation) over shallow mock-heavy boilerplate tests.
-3. **Phase Verification Lane**: Assign exactly one fastest relevant non-browser test project to each phase, never repeat a project without a concrete reason, and never schedule more than one `dotnet test` command in a phase. A broad shared-tree command that fails solely in proven unrelated concurrent work is recorded as an external verification blocker; the phase may close only when its own selected verification lane is green and no phase-attributable failure remains. Do not plan E2E, Playwright, browser automation, Chrome DevTools MCP, visual QA, live-app smoke, Aspire/Docker startup, or manual runtime verification.
+1. **Invariant Anchors**: Name the actual affected owner in `PROJECTS.md`, such as Core admission, Presentation generations or Artifacts create-only writes.
+2. **High-Leverage Adversarial Scenarios**: Prioritize bounded admission, immutable identity, sensitivity, custody, state transitions and native publication races over mock-call mirroring.
+3. **Phase Verification Lane**: Select the affected owner's Release build and focused checks. Prose needs metadata/links/whitespace only. Include real browser/native interaction or package checks where changed behavior requires them, without unrelated Event service startup. Record proven unrelated failures separately; never claim green for an owned failure.
 
 Record additional intent-mandated projects as contract requirements, then distribute them across existing phases where possible; do not create artificial test-only phases.
 
@@ -238,7 +251,7 @@ Name the exact docs, schemas, generated artifacts, settings, environment variabl
 Every implementation plan MUST classify its procedural changelog approach across the 3-tier release model. Planning pre-authors each phase's exact message metadata, commit paths, and executable Git command packet in `tasks.md`. When a phase touches dozens or hundreds of files across multiple concerns, planning sequences an ordered series of atomic commits instead of an oversized umbrella commit. Every phase then closes with that approved self-sufficient contract; release artifacts are created in the owning phase rather than deferred to one catch-all commit:
 
 1. **Tier 1 — Standard Feature or Fix (Conventional Commits):**
-   - Use public capability scopes from `eng/release/policy/scope-registry.yaml` (e.g. `feat(event): ...`, `fix(auth): ...`).
+   - Use actual public capability scopes from `eng/release/policy/scope-registry.yaml`; do not infer Event scopes from historical examples.
    - The release engine automatically aggregates these into `What's Changed` at release time.
 2. **Tier 2 — High-Impact / Breaking / Migration / Security / Operator Impact (Change Fragment):**
    - The owning phase MUST include a task creating an append-only change fragment under `docs/internal/releases/changes/CHG-YYYY-NNNN.yaml`.

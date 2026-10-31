@@ -5,7 +5,7 @@
 
 # Implementation Plan Resources
 
-Read resources in this order:
+Retrieve only the resource for the current planning stage:
 
 1. [Investigation Workflow](investigation-workflow.md) — use for evidence collection, intent classification, current-state reporting, and workstream selection.
 2. [Plan Template](plan-template.md) — use when writing or re-baselining `<task-name>-plan.md`.
@@ -13,3 +13,7 @@ Read resources in this order:
 4. [Quality Gates](quality-gates.md) — use before handing the planning workstream to the user or an implementation agent.
 
 This skill and its resources are the standard tool-neutral implementation-planning workflow.
+
+[Historical Event planning](event-planning-reference.md) preserves the original
+contract and examples. Its commands, topology and relative source paths are
+reference-only; use the active skill for current execution boundaries.

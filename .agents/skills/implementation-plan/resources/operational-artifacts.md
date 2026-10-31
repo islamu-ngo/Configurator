@@ -5,6 +5,11 @@
 
 # Operational Artifacts
 
+These templates inherit the active skill's authorization boundary. Keep the
+current assigned checkout; commit sections are conditional on explicit history
+authorization, not automatic phase gates. Use existing task filenames. Backend
+and feature-branch wording is illustrative, not a missing target prerequisite.
+
 ## Dev-Doc Triad Responsibility Matrix
 
 | Artifact | Single Source of Truth For | Forbidden Content (Belongs Elsewhere) |
@@ -71,7 +76,7 @@ Concise decision log synchronized with the plan.
 Matched intents, relevant rules/skills, and task-specific invariants.
 
 ## Validation Baseline
-For every implementation phase: one Release build and at most one fastest relevant non-browser project test, both run once after the phase tasks. Record any proven unrelated shared-tree failure separately from the phase-owned verification result; never relabel it green.
+For each code phase, select the affected-owner Release build/check from `PROJECTS.md`; use real-surface checks when changed interactions require them. Prose phases use metadata/link/whitespace checks only. Record proven unrelated failures separately; never relabel an owned failure green.
 
 ## Current Known Risks / Unknowns
 Short list with owning task ids.
@@ -117,7 +122,7 @@ Last Updated: YYYY-MM-DD Europe/Brussels
 - Update the plan only when scope, architecture, sequencing, acceptance criteria, or risk strategy changes.
 - Do not run build/tests after individual tasks; verify once at phase end.
 - planning itself never creates branches or worktrees; plan artifacts live in the root dev/active/ directory.
-- Do not start the app, browser, Docker, Aspire, Playwright, Chrome DevTools MCP, or live services for verification.
+- Exercise actual changed user-visible/package behavior where required; do not start unrelated services or invent an Aspire/database dependency.
 
 ## Phase 1: <Name> ⏳ NOT STARTED
 **Phase-owned paths:** exact files this phase may stage; update before verification when legitimate phase work discovers or generates another file.
@@ -128,12 +133,12 @@ Last Updated: YYYY-MM-DD Europe/Brussels
   - **Effort:** S/M/L/XL
   - **Dependencies:** task ids
 
-### Phase 1 Verification — RUN ONCE AFTER ALL PHASE TASKS
-- [ ] Run `dotnet build --configuration Release --verbosity quiet` once.
-- [ ] Run `dotnet test --project <one-relevant-project>.csproj --configuration Release --verbosity quiet` once.
+### Phase 1 Verification — AFFECTED OWNER ONLY
+- [ ] Run the affected-owner Release build/check once for code; metadata/link/whitespace checks instead for prose.
+- [ ] Run the focused owner tests and real-surface check only where the changed behavior calls for them.
 - [ ] Confirm the phase-owned verification lane is green.
 
-### Phase 1 Commit(s) — RUN IMMEDIATELY AFTER VERIFICATION
+### Phase 1 Commit(s) — ONLY WHEN EXPLICITLY AUTHORIZED
 *(Note: If Phase 1 is large or touches dozens/hundreds of files across multiple concerns, sequence multiple atomic commit contracts below instead of one monolithic umbrella commit).*
 
 #### Planned Commit Contract [Contract 1 of N for multi-commit phases]
@@ -190,7 +195,9 @@ Use the lightest update that keeps repository state truthful:
 | Scope, architecture, sequence, risk, or acceptance changed | Update plan, then mirror task impact | Re-baseline unchanged sections |
 | Pause, compaction, or session transfer | Reconcile affected tasks and add a concise context handoff | Leave incomplete work undocumented |
 
-Implementation completion, verification disposition, and phase completion are distinct. Check an implementation task when its acceptance criteria are satisfied. The phase completes only after its own verification is green and all phase-owned Conventional Commits succeed.
+Implementation completion, verification disposition and history are distinct.
+Check a task when its acceptance holds. Phase completion requires its own
+verification, plus commits only when the task explicitly requested them.
 
 ## Read Cadence
 

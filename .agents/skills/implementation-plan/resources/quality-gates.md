@@ -44,16 +44,18 @@
 - Every task includes observable acceptance criteria, dependencies, effort, and required guidance.
 - Phases are reviewable slices with rollback or failure-diagnosis guidance.
 - **Clean Architecture Slicing & 3-Ring Progressive Verification**:
-  - **Ring 1 (Inner Loop, < 2s)**: Subtasks specify fast in-memory TUnit slicing (`--treenode-filter "/*/*/*<TestClass>/*"`) targeting `Event.Domain.UnitTests` or `Event.Application.UnitTests`. Zero Docker containers or network I/O in the inner loop. Pure domain invariants (normalization, validation, state machines) belong in Domain unit tests (< 50ms).
-  - **Ring 2 (Phase Exit Gate, < 15s)**: Every intermediate phase ends with exactly one Release build (`dotnet build -c Release -v q`) and at most one fastest relevant project test against ONE selected provider (e.g. SQLite in-memory or single PostgreSQL container). **Planning multi-database provider matrix runs or container sweeps during intermediate phases is strictly forbidden.**
-  - **Ring 3 (Plan Exit Gate)**: The full 5-database provider matrix (PostgreSQL, SQLite, SQL Server, MySQL), EF Core migrations, and `Event.Architecture.Tests` are planned strictly at the final plan exit before PR creation.
-- **Yak-Shaving Quarantine Rule**: The plan must forbid agents from absorbing, debugging, or fixing pre-existing test rot or broken fixtures outside the task scope. When unrelated tests fail, agents must reproduce on clean base, log under `*-context.md` / `dev/backlog/`, quarantine the failure, and proceed with the assigned deliverable.
+  - **Ring 1 (Inner Loop)**: Fast in-memory class slices at the actual Core, Presentation or other affected owner; no timing promises or Event project names.
+  - **Ring 2 (Phase Exit)**: One affected-owner Release build/check from `PROJECTS.md`. Prose-only phases use links, metadata and whitespace instead.
+  - **Ring 3 (Workstream Exit)**: Relevant solution wiring, generated schema/ratchet freshness and actual package/boundary checks once; no Event database/provider matrix.
+- **Yak-Shaving Quarantine Rule**: Do not absorb unrelated test rot. Establish pre-existence from available untouched-baseline evidence without unauthorized branches/worktrees; otherwise label attribution unverified. Record and quarantine proven failures, then proceed within scope.
 - Tests are specified against public contracts (native CQS requests, HTTP routes, ProblemDetails RFC 7807, database states) rather than private implementation details.
-- Every phase then ends with a self-sufficient declarative commit contract. If a phase touches dozens or hundreds of files or multiple separable layers, it sequences multiple atomic commit contracts following `conventional-commit`. The commit stages and commits strictly phase-owned files on the task branch (`feat/<task-name>`), verifying clean status before completing the phase. Normal execution does not reload `conventional-commit`.
+- When history work is requested, phases contain self-sufficient atomic commit contracts following `conventional-commit`, with literal owned paths. Execute only under explicit task authorization in the assigned checkout; never force a feature branch or change unrelated edits.
 - Message overrides are limited to explicit user-driven outcome changes, atomic phase splits, material implementation divergence, changed breaking/change-fragment classification, or a planned message that became factually false. Stylistic preference is never sufficient.
 - Only an allowed override loads `conventional-commit`; every resulting actual contract repeats the declarative schema before any commit executes.
 - Phase-attributable failures block the commit and must be resolved before phase completion.
-- The plan contains no app startup, Playwright, browser automation, Chrome DevTools MCP, visual QA, E2E, Docker/Aspire startup, live-service smoke, or manual runtime walkthrough.
+- Plan real-surface checks when changed user-visible behavior requires them;
+  do not ban browser/native QA or add unrelated service startup. No Aspire
+  requirement exists for the offline utility.
 
 ## Continuity Gate
 
@@ -64,7 +66,7 @@
 - Context puts resume state and blockers near the top.
 - Tasks are checkable and mirror the plan's phases.
 - The implementation-agent contract makes `tasks.md` the hot ledger, batches task updates at phase milestones, and separates implementation completion, verification disposition, and the phase commit.
-- Every phase records exact phase-owned paths, a concrete planned declarative commit contract, and post-verification commit checkboxes; completed phases confirm clean status on the feature branch.
+- Every phase records exact owned paths and proportionate verification. Include commit metadata/checks only when requested; do not require a clean shared checkout by removing unrelated edits.
 - Executive summaries, planned commit messages, and decision briefs pass the [shared readability check](../../conventional-commit/resources/reader-first-writing.md#readability-check): concrete meaning first, sufficient technical detail next.
 - Context and plan update triggers are narrow enough to prevent documentation churn, while a dated handoff remains mandatory before pause or transfer.
 - Resume guidance reads tasks first and only relevant plan sections, avoiding repeated full-workstream rereads.
@@ -77,7 +79,9 @@
 - Unknowns that materially affect design are visible and assigned to investigation or user review.
 - The workstream is ready for user correction/approval before implementation begins.
 - No artificial test-only, documentation-only, QA-only, reporting-only, or verification-only phase was added.
-- No final-only catch-all commit task or separate commit-only session is required; the approved workstream authorizes the implementing agent to close each phase directly.
+- No final-only catch-all commit task or separate commit-only session is required.
+  Commit execution still requires explicit task authorization; plan approval
+  alone does not authorize branch changes, upstream writes or history rewrites.
 
 ## Verification
 

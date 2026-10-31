@@ -7,7 +7,7 @@
 
 ## Stop Condition
 
-Stop after the three planning artifacts are complete, internally consistent, and ready for user review. Do not implement the planned change. Planning agents must NEVER create git branches or git worktrees; planning artifacts live exclusively in `dev/active/<task>/` on the main repository workspace (`develop`).
+Stop after the three planning artifacts are complete, internally consistent, and ready for user review. Do not implement the planned change. Planning agents must not create branches or worktrees or synchronize upstream automatically; use `dev/active/<task>/` in the current assigned checkout.
 
 ## 1. Initialize The Integrated Intake
 
@@ -124,11 +124,9 @@ Keep the implementation checklist lean:
 
 - Create tasks only for implementation work that changes code, tests, schemas, configuration, or required documentation.
 - Fold required tests and documentation into the implementation task that owns the behavior; do not create standalone testing, QA, documentation-review, reporting, or dev-doc maintenance tasks.
-- Do not add a verification phase or run checks after individual tasks.
-- At the end of each phase, run `dotnet build --configuration Release --verbosity quiet` once.
-- At the end of each phase, run at most one `dotnet test --project <most-relevant-project>.csproj --configuration Release --verbosity quiet` command once.
-- Select the fastest deterministic test project that covers the phase and does not start the application, browser, Docker, Aspire, or external services.
-- Never plan Playwright, browser automation, Chrome DevTools MCP, visual QA, live-app smoke tests, manual runtime walkthroughs, or E2E test projects.
+- Fold verification into the owning slice. Use failing invariant and sliced inner-loop checks where required, then one affected-owner phase-exit build/check.
+- Select exact native commands from `PROJECTS.md`; prose phases use metadata, links and whitespace instead of product suites.
+- Include actual browser/native interaction and package checks when changed behavior calls for them. Never require absent Event runtime services.
 - Distribute repository-mandated test projects across existing phases without repeating them; never create extra phases solely to run more tests.
 
 ## 10. Write And Synchronize The Artifacts
