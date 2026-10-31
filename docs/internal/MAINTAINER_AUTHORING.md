@@ -2,7 +2,7 @@
 
 > **Audience:** Maintainers | Contributors | AI agents
 > **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
-> **Owner:** Core | Native authoring tooling | Contributor Experience
+> **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/SetupDefinitionSourceCodec.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `schemas/configurator-authoring-v2.schema.json`
 
@@ -30,7 +30,8 @@ trusting authors. No second evaluator or general JSON Schema validator exists.
 or runtime by `schemaVersion: 2`. Conflicting/unknown discriminators reject;
 there is no parser fallback. Public source, runtime, private answer and command
 versions are independent. Private answers use `answerContractVersion: 1`;
-the command envelope is v3 and check/build handshake versions are 2/2.
+the [CLI contract](CLI_CONTRACT.md) owns the separate command envelope, and
+check/build handshake versions are 2/2.
 
 Lint shares the source admission path and adds bounded warnings without
 publication. Schema discovery returns built-in public documents only; it runs
@@ -189,7 +190,7 @@ network authentication, target apply or persistent browser answer custody.
 ## Native maintainer commands
 
 `DefinitionCommands` registers init/check/build/revise through the existing
-Spectre registry/preflight and command v3 envelope. `SetupCliDefinitionHandlers`
+Spectre registry/preflight and current machine envelope. `SetupCliDefinitionHandlers`
 owns scaffolding, compilation and revision comparison. Discovery/read/existence/
 staged publication, including schema references, use invocation-scoped
 `ISetupCliAuthoringFiles`; `SetupCliIo` requires it explicitly and Program supplies
@@ -217,7 +218,7 @@ candidates. This path boundary is not captured-handle/root authority or CAS.
 Machine diagnostics are bounded structural codes, never source scalars or private
 paths. Successful check/build reports authoringContractVersion=2 and
 runtimeSchemaVersion=2; downstream independently verifies the canonical digest.
-The command envelope is v3, independently of the 2/2 authoring/runtime handshake
+The command envelope is independently versioned by the CLI owner, separately from the 2/2 authoring/runtime handshake
 and private-answer v1.
 
 ## Public schema import
@@ -259,16 +260,10 @@ Renewal uses the native identity editor and allocates fresh family/revision 1;
 ordinary writing does not authorize rewriting published identity history.
 See the [schema catalog](../../schemas/README.md) for exact commands.
 
-Native verification records current fresh-family source/runtime agreement 3/3, not target
-acceptance. Recorded qualification also completed Core 217, Desktop 229,
-Terminal 106 and Architecture 73 passing tests; Linux x64 X11 passed all 19
-native scenarios in both English and Arabic. The published AOT Browser was
-exercised at real desktop/mobile sizes, RTL, offline and custody flows.
-Standalone Linux x64 CLI exercises covered complete preparation, incomplete
-answers and create-only conflicts.
-
-This unit read existing documentation and made prose edits only; the parent owns
-freshness, link and product checks and exact qualification records. General
+The [support index](STATUS.md) links source/runtime freshness and qualified
+client observations to their dated records. Canonical agreement is not target
+acceptance. Current compiler freshness, CLI behavior, rendered clients and actual
+hosts require distinct evidence; documentation edits renew none of them. General
 assertions outside bounded-v2, application-version ranges, target acceptance,
 other hosts, assistive technologies, translation quality, stakeholder/usability
 and scholarly proof remain unqualified followups. See the

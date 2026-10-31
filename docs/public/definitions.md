@@ -1,11 +1,12 @@
 ---
-description: "Authoring reference for implemented bounded-v2 definitions, effective answers, public metadata, and offline artifact preparation."
+description: "Understand bounded definitions, exact names, answer presence, and local configuration preparation."
 ---
 
 # Configuration Definitions
 
 > **Audience:** Adopters | Integrators
-> **Status:** Implemented bounded-v2 reference; platform and target qualification are separate
+> **Kind:** Guide
+> **Status:** Current bounded-v2 explanation; platform and target qualification are separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`
@@ -22,9 +23,9 @@ ignored. There is no v1 definition reader, migration interpreter, legacy alias,
 executable plugin, network validator, or target administration capability.
 
 Use [Integrate Your Tool](integrate-your-tool.md) for the maintainer workflow,
-the [current reference](definition-reference.md) for compact property and
-capability tables, and the [definition standard](definition-standard.md) for the
-companion standard and shape examples. Complete sources live in the
+the [current reference](definition-reference.md) for property and capability
+lookup, and the [definition standard](definition-standard.md) for portability
+and conformance obligations. Complete sources live in the
 [minimal example](../../examples/minimal-self-hosted/README.md) and
 [Grafana example](../../examples/grafana-13.2.2/README.md); this page deliberately
 does not duplicate their full configurations.
@@ -42,7 +43,9 @@ Four separate documents have different custody and version rules:
 
 Definition revision, application version, source contract, runtime contract,
 private answer contract, and CLI machine contract are independent versions.
-The CLI machine envelope is v3; it does not make definitions v3.
+The [version reference](definition-reference.md#which-document-are-you-editing)
+owns their current discriminators. A new command envelope does not change the
+definition format.
 
 ### Mandatory and optional authoring properties
 
@@ -312,6 +315,49 @@ nonempty, nonblank, non-null, deliberate user entry, secret classification,
 or target acceptance. Use string bounds or `x-configurator.notBlank` for those
 specific string checks.
 
+### Worked presence example
+
+This is a **partial source excerpt** from the maintained
+[neutral definition](../../examples/minimal-self-hosted/configurator.yaml);
+it is not a complete definition:
+
+```yaml
+service.mode:
+  type: string
+  enum: [minimal, extended]
+  x-configurator:
+    sensitivity: public
+    initialValue: minimal
+```
+
+Its property name contains a literal dot. The complete
+[answer fixture](../../examples/minimal-self-hosted/answers/complete.json) is:
+
+```json
+{"answerContractVersion":1,"values":{"metrics.enabled":true,"service.credential":"synthetic-placeholder","service.mode":"extended","service.name":"sample"},"omitted":[]}
+```
+
+The explicit `extended` value wins over initialization. It activates the declared
+metrics setting, whose supplied `true` value is projected as
+`METRICS_ENABLED=true`; the mode projects as `SERVICE_MODE=extended`.
+The complete expected files and runnable comparison commands are maintained in
+the [quickstart](getting-started.md), not independently reconstructed here.
+
+The following variations explain behavior; they are **conceptual edits** to
+that fixture, not additional complete fixtures:
+
+| Operator action | Effective outcome |
+|---|---|
+| Remove the supplied `service.mode`, with no omission | `minimal` becomes eligible through initialization |
+| Omit `/service.mode` explicitly and remove its supplied value | The mode is absent; initialization is suppressed |
+| Reset that omission | Initialization becomes eligible again |
+| Supply `null` | It is present and invalid for this non-nullable string, not an omission |
+| Supply `false`, `0` or `""` elsewhere | Each is present; its own schema determines validity |
+| Leave an optional object absent | Child initialization cannot create the parent |
+
+Opening a form, expanding a section or showing a suggested value is not an edit.
+Those actions must not create configuration or silently accept a suggestion.
+
 ### Conditional activation and requiredness
 
 `x-configurator.applicableWhen` controls whether a node participates. Its
@@ -477,12 +523,18 @@ restricted; it is not a sanitized public export.
 
 ### Existing-file import
 
-Import is supported only for unconditional, nonoverlapping, one-to-one root
-copies or nested object/copy projections in dotenv, JSON, and YAML. Dotenv
-recovers declared non-null scalar types. Whole typed-map copies can retain their
-dynamic entries. Conditional projections, literals/transforms, repeat/index
-ambiguity, overlapping source mappings, unsupported formats, and unknown input
-members outside the inverse reject atomically.
+Generation does not imply a reversible mapping. The current
+[import and comparison guide](import-and-compare.md) distinguishes supported
+inspection from strict autofill, with capability boundaries in the
+[technical contract](../internal/IMPORT_COMPARISON.md). Proved direct copies,
+structural literals, fixed lists and complete one-to-one repeats can participate;
+arbitrary transforms, ambiguous mappings and filtered/hidden values cannot be
+guessed. Whole typed-map copies preserve declared dynamic entries, while dotenv
+recovers its declared non-null scalar types.
+
+Comparison can report unaccounted input without adopting it. Strict autofill
+rejects unaccounted content and unsafe conflicts atomically. Do not treat a
+completed comparison as successful import or as complete readiness.
 
 The importer proposes a new answer snapshot, checks current-answer conflicts
 and omissions, and invokes the same validator. Existing values require

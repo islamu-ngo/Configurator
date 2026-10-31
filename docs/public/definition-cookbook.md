@@ -303,7 +303,7 @@ authorization, initialization or an automatic disabled-control policy.
 
 See `AssertedFormatsAreOptInAndNeverGrantNetworkOrCredentialAuthority` in
 [`DefinitionProfileConformanceTests`](../../tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs)
-and the [format registry](definition-standard.md#asserted-format-registry).
+and the [format registry](definitions.md#asserted-formats).
 
 ## Localized public choices, help and links
 
@@ -369,11 +369,14 @@ clears secret leaves and output. Public sensitivity labels do not make
 answer-derived artifacts public. Native save protection and Browser deliberate
 copy/download are distinct custody boundaries.
 
-Generation is broader than inverse import. Unconditional unambiguous direct
-JSON/YAML/dotenv copies, including supported whole containers, can be assessed.
-Transformations, conditional/repeated projections, array-index ambiguity,
-overlapping source paths, undeclared input and nonreplaceable conflicts reject
-atomically. Import is not an arbitrary file editor or migration engine.
+Generation is broader than inverse import. Use the
+[import/comparison guide](import-and-compare.md) and
+[current inverse contract](../internal/IMPORT_COMPARISON.md), rather than
+assuming either that every projection is reversible or that all repeats are
+unsupported. Exact copies and proved structural/list/repeat shapes are bounded;
+ambiguous, filtered or hidden values cannot be inferred. Comparison can report
+unaccounted content without adoption; strict autofill rejects unsafe conflicts
+or unknown input atomically. Import is not an arbitrary file editor or migration engine.
 Successful prefill is a new immutable answer candidate, not automatic workspace
 mutation or readiness; replacing default-origin values does not permit resetting
 explicit omissions.

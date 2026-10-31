@@ -27,7 +27,9 @@ There is no v1 fallback or implicit migration.
 | Public maintainer YAML/JSON | `$schema: urn:islamu:configurator:authoring:v2` |
 | Public canonical runtime JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities`; no `$schema` |
 | Private answer JSON | `answerContractVersion: 1`, `values` configuration tree, `omitted` concrete pointers |
-| CLI machine result | Command envelope v3; authoring/runtime handshake reports `authoringContractVersion: 2` and `runtimeSchemaVersion: 2` |
+| CLI machine result | `islamu-configurator-command/v4`; authoring/runtime handshake reports `authoringContractVersion: 2` and `runtimeSchemaVersion: 2` |
+| Definition family/revision | Stable family UUID and positive revision bind canonical content; neither is a document-format version |
+| Target application version | Exact declared application-version string; not inferred from definition revision or command version |
 | Application JSON Schema | Separate bounded scaffolding input, not a Configurator runtime definition |
 | Editor meta-schema | Generated structural assistance in the [schema catalog](../../schemas/README.md), not semantic admission |
 
@@ -248,15 +250,18 @@ Optional layout can degrade only to reachable neutral presentation.
 |---|---|
 | Core | Admitted recursive grammar, values, predicates and projection semantics |
 | Shared editing | Nullable values, typed map/variant traversal, deliberate enum/suggestion/reset actions, safe revision-bound corrections and inert locale metadata |
-| CLI | Machine v3 discovery and diagnostics; standalone Linux x64 complete/incomplete and create-only conflict exercises |
-| Desktop, Terminal | Linux x64 X11: all 19 native scenarios in both English and Arabic |
+| CLI | Machine v4 discovery and diagnostics; historical standalone Linux x64 exercises have their own recorded command/package identity |
+| Desktop | Recorded Linux x64 X11 native scenarios; see the scoped support index |
+| Terminal | Recorded published Terminal process exercises; Desktop X11 scenarios are not Terminal qualification |
 | Browser | Published AOT application: real desktop/mobile, RTL, offline and custody exercises |
 
 This is qualified pre-release scope, not every scenario, accessibility path,
 package or physical host. Shared editing alone does not prove rendered support.
 Keep indispensable guidance in plain text and qualify the clients selected for
 your integration. New hosts and assistive technologies remain unqualified.
-Machine command v3 is current; authoring/runtime remain v2 and private answers remain v1.
+Use the [support index](../internal/STATUS.md) to distinguish implementation,
+package admission and actual-surface evidence. The version table above is the
+current lookup; historical receipts retain their original versions.
 
 ## Outputs and import
 
@@ -283,12 +288,15 @@ null is not iterable. Item-scoped `when` uses the same typed predicate kernel
 inside repeats. Explicit omissions remain omissions, not null values.
 Successful admission is not proof of every runtime byte limit or target's own acceptance.
 
-Existing-file import is narrower than generation: supported unconditional,
-unambiguous root/nested direct-copy mappings can prefill answers. Nested object
-targets reconstruct exact source object paths; whole typed-map copies retain
-declared dynamic entries. Dotenv scalar text recovers its declared source type.
-Transforms, conditional projections, repeated/index ambiguity, overlapping source
-mappings, unknown input and nonreplaceable conflicts reject atomically.
+Existing-file import is narrower than generation. See the
+[current import contract](../internal/IMPORT_COMPARISON.md) for supported
+inspection and strict-autofill mappings, including proved structural literals,
+fixed lists and one-to-one repeats. Nested object targets reconstruct exact
+source paths; whole typed-map copies retain declared dynamic entries; dotenv
+scalar text recovers its declared type. Ambiguous mappings, filtered/hidden
+values, overlapping source assignments and unsupported conditions refuse.
+Comparison may report unaccounted input; strict autofill rejects it and
+nonreplaceable conflicts atomically.
 Provenance-owned default replacement does not reset explicit omissions; reset
 those deliberately before importing. Partial prefill is not complete readiness.
 
@@ -333,12 +341,10 @@ sections at 64 and journeys at 16. Import has stricter reference/expansion limit
 YAML is bounded JSON-shaped data: tags, anchors, aliases, directives, merge keys,
 multiple documents and non-string resolved keys reject.
 
-Native verification records example source/runtime agreement **3/3** for the fresh v2
-families at revision 1. This prose increment did not rerun that check.
-Recorded qualification also completed Core **217**, Desktop **229**,
-Terminal **106**, and Architecture **73** passing tests, plus the actual-surface
-exercises listed above. This prose increment did not rerun them. Counts do
-not substitute for scenario or actual-host evidence.
+The [support index](../internal/STATUS.md) links dated example-freshness and
+actual-surface records. Their exact counts and reviewed identities belong in
+those records, not in this property reference. A prose correction does not
+renew runtime qualification.
 
 General assertions outside the bounded grammar, application-version ranges,
 target acceptance, other hosts, assistive technologies, stakeholder/usability,

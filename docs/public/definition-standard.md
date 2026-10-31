@@ -1,368 +1,167 @@
 ---
-description: "Implemented bounded-v2 configuration profile, explicit answer states, mappings, and qualified pre-release scope."
+description: "Scope, portability, and conformance obligations for the bounded-v2 configuration profile."
 ---
 
 # Definition Standard v2
 
 > **Audience:** Adopters | Integrators | Contributors
-> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
+> **Kind:** Explanation
+> **Status:** Current bounded-v2 profile; qualification is scoped separately
 > **Owner:** Core
-> **Last Verified:** 2026-10-28
-> **Source Anchors:** `docs/internal/DEFINITION_PROFILE.md`, `src/Configurator.Core/Definitions/`
+> **Last Verified:** 2026-10-30
+> **Source Anchors:** `docs/internal/DEFINITION_CONFORMANCE_PROFILE.md`, `docs/internal/DEFINITION_PROFILE.md`, `docs/internal/CORE_DEFINITIONS.md`
+> **Review basis:** Documentation and source-owner reconciliation, not a new runtime qualification
 
-This standard records the implemented bounded-v2 contract; use the
-[current reference](definition-reference.md) for executable authoring and precise
-admission limits, the [integration workflow](integrating.md) for adoption, and the
-[cookbook](definition-cookbook.md) for bounded patterns. Qualification covers the
-recorded pre-release Linux x64 and published Browser exercises, not every
-scenario, package, host or target.
+The bounded-v2 profile is Configurator's portable, data-only configuration
+contract. It defines what a consumer must understand before collecting answers,
+how those answers become effective values, and what preparation can claim.
+It is not unrestricted JSON Schema, a deployment language or target approval.
 
-The profile includes recursive closed objects/array items, typed enums and nullable
-types, explicit value/omission states, scoped references, root/row applicability,
-local presence and const/enum relationships, typed maps, discriminated variants,
-exact numeric assertions, local references, explicitly asserted formats and
-public source maps. General conditional subschemas and localization policy
-expansion remain unqualified followups, not admitted support. Machine v3 is
-current. No v1 fallback is provided.
-
-A definition describes public configuration requirements and output mappings.
-It never contains private answers, executes code, fetches references, authenticates
-to a target, or grants permission to apply prepared files.
+Use the [definition reference](definition-reference.md) to look up properties and
+limits, [definitions](definitions.md) to learn the semantics, and the
+[cookbook](definition-cookbook.md) for small authoring patterns. The
+[technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
+owns normative admission and evaluation rules. This page explains obligations
+and interoperability rather than maintaining a second full grammar.
 
 ## Documents and versions
 
-| Document | Discriminator | Responsibility |
-|---|---|---|
-| Public YAML/JSON source | `$schema: urn:islamu:configurator:authoring:v2` | Maintained requirements |
-| Public compiled JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities` | Canonical admitted runtime |
-| Private answer JSON | `answerContractVersion: 1` | Values and explicit omissions |
-| CLI machine envelope | Command contract v3 | Bounded operation result with safe source and correction locations |
-| Editor meta-schema | Packaged JSON Schema | Structural assistance, not semantic admission |
+Maintainers publish an authoring source and, where distribution requires it,
+canonical compiled runtime JSON. Operators supply a separate private answer
+workspace. CLI machine output describes operation results; it is neither a
+definition nor an answer file. Generated editor schemas assist authoring but do
+not replace semantic admission.
 
-Profile, definition revision, application version, locale, and command version
-are distinct. There is no v1 fallback or implicit migration. Application versions
-match exact declared strings, never guessed semantic-version ranges.
-The current authoring/runtime compiler handshake is 2/2; it does not change the
-command envelope or private answer version.
+The [version table](definition-reference.md#which-document-are-you-editing)
+is the authoritative public lookup for their independent discriminators.
+Definition family revision and exact target application version are independent
+again. Advancing one contract must not imply that the others advanced. Current
+definition admission has no v1 fallback, translator or compatibility alias.
 
-## Source envelope
+## What a conforming consumer must preserve
 
-The root is a closed object. Unknown semantic members reject. Required means
-the member must occur; explicit null never substitutes for omission.
+### Admit the bounded language before use
 
-| Member | Requirement | Meaning when omitted |
-|---|---|---|
-| `$schema` | Required exact discriminator | Reject |
-| `identity` | Required `familyId` UUID, positive integer `revision` | Reject; initialize through native tooling |
-| `project` | Required nonempty `id` and `name` | Reject |
-| `applicationVersions` | Required nonempty distinct string array | Reject |
-| `configuration` | Required object schema | Reject |
-| `outputs` | Required nonempty filename-keyed object | Reject |
-| `entryPoints` | Optional distinct string array | `["setup"]` |
-| `presentation` | Optional closed descriptor | Neutral reachable journey |
-| `localization` | Optional closed descriptor | Base text, locale `en` |
-| `annotations` | Optional bounded inert JSON object | No annotations |
+Admission checks the complete public document before answers are collected.
+Unknown semantic members, unsupported shapes, incompatible assertions and
+resource overflow reject; they must not be ignored or approximated as no-ops.
 
-Project metadata may additionally declare `publisher`, `description`,
-`repository`, and `definitionLicense`. Publisher defaults to project name;
-other omissions make no claim. Repository addresses are credential-free public
-HTTPS. Store admission is separate from local use. Output keys are sanitized
-basename hints, not paths or filesystem authority.
+The supported model includes recursive closed objects, typed maps, arrays,
+typed scalar enums, nullable values, discriminated object variants, local
+requiredness, scoped applicability, exact numeric assertions, bounded local
+references and opt-in lexical format assertions. General combinators, arbitrary
+regular expressions, remote or cyclic references and executable validators are
+outside the profile.
 
-## Recursive schema grammar
+Bounds apply to input bytes, depth, nodes, scalar storage, reference expansion,
+evaluation and rendered output. Being below the source-byte ceiling does not
+prove that expansion or preparation will fit. Charge work before materialization
+and reject without partial admitted state or value-bearing diagnostics.
 
-The implemented recursive grammar applies to configuration roots, properties and
-array items, map values and closed variant branches, without item-only aliases.
-The configuration root itself must be a non-null object.
+### Preserve exact data identity
 
-| Member | Allowed context and rule |
-|---|---|
-| `type` | One of `string`, `boolean`, `integer`, `number`, `object`, `array`; or an array containing exactly one base type and `null` |
-| `title`, `description` | Optional bounded inert text |
-| `enum` | Nonempty distinct homogeneous scalar values compatible with the base type; nullable types may additionally include null |
-| `const` | One compatible scalar; conflicts with enum or assertions reject |
-| `properties` | Object; exact-name keyed schema map, empty permitted |
-| `required` | Object; distinct locally declared property names; omission means none |
-| `additionalProperties` | Objects explicitly choose `false` or a recursive typed value schema; untyped `true` rejects |
-| `items` | Required for array; one recursive schema |
-| `minimum`, `maximum` | Current inclusive numeric bounds |
-| `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf` | Numeric exact bounds and positive exact multiple |
-| `minLength`, `maxLength` | Strings only; nonnegative Unicode-scalar counts |
-| `minItems`, `maxItems` | Current array cardinality bounds |
-| `uniqueItems` | Boolean structural uniqueness assertion |
-| `minProperties`, `maxProperties` | Objects only; nonnegative bounds |
-| `dependentRequired` | Object-local map of declared names to distinct nonempty local required-name arrays, including nested objects and array rows |
-| `$defs`, `$ref` | Acyclic local schema references rooted at configuration, starting `#/$defs/`; supplied offline documents are additionally supported by the importer |
-| `if`, `then`, `else` | Local guards use required presence and property const/enum assertions; consequences are required-name sets |
-| General conditional subschemas | Not part of the bounded profile |
-| `oneOf` | 2-16 closed object variants with exactly one shared eligible required scalar discriminator and distinct const values |
-| `format` | String annotation; no assertion by itself |
-| `default` | Descriptive value only; never inserted |
-| `readOnly`, `writeOnly`, `deprecated`, `examples` | Inert annotations except writeOnly raises the secret floor; public values must meet privacy rules |
-| `x-configurator` | Optional closed extension object below |
+Configuration names are exact data keys, not display labels or bounded metadata
+IDs. Dots and asterisks are literal. Case-distinct and Unicode-normalization-
+distinct names remain different; exact duplicate decoded names reject.
+References use scoped RFC 6901 pointers, with `~0` and `~1` decoded once.
+Array indices are positions, not stable application identifiers.
 
-Missing bounds impose only the existing global budget. Reversed bounds,
-unknown members, assertions on incompatible types, invalid literal values, and
-unrepresentable numbers reject at admission. Closed objects reject undeclared
-answer members unless a typed additional-properties schema validates each
-dynamic member. Discriminator selection never guesses a branch from labels;
-nullable provider values remain null outside branch selection.
+The profile uses ordinal object-key ordering, preserved array order, validated
+Unicode and exact normalized decimal numbers for canonical identity. It is a
+custom canonical profile, not a claim of JCS conformance. Independent byte and
+digest vectors are necessary before claiming another implementation preserves
+identity; using the same serializer name is insufficient.
 
-Unsupported constructs include tuples, general unions/combinators, arbitrary
-regular expressions, dynamic/remote/recursive references, executable validators,
-templates, and unrestricted schema vocabularies. Acknowledgment cannot waive an
-unsupported assertion.
+Family/revision binds canonical content, including translations and inert
+annotations. A registry rejects different content under a previously admitted
+identity even after removal. Active workspaces retain their admitted digest.
+Neither a family UUID nor a publisher label authenticates a publisher.
 
-### Configurator extension
+### Preserve presence and intent
 
-| Member | Meaning |
-|---|---|
-| `sensitivity` | `public`, `sensitive`, or `secret`; omission is conservatively sensitive |
-| `initialValue` | Public valid value inserted only at eligible never-supplied locations |
-| `suggestedValue` | Public valid value adopted only by deliberate operator action |
-| `notBlank` | String-only Boolean assertion rejecting empty/whitespace text when true |
-| `assertFormat` | String-only Boolean enabling a supported format assertion when true |
-| `uniqueBy` | Array-of-object uniqueness by an admitted concrete property pointer |
-| `applicableWhen` | Declared-property predicate using root-scoped references, including nested declared paths, or current array-item references; configuration-root applicability rejects |
-| `detail` | `basic`, `standard`, `advanced`; presentation only, default standard |
-| `guidance` | Closed instructions, static documentation links, and search terms |
-| `credential` | Closed kind/acquisition descriptor; requires effective secret context |
-| `choices` | Typed `value`, human `label`, optional explanation for enum alternatives |
-| `units` | Inert display text; never conversion or numeric rounding |
+Supply, omission and reset are distinct operations. Explicit omission suppresses
+initialization; reset removes both the override and suppression. A supplied
+nullable `null` is present. `false`, `0`, empty text and empty containers are
+values whose validity depends on their own assertions.
 
-An ancestor or descendant cannot be relabeled public to admit private initial,
-suggested, default, example, or const metadata. Public definitions and caches must
-not contain actual credentials. Credential intent never lowers sensitivity.
-All answer-derived artifacts remain restricted regardless of field labels.
+`initialValue` applies only at eligible never-supplied locations. `default`
+describes metadata, and `suggestedValue` changes nothing until deliberately
+adopted. An absent optional parent is not created to initialize or satisfy a
+child. The [worked presence example](definitions.md#worked-presence-example)
+connects these rules to maintained input and expected output.
 
-### Numeric and text domains
+One Core evaluation policy serves validation and preparation. Layout, locale,
+section expansion and optional detail cannot insert answers or change validity.
+Unknown applicability from invalid or deferred controllers stays unknown rather
+than selecting a guessed branch. Local relationship assertions are distinct
+from applicability; mutually required fields do not create activation cycles.
 
-Integer values use signed Int64. Number values use exact decimal representation:
-at most 28 significant digits after redundant zero removal, scale at most 28,
-and explicit exponents in the range -28 through 28. Parsing must reject overflow,
-underflow, rounding, non-finite tokens, and values outside the admitted domain.
-Constraints and values use the same domain; multipleOf uses exact decimal
-remainder rather than rounding.
+### Keep private data out of public metadata
 
-Strings preserve exact Unicode scalar values. Unpaired surrogates, invalid UTF-8,
-and exact duplicate object members reject. Names are ordinal and case-sensitive:
-`A`, `a`, composed/decomposed Unicode, `_internal`, and names containing dots are
-distinct. Strings are not normalized. String length counts Unicode scalars,
-not UTF-16 code units or grapheme clusters.
+Sensitivity propagates through containers and cannot be lowered by relabeling
+a child or parent. Public initial, suggested, default and example values must
+remain wholly public. Dynamic map keys are private answer data.
 
-### Asserted format registry
+Diagnostics expose stable codes and bounded public schema positions or numeric
+ordinals, not unknown private names, values, raw exceptions or filesystem paths.
+Local correction coordinates are revision-bound and retire on edits.
 
-`format` alone is annotation. `x-configurator.assertFormat: true` enables the
-following bounded lexical checks; no check performs network I/O or proves target
-acceptance. False leaves the annotation inert.
+Secret-deferred drafts defer genuinely missing secret leaves, not malformed
+supplied values. They may contain private values already supplied, remain
+restricted, and do not establish complete readiness. Unknown secret-dependent
+outputs are withheld rather than guessed.
 
-| Name | Supported lexical domain |
-|---|---|
-| `hostname` | ASCII DNS labels, letters/digits/hyphens, no edge hyphens; optional trailing root dot; labels 1-63 bytes, complete hostname at most 253 bytes excluding root dot |
-| `email-address` | ASCII dot-atom local part and hostname domain; no display names, comments, quoted local parts, IP literals, or internationalized addresses |
-| `uri` | ASCII absolute URI with a valid scheme and well-formed escapes; no whitespace/control characters |
-| `http-url` | Absolute HTTP(S) URL with host and no user information; this lexical assertion does not grant retrieval permission |
+## Portability across clients
 
-Both HTTP and HTTPS are lexical values for `http-url`, while definition retrieval
-and guidance still require HTTPS. URI strings
-in answers never create outbound authority. International hostname/mailbox
-extensions require a separately qualified profile change.
+Computed mandatory capabilities are part of canonical content. A consumer must
+refuse unsupported mandatory semantics before answer collection; an author
+cannot omit requirements to force admission. Optional layout may degrade to a
+neutral presentation only if essential help and required/error work remain
+reachable.
 
-## Paths, references, and safe locations
+Shared semantics do not promise identical controls. Locale metadata can select
+public text and direction but cannot change names, typed values or output bytes.
+Static guidance links grant no automatic retrieval or answer-bearing network
+authority. Native file protection and browser copy/download have different
+custody guarantees.
 
-Use concrete RFC 6901 JSON Pointer strings. Empty string selects the root;
-`/` selects an empty property name. Encode `~` as `~0` and `/` as `~1` in
-tokens. Decode escapes once, rejecting malformed escapes. Array indices use
-canonical nonnegative decimal notation without leading zeroes; `-` is not an
-existing item. Dots and asterisks are literal key characters, not path operators.
+Core support, shared editing, rendered interaction and actual-host qualification
+are separate. The [support index](../internal/STATUS.md) identifies available
+evidence; the [scenario map](../internal/DEFINITION_PROFILE.md#scenario-and-support-matrix)
+states obligations without treating each row as an executed test.
 
-A reference is exactly `{scope: root|item, path: <pointer>}`. Root selects the
-effective configuration; item selects the current admitted repeat/row context.
-Item scope outside that context rejects. Reference expansion and traversal
-consume the same bounded work budget as validation.
+## Generation is broader than inverse import
 
-`SetupFieldDefinition.Name` is the exact root data key; bounded `Id` is metadata,
-not answer identity. Representable names retain their ID except reserved `f-`;
-other names, including literal `f-` names, use `f-` plus a domain-separated full
-SHA-256 of the escaped exact root pointer. Names are not normalized.
+Declared outputs use bounded mappings or projection operations such as literal,
+copy, omission, object, list and repeat. Output filenames are destination hints,
+not filesystem authority. `targetUpdateMode` and `restartRequirement` are advice,
+not permission to merge, overwrite, apply or restart.
 
-Dynamic map keys are private answer data.
-Public diagnostics must identify declared
-schema positions and bounded row/entry indices, never raw dynamic keys or values.
-The local workspace resolves revision-bound correction identities; edits retire
-old correction tokens. Implemented definition source maps retain bounded public
-schema positions and numeric spans. Authoring errors can include a public schema
-pointer, numeric line/column, stable code, and bounded supplied-document ordinal,
-but no raw scalar, exception, arbitrary unknown key, or private filesystem path.
-Failures without a safe precise location may identify an enclosing position or
-omit the location.
+A projection that generates successfully need not have an unambiguous inverse.
+Existing-file comparison and strict autofill have different outcomes: comparison
+can identify unaccounted content without adopting it; autofill must reject
+unsafe or unsupported adoption atomically. Consult the
+[current import contract](../internal/IMPORT_COMPARISON.md) for the admitted
+inverse and pending client/package qualification, not an older direct-copy-only
+description.
 
-## Effective values and answer states
+## Demonstrate conformance without overstating support
 
-The private envelope contains exactly `answerContractVersion`, `values` (an object
-configuration tree), and `omitted` (distinct concrete pointers). A value cannot
-be both supplied and explicitly suppressed. Malformed or overlapping suppression
-that conflicts with supplied content rejects atomically.
+An integration should retain distinct evidence for:
 
-| State at an applicable location | Effective result |
-|---|---|
-| Explicit supplied value | Preserve and validate it, including false, zero and empty containers |
-| Explicit supplied null | Preserve only if the schema is nullable |
-| Explicit omission | Exclude the location; suppress initialValue |
-| Never supplied, eligible initialValue | Use the admitted initial value |
-| Never supplied, no initialValue | Missing |
-| Reset | Remove supplied override and suppression; initialization becomes eligible |
-| Suggested value | No change until deliberately adopted |
-| Descriptive default | No inserted value |
-| Absent container with initialized child | Keep the container absent |
-| Present container with never-supplied child | Resolve eligible child initialization recursively |
-| Inapplicable location | Exclude from validation/output; changing layout never changes applicability |
+1. Admission, canonical identity and independent semantic examples.
+2. Effective answers and deterministic projection against independent expected
+   bytes, including invalid and incomplete cases.
+3. Current generated schemas and maintained source/runtime pairs.
+4. The actual selected command or rendered client and its custody behavior.
+5. Published package closure and protected-save behavior on the actual host.
+6. The target application's own validation, permission and acceptance.
 
-Required means property presence, not nonblank text. An empty required string is
-valid unless a separate assertion rejects it. Null satisfies presence only under
-a nullable schema. Required descendants do not instantiate an absent optional
-container. One Core routine resolves values for validation, drafts, and output;
-interactive clients must not seed a different configuration.
+A build or editor pass cannot substitute for these layers. Historical reports
+retain their original revisions and limitations; documentation edits do not
+renew them. Accessibility, translation quality, stakeholder/usability review and
+new host qualification require their own evidence.
 
-### Applicability and relationships
-
-Predicates are closed records with `op`. `exists` takes `reference`; `equals`
-and `notEquals` add a typed `value`; `in` adds a nonempty typed `values` array.
-`all`/`any` take nonempty `operands`; `not` takes exactly one operand.
-Extra members reject.
-
-| Controller state | exists | equals/notEquals/in |
-|---|---|---|
-| Valid present value, including null | true | Typed comparison |
-| Missing | false | false |
-| Invalid or secret-deferred | unknown | unknown |
-
-`not unknown` is unknown. For all, false dominates, then unknown, then true.
-For any, true dominates, then unknown, then false. Unknown never becomes a
-guessed active branch. Applicability dependency cycles reject. Declared
-properties may use root-scoped references to declared controllers or item-scoped
-references within their current array row. Each row has its own controller
-uncertainty; one row cannot activate another row's dependent fields.
-
-Local `dependentRequired` and `if`/`then`/`else`
-validate relationships; they do not toggle visibility or form activation edges.
-Guard assertions are required presence and property const/enum comparisons;
-consequences are required-name sets. A guard property absent from the object
-does not fail its property assertion; guard requiredness tests absence.
-Their arrays name locally declared properties. Mutual requirements are
-permitted: neither username nor password can be supplied alone, while both or
-neither follow ordinary requiredness. Arbitrary conditional subschemas remain
-outside this subset.
-
-## Outputs and inverse import
-
-Every output requires format `dotenv`, `json`, `yaml`, or `markdown`. Optional
-`targetUpdateMode` is `unspecified`, `create`, `merge`, `replace`, `import`,
-`reconcile`, or `generationOnly`; optional `restartRequirement` is `unspecified`,
-`none`, `process`, or `deployment`. Both default to unspecified. Advice never
-grants apply, administration, or native-save authority.
-
-JSON/YAML without explicit mappings copy the effective configuration tree.
-Explicit `bindings` map concrete target pointers to scoped source references;
-dotenv targets instead use literal environment keys. Dots never imply nesting.
-Choose bindings or a projection, never both.
-
-Projection operations remain `literal`, `copy`, `omit`, `index`, `object`, `list`,
-and `repeat`; references are typed root/item references. Repeats may nest only
-within existing expansion/work limits. Optional predicates cannot become string
-expressions. Admission checks references and contexts, dotenv's non-null scalar
-member shape, Markdown's non-null string-list results, and non-nullable repeat
-sources. List, repeated, copied and literal Markdown shapes are checked before
-answers; omitted results remain omitted. These bounded checks do not prove
-runtime byte limits or target acceptance, and are not a general result-type
-inference language.
-
-Inverse import remains narrower than generation; do not infer that every current
-root/nested scoped copy has a qualified inverse. Unconditional one-to-one
-object-path copies and whole declared-container copies are candidates; numeric
-object names remain literal properties. Transforms, conditional projections,
-array-index/repeated ambiguity, overlapping source paths, unknown input members
-and nonreplaceable conflicts reject atomically. Default-origin replacement does
-not reset explicit omissions. Failed import preserves the entire current
-workspace. No undeclared passthrough is retained.
-
-Drafts defer genuinely missing secret leaves only. Deliberately supplied malformed
-values still fail. Unknown secret-dependent outputs are withheld, completion
-locations stay value/key-free, and partial preparation never claims complete
-readiness or target acceptance.
-
-## Presentation, localization, and capabilities
-
-Presentation optionally supplies ordered `sections`, `journeys`,
-`defaultJourney`, and `navigation` (`wizard` or `sections`). Sections have stable
-IDs, titles, and concrete schema pointers; journeys have stable IDs, titles, and
-ordered section IDs. Without metadata derive a neutral journey. Unlisted fields
-join a deterministic fallback section. Detail, journey, and section changes
-must leave all applicable required/error work reachable and cannot alter answers.
-
-Localization declares `defaultLocale` and `translations` keyed by locale;
-translations contain optional `direction` (`ltr`/`rtl`) and pointer-keyed text
-overrides. Current overrides target existing public string metadata ending in
-title, description, instructions, label, explanation or units. Expanded
-localization policy, diagnostic-message translation and broader coverage are
-later work, never authority to override identities or typed values.
-An absent translation falls back to base text. Direction is metadata, not inferred
-from private text. Language changes cannot alter numeric serialization or output.
-
-Guidance allows bounded multiline plain text and technical punctuation, never an
-HTML/Markdown execution engine. Links require static credential-free HTTPS,
-allow fragments, and disallow query strings. No interpolation, prefetch, automatic
-fetch, opener transfer, or referrer transfer. Essential instructions have a plain
-text path in every supported interactive client.
-
-Required semantic capabilities are computed from admitted features, not author
-assertions. Consumers must refuse unsupported mandatory editing before answers.
-Optional layout hints degrade to a reachable neutral form. Capability metadata
-is public, sorted and part of canonical identity; it grants no target authority.
-Core computes the current subset. Actual CLI/Browser/Desktop/Terminal evidence
-is scoped below; shared support alone never qualifies an unexercised renderer.
-
-## Identity, budgets, and conformance
-
-Family/revision binds canonical admitted content. Different content reusing an
-admitted revision rejects even after registry removal. Workspaces retain their
-pinned digest. Publisher labels and family IDs are not authentication.
-Translations and inert annotations participate in the digest.
-
-The custom canonical profile uses ordinal object-key ordering, preserved array
-order, compact UTF-8 JSON, exact normalized decimals, and validated Unicode.
-Zero, including negative zero, serializes as `0`; redundant decimal zeroes and
-exponent spelling do not change a number's canonical meaning. This is not JCS.
-Independent byte/digest vectors, not serializer defaults alone, are required
-before declaring portable identity support.
-
-Admission preserves existing limits: 4 MiB aggregate source, depth 32,
-4096 entries per container, 65536 nodes, 65536 scalar characters, and 1 MiB
-aggregate scalar characters. Existing stricter reference/import/output budgets
-remain authoritative. Charge expansion and work before materialization; exceeding
-a limit rejects without partial admitted state, output, or value-bearing errors.
-
-Qualification must separately record Core conformance, actual machine/client
-behavior, generated schema freshness, published package closure, and any target's
-own acceptance. A build, editor pass, or synthetic projection does not prove
-usability, assistive-technology compatibility, target acceptance, or a new host.
-See the [implementation and qualification map](../internal/DEFINITION_PROFILE.md)
-and the [technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
-for mechanisms and source-observed limits.
-
-The maintained examples now have fresh v2 families at revision 1; exact source
-identities are recorded in the [integration guide](integrate-your-tool.md#complete-minimal-configuratoryaml-example).
-Native verification records native source/runtime agreement **3/3**. This documentation
-unit did not rerun it, and no target acceptance follows from it.
-
-Recorded qualification completed Core **217**, Desktop **229**, Terminal
-**106**, and Architecture **73** passing tests. Native Linux x64 X11 exercises
-passed all **19** scenarios in both English and Arabic. The published AOT
-Browser was exercised at desktop/mobile sizes, with RTL, offline behavior and
-custody checks. Standalone CLI exercises covered complete preparation, incomplete
-answers and create-only conflicts. These are scoped pre-release observations,
-not full JSON Schema conformance, semantic-version range support, target
-acceptance, new-host or assistive-technology qualification, translation-quality,
-stakeholder/usability or scholarly proof. Broader assertions, version ranges and
-those evidence gaps remain followups. This prose update runs no new checks;
-execution records and release decisions remain separate.
+For a complete adoption path, follow the [integration tutorial](integrating.md),
+then the [maintainer lifecycle](integrate-your-tool.md). Keep definition-source,
+answer, output and target-acceptance responsibilities separate throughout.

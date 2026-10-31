@@ -6,7 +6,7 @@ description: "Adopt portable bounded-v2 definitions beside your application, wit
 
 > **Audience:** Adopters | Integrators
 > **Status:** Qualified pre-release workflow
-> **Owner:** Core and CLI
+> **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `docs/internal/CORE_DEFINITIONS.md`
 
@@ -26,12 +26,11 @@ contract support from scenario, package and physical-host evidence.
 
 ## Keep the four versions separate
 
-| Document | Contract | Role |
-|---|---|---|
-| Handwritten public source | Authoring v2; `$schema: urn:islamu:configurator:authoring:v2` | Requirements, public help and output declarations |
-| Compiled public runtime | `schemaVersion: 2`, `profile: bounded-v2` | Canonical content, computed sorted `requiredCapabilities` |
-| Machine command result | Command v3 | Bounded receipt and value-free diagnostics, not artifact bytes |
-| Private answer workspace | `answerContractVersion: 1`, `values`, `omitted` | Exact typed values and explicit concrete omission pointers |
+Maintain the public authoring source, compile the public runtime, collect private
+answers, and inspect machine receipts as four different documents. Their
+[current versions and discriminators](definition-reference.md#which-document-are-you-editing)
+are independent; machine receipts contain operation facts rather than private
+artifact bytes.
 
 The current check/build handshake is authoring/runtime **2/2**. Family revision
 and exact target application version are separate again. Revision 2 does not
@@ -139,7 +138,7 @@ See [schema import limits](definition-reference.md#json-schema-import).
 
 | Adapter | Definition and answer custody | Output boundary |
 |---|---|---|
-| [Machine CLI](cli.md) | Explicit local source/runtime and private answer file or redirected input; command v3 receipts | Restricted artifact output through native save, never answers on stdout |
+| [Machine CLI](cli.md) | Explicit local source/runtime and private answer file or redirected input; bounded machine receipts | Restricted artifact output through native save, never answers on stdout |
 | [Terminal.Gui TUI](terminal.md) | Local source/runtime admitted before transient typed editing | Deliberate native protected export |
 | [Avalonia Desktop](desktop.md) | Local source/runtime and shared typed workspace; explicit reload admits a replacement | Deliberate native protected save |
 | [Blazor WebAssembly Browser](browser.md) | Local selection can compile source; remote selection admits and pins canonical runtime before answers | Deliberate restricted copy/download, not native protected save |

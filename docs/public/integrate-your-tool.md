@@ -10,10 +10,10 @@ collect private answers separately and prepare declared files offline.
 Preparation never installs configuration or grants target administration.
 
 The implemented standard uses authoring v2 and runtime schemaVersion 2 with
-profile `bounded-v2`. The [current reference](definitions.md), supported-shape
+profile `bounded-v2`. The [current reference](definition-reference.md), supported-shape
 [cookbook](definition-cookbook.md) and [portable workflow](integrating.md)
-describe the admitted contract. The earlier [standard draft](definition-standard.md)
-records design decisions; it is not a promise of unrestricted JSON Schema or
+describe the admitted contract. The [definition standard](definition-standard.md)
+explains portability and conformance; it is not a promise of unrestricted JSON Schema or
 target acceptance.
 
 ## The Maintainer Lifecycle
@@ -26,8 +26,9 @@ target acceptance.
    overwriting the source or reusing an admitted family/revision.
 
 Revision 1/2 are family revisions, not authoring or runtime contract versions.
-Machine commands retain envelope v3; successful check/build reports the
-independent authoring/runtime handshake as 2/2.
+Successful check/build reports the independent authoring/runtime handshake as
+2/2. See the [version reference](definition-reference.md#which-document-are-you-editing)
+for the separate current command envelope and answer contracts.
 
 Run `definition lint --source configurator.yaml --machine` for advisory authoring
 feedback after admission. Use `definition schema --kind authoring --text` for the

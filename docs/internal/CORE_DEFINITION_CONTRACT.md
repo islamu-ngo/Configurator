@@ -80,8 +80,9 @@ The closed registry is in `DefinitionProfile.Capabilities`; declaring a name
 never activates an unsupported feature.
 
 Definition revision, target version, private answer version and command version
-are independent. The CLI envelope is v3; the authoring/runtime handshake is
-2/2. Private answers remain independently versioned at v1.
+are independent. The [CLI contract](CLI_CONTRACT.md) owns the machine envelope;
+the authoring/runtime handshake is 2/2. Private answers remain independently
+versioned at v1.
 
 ### Recursive configuration grammar
 
@@ -125,7 +126,7 @@ combinators remain outside the selected profile.
 
 Asserted formats are hostname, email-address, uri and http-url. They perform
 bounded lexical checks only; their exact ASCII domains are in the
-[public registry](../public/definition-standard.md#asserted-format-registry).
+[public registry](../public/definitions.md#asserted-formats).
 Uniqueness uses canonical bytes and hash buckets with structural confirmation,
 clearing temporary canonical byte buffers; hashes are not value-equality proof.
 
@@ -210,8 +211,9 @@ must not seed required containers or maintain a second effective-value policy.
 
 Admission/editor validation does not prove every runtime output composable, a
 target validator equivalent, or every client qualified. Broader/nested conditions,
-expanded localization policy retain their later-phase status. Source maps and
-machine v3 are delivered.
+expanded localization policy retain their separate follow-up status. Source maps
+and the current machine diagnostics are implemented; package and target evidence
+remain separate.
 
 ## Artifact preparation and inverse import
 
@@ -457,4 +459,4 @@ Event benchmark hashes or target-acceptance claims.
 
 Archived `SetupCompositionInvariantTests` inventory checks are not parser-attack
 proof. Production boundary tests and actual target acceptance must be recorded
-separately; parent owns current verification.
+separately in the owning execution records linked from [STATUS](STATUS.md).

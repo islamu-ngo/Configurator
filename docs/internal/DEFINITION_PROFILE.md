@@ -184,17 +184,10 @@ caches, worker messages or network requests.
 
 The table retains independent expected behavior and owner/gate traceability for
 the implemented bounded-v2 contract. It is not a per-row execution receipt or a
-test that scans prose. Parent-reported completed qualification is:
-
-| Evidence layer | Qualified pre-release observation |
-|---|---|
-| Owner suites | Core 217, Desktop 229, Terminal 106, Architecture 73 passing tests |
-| Native actual surface | Linux x64 X11: all 19 scenarios in both English and Arabic |
-| Published Browser | AOT application exercised at real desktop/mobile sizes, RTL, offline and custody flows |
-| Standalone CLI | Linux x64 complete preparation, incomplete answers and create-only conflict exercises |
-
-This prose increment ran no product checks; [Operations](OPERATIONS.md) is the execution-evidence
-anchor. Counts alone do not prove every obligation below. General assertions
+test that scans prose. [Support and evidence](STATUS.md) routes to the actual
+execution records in [Operations](OPERATIONS.md). Desktop X11 exercises,
+Terminal process exercises and Browser publication are separate evidence.
+Counts alone do not prove every obligation below. General assertions
 outside the bounded grammar, version ranges, target acceptance, other hosts,
 assistive technologies, translation quality, stakeholder/usability and scholarly
 proof remain unqualified followups. Exact application-version strings remain
@@ -226,7 +219,7 @@ the implemented selection contract.
 | S22 | Multiline/static-fragment help is inert; locale/RTL cannot change IDs/values/output | Presentation localization and actual clients |
 | S23 | Held operations cannot restore private data/output after edit/denial/disposal | Presentation generations and actual clients |
 | S24 | Scaffolding reports retained/converted/advisory/discarded/unsupported concepts by safe location | Core importer and CLI |
-| S25 | Machine v3 reports actual definition-v2 capabilities/schema/locations; lint stays quality advice | CLI and generated command schema |
+| S25 | The current machine contract reports actual definition-v2 capabilities/schema/locations; lint stays quality advice | CLI and generated command schema |
 | S26 | Absent target update/restart metadata stays unspecified and grants no authority | Core output metadata |
 | S27 | Published assets/schemas/examples/store agree; public caches remain answer-free | Native generators and architecture/packages |
 | S28 | Support promotion follows executed qualification and examples; prose itself is not pinned | Documentation and native checker |

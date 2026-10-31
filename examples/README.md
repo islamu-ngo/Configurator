@@ -17,8 +17,10 @@ Do not copy example family UUIDs into a new integration.
 
 Sources use `$schema: urn:islamu:configurator:authoring:v2`; runtimes use
 `schemaVersion: 2`, `profile: bounded-v2` and computed sorted
-`requiredCapabilities`. Command receipts use v3 and synthetic private answer
-fixtures use `answerContractVersion: 1`. These version axes are independent.
+`requiredCapabilities`. Command receipts follow the
+[current machine contract](../docs/public/definition-reference.md#which-document-are-you-editing);
+synthetic private answer fixtures use `answerContractVersion: 1`.
+These version axes are independent.
 Answers/expected output fixtures are synthetic reproduction inputs, not Browser
 assets, public defaults or authority to inspect real private configuration.
 All answer-derived output remains restricted even when a fixture uses only

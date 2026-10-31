@@ -19,15 +19,11 @@ owns workspace generations and custody. The companion
 [current reference](../public/definition-reference.md) own adopter property,
 shape, and capability navigation.
 
-Qualification on 2026-10-28 includes a clean Release solution build, Core 217,
-Desktop 229, Terminal 106 and actual-package Architecture 73 passing tests.
-The real Linux x64 X11 host passed all 19 guards in English and Arabic.
-Published AOT Browser checks covered desktop/mobile layouts, RTL, typed editing,
-offline operation, consent revocation, caches and service-worker version pinning.
-Standalone CLI and Terminal protected outputs matched the Browser's synthetic
-complete artifact. See [Operations](OPERATIONS.md) for custody and evidence
-limits. No target validator, stakeholder study, translation review or other-host
-qualification is implied. This prose increment does not rerun product suites.
+The [support index](STATUS.md) links the recorded definition-v2 qualification
+and its exact candidate, host and scenario boundaries. Desktop X11, Terminal
+process and published Browser evidence are separate. No target validator,
+stakeholder study, translation review or other-host qualification follows from
+the semantic contract. Editorial changes do not renew execution evidence.
 
 ## Admission and control flow
 
@@ -66,7 +62,7 @@ keyword spelling does not import an external schema implementation.
 | Public authoring | `urn:islamu:configurator:authoring:v2` |
 | Runtime | `schemaVersion: 2`; generated schema ID `urn:islamu:configurator:setup-definition:v2` |
 | Private answers | `answerContractVersion: 1`; generated schema ID `urn:islamu:configurator:answers:v1` |
-| CLI machine envelope | v3, independently owned by [CLI contract](CLI_CONTRACT.md) |
+| CLI machine envelope | Independently owned by [CLI contract](CLI_CONTRACT.md); see the [current version table](../public/definition-reference.md#which-document-are-you-editing) |
 
 Runtime JSON has no `$schema`. Its required members are `schemaVersion`,
 `profile`, `familyId`, `revision`, `project`, `applicationVersions`,
@@ -414,20 +410,21 @@ artifacts and diagnostics. Draft success never establishes complete readiness.
 
 ### Existing-file inverse import
 
-`DefinitionImport.TryMappings` permits unconditional object/copy trees and root
-copies for JSON/YAML, plus nonnullable scalar copies in flat dotenv. It rejects
-when, literals, repeat/index, unsupported formats, and overlapping source
-locations; overlap is reported as inverse-ambiguous. Whole typed maps can copy
-their recursively validated contents. It does not infer arbitrary inverses.
+The [Core import contract](CORE_DEFINITION_CONTRACT.md#artifact-preparation-and-inverse-import)
+and [assessment contract](IMPORT_COMPARISON.md) own the current inverse algebra.
+It includes proved exact copies, objects, structural literals, fixed lists and
+complete one-to-one repeats within supported formats and budgets. It does not
+infer arbitrary inverses, filtered rows, overlapping source assignments or
+unknown hidden values. Historical direct-copy-only descriptions are not the
+current capability boundary.
 
-`Assess` parses bounded input, collects only known target mappings, proposes
-assignments without mutating the current snapshot, and checks conflicting
-values/omissions. Replacement requires the caller's provenance-owned
-replaceable-default set. The candidate increments input revision, invokes the
-sole validator, checks imported active fields and non-required errors, and
-requires imported members to survive effective resolution. Remaining required
-work can coexist with import-ready. Failed assessment returns no partial answer
-update. This is prefill, not target migration or target acceptance.
+Inspection retains recovered evidence separately from the current workspace.
+Strict autofill checks conflicts and omissions, uses provenance-owned replacement
+permission and invokes the sole validator. Imported members must survive the
+effective projection. A rejected adoption changes no answers; a successful
+candidate can still leave required work. Comparison completion, autofill
+eligibility and readiness are different outcomes. Client/package qualification
+remains as recorded in [STATUS](STATUS.md), not implied by this contract.
 
 ### Schema and environment scaffolding
 
