@@ -20,4 +20,19 @@
   <data name="AddEntryName" xml:space="preserve"><value>Add an entry to {0}</value></data>
   <data name="LocaleLabel" xml:space="preserve"><value>Language</value></data>
   <data name="FollowLocaleDirectionLabel" xml:space="preserve"><value>Follow definition direction</value></data>
+  <data name="ImportPurposeLabel" xml:space="preserve"><value>Existing file purpose</value></data>
+  <data name="CompareLabel" xml:space="preserve"><value>Compare with this definition</value></data>
+  <data name="FillFieldsLabel" xml:space="preserve"><value>Fill fields</value></data>
+  <data name="ReviewFileLabel" xml:space="preserve"><value>_Read existing file</value></data>
+  <data name="ImportLimitHelp" xml:space="preserve"><value>Local input, at most 4 MiB. Compare leaves current answers, drafts and prepared output untouched. Fill fields is deliberate and atomic.</value></data>
+  <data name="ImportComparisonTitle" xml:space="preserve"><value>Imported-file comparison</value></data>
+  <data name="ImportFactsFormat" xml:space="preserve"><value>Artifact: {0} | Compatibility: {1} | Execution completed: {2} | Coverage complete: {3} | Finding inventory complete: {4} | File eligible for autofill: {5}</value></data>
+  <data name="ImportAdoptionFormat" xml:space="preserve"><value>Current workspace adoption: {0}. Target acceptance is unassessed. No historical rename, release or deployment provenance is established.</value></data>
+  <data name="ImportPageFormat" xml:space="preserve"><value>Findings {0}–{1} of {2} retained</value></data>
+  <data name="ImportFindingFormat" xml:space="preserve"><value>Imported-file issue: {0} | {1}</value></data>
+  <data name="ExplainImportLabel" xml:space="preserve"><value>Explain schema</value></data>
+  <data name="ImportSchemaHelp" xml:space="preserve"><value>Declared schema guidance only. This never selects or corrects a current row or map entry. Repair a separate copy of the imported file, or deliberately resolve workspace conflicts before filling fields.</value></data>
+  <data name="DismissImportLabel" xml:space="preserve"><value>Discard comparison</value></data>
+  <data name="PreviousImportPageLabel" xml:space="preserve"><value>Previous findings</value></data>
+  <data name="NextImportPageLabel" xml:space="preserve"><value>Next findings</value></data>
 </root>

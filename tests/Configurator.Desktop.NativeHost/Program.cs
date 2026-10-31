@@ -35,7 +35,8 @@ internal static class Program
         "D09-close-disposes-workspace", "D14-physical-settlement-receipt",
         "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force",
         "D18-shared-editing-presence-localized-actions",
-        "D19-typed-map-variant-null-reset-locale"
+        "D19-typed-map-variant-null-reset-locale",
+        "D20-read-only-import-comparison"
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
@@ -210,6 +211,7 @@ internal static class Program
             Pass();
 
             _currentCheck = "D04-json-yaml-dotenv-import";
+            window.GetControl<ComboBox>("ImportPurpose").SelectedIndex = 1;
             foreach (var (id, file, content) in new[]
             {
                 ("config", "import.json", "{\"name\":\"JSON imported\"}"),
@@ -324,6 +326,10 @@ internal static class Program
 
             _currentCheck = "D19-typed-map-variant-null-reset-locale";
             await StructuredEditingAsync(window, shell, directory);
+            Pass();
+
+            _currentCheck = "D20-read-only-import-comparison";
+            await ImportComparisonAsync(window, shell, directory, definitionPath);
             Pass();
 
             for (int count = 1; count <= 3; count++)
@@ -842,6 +848,9 @@ internal static class Program
     {
         public Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
             Task.FromResult<Uri?>(null);
+
+        public Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<BoundedFileInput?>(null);
     }
 
     private static async Task EventAsync(MainWindow window, DesktopShellViewModel shell, string directory, int count)
@@ -915,6 +924,57 @@ internal static class Program
             shell.Status.StartsWith("definition-invalid", StringComparison.Ordinal) || shell.Status == "definition-unreadable");
         Require((shell.Workspace.Form is not null) == success && !shell.Publisher.CanSave, "definition-admission");
         await FlushAsync();
+    }
+
+    private static async Task ImportComparisonAsync(MainWindow window, DesktopShellViewModel shell,
+        string directory, string definitionPath)
+    {
+        await LoadAsync(window, shell, definitionPath, true);
+        ArtifactPublisherViewModel publisher = shell.Publisher;
+        var form = shell.Workspace.Form!;
+        Require(window.GetControl<ComboBox>("ImportPurpose").SelectedIndex == 0, "comparison-not-default");
+        Select(window, shell, "config");
+        TextBox name = Input<TextBox>(window, "Service name");
+        name.Text = "Current native work";
+        await PrepareAsync(window, shell);
+        var preparation = publisher.Preparation;
+        long revision = form.InputRevision;
+        string path = Path.Combine(directory, "comparison.json");
+        await File.WriteAllTextAsync(path, """{"name":"Imported candidate"}""");
+        window.GetControl<TextBox>("ExistingFilePath").Text = path;
+        await ActionAsync(window, shell, "Import", () => publisher.HasImportComparison);
+        Require(form.InputRevision == revision && name.Text == "Current native work" &&
+            ReferenceEquals(preparation, publisher.Preparation) && publisher.CanSave,
+            "comparison-mutated-current-work");
+        Require(!publisher.CanFillImportFields && !await publisher.FillImportFieldsAsync(), "comparison-overwrote-conflict");
+
+        await File.WriteAllTextAsync(path, """{"name":7}""");
+        await ActionAsync(window, shell, "Import", () => publisher.HasImportComparison && !shell.IsBusy);
+        ImportFindingViewModel finding = publisher.ImportFindings.First(item => item.CanExplain);
+        Click(CommandButton(window, finding.ExplainCommand));
+        Require(publisher.ImportExplanation.Length > 0 && form.InputRevision == revision &&
+            name.Text == "Current native work" && ReferenceEquals(preparation, publisher.Preparation),
+            "comparison-schema-mutated-workspace");
+        Require(!publisher.CanFillImportFields, "invalid-comparison-adoptable");
+        await CaptureAsync(window, "import-comparison");
+
+        TextBox age = Input<TextBox>(window, "Owner age");
+        age.Text = "invalid-native-draft";
+        long draftRevision = form.InputRevision;
+        await File.WriteAllTextAsync(path, """{"name":"Imported candidate"}""");
+        await ActionAsync(window, shell, "Import", () => publisher.HasImportComparison && !shell.IsBusy);
+        Require(age.Text == "invalid-native-draft" && form.InputRevision == draftRevision,
+            "comparison-committed-draft");
+        Click(Named<Button>(window, DesktopActionText.ResetName("Owner age")));
+        Click(Named<Button>(window, DesktopActionText.ResetName("Service name")));
+        await ActionAsync(window, shell, "Import", () => publisher.HasImportComparison && !shell.IsBusy);
+        Require(publisher.CanFillImportFields, "comparison-pristine-adoption-unavailable");
+        Click(CommandButton(window, publisher.FillImportFieldsCommand));
+        await publisher.FillImportFieldsCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+        await FlushAsync();
+        Require(form.Snapshot().Values["name"].GetString() == "Imported candidate" &&
+            !publisher.HasImportComparison && publisher.Preparation is null,
+            "comparison-deliberate-adoption-failed");
     }
 
     private static async Task PrepareAsync(MainWindow window, DesktopShellViewModel shell)

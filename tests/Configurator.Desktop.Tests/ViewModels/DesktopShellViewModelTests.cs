@@ -23,6 +23,7 @@ public sealed class DesktopShellViewModelTests
         using var stream = new ChangedInputStream(bytes, bytes.Length);
         using var shell = DesktopTestContext.Root(openImport: _ => stream);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        shell.Publisher.ImportPurposeIndex = 1;
         shell.Publisher.ExistingFilePath = "synthetic.json";
         bool? clearedAtRelease = null;
         shell.PropertyChanged += (_, args) =>
@@ -622,7 +623,11 @@ public sealed class DesktopShellViewModelTests
         await File.WriteAllBytesAsync(path, kind == "definition" ? DesktopApplicationTests.Definition()
             : Encoding.UTF8.GetBytes("""{"owner":{"name":"synthetic-private"}}"""));
         using var shell = CreateShell(new Dialogs((_, _) => Task.FromResult<Uri?>(new Uri(path))));
-        if (kind == "import") shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        if (kind == "import")
+        {
+            shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+            shell.Publisher.ImportPurposeIndex = 1;
+        }
         bool accepted = kind == "definition" ? await shell.Loader.SelectDefinitionAsync()
             : await shell.Publisher.SelectImportAsync();
         await Assert.That(accepted).IsTrue();
@@ -791,10 +796,12 @@ public sealed class DesktopShellViewModelTests
             dialogs ??= new Dialogs((_, _) => Task.FromResult<Uri?>(null));
             _loader = new DefinitionLoaderViewModel(messenger, dialogs);
             _workspace = new FormWorkspaceViewModel(messenger);
-            _publisher = native ? new ArtifactPublisherViewModel(messenger, dialogs, writer ?? new ProtectedArtifactWriter())
+            _publisher = native ? new ArtifactPublisherViewModel(messenger, dialogs, writer ?? new ProtectedArtifactWriter(),
+                    static _ => ValueTask.CompletedTask)
                 : new ArtifactPublisherViewModel(messenger, dialogs,
                     save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
-                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable, publishBundle);
+                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable, publishBundle,
+                    cooperativeYield: static _ => ValueTask.CompletedTask);
             _root = new DesktopShellViewModel(messenger, _loader, _workspace, _publisher);
             if (native) _publisher.OutputDirectory = outputDirectory!;
         }
@@ -830,5 +837,15 @@ public sealed class DesktopShellViewModelTests
     {
         public Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
             select(kind, cancellationToken);
+
+        public async Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default)
+        {
+            Uri? selected = await select(DesktopPathSelectionKind.Import, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (selected is null) return null;
+            if (!AvaloniaStorageDialogService.TryGetLocalPath(selected, out string path))
+                throw new InvalidOperationException("selection-nonlocal");
+            return await BoundedFileInput.ReadAsync(path, ProtectedArtifactWriter.MaximumBytes, cancellationToken);
+        }
     }
 }

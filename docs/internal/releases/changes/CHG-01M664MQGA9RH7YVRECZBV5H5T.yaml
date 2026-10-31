@@ -1,0 +1,29 @@
+Change-Id: CHG-01M664MQGA9RH7YVRECZBV5H5T
+Title: "Compare native configuration through provider-owned input"
+Type: feat
+Scope: desktop
+Summary: "Default native import to read-only comparison and replace path-only import selection with bounded provider-owned reads; storage dialog implementers must supply ReadImportAsync."
+Group: artifact-import-comparison
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "IStorageDialogService implementers must provide ReadImportAsync returning bounded provider-owned input. Import selection does not require a native file URI; no fallback implementation is supplied. Deliberate publisher adoption is exposed through FillImportFieldsAsync and must be awaited."
+  Security:
+    Reference: docs/SECURITY_OVERVIEW.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Update storage dialog implementations and their acquisition lifetime. Definition and protected-output path authority remain separate from selected import streams."
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Compare imported configuration before deliberate atomic Fill fields. Findings explain the selected schema without changing pending edits or granting target acceptance."

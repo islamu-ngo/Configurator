@@ -310,11 +310,23 @@ is not a Configurator command. Package prerequisites remain in `PROJECTS.md`.
 
 `tests/Configurator.Desktop.NativeHost` is an isolated executable, not an MTP
 project. It initializes the real Desktop App and classic lifetime on the main
-thread and requires Linux x64/X11. Thirteen named scenarios exercise actual
+thread and requires Linux x64/X11. Twenty required named scenarios exercise actual
 controls, JSON/YAML/dotenv import, preparation, native owner-only/create-only
 saves, bundle preflight/recovery, stale import, close and one/two/three-tenant
 Event manifests with independent expected fields. Missing display, wrong
 backend/RID, timeout, failure and incomplete counts reject the run.
+
+The required set preserves all nineteen previous names and adds
+`D20-read-only-import-comparison`. Comparison tests use real form/publisher
+behavior and controlled external acquisition and owner-thread gates. They check
+read-only answers/drafts/preparation, schema-only explanations, deliberate
+adoption refusal and stale completion separately from physical read cleanup.
+Use the focused Desktop filter
+`/*/*/(DesktopImportComparisonTests)|(DesktopShellViewModelTests)|(DesktopApplicationTests)/*`
+with `--minimum-expected-tests 1` after building that owner. Headless execution
+is not actual native/published comparison evidence. Published interaction,
+resource/latency measurements, manual dialogs, keyboard, RTL/scaling and
+assistive-technology requirements remain separate qualification work.
 
 Run its commands from [PROJECTS](../../PROJECTS.md#standalone-packaging).
 Headless checks remain faster invariant/focus evidence. Neither harness replaces

@@ -1,0 +1,50 @@
+<UserControl
+    x:Class="Configurator.Desktop.Views.ImportComparisonView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    x:DataType="vm:ArtifactPublisherViewModel"
+    x:CompileBindings="True">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.blocking">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+          BorderThickness="1" Padding="12">
+    <StackPanel Spacing="8">
+      <TextBlock Text="{Binding ImportComparisonTitle}" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <TextBlock Name="ImportFacts" Text="{Binding ImportFacts}" TextWrapping="Wrap"
+                 AutomationProperties.Name="{Binding ImportComparisonTitle}"
+                 AutomationProperties.LiveSetting="Polite" />
+      <TextBlock Text="{Binding ImportAdoption}" TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding ImportFindings}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ImportFindingViewModel">
+            <StackPanel Spacing="4" Margin="0,4">
+              <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Classes.blocking="{Binding IsBlocking}" />
+              <Button Content="{Binding ExplainLabel}" Command="{Binding ExplainCommand}"
+                      IsVisible="{Binding CanExplain}" AutomationProperties.Name="{Binding ExplainLabel}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding ImportPageText}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <Button Content="{Binding PreviousImportPageLabel}" Command="{Binding PreviousImportPageCommand}"
+                AutomationProperties.Name="{Binding PreviousImportPageLabel}" Margin="0,0,8,4" />
+        <Button Content="{Binding NextImportPageLabel}" Command="{Binding NextImportPageCommand}"
+                AutomationProperties.Name="{Binding NextImportPageLabel}" Margin="0,0,8,4" />
+      </WrapPanel>
+      <TextBlock Name="ImportExplanation" Text="{Binding ImportExplanation}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding ImportSchemaHelp}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <Button Name="FillImportFields" Content="{Binding FillFieldsLabel}" Command="{Binding FillImportFieldsCommand}"
+                AutomationProperties.Name="{Binding FillFieldsLabel}"
+                AutomationProperties.HelpText="{Binding ImportLimitHelp}" Margin="0,0,8,4" />
+        <Button Name="ClearImportComparison" Content="{Binding DismissImportLabel}" Command="{Binding ClearImportComparisonCommand}"
+                AutomationProperties.Name="{Binding DismissImportLabel}" Margin="0,0,8,4" />
+      </WrapPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -146,14 +146,42 @@ Before generating files, verify answers and bundle readiness:
 
 ### Importing Existing Files
 
-Reuse existing settings by importing local `.json`, `.yaml`, or `.env` files:
+Review existing `.json`, `.yaml`, or `.env` files against the selected definition:
 
-1. Select a declared artifact format.
-2. Click **Choose import…** or enter a file path and click **Import existing file**.
-3. The engine parses the file (up to 4 MiB) and maps top-level fields to matching definition questions.
+1. Select the declared artifact that represents the file. A filename does not establish its scope or provenance.
+2. Leave the purpose at **Compare with this definition**. Choose a file or enter its path, then start the review. Input is bounded to 4 MiB and stays local.
+3. Review compatibility, coverage, finding completeness and autofill eligibility separately. Imported-file issues do not mark current workspace answers invalid. **Explain schema** opens declared guidance, never a current list row or map entry identified by an imported ordinal.
+4. To adopt recovered values, deliberately choose **Fill fields**. Adoption rechecks current answers, omissions and drafts. A report never grants overwrite permission. Changing the purpose, artifact or source, cancelling, editing answers or replacing the definition retires the comparison.
 
-> [!NOTE]
-> Imports must match simple declared field mappings. Conflicting answers, unknown keys, or invalid types reject the entire import cleanly, leaving your current workspace unchanged.
+Comparison and adoption return control to the native interface between bounded
+work batches. **Escape** requests cancellation; the busy state remains until
+the operation and owned input finish cleanup. A cancelled or superseded result
+cannot restore a report or move focus later.
+
+Comparison leaves current editors, accepted answers, origins, omissions, input
+revision and prepared output untouched. Missing required imported members are
+reported only where the selected mapping proves absence; settings outside its
+coverage remain unassessed. Structural output changes may require regeneration.
+The report cannot establish historical renames, release provenance, deployment
+state or target acceptance.
+
+**Fill fields** applies admissible recovered values atomically, replacing only
+untouched initialization. Explicit conflicting answers, omissions, pending
+invalid drafts, unmapped members or invalid supplied values refuse the whole
+adoption. No best-effort subset is applied. Resolve conflicts deliberately, or
+repair a separate copy of the file and compare again. Human-readable outputs and
+ambiguous/lossy mappings may not support comparison or autofill.
+
+### Custom Desktop storage integrations
+
+Implementers of `IStorageDialogService` must now supply
+`ReadImportAsync(CancellationToken)` returning `Task<BoundedFileInput?>`.
+Open the selected provider's stream rather than translating its URI into a
+native path. Bound acquisition to 4 MiB and finish provider stream/item cleanup
+before returning the caller-owned input; clear acquired input on failure or
+cancellation. The Desktop caller clears/disposes returned input after review.
+This mandatory method intentionally breaks older implementations; there is no
+default fallback. Definition and output selection still require local paths.
 
 ---
 

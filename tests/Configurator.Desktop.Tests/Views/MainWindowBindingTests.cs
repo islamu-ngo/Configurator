@@ -70,5 +70,8 @@ public sealed class MainWindowBindingTests
     {
         public Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
             Task.FromResult<Uri?>(null);
+
+        public Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<BoundedFileInput?>(null);
     }
 }

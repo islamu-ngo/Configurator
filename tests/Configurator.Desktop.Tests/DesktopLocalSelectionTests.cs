@@ -147,6 +147,7 @@ public sealed class DesktopLocalSelectionTests
         })));
         await Assert.That(await shell.Loader.SelectDefinitionAsync()).IsTrue();
         await Assert.That(shell.Workspace.Form is not null).IsTrue();
+        shell.Publisher.ImportPurposeIndex = 1;
         await Assert.That(await shell.Publisher.SelectImportAsync()).IsTrue();
         await Assert.That(shell.Workspace.Form!.Fields.Single(input => input.Definition.Id == "owner").Text)
             .Contains("synthetic-private-answer");

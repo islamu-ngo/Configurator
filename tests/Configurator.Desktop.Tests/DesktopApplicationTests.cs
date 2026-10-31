@@ -717,6 +717,7 @@ public sealed class DesktopApplicationTests
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new { owner = new { name = marker } }));
         using var shell = Shell();
         shell.Loader.LoadDefinition(Definition());
+        shell.Publisher.ImportPurposeIndex = 1;
         shell.Publisher.ExistingFilePath = path;
         await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
         await Assert.That(shell.Status).IsEqualTo("import-ready");
@@ -834,6 +835,81 @@ public sealed class DesktopApplicationTests
         await Assert.That(result.capability).IsNotNull();
         await Assert.That(result.selections).IsGreaterThan(0);
         await Assert.That(result.saveEnabled).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task RenderedComparisonDefaultsToReviewAndExposesNamedDeliberateAdoption()
+    {
+        var result = await InWindowAsync(async window =>
+        {
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            ComboBox? purpose = window.FindControl<ComboBox>("ImportPurpose");
+            bool compared = (await shell.Workspace.Form!.CompareAsync("config",
+                _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"name":"private-comparison-sentinel"}"""u8.ToArray()))
+                ).Succeeded;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Control? review = window.FindControl<Control>("ImportComparison");
+            Button? fill = review?.GetLogicalDescendants().OfType<Button>().SingleOrDefault(button => button.Name == "FillImportFields");
+            Button? discard = review?.GetLogicalDescendants().OfType<Button>().SingleOrDefault(button => button.Name == "ClearImportComparison");
+            bool leaked = review?.GetLogicalDescendants().OfType<TextBlock>().Any(block =>
+                block.Text?.Contains("private-comparison-sentinel", StringComparison.Ordinal) == true) == true;
+            return (defaultCompare: purpose?.SelectedIndex == 0, compared,
+                visible: review?.IsVisible == true, fillNamed: fill is not null &&
+                    !string.IsNullOrWhiteSpace(AutomationProperties.GetName(fill)) && fill.Command is not null,
+                discardNamed: discard is not null && !string.IsNullOrWhiteSpace(AutomationProperties.GetName(discard)) &&
+                    discard.Command is not null, leaked);
+        });
+        await Assert.That(result.defaultCompare).IsTrue();
+        await Assert.That(result.compared).IsTrue();
+        await Assert.That(result.visible).IsTrue();
+        await Assert.That(result.fillNamed).IsTrue();
+        await Assert.That(result.discardNamed).IsTrue();
+        await Assert.That(result.leaked).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task RenderedComparisonPagesBlockingFindingsWithoutRenderingPrivateMapKeys()
+    {
+        var result = await InWindowAsync(async window =>
+        {
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            shell.Loader.LoadDefinition(ViewModels.DefinitionV2EditingTests.Definition().CanonicalBytes);
+            byte[] input = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                named = Enumerable.Range(0, 70).ToDictionary(index => "private-entry-" + index, _ => 0)
+            });
+            bool compared = await shell.Publisher.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(input));
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var review = window.GetControl<StackPanel>("ImportComparison");
+            var items = review.GetLogicalDescendants().OfType<ItemsControl>().Single();
+            int firstPage = items.ItemCount;
+            bool blocked = review.GetLogicalDescendants().OfType<TextBlock>().Any(block =>
+                block.Classes.Contains("blocking") && block.Foreground is Avalonia.Media.ISolidColorBrush brush &&
+                brush.Color.R > brush.Color.G);
+            Button next = review.GetLogicalDescendants().OfType<Button>().Single(button =>
+                ReferenceEquals(button.Command, shell.Publisher.NextImportPageCommand));
+            next.Command!.Execute(null);
+            window.UpdateLayout();
+            int secondPage = items.ItemCount;
+            bool previousEnabled = shell.Publisher.PreviousImportPageCommand.CanExecute(null);
+            bool leaked = review.GetLogicalDescendants().OfType<TextBlock>().Any(block =>
+                block.Text?.Contains("private-entry-", StringComparison.Ordinal) == true);
+            shell.Publisher.ClearImportComparisonCommand.Execute(null);
+            window.UpdateLayout();
+            return (compared, firstPage, secondPage, blocked, previousEnabled, leaked,
+                retired: !review.IsVisible && items.ItemCount == 0);
+        });
+        await Assert.That(result.compared).IsTrue();
+        await Assert.That(result.firstPage).IsEqualTo(32);
+        await Assert.That(result.secondPage).IsEqualTo(32);
+        await Assert.That(result.blocked).IsTrue();
+        await Assert.That(result.previousEnabled).IsTrue();
+        await Assert.That(result.leaked).IsFalse();
+        await Assert.That(result.retired).IsTrue();
     }
 
     [Test]
@@ -957,12 +1033,15 @@ public sealed class DesktopApplicationTests
         }
     }
 
-    private static async Task<T> InWindow<T>(Func<MainWindow, T> action)
+    private static Task<T> InWindow<T>(Func<MainWindow, T> action) =>
+        InWindowAsync(window => Task.FromResult(action(window)));
+
+    private static async Task<T> InWindowAsync<T>(Func<MainWindow, Task<T>> action)
     {
         var session = HeadlessUnitTestSession.StartNew(typeof(DesktopApplicationTests));
         try
         {
-            return await session.Dispatch(() =>
+            return await session.Dispatch(async () =>
             {
                 using var shell = Shell();
                 shell.Loader.LoadDefinition(Definition());
@@ -972,7 +1051,7 @@ public sealed class DesktopApplicationTests
                     window.Show();
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
-                    return action(window);
+                    return await action(window);
                 }
                 finally { window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);

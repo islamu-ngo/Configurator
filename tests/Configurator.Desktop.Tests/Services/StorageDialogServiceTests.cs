@@ -8,6 +8,63 @@ using Configurator.Desktop.ViewModels;
 public sealed class StorageDialogServiceTests
 {
     [Test]
+    public async Task AmbiguousProviderSelectionReleasesEveryItemDespiteOneDisposalFailure()
+    {
+        bool secondDisposed = false;
+        IStorageFile first = StorageProxy.Create<IStorageFile>((method, _) => method == "Dispose"
+            ? throw new IOException("synthetic-disposal-failure") : throw new InvalidOperationException("unexpected-provider-read"));
+        IStorageFile second = StorageProxy.Create<IStorageFile>((method, _) =>
+        {
+            if (method != "Dispose") throw new InvalidOperationException("unexpected-provider-read");
+            secondDisposed = true;
+            return null;
+        });
+        IStorageProvider provider = StorageProxy.Create<IStorageProvider>((method, _) => method switch
+        {
+            "get_CanOpen" => true,
+            "OpenFilePickerAsync" => Task.FromResult<IReadOnlyList<IStorageFile>>([first, second]),
+            _ => throw new NotSupportedException()
+        });
+        IOException? failure = null;
+        try { using var input = await new AvaloniaStorageDialogService(() => provider).ReadImportAsync(); }
+        catch (IOException exception) { failure = exception; }
+        await Assert.That(failure).IsNotNull();
+        await Assert.That(secondDisposed).IsTrue();
+    }
+
+    [Test]
+    public async Task ProviderItemDisposalFailureClearsInputBeforeReturningSafeFailureToCaller()
+    {
+        using var stream = new BorrowedInputStream();
+        bool streamClosedBeforeItem = false;
+        IStorageFile file = StorageProxy.Create<IStorageFile>((method, _) => method switch
+        {
+            "OpenReadAsync" => Task.FromResult<Stream>(stream),
+            "Dispose" => DisposeItem(),
+            _ => throw new InvalidOperationException("provider-path-must-not-be-read")
+        });
+        IStorageProvider provider = StorageProxy.Create<IStorageProvider>((method, _) => method switch
+        {
+            "get_CanOpen" => true,
+            "OpenFilePickerAsync" => Task.FromResult<IReadOnlyList<IStorageFile>>([file]),
+            _ => throw new NotSupportedException()
+        });
+        IOException? failure = null;
+        try { using var input = await new AvaloniaStorageDialogService(() => provider).ReadImportAsync(); }
+        catch (IOException exception) { failure = exception; }
+        await Assert.That(failure).IsNotNull();
+        await Assert.That(streamClosedBeforeItem).IsTrue();
+        await Assert.That(stream.Borrowed.Length > 0).IsTrue();
+        await Assert.That(stream.Borrowed.ToArray().All(value => value == 0)).IsTrue();
+
+        object? DisposeItem()
+        {
+            streamClosedBeforeItem = !stream.CanRead;
+            throw new IOException("synthetic-provider-failure");
+        }
+    }
+
+    [Test]
     [Arguments(@"\\server\share\synthetic-private.json")]
     [Arguments("file://server/share/synthetic-private.json")]
     [Arguments("file://localhost/tmp/synthetic-private.json")]
@@ -205,5 +262,15 @@ public sealed class StorageDialogServiceTests
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
             _invoke(targetMethod!.Name, args);
+    }
+
+    private sealed class BorrowedInputStream() : MemoryStream("""{"name":"synthetic-private-input"}"""u8.ToArray())
+    {
+        internal Memory<byte> Borrowed { get; private set; }
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (Position == 0) Borrowed = buffer;
+            return base.ReadAsync(buffer, cancellationToken);
+        }
     }
 }

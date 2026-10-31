@@ -1,7 +1,10 @@
 namespace Configurator.Desktop.ViewModels;
 
+using System.Globalization;
+using System.Resources;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -11,15 +14,22 @@ using Configurator.Core;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.Messages;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.Services;
 using Configurator.Presentation;
 
 /// <summary>Prepares pinned snapshots and consumes restricted output through create-only publication.</summary>
 public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisposable
 {
+    private static readonly ResourceManager ImportText = new(typeof(DesktopActionText));
+    private readonly CompositeFormat _importFactsFormat = CompositeFormat.Parse(Text("ImportFactsFormat"));
+    private readonly CompositeFormat _importAdoptionFormat = CompositeFormat.Parse(Text("ImportAdoptionFormat"));
+    private readonly CompositeFormat _importPageFormat = CompositeFormat.Parse(Text("ImportPageFormat"));
+    private const int ImportPageSize = 32;
     private readonly IMessenger _messenger;
     private readonly IStorageDialogService _dialogs;
     private readonly Func<string, Stream> _openImport;
+    private readonly Func<CancellationToken, ValueTask> _cooperativeYield;
     private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> _save;
     private readonly Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken,
         Task<ProtectedArtifactBundleResult>> _publishBundle;
@@ -36,6 +46,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     private long _generation;
     private bool _disposed;
     private bool _replacingForm;
+    private bool _comparingInput;
+    private long _reviewGeneration;
+    private int _importPage;
+    private ImportFindingViewModel[] _importFindings = [];
+
+    [ObservableProperty]
+    private int _importPurposeIndex;
+    [ObservableProperty]
+    private string _importExplanation = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(PrepareCommand))]
@@ -62,7 +81,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     private string? _artifactId;
 
     public ArtifactPublisherViewModel(IMessenger messenger, IStorageDialogService dialogs,
-        IProtectedArtifactWriter writer)
+        IProtectedArtifactWriter writer, Func<CancellationToken, ValueTask>? cooperativeYield = null)
         : this(messenger, dialogs, async (path, bytes, token) =>
         {
             using ProtectedArtifactPreparation preparation = await writer.PrepareAsync(
@@ -74,7 +93,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             }
         }, Directory.GetCurrentDirectory(), writer.IsAvailable,
             (artifacts, directory, observe, token) => ProtectedArtifactBundlePublisher.PublishAsync(
-                writer, artifacts, directory, observe, token))
+                writer, artifacts, directory, observe, token), cooperativeYield: cooperativeYield)
     {
     }
 
@@ -83,10 +102,12 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         string outputDirectory, bool protectedOutputAvailable,
         Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken,
             Task<ProtectedArtifactBundleResult>>? publishBundle = null,
-        Func<string, Stream>? openImport = null)
+        Func<string, Stream>? openImport = null,
+        Func<CancellationToken, ValueTask>? cooperativeYield = null)
     {
         _messenger = messenger;
         _dialogs = dialogs;
+        _cooperativeYield = cooperativeYield ?? YieldDispatcherAsync;
         _openImport = openImport ?? (path => new FileStream(path, FileMode.Open, FileAccess.Read,
             FileShare.Read, 4096, FileOptions.Asynchronous));
         _save = save;
@@ -96,17 +117,21 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         ProtectedSaveAvailable = protectedOutputAvailable;
         _session = new SetupPresentationSession(messenger);
         PrepareBundleCommand = new RelayCommand(() => PrepareBundle(), () => CanPrepare);
+        FillImportFieldsCommand = new AsyncRelayCommand(
+            async token => { await FillImportFieldsAsync(token); }, () => CanFillImportFields);
         messenger.Register<ArtifactPublisherViewModel, FormWorkspaceChangedMessage>(this,
             static (publisher, message) => publisher.ReplaceForm(message.Form));
         messenger.Register<ArtifactPublisherViewModel, WorkspaceInvalidatedMessage>(this,
             static (publisher, message) =>
             {
                 publisher._generation = message.Generation;
+                publisher.ClearImportComparison();
                 publisher.ClearPreparation();
             });
         messenger.Register<ArtifactPublisherViewModel, OperationStateMessage>(this,
             static (publisher, message) =>
             {
+                if (message.IsBusy && message.Kind != "fill-import") publisher.ClearImportComparison();
                 publisher.IsBusy = message.IsBusy;
                 publisher.IsSaving = message.IsBusy && message.Kind == "save";
                 publisher.IsSelecting = message.IsBusy && message.Kind == "selection";
@@ -135,10 +160,36 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     public bool CanSelectPath => !_disposed && !IsBusy;
     public bool CanPrepare => !_disposed && !IsBusy && _form is not null;
     public bool CanImport => CanPrepare && ArtifactId is not null;
+    public IReadOnlyList<string> ImportPurposes => [Text("CompareLabel"), Text("FillFieldsLabel")];
+    public string ImportPurposeLabel => Text(nameof(ImportPurposeLabel));
+    public string ReviewFileLabel => Text(nameof(ReviewFileLabel));
+    public string ImportLimitHelp => Text(nameof(ImportLimitHelp));
+    public string ImportComparisonTitle => Text(nameof(ImportComparisonTitle));
+    public string FillFieldsLabel => Text(nameof(FillFieldsLabel));
+    public string DismissImportLabel => Text(nameof(DismissImportLabel));
+    public string PreviousImportPageLabel => Text(nameof(PreviousImportPageLabel));
+    public string NextImportPageLabel => Text(nameof(NextImportPageLabel));
+    public string ImportSchemaHelp => Text(nameof(ImportSchemaHelp));
+    public bool HasImportComparison => !_disposed && _form?.ImportComparison is not null;
+    public bool CanFillImportFields => CanImport && _form?.CanAdoptImportComparison == true;
+    public string ImportFacts => _form?.ImportComparison is { } report
+        ? string.Format(CultureInfo.CurrentCulture, _importFactsFormat, report.ArtifactId,
+            report.Compatibility, report.ExecutionCompleted, report.CoverageComplete,
+            report.InventoryComplete, report.AutofillEligible) : string.Empty;
+    public string ImportAdoption => string.Format(CultureInfo.CurrentCulture, _importAdoptionFormat,
+        _form?.ImportAutofillCode ?? "import-stale");
+    public IReadOnlyList<ImportFindingViewModel> ImportFindings => _importFindings;
+    public string ImportPageText => string.Format(CultureInfo.CurrentCulture, _importPageFormat,
+        _importFindings.Length == 0 ? 0 : _importPage * ImportPageSize + 1,
+        _importPage * ImportPageSize + _importFindings.Length, _form?.ImportComparison?.RetainedFindingCount ?? 0);
+    public bool CanPreviousImportPage => HasImportComparison && _importPage > 0;
+    public bool CanNextImportPage => HasImportComparison &&
+        (_importPage + 1) * ImportPageSize < _form!.ImportComparison!.RetainedFindingCount;
     public bool CanSave => !_disposed && !IsBusy && ProtectedSaveAvailable &&
         Preparation is { Succeeded: true } && _preparationWorkspace is { Output.IsEmpty: false };
     public bool CanSaveBundle => !_disposed && !IsBusy && ProtectedSaveAvailable && _preparedBundleSelection is not null;
     public IRelayCommand PrepareBundleCommand { get; }
+    public IAsyncRelayCommand FillImportFieldsCommand { get; }
     public IReadOnlyList<ProtectedArtifactPublicationReceipt> PublicationHistory
     {
         get { lock (_receiptGate) return Array.AsReadOnly(_publicationHistory.ToArray()); }
@@ -213,7 +264,12 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     {
         if (!_replacingForm) _messenger.Send(new InputsInvalidatedMessage());
     }
-    partial void OnExistingFilePathChanged(string value) => _messenger.Send(new InputsInvalidatedMessage());
+    partial void OnExistingFilePathChanged(string value)
+    {
+        ClearImportComparison();
+        if (IsBusy && !_comparingInput) _messenger.Send(new InputsInvalidatedMessage());
+    }
+    partial void OnImportPurposeIndexChanged(int value) => ClearImportComparison();
     partial void OnArtifactIdChanged(string? value)
     {
         if (!_replacingForm) _messenger.Send(new InputsInvalidatedMessage());
@@ -225,7 +281,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     private void ReplaceForm(DefinitionFormModel? form)
     {
         ClearPreparation();
+        if (_form is not null)
+        {
+            _form.ImportComparisonChanged -= ImportComparisonChanged;
+            _form.ClearImportComparison();
+        }
         _form = form;
+        if (form is not null) form.ImportComparisonChanged += ImportComparisonChanged;
+        ImportPurposeIndex = 0;
+        RefreshImportComparison();
         _selectedArtifactIds.Clear();
         _replacingForm = true;
         try
@@ -435,47 +499,66 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     }
 
     [RelayCommand(CanExecute = nameof(CanImport))]
-    public async Task<bool> ImportFileAsync(CancellationToken cancellationToken = default)
+    public Task<bool> ImportFileAsync(CancellationToken cancellationToken = default)
     {
         string path = ExistingFilePath;
         BoundedFileInput? input = null;
-        try
+        return RunImportAsync(async token =>
         {
-            return await ImportAsync(async token =>
-            {
-                input = await BoundedFileInput.ReadAsync(() => _openImport(path),
-                    ProtectedArtifactWriter.MaximumBytes, token);
-                return input.Bytes;
-            }, cancellationToken);
-        }
-        finally { input?.Dispose(); }
+            input = await BoundedFileInput.ReadAsync(() => _openImport(path),
+                ProtectedArtifactWriter.MaximumBytes, token);
+            return input.Bytes;
+        }, ImportPurposeIndex != 1, cancellationToken, () => input?.Dispose());
     }
 
-    public async Task<bool> ImportAsync(Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
-        CancellationToken cancellationToken = default)
+    public Task<bool> CompareAsync(Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
+        CancellationToken cancellationToken = default) => RunImportAsync(read, true, cancellationToken);
+
+    public Task<bool> ImportAsync(Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
+        CancellationToken cancellationToken = default) => RunImportAsync(read, false, cancellationToken);
+
+    private async Task<bool> RunImportAsync(Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
+        bool compare, CancellationToken cancellationToken, Action? cleanup = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!CanImport || _form is null || ArtifactId is null) return false;
         DefinitionFormModel form = _form;
         string artifactId = ArtifactId;
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "import", cancellationToken);
+        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, compare ? "compare" : "import", cancellationToken);
         if (operation is null) return false;
+        _comparingInput = compare;
         try
         {
-            DefinitionImportResult result = await form.ImportAsync(artifactId, read, operation.Token);
-            if (_disposed || !ReferenceEquals(_form, form)) return false;
-            if (result.Succeeded)
+            return await ReviewInputAsync(form, artifactId, read, compare, operation);
+        }
+        finally
+        {
+            _comparingInput = false;
+            cleanup?.Invoke();
+        }
+    }
+
+    private async Task<bool> ReviewInputAsync(DefinitionFormModel form, string artifactId,
+        Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read, bool compare, DesktopOperation operation)
+    {
+        try
+        {
+            DefinitionImportComparisonResult comparison = await form.CompareAsync(
+                artifactId, read, _cooperativeYield, operation.Token);
+            if (_disposed || !operation.IsCurrent || !ReferenceEquals(_form, form)) return false;
+            if (compare)
             {
-                // The atomic form commit invalidates exactly once; later edits must retain their own status.
-                if (_generation == operation.Generation + 1)
-                {
-                    _messenger.Send(new StatusChangedMessage("import-ready", _generation));
-                    _messenger.Send(new FormFocusRequestedMessage());
-                }
-                return true;
+                _messenger.Send(new StatusChangedMessage(comparison.Code == "import-read-failed"
+                    ? "import-unreadable" : comparison.Code, operation.Generation));
+                return comparison.Succeeded;
             }
-            _messenger.Send(new StatusChangedMessage(result.Code, operation.Generation));
-            return false;
+            if (!comparison.Succeeded)
+            {
+                _messenger.Send(new StatusChangedMessage(comparison.Code == "import-read-failed"
+                    ? "import-unreadable" : comparison.Code, operation.Generation));
+                return false;
+            }
+            return await AdoptImportComparisonAsync(form, operation);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
@@ -484,13 +567,140 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }
     }
 
+    private void ImportComparisonChanged(object? sender, EventArgs args)
+    {
+        if (_disposed || !ReferenceEquals(sender, _form)) return;
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => ImportComparisonChanged(sender, args));
+            return;
+        }
+        RefreshImportComparison();
+    }
+
+    private void RefreshImportComparison()
+    {
+        _importPage = 0;
+        ImportExplanation = string.Empty;
+        RefreshImportPage();
+        OnPropertyChanged(nameof(HasImportComparison));
+        OnPropertyChanged(nameof(ImportFacts));
+        OnPropertyChanged(nameof(ImportAdoption));
+        OnPropertyChanged(nameof(CanFillImportFields));
+        FillImportFieldsCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RefreshImportPage()
+    {
+        _importFindings = _form?.ImportComparison?.Findings.Skip(_importPage * ImportPageSize)
+            .Take(ImportPageSize).Select(finding => new ImportFindingViewModel(finding,
+                new RelayCommand(() => ExplainImportFinding(finding)))).ToArray() ?? [];
+        OnPropertyChanged(nameof(ImportFindings));
+        OnPropertyChanged(nameof(ImportPageText));
+        OnPropertyChanged(nameof(CanPreviousImportPage));
+        OnPropertyChanged(nameof(CanNextImportPage));
+        PreviousImportPageCommand.NotifyCanExecuteChanged();
+        NextImportPageCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ExplainImportFinding(DefinitionImportFinding finding)
+    {
+        if (_form?.ExplainImportFinding(finding) is not { } explanation) return;
+        ImportExplanation = explanation.Title + " / " + string.Join(" / ", explanation.Path) +
+            (explanation.Help is { Length: > 0 } help ? "\n" + help : string.Empty);
+    }
+
+    public async Task<bool> FillImportFieldsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_disposed || IsBusy || _form is null) return false;
+        DefinitionFormModel form = _form;
+        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "fill-import", cancellationToken);
+        if (operation is null) return false;
+        return await AdoptImportComparisonAsync(form, operation);
+    }
+
+    private async Task<bool> AdoptImportComparisonAsync(DefinitionFormModel form, DesktopOperation operation)
+    {
+        DefinitionImportResult result = await form.AdoptImportComparisonAsync(_cooperativeYield, operation.Token);
+        if (_disposed || !ReferenceEquals(_form, form)) return false;
+        // Adoption itself changes input once and cancels this lease; later edits must keep their own status and focus.
+        if (result.Succeeded && _generation == operation.Generation + 1)
+        {
+            long generation = _generation;
+            _messenger.Send(new StatusChangedMessage(result.Code, generation));
+            if (!_disposed && _generation == generation && ReferenceEquals(_form, form))
+                _messenger.Send(new FormFocusRequestedMessage());
+        }
+        else if (!result.Succeeded && operation.IsCurrent)
+            _messenger.Send(new StatusChangedMessage(result.Code, operation.Generation));
+        return result.Succeeded;
+    }
+
+    internal static async ValueTask YieldDispatcherAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Dispatcher.Yield(DispatcherPriority.Background);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    [RelayCommand]
+    public void ClearImportComparison()
+    {
+        _reviewGeneration = checked(_reviewGeneration + 1);
+        _form?.ClearImportComparison();
+        RefreshImportComparison();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPreviousImportPage))]
+    private void PreviousImportPage() { _importPage--; RefreshImportPage(); }
+
+    [RelayCommand(CanExecute = nameof(CanNextImportPage))]
+    private void NextImportPage() { _importPage++; RefreshImportPage(); }
+
+    private static string Text(string key) => ImportText.GetString(key, CultureInfo.CurrentUICulture)!;
+
     [RelayCommand(CanExecute = nameof(CanSelectPath))]
     public Task<bool> SelectOutputDirectoryAsync(CancellationToken cancellationToken = default) =>
         SelectPathAsync(DesktopPathSelectionKind.OutputDirectory, cancellationToken);
 
     [RelayCommand(CanExecute = nameof(CanImport))]
-    public Task<bool> SelectImportAsync(CancellationToken cancellationToken = default) =>
-        SelectPathAsync(DesktopPathSelectionKind.Import, cancellationToken);
+    public async Task<bool> SelectImportAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!CanImport || _form is null || ArtifactId is null) return false;
+        DefinitionFormModel form = _form;
+        string artifact = ArtifactId;
+        bool compare = ImportPurposeIndex != 1;
+        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "selection", cancellationToken);
+        if (operation is null) return false;
+        long generation = _reviewGeneration;
+        _comparingInput = compare;
+        BoundedFileInput? input = null;
+        try
+        {
+            input = await _dialogs.ReadImportAsync(operation.Token);
+            if (!operation.IsCurrent || input is null || generation != _reviewGeneration ||
+                !ReferenceEquals(form, _form)) return false;
+            return await ReviewInputAsync(form, artifact, _ => Task.FromResult(input.Bytes), compare, operation);
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            _messenger.Send(new StatusChangedMessage("import-unreadable", operation.Generation));
+            return false;
+        }
+        catch (Exception exception) when (exception is NotSupportedException or InvalidOperationException)
+        {
+            _messenger.Send(new StatusChangedMessage(exception.Message == "selection-nonlocal"
+                ? "selection-nonlocal" : "selection-unavailable", operation.Generation));
+            return false;
+        }
+        finally
+        {
+            _comparingInput = false;
+            input?.Dispose();
+        }
+    }
 
     private async Task<bool> SelectPathAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken)
     {
@@ -509,17 +719,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                 return false;
             }
             operation.Dispose();
-            if (kind == DesktopPathSelectionKind.OutputDirectory)
-            {
-                OutputDirectory = path;
-                accepted = true;
-                return true;
-            }
-            ExistingFilePath = path;
-            Task<bool> importing = ImportFileAsync(cancellationToken);
-            focusGeneration = _generation;
-            accepted = await importing;
-            return accepted;
+            OutputDirectory = path;
+            accepted = true;
+            return true;
         }
         catch (OperationCanceledException) { return false; }
         catch (ArgumentException)
@@ -541,8 +743,8 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         finally
         {
             operation.Dispose();
-            if (!accepted && !_disposed && focusGeneration == _generation) _messenger.Send(new FocusRequestedMessage(
-                kind == DesktopPathSelectionKind.Import ? "SelectImport" : "SelectOutput"));
+            if (!accepted && !_disposed && focusGeneration == _generation)
+                _messenger.Send(new FocusRequestedMessage("SelectOutput"));
         }
     }
 
@@ -567,6 +769,8 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         OnPropertyChanged(nameof(CanSaveBundle));
         OnPropertyChanged(nameof(CanSelectPath));
         OnPropertyChanged(nameof(Preparation));
+        OnPropertyChanged(nameof(CanFillImportFields));
+        FillImportFieldsCommand.NotifyCanExecuteChanged();
         PrepareCommand.NotifyCanExecuteChanged();
         PrepareBundleCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
@@ -591,6 +795,8 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     {
         if (_disposed) return;
         _disposed = true;
+        ClearImportComparison();
+        if (_form is not null) _form.ImportComparisonChanged -= ImportComparisonChanged;
         ClearPreparation();
         _form = null;
         _session.Dispose();
@@ -598,6 +804,22 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     }
 
     public override string ToString() => nameof(ArtifactPublisherViewModel);
+}
+
+/// <summary>One detached, value-free imported-file issue; it never holds a proposal or workspace location.</summary>
+public sealed class ImportFindingViewModel(DefinitionImportFinding finding, IRelayCommand explain)
+{
+    private static readonly ResourceManager Text = new(typeof(DesktopActionText));
+    private readonly CompositeFormat _summaryFormat = CompositeFormat.Parse(
+        Text.GetString("ImportFindingFormat", CultureInfo.CurrentUICulture)!);
+    public string Summary => string.Format(CultureInfo.CurrentCulture,
+        _summaryFormat, finding.Kind, finding.Code);
+    public bool CanExplain => finding.Schema is not null;
+    public bool IsBlocking => finding.Kind is DefinitionImportFindingKind.MissingRequired or
+        DefinitionImportFindingKind.InvalidSuppliedValue or DefinitionImportFindingKind.UnrecognizedInput or
+        DefinitionImportFindingKind.StructuralOutputChange;
+    public string ExplainLabel => Text.GetString("ExplainImportLabel", CultureInfo.CurrentUICulture)!;
+    public IRelayCommand ExplainCommand { get; } = explain;
 }
 
 /// <summary>Represents one declared bundle selection; the publisher owns its membership.</summary>

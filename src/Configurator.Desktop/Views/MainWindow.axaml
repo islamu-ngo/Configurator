@@ -106,6 +106,12 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <TextBlock Text="{Binding Publisher.ArtifactConsequences}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Publisher.ImportPurposeLabel}" />
+      <ComboBox Name="ImportPurpose" ItemsSource="{Binding Publisher.ImportPurposes}"
+                SelectedIndex="{Binding Publisher.ImportPurposeIndex, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Publisher.ImportPurposeLabel}"
+                AutomationProperties.HelpText="{Binding Publisher.ImportLimitHelp}" />
+      <TextBlock Text="{Binding Publisher.ImportLimitHelp}" TextWrapping="Wrap" />
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="Existing file to import for the selected artifact" TextWrapping="Wrap" />
@@ -115,9 +121,13 @@
         <Button Grid.Column="1" Name="SelectImport" Content="Choose import…"
                 Command="{Binding Publisher.SelectImportCommand}" AutomationProperties.Name="Choose existing local configuration"
                 VerticalAlignment="Bottom" />
-        <Button Grid.Column="2" Name="Import" Content="_Import existing file"
+        <Button Grid.Column="2" Name="Import" Content="{Binding Publisher.ReviewFileLabel}"
+                AutomationProperties.Name="{Binding Publisher.ReviewFileLabel}"
                 Command="{Binding Publisher.ImportFileCommand}" VerticalAlignment="Bottom" />
       </Grid>
+      <StackPanel Name="ImportComparison" IsVisible="{Binding Publisher.HasImportComparison}">
+        <local:ImportComparisonView DataContext="{Binding Publisher}" />
+      </StackPanel>
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
       <StackPanel>
         <TextBlock Text="Existing output directory" />

@@ -27,6 +27,8 @@ public sealed partial class App : Application
                 new AvaloniaStorageDialogService(() => provider.GetRequiredService<MainWindow>().StorageProvider));
             services.AddSingleton<DefinitionLoaderViewModel>();
             services.AddSingleton<FormWorkspaceViewModel>();
+            services.AddSingleton<Func<CancellationToken, ValueTask>>(
+                ArtifactPublisherViewModel.YieldDispatcherAsync);
             services.AddSingleton<ArtifactPublisherViewModel>();
             services.AddSingleton<DesktopShellViewModel>();
             services.AddSingleton(provider => new MainWindow

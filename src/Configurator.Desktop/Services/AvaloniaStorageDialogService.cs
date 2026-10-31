@@ -1,10 +1,54 @@
 namespace Configurator.Desktop.Services;
 
+using System.Runtime.ExceptionServices;
 using Avalonia.Platform.Storage;
+using Configurator.Artifacts;
 using Configurator.Desktop.ViewModels;
 
 public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider) : IStorageDialogService
 {
+    public async Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IStorageProvider storageProvider = provider();
+        if (!storageProvider.CanOpen) throw new NotSupportedException("selection-unavailable");
+        IReadOnlyList<IStorageFile> items = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Choose existing configuration",
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType("All files") { Patterns = ["*"] }]
+        });
+        BoundedFileInput? input = null;
+        try
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (items.Count == 1)
+                    // BoundedFileInput owns open/stat/read/disposal off the UI owner.
+                    // Provider paths are never used as native filesystem authority.
+                    input = await BoundedFileInput.ReadAsync(
+                        () => items[0].OpenReadAsync().GetAwaiter().GetResult(),
+                        ProtectedArtifactWriter.MaximumBytes, cancellationToken);
+            }
+            finally
+            {
+                ExceptionDispatchInfo? failure = null;
+                foreach (IStorageFile item in items)
+                    try { item.Dispose(); }
+                    catch (Exception exception) { failure ??= ExceptionDispatchInfo.Capture(exception); }
+                failure?.Throw();
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return input;
+        }
+        catch
+        {
+            input?.Dispose();
+            throw;
+        }
+    }
+
     public async Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

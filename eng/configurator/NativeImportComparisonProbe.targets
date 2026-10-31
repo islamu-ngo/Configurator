@@ -1,0 +1,98 @@
+<Project>
+  <PropertyGroup Condition="'$(ConfiguratorNativeImportComparisonProbe)' == 'true'">
+    <ConfiguratorImportComparisonOwnershipProbe>true</ConfiguratorImportComparisonOwnershipProbe>
+  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)ImportComparisonMemoryProbe.targets" />
+  <PropertyGroup Condition="'$(ConfiguratorNativeImportComparisonProbe)' == 'true' and '$(MSBuildProjectName)' == 'Configurator.Desktop'">
+    <DefineConstants>$(DefineConstants);CONFIGURATOR_DESKTOP_NATIVE_PROBE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ConfiguratorNativeImportComparisonProbe)' == 'true' and ('$(MSBuildProjectName)' == 'Configurator.Desktop' or '$(MSBuildProjectName)' == 'Configurator.Terminal')">
+    <Compile Include="$(MSBuildThisFileDirectory)MeasureNativeImportComparison.cs" />
+  </ItemGroup>
+  <UsingTask TaskName="InjectNativeImportComparisonProbe" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+      <Kind ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        string source = File.ReadAllText(Source);
+        string[] anchors;
+        string[] replacements;
+        if (Kind == "desktop")
+        {
+            anchors = new[] { "Closed += OnClosed;" };
+            replacements = new[] { "Closed += OnClosed;\nOpened += (_, _) => Configurator.Engineering.MeasureNativeImportComparison.Attach(this);" };
+        }
+        else if (Kind == "terminal")
+        {
+            anchors = new[] { "_importOperation.Settled += ImportSettled;", "await Task.Yield();" };
+            replacements = new[] {
+                "_importOperation.Settled += ImportSettled;\n_application.Invoke(() => Configurator.Engineering.MeasureNativeImportComparison.Attach(this));",
+                "if (AppContext.GetData(\"Configurator.NativeProbe.Checkpoint\") is Action before) before();\nawait Task.Yield();\nif (AppContext.GetData(\"Configurator.NativeProbe.Checkpoint\") is Action after) after();" };
+        }
+        else if (Kind == "desktop-yield")
+        {
+            anchors = new[] { "await Dispatcher.Yield(DispatcherPriority.Background);" };
+            replacements = new[] { "if (AppContext.GetData(\"Configurator.NativeProbe.Checkpoint\") is Action before) before();\nawait Dispatcher.Yield(DispatcherPriority.Background);\nif (AppContext.GetData(\"Configurator.NativeProbe.Checkpoint\") is Action after) after();" };
+        }
+        else
+        {
+            anchors = new[] { "_length = length;", "if (storage is not null) CryptographicOperations.ZeroMemory(storage);" };
+            replacements = new[] {
+                "_length = length;\nif (AppContext.GetData(\"Configurator.NativeProbe.Input\") is Action<object, byte[]> observe) observe(this, storage);\nif (AppContext.GetData(\"Configurator.NativeProbe.ReadComplete\") is Action completed) completed();",
+                "if (storage is not null) { CryptographicOperations.ZeroMemory(storage); if (AppContext.GetData(\"Configurator.NativeProbe.DisposeInput\") is Action<byte[]> observe) observe(storage); }" };
+        }
+        for (int i = 0; i < anchors.Length; ++i)
+        {
+            int first = source.IndexOf(anchors[i], StringComparison.Ordinal);
+            if (first < 0 || source.IndexOf(anchors[i], first + anchors[i].Length, StringComparison.Ordinal) >= 0)
+            {
+                Log.LogError("native-probe-anchor-mismatch");
+                return false;
+            }
+            source = source.Replace(anchors[i], replacements[i]);
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(Destination));
+        File.WriteAllText(Destination, source);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="PrepareNativeImportComparisonProbe" BeforeTargets="CoreCompile"
+          Condition="'$(ConfiguratorNativeImportComparisonProbe)' == 'true' and ('$(MSBuildProjectName)' == 'Configurator.Desktop' or '$(MSBuildProjectName)' == 'Configurator.Terminal' or '$(MSBuildProjectName)' == 'Configurator.Artifacts')">
+    <PropertyGroup>
+      <_NativeProbeKind Condition="'$(MSBuildProjectName)' == 'Configurator.Desktop'">desktop</_NativeProbeKind>
+      <_NativeProbeKind Condition="'$(MSBuildProjectName)' == 'Configurator.Terminal'">terminal</_NativeProbeKind>
+      <_NativeProbeKind Condition="'$(MSBuildProjectName)' == 'Configurator.Artifacts'">input</_NativeProbeKind>
+      <_NativeProbeSource Condition="'$(MSBuildProjectName)' == 'Configurator.Desktop'">Views/MainWindow.axaml.cs</_NativeProbeSource>
+      <_NativeProbeSource Condition="'$(MSBuildProjectName)' == 'Configurator.Terminal'">SetupTerminalWindow.cs</_NativeProbeSource>
+      <_NativeProbeSource Condition="'$(MSBuildProjectName)' == 'Configurator.Artifacts'">BoundedFileInput.cs</_NativeProbeSource>
+      <_NativeProbeGenerated>$(IntermediateOutputPath)native-import-probe/$([System.IO.Path]::GetFileName('$(_NativeProbeSource)'))</_NativeProbeGenerated>
+    </PropertyGroup>
+    <InjectNativeImportComparisonProbe Source="$(MSBuildProjectDirectory)/$(_NativeProbeSource)"
+        Destination="$(_NativeProbeGenerated)" Kind="$(_NativeProbeKind)" />
+    <ItemGroup>
+      <Compile Remove="$(_NativeProbeSource)" />
+      <Compile Include="$(_NativeProbeGenerated)" />
+      <FileWrites Include="$(_NativeProbeGenerated)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="PrepareNativeImportComparisonYieldProbe" BeforeTargets="CoreCompile"
+          Condition="'$(ConfiguratorNativeImportComparisonProbe)' == 'true' and '$(MSBuildProjectName)' == 'Configurator.Desktop'">
+    <PropertyGroup>
+      <_NativeYieldSource>ViewModels/ArtifactPublisherViewModel.cs</_NativeYieldSource>
+      <_NativeYieldGenerated>$(IntermediateOutputPath)native-import-probe/ArtifactPublisherViewModel.cs</_NativeYieldGenerated>
+    </PropertyGroup>
+    <InjectNativeImportComparisonProbe Source="$(MSBuildProjectDirectory)/$(_NativeYieldSource)"
+        Destination="$(_NativeYieldGenerated)" Kind="desktop-yield" />
+    <ItemGroup>
+      <Compile Remove="$(_NativeYieldSource)" />
+      <Compile Include="$(_NativeYieldGenerated)" />
+      <FileWrites Include="$(_NativeYieldGenerated)" />
+    </ItemGroup>
+  </Target>
+</Project>

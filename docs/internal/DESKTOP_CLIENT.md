@@ -38,23 +38,65 @@ operations:
 - `Workspace.Validate()`, publisher preparation/save operations and root
   `Cancel()`: validation, snapshot preparation,
   consumptive protected publication, and invalidation.
-- `Publisher.ExistingFilePath`, `Publisher.ImportFileAsync()`: read a bounded local existing file for
-  the selected declared JSON, YAML, or dotenv artifact. Shared
-  `DefinitionFormModel.ImportAsync` admits supported inverse projections and
-  commits imported answers only while the original revision is current.
+- `Publisher.ExistingFilePath`, `Publisher.ImportFileAsync()`: acquire at most
+  4 MiB for the selected declared artifact. The purpose defaults to Compare;
+  explicit Fill fields remains a separate mutation. `CompareAsync` publishes
+  shared assessment facts without validating/committing current editors or
+  invalidating prepared output. `FillImportFieldsAsync(token)` awaits shared
+  `AdoptImportComparisonAsync` and rechecks current revision, omissions and draft
+  conflicts. Callers must await the asynchronous command.
 - Publisher artifact selection, bundle preparation and saving: select declared outputs, compose a deterministic bundle,
   and publish it through the shared protected bundle publisher. The selected
   single artifact remains a separate preparation action.
 - Loader definition path and publisher output directory/file name: operator-selected local
   inputs. `Status` contains value-free diagnostic codes and IDs; `StatusHelp`
   provides correction/retry guidance without values, paths or raw exceptions.
-- `IStorageDialogService.SelectAsync(kind, token)`: a Desktop-only native selection boundary.
+- `IStorageDialogService.ReadImportAsync(token)`: a mandatory provider-stream
+  acquisition contract returning one caller-owned `BoundedFileInput` or null.
+  It reads no provider `Path`, uses the existing 4 MiB bounded reader and
+  settles the stream and selected item before return. Failure, cancellation and
+  selected-item disposal failure clear acquired storage. The publisher retains
+  its physical busy lease until input cleanup finishes. There is no default
+  interface implementation or local-path fallback.
+  Custom implementations must add this method explicitly: migrate import
+  selection from returning a URI to opening the selected provider's read
+  stream under bounded acquisition. Return ownership of the bounded input only
+  after the provider stream/item settle; on failure retain cleanup responsibility
+  and return no input. `SelectAsync` continues to require local definition and
+  output paths. This is an intentional breaking interface change, not an
+  automatic adapter for old implementations.
+- `IStorageDialogService.SelectAsync(kind, token)`: a Desktop-only local path selection boundary.
   `AvaloniaStorageDialogService` uses the window's `StorageProvider` for one local
   file or existing folder, checks capability and disposes storage items. It accepts only host-free local file
   URIs while its captured generation remains current. Cancellation, unavailable
   providers and nonlocal selections preserve answers/preparation. The accepted
-  definition/import path feeds the existing bounded reader; folder selection
+  definition path feeds the existing bounded reader; folder selection
   sets the destination. No picker stream writes output. Typed paths remain.
+
+### Comparison ownership and explanations
+
+`ArtifactPublisherViewModel` subscribes to `ImportComparisonChanged` rather than
+`InputChanged` or `ViewChanged` for report refresh. Report publication and
+retirement update only report bindings on the owner thread; they do not rebuild
+field editors or retire preparation. Shared `DefinitionImportState` owns the
+only private proposal. The Desktop view retains detached report facts, bounds
+its rendered finding page, and presents file eligibility separately from
+`ImportAutofillCode` for the current workspace.
+
+Production comparison and adoption yield to `DispatcherPriority.Background`
+through `Dispatcher.Yield`, using the shared Core traversal callback rather
+than another evaluator or worker-owned form. The same shell operation retains
+its busy lease through suspension and physical cleanup. Cancellation or an edit
+invalidates publication; successful adoption permits exactly its own one input
+revision increment before publishing status and requesting focus.
+
+Purpose/source/artifact changes, cancellation, navigation and disposal call
+`ClearImportComparison` so a pending read cannot restore a retired report.
+`ExplainImportFinding` returns declared schema metadata/static path only;
+neither imported source ordinals nor map keys select a current entity, request
+field focus or issue a workspace correction token. After deliberate successful
+adoption, normal fresh workspace validation owns corrections. No report value,
+private unknown key, raw exception or native input path belongs in feedback.
 
 ## Editing and presentation flow
 
@@ -316,13 +358,21 @@ See the [public workflow](../public/desktop.md) and
 
 ## Native qualification
 
+The current executable requires twenty distinct names: all nineteen original
+guards, including `D19-typed-map-variant-null-reset-locale`, plus
+`D20-read-only-import-comparison`. The new guard exercises actual controls for
+read-only comparison, safe declared-schema explanation, refusal and deliberate
+adoption. This required set is not evidence of an executed current host run.
+Parent-owned actual published/manual QA and comparison resource measurements
+must be recorded separately from focused headless checks.
+
 The following records earlier qualification scopes. It does not establish
 Phase 10 typed-map, variant, nullable or localized-metadata behavior on a
 physical native host or in an installed package.
 
 `tests/Configurator.Desktop.NativeHost` initializes the actual App/classic
 lifetime on the main thread, checks the X11 platform handle and Linux x64 RID,
-and requires all eighteen distinct named scenarios, including
+and required all eighteen distinct named scenarios in that historical increment, including
 `D14-physical-settlement-receipt`, `D15-close-drain-settles`,
 `D16-close-deadline-unknown`, `D17-close-stay-force` and
 `D18-shared-editing-presence-localized-actions`. Each async action subscribes
@@ -359,7 +409,7 @@ the verification boundary. No new release platform or installer is admitted.
 Synthetic visual evidence can be captured with:
 
 ```bash
-xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 18 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
+xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 20 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
 ```
 
 The harness captures loaded/edited workspaces at 960x800 and the 600x540 minimum,
