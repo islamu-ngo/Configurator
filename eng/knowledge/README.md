@@ -128,6 +128,7 @@ of implementation or verification. `Last Verified` is copied, not renewed.
 | --- | --- | --- |
 | Current public guides, technical anchors, entry docs | Declared status retained; unspecified status remains visible | Preserve source; review absent metadata |
 | Reports and I-VSD assessments | Historical even when an old header says Implemented | Immutable point-in-time record; audit context |
+| Root I-VSD catalog `islamic-value-sensitive-design/README.md` | Current index; does not renew linked reports | Preserve source; current and audit profiles |
 | Extraction records except current `FOUNDATION.md` | Historical transfer/verification evidence | Immutable point-in-time record; audit context |
 | ADRs | Decision records, not live interpreter contracts | Retain rationale; audit context |
 | Reference-only skill/rule metadata | Inactive reference | Retain audit context, never activate backend requirements |
@@ -142,6 +143,13 @@ navigation labels, not newly binding owner assignments. Generic engineering
 skills are not all historical merely because they were transferred; explicit
 reference-only metadata governs that distinction. Files without such metadata
 are not automatically treated as third-party/vendor material.
+
+The [assessment catalog](../../islamic-value-sensitive-design/README.md) is the
+only current-index exception in that assessment tree. Nested READMEs remain
+assessments. Literal explicit paths admit this known public catalog, the renderer
+and new contributor/reference pages before tracking; they do not enable general
+untracked discovery. Catalog labels copy recorded lifecycle and cutoff without
+changing report bytes or granting implementation approval.
 
 ## Context profiles
 

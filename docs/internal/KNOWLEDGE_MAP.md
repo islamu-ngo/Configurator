@@ -25,6 +25,7 @@ replace their evidence.
 | Deferred or required follow-up | [Backlog](../../dev/backlog/) | Trigger and acceptance criteria define unfinished duties; a backlog entry does not authorize execution |
 | Durable engineering findings | [Journal](../../dev/_journal/) | Reusable findings complement contracts, not a second status ledger |
 | Point-in-time assessment | [Reports index](reports/README.md) | Immutable bodies preserve inspected state and failures, not current specifications |
+| Provider-responsibility governance and assessments | [I-VSD catalog](../../islamic-value-sensitive-design/README.md) | Current root navigation separates governance, consultations and workstreams; recorded report lifecycle/cutoff is not renewed approval or implementation evidence |
 | Transfer provenance | [Foundation](extraction/FOUNDATION.md), [provenance](extraction/PROVENANCE.md) | Source revisions, exclusions and dispositions explain transfer; they do not confer release, target or publisher authority |
 | User strategy and research | [Universal configurator](universal-configurator.md), [go-to-market](go-to-market.md) | User-owned originals remain unchanged; relationships below do not turn recommendations into decisions |
 
