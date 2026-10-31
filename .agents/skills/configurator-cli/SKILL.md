@@ -3,115 +3,84 @@ name: configurator-cli
 type: workflow
 enforcement: suggest
 priority: medium
-description: "Use the standalone islamu-configurator machine CLI to inspect local definitions, validate answer workspaces, prepare declared artifacts, compare projections, or diagnose protected output; not for interactive clients or target administration."
+description: "Use the standalone islamu-configurator machine CLI to inspect local definitions, validate answer workspaces, prepare artifacts, compare existing configuration, or diagnose protected output; not for interactive clients or target administration."
 ---
 
-# Configurator Machine CLI
+# Configurator machine CLI
 
-## Authority
+## Authority and input selection
 
-Use the compiled CLI registry and its generated
-[`islamu-configurator-command/v3` schema](../../../schemas/islamu-configurator-command-v3.schema.json).
-The complete operator contract is [CLI usage](../../../docs/public/cli.md);
-the technical anchor is [CLI contract](../../../docs/internal/CLI_CONTRACT.md).
-Commands prepare local data. They never contact, authorize or apply to a target.
+The compiled CLI registry and generated
+[command-v4 schema](../../../schemas/islamu-configurator-command-v4.schema.json)
+own accepted syntax and machine fields. Use the [operator guide](../../../docs/public/cli.md)
+for commands and the [CLI contract](../../../docs/internal/CLI_CONTRACT.md) for
+limits, continuation, output delivery and failure behavior.
 
-## Execute
+1. Identify the operator-selected local definition and declared artifact.
+   Do not fetch a definition URL or guess a target application.
+2. Inspect current root/family/leaf `--help` before choosing options. Typed
+   machine help has `scope`, `commandPath`, `commands` and `options`; it needs
+   no operational input and is not a compiler handshake.
+3. Distinguish private answer-v1 workspaces from ordinary existing configuration
+   files. Answers use exact configuration names in `values` and concrete
+   pointers in `omitted`, never metadata field IDs.
+4. Keep private values out of arguments, logs and chat. Use only explicit bounded
+   files or admitted stdin. Do not enumerate ambient environment values.
 
-1. Identify the operator-selected local definition and declared artifact ID.
-   Do not select an application implicitly or fetch a definition URL.
-2. Inspect `--help` and the generated command registry before choosing options.
-   Use public `catalogue`, `env`, `artifact`, `definition` or `doctor` routes;
-   no legacy aliases or framework `cli`/`export` routes.
-3. Keep answer values in bounded input files or explicit stdin. Never put them
-   in command arguments, logs or chat output. Ambient environment names/values
-   are not enumerated or accepted as answer inputs. Ordinary filenames and IDs
-   are not banned for secret-word substrings; never use actual private values.
-4. Use `--machine` for one JSON result envelope. Check both the process exit
-   code and completion, preparation, targetAcceptance, cleanup, diagnostics,
-   coverage/readiness counts and every artifact's writeStatus. `delivery: attempt`
-   is not acknowledgment. Local success never means the target accepts it.
-5. For publication, select an explicit new destination. All answer-derived
-   output is restricted and create-only. Linux owner-only publication is the
-   supported boundary; unsupported hosts refuse without a plain-file fallback.
+## Prepare and interpret results
 
-Run from the repository root:
+For answer-based validation/preparation, use the current `artifact validate`,
+`artifact create`, `artifact bundle-check` or `artifact bundle-create` route.
+Repeat `--artifact` for bundle selections; do not invent aliases or CSV options.
+Source-run commands below are **templates**, not complete maintained examples:
 
 ```bash
-dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \
+dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
   artifact validate --definition definition.json --artifact config \
   --input answers.json --machine
 
-dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj -- \
+dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
   artifact create --definition definition.json --artifact config \
   --input answers.json --output configuration.json --machine
 ```
 
-These names illustrate operator-owned local files and a definition-owned
-artifact ID; substitute actual declared selections. `--dry-run` validates and
-composes without publication. `--format` asserts the declared format and cannot
-change the projection.
+Run from the checkout root after the [project prerequisites](../../../PROJECTS.md).
+Substitute actual selected filenames and artifact IDs, or use the packaged
+executable. Publication needs a new operator-selected destination. The
+[quickstart](../../../docs/public/getting-started.md) supplies a runnable synthetic
+example and independent byte comparisons.
 
-Strict Spectre grammar accepts `--option value` and `--option=value`, ordinary
-stdin `-` and the `--` terminator. Command/option case is strict; singleton options
-cannot repeat. Root, family and leaf `--machine --help` need no operational inputs
-and perform no reads. Their typed `help` has `scope`, `commandPath`, `commands`
-and `options` (`name`, `requiresValue`, `repeatable`), not human-help text.
-Root results identify `cli`/`help`, branches family/`help`, and leaves their actual
-route. Help is not a compiler handshake or evidence of successful check/build.
+Read the process exit and v4 envelope together: completion, preparation,
+targetAcceptance, cleanup, diagnostics, coverage/readiness and every artifact's
+writeStatus plus installation/verification facts. Empty diagnostics are not a
+readiness certificate. `delivery: attempt` is not acknowledgment, and local
+success never means the target accepted or authorized the result.
 
-For bundles repeat `--artifact config --artifact environment` (at most 64 IDs,
-each at most 128 characters); CSV `--artifacts` is removed without an alias.
-Invocations allow 256 tokens, 32,768 UTF-8 bytes including separators and 4,096
-characters per argument. The receipt is at most 65,536 UTF-8 bytes including LF.
-Known written outputs survive later publication, cleanup or delivery failure;
-unknown does not mean not-written. Inspect destinations before retrying a write
-after exit 74 or incomplete stdout; no fallback receipt repairs partial delivery.
+Restricted output never goes to stdout. Machine stdout is one result envelope;
+human help and public text output use their declared transports. Unsupported
+protected-save hosts refuse rather than write ordinary files. A known written
+prefix survives later publication, cleanup or delivery failure; unknown never
+means not-written. Retry into a fresh private destination after reviewing the
+receipt, not by overwriting earlier output.
 
-For omitted diagnostics or coverage, use `--detail diagnostics|coverage` only on
-read-only `definition check`, `artifact validate`, `artifact check-existing` or
-`artifact bundle-check`. Start at offset 0, limit 1–32; advance by entries actually
-returned and supply the returned digest as `--expected-detail-digest` on every
-noninitial page (offset at most 2,048). Digest mismatch rejects continuation.
-The digest binds a sanitized structural view, never private answer bytes.
-Authoring/runtime schemas are v2 and private answers are v1; command v3 is a separate axis.
+## Compare before deliberate adoption
 
-## Projection And Import Boundaries
+`artifact compare` assesses a selected ordinary configuration file without
+changing a workspace. `artifact prefill` is strict adoption into a new restricted
+answer destination; an optional `--answers` supplies an existing workspace.
+Neither operation guesses release history, renames or arbitrary inverses.
+Use the [import contract](../../../docs/internal/IMPORT_COMPARISON.md) for
+supported mappings and client/package qualification status.
 
-`--input` normally contains a JSON answer workspace keyed by field IDs.
-To inspect an existing projected artifact, supply its answer-workspace proof
-through `--answers`; the engine recomposes and rejects a mismatch. Do not
-invent missing answers or assume arbitrary host artifacts are reversible.
+Page safe details using the operation's supported `--detail` route. Follow
+returned `nextOffset` and digest continuation, not the requested limit or
+assumed exact totals. A stopped inventory can expose only a lower bound.
+Compare completion, compatibility and autofill eligibility are different facts.
 
-Import-semantic artifacts require `artifact import`, an explicit
-`--expected-revision` and the declared `--revision-field`. The revision must
-survive in the top-level projection. This creates an import-request file, not
-an authenticated target request.
+## Verification
 
-`--input -`, `--answers -` or `--baseline -` may consume stdin, but only one per
-invocation. Restricted artifact bytes never go to stdout, including dry runs.
-Machine stdout remains reserved for the result envelope. Public catalogue
-metadata may use `--output -` only in text mode.
-
-Human help goes to stdout; failures and status accompanying public-artifact stdout
-go to stderr. No backward-compatibility adapter is required for the removed
-ambient/substring filtering. Public authoring custody, discovery/repair, skill
-lifecycle and installed adoption evidence remain deferred. The requested .NET 10
-Linux glibc/musl x64/arm64, macOS x64/arm64 and Windows 10/11 x64 expansion is not
-yet implemented or qualified; Windows 7 is unsupported. Protected saves remain
-Linux-only, with no claim of non-Linux writers.
-
-## Validation
-
-Validate this skill's machine-consumed frontmatter:
-
-```bash
-dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- \
-  .agents/skills/configurator-cli/SKILL.md
-```
-
-Check schema freshness through the native generator:
-
-```bash
-dotnet run --project eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj -- --check
-```
+For this guidance, check frontmatter and links. For command-schema changes,
+run the native generator's `--check` and the affected CLI consumer checks in
+PROJECTS. Invoking a command to verify a documentation example is not full CLI,
+package, actual-host or target qualification. [STATUS](../../../docs/internal/STATUS.md)
+routes those separate evidence layers.

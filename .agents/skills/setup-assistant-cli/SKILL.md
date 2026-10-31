@@ -1,12 +1,20 @@
 ---
 name: setup-assistant-cli
-description: "Load when invoking Configurator standalone machine CLI for offline definition validation and artifact preparation; not for terminal, desktop, browser, Event backend or host administration."
+description: "Reference-only historical machine-v3 setup-assistant workflow. Use configurator-cli for current Configurator commands."
 type: workflow
 enforcement: suggest
 priority: high
 ---
 
 # Configurator Native CLI
+
+> **Status:** Reference-only historical command-v3 guidance
+> **Owner:** Agent Context
+
+This retained workflow predates the current machine contract and adoption
+implementation. Use [Configurator CLI](../configurator-cli/SKILL.md) for active
+instructions. Older version, field-identity, package and deferred-work statements
+below are historical, not current prerequisites or support claims.
 
 ## Rules
 

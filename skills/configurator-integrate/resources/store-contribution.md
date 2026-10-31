@@ -1,6 +1,6 @@
 # Prepare an optional store contribution
 
-First check/lint/build the authoring-v2 source independently with the standalone CLI (command v3, authoring/runtime 2/2), and verify complete/incomplete synthetic answers separately. The Store uses the same source and compiler; it cannot be a prerequisite for local CLI, native or browser use.
+First check/lint/build the authoring-v2 source independently with the standalone CLI (command v4, authoring/runtime 2/2), and verify complete/incomplete synthetic answers separately. The Store uses the same source and compiler; it cannot be a prerequisite for local CLI, native or browser use.
 
 Place the same single handwritten source in the selected project directory. Include credential-free public repository information and an explicit license for the definition itself; the application's license is not an inferred redistribution license. Optional curator metadata supplies only tags or a meaningful slug exception. Do not recreate handwritten expanded project/runtime inventories. Distribute compiled canonical public runtime JSON, never private answer-v1 workspaces, answer-derived artifacts or private defaults/examples. Public labels do not certify content or publisher trust.
 

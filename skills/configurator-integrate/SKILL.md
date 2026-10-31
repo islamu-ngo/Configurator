@@ -2,7 +2,7 @@
 name: configurator-integrate
 description: Create or review a compact Configurator YAML or JSON integration for a tool, scaffold from a public JSON Schema, or prepare an optional definition-store contribution. Do not use for collecting private answers, applying configuration, or deploying the target application.
 license: MIT
-compatibility: Requires the standalone islamu-configurator CLI supporting machine contract v3 and definition authoring v2, and a native shell. No application startup, network access, or credentials are required.
+compatibility: Requires the standalone islamu-configurator CLI supporting machine contract v4 and definition authoring v2, and a native shell. No application startup, network access, or credentials are required.
 ---
 
 # Adopt the bounded definition standard
@@ -19,7 +19,7 @@ compatibility: Requires the standalone islamu-configurator CLI supporting machin
 
 ## Workflow
 
-1. Run `islamu-configurator --help` and inspect `islamu-configurator definition --help`. Confirm command contract `islamu-configurator-command/v3` and authoring/runtime handshake 2/2 (`bounded-v2`); private answers remain v1. Discover the built-in authoring schema with `definition schema --kind authoring --text`; other kinds are `runtime`, `answers`, `command`. Use the installed tool's declared options; a missing command is a prerequisite failure.
+1. Run `islamu-configurator --help` and inspect `islamu-configurator definition --help`. Confirm command contract `islamu-configurator-command/v4` and authoring/runtime handshake 2/2 (`bounded-v2`); private answers remain v1. Discover the built-in authoring schema with `definition schema --kind authoring --text`; other kinds are `runtime`, `answers`, `command`. Use the installed tool's declared options; a missing command is a prerequisite failure.
 2. Read [authoring](resources/authoring.md) for ordinary field/output decisions. Read [schema import](resources/schema-import.md) only when scaffolding from a public schema, or [store contribution](resources/store-contribution.md) only when preparing that optional contribution.
 3. Use `definition init` to create the source, then supply the target's meaningful facts. Express advanced mappings through the existing closed projection vocabulary. Keep output format independent from source syntax.
 4. Run `definition check` and `definition lint` on the selected source. Lint adds advisories after admission, not a replacement validator. Resolve every admission error; do not bypass unsupported assertions or classify private values public to obtain green output.
