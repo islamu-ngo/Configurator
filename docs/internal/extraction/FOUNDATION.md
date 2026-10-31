@@ -37,7 +37,7 @@ this compiler before answers; remote Browser distribution remains canonical runt
 JSON. See [maintainer source ownership](../MAINTAINER_AUTHORING.md) and
 [runtime contract](../CORE_DEFINITION_CONTRACT.md).
 
-The CLI's [command v3 contract](../CLI_CONTRACT.md) replaces command v2;
+The CLI's [command v4 contract](../CLI_CONTRACT.md) reports configuration assessments;
 authoring/runtime use v2 and private answers use v1. Repeated bundle `--artifact` selection and
 count/digest summaries keep the full output ledger within a 65,536-byte UTF-8
 receipt. The CLI plans receipt capacity before publication and preserves written,
@@ -213,8 +213,11 @@ No Event transport, signer, live apply or compatibility interpreter was added.
 
 ## Configuration import assessment boundary
 
-Ordinary configuration exports now have a bounded inspection path distinct from
-strict atomic autofill. Core compiles supported inverse instructions and
+Core, machine v4 and interactive clients implement the bounded assessment
+contract. The [execution record](../reports/ARTIFACT_IMPORT_COMPARISON_2026-10-30.md)
+binds candidates, executed checks, historical failures and remaining limits.
+The accepted design gives ordinary configuration exports a bounded inspection
+path distinct from strict atomic autofill. Core compiles supported inverse instructions and
 observations, then uses the sole validator without initialization. Missing
 represented values, unobserved scope and context-derived selectors stay distinct;
 resource stops retain known blockers without compatibility claims. The private

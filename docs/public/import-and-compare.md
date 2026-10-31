@@ -9,8 +9,11 @@ definition you selected. Filling fields is a separate action that reuses the
 values the file actually represents.
 
 {% hint style="info" %}
-This workflow is being implemented. Client availability and measured package
-qualification are not yet complete.
+Comparison and deliberate filling are available in the machine CLI, Browser,
+Desktop and Terminal for supported projections. The
+[execution record](../internal/reports/ARTIFACT_IMPORT_COMPARISON_2026-10-30.md)
+separates tested candidates and measured limits from other-host or target
+acceptance claims.
 {% endhint %}
 
 ## Choose The Scope

@@ -1,6 +1,6 @@
 # ADR: Evidence-Aware Configuration Assessment
 
-> **Status:** Accepted design; implementation and qualification in progress
+> **Status:** Accepted and implemented; local verification has explicit qualification limits
 > **Date:** 2026-10-30
 > **Owners:** Core and Presentation
 
@@ -45,6 +45,18 @@ Expose execution, compatibility, coverage, inventory and adoption eligibility as
 independent facts. Keep preparation and target acceptance separate. Retained
 findings remain fully pageable; resource stops never become compatibility.
 
+Cooperative clients use the same traversal, canonicalizer and snapshot admission
+as synchronous native/machine callers. Scheduling checkpoints do not change the
+semantic budgets. Canonicalization and validator materialization must cooperate
+as well as charged validation: bounded JSON round trips can still monopolize
+a Browser task. Comparison yields to event-loop tasks without pacing every
+computation batch to a display frame; incremental mounting retains frame pacing.
+Presentation captures immutable inputs under its existing gate, computes outside it and
+rechecks currentness after suspension and at atomic publication/adoption.
+This trades some final-report latency for painted acknowledgment and usable
+cancellation without introducing Browser workers, another scheduler or another
+answer store.
+
 ## Alternatives
 
 - Requiring a Configurator answer envelope loses the ordinary-export workflow.
@@ -77,3 +89,6 @@ Implementation evidence and qualification limits are maintained in
 [Import comparison](../IMPORT_COMPARISON.md) and [Operations](../OPERATIONS.md).
 The corresponding [operator guide](../../public/import-and-compare.md) explains
 the workflow without granting additional authority.
+The [execution record](../reports/ARTIFACT_IMPORT_COMPARISON_2026-10-30.md)
+separates exact tested candidates, reference cohorts, historical failures and
+remaining host, memory-observability and accessibility limits.

@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-25 Europe/Brussels
+Last Updated: 2026-10-31 Europe/Brussels
 
 ## Index & Recent
 
@@ -9,6 +9,8 @@ Use [README.md](README.md), [FINDING_TEMPLATE.md](FINDING_TEMPLATE.md) and [PROM
 ## Durable Findings
 
 Append observed target findings chronologically using the template.
+
+- 2026-10-30 - [Comparison normalization stalls and retention instrumentation](domains/artifact-import-comparison.md).
 
 - 2026-10-10 — [Inherited privacy, expansion budgets, schema reference scope, lineage and published closure](domains/definition-authoring.md).
 

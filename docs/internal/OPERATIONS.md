@@ -20,6 +20,9 @@ or acquire host administration authority.
 - [Protected artifacts](PROTECTED_ARTIFACTS.md) and [native output guide](../public/native-output.md)
   own create-only save, privacy and failure behavior.
 - [Launch contract](LAUNCH_CONTRACT.md) owns the local handoff boundary.
+- [Import/comparison execution record](reports/ARTIFACT_IMPORT_COMPARISON_2026-10-30.md)
+  binds the local comparison mechanisms, exact candidate identities, measured
+  results, historical failed cohorts and explicit qualification limits.
 - [Release runbook](RELEASE_RUNBOOK.md) owns generated notes and local evidence.
 
 Do not use service-recovery or direct-database instructions from Event as

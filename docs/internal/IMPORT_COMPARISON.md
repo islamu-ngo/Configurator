@@ -1,7 +1,7 @@
 # Configuration Import And Comparison
 
 > **Audience:** Contributors | Maintainers
-> **Status:** Implementation in progress; client and package qualification pending
+> **Status:** Implemented bounded comparison; qualification is candidate-specific
 > **Owner:** Core and Presentation
 > **Last Verified:** 2026-10-30
 > **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionImport.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Presentation/DefinitionFormModel.cs`
@@ -20,9 +20,11 @@ current answers. Current answers, valid and invalid editor drafts, provenance,
 omissions, input revision and prepared output must survive comparison and finding
 navigation unchanged.
 
-This document describes the implementation contract. Availability and measured
-qualification for each adapter remain pending until recorded in
-[Operations](OPERATIONS.md). The operator projection is
+This document describes the implemented contract across the machine CLI,
+Browser, Desktop and Terminal. The [execution record](reports/ARTIFACT_IMPORT_COMPARISON_2026-10-30.md)
+binds actual candidates, checks, measurements and remaining limits; it does not
+transfer qualification to another host or target application.
+The operator projection is
 [Import and compare](../public/import-and-compare.md).
 
 ## One Inverse And One Evaluator
