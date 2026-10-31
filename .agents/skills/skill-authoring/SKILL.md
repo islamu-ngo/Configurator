@@ -26,7 +26,7 @@ priority: high
 
 ## Workflow
 
-1. Resolve the `create-agent-context-skill` intent and inspect the existing skill catalog.
+1. Resolve the `agent-context` intent and inspect the existing skill catalog.
 2. Draft or revise the description before the body; compare it against adjacent skill descriptions.
 3. Delete duplicated purpose, activation, generic advice, and arbitrary fixed-count ceremony.
 4. Validate metadata, links, size, routing boundaries, and exact verification commands.

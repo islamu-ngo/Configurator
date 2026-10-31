@@ -17,7 +17,7 @@ Changed:
 - .agents/skills/<skill-name>/resources/index.md: resource reading map.
 - .agents/skills/<skill-name>/resources/*.md: durable checklists/templates/frameworks.
 - .agents/contract/intents.yaml: intent routing if added or updated.
-- Event.Architecture.Tests/...: enforcement updates if any.
+- Metadata, local links, intent references and physical rule parity: checks actually performed, with omissions.
 
 Architecture:
 The skill follows the repo pattern of short SKILL.md plus resource library. It preserves source evidence boundaries and uses architecture tests as enforcement.

@@ -1,13 +1,15 @@
 > Configurator authority: follow AGENTS.md and PROJECTS.md. Source-system backend examples are reference-only; absent Event layers and deployment policies do not apply.
 
 <!-- ABOUTME: Intent-manifest guidance for skill creation and agent-context infrastructure changes. -->
-<!-- ABOUTME: Explains how create-agent-context-skill answers the repository Contribution Contract. -->
+<!-- Explains how agent-context answers the repository Contribution Contract. -->
 
 # Intent Contract
 
 ## Intent ID
 
-Use `create-agent-context-skill` when a task creates or materially updates project skills, skill resources, agent-context tests, or the intent routing that loads those skills.
+Use `agent-context` for skills, resources, agent contracts and harness routing.
+Use `documentation` for ordinary guides and navigation; `provenance-docs` is
+specific to licensing and transfer evidence, not a general documentation route.
 
 ## Files In Scope
 
@@ -16,8 +18,8 @@ Primary files are:
 - `.agents/skills/<skill-name>/SKILL.md`
 - `.agents/skills/<skill-name>/resources/*.md`
 - `.agents/contract/intents.yaml`
-- `Event.Architecture.Tests/AgentContext*Tests.cs`
-- `dev/active/<task>/*` when an active workstream is driving the skill work
+- `.agents/benchmarks/` for manually exercised routing scenarios
+- `.omo/rules/` twins and harness pointers declared by the intent
 
 Do not use this intent as permission to edit application code. If a skill references application behavior, link to source docs or code and keep the application change under its own intent.
 
@@ -31,7 +33,8 @@ Always read the schema and the active source material before editing. For domain
 - The skill has a precise activation boundary and clear non-goals.
 - The resource library is reachable through `resources/index.md`.
 - Claims are evidence-bounded and do not overstate validation.
-- Architecture tests prove the schema, links, and intent manifest still work.
+- Review metadata, links and intent references directly. The native YAML guard
+  checks bounded syntax only; it does not prove routing semantics or benchmark success.
 
 ## Forbidden Moves
 

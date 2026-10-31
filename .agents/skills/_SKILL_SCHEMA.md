@@ -85,7 +85,7 @@ Skills that produce commit/PR text, reports, or decision requests follow [Reader
 - Stack/tech-overview paragraphs (reference `AGENTS.md`).
 - Duplicated invariants from `docs/internal/QUICK_REFERENCE.md` (link, don't copy).
 - Fixed-count lists created to satisfy a shape rather than the skill's real decisions.
-- ASCII diagrams (per `docs/internal/DOCUMENTATION_STYLE_GUIDE.md`).
+- Invented style mandates from absent source-system documentation. Follow the target documentation architecture.
 - "Why clean architecture matters" prose or similar meta-content.
 - Unconditional resource cascades that require every linked document before the task has identified a decision that needs it.
 
