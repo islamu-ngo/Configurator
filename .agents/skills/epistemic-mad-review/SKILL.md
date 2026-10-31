@@ -24,7 +24,7 @@ priority: high
 
 ## Workflow
 
-1. **Persona Initialization**: Instantiate 2–3 distinct specialist personas based on the intent's `mandatory_reviewers` (e.g. `security-privacy-agent` for trust boundaries, `backend-engineer-agent` for persistence).
+1. **Persona Initialization**: When MAD is selected, assign independent expertise matching the actual target boundary and `criticality.review_protocol`. The target registry has no `mandatory_reviewers` field. Do not select a historical backend role or imply that profile names are registered tools.
 2. **Anonymized Argument Generation**: Each persona independently analyzes the diff and generates findings, risks, and proposed exploit tests without viewing peer outputs.
 3. **Anonymized Cross-Evaluation**: If critiques diverge, present the competing arguments to each agent with all identity headers masked (e.g. `[Proposal A]`, `[Proposal B]`).
 4. **Weighted Decision Aggregation**: Aggregate votes where the primary domain expert holds 60% voting weight and secondary reviewers hold 40%.

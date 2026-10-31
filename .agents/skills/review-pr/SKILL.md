@@ -25,13 +25,11 @@ priority: high
 - **Self-review** — before opening a PR.
 - **Review mode** — when asked to review someone else's PR.
 
-## Step 0 — Upstream Freshness Gate
+## Step 0 — Establish The Authorized Comparison
 
-Fetch latest upstream to ensure diffs and merge-bases reflect current `develop`:
-```bash
-git fetch origin develop
-```
-Ensure the PR branch is cleanly mergeable with `origin/develop` with zero stale base drift.
+Use the supplied diff/base and current checkout. Do not fetch, switch branches,
+rebase or rewrite history automatically. If remote freshness is unverified,
+state that limitation; a review request is not topology authorization.
 
 ## Step 1 — Re-Identify the Intent
 
@@ -46,8 +44,8 @@ For each item in the intent's `pr_checklist`, collect evidence:
 | Tests added / updated | File paths + `dotnet test` output |
 | Docs updated | File paths + diff |
 | Rule adherence | Lint / architecture test output |
-| Authorization correct | `AuthorizationParityTests` output |
-| Contract unchanged (or CHANGELOG entry) | `ApiContractArchitectureTests` output + `docs/internal/API_CHANGELOG.md` diff |
+| Privacy/authority correct | Actual affected-owner admission, custody, generation or protected-output evidence |
+| Public contract impact | Target contract/release documentation and affected-owner checks |
 
 Any item without evidence is a blocker.
 
@@ -77,13 +75,18 @@ dotnet test --project <MinimumTestProject>/<MinimumTestProject>.csproj --configu
 # Expected: Passed
 ```
 
-For architectural PRs, also run:
+For relevant product architecture boundaries, select the affected tests from
+`PROJECTS.md`, for example:
 
 ```bash
-dotnet test --project tests/Event.Architecture.Tests/Event.Architecture.Tests.csproj --configuration Release --verbosity quiet
+dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --verbosity quiet
 ```
 
 ## Step 5 — Critical Rules Checklist (applies to every PR)
+
+The build/test examples above apply to code, not prose. Documentation-only
+reviews check metadata, links, command/source accuracy and whitespace without
+product suites.
 
 - [ ] No `as any`, `@ts-ignore`, `@ts-expect-error`, or equivalent C# type-suppression hack.
 - [ ] No new `rm`, `mv`, or `>` shell redirection in scripts.
