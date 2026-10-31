@@ -1,12 +1,25 @@
 # Troubleshooting Guide
 
 > **Audience:** Adopters | Contributors | Integrators | AI agents  
-> **Status:** Implemented  
+> **Status:** Source-grounded recovery guidance; host hints are not qualification
 > **Owner:** Contributor Experience  
-> **Last Verified:** 2026-10-27  
+> **Last Verified:** 2026-10-30
+> **Review basis:** Source review, not execution of every recovery template
 > **Source Anchors:** `src/Configurator.Cli/`, `src/Configurator.Artifacts/`, `src/Configurator.Terminal/`, `src/Configurator.Desktop/`, `src/Configurator.Browser/`, `src/Configurator.Core/`
 
 This searchable guide provides diagnostic steps and recovery procedures for common issues across all Configurator execution surfaces: the Command-Line Interface (CLI), Terminal User Interface (TUI), Avalonia Desktop application, and Browser WebAssembly runtime.
+
+Commands use **Bash** unless labeled otherwise. Runnable CLI examples assume a
+current packaged `islamu-configurator` on `PATH` and the checkout root as the
+working directory. Source invocation and build prerequisites are in the
+[CLI guide](cli.md#invocation-basics--confidentiality).
+Blocks containing `setup.json`, `answers.json` or `/path/to/...` are **templates**:
+substitute your admitted local definition, private v1 answers and local paths.
+JSON/status blocks are **illustrative excerpts**, not full captured receipts.
+Read-only checks can be rerun. Writes require trusted existing parent directories
+and fresh destination filenames; inspect any written prefix before retrying.
+Use maintained [synthetic fixtures](getting-started.md) when reporting a problem,
+never private answers, paths, credentials or generated configuration.
 
 ---
 
@@ -24,7 +37,7 @@ Use the diagnostic code and optional public `source.schemaPath` plus start/end
 line and column to find the admitted schema ancestor. Unknown member names and
 values are not echoed. `definition lint` adds advisory warnings after admission;
 it does not make unsupported syntax acceptable. To retrieve omitted entries use
-`--detail diagnostics --limit 16`, then advance by the returned count with the
+`--detail diagnostics --limit 16`, then use the returned `nextOffset` with the
 same `--expected-detail-digest`; restart at offset zero on a digest mismatch.
 Use `definition schema --kind authoring --text` for the built-in editor schema.
 For answer corrections, use typed property/row/map-entry coordinates only at the
@@ -55,13 +68,13 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
 
 | Exit Code | Category | Meaning | Recovery Strategy |
 |---|---|---|---|
-| `0` | `success` | Operation completed successfully | Host acceptance still required; apply generated files to target |
-| `2` | `validation` | Declared field or projection constraint failed | Review field diagnostics, fix inputs, and re-run |
+| `0` | `success` | Local operation completed successfully | Perform target validation and obtain permission before applying files |
+| `2` | `validation` | Field/projection failure or comparison found required changes | Review diagnostics/findings and repair a separate copy |
 | `3` | `incomplete` | Required answers missing | Supply all mandatory answers before requesting complete output |
 | `4` | `blocked` | Privacy, revision, or host boundary refused | Check platform compatibility or supply needed revision parameters |
 | `64` | `usage` | Syntax error in CLI invocation flags | Correct argument spelling, remove unsupported flags or positional tokens |
-| `65` | `data` | Malformed document or schema admission failure | Validate JSON/YAML against schema; ensure file size is under 4 MiB |
-| `70` | `internal` | Unexpected engine invariant violation | Report bug with deterministic reproduction definition and answers |
+| `65` | `data` | Malformed/admission refusal, stale digest or detail-report failure | Check envelope/schema and detail continuation; streaming byte-limit failures can instead return 74 |
+| `70` | `internal` | Unexpected engine invariant violation | Report a deterministic synthetic reproduction |
 | `74` | `io` | Filesystem read/write error or broken pipe | Check disk space, path existence, directory permissions, and stdout |
 | `130` | `cancelled` | Operation terminated by SIGINT / Ctrl+C | Inspect target directory to identify any partially written prefix |
 
@@ -69,7 +82,8 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
 
 ### Exit Code 0: Success (With Target Caveat)
 
-**Cause:** The local command finished all planned processing and verified output invariants.
+**Cause:** The local command succeeded within its own scope. Read-only commands
+need not publish files; compare success is not workspace preparation.
 
 ```json
 {
@@ -82,29 +96,40 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
 ```
 
 > [!NOTE]
-> `targetAcceptance: "unassessed"` is expected behavior. Configurator validates configuration semantics locally, but your target application (e.g. Nextcloud, Ghost, Postgres) retains sole authority over runtime acceptance.
+> `targetAcceptance: "unassessed"` is expected. Configurator checks admitted
+> definition constraints, not equivalence with target semantics. Successful
+> composition can have `preparation: "ready"` while readiness remains incomplete
+> for required host validation.
 
 **Step-by-Step Recovery / Next Steps:**
 1. Inspect the published files at your specified destination directory.
-2. Hand the generated `.env`, `.json`, or `.yaml` files to your deployment runner (`docker compose up -d`, `systemctl restart`, etc.).
+2. Obtain target semantic validation and permission before handing generated
+   files to a deployment runner. Starting or restarting services changes the
+   target and is outside Configurator.
 3. Verify target application logs to ensure successful startup.
 
 ---
 
 ### Exit Code 2: Field Validation Failure
 
-**Cause:** One or more answers fail validation constraints defined in the setup definition (e.g. regex pattern, min/max integer bounds, enum allowed values, or `uniqueBy` array constraints).
+**Cause:** Answers fail admitted constraints such as numeric bounds, typed enums
+or `uniqueBy`. Arbitrary regex patterns are not part of the bounded profile.
+Bundle composition failures, including missing answers, also return exit 2.
 
 ```json
 {
-  "status": "failed",
+  "status": "validation",
   "exitCode": 2,
   "diagnostics": [
     {
-      "code": "field-invalid",
+      "code": "value-invalid",
       "severity": "error",
-      "path": "/server/port",
-      "message": "Value must be between 1024 and 65535."
+      "path": "/input",
+      "correction": {
+        "inputRevision": 0,
+        "fieldId": "service.name",
+        "segments": []
+      }
     }
   ]
 }
@@ -116,7 +141,9 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
    islamu-configurator artifact validate --definition setup.json \
      --artifact config --input answers.json --detail diagnostics --machine
    ```
-2. Locate the failing field path specified in the diagnostic (`/server/port`).
+2. Locate the declared field using its safe diagnostic metadata. A name such as
+   `service.name` is a literal key, not a nested `service` object. Honor typed
+   correction coordinates only at the reported input revision.
 3. Update the value in your `answers.json` file to satisfy the constraint.
 4. Re-run `artifact validate` or `artifact create`.
 
@@ -124,11 +151,14 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
 
 ### Exit Code 3: Incomplete Answers
 
-**Cause:** One or more required fields are active (their `activeWhen` condition evaluated to true) but no value was supplied in the answers workspace.
+**Cause:** Single-artifact validation found missing active required values.
+Applicability is declared by `x-configurator.applicableWhen`, not `activeWhen`;
+requiredness comes from admitted object presence relationships. Bundle
+composition failures use exit 2 rather than the single-artifact missing-only 3.
 
 ```json
 {
-  "status": "failed",
+  "status": "incomplete",
   "exitCode": 3,
   "readiness": {
     "state": "incomplete",
@@ -144,12 +174,16 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
    islamu-configurator artifact validate --definition setup.json \
      --artifact config --input answers.json --detail coverage --machine
    ```
-2. For each missing field marked required, add an entry to your answers JSON object.
-3. If generating an intentionally partial draft (e.g., deferring secrets), use draft preparation:
-   ```bash
-   islamu-configurator artifact create-draft --definition setup.json \
-     --artifact config --input answers.json --output draft.env
-   ```
+2. Add entries under `values` in the private v1 envelope, preserving exact names
+   and the `omitted` array. Standard `default` does not insert answers.
+   `initialValue` applies only to eligible missing values; omission suppresses
+   initialization, and reset restores eligibility. False, zero and empty values
+   remain present subject to constraints; null requires nullable admission.
+   Do not create an absent optional container merely for initialized children.
+3. The CLI has no `artifact create-draft` command. For intentional missing-secret
+   deferral, use the Browser's explicit draft workflow. Drafts stay incomplete
+   and restricted; ordinary missing/invalid values and unresolved secret
+   dependencies can still block them. They are not public shareable examples.
 
 ---
 
@@ -157,30 +191,35 @@ The `islamu-configurator` CLI emits standardized POSIX exit codes and determinis
 
 **Cause:** Triggered when:
 - Attempting a protected native save on an unsupported host (such as macOS or Windows).
-- A definition revision conflict occurs.
-- A private credential was requested via an unauthenticated or public stream.
+- An operation tries to bypass import revision binding.
+- Restricted output was requested on stdout.
+- The selected existing-file inverse is unsupported.
 
 ```json
 {
-  "status": "failed",
+  "status": "blocked",
   "exitCode": 4,
   "diagnostics": [
     {
-      "code": "unsupported-protected-host",
+      "code": "protected-writer-unavailable",
       "severity": "error",
-      "message": "Protected native writes require Linux with anonymous inode support."
+      "path": "/arguments"
     }
   ]
 }
 ```
 
 **Step-by-Step Recovery:**
-1. **On macOS or Windows:** Native create-only `0600` protection is strictly Linux-only. Use the CLI inside Linux containers, WSL2, or a Linux virtual machine.
+1. **On macOS or Windows:** Use read-only validation, deliberate Browser export,
+   or a qualified Linux environment. A container/VM alone does not prove its
+   mounted output filesystem supports protected publication.
 2. **On Linux:** Verify your host capabilities by executing the diagnostic command:
    ```bash
    islamu-configurator doctor --machine
    ```
-   If doctor exits with `0`, your host kernel and libc support protected saves. If it exits with `4`, review kernel version and libc compatibility.
+   Exit `0` establishes writer availability, not your destination filesystem's
+   capabilities or target acceptance. Exit `4` reports unavailable native
+   protection. Inspect actual save receipts separately.
 
 ---
 
@@ -203,7 +242,9 @@ islamu-configurator artifact create --definition setup.json \
    islamu-configurator artifact create --help
    ```
 2. Ensure flags match exact case (`--definition`, NOT `--Definition`).
-3. If passing stdin or stdout, supply the literal dash `-` as the option argument (`--output -`).
+3. Stdin requires explicit `--input -` and shell redirection from a local file
+   or pipe; interactive stdin is refused. `--output -` is only for public
+   catalogue text, never restricted output or a machine-mode artifact stream.
 
 ---
 
@@ -212,20 +253,26 @@ islamu-configurator artifact create --definition setup.json \
 **Cause:** The definition document or answers file could not be parsed as valid JSON/YAML, exceeded size limits, or violated core schema requirements.
 
 **Common Scenarios:**
-- The definition file exceeds the 4 MiB size limit.
+- The document violates admitted grammar/budgets. Acquisition exceeding the
+  4 MiB file bound can instead fail before parsing with I/O exit 74.
 - JSON contains trailing commas or unquoted keys (strictly forbidden by `SetupDefinitionCodec`).
 - Duplicate keys exist within the same JSON object.
 
 **Step-by-Step Recovery:**
-1. Validate JSON syntax using a standard command-line validator:
+1. Optionally check JSON syntax with `jq` if already installed (this does not
+   check the bounded definition contract or replace duplicate-key admission):
    ```bash
    jq . setup.json > /dev/null
    ```
 2. Verify against the official schema:
    ```bash
-   islamu-configurator definition check --definition setup.json --machine
+   islamu-configurator definition check --source configurator.yaml --machine
    ```
-3. Correct structural defects identified in the diagnostic message.
+   This checks compact authoring source, not expanded runtime JSON. To admit
+   runtime JSON, select it with an artifact read-only command such as
+   `artifact validate --definition setup.json --artifact config --input answers.json --machine`.
+3. Correct defects using diagnostic codes and public source coordinates, not a
+   prose message. Input streaming limits can return I/O exit 74 before parsing.
 
 ---
 
@@ -234,8 +281,10 @@ islamu-configurator artifact create --definition setup.json \
 **Cause:** An unhandled internal invariant failure occurred within `Configurator.Core`.
 
 **Step-by-Step Recovery:**
-1. Run with `--text` mode to view the diagnostic trace on `stderr`.
-2. Ensure you are running a supported .NET release (minimum .NET 10.0.302 runtime).
+1. Retain value-free receipt codes and process exit; text mode does not promise
+   a raw exception trace.
+2. Source builds require SDK 10.0.302; standalone packages carry their runtime.
+   SDK and runtime version numbers are not interchangeable.
 3. If reproducible with sanitized sample data, file an issue in the upstream repository including your definition and non-sensitive inputs.
 
 ---
@@ -259,22 +308,27 @@ See [Linux Protected Save & Filesystem Failures](#linux-protected-save--filesyst
 
 > [!CAUTION]
 > **No Rollback Guarantee:**
-> Configurator never deletes already-written files upon cancellation. Any file whose write status was recorded as `written` remains on disk.
+> Configurator does not roll back established writes on cancellation. A
+> `written` fact records installation, not continued existence or integrity;
+> inspect it even if later verification or receipt delivery failed.
 
 **Step-by-Step Recovery:**
 1. Check your target directory to identify which bundle artifacts were committed before interruption.
-2. Resolve any partial files or remove the output directory if a fresh run is desired.
-3. Re-run the command to completion.
+2. Keep established files for private inspection; unknown does not mean unwritten.
+3. Re-run into a fresh private directory. Do not assume cancellation rolled back
+   writes or that a failed receipt delivery means the operation had no effects.
 
 ---
 
 ## Linux Protected Save & Filesystem Failures
 
-Configurator implements an uncompromising security model for native file publication via `UnixProtectedArtifactWriter`. It enforces create-only, owner-only (`0600`) file permissions without temporary filename collisions.
+`UnixProtectedArtifactWriter` implements descriptor-relative, create-only,
+owner-only (`0600`) publication without named temporary files. Its checks are
+specific native boundaries, not a general security certification.
 
 ```mermaid
 flowchart TD
-    A["Target Path Check"] --> B{"Directory Trusted?<br/>(Owner EUID, No Group/World Write)"}
+    A["Target Path Check"] --> B{"Directory Trusted?<br/>(Root/EUID ownership, write-safety checks)"}
     B -- No --> C["Refuse Save:<br/>UnsafeTarget / PermissionDenied"]
     B -- Yes --> D{"Destination Exists?"}
     D -- Yes --> E["Refuse Save:<br/>TargetExists / conflict"]
@@ -284,28 +338,36 @@ flowchart TD
     H --> I["statx Inspection & Verification"]
 ```
 
-### 1. "File exists" Conflict (`TargetExists` / Exit 74)
+### 1. "File exists" Conflict (`TargetExists`)
 
 **Cause:** The destination file already exists on disk. Configurator's Linux writer uses `linkat` with atomic create-only semantics (equivalent to `O_EXCL`). It refuses to truncate, replace, or overwrite existing files.
 
 **Diagnostic Indicators:**
 - CLI machine receipt reports: `"writeStatus": "conflict"`, `"installation": "not-established"`.
-- Text mode output: `Target file already exists; refusing to overwrite.`
+- Single-file publication failure returns exit 74; a normal bundle preflight
+  conflict can return blocked exit 4. Inspect the artifact facts in either case.
+- Text mode emits value-safe status rather than promising that exact prose.
 
 **Step-by-Step Recovery:**
 1. Inspect the existing file:
    ```bash
    ls -la /path/to/destination/.env
    ```
-2. If the existing file is outdated and safe to replace, archive or remove it manually:
+2. If you deliberately archive an old file, use a fresh backup name. This Bash
+   template changes the filesystem; ordinary `mv` can overwrite a backup and
+   is not Configurator protected publication:
    ```bash
    mv /path/to/destination/.env /path/to/destination/.env.backup
    ```
-3. Alternatively, specify a fresh output directory for the new run:
+3. Alternatively, use this runnable synthetic-fixture example from the checkout
+   root. `mktemp` creates a fresh private directory on every rerun:
    ```bash
-   mkdir -m 0700 /path/to/new-deployment
-   islamu-configurator artifact bundle-create --definition setup.json \
-     --input answers.json --output-dir /path/to/new-deployment
+   destination=$(mktemp -d "$HOME/configurator-recovery.XXXXXXXX")
+   islamu-configurator artifact bundle-create \
+     --definition examples/minimal-self-hosted/setup-definition.json \
+     --artifact environment --artifact configuration --artifact configuration-yaml \
+     --input examples/minimal-self-hosted/answers/complete.json \
+     --output "$destination" --machine
    ```
 
 ---
@@ -314,8 +376,13 @@ flowchart TD
 
 **Cause:** Configurator verifies every directory segment from the filesystem root (`/`) down to the target folder using `IsTrustedDirectory`. Publication is refused if:
 - Any directory in the path is group-writable (`g+w`) or world-writable (`o+w`), unless it is a non-final root-owned directory with the sticky bit set (like `/tmp`).
-- The final destination directory is not owned by the executing user's effective UID (`geteuid()`).
-- The destination directory has overly permissive mode bits (e.g. `0777` or `0775`).
+- A directory is owned by neither root nor the executing effective UID.
+- The final directory is group/world writable (for example `0777` or `0775`);
+  the sticky-directory ancestor exception does not apply to the final directory.
+
+An owner-controlled `0700` destination is the recommended operator setup.
+Read/execute permissions alone do not imply a refusal; the native checks are
+ownership, write safety, descriptor identity and protected file operations.
 
 > [!WARNING]
 > **Saving Directly to `/tmp` Fails by Design:**
@@ -345,31 +412,40 @@ flowchart TD
 - `openat(..., O_TMPFILE)` to create unlinked anonymous inodes.
 - Atomic namespace linking via `/proc/self/fd/<descriptor>`.
 
-Network filesystems (NFSv3/NFSv4, SMB/CIFS) and non-POSIX filesystems (FAT32, exFAT, NTFS-3G) do not support `O_TMPFILE` or descriptor linking, returning `EOPNOTSUPP` (Operation not supported) or `EINVAL`. Additionally, NFS root-squashing or UID mapping often breaks ownership checks.
+Remote or translated filesystems can lack these operations or safe ownership
+semantics. Do not infer support or a fixed errno from the mount type alone;
+Configurator checks operations rather than a named-filesystem allowlist.
+NFS root-squashing or UID translation can also fail ownership checks.
 
 **Diagnostic Indicators:**
-- Exit code `74` with status `IoFailure`.
-- Syscall errors: `Operation not supported` or `Invalid cross-device link`.
+- Inspect exit category and per-artifact write/installation/verification facts;
+  unsafe-target refusals and low-level I/O failures have distinct outcomes.
+- Raw syscall errors and private mount paths are not promised machine output.
 
 **Step-by-Step Recovery:**
-1. Prepare artifacts on a native POSIX local filesystem (e.g. `ext4`, `xfs`, `btrfs`, `tmpfs`).
+1. Use a local destination supporting all required native operations; a name such
+   as ext4 or tmpfs is not itself qualification evidence.
 2. Point your output to a local temporary directory:
    ```bash
-   mkdir -m 0700 "$HOME/.cache/config-staging"
-   islamu-configurator artifact bundle-create --definition setup.json \
-     --input answers.json --output-dir "$HOME/.cache/config-staging"
+   destination=$(mktemp -d "$HOME/configurator-staging.XXXXXXXX")
+   islamu-configurator artifact bundle-create \
+     --definition examples/minimal-self-hosted/setup-definition.json \
+     --artifact environment --artifact configuration --artifact configuration-yaml \
+     --input examples/minimal-self-hosted/answers/complete.json \
+     --output "$destination" --machine
    ```
-3. Copy or synchronize the prepared files to your network mount:
-   ```bash
-   rsync -av "$HOME/.cache/config-staging/" "/mnt/nfs-share/app-config/"
-   rm -rf "$HOME/.cache/config-staging"
-   ```
+3. If transferring to another mount, use your separately reviewed deployment
+   procedure. Copying/synchronizing is outside Configurator's protected-save
+   guarantee and may overwrite files or change permissions. Retain the original
+   output until destination custody and target validation have been checked.
 
 ---
 
 ## Terminal TUI Issues
 
 The interactive terminal client (`Configurator.Terminal`) is powered by Terminal.Gui v2 and requires an interactive ANSI terminal.
+
+The warning below is illustrative, not a captured screen:
 
 ```text
 ┌─────────────────────────── ISLAMU Configurator TUI ───────────────────────────┐
@@ -412,7 +488,8 @@ The interactive terminal client (`Configurator.Terminal`) is powered by Terminal
    ```bash
    export TERM=xterm-256color
    ```
-3. Use a verified modern terminal emulator such as Alacritty, Kitty, WezTerm, GNOME Terminal, Windows Terminal, or iTerm2.
+3. Use a terminal with UTF-8 and suitable color support. The examples are host
+   configuration hints, not a qualification claim for any terminal emulator.
 
 ---
 
@@ -437,15 +514,17 @@ The desktop client (`Configurator.Desktop`) is built with Avalonia UI and provid
 **Cause:** Avalonia automatically detects display servers via `UsePlatformDetect()`. On Linux systems running Wayland (especially with Sway, Hyprland, or proprietary NVIDIA graphics drivers), hardware acceleration bugs can cause window freezes, black screens, or launch crashes.
 
 **Step-by-Step Recovery:**
-1. Launch the application with Wayland disabled to force the stable X11 / XWayland backend:
+1. Confirm that an X11/XWayland display is available. This Bash launch template
+   suppresses the Wayland display variable for one process; it does not create
+   an X server or certify a driver:
    ```bash
    WAYLAND_DISPLAY="" ./islamu-configurator-desktop
    ```
-2. If using an NVIDIA GPU on Wayland, force software rendering fallback:
-   ```bash
-   AVALONIA_RENDER_MODE=software ./islamu-configurator-desktop
-   ```
-3. Check application logs on `stderr` for graphics driver diagnostic warnings.
+2. The current entry point uses Avalonia `UsePlatformDetect()` and does not
+   define a Configurator software-rendering switch. Do not assume an arbitrary
+   environment variable is recognized.
+3. Retain a synthetic launch reproduction and value-free diagnostics. Record
+   display-server and driver context without including private definition paths.
 
 ---
 
@@ -455,7 +534,11 @@ The desktop client (`Configurator.Desktop`) is built with Avalonia UI and provid
 `System.DllNotFoundException: Unable to load shared library 'libfontconfig.so.1'`
 
 **Step-by-Step Recovery:**
-Install system font libraries using your distribution's package manager:
+The following are **distribution-specific administration examples**, not
+Configurator commands or tested installation receipts. Select only the command
+for your host; it installs system packages, needs administrator authority
+(Alpine's example assumes a root shell), may access the network and can update
+package state on reruns. Confirm names against your distribution before use:
 
 ```bash
 # Arch Linux
@@ -478,7 +561,10 @@ apk add fontconfig freetype ttf-dejavu
 **Cause:** On 4K monitors or multi-monitor setups with fractional scaling (e.g. 125% or 150%), Avalonia windows may appear blurry or improperly scaled.
 
 **Step-by-Step Recovery:**
-Override the global scale factor via environment variable:
+Check desktop-session scaling and the application's actual display backend.
+The following are **environment troubleshooting templates**, not Configurator
+CLI flags or verified cross-host behavior. They affect only the launched process
+if the selected Avalonia backend honors the variable:
 ```bash
 # Force 100% standard scaling
 AVALONIA_GLOBAL_SCALE_FACTOR=1.0 ./islamu-configurator-desktop
@@ -506,7 +592,9 @@ flowchart LR
 ### 1. CORS Errors Loading Definitions
 
 **Cause:** When opening a remote definition via URL, the browser issues a cross-origin HTTP `GET` request. If the remote hosting server does not include permissive Cross-Origin Resource Sharing (CORS) headers, the browser blocks the download:
-`Access to fetch at 'https://example.com/setup.json' from origin 'https://config.islamu.org' has been blocked by CORS policy.`
+`Access to fetch at 'https://publisher.example/setup.json' from origin 'https://configurator.example' has been blocked by CORS policy.`
+
+These are placeholder origins, not an official Configurator deployment.
 
 **Step-by-Step Recovery:**
 1. **Host-Side Fix:** Configure the remote web server to return CORS headers for public definition files:
@@ -525,7 +613,9 @@ flowchart LR
 `Refused to compile or instantiate WebAssembly module because 'wasm-unsafe-eval' is not an allowed source of script.`
 
 **Step-by-Step Recovery:**
-Configure your web server (Nginx, Caddy, Cloudflare Pages) to emit the verified Configurator CSP header:
+Review your static host's policy against the browser's blocked directive and
+the [hosting guide](browser.md#self-hosting--deployment). The following is an
+**illustrative HTTP header**, not a verified deployment recipe or a shell command:
 
 ```http
 Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https:; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none';
@@ -541,10 +631,14 @@ Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval
 
 ### 3. `.env` Downloading as `.txt` or `env.txt`
 
-**Cause:** For security reasons, certain browsers (notably Google Chrome, Microsoft Edge, and Safari on macOS/iOS) do not permit web pages to trigger automatic downloads of dotfiles without file extensions. The browser's download manager automatically appends `.txt` or strips the leading period, resulting in `env.txt` or `.env.txt`.
+**Cause:** A browser/download manager or local save policy may rename a dotfile,
+append an extension, or choose a duplicate filename. Configurator does not control
+that naming policy or enforce native owner-only/create-only protection.
 
 **Step-by-Step Recovery:**
-1. **Rename after download:**
+1. **Inspect before renaming:** These are Bash move templates; `mv` can replace
+   an existing destination. Choose an absent destination and verify permissions
+   privately before handing the file to a target:
    ```bash
    mv ~/Downloads/env.txt /path/to/deployment/.env
    # or
@@ -559,6 +653,11 @@ Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval
 **Cause:** Configurator Browser is a Progressive Web App (PWA). If you deploy an updated version of the application or definition catalogue, aggressive service worker caching may continue serving the previous version.
 
 **Step-by-Step Recovery:**
+Finish or deliberately discard the current workspace before reloading,
+unregistering a worker or clearing site data. Answers are transient and will
+not be restored; exported files and clipboard contents are not retracted.
+The steps below change browser/site state and are not safe answer backup steps.
+
 1. Perform a hard cache refresh:
    - **Windows / Linux:** Press `Ctrl + F5` or `Ctrl + Shift + R`.
    - **macOS:** Press `Cmd + Shift + R`.
@@ -578,46 +677,65 @@ Configurator enforces strict data admission through `SetupDefinitionCodec` and `
 ### 1. Revision Mismatch (`revision-conflict`)
 
 **Cause:** Occurs when:
-- An existing answer snapshot or import file declares a `revision` number that does not match the revision declared in the active setup definition.
-- A modified definition source is admitted into a registry or session using an already-registered family ID without incrementing the `revision` number.
+- Different canonical content is admitted under the same family and definition
+  revision, including an identity previously removed from the registry.
+- An import-semantic artifact conflicts with the explicit expected target
+  revision. That target revision hash is distinct from definition revision.
+
+Private answer v1 has no top-level definition `revision`: it contains
+`answerContractVersion`, `values` and `omitted`. Local `--input-revision` fences
+corrections; it is not a target hash or an identity migration.
 
 **Step-by-Step Recovery:**
-1. Check the revision in your definition source:
+1. Inspect the appropriate identity location. This is a **runtime v2 fragment**,
+   using the maintained neutral family, not a full admissible document:
    ```json
    {
-     "familyId": "69cdb122-41d2-4fab-9b82-7929a889c726",
-     "revision": 2
+     "familyId": "9b6a7b3e-45bf-4485-8fa1-d7888938c09b",
+     "revision": 1
    }
    ```
-2. If revising a definition, increment the revision number using the CLI:
+2. For changed authoring source, use a separate candidate and the prior runtime.
+   This is a **Bash template**: supply your own source and matching prior
+   family/revision anchor; `candidates/` must exist and the candidate must not:
    ```bash
-   islamu-configurator definition revise --definition configurator.yaml \
-     --bump minor --output configurator.yaml
+   islamu-configurator definition revise --source configurator.yaml \
+     --against dist/revisions/1.json \
+     --output candidates/configurator.next.yaml --machine
    ```
-3. If importing an answer file generated for an older revision, migrate the answer snapshot to match the target definition revision.
+   The command increments the integer revision only when canonical content
+   changed and does not overwrite source. Review/adopt that candidate before
+   building its runtime. For an unchanged source it reports no write.
+3. Review answer compatibility against the selected definition. Do not repair
+   a target revision conflict by relabeling unrelated definition identity or
+   silently translating a retired contract.
 
 ---
 
-### 2. Missing Revision Field (`identity-invalid`)
+### 2. Missing or Invalid Definition Identity
 
-**Cause:** The definition document lacks the mandatory top-level `revision` property, or its value is less than 1.
+**Cause:** Identity is missing or invalid. Runtime requires root `familyId` and
+positive integer `revision`; authoring requires them under `identity`.
 
-```json
-{
-  "code": "identity-invalid",
-  "message": "Definition document requires a positive integer revision."
-}
-```
+Use the actual value-free admission code and optional public source location;
+do not expect a prose `message` or one universal code for every identity defect.
 
 **Step-by-Step Recovery:**
 1. Open your definition source (`configurator.yaml` or `setup-definition.json`).
-2. Ensure both `familyId` (a valid UUIDv4) and `revision` (an integer >= 1) are explicitly declared:
+2. Keep compact authoring identity nested under `identity`. This is an
+   **authoring v2 fragment** from the maintained neutral example, not a full
+   source and not a family to reuse for a new application:
    ```yaml
-   $schema: "urn:islamu:configurator:authoring:v1"
-   familyId: "7f83b1a2-1111-4000-8000-000000000001"
-   revision: 1
+   $schema: urn:islamu:configurator:authoring:v2
+   identity:
+     familyId: "9b6a7b3e-45bf-4485-8fa1-d7888938c09b"
+     revision: 1
    ```
-3. Re-run `definition check` to confirm schema validity.
+3. Expanded runtime instead uses `schemaVersion: 2`, `profile: bounded-v2` and
+   root `familyId`/`revision`, with the other required runtime members.
+   Allocate a new family with native `definition init` or `init --fork-from`;
+   never invent or borrow a GUID to fix admission. Re-run
+   `definition check --source configurator.yaml --machine` for compact source.
 
 ---
 
@@ -635,9 +753,14 @@ without adopting them; strict `prefill` refuses unaccounted content atomically.
 **Step-by-Step Recovery:**
 1. Inspect value-free findings:
    ```bash
-   islamu-configurator artifact compare --definition configurator.yaml \
-     --artifact environment --input existing.env --machine --detail findings
+   islamu-configurator artifact compare \
+     --definition examples/minimal-self-hosted/setup-definition.json \
+     --artifact environment \
+     --input examples/minimal-self-hosted/expected/environment.env \
+     --machine --detail findings
    ```
+   This runnable synthetic example establishes the workflow; substitute a
+   private local file for an actual investigation, without publishing its bytes.
    `unrecognized-input` findings identify source ordinals, never raw private key
    names or values. They are not current-workspace correction tokens. Follow
    `nextOffset` and the sanitized detail digest for further pages; do not advance
@@ -680,6 +803,7 @@ without adopting them; strict `prefill` refuses unaccounted content atomically.
 
 If your issue is not resolved by the steps in this guide:
 - Run diagnostic checks: `islamu-configurator doctor --machine`
-- Verify your definition syntax: `islamu-configurator definition check --definition <path>`
+- Verify compact authoring syntax:
+  `islamu-configurator definition check --source configurator.yaml --machine`
 - Review [Native Output Guarantees](native-output.md) for filesystem protection details.
 - Review [Standalone Packages](packaging.md) for platform support boundaries.
