@@ -40,8 +40,11 @@ Keep repository knowledge accurate, navigable, source-anchored, and reusable fro
 3. [Intent Registry](../contract/intents.yaml)
 4. [Documentation Index](../../docs/README.md)
 5. [Documentation Architecture](../../docs/internal/DOCUMENTATION_ARCHITECTURE.md)
-6. [Documentation Style Guide](../../docs/internal/DOCUMENTATION_ARCHITECTURE.md)
-7. [IP Governance](../../docs/internal/legal/IP_GOVERNANCE.md)
+6. [IP Governance](../../docs/internal/legal/IP_GOVERNANCE.md) - only for provenance, dependency or external-source decisions.
+
+Resolve `documentation` for ordinary guides/navigation, `agent-context` for
+instructions and `provenance-docs` for licensing/transfer. Reuse each loaded
+heading once; ordinary prose does not require FOUNDATION or external research.
 
 ## Skill Routing
 
@@ -59,7 +62,7 @@ Keep repository knowledge accurate, navigable, source-anchored, and reusable fro
 3. If local evidence is insufficient, follow the source hierarchy. Activate clean-room controls before external research and record title, URL, access date, access basis, and observed facts only.
 4. Separate fact, assumption, decision, roadmap, and unsupported behavior. Resolve contradictions by source authority and fix stale dependents.
 5. Edit the authoritative page first, then navigation, inventories, examples, changelogs, and runbooks only where the change materially affects them.
-6. Validate metadata, ABOUTME headers, local links, commands, identifiers, config keys, and consistency with code/tests.
+6. Validate natural metadata, local links, commands, identifiers, config keys, and consistency with actual source anchors.
 7. Produce a sanitized handoff and provenance record when research may influence implementation; end the research context before implementation begins.
 
 Stop when a cold-start reader can find the authoritative answer, reproduce its evidence, and distinguish implemented behavior from plans or assumptions.
@@ -96,7 +99,7 @@ Handoffs name source anchors, verified facts, assumptions, affected authoritativ
 ## Done Criteria
 
 1. Claims are anchored to code, tests, config, authoritative decisions, or identified external sources.
-2. New/modified docs follow metadata, ABOUTME, style, and authoritative-owner rules.
+2. New/modified docs follow natural metadata, style and authoritative-owner rules.
 3. Local links, referenced paths, commands, config keys, and inventories resolve.
 4. Externally informed work has a sanitized handoff and provenance evidence with no restricted expression.
 5. Required documentation checks pass and implementation status is represented honestly.

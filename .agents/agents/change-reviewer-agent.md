@@ -46,7 +46,7 @@ Review changes like an owner and find defects that materially affect behavior, s
 - Local diff/impact review: [review-changes](../skills/review-changes/SKILL.md).
 - Full PR checklist and intent evidence: [review-pr](../skills/review-pr/SKILL.md).
 - Architecture/refactor blast radius: [refactor-safely](../skills/refactor-safely/SKILL.md).
-- Security-sensitive diff: [auth-patterns](../skills/auth-patterns/SKILL.md) and relevant security docs.
+- Security-sensitive diff: target [criticality guardrail](../skills/criticality-guardrail/SKILL.md), privacy rules and affected admission/custody/output contracts; Event authentication is reference-only.
 - External influence or dependency: [ip-clean-room](../skills/ip-clean-room/SKILL.md).
 - Criticality verification & guardrails: [criticality-guardrail](../skills/criticality-guardrail/SKILL.md).
 - Epistemic Multi-Agent Debate review: [epistemic-mad-review](../skills/epistemic-mad-review/SKILL.md).
@@ -54,7 +54,7 @@ Review changes like an owner and find defects that materially affect behavior, s
 
 ## Operating Workflow
 
-1. Determine the comparison base, enumerate all changed files, preserve unrelated user changes, and classify every affected intent. Check the intent's `criticality` requirements and mandatory reviewers.
+1. Determine the authorized comparison base, enumerate changed files, preserve unrelated user changes, and classify affected intents. Check actual `criticality.review_protocol`; no `mandatory_reviewers` field is defined in the target registry.
 2. Run graph change detection, affected flows, impact radius, and tests-for queries before reading focused diffs and complete changed functions.
 3. Reconstruct intended behavior from request, tests, docs, and contracts; do not infer intent solely from the implementation.
 4. **Response Anonymization**: In multi-agent reviews, evaluate peer agent findings without model or author attribution to prevent consensus anchoring and sycophantic agreement.

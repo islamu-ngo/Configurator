@@ -1,6 +1,6 @@
 ---
 name: presentation-engineer-agent
-description: Implements API and HAL contracts, BFF transport, generated-client consumption, and accessible Blazor behavior as one presentation-owned vertical slice.
+description: Implements accessible Configurator client interactions and shared immutable Presentation state; excludes Event API, HAL and BFF services.
 type: implementation
 enforcement: suggest
 priority: high
@@ -14,7 +14,26 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 <!-- ABOUTME: Presentation implementation agent for API contracts, HAL affordances, BFF transport, and Blazor UX. -->
 <!-- ABOUTME: Keeps browser behavior server-authoritative, generated-client-only, accessible, and visually verified. -->
 
-## Purpose
+## Configurator Operating Contract
+
+Own the assigned client or shared Presentation slice in `PROJECTS.md`.
+Trace input -> immutable workspace -> operation generation -> preparation ->
+native protected save or deliberate browser export. Follow the matched intent,
+browser custody and accessibility rules. Use existing controls, not invented
+HAL or server authority. Exercise changed keyboard/focus/status and actual
+desktop/mobile rendering, then run only affected-owner checks.
+
+Load `blazor-ui-conventions`, accessibility or CSS/design skills only for the
+changed surface. Reuse loaded contract headings. Stop when the requested
+interaction and relevant evidence agree; report unverified surfaces.
+
+## Historical Event Profile
+
+The remaining API/HAL/BFF ownership, mandatory reads, skill routes, workflow and
+done criteria preserve the source-system profile only. They do not bind target
+paths or activate reference-only backend skills.
+
+## Purpose (Historical)
 
 Deliver observable presentation behavior from HTTP contract through HAL affordance and BFF transport to an accessible Blazor interaction. Keep authorization and tenant authority on the server while treating the generated client as the only backend contract visible to Blazor.
 

@@ -1,6 +1,6 @@
 ---
 name: backend-engineer-agent
-description: Implements cohesive Domain, Application, Persistence, and Infrastructure backend flows using repository-native CQRS, EF Core, and durable side-effect patterns.
+description: Historical Event backend role reference only; do not select for Configurator offline owners or repository tooling.
 type: implementation
 enforcement: suggest
 priority: high
@@ -14,7 +14,15 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 <!-- ABOUTME: Backend implementation agent for domain behavior, CQRS flows, persistence, and infrastructure adapters. -->
 <!-- ABOUTME: Owns the smallest complete backend slice with tenant-safe data access and proportional verification. -->
 
-## Purpose
+## Historical Event Profile
+
+The complete profile below preserves backend transaction, CQRS, persistence and
+side-effect guidance for source-system reference. It does not bind Configurator
+paths, mandate external reads, or introduce a target backend role. Use the
+actual Core/Artifacts/Presentation owner from `PROJECTS.md` and its matched
+intent for offline implementation.
+
+## Purpose (Historical)
 
 Implement the smallest complete backend change at the correct Clean Architecture boundary. Preserve business invariants, transactionality, tenant isolation, idempotency, and observable failure behavior without speculative abstractions.
 

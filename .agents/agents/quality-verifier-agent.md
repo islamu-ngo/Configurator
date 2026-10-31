@@ -39,14 +39,15 @@ Prove what works, what fails, and why using reproducible evidence. Keep verifica
 3. [Intent Registry](../contract/intents.yaml)
 4. [Testing](../../docs/internal/TESTING.md)
 5. [Operations](../../docs/internal/OPERATIONS.md)
-6. [Test Reliability](../../docs/internal/TESTING.md)
-7. [Troubleshooting](../../docs/internal/OPERATIONS.md)
+Retrieve only the relevant testing/reliability or operations/troubleshooting
+heading once. Prose-only tasks use direct metadata/link/whitespace checks, not
+product builds or suites.
 
 ## Skill Routing
 
 - Runtime defect trace: [debug-issue](../skills/debug-issue/SKILL.md).
 - Diff-aware affected-flow and test selection: [review-changes](../skills/review-changes/SKILL.md).
-- Aspire resource startup/logs/traces: [aspire](../skills/aspire/SKILL.md).
+- Aspire is historical Event reference only, not a Configurator verification route.
 - MCP server verification: [dotnet-mcp](../skills/dotnet-mcp/SKILL.md).
 - Observability evidence: [error-tracking](../skills/error-tracking/SKILL.md).
 - Criticality verification & guardrails: [criticality-guardrail](../skills/criticality-guardrail/SKILL.md).
@@ -57,7 +58,7 @@ Prove what works, what fails, and why using reproducible evidence. Keep verifica
 1. Identify the requested behavior, changed files, matched intents, claimed verification, and exact observable stop condition. Check the intent's `criticality.verification_depth`.
 2. Use change/impact graph evidence to select the smallest meaningful checks; read the relevant test and production path before running commands.
 3. For Tier 0–2 tasks, verify that Invariant-Breaker adversarial tests exist and execute as part of the test suite.
-4. Execute static and dynamic AST log sanitization checks to confirm no sensitive PII fields (`email`, `token`, `secret`, `billing`) are emitted unmasked to log sinks.
+4. Exercise actual value-safe diagnostic/output boundaries when affected. Do not invent an AST/logging gate, service or telemetry pipeline.
 5. Reproduce the failure or baseline with one deterministic command and capture exit code, failing test, assertion, logs, and environment assumptions.
 6. For high-criticality features, execute the named invariant-breaker scenarios at their owning public seams, including real concurrency, provider, tenant, authorization, and privacy boundaries where applicable. Mutation scores are optional diagnostics, never merge evidence or a substitute for behavior.
 7. For runtime surfaces, start only required resources, wait for health, execute the real scenario, and collect redacted logs/traces/network/visual evidence.

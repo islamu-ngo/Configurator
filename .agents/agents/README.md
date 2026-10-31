@@ -19,10 +19,10 @@ Agent profiles are small operational contracts governed by [`_AGENT_SCHEMA.md`](
 | Agent | Invoke for | Owns | Mode | Model tier |
 |---|---|---|---|---|
 | [Architect](architect-agent.md) | Cross-layer design, ADRs, implementation sequencing | Architecture decisions and planning artifacts | Docs-only mutation | Advanced |
-| [Backend Engineer](backend-engineer-agent.md) | Domain, Application, Persistence, Infrastructure business flows | Backend implementation and focused tests | Mutation | Balanced |
-| [Presentation Engineer](presentation-engineer-agent.md) | API/HAL contracts, BFF, generated-client consumption, Blazor UX | Presentation vertical slices and visual behavior | Mutation | Balanced |
-| [Security & Privacy](security-privacy-agent.md) | Identity, authorization, tenancy, secrets, privacy, abuse boundaries | Security-sensitive implementation and threat evidence | Mutation | Advanced |
-| [Platform Operations](platform-operations-agent.md) | Aspire, hosting, CI/CD, deployment, observability, recovery | Operational implementation and runbooks | Mutation | Balanced |
+| [Backend Engineer](backend-engineer-agent.md) | Historical Event backend reference only | Preserved CQRS/EF/outbox depth; no target ownership | Reference-only | Balanced |
+| [Presentation Engineer](presentation-engineer-agent.md) | Client interactions and immutable workspace state | Assigned client/Presentation slice and visual behavior | Mutation | Balanced |
+| [Security & Privacy](security-privacy-agent.md) | Admission, custody, sensitivity, generations, protected output | Assigned trust/privacy boundary and adversarial evidence | Mutation | Advanced |
+| [Platform Operations](platform-operations-agent.md) | Packaging, optional public static host and engineering delivery | Assigned operations/tooling and runbooks | Mutation | Balanced |
 | [Quality Verifier](quality-verifier-agent.md) | Reproduce failures and run proportional verification | Build, tests, runtime evidence, failure classification | Read-only | Balanced |
 | [Change Reviewer](change-reviewer-agent.md) | Review a diff or PR for real regressions and missing evidence | Risk-ranked review and merge recommendation | Read-only | Advanced |
 | [Librarian](librarian-agent.md) | Repository docs, clean-room research, inventories, durable findings | Documentation truth and provenance | Docs-only mutation | Economical |
@@ -41,10 +41,10 @@ Agent profiles are small operational contracts governed by [`_AGENT_SCHEMA.md`](
 
 | Signal | Primary agent | Typical supporting agent |
 |---|---|---|
-| New aggregate, handler, repository, outbox flow | Backend Engineer | Security & Privacy when authority or tenant scope changes |
-| Controller + HAL + generated client + Blazor affordance | Presentation Engineer | Change Reviewer |
-| 401/403, Cerbos, tenant leakage, erasure, secret exposure | Security & Privacy | Quality Verifier |
-| AppHost, topology, container, workflow, telemetry, incident recovery | Platform Operations | Security & Privacy for credential/trust changes |
+| Bounded offline Core behavior | Direct owner implementation under matched intent | Security & Privacy for admission/sensitivity changes |
+| Client controls or shared workspace operation | Presentation Engineer | Change Reviewer |
+| Custody, canonical identity, secret exposure or protected writes | Security & Privacy | Quality Verifier |
+| Packaging, public static host, native tools or workflows | Platform Operations | Security & Privacy for credential/trust changes |
 | Major design or breaking cross-layer refactor | Architect | Owning implementation agent after approval |
 | Failing build/test or uncertain runtime behavior | Quality Verifier | Owning implementation agent after root cause is proven |
 | PR approval or regression audit | Change Reviewer | Quality Verifier for commands and runtime evidence |
@@ -65,6 +65,10 @@ Parallel work is preferred for independent read-heavy exploration, test executio
 All agents follow [Context Engineering](../CONTEXT_ENGINEERING.md). A subagent is a context firebreak only when its bounded result keeps a larger discovery body out of the main context; otherwise direct lookup is cheaper.
 
 Agent profiles and chat configuration are documentation/configuration artifacts. Validate their schema, links, and routing directly; do not add automated tests for them.
+Profiles are not automatically available harness agents: select only a tool's
+actual registered agent, or pass the relevant contract to an available worker.
+Historical profile sections and external Event links are optional reference,
+never a mandatory context cascade.
 
 ## Design Basis And Provenance
 

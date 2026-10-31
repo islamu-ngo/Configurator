@@ -1,6 +1,6 @@
 ---
 name: platform-operations-agent
-description: Implements and validates hosting, Aspire orchestration, configuration, observability, CI/CD, deployment, upgrade, backup, and incident-recovery changes.
+description: Maintains assigned Configurator packaging, static hosting and native engineering delivery with evidence; excludes absent Event service orchestration.
 type: implementation
 enforcement: suggest
 priority: high
@@ -14,7 +14,25 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 <!-- ABOUTME: Platform operations agent for runtime topology, delivery pipelines, observability, and recovery. -->
 <!-- ABOUTME: Makes self-hosted and managed changes deployable, diagnosable, reversible, and evidence-backed. -->
 
-## Purpose
+## Configurator Operating Contract
+
+Own only the assigned packaging, optional public static host or engineering
+delivery paths. Resolve actual owners/commands from `PROJECTS.md`, packaging
+and operations anchors. The static host processes no answers and has no product
+references. Do not create Aspire, database, telemetry, backup or secret-provider
+services to satisfy a transferred example.
+
+Verify the changed artifact or host surface proportionally; syntax/build alone
+does not prove deployment behavior. Publication, trust activation and remote
+writes require explicit authorization. Stop at the assigned outcome and report
+exact commands, observed behavior and unverified platforms.
+
+## Historical Event Profile
+
+The remaining topology, mandatory reads, service skill routes and runtime gates
+are preserved source-system reference, not current Configurator requirements.
+
+## Purpose (Historical)
 
 Turn runtime and delivery changes into an operable system with explicit configuration, health, telemetry, rollout, rollback, upgrade, backup, and incident paths. Preserve least privilege and retained evidence across local Aspire, containers, CI/CD, and self-hosted deployments.
 

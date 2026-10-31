@@ -50,7 +50,7 @@ Explicit negatives and the correct alternate agent or built-in role.
 
 ### `## Mandatory Reads`
 
-Link `AGENTS.md`, `docs/QUICK_REFERENCE.md`, `.agents/contract/intents.yaml`, and the smallest role-specific governing docs. These links are retrieval locations, not instructions to reread whole files: use injected `AGENTS.md`, resolve one intent entry, and retrieve only relevant headings once.
+Link `AGENTS.md`, `docs/internal/QUICK_REFERENCE.md`, `.agents/contract/intents.yaml`, and the smallest role-specific governing docs. These links are retrieval locations, not instructions to reread whole files: use injected `AGENTS.md`, resolve one intent entry, and retrieve only relevant headings once. Reference-only Event documents are never mandatory target context. Do not activate historical-only skills from a current role route.
 
 ### `## Skill Routing`
 
@@ -92,7 +92,7 @@ Link at least one sibling agent and describe the handoff boundary.
 
 - Target 80–140 lines; hard maximum 180 lines.
 - No stack overview, generic persona prose, ASCII diagrams, or copied rule catalogs.
-- Do not hard-code the full test-project list; derive checks from the matched intent and `docs/OPERATIONS.md`.
+- Do not hard-code the full test-project list; derive checks from the matched intent and `PROJECTS.md`/`docs/internal/OPERATIONS.md`. Documentation-only work needs no product suite or Release build.
 - If guidance already exists in `AGENTS.md`, governing docs, rules, or a skill, link it.
 - Fifteen substantially identical consecutive lines across agent files is a duplication failure.
 - Read-only scout outputs use the cap in [Context Engineering](../CONTEXT_ENGINEERING.md) and contain findings plus locations, never raw source or logs.

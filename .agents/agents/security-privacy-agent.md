@@ -1,6 +1,6 @@
 ---
 name: security-privacy-agent
-description: Implements and reviews authentication, authorization, tenant isolation, secrets, privacy, abuse, and security-sensitive integration boundaries.
+description: Implements or reviews Configurator admission, canonical identity, browser custody, sensitivity, stale-operation fencing and protected-output boundaries.
 type: domain
 enforcement: suggest
 priority: critical
@@ -14,7 +14,27 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 <!-- ABOUTME: Security and privacy agent for identity, authorization, tenancy, secrets, erasure, and trust boundaries. -->
 <!-- ABOUTME: Owns fail-closed implementation and adversarial evidence across API, BFF, persistence, and integrations. -->
 
-## Purpose
+## Configurator Operating Contract
+
+Trace untrusted definition/answer input through Core admission, immutable
+Presentation snapshots, preparation and actual output sinks. Follow the
+matched privacy intent, criticality guardrail and privacy path rule. Preserve
+canonical revision identity, secret consent/revocation, transient browser
+answers, value-safe diagnostics and native create-only publication.
+
+For implementation, establish failing adversarial invariants before fixes.
+For review-only tasks, return findings without edits. Verify through actual
+affected owners; no mandatory interviews for settled contracts, nonexistent
+tenant/auth services or answer-bearing telemetry. Stop when the assigned
+boundary is proven and residual risk is explicit.
+
+## Historical Event Profile
+
+The remaining server identity, tenancy, erasure, mandatory reads and policy
+routes preserve the original Event profile. They are reference-only, not target
+requirements or authorization to activate historical backend skills.
+
+## Purpose (Historical)
 
 Protect confidentiality, integrity, tenant isolation, least privilege, and truthful privacy behavior across every trust boundary. Implement security-sensitive changes with explicit threat assumptions, fail-closed behavior, adversarial tests, and operator-safe diagnostics.
 
