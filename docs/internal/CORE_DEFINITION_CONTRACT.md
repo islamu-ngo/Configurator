@@ -288,6 +288,30 @@ initialization and distinguishes observed value, proved absence, unobserved and
 context-derived value. A whole copy proves its subtree; projected children do
 not prove an entire object's completeness or cardinality.
 
+`InspectAsync` and `AssessAutofillAsync` accept a caller-owned cooperative yield
+callback. Charged traversal yields every 1,024 work units without changing
+semantic counters or limits. Validation additionally yields every 256 validated
+nodes because path, dependency and constraint resolution makes those visits
+more expensive; these checkpoints do not charge extra work.
+Input and answer-snapshot canonicalization use the
+same synchronous/asynchronous canonicalizer, with separate scheduling
+checkpoints every 1,024 normalized nodes; these do not charge additional semantic
+work. Validator container materialization likewise yields every 1,024 JSON nodes
+without changing semantic charges. It writes private UTF-8 directly, clears its
+owned byte buffer on every exit, and reuses the resulting immutable element only
+within the current node's checks instead of serializing that node repeatedly.
+Scalar materialization retains its bounded synchronous path.
+`SetupAnswerSnapshot.CreateAsync` shares admission and immutable ownership
+with its public constructor. Whole root-member copies enter that snapshot
+directly instead of being serialized through an intermediate JSON tree.
+After recovery completes, its private observation dictionary transfers directly
+to the immutable evidence owner. No caller retains mutation authority and no
+second full dictionary is constructed at the publication boundary.
+Cancellation is checked after suspension; Browser answers are not transferred
+to a Web Worker.
+The synchronous APIs require their shared no-yield operations to be completed
+before reading their results.
+
 Unknown/invalid controllers, including objects with invalid variant selectors,
 remain unknown to dependent rules. Proven absence
 retains existing missing-reference and property-assertion semantics.

@@ -1,0 +1,179 @@
+@implements IDisposable
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+
+@if (Form.ImportComparison is { } report)
+{
+    <section class="configuration-import-review" data-import-comparison aria-labelledby="import-comparison-heading"
+             data-import-compatibility="@report.Compatibility"
+             data-import-file-autofill="@report.AutofillEligible.ToString().ToLowerInvariant()">
+        <h3 id="import-comparison-heading">Imported file comparison</h3>
+        <p>These are facts about the selected file, not current workspace validity. Answers, drafts and prepared files are unchanged.</p>
+        <dl class="configuration-import-review__facts">
+            <div><dt><strong>Execution</strong></dt><dd>@(report.ExecutionCompleted ? "Completed" : "Not completed")</dd></div>
+            <div><dt><strong>Compatibility</strong></dt><dd>@CompatibilityText(report.Compatibility)</dd></div>
+            <div><dt><strong>Assessed coverage</strong></dt><dd>@(report.CoverageComplete ? "Complete within the represented artifact scope" : "Partial; unassessed settings remain")</dd></div>
+            <div><dt><strong>Finding inventory</strong></dt><dd data-import-inventory="@report.InventoryComplete.ToString().ToLowerInvariant()">@(report.InventoryComplete ? $"{report.RetainedFindingCount} findings; inventory complete" : $"At least {report.RetainedFindingCount} findings; inventory stopped")</dd></div>
+            <div><dt><strong>File-level autofill</strong></dt><dd>@(report.AutofillEligible ? "Eligible for strict workspace checks" : "Ineligible; no partial adoption")</dd></div>
+            <div><dt><strong>Target acceptance</strong></dt><dd>Not assessed</dd></div>
+        </dl>
+        <p id="import-workspace-autofill" data-import-workspace-autofill="@Form.ImportAutofillCode">
+            <strong>Fill this workspace:</strong> @AutofillText(Form.ImportAutofillCode)
+            @if (Form.ImportAutofillCode is { } autofillCode) { <code>@($" ({autofillCode})")</code> }
+        </p>
+        @if (!report.AutofillEligible)
+        {
+            <p>Repair a separate copy under operator review, then choose it again. Preserve the source file; unknown content, structural changes and invalid supplied values cannot be merged best-effort.</p>
+        }
+        else if (Form.ImportAutofillCode == "import-workspace-unsupported")
+        {
+            <p>This workspace cannot store every recovered setting. Use the machine CLI to prepare the complete configuration; clearing workspace inputs cannot resolve this restriction.</p>
+        }
+        else if (!Form.CanAdoptImportComparison)
+        {
+            <p>File eligibility does not permit overwriting explicit answers, omissions or pending drafts. Deliberately clear/reset conflicting workspace inputs before re-importing.</p>
+        }
+        <p>Only represented content is assessed. Unobserved settings and context-derived selectors are distinguished from supplied values; initialization is not proof that a file member was present. No rename, release provenance or live deployment state is inferred.</p>
+        <ul class="configuration-import-review__findings">
+            @foreach (var finding in report.Findings.Skip(_page * PageSize).Take(PageSize))
+            {
+                <li class="@("configuration-import-review__finding" + (Blocking(finding.Kind) ? " configuration-import-review__finding--blocking" : ""))"
+                    data-import-finding data-import-severity="@Severity(finding.Kind)">
+                    <div class="configuration-import-review__finding-heading">
+                        <strong>@Severity(finding.Kind): @FindingText(finding.Kind) - @FindingTitle(finding)</strong>
+                        @if (finding.Schema is not null)
+                        {
+                            <button type="button" class="button button--secondary" data-action="explain-import-finding"
+                                    data-import-schema="@finding.Schema.FieldId"
+                                    aria-expanded="@ReferenceEquals(_explainedFinding, finding).ToString().ToLowerInvariant()"
+                                    aria-controls="import-schema-explanation"
+                                    @onclick="() => Explain(finding)">Explain schema</button>
+                        }
+                    </div>
+                    <p><code>@finding.Code</code></p>
+                </li>
+            }
+        </ul>
+        @if (report.Findings.Count > PageSize)
+        {
+            <nav class="actions" aria-label="Imported file finding pages">
+                <button type="button" class="button button--secondary" data-action="import-previous"
+                        disabled="@(_page == 0)" @onclick="() => ChangePage(-1)">Previous findings</button>
+                <span aria-live="polite" aria-atomic="true" data-import-page="@(_page + 1)">Page @(_page + 1) of @PageCount(report)</span>
+                <button type="button" class="button button--secondary" data-action="import-next"
+                        disabled="@(_page + 1 >= PageCount(report))" @onclick="() => ChangePage(1)">Next findings</button>
+            </nav>
+        }
+        @if (_explanation is { } explanation)
+        {
+            var presentation = Form.GetEditorPresentation(explanation.Path);
+            <section id="import-schema-explanation" class="configuration-import-review__explanation" aria-labelledby="import-schema-heading">
+                <h4 id="import-schema-heading">Declared schema: @(presentation?.Title ?? explanation.Title)</h4>
+                @if (!string.IsNullOrWhiteSpace(presentation?.Description ?? explanation.Help))
+                {
+                    <p>@(presentation?.Description ?? explanation.Help)</p>
+                }
+                <p>Schema path: <code>@string.Join(" / ", explanation.Path)</code></p>
+                <p>This explanation does not select a current workspace row or map entry, commit drafts, or mark workspace values invalid.</p>
+            </section>
+        }
+        <div class="actions">
+            <AppButton data-action="adopt-import-comparison" Disabled="@(!Form.CanAdoptImportComparison)"
+                       aria-describedby="import-workspace-autofill" OnClick="() => FillFields.InvokeAsync(report)">Fill fields from comparison</AppButton>
+            <AppButton Variant="Variant.Outlined" data-action="clear-import-comparison" OnClick="() => Clear.InvokeAsync(report)">Clear comparison</AppButton>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter] public EventCallback<DefinitionImportReport> FillFields { get; set; }
+    [Parameter] public EventCallback<DefinitionImportReport> Clear { get; set; }
+    private const int PageSize = 50;
+    private DefinitionFormModel? _observedForm;
+    private DefinitionImportReport? _observedReport;
+    private DefinitionImportFinding? _explainedFinding;
+    private DefinitionImportSchemaExplanation? _explanation;
+    private int _page;
+    private bool _disposed;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_observedForm, Form))
+        {
+            if (_observedForm is not null) _observedForm.ImportComparisonChanged -= ComparisonChanged;
+            _observedForm = Form;
+            Form.ImportComparisonChanged += ComparisonChanged;
+        }
+        ObserveComparison();
+    }
+    private void ComparisonChanged(object? sender, EventArgs args)
+    {
+        if (_disposed || !ReferenceEquals(sender, Form)) return;
+        ObserveComparison();
+        _ = InvokeAsync(StateHasChanged);
+    }
+    private void ObserveComparison()
+    {
+        if (ReferenceEquals(_observedReport, Form.ImportComparison)) return;
+        _observedReport = Form.ImportComparison;
+        _page = 0;
+        _explainedFinding = null;
+        _explanation = null;
+    }
+    private void Explain(DefinitionImportFinding finding)
+    {
+        _explanation = Form.ExplainImportFinding(finding);
+        _explainedFinding = _explanation is null ? null : finding;
+    }
+    private void ChangePage(int direction)
+    {
+        if (Form.ImportComparison is not { } report) return;
+        _page = Math.Clamp(_page + direction, 0, PageCount(report) - 1);
+        _explainedFinding = null;
+        _explanation = null;
+    }
+    private static int PageCount(DefinitionImportReport report) => Math.Max(1, (report.Findings.Count + PageSize - 1) / PageSize);
+    private string FindingTitle(DefinitionImportFinding finding) => finding.Schema is { } schema
+        ? Form.GetEditorPresentation([schema.FieldId])?.Title ?? "Declared setting" : "File structure";
+    private static bool Blocking(DefinitionImportFindingKind kind) => kind is
+        DefinitionImportFindingKind.MissingRequired or DefinitionImportFindingKind.InvalidSuppliedValue or
+        DefinitionImportFindingKind.UnrecognizedInput or DefinitionImportFindingKind.StructuralOutputChange;
+    private static string Severity(DefinitionImportFindingKind kind) => Blocking(kind) ? "Blocking"
+        : kind == DefinitionImportFindingKind.Unassessed ? "Unassessed" : "Information";
+    private static string FindingText(DefinitionImportFindingKind kind) => kind switch
+    {
+        DefinitionImportFindingKind.MissingRequired => "Missing required file setting",
+        DefinitionImportFindingKind.InvalidSuppliedValue => "Invalid supplied file value",
+        DefinitionImportFindingKind.UnrecognizedInput => "Unrecognized input",
+        DefinitionImportFindingKind.StructuralOutputChange => "Structural output change",
+        DefinitionImportFindingKind.Unassessed => "Setting not assessed",
+        _ => "Public context-derived selector"
+    };
+    private static string CompatibilityText(DefinitionImportCompatibility compatibility) => compatibility switch
+    {
+        DefinitionImportCompatibility.Compatible => "Compatible within assessed scope",
+        DefinitionImportCompatibility.ChangesRequired => "Changes required in the imported file",
+        DefinitionImportCompatibility.Incomplete => "Incomplete assessment",
+        DefinitionImportCompatibility.Unsupported => "Unsupported inverse",
+        _ => "Invalid input"
+    };
+    private static string AutofillText(string? code) => code switch
+    {
+        "import-ready" => "Available after a deliberate action; current workspace checks passed.",
+        "answer-conflict" => "Refused: explicit answers, omissions or pending drafts conflict.",
+        "import-secret-consent-required" => "Refused: workspace secret consent is required.",
+        "import-stale" => "Refused: compare the current file again.",
+        "import-workspace-unsupported" => "Refused: this workspace cannot store all recovered settings.",
+        _ => "Refused: the file is not eligible for strict autofill."
+    };
+    public void Dispose()
+    {
+        _disposed = true;
+        if (_observedForm is not null) _observedForm.ImportComparisonChanged -= ComparisonChanged;
+        _observedForm = null;
+        _observedReport = null;
+        _explainedFinding = null;
+        _explanation = null;
+    }
+}

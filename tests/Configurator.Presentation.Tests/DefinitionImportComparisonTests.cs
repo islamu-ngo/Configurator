@@ -107,7 +107,7 @@ public sealed class DefinitionImportComparisonTests
         {
             entered.SetResult();
             return release.Task;
-        }, cancellation.Token);
+        }, cancellationToken: cancellation.Token);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         switch (action)
         {
@@ -159,6 +159,56 @@ public sealed class DefinitionImportComparisonTests
 
     private static Task<ReadOnlyMemory<byte>> ReadValid(CancellationToken _) =>
         Task.FromResult<ReadOnlyMemory<byte>>("""{"count":7}"""u8.ToArray());
+
+    [Test]
+    [Arguments(false, "edit")]
+    [Arguments(false, "revoke")]
+    [Arguments(false, "clear")]
+    [Arguments(false, "dispose")]
+    [Arguments(false, "cancel")]
+    [Arguments(true, "edit")]
+    [Arguments(true, "revoke")]
+    [Arguments(true, "clear")]
+    [Arguments(true, "dispose")]
+    [Arguments(true, "cancel")]
+    public async Task CooperativeSuspensionCannotPublishOrAdoptAfterInvalidation(bool adoption, string action)
+    {
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        using var cancellation = new CancellationTokenSource();
+        if (adoption) await form.CompareAsync("config", ReadValid);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        byte[] bytes = """{"count":7}"""u8.ToArray();
+        Task pending = adoption
+            ? form.AdoptImportComparisonAsync(Yield, cancellation.Token)
+            : form.CompareAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(bytes), Yield, cancellation.Token);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        switch (action)
+        {
+            case "edit": form.SetValue(["name"], JsonSerializer.SerializeToElement("later")); break;
+            case "revoke": form.SetSecretEntryEnabled(false); break;
+            case "clear": form.ClearImportComparison(); break;
+            case "dispose": form.Dispose(); break;
+            case "cancel": cancellation.Cancel(); break;
+        }
+        release.SetResult();
+        await pending.WaitAsync(TimeSpan.FromSeconds(10));
+        if (adoption)
+            await Assert.That(((Task<DefinitionImportResult>)pending).Result.Succeeded).IsFalse();
+        else
+        {
+            await Assert.That(((Task<DefinitionImportComparisonResult>)pending).Result.Succeeded).IsFalse();
+            await Assert.That(bytes.All(value => value == 0)).IsTrue();
+        }
+        if (action != "dispose") await Assert.That(form.Snapshot().Values.ContainsKey("count")).IsFalse();
+        if (action != "cancel") await Assert.That(form.ImportComparison).IsNull();
+
+        async ValueTask Yield(CancellationToken _)
+        {
+            entered.TrySetResult();
+            await release.Task;
+        }
+    }
 
     [Test]
     public async Task ImportedRowsAndMapEntriesExplainOnlySchemaWithoutSelectingCurrentEntities()

@@ -200,11 +200,31 @@ public sealed class SetupAnswerSnapshot
     private readonly FrozenSet<DefinitionPath> _omitted;
 
     public SetupAnswerSnapshot(long inputRevision, IReadOnlyDictionary<string, JsonElement> values,
-        IEnumerable<DefinitionPath>? omitted = null)
+        IEnumerable<DefinitionPath>? omitted = null) : this(DefinitionImportWork.CompleteSynchronously(
+            CreateStateAsync(inputRevision, values, omitted, null, CancellationToken.None)))
+    {
+    }
+
+    private SetupAnswerSnapshot((long Revision, Dictionary<string, JsonElement> Values, FrozenSet<DefinitionPath> Omitted) state)
+    {
+        InputRevision = state.Revision;
+        _values = new(state.Values);
+        _omitted = state.Omitted;
+    }
+
+    internal static async ValueTask<SetupAnswerSnapshot> CreateAsync(long inputRevision,
+        IReadOnlyDictionary<string, JsonElement> values, IEnumerable<DefinitionPath>? omitted,
+        Func<CancellationToken, ValueTask> cooperativeYield, CancellationToken cancellationToken) =>
+        new(await CreateStateAsync(inputRevision, values, omitted, cooperativeYield, cancellationToken));
+
+    private static async ValueTask<(long Revision, Dictionary<string, JsonElement> Values, FrozenSet<DefinitionPath> Omitted)>
+        CreateStateAsync(long inputRevision, IReadOnlyDictionary<string, JsonElement> values,
+            IEnumerable<DefinitionPath>? omitted, Func<CancellationToken, ValueTask>? cooperativeYield,
+            CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(values);
         ArgumentOutOfRangeException.ThrowIfNegative(inputRevision);
-        InputRevision = inputRevision;
+        cancellationToken.ThrowIfCancellationRequested();
         if (values.Count > Composition.SetupCompositionLimits.DefaultMappingEntries)
             throw new SetupDefinitionException("answer-limit");
         var snapshot = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -215,11 +235,14 @@ public sealed class SetupAnswerSnapshot
             budget.Node(1);
             foreach ((string key, JsonElement value) in values)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 DefinitionProfile.ValidateScalar(key);
                 budget.Scalar(key);
                 if (value.ValueKind == JsonValueKind.Undefined) throw new SetupDefinitionException("answer-invalid");
-                byte[] canonical = DefinitionJson.Canonicalize(value, budget,
-                    Composition.CompositionKeyPolicy.Exact, initialDepth: 2);
+                byte[] canonical = cooperativeYield is null
+                    ? DefinitionJson.Canonicalize(value, budget, Composition.CompositionKeyPolicy.Exact, initialDepth: 2)
+                    : await DefinitionJson.CanonicalizeAsync(value, cooperativeYield, budget,
+                        Composition.CompositionKeyPolicy.Exact, initialDepth: 2, cancellationToken: cancellationToken);
                 try
                 {
                     bytes += canonical.Length + JsonSerializer.SerializeToUtf8Bytes(key).Length + 2;
@@ -233,6 +256,7 @@ public sealed class SetupAnswerSnapshot
             var suppressed = new HashSet<DefinitionPath>();
             foreach (DefinitionPath path in omitted ?? [])
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (suppressed.Count == Composition.SetupCompositionLimits.DefaultSequenceEntries)
                     throw new SetupDefinitionException("answer-limit");
                 ArgumentNullException.ThrowIfNull(path);
@@ -250,14 +274,13 @@ public sealed class SetupAnswerSnapshot
                     if (reference[position] == '/' && suppressed.Contains(DefinitionPath.Parse(reference[..position])))
                         throw new SetupDefinitionException("answer-omission");
             }
-            _omitted = suppressed.ToFrozenSet();
+            cancellationToken.ThrowIfCancellationRequested();
+            return (inputRevision, snapshot, suppressed.ToFrozenSet());
         }
         catch (Composition.SetupCompositionException)
         {
             throw new SetupDefinitionException("answer-limit");
         }
-        _values = new(snapshot);
-
         bool HasSuppliedValue(DefinitionPath path)
         {
             if (path.Segments.Count == 0) return true;

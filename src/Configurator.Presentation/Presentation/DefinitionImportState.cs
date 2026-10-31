@@ -37,6 +37,7 @@ public sealed partial class DefinitionFormModel
     /// <summary>Inspects one local file without committing drafts, changing answers or retiring prepared output.</summary>
     public async Task<DefinitionImportComparisonResult> CompareAsync(string artifactId,
         Func<CancellationToken, Task<ReadOnlyMemory<byte>>> read,
+        Func<CancellationToken, ValueTask>? cooperativeYield = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(read);
@@ -60,7 +61,23 @@ public sealed partial class DefinitionFormModel
             lock (_gate)
                 if (!ImportIsCurrent(generation, revision, cancellationToken))
                     return new(false, "import-stale");
-            assessment = DefinitionImport.Inspect(Definition, artifactId, bytes, cancellationToken);
+            SetupAnswerSnapshot snapshot;
+            HashSet<string> defaults;
+            lock (_gate)
+            {
+                if (!ImportIsCurrent(generation, revision, cancellationToken))
+                    return new(false, "import-stale");
+                snapshot = Snapshot();
+                defaults = ReplaceableImportDefaults();
+            }
+            assessment = cooperativeYield is null
+                ? DefinitionImport.Inspect(Definition, artifactId, bytes, cancellationToken)
+                : await DefinitionImport.InspectAsync(Definition, artifactId, bytes, YieldCurrent, cancellationToken);
+            DefinitionImportResult? autofill = assessment.Report.ExecutionCompleted
+                ? cooperativeYield is null
+                    ? assessment.AssessAutofill(snapshot, defaults, cancellationToken)
+                    : await assessment.AssessAutofillAsync(snapshot, defaults, YieldCurrent, cancellationToken)
+                : null;
             using (BeginMutation())
             {
                 if (!ImportIsCurrent(generation, revision, cancellationToken))
@@ -68,7 +85,7 @@ public sealed partial class DefinitionFormModel
                 DefinitionImportReport report = assessment.Report;
                 if (!report.ExecutionCompleted)
                     return new(false, report.Code, report);
-                _importAutofillCode = AssessCurrentAutofill(assessment).Code;
+                _importAutofillCode = CheckAutofillStorage(autofill!).Code;
                 _importComparisonRevision = revision;
                 _importComparison = assessment;
                 assessment = null;
@@ -76,9 +93,9 @@ public sealed partial class DefinitionFormModel
                 return new(true, report.Code, report);
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            return new(false, "import-cancelled");
+            return new(false, cancellationToken.IsCancellationRequested ? "import-cancelled" : "import-stale");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -89,6 +106,13 @@ public sealed partial class DefinitionFormModel
             assessment?.Dispose();
             if (MemoryMarshal.TryGetArray(bytes, out ArraySegment<byte> storage))
                 CryptographicOperations.ZeroMemory(storage.AsSpan());
+        }
+
+        async ValueTask YieldCurrent(CancellationToken token)
+        {
+            await cooperativeYield!(token);
+            lock (_gate)
+                if (!ImportIsCurrent(generation, revision, token)) throw new OperationCanceledException();
         }
     }
 
@@ -114,6 +138,61 @@ public sealed partial class DefinitionFormModel
                 return result;
             }
             return AdoptImportedResult(result, _importComparisonRevision, _importGeneration, CancellationToken.None);
+        }
+    }
+
+    /// <summary>Reassesses outside the mutation gate, then adopts only the still-current proposal.</summary>
+    public async Task<DefinitionImportResult> AdoptImportComparisonAsync(
+        Func<CancellationToken, ValueTask> cooperativeYield, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cooperativeYield);
+        DefinitionImportAssessment assessment;
+        SetupAnswerSnapshot snapshot;
+        HashSet<string> defaults;
+        long revision;
+        long generation;
+        using (BeginMutation())
+        {
+            if (_disposed || _importComparison is null || _importComparisonRevision != InputRevision)
+                return new(false, null, "import-stale");
+            if (SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)
+                return new(false, null, "import-secret-consent-required");
+            assessment = _importComparison;
+            revision = InputRevision;
+            generation = _importGeneration;
+            snapshot = Snapshot();
+            defaults = ReplaceableImportDefaults();
+        }
+        DefinitionImportResult result;
+        try
+        {
+            result = await assessment.AssessAutofillAsync(snapshot, defaults, YieldCurrent, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return new(false, null, cancellationToken.IsCancellationRequested ? "import-cancelled" : "import-stale");
+        }
+        using (BeginMutation())
+        {
+            if (!ImportIsCurrent(generation, revision, cancellationToken) ||
+                !ReferenceEquals(assessment, _importComparison))
+                return new(false, null, "import-stale");
+            result = CheckAutofillStorage(result);
+            if (!result.Succeeded)
+            {
+                _importAutofillCode = result.Code;
+                NotifyImportComparison();
+                return result;
+            }
+            return AdoptImportedResult(result, revision, generation, cancellationToken);
+        }
+
+        async ValueTask YieldCurrent(CancellationToken token)
+        {
+            await cooperativeYield(token);
+            lock (_gate)
+                if (!ImportIsCurrent(generation, revision, token) ||
+                    !ReferenceEquals(assessment, _importComparison)) throw new OperationCanceledException();
         }
     }
 
@@ -143,6 +222,11 @@ public sealed partial class DefinitionFormModel
     private DefinitionImportResult AssessCurrentAutofill(DefinitionImportAssessment assessment)
     {
         DefinitionImportResult result = assessment.AssessAutofill(Snapshot(), ReplaceableImportDefaults());
+        return CheckAutofillStorage(result);
+    }
+
+    private DefinitionImportResult CheckAutofillStorage(DefinitionImportResult result)
+    {
         if (!result.Succeeded) return result;
         if (!HasImportStorage(result.Answers!))
             return new(false, null, "import-workspace-unsupported");

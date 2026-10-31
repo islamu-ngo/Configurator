@@ -94,33 +94,58 @@
                        aria-describedby="session-boundary secret-consent-help" @onchange="ConsentAsync" />
                 <div>
                     <label for="secret-consent">Enable secret entry for this workspace</label>
-                    <p id="secret-consent-help" class="form-help">Optional. Values remain masked; turning this off clears secret answers and prepared files.</p>
+                    <p id="secret-consent-help" class="form-help">Required before reading any configuration file, including unknown content. Values remain masked; turning this off retires comparisons, clears secret answers and invalidates prepared files.</p>
                 </div>
             </div>
         </div>
-        @if (ImportableArtifacts.Length > 0)
+        @if (ImportArtifacts.Length > 0)
         {
             <details class="configuration-editor__import">
                 <summary>Start from an existing configuration <span class="configuration-editor__optional">Optional</span></summary>
-                <p class="form-help" id="artifact-import-help">Maximum 1 MiB. Supported direct mappings only. Import replaces untouched defaults; conflicting manual answers reject the whole file. Secret values require workspace consent above.</p>
+                <p class="form-help" id="artifact-import-help">Maximum 1 MiB, read locally without upload. Every file may contain secrets, including obsolete or malformed content; enable workspace secret consent above before reading. Compare leaves answers, drafts and prepared files unchanged.</p>
                 <div class="configuration-editor__import-controls">
+                    <div class="form-group">
+                        <label for="import-purpose">Purpose</label>
+                        <select id="import-purpose" value="@_importPurpose" @onchange="ChangeImportPurpose">
+                            <option value="compare">Compare with this definition</option>
+                            <option value="fill">Fill fields</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="import-artifact">Artifact format to import</label>
                         <select id="import-artifact" value="@_importArtifact" @onchange="ChangeImportFormat">
-                            @foreach (var artifact in ImportableArtifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
+                            @foreach (var artifact in ImportArtifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="artifact-import">Choose an existing declared artifact</label>
-                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync" aria-describedby="session-boundary artifact-import-help" />
+                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync"
+                                   disabled="@(ImportCapability?.InspectionSupported != true || _importPurpose == "fill" && ImportCapability?.StrictAutofillSupported != true)"
+                                   aria-describedby="session-boundary artifact-import-help import-capability" />
                     </div>
                 </div>
-                @if (_importDiagnostic is { } importDiagnostic)
+                @if (ImportCapability is { } capability)
                 {
-                    <p>The rejected file has not changed your answers. Review the affected setting or consent, then choose the corrected file again.</p>
-                    <AppButton Variant="Variant.Outlined" data-import-correction="@importDiagnostic.FieldId"
-                               OnClick="() => CorrectImportField(importDiagnostic)">@ImportCorrectionLabel(importDiagnostic)</AppButton>
+                    <p id="import-capability" class="form-help"
+                       data-import-inspection="@capability.InspectionSupported.ToString().ToLowerInvariant()"
+                       data-import-strict-autofill="@capability.StrictAutofillSupported.ToString().ToLowerInvariant()">
+                        Inspection: @(capability.InspectionSupported ? "supported" : "unsupported").
+                        Strict autofill: @(capability.StrictAutofillSupported ? "supported; file and workspace checks still apply" : "unsupported").
+                        Only represented content is assessed; target acceptance is not assessed.
+                    </p>
                 }
+                @if (_importPending)
+                {
+                    long importGeneration = _generation;
+                    <p aria-live="polite">Reading and comparing a local file. Current answers and prepared output are unchanged.</p>
+                    <AppButton Variant="Variant.Outlined" data-action="cancel-import-comparison" OnClick="() => CancelComparison(importGeneration)">Cancel comparison</AppButton>
+                }
+                @if (_importConsentRequired)
+                {
+                    <AppButton Variant="Variant.Outlined" data-action="review-import-consent"
+                               OnClick="ReviewImportConsent">Review workspace secret consent</AppButton>
+                }
+                <ConfigurationImportReview @key="_form" Form="_form" FillFields="AdoptComparison" Clear="report => ClearComparison(report)" />
             </details>
         }
         @{ var fieldStates = _form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal); var editorSections = viewSections;
@@ -187,7 +212,7 @@
             <div class="actions">
                 <AppButton id="prepare-complete" OnClick="() => PrepareAsync(false)">Prepare complete configuration</AppButton>
                 <AppButton id="prepare-draft" Variant="Variant.Outlined" OnClick="() => PrepareAsync(true)">Prepare draft (defer missing secrets)</AppButton>
-                <AppButton id="clear-workspace" Variant="Variant.Text" Color="Color.Default" OnClick="ClearAsync">Clear answers and output</AppButton>
+                <AppButton id="clear-workspace" Variant="Variant.Text" Color="Color.Default" OnClick="ClearAsync">Clear answers, comparison and output</AppButton>
             </div>
         </div>
         <p role="status" class="notice" data-code="@_statusCode">@_status</p>

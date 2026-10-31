@@ -163,6 +163,45 @@ deferred and supplied/defaulted entries by default. Omitted optional and inactiv
 inspection are explicit view-only choices. Diagnostics remain reachable outside
 the paged effects. Neither paging nor mounting grants consent or output authority.
 
+Local artifact comparison defaults to **Compare with this definition**, not
+autofill. `ConfigurationEditor` obtains the existing public-asset preparation and
+workspace custody acknowledgment, then checks explicit workspace secret consent
+before opening or consuming any raw configuration input. This applies to
+public-only definitions, unknown/obsolete members and malformed input alike.
+Definition labels cannot prove an old file safe. The Browser acquisition limit
+remains 1 MiB; a bounded local stream is passed through
+`DefinitionFormModel.CompareAsync(artifact, read, yield, token)`. The adapter
+uses `configuration-rendering.js`'s `nextTask` boundary before
+acquisition and between bounded Core traversal batches. Its local MessageChannel
+closes both ports before resuming; comparison yields to the event loop without
+waiting one display frame per batch. Incremental form mounting retains the
+separate `nextFrame` boundary. No raw content or
+report enters requests, worker messages, URLs, public caches or persistent
+storage.
+
+Presentation owns the one current private comparison proposal and publishes its
+detached safe Core report through `ImportComparisonChanged`, not `ViewChanged`
+or `InputChanged`. `ConfigurationImportReview` subscribes to that dedicated event;
+comparison publication/retirement must not refresh ordinary answer editors,
+commit valid/invalid drafts or retire prepared output. The editor keeps the
+navigation lease active for retained comparisons even when no answers exist.
+Artifact/purpose changes, cancel, edits, other operations, consent revocation,
+replacement, navigation, clear and disposal invalidate pending generations and
+retire comparison ownership. Physical read cleanup retains its captured lifetime
+until completion; late results cannot reacquire authority.
+
+The comparison panel separates execution, compatibility, coverage and inventory
+completion, file-level autofill eligibility, current-workspace adoption refusal
+and unassessed target acceptance. Known blockers have error color plus severity
+text, not workspace `aria-invalid` state. Findings use bounded rendering pages;
+a stopped inventory exposes a lower bound. `ExplainImportFinding(finding)`
+returns declared schema guidance only, without focus or mutation. Source
+ordinals and imported dynamic names are never passed to current workspace
+correction/focus APIs. Deliberate `AdoptImportComparisonAsync(yield, token)` rechecks current
+consent/revision/conflicts and applies eligible answers atomically. Structural,
+unknown-content and invalid-input refusals offer separate-copy repair and
+re-import, never partial adoption.
+
 Denied secret leaves have no answer-bearing inputs, even when disclosure is
 expanded. Consented controls use family/literal-path identities and stable row
 tokens for both IDs and names. Admitted password purposes map `create` to
@@ -189,6 +228,11 @@ workspace and export owner before awaiting any retirement. Cleanup touches only
 captured old resources, preserving public edits and replacement output through
 late completion or failure. Unexpected cleanup failure is observed as a stable
 value-free diagnostic; expected JS denial cannot restore authority.
+Revocation also retires the comparison proposal synchronously and clears owned
+input/output byte buffers. Retiring managed JSON/string references does not
+guarantee physical erasure of managed strings, runtime copies or browser memory.
+Exported files, clipboard contents and password-manager storage remain outside
+this boundary.
 
 Strict `DefinitionArtifactComposer` still requires complete valid answers.
 `DefinitionDraftArtifactComposer` offers distinct secret-deferred preparation

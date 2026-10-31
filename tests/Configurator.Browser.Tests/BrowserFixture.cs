@@ -73,6 +73,7 @@ internal static class BrowserFixture
         interactions.SetupVoid("unwatch", _ => true).SetVoidResult();
         var rendering = context.JSInterop.SetupModule("./configuration-rendering.js");
         rendering.SetupVoid("nextFrame", _ => true).SetVoidResult();
+        rendering.SetupVoid("nextTask", _ => true).SetVoidResult();
         return context;
     }
 

@@ -1,0 +1,113 @@
+<Project>
+  <!-- Explicit ownership candidates transform compiler inputs, never product source.
+       Import this file through CustomAfterMicrosoftCommonTargets for all references. -->
+  <PropertyGroup Condition="'$(ConfiguratorImportComparisonOwnershipProbe)' == 'true'">
+    <ConfiguratorImportComparisonMemoryProbe>true</ConfiguratorImportComparisonMemoryProbe>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Configurator.Browser' and '$(ConfiguratorImportComparisonMemoryProbe)' == 'true'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Configurator.Browser' and '$(ConfiguratorImportComparisonOwnershipProbe)' == 'true'">
+    <DefineConstants>$(DefineConstants);CONFIGURATOR_IMPORT_OWNERSHIP_PROBE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Configurator.Browser' and '$(ConfiguratorImportComparisonMemoryProbe)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)ImportComparisonMemoryProbe.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Configurator.Core' and '$(ConfiguratorImportComparisonOwnershipProbe)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)ImportComparisonOwnershipProbe.cs" />
+  </ItemGroup>
+
+  <UsingTask TaskName="InjectImportComparisonOwnershipProbe"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+      <Owner ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        string source = File.ReadAllText(Source);
+        string[] anchors;
+        string[] replacements;
+        if (Owner == "Configurator.Browser")
+        {
+            anchors = new[] {
+                "_readBuffer = buffer;",
+                "if (!_disposed) await InvokeAsync(StateHasChanged);",
+                "private async Task LoadAsync(Func<Memory<byte>, CancellationToken, Task<int>> read)",
+                "var result = await form.CompareAsync(artifactId, async token =>",
+                "}, YieldComparisonAsync, cancellation.Token);",
+                "_form?.ClearImportComparison();" };
+            replacements = new[] {
+                anchors[0] + @"
+        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveInput(buffer, this, form, generation,
+            static owner => { var editor = (ConfigurationEditor)owner;
+                return new long[] { editor._generation, editor._readBuffer is null ? 0 : 1,
+                    editor._importPending ? 1 : 0, editor._readCancellation is null ? 0 : 1, editor._disposed ? 1 : 0 }; },
+            static owner => ((DefinitionFormModel)owner).ReadImportOwnershipProbeState());",
+                anchors[1] + "\n        Configurator.Engineering.ImportComparisonOwnershipProbe.CompleteInput(buffer);",
+                @"private Task LoadAsync(Func<Memory<byte>, CancellationToken, Task<int>> read)
+    {
+        Task operation = LoadOwnershipObservedAsync(read);
+        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveTask(operation, handler: true);
+        return operation;
+    }
+    private async Task LoadOwnershipObservedAsync(Func<Memory<byte>, CancellationToken, Task<int>> read)",
+                "var comparison = form.CompareAsync(artifactId, async token =>",
+                anchors[4] + @"
+            Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveTask(comparison, handler: false);
+            var result = await comparison;",
+                anchors[5] + "\n        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveRetirement(this);" };
+        }
+        else if (Owner == "Configurator.Presentation")
+        {
+            anchors = new[] { "private DefinitionImportAssessment? _importComparison;" };
+            replacements = new[] { anchors[0] + @"
+    public long[] ReadImportOwnershipProbeState()
+    {
+        lock (_gate) return new long[] { _importGeneration, _importComparison is null ? 0 : 1, _disposed ? 1 : 0 };
+    }" };
+        }
+        else
+        {
+            anchors = new[] { "_refusal = refusal;", "_disposed = true;" };
+            replacements = new[] {
+                anchors[0] + "\n        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveProposal(this, evidence, evidence?.Answers, evidence?.Assignments);",
+                anchors[1] + "\n        Configurator.Engineering.ImportComparisonOwnershipProbe.DisposeProposal(this);" };
+        }
+        for (int i = 0; i < anchors.Length; ++i)
+        {
+            int first = source.IndexOf(anchors[i], StringComparison.Ordinal);
+            if (first < 0 || source.IndexOf(anchors[i], first + anchors[i].Length, StringComparison.Ordinal) >= 0)
+            {
+                Log.LogError("ownership-probe-anchor-mismatch");
+                return false;
+            }
+            source = source.Remove(first, anchors[i].Length).Insert(first, replacements[i]);
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(Destination));
+        File.WriteAllText(Destination, source);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="PrepareImportComparisonOwnershipProbe" BeforeTargets="CoreCompile"
+          Condition="'$(ConfiguratorImportComparisonOwnershipProbe)' == 'true' and ('$(MSBuildProjectName)' == 'Configurator.Core' or '$(MSBuildProjectName)' == 'Configurator.Presentation' or '$(MSBuildProjectName)' == 'Configurator.Browser')">
+    <PropertyGroup>
+      <_OwnershipProbeSource Condition="'$(MSBuildProjectName)' == 'Configurator.Core'">Definitions/DefinitionImportAssessment.cs</_OwnershipProbeSource>
+      <_OwnershipProbeSource Condition="'$(MSBuildProjectName)' == 'Configurator.Presentation'">Presentation/DefinitionImportState.cs</_OwnershipProbeSource>
+      <_OwnershipProbeSource Condition="'$(MSBuildProjectName)' == 'Configurator.Browser'">Components/Configuration/ConfigurationEditor.razor.cs</_OwnershipProbeSource>
+      <_OwnershipProbeGenerated>$(IntermediateOutputPath)browser-owner-probe/$([System.IO.Path]::GetFileName('$(_OwnershipProbeSource)'))</_OwnershipProbeGenerated>
+    </PropertyGroup>
+    <InjectImportComparisonOwnershipProbe Source="$(MSBuildProjectDirectory)/$(_OwnershipProbeSource)"
+        Destination="$(_OwnershipProbeGenerated)" Owner="$(MSBuildProjectName)" />
+    <ItemGroup>
+      <Compile Remove="$(_OwnershipProbeSource)" />
+      <Compile Include="$(_OwnershipProbeGenerated)" />
+      <FileWrites Include="$(_OwnershipProbeGenerated)" />
+    </ItemGroup>
+  </Target>
+</Project>

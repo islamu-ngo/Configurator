@@ -101,14 +101,36 @@ public sealed class DefinitionImportAssessment : IDisposable
     }
     public DefinitionImportReport Report { get; }
     public DefinitionImportResult AssessAutofill(SetupAnswerSnapshot current,
-        IReadOnlySet<string>? replaceableDefaults = null, CancellationToken cancellationToken = default)
+        IReadOnlySet<string>? replaceableDefaults = null, CancellationToken cancellationToken = default) =>
+        DefinitionImportWork.CompleteSynchronously(AssessAutofillCoreAsync(current, replaceableDefaults, null, cancellationToken));
+
+    /// <summary>Cooperatively assesses a candidate without mutating the workspace. In-flight work retains its immutable evidence across disposal.</summary>
+    public ValueTask<DefinitionImportResult> AssessAutofillAsync(SetupAnswerSnapshot current,
+        IReadOnlySet<string>? replaceableDefaults, Func<CancellationToken, ValueTask> cooperativeYield,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(cooperativeYield);
+        return AssessAutofillCoreAsync(current, replaceableDefaults, cooperativeYield, cancellationToken);
+    }
+
+    private async ValueTask<DefinitionImportResult> AssessAutofillCoreAsync(SetupAnswerSnapshot current,
+        IReadOnlySet<string>? replaceableDefaults, Func<CancellationToken, ValueTask>? cooperativeYield,
+        CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(current);
         cancellationToken.ThrowIfCancellationRequested();
-        if (_evidence is null || _definition is null || _refusal is not null)
+        DefinitionImportEvidence? evidence = _evidence;
+        SetupDefinition? definition = _definition;
+        if (cooperativeYield is not null)
+        {
+            await cooperativeYield(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        if (evidence is null || definition is null || _refusal is not null)
             return new(false, null, _refusal ?? Report.Code);
-        return DefinitionImport.Merge(_definition, _evidence, current, replaceableDefaults, cancellationToken);
+        return await DefinitionImport.MergeAsync(definition, evidence, current, replaceableDefaults, cancellationToken,
+            cooperativeYield: cooperativeYield);
     }
 
     public void Dispose()
@@ -133,12 +155,13 @@ internal sealed class DefinitionImportEvidence
     internal SetupAnswerSnapshot Answers { get; }
     internal IReadOnlyList<DefinitionPath> Assignments { get; }
 
+    /// <summary>Takes ownership of recovery's completed private observation dictionary.</summary>
     internal DefinitionImportEvidence(SetupAnswerSnapshot answers, IEnumerable<DefinitionPath> assignments,
-        IReadOnlyDictionary<DefinitionPath, DefinitionImportObservation> observations)
+        Dictionary<DefinitionPath, DefinitionImportObservation> ownedObservations)
     {
         Answers = answers;
         Assignments = Array.AsReadOnly(assignments.ToArray());
-        _observations = observations.ToDictionary(item => item.Key, item => item.Value);
+        _observations = ownedObservations;
     }
 
     internal DefinitionImportObservationState State(DefinitionPath path)
@@ -241,13 +264,13 @@ internal sealed class DefinitionImportEvidence
         return null;
     }
 
-    internal DefinitionImportSourceLocation? Source(DefinitionPath root,
+    internal async ValueTask<DefinitionImportSourceLocation?> SourceAsync(DefinitionPath root,
         IReadOnlyList<DefinitionLocationSegment> segments, DefinitionImportWork work)
     {
         var concrete = new List<string>(root.Segments);
         foreach (DefinitionLocationSegment segment in segments)
         {
-            work.Visit();
+            await work.VisitAsync();
             if (segment.Kind == DefinitionLocationSegmentKind.Property)
                 concrete.Add(segment.PropertyName!);
             else if (segment.Kind == DefinitionLocationSegmentKind.ArrayRow)
@@ -269,27 +292,48 @@ internal sealed class DefinitionImportLimitException : Exception
 }
 
 /// <summary>One combined traversal budget, independent of parser admission and display paging.</summary>
-internal sealed class DefinitionImportWork(CancellationToken cancellationToken)
+internal sealed class DefinitionImportWork(CancellationToken cancellationToken,
+    Func<CancellationToken, ValueTask>? cooperativeYield = null)
 {
+    private const int YieldQuantum = 1024;
+    internal CancellationToken CancellationToken => cancellationToken;
+    internal Func<CancellationToken, ValueTask>? CooperativeYield => cooperativeYield;
+    internal static T CompleteSynchronously<T>(ValueTask<T> operation)
+    {
+        if (!operation.IsCompleted) throw new InvalidOperationException("synchronous-operation-incomplete");
+        return operation.GetAwaiter().GetResult();
+    }
+
     internal int Units { get; private set; }
     internal int InverseNodes { get; private set; }
     internal int ValidationNodes { get; private set; }
-    internal void Visit()
+    internal async ValueTask VisitAsync()
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (Units == SetupCompositionLimits.DefaultParserEvents) throw new DefinitionImportLimitException();
         Units++;
+        if (cooperativeYield is not null && Units % YieldQuantum == 0)
+        {
+            await cooperativeYield(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
     }
-    internal void Inverse()
+    internal async ValueTask InverseAsync()
     {
-        Visit();
+        await VisitAsync();
         if (InverseNodes == SetupCompositionLimits.DefaultNormalizedNodes) throw new DefinitionImportLimitException();
         InverseNodes++;
     }
-    internal void Validation()
+    internal async ValueTask ValidationAsync()
     {
-        Visit();
+        await VisitAsync();
         if (ValidationNodes == SetupCompositionLimits.DefaultNormalizedNodes) throw new DefinitionImportLimitException();
         ValidationNodes++;
+        // Validation resolves paths, dependencies and constraints in addition to visiting each node.
+        if (cooperativeYield is not null && ValidationNodes % 256 == 0)
+        {
+            await cooperativeYield(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
     }
 }

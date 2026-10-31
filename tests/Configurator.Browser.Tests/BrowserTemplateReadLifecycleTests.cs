@@ -5,6 +5,7 @@ using Bunit;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
@@ -57,15 +58,19 @@ public sealed class BrowserTemplateReadLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         using var older = new GatedReadStream(OrdinaryArtifact);
         Task pending = component.InvokeAsync(() => component.Instance.LoadAsync(older));
         await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
         {
-            if (transition == "edit") component.Find("[data-field='hostname'] input").Input("retained.test");
-            else if (transition == "clear") component.Find("#clear-workspace").Click();
-            else if (transition == "replacement") component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
-            else component.Find("#secret-consent").Change(false);
+            if (transition == "edit")
+                await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
+            else if (transition == "clear")
+                await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+            else if (transition == "replacement")
+                await component.InvokeAsync(() => component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2))));
+            else await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
         }
         finally { older.Release.TrySetResult(); }
         await pending.WaitAsync(TimeSpan.FromSeconds(5));
@@ -81,6 +86,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         navigation.NavigateTo($"/launch/{BrowserFixture.Family}");
         var app = context.Render<App>();
         var editor = app.FindComponent<ConfigurationEditor>();
+        await editor.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         using var older = new GatedReadStream(OrdinaryArtifact);
         Task pending = editor.InvokeAsync(() => editor.Instance.LoadAsync(older));
         await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -96,6 +102,8 @@ public sealed class BrowserTemplateReadLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "fill" });
         using var stream = new GatedReadStream(OrdinaryArtifact);
         stream.Release.TrySetResult();
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
@@ -104,7 +112,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         using var failed = new FailedReadStream();
         await component.InvokeAsync(() => component.Instance.LoadAsync(failed));
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
-        await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("import-rejected");
+        await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("import-read-failed");
     }
 
     private sealed class FailedReadStream : MemoryStream

@@ -48,7 +48,7 @@ public sealed class BrowserConfigurationReviewTests
     }
 
     [Test]
-    public async Task InactiveImportRecoveryOpensControllerWithoutActivatingTheImportedField()
+    public async Task InactiveImportedFindingExplainsSchemaWithoutActivatingOrFocusingWorkspaceFields()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["configuration"]!["properties"]!["enabled"] = JsonNode.Parse("""
@@ -66,11 +66,14 @@ public sealed class BrowserConfigurationReviewTests
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.InvokeAsync(() => form.SetDiscovery("obstructing-query"));
         long revision = form.InputRevision;
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"dependent":"synthetic-file-canary"}"""));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
-        await component.Find("[data-import-correction='dependent']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-import-schema='dependent']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("#import-schema-explanation").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-import-correction]")).IsEmpty();
         await Assert.That(form.DiscoveryQuery).IsEqualTo("obstructing-query");
         await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/enabled"), out var effectiveEnabled)).IsTrue();
         await Assert.That(effectiveEnabled.GetBoolean()).IsFalse();
@@ -82,27 +85,35 @@ public sealed class BrowserConfigurationReviewTests
     [Test]
     [Arguments(true)]
     [Arguments(false)]
-    public async Task RejectedKnownFieldImportOffersValueFreeContextualRecovery(bool conflict)
+    public async Task FileFindingsAndWorkspaceAutofillRefusalStaySeparateAndValueFree(bool conflict)
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         if (conflict) await component.InvokeAsync(() => form.EditValue(["name"], "manual-answer"));
         long revision = form.InputRevision;
         string json = conflict ? """{"name":"synthetic-file-canary"}""" : """{"name":42}""";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
-        await Assert.That(component.Find("[role=status]").GetAttribute("data-code"))
+        await Assert.That(form.ImportAutofillCode)
             .IsEqualTo(conflict ? "answer-conflict" : "import-field-invalid");
+        await Assert.That(component.Find("[data-import-file-autofill]").GetAttribute("data-import-file-autofill"))
+            .IsEqualTo(conflict ? "true" : "false");
+        await Assert.That(component.Find("[data-action='adopt-import-comparison']").HasAttribute("disabled")).IsTrue();
         await Assert.That(component.Markup).DoesNotContain("synthetic-file-canary");
-        await component.Find("[data-import-correction='name']").ClickAsync(new MouseEventArgs());
+        if (!conflict)
+        {
+            await component.Find("[data-import-schema='name']").ClickAsync(new MouseEventArgs());
+            await Assert.That(component.FindAll("#import-schema-explanation").Count).IsEqualTo(1);
+        }
         await Assert.That(form.IsEditorVisible(["name"])).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/name"), out var effectiveName)).IsTrue();
         await Assert.That(effectiveName.GetString()).IsEqualTo(conflict ? "manual-answer" : "authored");
         await Assert.That(form.Snapshot().Values.ContainsKey("name")).IsEqualTo(conflict);
         await component.Find("[data-field='name'] input").InputAsync(new ChangeEventArgs { Value = "corrected" });
-        await Assert.That(component.FindAll("[data-import-correction]")).IsEmpty();
+        await Assert.That(component.FindAll("[data-import-comparison]")).IsEmpty();
     }
 
     [Test]
@@ -115,7 +126,8 @@ public sealed class BrowserConfigurationReviewTests
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"secret":"synthetic-file-canary"}"""));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("import-secret-consent-required");
-        await component.Find("[data-import-correction='secret']").ClickAsync(new MouseEventArgs());
+        await Assert.That(stream.Position).IsEqualTo(0);
+        await component.Find("[data-action='review-import-consent']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values.ContainsKey("secret")).IsFalse();
@@ -166,15 +178,23 @@ public sealed class BrowserConfigurationReviewTests
     }
 
     [Test]
-    public async Task UnsupportedInverseDoesNotOfferImport()
+    public async Task UnsupportedInverseExposesCapabilityWithoutReadingInput()
     {
         await using var context = BrowserFixture.Context();
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
-        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
-        source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.object", "schema.string", "values.initial");
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""
+            {"op":"object","members":{"first":{"op":"copy","reference":{"scope":"root","path":"/name"}},
+             "second":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}
+            """);
+        source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object", "schema.object", "schema.string", "values.initial");
         var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await Assert.That(component.FindAll("#artifact-import")).IsEmpty();
+        await Assert.That(component.Find("[data-import-inspection]").GetAttribute("data-import-inspection")).IsEqualTo("false");
+        await Assert.That(component.Find("#artifact-import").HasAttribute("disabled")).IsTrue();
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        using var input = new MemoryStream("{}"u8.ToArray());
+        await component.InvokeAsync(() => component.Instance.LoadAsync(input));
+        await Assert.That(input.Position).IsEqualTo(0);
     }
 
     private static SetupDefinition Definition()

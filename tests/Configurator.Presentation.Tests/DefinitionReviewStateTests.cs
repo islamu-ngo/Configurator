@@ -7,7 +7,7 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionReviewStateTests
 {
     [Test]
-    public async Task SecretImportRejectionIdentifiesAdmittedRecoveryWithoutApplyingAnswers()
+    public async Task RawConsentRefusalDoesNotPretendToIdentifyImportedFields()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["configuration"]!["properties"]!["secret"] = JsonNode.Parse("""
@@ -19,9 +19,18 @@ public sealed class DefinitionReviewStateTests
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
         long revision = form.InputRevision;
-        DefinitionImportResult result = await Import(form, """{"secret":"synthetic-private-import"}""");
+        bool consumed = false;
+        DefinitionImportResult result = await form.ImportAsync("config", _ =>
+        {
+            consumed = true;
+            return Task.FromResult<ReadOnlyMemory<byte>>("""{"secret":"synthetic-private-import"}"""u8.ToArray());
+        });
         await Assert.That(result.Code).IsEqualTo("import-secret-consent-required");
-        await Assert.That(result.Diagnostic!.FieldId).IsEqualTo("secret");
+        await Assert.That(consumed).IsFalse();
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.Diagnostic).IsNull();
+        await Assert.That(result.Schema).IsNull();
+        await Assert.That(result.Answers).IsNull();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values.ContainsKey("secret")).IsFalse();
         await Assert.That(result.ToString()).DoesNotContain("synthetic-private-import");

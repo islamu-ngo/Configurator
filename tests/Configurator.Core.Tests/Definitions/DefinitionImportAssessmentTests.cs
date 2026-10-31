@@ -8,6 +8,248 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionImportAssessmentTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ValidatorMaterializationSuspendsWithoutChangingLiteralsOrSemanticCharges(bool cancel)
+    {
+        SetupDefinition definition = Definition("""
+            {"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+              "ordinal":{"type":"integer"},"A":{"type":"string"},"a":{"type":"number"},
+              "b":{"type":"array","items":{"type":["number","null"]}}}}}}
+            """, """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
+        var source = new JsonArray();
+        for (int index = 0; index < 1200; index++)
+        {
+            JsonObject row = JsonNode.Parse("""{"A":"e\u0301","a":-0,"b":[null,1.2300e2]}""")!.AsObject();
+            row.Add("ordinal", index);
+            source.Add(row);
+        }
+        byte[] input = Encoding.UTF8.GetBytes(new JsonObject { ["items"] = source }.ToJsonString());
+        using DefinitionImportAssessment synchronous = DefinitionImport.Inspect(definition, "config", input);
+        // Three existing normalizations visit 8,402 JSON nodes; charged traversal has its own quantum.
+        int previousYieldCount = 1 + 3 * (8402 / 1024) + synchronous.Report.WorkUnits / 1024
+            + synchronous.Report.ValidationNodes / 256;
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resume = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int callbacks = 0;
+        Task<DefinitionImportAssessment> pending = DefinitionImport.InspectAsync(definition, "config", input, _ =>
+        {
+            if (++callbacks != previousYieldCount + 1) return ValueTask.CompletedTask;
+            entered.TrySetResult();
+            return new(resume.Task);
+        }, cancellation.Token).AsTask();
+        try
+        {
+            await Assert.That(pending.IsCompleted).IsFalse();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            if (cancel) cancellation.Cancel();
+            resume.TrySetResult();
+            if (cancel)
+                await Assert.That(async () => { _ = await pending.WaitAsync(TimeSpan.FromSeconds(10)); })
+                    .Throws<OperationCanceledException>();
+            else
+            {
+                DefinitionImportAssessment assessment = await pending.WaitAsync(TimeSpan.FromSeconds(10));
+                await Assert.That(JsonSerializer.Serialize(assessment.Report))
+                    .IsEqualTo(JsonSerializer.Serialize(synchronous.Report));
+                DefinitionImportResult adopted = assessment.AssessAutofill(Empty());
+                await Assert.That(adopted.Succeeded).IsTrue();
+                JsonElement result = adopted.Answers!.Values["items"];
+                await Assert.That(result.GetArrayLength()).IsEqualTo(1200);
+                await Assert.That(result[0].GetRawText())
+                    .IsEqualTo("""{"A":"e\u0301","a":0,"b":[null,123],"ordinal":0}""");
+                for (int index = 0; index < 1200; index++)
+                    await Assert.That(result[index].GetProperty("ordinal").GetInt32()).IsEqualTo(index);
+            }
+        }
+        finally
+        {
+            resume.TrySetResult();
+            try { (await pending.WaitAsync(TimeSpan.FromSeconds(10))).Dispose(); }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        }
+    }
+
+    [Test]
+    public async Task SuspendedNormalizationPreservesExactKeysUnicodeNullAndDecimalValuesThroughAdoption()
+    {
+        SetupDefinition definition = Definition("""
+            {"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
+              "A":{"type":"string"},"a":{"type":"number"},
+              "b":{"type":"array","items":{"type":["number","null"]}}}}}}
+            """, """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
+        const string item = """{"b":[null,1.2300e2],"a":-0,"A":"e\u0301"}""";
+        const string expected = """{"A":"e\u0301","a":0,"b":[null,123]}""";
+        byte[] input = Encoding.UTF8.GetBytes("{\"items\":[" + string.Join(",", Enumerable.Repeat(item, 512)) + "]}");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int callbacks = 0;
+        Task<DefinitionImportAssessment> pending = DefinitionImport.InspectAsync(definition, "config", input, Yield).AsTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        release.SetResult();
+        using DefinitionImportAssessment assessment = await pending.WaitAsync(TimeSpan.FromSeconds(10));
+        using DefinitionImportAssessment synchronous = DefinitionImport.Inspect(definition, "config", input);
+        await Assert.That(JsonSerializer.Serialize(assessment.Report)).IsEqualTo(JsonSerializer.Serialize(synchronous.Report));
+        DefinitionImportResult result = await assessment.AssessAutofillAsync(Empty(), null, _ => ValueTask.CompletedTask);
+        await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(result.Answers!.Values["items"].GetRawText())
+            .IsEqualTo("[" + string.Join(",", Enumerable.Repeat(expected, 512)) + "]");
+
+        ValueTask Yield(CancellationToken _)
+        {
+            if (++callbacks != 2) return ValueTask.CompletedTask;
+            entered.SetResult();
+            return new(release.Task);
+        }
+    }
+
+    [Test]
+    public async Task CooperativeInspectionPreservesReportCountsAndOrderedFindings()
+    {
+        SetupDefinition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
+            """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
+        byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { items = Enumerable.Repeat("private-sentinel", 1200).ToArray() });
+        using var synchronous = DefinitionImport.Inspect(definition, "config", input);
+        int yields = 0;
+        using var cooperative = await DefinitionImport.InspectAsync(definition, "config", input, Yield);
+        await Assert.That(JsonSerializer.Serialize(cooperative.Report)).IsEqualTo(JsonSerializer.Serialize(synchronous.Report));
+        // Container passes retain their quantum; expensive validation also suspends every 256 nodes.
+        await Assert.That(yields).IsEqualTo(8 + cooperative.Report.WorkUnits / 1024
+            + cooperative.Report.ValidationNodes / 256);
+        await Assert.That(yields).IsGreaterThan(1);
+        await Assert.That(JsonSerializer.Serialize(cooperative)).DoesNotContain("private-sentinel");
+
+        ValueTask Yield(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            yields++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Test]
+    [Arguments(1)]
+    [Arguments(2)]
+    public async Task CooperativeInspectionCancellationAtSuspendedYieldPublishesNothing(int suspendAt)
+    {
+        SetupDefinition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
+            """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
+        byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { items = Enumerable.Range(0, 1200).ToArray() });
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resume = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int yields = 0;
+        using var cancellation = new CancellationTokenSource();
+        Task<DefinitionImportAssessment> pending = DefinitionImport.InspectAsync(definition, "config", input,
+            Yield, cancellation.Token).AsTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(pending.IsCompleted).IsFalse();
+        cancellation.Cancel();
+        resume.SetResult();
+        await Assert.That(async () => { using var result = await pending; }).Throws<OperationCanceledException>();
+
+        ValueTask Yield(CancellationToken token)
+        {
+            if (++yields != suspendAt) return ValueTask.CompletedTask;
+            entered.TrySetResult();
+            return new(resume.Task);
+        }
+    }
+
+    [Test]
+    [Arguments(false, 1)]
+    [Arguments(true, 1)]
+    [Arguments(false, 2)]
+    [Arguments(true, 2)]
+    public async Task SuspendedAutofillCapturesEvidenceAcrossDisposalAndHonorsCancellation(bool cancel, int suspendAt)
+    {
+        SetupDefinition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
+            """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
+        byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { items = Enumerable.Range(0, 1200).ToArray() });
+        using var assessment = DefinitionImport.Inspect(definition, "config", input);
+        DefinitionImportResult expected = assessment.AssessAutofill(Empty());
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resume = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        int yields = 0;
+        using var cancellation = new CancellationTokenSource();
+        Task<DefinitionImportResult> pending = assessment.AssessAutofillAsync(Empty(), null, Yield, cancellation.Token).AsTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(pending.IsCompleted).IsFalse();
+        assessment.Dispose();
+        if (cancel) cancellation.Cancel();
+        resume.SetResult();
+        if (cancel)
+            await Assert.That(async () => { _ = await pending; }).Throws<OperationCanceledException>();
+        else
+        {
+            DefinitionImportResult actual = await pending;
+            await Assert.That(actual.Succeeded).IsTrue();
+            await Assert.That(actual.Answers!.Values["items"].GetRawText()).IsEqualTo(expected.Answers!.Values["items"].GetRawText());
+        }
+        await Assert.That(() => assessment.AssessAutofill(Empty())).Throws<ObjectDisposedException>();
+
+        ValueTask Yield(CancellationToken token)
+        {
+            if (++yields != suspendAt) return ValueTask.CompletedTask;
+            entered.TrySetResult();
+            return new(resume.Task);
+        }
+    }
+
+    [Test]
+    public async Task CompletedYieldKeepsTinyComparisonSynchronousAndPreservesLiteralWorkCounts()
+    {
+        SetupDefinition definition = Definition("""{"x":{"type":"integer"}}""",
+            """{"x":{"op":"copy","reference":{"scope":"root","path":"/x"}}}""");
+        int yields = 0;
+        ValueTask<DefinitionImportAssessment> operation = DefinitionImport.InspectAsync(definition, "config",
+            """{"x":7}"""u8.ToArray(), Yield);
+        await Assert.That(operation.IsCompletedSuccessfully).IsTrue();
+        using var assessment = await operation;
+        await Assert.That(yields).IsEqualTo(1);
+        await Assert.That(assessment.Report.WorkUnits).IsEqualTo(28);
+        await Assert.That(assessment.Report.InverseNodes).IsEqualTo(5);
+        await Assert.That(assessment.Report.ValidationNodes).IsEqualTo(2);
+        ValueTask<DefinitionImportResult> autofill = assessment.AssessAutofillAsync(Empty(), null, Yield);
+        await Assert.That(autofill.IsCompletedSuccessfully).IsTrue();
+        await Assert.That((await autofill).Answers!.Values["x"].GetInt32()).IsEqualTo(7);
+        await Assert.That(yields).IsEqualTo(2);
+
+        ValueTask Yield(CancellationToken token)
+        {
+            yields++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Test]
+    public async Task PreCancelledCooperativeCallsNeverInvokeTheYieldCallback()
+    {
+        SetupDefinition definition = Definition("""{"x":{"type":"integer"}}""",
+            """{"x":{"op":"copy","reference":{"scope":"root","path":"/x"}}}""");
+        byte[] input = """{"x":7}"""u8.ToArray();
+        using var assessment = DefinitionImport.Inspect(definition, "config", input);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        int yields = 0;
+        await Assert.That(async () =>
+        {
+            using var result = await DefinitionImport.InspectAsync(definition, "config", input, Yield, cancellation.Token);
+        }).Throws<OperationCanceledException>();
+        await Assert.That(async () =>
+        {
+            _ = await assessment.AssessAutofillAsync(Empty(), null, Yield, cancellation.Token);
+        }).Throws<OperationCanceledException>();
+        await Assert.That(yields).IsEqualTo(0);
+
+        ValueTask Yield(CancellationToken token)
+        {
+            yields++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Test]
     public async Task MissingRepresentedRequiredValueDoesNotUseInitialization()
     {
         SetupDefinition definition = Definition("""
@@ -43,6 +285,35 @@ public sealed class DefinitionImportAssessmentTests
             await Assert.That(assessment.Report.Findings.Any(f => f.Kind == DefinitionImportFindingKind.Unassessed)).IsTrue();
         }
         await Assert.That(JsonSerializer.Serialize(assessment)).DoesNotContain("private-invalid-controller");
+    }
+
+    [Test]
+    [Arguments(true, """{"control":"private-invalid-controller"}""", false, true)]
+    [Arguments(true, "{}", false, false)]
+    [Arguments(false, "{}", false, true)]
+    [Arguments(true, """{"control":false}""", true, false)]
+    [Arguments(true, """{"control":true}""", true, false)]
+    public async Task RootDependencyRequiresObservedValidController(
+        bool mapped, string input, bool missing, bool unassessed)
+    {
+        JsonNode source = Source("""{"control":{"type":"boolean"},"dependent":{"type":"integer"}}""",
+            """{"dependent":{"op":"copy","reference":{"scope":"root","path":"/dependent"}}}""");
+        source["configuration"]!["dependentRequired"] =
+            JsonNode.Parse("""{"control":["dependent"]}""");
+        if (mapped)
+            source["outputs"]!["config.json"]!["projection"] =
+                JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":""}}""");
+        using var assessment = Inspect(DefinitionFixture.Parse(source.ToJsonString()), input);
+        await Assert.That(assessment.Report.Findings.Any(f =>
+            f.Schema?.FieldId == "dependent" && f.Kind == DefinitionImportFindingKind.MissingRequired))
+            .IsEqualTo(missing);
+        await Assert.That(assessment.Report.Findings.Any(f =>
+            f.Schema?.FieldId == "dependent" && f.Kind == DefinitionImportFindingKind.Unassessed))
+            .IsEqualTo(unassessed);
+        if (input.Contains("private-invalid-controller", StringComparison.Ordinal))
+            await Assert.That(assessment.Report.Findings.Any(f =>
+                f.Schema?.FieldId == "control" && f.Kind == DefinitionImportFindingKind.InvalidSuppliedValue))
+                .IsTrue();
     }
 
     [Test]

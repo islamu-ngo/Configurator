@@ -369,6 +369,136 @@ public sealed class BrowserWorkspaceLifecycleTests
         await Assert.That(component.Markup).DoesNotContain("older-navigation.test");
     }
 
+    [Test]
+    public async Task ComparisonWithoutAnswersKeepsCustodyUntilConfirmedNavigation()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        using var input = new MemoryStream("""{"mode":"single","hostname":"compared.test","credential":"synthetic-navigation-secret"}"""u8.ToArray());
+        await component.InvokeAsync(() => component.Instance.LoadAsync(input));
+        var comparison = form.ImportComparison;
+        var navigation = context.Services.GetRequiredService<BrowserNavigationState>();
+        await Assert.That(comparison).IsNotNull();
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+        await Assert.That(navigation.IsActive).IsTrue();
+
+        bool left = true;
+        await component.InvokeAsync(async () => left = await navigation.TryLeaveAsync(() => Task.FromResult(false)));
+        await Assert.That(left).IsFalse();
+        await Assert.That(ReferenceEquals(form.ImportComparison, comparison)).IsTrue();
+        await component.InvokeAsync(async () => left = await navigation.TryLeaveAsync(() => Task.FromResult(true)));
+
+        await Assert.That(left).IsTrue();
+        await Assert.That(form.ImportComparison).IsNull();
+        await Assert.That(navigation.IsActive).IsFalse();
+        await Assert.That(context.Services.GetRequiredService<BrowserOfflinePolicy>().IsWorkspaceActive).IsFalse();
+        await Assert.That(component.Markup).DoesNotContain("synthetic-navigation-secret");
+    }
+
+    [Test]
+    [Arguments("purpose")]
+    [Arguments("artifact")]
+    [Arguments("cancel")]
+    [Arguments("clear")]
+    [Arguments("replace")]
+    [Arguments("navigate")]
+    [Arguments("dispose")]
+    public async Task WorkspaceTransitionsRetireHeldComparisonBeforeLateRead(string transition)
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        JsonNode second = source["artifacts"]![0]!.DeepClone();
+        second["id"] = "second";
+        second["fileName"] = "second.json";
+        source["artifacts"]!.AsArray().Add(second);
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        using var stream = new HeldReadStream("""{"mode":"single","hostname":"late.test","credential":"synthetic-retired-comparison"}"""u8.ToArray());
+        Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+        await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            switch (transition)
+            {
+                case "purpose":
+                    await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "fill" });
+                    break;
+                case "artifact":
+                    await component.Find("#import-artifact").ChangeAsync(new ChangeEventArgs { Value = "second" });
+                    break;
+                case "cancel":
+                    await component.Find("[data-action='cancel-import-comparison']").ClickAsync(new MouseEventArgs());
+                    break;
+                case "clear":
+                    await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+                    break;
+                case "replace":
+                    component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
+                    break;
+                case "navigate":
+                    await component.InvokeAsync(() => context.Services.GetRequiredService<BrowserNavigationState>()
+                        .TryLeaveAsync(() => Task.FromResult(true)));
+                    break;
+                case "dispose":
+                    await component.InvokeAsync(() => component.Instance.DisposeAsync().AsTask());
+                    break;
+            }
+            await Assert.That(form.ImportComparison).IsNull();
+        }
+        finally { stream.Release.TrySetResult(); }
+        await reading.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(form.ImportComparison).IsNull();
+        await Assert.That(stream.Captured.ToArray().All(value => value == 0)).IsTrue();
+        if (transition != "dispose")
+        {
+            await Assert.That(component.FindAll("[data-import-comparison]")).IsEmpty();
+            await Assert.That(component.Markup).DoesNotContain("synthetic-retired-comparison");
+        }
+    }
+
+    [Test]
+    public async Task ReplacedReadAndOldReportCallbacksCannotChangeTheNewestComparison()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        using var first = new MemoryStream("""{"mode":"single","hostname":"first.test","credential":"synthetic-first-secret"}"""u8.ToArray());
+        await component.InvokeAsync(() => component.Instance.LoadAsync(first));
+        var review = component.FindComponent<ConfigurationImportReview>().Instance;
+        var form = review.Form;
+        var oldReport = form.ImportComparison!;
+        var staleAdoption = review.FillFields;
+        var staleClear = review.Clear;
+        using var older = new HeldReadStream("""{"mode":"single","hostname":"older.test","credential":"synthetic-older-secret"}"""u8.ToArray());
+        Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(older));
+        await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        DefinitionImportReport? newest = null;
+        try
+        {
+            using var current = new MemoryStream("""{"mode":"single","hostname":"newest.test","credential":"synthetic-newest-secret"}"""u8.ToArray());
+            await component.InvokeAsync(() => component.Instance.LoadAsync(current));
+            newest = form.ImportComparison;
+            await Assert.That(newest).IsNotNull();
+            await component.InvokeAsync(() => staleAdoption.InvokeAsync(oldReport));
+            await component.InvokeAsync(() => staleClear.InvokeAsync(oldReport));
+            await Assert.That(ReferenceEquals(form.ImportComparison, newest)).IsTrue();
+            await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+        }
+        finally { older.Release.TrySetResult(); }
+        await reading.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(ReferenceEquals(form.ImportComparison, newest)).IsTrue();
+        await Assert.That(older.Captured.ToArray().All(value => value == 0)).IsTrue();
+        await component.Find("[data-action='adopt-import-comparison']").ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("newest.test");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-older-secret");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-first-secret");
+    }
+
     private sealed class HeldReadStream(byte[] bytes) : MemoryStream(bytes)
     {
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

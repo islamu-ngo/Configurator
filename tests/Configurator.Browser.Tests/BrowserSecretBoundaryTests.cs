@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Core.Definitions;
+using Microsoft.AspNetCore.Components;
 
 public sealed class BrowserSecretBoundaryTests
 {
@@ -57,6 +58,7 @@ public sealed class BrowserSecretBoundaryTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"mode":"single","hostname":"example.test","credential":"synthetic-private-canary"}"""));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+        await Assert.That(stream.Position).IsEqualTo(0);
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("import-secret-consent-required");
         await Assert.That(component.Markup).DoesNotContain("synthetic-private-canary");
         await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("");
@@ -74,6 +76,7 @@ public sealed class BrowserSecretBoundaryTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        component.Find("#secret-consent").Change(true);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsNotEqualTo("imported");
@@ -81,6 +84,32 @@ public sealed class BrowserSecretBoundaryTests
         await Assert.That(component.Markup).DoesNotContain("private-canary");
         var mode = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["mode"]));
         await Assert.That(mode.FindComponent<MudBlazor.MudSelect<string>>().Instance.Value).IsEqualTo("");
+    }
+
+    [Test]
+    public async Task RevocationRetiresRetainedComparisonAndReconsentCannotRestoreOrAdoptIt()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        using var stream = new MemoryStream("""{"mode":"single","hostname":"compared.test","credential":"synthetic-retained-secret"}"""u8.ToArray());
+        await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+        var review = component.FindComponent<ConfigurationImportReview>().Instance;
+        var form = review.Form;
+        var report = form.ImportComparison!;
+        var adoption = review.FillFields;
+        await Assert.That(report).IsNotNull();
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await Assert.That(form.ImportComparison).IsNull();
+        await Assert.That(component.FindAll("[data-import-comparison]")).IsEmpty();
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        long revision = form.InputRevision;
+        await component.InvokeAsync(() => adoption.InvokeAsync(report));
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+        await Assert.That(form.ImportComparison).IsNull();
+        await Assert.That(component.Markup).DoesNotContain("synthetic-retained-secret");
+        await Assert.That(context.JSInterop.Invocations.Any(call => call.Arguments.Any(argument => argument is byte[]))).IsFalse();
     }
 
     [Test]

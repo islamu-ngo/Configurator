@@ -212,6 +212,23 @@ retirement raise `ImportComparisonChanged`, not `InputChanged` or the ordinary
 `ViewChanged` editor-refresh event. That separation preserves prepared output and
 active client drafts as well as committed form state.
 
+Browser supplies a cooperative yield callback to `CompareAsync` and uses
+`AdoptImportComparisonAsync` for deliberate filling. Core shares one traversal
+implementation between synchronous native/machine calls and cooperative calls.
+The public `CompareAsync` signature places optional `cooperativeYield` before
+`cancellationToken`. Callers using the former third positional token must name
+`cancellationToken` or supply the callback before it; no compatibility overload
+is retained.
+Presentation captures the immutable answer snapshot and pristine-default
+permissions under its mutation gate, computes outside that gate, and checks
+generation, revision, consent and disposal after each suspension and again at
+publication. No mutation gate spans an await. Browser uses the existing
+`configuration-rendering.js` frame boundary before acquisition and between
+bounded traversal batches, so pending/cancel controls can paint while the same
+operation retains its private evidence. Cancellation or replacement stops the
+superseded operation at its next checkpoint without granting it adoption
+authority. The final strict merge remains separate from the file-only report.
+
 `ImportAutofillCode` and `CanAdoptImportComparison` describe current workspace
 eligibility separately from the file report's `AutofillEligible`.
 `AdoptImportComparison` rechecks strict merge, consent, revision and pending drafts,

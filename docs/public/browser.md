@@ -18,6 +18,9 @@ and consent revocation. A real staged worker did not replace a live workspace.
 Warmed public Store discovery and pinned snapshot admission worked with the asset
 host stopped. These observations are separate from headless assertions and do
 not qualify every browser or assistive technology.
+These earlier observations do not qualify the new artifact-comparison journey;
+its published Release/AOT and custody evidence is recorded separately in
+[Operations](../internal/OPERATIONS.md).
 
 ## Typed editing and language
 
@@ -148,17 +151,51 @@ The **Review** view provides an overview of your configuration before generating
 > **Secret Consent Policy:**
 > Secret entry is disabled by default for every new workspace. You choose between two secure workflows:
 > - **Secret-Deferred Draft:** Keep secret entry disabled. Configurator produces a draft file with clear placeholders marking where secrets must be supplied locally after export.
-> - **Explicit Consent:** Voluntarily enable secret entry for this workspace. Inputs are masked, and password manager autofill is supported. Revoking consent immediately flushes secrets from memory and invalidates staged outputs.
+> - **Explicit Consent:** Voluntarily enable secret entry for this workspace. Inputs are masked, and password manager autofill is supported. Revoking consent synchronously denies further secret access, removes secret answers and retained comparisons, and invalidates staged outputs. Owned byte buffers are cleared; managed strings and browser/runtime copies cannot be guaranteed physically erased. Exported files, clipboard contents and password-manager storage remain outside workspace clearing.
 
 ### Importing Existing Configuration
 
-Prefill answers by importing existing `.json`, `.yaml`, or `.env` configuration files:
+Use an ordinary local `.json`, `.yaml`, or `.env` export with the currently
+selected definition. No old definition, upload or target connection is needed.
 
-1. Under **Start from an existing configuration**, select an eligible declared artifact format.
-2. Choose a local file (up to 1 MiB) with top-level copy mappings.
-3. The engine parses the file and fills matching definition answers.
+1. Start the local workspace and accept its custody acknowledgment. Enable
+   **secret entry for this workspace** before choosing any configuration file,
+   even with a public-only definition: unknown or obsolete content may contain
+   secrets. Declined consent prevents reading, including malformed files.
+2. Under **Start from an existing configuration**, select the declared artifact
+   and keep the default purpose, **Compare with this definition**. The capability
+   summary distinguishes supported inspection from strict autofill. The local
+   input limit is **1 MiB**.
+3. Inspect **Imported file comparison**. Execution, compatibility, assessed
+   coverage, finding-inventory completion and file-level autofill eligibility
+   are separate facts. A stopped inventory reports a lower bound, not an exact
+   total. Missing required or invalid supplied settings have both error color
+   and severity text; they do not mark current workspace answers invalid.
+4. Use **Explain schema** for declared guidance. Imported row ordinals and
+   dynamic names never select current workspace rows or map entries.
+5. Choose **Fill fields from comparison** deliberately, or select **Fill fields**
+   before choosing a file. The shared form rechecks consent, current revision
+   and conflicts, then applies all eligible recovered answers in one change.
 
-Conflicting manual answers or unknown keys reject the entire import cleanly without altering your existing form state.
+Comparison does not change answers, valid or invalid drafts, origins, omissions
+or prepared output. It assesses represented file content, not historical renames,
+release provenance, live deployment state or target acceptance. Unrepresented
+settings are unassessed, not assumed supplied by initialization.
+
+File-level eligibility is distinct from permission to fill the current
+workspace. Explicit answers, omissions and pending drafts may refuse adoption;
+untouched initialization may be replaced. Unknown content, invalid values or
+structural output changes never produce a best-effort merge. Repair a
+**separate copy** under operator review and choose it again; preserve the source
+file. If current answers conflict, deliberately clear/reset the affected inputs
+before re-importing.
+
+Cancel, clear comparison, purpose/artifact changes, edits, consent revocation,
+workspace replacement, navigation and disposal retire old comparison authority.
+An empty answer form with a retained comparison still has private workspace
+custody and requires the normal discard confirmation. Files and reports remain
+local and transient, absent from public caches, storage, worker messages and
+network requests.
 
 ### Exporting & Downloading Files
 

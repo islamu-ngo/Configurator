@@ -13,6 +13,7 @@ using Microsoft.JSInterop;
 public partial class ConfigurationEditor
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
+    private Task<IJSObjectReference>? _comparisonRendering;
     [Inject] private BrowserOfflinePolicy Offline { get; set; } = null!;
     [Inject] private IServiceProvider Services { get; set; } = null!;
     [Inject] private AppearanceThemeService Appearance { get; set; } = null!;
@@ -33,6 +34,12 @@ public partial class ConfigurationEditor
     private string _status = "Supply ordinary settings. Secret entry is disabled.";
     private string _statusCode = "workspace-ready";
     private string _importArtifact = string.Empty;
+    private string _importPurpose = "compare";
+    private bool _importPending;
+    private bool _importConsentRequired;
+    private const int MaximumImportBytes = 1024 * 1024;
+    private IReadOnlyDictionary<string, DefinitionImportCapability> _importCapabilities =
+        new Dictionary<string, DefinitionImportCapability>();
     private string? _selectedSection;
     private string? _sectionLocale;
     private string DisplayDirection => Appearance.Current.Direction == "auto" ? _form!.Direction : Appearance.Current.Direction;
@@ -63,7 +70,6 @@ public partial class ConfigurationEditor
     private bool _compact;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
-    private DefinitionDiagnostic? _importDiagnostic;
     private BrowserNavigationState? _navigation;
     private long _navigationLease;
     private WorkspaceSearchState? _search;
@@ -77,6 +83,7 @@ public partial class ConfigurationEditor
         InvalidateMounts();
         Invalidate();
         _search?.Release(this, _searchLease);
+        if (_form is not null) _form.ImportComparisonChanged -= ImportComparisonChanged;
         _form?.Dispose();
         _activeWorkflowStage = "configure";
         _returnToReview = false;
@@ -84,8 +91,10 @@ public partial class ConfigurationEditor
         _focusField = null;
         _pinned = Definition;
         _compact = false;
-        ImportableArtifacts = Definition.Artifacts
-            .Where(artifact => DefinitionImport.CanImport(Definition, artifact.Id)).ToArray();
+        ImportArtifacts = Definition.Artifacts.ToArray();
+        _importCapabilities = ImportArtifacts.ToDictionary(artifact => artifact.Id,
+            artifact => DefinitionImport.GetCapability(Definition, artifact.Id), StringComparer.Ordinal);
+        _importPurpose = "compare";
         _ready = false;
         _beginPending = true;
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets, BrowserLaunchSelection.EditingCapabilities);
@@ -95,7 +104,8 @@ public partial class ConfigurationEditor
         _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;
         _form.ViewChanged += ViewChanged;
-        _importArtifact = ImportableArtifacts.FirstOrDefault()?.Id ?? string.Empty;
+        _form.ImportComparisonChanged += ImportComparisonChanged;
+        _importArtifact = ImportArtifacts.FirstOrDefault()?.Id ?? string.Empty;
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
         RegisterSearch();
@@ -124,7 +134,8 @@ public partial class ConfigurationEditor
     }
 
     private DefinitionFormExperience SelectedExperience => _form!.DisplayExperiences.Single(item => item.Id == _form.SelectedExperienceId);
-    private SetupArtifactDefinition[] ImportableArtifacts { get; set; } = [];
+    private SetupArtifactDefinition[] ImportArtifacts { get; set; } = [];
+    private DefinitionImportCapability? ImportCapability => _importCapabilities.GetValueOrDefault(_importArtifact);
     private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields, string? Description);
     private void IndexSections()
     {
@@ -188,26 +199,13 @@ public partial class ConfigurationEditor
         _returnToReview = false;
         SelectWorkflowStage("review");
     }
-    private void CorrectImportField(DefinitionDiagnostic diagnostic)
+    private void ReviewImportConsent() => _focusConsent = true;
+    private void ImportComparisonChanged(object? sender, EventArgs args)
     {
-        if (diagnostic.Code == "import-secret-consent-required")
-        {
-            _form!.ResetDiscovery();
-            _activeWorkflowStage = "configure";
-            _focusWorkflowStage = null;
-            _focusField = null;
-            _focusConsent = true;
-            return;
-        }
-        var entry = _form!.Projection.Entries.FirstOrDefault(item => item.FieldId == diagnostic.FieldId &&
-            item.RelativePath.SequenceEqual(diagnostic.RelativePath));
-        if (entry is { IsActive: false } && entry.ActiveControllerFields.Count > 0)
-            CorrectField(new("import-activation", entry.ActiveControllerFields[0]));
-        else CorrectField(diagnostic);
+        if (_disposed || !_ready || !ReferenceEquals(sender, _form) || _form!.ImportComparison is null) return;
+        // Publishing private comparison state renews custody, never answer-editor state.
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
     }
-    private string ImportCorrectionLabel(DefinitionDiagnostic diagnostic) =>
-        diagnostic.Code == "import-secret-consent-required" ? "Review secret-entry consent"
-            : "Review " + ConfigurationDiagnosticText.Title(Definition.Fields.Single(field => field.Id == diagnostic.FieldId));
     private async Task EnableSecretsAsync()
     {
         DefinitionFormModel form = _form!;
@@ -280,10 +278,99 @@ public partial class ConfigurationEditor
     {
         string? artifactId = args.Value?.ToString();
         if (!Definition.Artifacts.Any(item => item.Id == artifactId)) return;
-        Invalidate();
+        InvalidateImport();
         _importArtifact = artifactId!;
-        _status = "Import format changed. Previous output and pending import have been discarded.";
+        _status = "Artifact selection changed. Comparison discarded; answers and prepared output retained.";
         _statusCode = "import-format-changed";
+    }
+    private void ChangeImportPurpose(ChangeEventArgs args)
+    {
+        if (args.Value is not ("compare" or "fill")) return;
+        InvalidateImport();
+        _importPurpose = (string)args.Value;
+        _status = "Import purpose changed. Comparison discarded; answers and prepared output retained.";
+        _statusCode = "import-purpose-changed";
+    }
+    private void ClearComparison()
+    {
+        InvalidateImport();
+        _status = "Comparison cleared or cancelled. Answers and prepared output retained.";
+        _statusCode = "import-cleared";
+        _restoreFocus = true;
+    }
+    private void ClearComparison(DefinitionImportReport report)
+    {
+        if (ReferenceEquals(_form?.ImportComparison, report)) ClearComparison();
+    }
+    private void CancelComparison(long generation)
+    {
+        if (generation == _generation) ClearComparison();
+    }
+    private async Task AdoptComparison(DefinitionImportReport report)
+    {
+        if (_importPending) return;
+        var cancellation = new CancellationTokenSource();
+        _readCancellation = cancellation;
+        _importPending = true;
+        StateHasChanged();
+        try { await AdoptComparisonAsync(report, cancellation.Token); }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        finally
+        {
+            if (ReferenceEquals(_readCancellation, cancellation))
+            {
+                _readCancellation = null;
+                _importPending = false;
+            }
+            cancellation.Dispose();
+            if (!_disposed) StateHasChanged();
+        }
+    }
+    private async Task AdoptComparisonAsync(DefinitionImportReport report, CancellationToken cancellationToken)
+    {
+        if (_disposed || !_ready || !ReferenceEquals(_form!.ImportComparison, report)) return;
+        DefinitionFormModel form = _form!;
+        long generation = _generation;
+        long revision = form.InputRevision;
+        await YieldComparisonAsync(cancellationToken);
+        DefinitionImportResult result = await form.AdoptImportComparisonAsync(YieldComparisonAsync, cancellationToken);
+        if (_disposed || !_ready || !ReferenceEquals(form, _form)) return;
+        // Adoption itself raises InputChanged, retiring this operation exactly once.
+        if (result.Succeeded
+            ? _generation != generation + 1 || form.InputRevision != revision + 1
+            : _generation != generation || cancellationToken.IsCancellationRequested) return;
+        _statusCode = result.Succeeded ? "imported" : result.Code;
+        _status = result.Succeeded ? "Eligible file answers filled atomically. Review current workspace readiness before preparation."
+            : "Autofill refused (" + result.Code + "). No answers changed. Review the comparison and repair a separate copy or deliberately clear conflicting workspace inputs, then re-import.";
+        if (result.Succeeded) { ++_fileKey; _restoreFocus = true; }
+    }
+    private async ValueTask YieldComparisonAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./configuration-rendering.js").AsTask();
+        IJSObjectReference module = await _comparisonRendering;
+        cancellationToken.ThrowIfCancellationRequested();
+        await module.InvokeVoidAsync("nextTask");
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+    private bool CanReadImport()
+    {
+        if (_disposed || !_ready) return false;
+        if (_form!.SessionPrivacy != DefinitionSessionPrivacy.BrowserSecretsEnabled)
+        {
+            _importConsentRequired = true;
+            _status = "File not read (import-secret-consent-required). Enable secret entry for this workspace before reading any configuration file, including unknown or malformed content.";
+            _statusCode = "import-secret-consent-required";
+            return false;
+        }
+        if (ImportCapability is not { InspectionSupported: true } ||
+            _importPurpose == "fill" && !ImportCapability.StrictAutofillSupported)
+        {
+            _status = "File not read. The selected artifact does not support this import purpose.";
+            _statusCode = ImportCapability?.Code ?? "inverse-unsupported";
+            return false;
+        }
+        return true;
     }
     private async Task ConsentAsync(ChangeEventArgs args)
     {
@@ -403,6 +490,8 @@ public partial class ConfigurationEditor
     }
     private async Task CopyAsync(PreparedArtifact artifact)
     {
+        if (!_prepared.Contains(artifact)) return;
+        InvalidateImport();
         bool copied = await artifact.Export.CopyAsync();
         if (!_prepared.Contains(artifact)) return;
         _status = copied ? "Current artifact copied. Clipboard contents remain outside this workspace." : "Clipboard unavailable or denied. Use Download instead.";
@@ -410,12 +499,16 @@ public partial class ConfigurationEditor
     }
     private async Task DownloadAsync(PreparedArtifact artifact)
     {
+        if (!_prepared.Contains(artifact)) return;
+        InvalidateImport();
         bool downloaded = await artifact.Export.DownloadAsync(artifact.Metadata.FileName!, artifact.Metadata.MediaType!);
         if (!_prepared.Contains(artifact)) return;
         _status = downloaded ? $"Download requested as {artifact.Metadata.FileName}. If your browser changes the filename, rename it to this declared name. Protect the downloaded file on your device." : "Download could not start. Prepare current output again.";
     }
     private async Task RevealAsync(PreparedArtifact artifact)
     {
+        if (!_prepared.Contains(artifact)) return;
+        InvalidateImport();
         if (artifact.Revealed)
         {
             await artifact.Export.InvalidateAsync();
@@ -432,59 +525,101 @@ public partial class ConfigurationEditor
         artifact.Revealed = revealed;
         _status = revealed ? "Private preview revealed. Hide or clear it when finished." : "Preview unavailable. Use Download instead.";
     }
-    private async Task ImportAsync(InputFileChangeEventArgs args)
-    {
-        try
+    private Task ImportAsync(InputFileChangeEventArgs args) =>
+        LoadAsync(async (buffer, token) =>
         {
-            await using Stream stream = args.File.OpenReadStream(1024 * 1024);
-            await LoadAsync(stream);
+            await using Stream stream = args.File.OpenReadStream(MaximumImportBytes, token);
+            return await ReadBoundedAsync(stream, buffer, token);
+        });
+
+    public Task LoadAsync(Stream stream) =>
+        LoadAsync((buffer, token) => ReadBoundedAsync(stream, buffer, token));
+
+    private static async Task<int> ReadBoundedAsync(Stream stream, Memory<byte> buffer, CancellationToken token)
+    {
+        int length = 0;
+        while (length < buffer.Length)
+        {
+            int read = await stream.ReadAsync(buffer[length..], token);
+            if (read == 0) break;
+            length += read;
         }
-        catch (IOException) { _status = "Import rejected: file exceeds the limit or cannot be read."; _statusCode = "import-rejected"; }
-        finally { ++_fileKey; _restoreFocus = true; }
+        return length;
     }
-    public async Task LoadAsync(Stream stream)
+    private async Task LoadAsync(Func<Memory<byte>, CancellationToken, Task<int>> read)
     {
         if (_disposed || !_ready) return;
+        InvalidateImport(releaseFileControl: false);
+        if (!CanReadImport())
+        {
+            ++_fileKey;
+            _restoreFocus = true;
+            StateHasChanged();
+            return;
+        }
         DefinitionFormModel form = _form!;
-        long generation = _generation + 1;
-        await InvalidateOutputAsync();
-        if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
+        string artifactId = _importArtifact;
+        string purpose = _importPurpose;
+        long generation = _generation;
         var cancellation = new CancellationTokenSource();
         _readCancellation = cancellation;
-        byte[] buffer = new byte[1024 * 1024 + 1];
+        byte[] buffer = new byte[MaximumImportBytes + 1];
         _readBuffer = buffer;
+        _importPending = true;
+        bool tooLarge = false;
+        StateHasChanged();
         try
         {
-            int length = 0;
-            while (length < buffer.Length)
+            await YieldComparisonAsync(cancellation.Token);
+            var result = await form.CompareAsync(artifactId, async token =>
             {
-                int read = await stream.ReadAsync(buffer.AsMemory(length), cancellation.Token);
-                if (read == 0) break;
-                length += read;
+                int length = await read(buffer, token);
+                if (length > MaximumImportBytes)
+                {
+                    tooLarge = true;
+                    throw new IOException();
+                }
+                return buffer.AsMemory(0, length);
+            }, YieldComparisonAsync, cancellation.Token);
+            // Paint the detached report before remounting the file control and restoring focus.
+            if (result.Succeeded) await YieldComparisonAsync(cancellation.Token);
+            if (_disposed || !_ready || !ReferenceEquals(form, _form) || generation != _generation ||
+                cancellation.IsCancellationRequested) return;
+            if (tooLarge)
+            {
+                _status = "File rejected: maximum size is 1 MiB. Answers and prepared output retained.";
+                _statusCode = "import-too-large";
+                return;
             }
-            if (_disposed || !_ready || generation != _generation || cancellation.IsCancellationRequested) return;
-            if (length > 1024 * 1024) { _status = "Import rejected: maximum size is 1 MiB."; _statusCode = "import-too-large"; return; }
-            var result = await form.ImportAsync(_importArtifact, _ => Task.FromResult<ReadOnlyMemory<byte>>(buffer.AsMemory(0, length)), cancellation.Token);
-            if (_disposed || !_ready || !ReferenceEquals(form, _form) || generation != _generation && !result.Succeeded) return;
-            _importDiagnostic = result.Diagnostic;
-            _status = result.Succeeded ? "Artifact imported into this local workspace." : result.Code switch
+            _statusCode = result.Code;
+            _status = result.Succeeded
+                ? "Imported file comparison completed. Answers, drafts and prepared output are unchanged; target acceptance is not assessed."
+                : "Comparison refused (" + result.Code + "). No answers changed. Check the declared format and repair a separate copy before re-importing.";
+            if (result.Succeeded && purpose == "fill")
             {
-                "answer-conflict" => "Import rejected (answer-conflict). Existing answers differ from the file. Clear the conflicting fields before importing; existing answers are preserved.",
-                "inverse-unsupported" => "Import rejected (inverse-unsupported). This declared artifact has no supported reverse mapping. Recreate its settings with the typed controls.",
-                "import-secret-consent-required" => "Import rejected (import-secret-consent-required). Explicitly enable secret entry for this workspace or remove secret values from the file.",
-                _ => $"Import rejected ({result.Code}). Check the declared format and field values. Existing answers are preserved."
-            };
-            _statusCode = result.Succeeded ? "imported" : result.Code;
+                await AdoptComparisonAsync(result.Report!, cancellation.Token);
+            }
         }
         catch (Exception exception) when (exception is IOException or OperationCanceledException or InvalidOperationException or SetupDefinitionException)
         {
-            if (generation == _generation) { _status = "Import rejected or cancelled."; _statusCode = "import-rejected"; }
+            if (generation == _generation && ReferenceEquals(form, _form))
+            {
+                form.ClearImportComparison();
+                _status = "Comparison could not finish. No answers changed; repair a separate copy or choose the file again.";
+                _statusCode = "import-read-failed";
+            }
         }
         finally
         {
             CryptographicOperations.ZeroMemory(buffer);
             if (ReferenceEquals(_readBuffer, buffer)) _readBuffer = null;
-            if (ReferenceEquals(_readCancellation, cancellation)) _readCancellation = null;
+            if (ReferenceEquals(_readCancellation, cancellation))
+            {
+                _readCancellation = null;
+                _importPending = false;
+                ++_fileKey;
+                _restoreFocus = true;
+            }
             cancellation.Dispose();
             if (!_disposed) await InvokeAsync(StateHasChanged);
         }
@@ -541,19 +676,27 @@ public partial class ConfigurationEditor
     public void Invalidate() => _ = InvalidateOutputAsync();
     private Task InvalidateOutputAsync()
     {
-        ++_generation;
-        _readCancellation?.Cancel();
-        if (_readBuffer is not null) CryptographicOperations.ZeroMemory(_readBuffer);
-        _readBuffer = null;
+        InvalidateImport();
         PreparedArtifact[] previous = _prepared.ToArray();
         _prepared.Clear();
         _diagnostics.Clear();
         _validation = null;
-        _importDiagnostic = null;
         // Start every retirement before awaiting any JS cleanup. Each owner
         // revokes its workspace, bytes and generation synchronously.
         Task[] retirements = previous.Select(prepared => prepared.DisposeAsync().AsTask()).ToArray();
         return _outputRetirement = ObserveRetirementAsync(retirements);
+    }
+    private void InvalidateImport(bool releaseFileControl = true)
+    {
+        ++_generation;
+        _readCancellation?.Cancel();
+        _readCancellation = null;
+        if (_readBuffer is not null) CryptographicOperations.ZeroMemory(_readBuffer);
+        _readBuffer = null;
+        _importPending = false;
+        _importConsentRequired = false;
+        _form?.ClearImportComparison();
+        if (releaseFileControl) ++_fileKey;
     }
     private async Task ObserveRetirementAsync(Task[] retirements)
     {
@@ -590,6 +733,7 @@ public partial class ConfigurationEditor
         Task retirement = _outputRetirement;
         _ready = false;
         _search?.Release(this, _searchLease);
+        form.ImportComparisonChanged -= ImportComparisonChanged;
         form.Dispose();
         if (!_disposed && ReferenceEquals(form, _form))
         {
@@ -598,6 +742,7 @@ public partial class ConfigurationEditor
             IndexSections();
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;
+            _form.ImportComparisonChanged += ImportComparisonChanged;
             RegisterSearch();
             _activeWorkflowStage = "configure";
             _requiredCount = _form.Projection.Progress.Required;
@@ -619,11 +764,17 @@ public partial class ConfigurationEditor
         _search?.Release(this, _searchLease);
         _ready = false;
         long lease = _offlineLease;
+        if (_form is not null) _form.ImportComparisonChanged -= ImportComparisonChanged;
         _form?.Dispose();
         _session.Dispose();
         await Task.WhenAll(retirement, InvalidateOutputAsync());
         await Offline.EndWorkspaceAsync(lease);
         _navigation?.Release(this, navigationLease);
+        if (_comparisonRendering is not null)
+        {
+            IJSObjectReference module = await _comparisonRendering;
+            await module.DisposeAsync();
+        }
         GC.SuppressFinalize(this);
     }
     private sealed class PreparedArtifact : IAsyncDisposable

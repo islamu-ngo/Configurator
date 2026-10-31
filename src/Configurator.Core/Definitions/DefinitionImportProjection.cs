@@ -24,13 +24,12 @@ internal sealed class DefinitionImportProjection
         _selectorValue = selectorValue;
     }
 
-    internal static bool TryCompile(SetupDefinition definition, string artifactId, DefinitionImportWork work,
-        out DefinitionImportProjection? result, out string code)
+    internal static async ValueTask<(DefinitionImportProjection? Projection, string Code)> CompileAsync(
+        SetupDefinition definition, string artifactId, DefinitionImportWork work)
     {
-        result = null;
-        code = "import-unsupported";
+        string code = "import-unsupported";
         SetupArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
-        if (artifact is null || artifact.Format is not ("json" or "yaml" or "dotenv")) return false;
+        if (artifact is null || artifact.Format is not ("json" or "yaml" or "dotenv")) return (null, code);
         code = "inverse-unsupported";
         bool ambiguous = false;
         DefinitionPath? selector = null;
@@ -39,35 +38,33 @@ internal sealed class DefinitionImportProjection
         try
         {
             JsonElement projection = artifact.Projection;
-            if (artifact.Format == "dotenv" && projection.GetProperty("op").GetString() != "object") return false;
+            if (artifact.Format == "dotenv" && projection.GetProperty("op").GetString() != "object") return (null, code);
             if (projection.TryGetProperty("when", out JsonElement condition))
             {
                 if (condition.GetProperty("op").GetString() != "equals" ||
-                    condition.GetProperty("reference").GetProperty("scope").GetString() != "root") return false;
+                    condition.GetProperty("reference").GetProperty("scope").GetString() != "root") return (null, code);
                 selector = DefinitionPath.Parse(condition.GetProperty("reference").GetProperty("path").GetString()!);
-                if (selector.Segments.Count != 1) return false;
+                if (selector.Segments.Count != 1) return (null, code);
                 DefinitionNode? selected = SourceNode(definition.Configuration, selector, out _, out bool publicPath);
                 selectorValue = condition.GetProperty("value");
                 if (selected is null || !publicPath || selected.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence ||
                     selected.Keywords.TryGetProperty("x-configurator", out var metadata) && metadata.TryGetProperty("applicableWhen", out _) ||
-                    !DefinitionValidator.ValueValid(selected, selectorValue)) return false;
+                    !DefinitionValidator.ValueValid(selected, selectorValue)) return (null, code);
                 assignments.Add(selector);
             }
-            Instruction? root = Compile(projection, definition.Configuration, false, assignments, DefinitionPath.Parse(""), true);
+            Instruction? root = await Compile(projection, definition.Configuration, false, assignments, DefinitionPath.Parse(""), true);
             if (ambiguous) code = "inverse-ambiguous";
-            if (root is null) return false;
+            if (root is null) return (null, code);
             // The existing YAML codec admits object documents, not scalar/sequence documents.
-            if (artifact.Format == "yaml" && projection.GetProperty("op").GetString() is not ("object" or "copy")) return false;
-            result = new(artifact, root, selector, selectorValue);
-            code = "inverse-supported";
-            return true;
+            if (artifact.Format == "yaml" && projection.GetProperty("op").GetString() is not ("object" or "copy")) return (null, code);
+            return (new(artifact, root, selector, selectorValue), "inverse-supported");
         }
-        catch (SetupDefinitionException exception) when (exception.Code == "path-limit") { return false; }
+        catch (SetupDefinitionException exception) when (exception.Code == "path-limit") { return (null, code); }
 
-        Instruction? Compile(JsonElement projection, DefinitionNode scope, bool item,
+        async ValueTask<Instruction?> Compile(JsonElement projection, DefinitionNode scope, bool item,
             List<DefinitionPath> assigned, DefinitionPath target, bool root = false)
         {
-            work.Inverse();
+            await work.InverseAsync();
             if (!root && projection.TryGetProperty("when", out _)) return null;
             string op = projection.GetProperty("op").GetString()!;
             var children = new List<(string, Instruction)>();
@@ -83,7 +80,7 @@ internal sealed class DefinitionImportProjection
                 if (schema is null) return null;
                 foreach (DefinitionPath prior in assigned)
                 {
-                    work.Inverse();
+                    await work.InverseAsync();
                     if (!IsPrefix(prior, path) && !IsPrefix(path, prior)) continue;
                     ambiguous = true;
                     return null;
@@ -107,7 +104,7 @@ internal sealed class DefinitionImportProjection
                     if (artifact.Format == "dotenv" && target.Segments.Count != 0) return null;
                     foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
                     {
-                        Instruction? child = Compile(member.Value, scope, item, assigned,
+                        Instruction? child = await Compile(member.Value, scope, item, assigned,
                             DefinitionPath.FromSegments(target.Segments.Append(member.Name)));
                         if (child is null) return null;
                         children.Add((member.Name, child));
@@ -119,7 +116,7 @@ internal sealed class DefinitionImportProjection
                     foreach (JsonElement entry in projection.GetProperty("items").EnumerateArray())
                     {
                         string ordinal = (index++).ToString(CultureInfo.InvariantCulture);
-                        Instruction? child = Compile(entry, scope, item, assigned,
+                        Instruction? child = await Compile(entry, scope, item, assigned,
                             DefinitionPath.FromSegments(target.Segments.Append(ordinal)));
                         // Omitted list elements shift every subsequent position.
                         if (child is null || !child.AlwaysEmitted) return null;
@@ -129,7 +126,7 @@ internal sealed class DefinitionImportProjection
                 case "repeat":
                     if (schema!.Type != DefinitionNodeType.Sequence || schema.IsNullable) return null;
                     var rowAssignments = new List<DefinitionPath>();
-                    Instruction? row = Compile(projection.GetProperty("item"), schema.Items!, true, rowAssignments,
+                    Instruction? row = await Compile(projection.GetProperty("item"), schema.Items!, true, rowAssignments,
                         DefinitionPath.FromSegments(target.Segments.Append("0")));
                     if (row is null || !row.AlwaysEmitted || rowAssignments.Count == 0 ||
                         row.Path?.Segments.Count != 0 && (schema.Items!.Type != DefinitionNodeType.Mapping || schema.Items.IsNullable))
@@ -142,8 +139,8 @@ internal sealed class DefinitionImportProjection
         }
     }
 
-    internal DefinitionImportEvidence Recover(SetupDefinition definition, JsonElement input,
-        DefinitionImportWork work, Action<DefinitionImportFinding> finding)
+    internal async ValueTask<DefinitionImportEvidence> RecoverAsync(SetupDefinition definition, JsonElement input,
+        DefinitionImportWork work, Func<DefinitionImportFinding, ValueTask> finding)
     {
         var assignments = new Dictionary<DefinitionPath, JsonElement>();
         var observations = new Dictionary<DefinitionPath, DefinitionImportObservation>();
@@ -151,19 +148,27 @@ internal sealed class DefinitionImportProjection
         {
             assignments.Add(_selector, _selectorValue);
             observations.Add(_selector, new(DefinitionImportObservationState.ContextDerivedValue, true, true, null));
-            finding(new(DefinitionImportFindingKind.ContextDerivedValue, "context-derived", null, SchemaLocation(definition, _selector)));
+            await finding(new(DefinitionImportFindingKind.ContextDerivedValue, "context-derived", null, SchemaLocation(definition, _selector)));
         }
-        Walk(_root, input, true, [], DefinitionPath.Parse(""), assignments, null);
-        JsonElement recovered = Build(assignments);
-        if (recovered.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("input-invalid");
-        var snapshot = new SetupAnswerSnapshot(0, recovered.EnumerateObject()
-            .ToDictionary(member => member.Name, member => member.Value, StringComparer.Ordinal));
+        await Walk(_root, input, true, [], DefinitionPath.Parse(""), assignments, null);
+        Dictionary<string, JsonElement> values;
+        if (assignments.Keys.All(path => path.Segments.Count == 1))
+            values = assignments.ToDictionary(pair => pair.Key.Segments[0], pair => pair.Value, StringComparer.Ordinal);
+        else
+        {
+            JsonElement recovered = Build(assignments);
+            if (recovered.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("input-invalid");
+            values = recovered.EnumerateObject().ToDictionary(member => member.Name, member => member.Value, StringComparer.Ordinal);
+        }
+        SetupAnswerSnapshot snapshot = work.CooperativeYield is { } cooperativeYield
+            ? await SetupAnswerSnapshot.CreateAsync(0, values, null, cooperativeYield, work.CancellationToken)
+            : new(0, values);
         return new(snapshot, assignments.Keys.ToArray(), observations);
 
-        void Walk(Instruction instruction, JsonElement value, bool present, int[] source,
+        async ValueTask Walk(Instruction instruction, JsonElement value, bool present, int[] source,
             DefinitionPath scope, Dictionary<DefinitionPath, JsonElement> target, int? row)
         {
-            work.Inverse();
+            await work.InverseAsync();
             string op = instruction.Projection.GetProperty("op").GetString()!;
             DefinitionPath? concrete = instruction.Path is null ? null
                 : DefinitionPath.FromSegments(scope.Segments.Concat(instruction.Path.Segments));
@@ -174,7 +179,7 @@ internal sealed class DefinitionImportProjection
                 {
                     if (DefinitionImport.TryDotenvValue(instruction.Schema!, value.GetString()!, out JsonElement converted))
                         value = converted;
-                    else finding(new(DefinitionImportFindingKind.InvalidSuppliedValue, "value-invalid",
+                    else await finding(new(DefinitionImportFindingKind.InvalidSuppliedValue, "value-invalid",
                         origin, SchemaLocation(definition, concrete!)));
                 }
                 observations[concrete!] = new(present ? DefinitionImportObservationState.ObservedValue
@@ -182,7 +187,7 @@ internal sealed class DefinitionImportProjection
                 if (present)
                 {
                     target.Add(instruction.Path!, value);
-                    Account(instruction.Schema!, value, concrete!, source);
+                    await Account(instruction.Schema!, value, concrete!, source);
                 }
                 return;
             }
@@ -193,7 +198,7 @@ internal sealed class DefinitionImportProjection
                     observations[concrete!] = new(DefinitionImportObservationState.ObservedAbsence, true, true, origin);
                     return;
                 }
-                if (value.ValueKind != JsonValueKind.Array) { Structural(); return; }
+                if (value.ValueKind != JsonValueKind.Array) { await Structural(); return; }
                 observations[concrete!] = new(DefinitionImportObservationState.ObservedValue, false, true, origin);
                 var rows = new JsonArray();
                 int index = 0;
@@ -203,7 +208,7 @@ internal sealed class DefinitionImportProjection
                     DefinitionPath rowPath = DefinitionPath.FromSegments(concrete!.Segments.Append(index.ToString(CultureInfo.InvariantCulture)));
                     observations[rowPath] = new(DefinitionImportObservationState.ObservedValue, false, false,
                         new DefinitionImportSourceLocation([.. source, index]));
-                    Walk(instruction.Children[0].Child, element, true, [.. source, index], rowPath, rowValues, index);
+                    await Walk(instruction.Children[0].Child, element, true, [.. source, index], rowPath, rowValues, index);
                     rows.Add(JsonNode.Parse(Build(rowValues).GetRawText()));
                     index++;
                 }
@@ -217,43 +222,43 @@ internal sealed class DefinitionImportProjection
                     JsonElement expected = instruction.Projection.GetProperty("value");
                     if (Artifact.Format == "dotenv" && expected.ValueKind != JsonValueKind.String)
                         expected = JsonSerializer.SerializeToElement(expected.GetRawText());
-                    if (!present || !JsonElement.DeepEquals(value, expected)) Structural();
+                    if (!present || !JsonElement.DeepEquals(value, expected)) await Structural();
                 }
                 else if (!present || value.ValueKind != JsonValueKind.Number ||
-                    !value.TryGetInt32(out int ordinal) || ordinal != row) Structural();
+                    !value.TryGetInt32(out int ordinal) || ordinal != row) await Structural();
                 return;
             }
             if (op == "object")
             {
-                if (!present || value.ValueKind != JsonValueKind.Object) { Structural(); return; }
+                if (!present || value.ValueKind != JsonValueKind.Object) { await Structural(); return; }
                 var members = value.EnumerateObject().Select((member, index) => (member, index))
                     .ToDictionary(entry => entry.member.Name, StringComparer.Ordinal);
                 foreach ((string name, Instruction child) in instruction.Children)
                 {
                     bool exists = members.Remove(name, out var entry);
-                    Walk(child, exists ? entry.member.Value : default, exists,
+                    await Walk(child, exists ? entry.member.Value : default, exists,
                         exists ? [.. source, entry.index] : source, scope, target, row);
                 }
                 foreach (var entry in members.Values)
-                    finding(new(DefinitionImportFindingKind.UnrecognizedInput, "input-unrecognized",
+                    await finding(new(DefinitionImportFindingKind.UnrecognizedInput, "input-unrecognized",
                         new DefinitionImportSourceLocation([.. source, entry.index]), null));
                 return;
             }
             if (!present || value.ValueKind != JsonValueKind.Array || value.GetArrayLength() != instruction.Children.Count)
             {
-                Structural();
+                await Structural();
                 return;
             }
             for (int index = 0; index < instruction.Children.Count; index++)
-                Walk(instruction.Children[index].Child, value[index], true, [.. source, index], scope, target, row);
+                await Walk(instruction.Children[index].Child, value[index], true, [.. source, index], scope, target, row);
 
-            void Structural() => finding(new(DefinitionImportFindingKind.StructuralOutputChange, "output-structure",
+            ValueTask Structural() => finding(new(DefinitionImportFindingKind.StructuralOutputChange, "output-structure",
                 origin, concrete is null ? null : SchemaLocation(definition, concrete)));
         }
 
-        void Account(DefinitionNode schema, JsonElement value, DefinitionPath path, int[] source)
+        async ValueTask Account(DefinitionNode schema, JsonElement value, DefinitionPath path, int[] source)
         {
-            work.Inverse();
+            await work.InverseAsync();
             observations[path] = new(DefinitionImportObservationState.ObservedValue, true, true,
                 new DefinitionImportSourceLocation(source));
             if (schema.Variants.Count > 0)
@@ -273,9 +278,9 @@ internal sealed class DefinitionImportProjection
                         if (child is not null) mapEntries.Add(member.Name);
                     }
                     if (child is null)
-                        finding(new(DefinitionImportFindingKind.UnrecognizedInput, "value-unrecognized",
+                        await finding(new(DefinitionImportFindingKind.UnrecognizedInput, "value-unrecognized",
                             new DefinitionImportSourceLocation([.. source, index]), null));
-                    else Account(child, member.Value, DefinitionPath.FromSegments(path.Segments.Append(member.Name)),
+                    else await Account(child, member.Value, DefinitionPath.FromSegments(path.Segments.Append(member.Name)),
                         [.. source, index]);
                     index++;
                 }
@@ -290,7 +295,7 @@ internal sealed class DefinitionImportProjection
                 int index = 0;
                 foreach (JsonElement item in value.EnumerateArray())
                 {
-                    Account(schema.Items!, item, DefinitionPath.FromSegments(path.Segments.Append(
+                    await Account(schema.Items!, item, DefinitionPath.FromSegments(path.Segments.Append(
                         index.ToString(CultureInfo.InvariantCulture))), [.. source, index]);
                     index++;
                 }

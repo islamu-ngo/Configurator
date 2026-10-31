@@ -89,10 +89,17 @@ public sealed class BrowserTypedPrivacyTests
             {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
               "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"sensitive","detail":"standard"}}}}
             """)));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long before = form.InputRevision;
         var read = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task<DefinitionImportResult> import = form.ImportAsync("config", _ => read.Task);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<DefinitionImportResult> import = form.ImportAsync("config", _ =>
+        {
+            entered.SetResult();
+            return read.Task;
+        });
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await component.Find("[data-field='settings.enabled'] input").InputAsync(new ChangeEventArgs { Value = "invalid" });
         read.SetResult("""{"mode":"single","hostname":"late.example","credential":"synthetic"}"""u8.ToArray());
         await Assert.That(form.InputRevision).IsEqualTo(before + 1);

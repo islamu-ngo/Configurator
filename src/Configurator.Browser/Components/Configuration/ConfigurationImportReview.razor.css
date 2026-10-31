@@ -1,0 +1,34 @@
+.configuration-import-review {
+    border: var(--isl-card-border);
+    border-radius: var(--isl-radius-card);
+    padding: var(--isl-space-4);
+    margin-block: var(--isl-space-4);
+    overflow-wrap: anywhere;
+}
+.configuration-import-review__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--isl-space-4);
+}
+.configuration-import-review__facts > div { flex: 1 1 auto; min-inline-size: 0; }
+.configuration-import-review__facts dd { margin-inline: 0; }
+.configuration-import-review__findings { list-style: none; padding: 0; }
+.configuration-import-review__finding {
+    padding-block: var(--isl-space-3);
+    border-block-end: var(--isl-card-border);
+}
+.configuration-import-review__finding-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--isl-space-3);
+}
+.configuration-import-review__finding-heading > strong { min-inline-size: 0; }
+.configuration-import-review__finding--blocking .configuration-import-review__finding-heading > strong { color: var(--isl-color-error); }
+.configuration-import-review__explanation {
+    border: var(--isl-card-border);
+    border-radius: var(--isl-radius-card);
+    padding: var(--isl-space-4);
+    margin-block: var(--isl-space-4);
+}

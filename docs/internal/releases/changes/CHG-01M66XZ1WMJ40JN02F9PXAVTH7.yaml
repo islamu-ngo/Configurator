@@ -1,0 +1,29 @@
+Change-Id: CHG-01M66XZ1WMJ40JN02F9PXAVTH7
+Title: "Separate browser comparison from deliberate autofill"
+Type: feat
+Scope: browser
+Summary: "Expose local comparison before atomic autofill and migrate comparison callers to the cooperative callback and named cancellation argument contract."
+Group: artifact-import-comparison
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "DefinitionFormModel.CompareAsync now accepts the optional cooperativeYield callback before cancellationToken. Callers passing the former third positional cancellation token must use cancellationToken by name or supply the callback first. No compatibility overload is retained."
+  Security:
+    Reference: docs/SECURITY_OVERVIEW.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Update interactive comparison callers to the current callback and cancellation signature. The shared generation owner still fences publication and deliberate adoption."
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Local import defaults to comparison without changing answers or drafts. Explicit consent precedes every read, and deliberate Fill fields remains a separate atomic action."
