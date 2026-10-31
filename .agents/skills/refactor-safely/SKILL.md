@@ -22,9 +22,13 @@ priority: high
 - Use LSP rename for symbols when available. Preview every rename/move and keep generated artifacts under their owning generator.
 - A record/class conversion must classify identity, construction, equality, collection ownership, serialization, PATCH presence, HAL behavior, framework mutation, and diagnostic privacy.
 - Change the innermost owning contract first and migrate every caller outward. Do not create duplicate DTOs, transitional aliases, public setters, or legacy generated clients.
-- Generated C# contracts change through `eng/tools/Explore.GeneratedContracts` and MSBuild, never by editing `EventApiClient.g.cs`.
+- Generated contracts change through their actual owning source/generator in `PROJECTS.md`, never by hand-editing outputs. `eng/tools/Explore.GeneratedContracts` and `EventApiClient.g.cs` are historical Event examples, not target owners.
 - Stop and re-baseline when impact evidence reveals feature behavior rather than a structural transformation.
 - **The Expand–Contract Protocol for Wide Refactors**:
+  Historical deployment recipe only: Configurator is unreleased and rejects
+  compatibility shims. Migrate actual callers together in coherent slices.
+  The following source-system protocol applies only to an explicitly authorized
+  rolling-deployment contract, not by default:
   When a mechanical refactor (e.g. renaming a database column, converting an aggregate identity to UUIDv7, modifying a shared CQS request/result shape) has a blast radius too wide for a single atomic PR:
   1. **Phase 1 (Expand)**: Introduce the new model, property, or handler method alongside the existing one without breaking or modifying old call sites. Ensure build and tests stay green.
   2. **Phase 2 (Migrate in Batches)**: Migrate callers and tests in bounded slices (per feature directory or layer), keeping CI green at every batch because the old form remains functional.

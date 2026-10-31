@@ -5,6 +5,10 @@
 
 # Fix Patterns
 
+Historical backend recipes only. Resolve the target owner in `PROJECTS.md`
+before applying a dependency inversion; do not introduce absent layers or
+single-use abstractions merely to match the following source-system examples.
+
 ## Core Fixes
 - Move business rules from controllers → Application/Domain.
 - Replace direct DbContext access in Application → repository interface.

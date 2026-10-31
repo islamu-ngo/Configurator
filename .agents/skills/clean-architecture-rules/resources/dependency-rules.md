@@ -5,6 +5,10 @@
 
 # Dependency Rules
 
+Historical Event layer reference only. For Configurator use `PROJECTS.md` and
+the active skill's Core/Presentation/Artifacts/client boundaries; do not infer
+that Browser may reference all layers from the composition-root example below.
+
 ## Allowed References (Required)
 - **Domain** → none
 - **Application** → Domain only

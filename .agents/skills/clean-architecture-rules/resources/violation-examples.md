@@ -5,6 +5,10 @@
 
 # Common Violations
 
+Historical Event examples: the complete code and automatic architecture-test
+claims below describe the source system, not target enforcement. Transfer the
+dependency-direction reasoning only after checking actual Configurator owners.
+
 ## 1. Domain References EF Core or Application
 
 ```csharp

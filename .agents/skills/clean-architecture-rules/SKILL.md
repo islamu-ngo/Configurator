@@ -1,6 +1,6 @@
 ---
 name: clean-architecture-rules
-description: "Load for cross-layer refactors, record/class or value-object migrations, new services/interfaces/repositories, project references, dependency-direction failures, or deciding whether code belongs in Domain, Application, Persistence/Infrastructure, API, or Blazor; not for a local edit wholly inside an established layer pattern."
+description: "Load for Configurator cross-owner refactors, immutable contract changes, project references or dependency-direction failures among Core, Presentation, Artifacts and clients; not for a local edit inside an established owner."
 type: guardrail
 enforcement: block
 priority: critical
@@ -18,6 +18,22 @@ priority: critical
 - [Quick reference](../../../docs/internal/QUICK_REFERENCE.md) — load for global repository invariants.
 
 ## Rules
+
+- Clients adapt Presentation/Artifacts/Core; Browser uses browser-safe
+  Presentation/Core, never native Artifacts. Core has no Event dependency.
+- Place bounded admission, validation and preparation in Core; immutable
+  workspaces and operation generations in Presentation; protected native
+  create-only writes in Artifacts. Clients do not acquire target apply authority.
+- Trace actual callers and sinks before moving a contract. Select class/record
+  semantics from identity, equality and ownership, not a blanket conversion.
+- Use the affected-owner checks from `PROJECTS.md`; package/boundary checks
+  apply at relevant workstream exit, not to every prose change.
+
+## Historical Event Layer Contracts
+
+The Domain/Application/Persistence/API rules, workflow, commands and related
+backend skills below preserve transferred design depth. They are reference-only
+and do not create missing target layers, generators, validators or services.
 
 - Domain has no external framework dependency. Entities and lifecycle objects remain classes; small self-contained values may use `readonly record struct`, and reference-bearing immutable value data may use sealed records.
 - Application references Domain only. Concrete native CQS requests default to sealed records, while valid-state command results use their existing named factories.

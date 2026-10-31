@@ -5,6 +5,10 @@
 
 # Layer Responsibilities
 
+Historical backend placement guide only. The target uses Core, Presentation,
+Artifacts and clients, not the absent layers listed below. Preserve the
+separation reasoning without creating repositories, HTTP or email services.
+
 ## Decision Guide
 - **Domain**: business rules, entities, value objects.
 - **Application**: use cases, commands/queries, handlers, DTOs, validators.
