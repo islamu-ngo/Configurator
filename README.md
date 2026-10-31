@@ -80,17 +80,21 @@ See [Standalone Packaging](docs/public/packaging.md) for supported RIDs, executa
 Keep a public source and canonical runtime beside your application, including
 on local media; the Definition Store and GitHub are optional distribution
 channels, not runtime dependencies. Authoring v2, runtime v2 (`bounded-v2`),
-command envelope v3 and private answers v1 are separate contracts. Native
+command envelope v4 and private answers v1 are separate contracts. Native
 tooling allocates family identity; changed canonical content needs a new
 revision, while a fork starts a new family at revision 1.
 
 The CLI, Terminal.Gui TUI, Avalonia Desktop and Blazor WebAssembly Browser use
 the same admitted definition and Core value semantics. Native clients publish
 restricted files through protected save; Browser transfers files by deliberate
-copy/download and needs workspace-local consent for secret entry. Omission,
-typed null, reset and suggestion adoption remain distinct; a secret-deferred
-draft remains incomplete. Neither successful compilation nor generated files
-prove target acceptance or authorize apply/restart.
+copy/download and needs workspace-local consent for secret entry. Answers use
+exact configuration property names, not generated field IDs or dot-inferred
+nesting. Standard `default` is descriptive; `x-configurator.initialValue`
+initializes eligible missing values, while `suggestedValue` needs deliberate
+adoption. Omission suppresses initialization; reset restores eligibility.
+Typed null is a supplied value only where nullable. A secret-deferred
+draft remains incomplete and restricted. Neither successful compilation nor
+generated files prove target acceptance or authorize apply/restart.
 
 See [adoption steps and boundaries](docs/public/integrating.md), the
 [cookbook](docs/public/definition-cookbook.md), [schema generation](schemas/README.md)
@@ -112,7 +116,8 @@ Application authors own definition family identity, publisher labels, applicatio
 
 ## 🛡️ Enterprise Security & Compliance
 
-Security and privacy fail closed at every layer:
+The implementation enforces specific admission, custody and output boundaries;
+these are not a security certification:
 
 - **🔐 Definition Admission:** Closed schemas and bounded values reject unsupported definitions before use.
 - **🛡️ Session Integrity:** Family, revision and digest remain pinned; removed revisions cannot return with conflicting content.
@@ -187,17 +192,29 @@ There are many ways you can contribute to ISLAMU Configurator:
 
 ## Quick Start (For Developers & Contributors)
 
-For local development and code contribution, install .NET SDK **10.0.302** and use the independent Configurator checkout:
+For local development and code contribution, install .NET SDK **10.0.302**
+and the pinned workloads described in [PROJECTS.md](PROJECTS.md). The following
+Bash commands create a checkout, restore dependencies (network/cache required),
+build it, and inspect native writer availability. They do not prepare target
+configuration. If already in this checkout, skip clone and `cd`; rerunning restore
+and build updates local build outputs.
 
 ```bash
 git clone https://github.com/islamu-ngo/Configurator.git
 cd Configurator
+export TMPDIR="$HOME/.cache/agent-tmp"
+mkdir -p "$TMPDIR"
 dotnet restore Configurator.slnx --locked-mode
 dotnet build Configurator.slnx --configuration Release --verbosity quiet
 dotnet run --project src/Configurator.Cli --configuration Release -- doctor --machine
 ```
 
-The CLI registers `catalogue list|show|describe`, `artifact create|open|validate|format|diff|coverage|export|import|preview`, `env render|validate`, and `doctor`. Use `--help` for operation-specific options and `--machine` for the closed JSON envelope. Select a local definition explicitly; there is no implicit Event target or remote apply command.
+The CLI registers `catalogue list|show|describe`,
+`artifact create|open|validate|format|diff|coverage|export|import|check-existing|compare|prefill|bundle-check|bundle-create|preview`,
+`env render|validate`, `definition init|check|lint|schema|build|revise`, and
+`doctor`. Use `--help` for operation-specific options and `--machine` for the
+closed JSON envelope. Select a local definition explicitly; there is no
+implicit Event target or remote apply command.
 
 | Client | Start from the checkout | Packaged entry point |
 | --- | --- | --- |
@@ -206,7 +223,16 @@ The CLI registers `catalogue list|show|describe`, `artifact create|open|validate
 | Desktop | `dotnet run --project src/Configurator.Desktop --configuration Release -- /absolute/path/setup.json /absolute/path/output-directory` | `islamu-configurator-desktop` |
 | Browser | Publish `Configurator.Browser`, then serve its complete `wwwroot/` | `/` catalogue, `/launch/<familyId>` and pinned `/open#src=…` |
 
-The neutral public family can be opened at `/launch/69cdb122-41d2-4fab-9b82-7929a889c726?appVersion=1.0&entry=setup&locale=en`. Configure a SPA navigation fallback for deep links, not missing framework assets. Native preparation requires no Aspire, database, Keycloak or Event server.
+The Desktop row is an invocation template: substitute an admitted local
+definition and an existing trusted output directory. Terminal/Desktop launch
+opens an interactive workspace; saving remains a deliberate later action.
+Doctor only reports writer availability, not whether a chosen mount can save.
+
+The maintained neutral v2 family can be opened on your own Browser host at
+`/launch/9b6a7b3e-45bf-4485-8fa1-d7888938c09b?appVersion=1.0&entry=setup&locale=en`.
+This is a relative route, not an official deployment. Configure a SPA navigation
+fallback for deep links, not missing framework assets. Native preparation
+requires no Aspire, database, Keycloak or Event server.
 
 ### Contributor Onboarding Path
 1. Review our [Contribution Guidelines](CONTRIBUTING.md) and [Local Getting Started](#quick-start-for-developers--contributors).
@@ -249,6 +275,10 @@ ISLAMU Configurator maintains a deliberate separation between **Public Adopter D
 ### 🛠️ 2. Internal Engineering Specifications (For Developers & Contributors)
 
 For developers contributing code, architecture reviewers, and AI agents, use the authoritative in-repository specifications in [docs/README.md](docs/README.md):
+
+Use the [current status](docs/internal/STATUS.md) to separate implemented behavior
+from qualification and future work, and the
+[knowledge map](docs/internal/KNOWLEDGE_MAP.md) to find the owning reference.
 
 | Engineering Concern | Authoritative In-Repository Markdown File | What You Will Learn |
 |---|---|---|
