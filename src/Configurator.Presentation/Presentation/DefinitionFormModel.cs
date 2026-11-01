@@ -92,6 +92,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     public string Locale => _view.Locale;
     public string Direction => _localization.Direction(Locale);
 
+    /// <summary>Edits only a declared output choice; absent or unrelated entry metadata never overrides initialization.</summary>
+    public bool SelectOutput(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        DefinitionOutputSelector? selector = Definition.Presentation?.OutputSelector;
+        return selector is not null && selector.Options.Any(option => option.Value == value)
+            && SetValue([DefinitionProfile.FieldId(selector.Location.Segments[0])], JsonSerializer.SerializeToElement(value));
+    }
+
     /// <summary>Changes public display metadata without changing answers or retiring prepared output.</summary>
     public bool SelectLocale(string locale)
     {

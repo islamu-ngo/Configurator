@@ -86,7 +86,6 @@ public static class SetupDefinitionCodec
         if (document.TryGetProperty("annotations", out var annotations) && annotations.ValueKind != JsonValueKind.Object)
             throw new SetupDefinitionException("annotations-invalid");
         ValidateLocalization(document);
-        if (document.TryGetProperty("presentation", out var presentation)) ValidatePresentation(presentation, configuration);
         JsonElement artifacts = document.GetProperty("artifacts");
         if (artifacts.GetArrayLength() is < 1 or > 64) throw new SetupDefinitionException("artifact-limit");
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -114,6 +113,8 @@ public static class SetupDefinitionCodec
             if (artifact.GetProperty("format").GetString() == "markdown")
                 ValidateMarkdown(artifact.GetProperty("projection"), configuration);
         }
+        if (document.TryGetProperty("presentation", out var presentation))
+            ValidatePresentation(presentation, configuration, artifacts);
         return configuration;
 
     }
@@ -749,9 +750,9 @@ public static class SetupDefinitionCodec
         };
     }
 
-    private static void ValidatePresentation(JsonElement presentation, DefinitionNode root)
+    private static void ValidatePresentation(JsonElement presentation, DefinitionNode root, JsonElement artifacts)
     {
-        Only(presentation, "sections", "journeys", "defaultJourney", "navigation");
+        Only(presentation, "sections", "journeys", "defaultJourney", "navigation", "outputSelector");
         if (presentation.TryGetProperty("navigation", out _)) Choice(presentation, "navigation", "wizard", "sections");
         var sections = new HashSet<string>(StringComparer.Ordinal);
         foreach (JsonElement section in presentation.GetProperty("sections").EnumerateArray())
@@ -781,6 +782,55 @@ public static class SetupDefinitionCodec
         }
         if (journeys.Count is < 1 or > 16 || !journeys.Contains(presentation.GetProperty("defaultJourney").GetString()!))
             throw new SetupDefinitionException("presentation-default");
+        if (presentation.TryGetProperty("outputSelector", out var selector))
+            ValidateOutputSelector(selector, root, artifacts);
+    }
+
+    private static void ValidateOutputSelector(JsonElement selector, DefinitionNode root, JsonElement artifacts)
+    {
+        Only(selector, "pointer", "options");
+        DefinitionPath pointer = DefinitionPath.Parse(selector.GetProperty("pointer").GetString()!);
+        if (pointer.Segments.Count != 1 || !PublicEditable(root)
+            || !root.Properties.TryGetValue(pointer.Segments[0], out DefinitionNode? field)
+            || field.Type != DefinitionNodeType.Text || field.IsNullable || !PublicEditable(field)
+            || field.Keywords.GetProperty("x-configurator").TryGetProperty("applicableWhen", out _)
+            || !field.Keywords.TryGetProperty("enum", out JsonElement enumeration))
+            throw new SetupDefinitionException("output-selector-field");
+        var remaining = enumeration.EnumerateArray().Select(value => value.GetString()!)
+            .ToHashSet(StringComparer.Ordinal);
+        JsonElement options = selector.GetProperty("options");
+        if (remaining.Count is < 1 or > 64 || options.GetArrayLength() is < 1 or > 64)
+            throw new SetupDefinitionException("output-selector-limit");
+        foreach (JsonElement option in options.EnumerateArray())
+        {
+            Only(option, "value", "title", "artifactIds");
+            string value = option.GetProperty("value").GetString()!;
+            if (!remaining.Remove(value)) throw new SetupDefinitionException("output-selector-value");
+            Text(option.GetProperty("title"), 128);
+            JsonElement artifactIds = option.GetProperty("artifactIds");
+            Strings(artifactIds, 64, 128, nonempty: true);
+            foreach (JsonElement id in artifactIds.EnumerateArray())
+            {
+                JsonElement artifact = artifacts.EnumerateArray().FirstOrDefault(
+                    artifact => artifact.GetProperty("id").GetString() == id.GetString());
+                if (artifact.ValueKind == JsonValueKind.Undefined
+                    || !artifact.GetProperty("projection").TryGetProperty("when", out JsonElement guard)
+                    || guard.GetProperty("op").GetString() != "equals"
+                    || guard.GetProperty("reference").GetProperty("scope").GetString() != "root"
+                    || guard.GetProperty("reference").GetProperty("path").GetString() != pointer.ToPointer()
+                    || guard.GetProperty("value").ValueKind != JsonValueKind.String
+                    || guard.GetProperty("value").GetString() != value)
+                    throw new SetupDefinitionException("output-selector-artifact");
+            }
+        }
+        if (remaining.Count != 0) throw new SetupDefinitionException("output-selector-value");
+
+        static bool PublicEditable(DefinitionNode node) =>
+            node.Keywords.TryGetProperty("x-configurator", out JsonElement metadata)
+            && metadata.TryGetProperty("sensitivity", out JsonElement sensitivity)
+            && sensitivity.GetString() == "public"
+            && (!node.Keywords.TryGetProperty("writeOnly", out JsonElement writeOnly) || !writeOnly.GetBoolean())
+            && (!node.Keywords.TryGetProperty("readOnly", out JsonElement readOnly) || !readOnly.GetBoolean());
     }
 
     private static void ValidateLocalization(JsonElement document)

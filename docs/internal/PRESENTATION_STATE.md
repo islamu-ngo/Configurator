@@ -29,6 +29,11 @@ projection. `GetVariantTitle` localizes only a declared branch's public title or
 discriminator fallback, never its collected answers.
 
 `SelectChoice` uses the declared enum ordinal and exact JSON value.
+`SelectOutput` resolves only an admitted `presentation.outputSelector` option
+and delegates its exact value and literal path to the existing typed edit. An
+unknown option or absent selector changes nothing. Launch adapters invoke it
+once for an explicit entry, never for a resolver fallback; never-supplied
+initialization, explicit supplied answers and omissions retain their Core rules.
 `ApplySuggestion`, `SetNull`, `ResetValue` and `SelectVariant` are deliberate
 edits under the existing mutation gate. A variant switch supplies only the chosen
 discriminator and removes the old branch payload. Core alone initializes missing

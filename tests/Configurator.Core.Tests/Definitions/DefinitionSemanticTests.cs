@@ -9,6 +9,36 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionSemanticTests
 {
     [Test]
+    [Arguments("deployment/target")]
+    [Arguments("file.kind")]
+    public async Task OutputSelectionInitializationNeverOverridesSupplyOrExplicitOmission(string fieldName)
+    {
+        SetupDefinition definition = DefinitionFixture.Parse(
+            DefinitionPresentationAdmissionTests.OutputSelectorSource(fieldName).ToJsonString());
+        DefinitionPath path = DefinitionPath.FromSegments([fieldName]);
+        var fresh = new SetupAnswerSnapshot(0, new Dictionary<string, JsonElement>());
+        var supplied = new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>
+        {
+            [fieldName] = JsonSerializer.SerializeToElement("identity")
+        });
+        var omitted = new SetupAnswerSnapshot(2, new Dictionary<string, JsonElement>(), [path]);
+        await Assert.That(fresh.Values.Count).IsEqualTo(0);
+        await Assert.That(DefinitionValidator.Validate(definition, fresh).TryGetEffectiveValue(path, out JsonElement initial)).IsTrue();
+        await Assert.That(initial.GetString()).IsEqualTo("settings");
+        await Assert.That(DefinitionValidator.Validate(definition, supplied).TryGetEffectiveValue(path, out JsonElement explicitValue)).IsTrue();
+        await Assert.That(explicitValue.GetString()).IsEqualTo("identity");
+        await Assert.That(DefinitionValidator.Validate(definition, omitted).TryGetEffectiveValue(path, out _)).IsFalse();
+        DefinitionArtifactResult initialOutput = DefinitionArtifactComposer.Compose(definition, "settings", fresh);
+        await Assert.That(Encoding.UTF8.GetString(initialOutput.Artifact!.Bytes.Span)).IsEqualTo("""{"kind":"settings"}""");
+        DefinitionArtifactResult explicitOutput = DefinitionArtifactComposer.Compose(definition, "identity", supplied);
+        await Assert.That(Encoding.UTF8.GetString(explicitOutput.Artifact!.Bytes.Span)).IsEqualTo("""{"kind":"identity"}""");
+        await Assert.That(DefinitionArtifactComposer.Compose(definition, "settings", supplied).Succeeded).IsFalse();
+        await Assert.That(DefinitionArtifactComposer.Compose(definition, "settings", omitted).Succeeded).IsFalse();
+        await Assert.That(supplied.Values[fieldName].GetString()).IsEqualTo("identity");
+        await Assert.That(omitted.Omitted.Single()).IsEqualTo(path);
+    }
+
+    [Test]
     public async Task RequiredContainerAndItsRequiredLeafRepresentOneActionableObligation()
     {
         JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;

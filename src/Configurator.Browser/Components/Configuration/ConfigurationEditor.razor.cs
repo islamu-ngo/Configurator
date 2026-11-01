@@ -19,6 +19,7 @@ public partial class ConfigurationEditor
     [Inject] private AppearanceThemeService Appearance { get; set; } = null!;
     [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
     [Parameter] public string? InitialLocale { get; set; }
+    [Parameter] public string? InitialEntry { get; set; }
     private SetupDefinition? _pinned;
     private DefinitionFormModel? _form;
     private readonly SetupPresentationSession _session = new(new WeakReferenceMessenger());
@@ -100,6 +101,7 @@ public partial class ConfigurationEditor
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets, BrowserLaunchSelection.EditingCapabilities);
         if (InitialLocale is not null && !_form.SelectLocale(InitialLocale))
             throw new InvalidOperationException("locale-unsupported");
+        if (InitialEntry is not null) _form.SelectOutput(InitialEntry);
         IndexSections();
         _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;

@@ -59,6 +59,102 @@ Private answer files represent omission in `omitted`, not by converting it to
 JSON null. Reset and suggestion adoption are deliberate editing operations,
 not additional private-envelope members.
 
+## Output choices without application-specific UI
+
+Declare one public, nonnullable, unconditionally editable root string enum,
+then bind its exact values to artifact IDs. This partial authoring fragment
+illustrates two outputs; filenames and technical answer values remain distinct
+from human labels:
+
+```yaml
+configuration:
+  type: object
+  additionalProperties: false
+  required: [task]
+  x-configurator: {sensitivity: public}
+  properties:
+    task:
+      title: File to prepare
+      type: string
+      enum: [environment, manifest]
+      x-configurator:
+        sensitivity: public
+        initialValue: environment
+        guidance:
+          instructions: Choose a file, review its settings, then export deliberately.
+outputs:
+  service.env:
+    id: environment
+    format: dotenv
+    projection:
+      op: object
+      members: {}
+      when:
+        op: equals
+        reference: {scope: root, path: /task}
+        value: environment
+  manifest.json:
+    id: manifest
+    format: json
+    projection:
+      op: object
+      members: {}
+      when:
+        op: equals
+        reference: {scope: root, path: /task}
+        value: manifest
+presentation:
+  defaultJourney: configure
+  navigation: sections
+  outputSelector:
+    pointer: /task
+    options:
+      - value: environment
+        title: Environment
+        artifactIds: [environment]
+      - value: manifest
+        title: Configuration manifest
+        artifactIds: [manifest]
+  sections:
+    - id: basics
+      title: Basics
+      pointers: [/task]
+  journeys:
+    - id: configure
+      title: Prepare configuration
+      sections: [basics]
+```
+
+The empty projections illustrate the binding only; supply actual target
+members in a real integration. Every enum value needs exactly one option.
+Each option has a human title and nonempty artifact IDs; each referenced
+artifact must have a root `equals` activation guard on the same pointer and
+value. Conditional, nullable, non-public and read-only selector fields reject.
+The selector edits the ordinary shared answer; it is not a second evaluator
+or permission to apply output.
+
+Initialization applies only when no explicit value or omission exists. An
+offline inclusion boolean may initialize to true to expose useful settings,
+but must not be confused with enabling a target service, granting consent,
+inventing an endpoint or supplying a credential. Keep inclusion controls next
+to their settings and retain target keys, types and activation conditions.
+
+The maintained [Event source](../../examples/islamu-event/configurator.json)
+contains all five output choices and complete capability sections.
+Its [reference guide](../../examples/islamu-event/README.md) explains the
+independent optional-store family and native revision workflow. English base
+text and Arabic overrides use exact public schema paths, for example
+`/presentation/outputSelector/options/0/title`; translations change display
+text, never enum values, artifact IDs or answer keys. Changing this canonical
+metadata requires a native revision and fresh generated runtime, not a manual
+identity increment or a rewrite of historical releases.
+
+Source anchors:
+[`DefinitionPresentationAdmissionTests`](../../tests/Configurator.Core.Tests/Definitions/DefinitionPresentationAdmissionTests.cs)
+and [`EventDefinitionFormTests`](../../tests/Configurator.Presentation.Tests/EventDefinitionFormTests.cs).
+The documentation fragment is illustrative; these anchors do not assert that
+verification has run for a particular release.
+
 ## Exact literal keys and pointers
 
 These are members of a configuration schema, with unrelated properties omitted:

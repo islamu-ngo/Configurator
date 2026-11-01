@@ -11,6 +11,13 @@
 `BrowserLaunchSelection` admits an explicit closed editing-capability set before
 answers and resolves the declared localization default, not the first locale in
 sorted order. Launch/Open pass that initial locale into `ConfigurationEditor`.
+Resolution also retains whether `entry` was explicit. Launch/Open pass only an
+explicit entry to the new form: if it matches an admitted output-selector option,
+`DefinitionFormModel.SelectOutput` supplies that enum value through the ordinary
+typed edit exactly once at workspace creation. A resolver's first-entry fallback
+does not overwrite Core initialization, and rerendering does not reapply entry
+selection over later edits or omissions. Definitions without a matching selector
+continue to use their entry as metadata, not a guessed answer path.
 The shared form checks the same capability set before allocating answer editors.
 It owns subsequent locale changes as view state. Public display metadata and
 localized sections/journeys come from Presentation; Core remains the schema,

@@ -1,5 +1,699 @@
 {
   "$schema": "urn:islamu:configurator:authoring:v2",
+  "presentation": {
+    "defaultJourney": "configure",
+    "navigation": "sections",
+    "outputSelector": {
+      "pointer": "/operation",
+      "options": [
+        {
+          "value": "environment",
+          "title": "Environment",
+          "artifactIds": [
+            "environment"
+          ]
+        },
+        {
+          "value": "configuration-manifest",
+          "title": "Configuration manifest",
+          "artifactIds": [
+            "configuration-manifest"
+          ]
+        },
+        {
+          "value": "tenant-package",
+          "title": "Tenant package",
+          "artifactIds": [
+            "tenant-package"
+          ]
+        },
+        {
+          "value": "operator-identity",
+          "title": "Operator identity",
+          "artifactIds": [
+            "operator-identity"
+          ]
+        },
+        {
+          "value": "legal-drafts",
+          "title": "Legal drafts",
+          "artifactIds": [
+            "legal-drafts"
+          ]
+        }
+      ]
+    },
+    "sections": [
+      {
+        "id": "basics",
+        "title": "Basics",
+        "description": "Choose an output and enter known public addresses. Inclusion only exposes offline settings; it does not enable a target integration.",
+        "pointers": [
+          "/env.API_ENDPOINT",
+          "/env.AUTHENTICATION_PROVIDER",
+          "/env.PUBLIC_BASE_URL",
+          "/operation",
+          "/select.feature.platform-config"
+        ]
+      },
+      {
+        "id": "hosting",
+        "title": "Hosting and service containers",
+        "description": "Include deployment or supporting-container settings only for the services you intend to configure.",
+        "pointers": [
+          "/env.AGENT_BROWSER_SEED_ENABLED",
+          "/env.API_HTTP_PORT",
+          "/env.ASPNETCORE_ENVIRONMENT",
+          "/env.CERBOS_POSTGRES_DB",
+          "/env.CERBOS_POSTGRES_PASSWORD",
+          "/env.CERBOS_POSTGRES_USER",
+          "/env.CONFIGURATION_MANIFEST_HOST_DIRECTORY",
+          "/env.CONFIGURATION_MANIFEST_MODE",
+          "/env.CONFIGURATION_MANIFEST_PATH",
+          "/env.COOP_ANALYTICS_ADAPTER",
+          "/env.COOP_CLIENT_HTTP_PORT",
+          "/env.COOP_CLIENT_IMAGE",
+          "/env.COOP_DATABASE_NAME",
+          "/env.COOP_DATABASE_PASSWORD",
+          "/env.COOP_DATABASE_USER",
+          "/env.COOP_HTTP_PORT",
+          "/env.COOP_IMAGE",
+          "/env.COOP_MIGRATIONS_IMAGE",
+          "/env.COOP_NODE_ENV",
+          "/env.COOP_OTEL_SERVICE_NAME",
+          "/env.COOP_SCYLLA_HOSTS",
+          "/env.COOP_SCYLLA_LOCAL_DATACENTER",
+          "/env.COOP_SCYLLA_PASSWORD",
+          "/env.COOP_SCYLLA_SSL",
+          "/env.COOP_SCYLLA_USERNAME",
+          "/env.COOP_SESSION_SECRET",
+          "/env.COOP_UI_URL",
+          "/env.COOP_WAREHOUSE_ADAPTER",
+          "/env.DEPLOYMENT_MODE",
+          "/env.DOTNET_ENVIRONMENT",
+          "/env.FORMBRICKS_CRON_SECRET",
+          "/env.FORMBRICKS_CUBEJS_API_SECRET",
+          "/env.FORMBRICKS_DATABASE_NAME",
+          "/env.FORMBRICKS_DATABASE_PASSWORD",
+          "/env.FORMBRICKS_DATABASE_USER",
+          "/env.FORMBRICKS_ENCRYPTION_KEY",
+          "/env.FORMBRICKS_HTTP_PORT",
+          "/env.FORMBRICKS_HUB_API_KEY",
+          "/env.FORMBRICKS_NEXTAUTH_SECRET",
+          "/env.FORMBRICKS_WEBAPP_URL",
+          "/env.HOSTING_REPLICA_COUNT",
+          "/env.KEYCLOAK_ADMIN",
+          "/env.KEYCLOAK_ADMIN_PASSWORD",
+          "/env.KEYCLOAK_DB_DATABASE",
+          "/env.KEYCLOAK_DB_PASSWORD",
+          "/env.KEYCLOAK_DB_USERNAME",
+          "/env.KEYCLOAK_INTERNAL_URL",
+          "/env.MAILPIT_UI_PORT",
+          "/env.MINIO_API_PORT",
+          "/env.MINIO_CONSOLE_PORT",
+          "/env.OSPREY_BIDI_STREAM_PORT",
+          "/env.OSPREY_IMAGE",
+          "/env.OSPREY_POD_IP",
+          "/env.OSPREY_RUST_LOG",
+          "/env.OSPREY_SYNC_ACTION_PORT",
+          "/env.PRIVACY_ERASURE_AUTHORITY_BUSY_TIMEOUT_SECONDS",
+          "/env.PRIVACY_ERASURE_AUTHORITY_DATABASE",
+          "/env.PRIVACY_ERASURE_AUTHORITY_EMBEDDED_PATH",
+          "/env.PRIVACY_ERASURE_AUTHORITY_HOST",
+          "/env.PRIVACY_ERASURE_AUTHORITY_MIGRATOR_PASSWORD",
+          "/env.PRIVACY_ERASURE_AUTHORITY_MIGRATOR_USERNAME",
+          "/env.PRIVACY_ERASURE_AUTHORITY_PORT",
+          "/env.PRIVACY_ERASURE_AUTHORITY_RUNTIME_PASSWORD",
+          "/env.PRIVACY_ERASURE_AUTHORITY_RUNTIME_USERNAME",
+          "/env.PRIVACY_ERASURE_AUTHORITY_TLS_MODE",
+          "/env.PRIVACY_ERASURE_AUTHORITY_TRUST_SERVER_CERTIFICATE",
+          "/env.PRIVACY_ERASURE_AUTHORITY_WRITER_REPLICA_COUNT",
+          "/env.REDIS_CONNECTION_STRING",
+          "/env.SETUP_SECRET_FILE",
+          "/env.SVIX_CACHE_TYPE",
+          "/env.SVIX_DB_DATABASE",
+          "/env.SVIX_DB_DSN",
+          "/env.SVIX_DB_PASSWORD",
+          "/env.SVIX_DB_USERNAME",
+          "/env.SVIX_HTTP_PORT",
+          "/env.SVIX_JWT_SECRET",
+          "/env.SVIX_QUEUE_TYPE",
+          "/env.SVIX_REDIS_DSN",
+          "/env.SVIX_TAG",
+          "/env.UI_HTTP_PORT",
+          "/env.WEBLATE_ADMIN_EMAIL",
+          "/env.WEBLATE_ADMIN_NAME",
+          "/env.WEBLATE_ADMIN_PASSWORD",
+          "/env.WEBLATE_HTTP_PORT",
+          "/env.WEBLATE_IMAGE",
+          "/env.WEBLATE_POSTGRES_DB",
+          "/env.WEBLATE_POSTGRES_PASSWORD",
+          "/env.WEBLATE_POSTGRES_USER",
+          "/env.WEBLATE_SITE_DOMAIN",
+          "/select.feature.deployment-config",
+          "/select.feature.external-compose-config"
+        ]
+      },
+      {
+        "id": "database",
+        "title": "Application databases",
+        "description": "Select the database settings you need, then supply the connection details locally.",
+        "pointers": [
+          "/env.DATABASE_HOST",
+          "/env.DATABASE_MIGRATOR_PASSWORD",
+          "/env.DATABASE_MIGRATOR_USERNAME",
+          "/env.DATABASE_NAME",
+          "/env.DATABASE_PORT",
+          "/env.DATABASE_PROVIDER",
+          "/env.DATABASE_RUNTIME_PASSWORD",
+          "/env.DATABASE_RUNTIME_USERNAME",
+          "/env.DATABASE_SCHEMA",
+          "/env.DATABASE_SERVER_VERSION",
+          "/env.DATABASE_TLS_MODE",
+          "/env.DATABASE_TRUST_SERVER_CERTIFICATE",
+          "/env.ERASURE_DATABASE_HOST",
+          "/env.ERASURE_DATABASE_MIGRATOR_PASSWORD",
+          "/env.ERASURE_DATABASE_MIGRATOR_USERNAME",
+          "/env.ERASURE_DATABASE_NAME",
+          "/env.ERASURE_DATABASE_PORT",
+          "/env.ERASURE_DATABASE_RUNTIME_PASSWORD",
+          "/env.ERASURE_DATABASE_RUNTIME_USERNAME",
+          "/env.ERASURE_DATABASE_TLS_MODE",
+          "/env.ERASURE_DATABASE_TRUST_SERVER_CERTIFICATE",
+          "/env.POSTGRESQL_DATABASE",
+          "/env.POSTGRESQL_HOST",
+          "/env.POSTGRESQL_PASSWORD",
+          "/env.POSTGRESQL_PORT",
+          "/env.POSTGRESQL_USERNAME",
+          "/select.feature.database-config",
+          "/select.feature.postgresql-config",
+          "/select.feature.server-database-config"
+        ]
+      },
+      {
+        "id": "identity",
+        "title": "Identity and administrator bootstrap",
+        "description": "Configure identity providers, operator details and deliberate administrator bootstrap choices.",
+        "pointers": [
+          "/env.IDENTITYCORRELATION__TRUSTEDISSUERS__0",
+          "/env.IDENTITY_DATABASE_CONNECTION_STRING",
+          "/env.IDENTITY_DATABASE_HOST",
+          "/env.IDENTITY_DATABASE_MIGRATOR_PASSWORD",
+          "/env.IDENTITY_DATABASE_MIGRATOR_USERNAME",
+          "/env.IDENTITY_DATABASE_NAME",
+          "/env.IDENTITY_DATABASE_PORT",
+          "/env.IDENTITY_DATABASE_PROVIDER",
+          "/env.IDENTITY_DATABASE_RUNTIME_PASSWORD",
+          "/env.IDENTITY_DATABASE_RUNTIME_USERNAME",
+          "/env.IDENTITY_DATABASE_SCHEMA",
+          "/env.IDENTITY_DATABASE_TLS_MODE",
+          "/env.IDENTITY_DATABASE_TOPOLOGY",
+          "/env.IDENTITY_DATABASE_TRUST_SERVER_CERTIFICATE",
+          "/env.INSTANCE_BOOTSTRAP_ADMIN_EMAIL",
+          "/env.INSTANCE_BOOTSTRAP_ADMIN_FIRST_NAME",
+          "/env.INSTANCE_BOOTSTRAP_ADMIN_LAST_NAME",
+          "/env.INSTANCE_BOOTSTRAP_ADMIN_PROVIDER",
+          "/env.INSTANCE_BOOTSTRAP_ADMIN_SUBJECT",
+          "/env.INSTANCE_BOOTSTRAP_BINDING_GENERATION",
+          "/env.INSTANCE_BOOTSTRAP_LOCAL_PASSWORD",
+          "/env.INSTANCE_BOOTSTRAP_MODE",
+          "/env.INSTANCE__OPERATORIDENTITY__ISOFFICIALINSTANCE",
+          "/env.INSTANCE__OPERATORIDENTITY__JURISDICTIONCOUNTRYCODE",
+          "/env.INSTANCE__OPERATORIDENTITY__LEGALNAME",
+          "/env.INSTANCE__OPERATORIDENTITY__LEGALNOTICEURL",
+          "/env.INSTANCE__OPERATORIDENTITY__OFFICIALORIGIN",
+          "/env.INSTANCE__OPERATORIDENTITY__OPERATORID",
+          "/env.INSTANCE__OPERATORIDENTITY__OPERATORKINDCODE",
+          "/env.INSTANCE__OPERATORIDENTITY__PRIVACYURL",
+          "/env.INSTANCE__OPERATORIDENTITY__PUBLICCONTACTEMAIL",
+          "/env.INSTANCE__OPERATORIDENTITY__PUBLICNAME",
+          "/env.INSTANCE__OPERATORIDENTITY__REGISTRATIONIDENTIFIER",
+          "/env.INSTANCE__OPERATORIDENTITY__TERMSURL",
+          "/env.INSTANCE__OPERATORIDENTITY__WEBSITEURL",
+          "/env.KEYCLOAK_BLAZOR_CLIENT_ID",
+          "/env.KEYCLOAK_BLAZOR_CLIENT_SECRET",
+          "/env.KEYCLOAK_CLIENT_ID",
+          "/env.KEYCLOAK_ENDPOINT",
+          "/env.KEYCLOAK_HTTP_PORT",
+          "/env.KEYCLOAK_REALM",
+          "/env.KEYCLOAK_REQUIRE_HTTPS_METADATA",
+          "/select.feature.configured-bootstrap-config",
+          "/select.feature.identity-config",
+          "/select.feature.keycloak-config",
+          "/select.feature.local-bootstrap-config"
+        ]
+      },
+      {
+        "id": "storage",
+        "title": "Files and object storage",
+        "description": "Configure local or S3 storage and review reconciliation choices before target validation.",
+        "pointers": [
+          "/env.LOCAL_STORAGE_CREATE_ROOT_IF_MISSING",
+          "/env.LOCAL_STORAGE_ROOT_PATH",
+          "/env.STORAGE_RECONCILIATION_DELETE_QUARANTINED_OBJECTS",
+          "/env.STORAGE_RECONCILIATION_DRY_RUN",
+          "/env.STORAGE_RECONCILIATION_ENABLED",
+          "/env.STORAGE_RECONCILIATION_QUARANTINE_MISSING_OBJECTS",
+          "/env.STORAGE_RECONCILIATION_QUARANTINE_ORPHAN_LOCAL_FILES",
+          "/env.STORAGE_S3_ACCESS_KEY_ID",
+          "/env.STORAGE_S3_BUCKET_NAME",
+          "/env.STORAGE_S3_ENDPOINT",
+          "/env.STORAGE_S3_PUBLIC_ENDPOINT",
+          "/env.STORAGE_S3_REGION",
+          "/env.STORAGE_S3_SECRET_ACCESS_KEY",
+          "/select.feature.local-storage-config",
+          "/select.feature.s3-storage-config",
+          "/select.feature.storage-config"
+        ]
+      },
+      {
+        "id": "messaging",
+        "title": "Email and webhooks",
+        "description": "Configure delivery services and webhook providers without sending messages or contacting them.",
+        "pointers": [
+          "/env.EMAIL_DISPATCH_RABBITMQ_CLIENT_PROVIDED_NAME",
+          "/env.EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING",
+          "/env.EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING_NAME",
+          "/env.EMAIL_DISPATCH_RABBITMQ_CONSUMER_ID",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DEAD_LETTER_EXCHANGE_NAME",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DEAD_LETTER_QUEUE_NAME",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DEAD_LETTER_REPLAY_CONSUMER_ID",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DEAD_LETTER_REPLAY_ENABLED",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DEAD_LETTER_REPLAY_PREFETCH_COUNT",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DEAD_LETTER_ROUTING_KEY",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DISPATCH_QUEUE_NAME",
+          "/env.EMAIL_DISPATCH_RABBITMQ_DISPATCH_ROUTING_KEY",
+          "/env.EMAIL_DISPATCH_RABBITMQ_ENABLED",
+          "/env.EMAIL_DISPATCH_RABBITMQ_EXCHANGE_NAME",
+          "/env.EMAIL_DISPATCH_RABBITMQ_PARKING_QUEUE_NAME",
+          "/env.EMAIL_DISPATCH_RABBITMQ_PARKING_ROUTING_KEY",
+          "/env.EMAIL_DISPATCH_RABBITMQ_PREFETCH_COUNT",
+          "/env.EMAIL_DISPATCH_RABBITMQ_PUBLISHER_BATCH_SIZE",
+          "/env.EMAIL_DISPATCH_RABBITMQ_PUBLISHER_POLLING_INTERVAL_SECONDS",
+          "/env.EMAIL_DISPATCH_RABBITMQ_PUBLISHER_RETRY_DELAY_SECONDS",
+          "/env.EMAIL_DISPATCH_RABBITMQ_PUBLISH_TIMEOUT_SECONDS",
+          "/env.MAIL_SMTP_ENCRYPTION",
+          "/env.MAIL_SMTP_FROM_ADDRESS",
+          "/env.MAIL_SMTP_FROM_NAME",
+          "/env.MAIL_SMTP_HOST",
+          "/env.MAIL_SMTP_PASSWORD",
+          "/env.MAIL_SMTP_PORT",
+          "/env.MAIL_SMTP_USERNAME",
+          "/env.MESSAGING_URI",
+          "/env.VAPID_PRIVATE_KEY",
+          "/env.VAPID_PUBLIC_KEY",
+          "/env.VAPID_SUBJECT",
+          "/env.WEBHOOKS_SVIX_AUTH_TOKEN",
+          "/env.WEBHOOKS_SVIX_AUTH_TOKEN_SECRET_REF",
+          "/env.WEBHOOKS_SVIX_BASE_URL",
+          "/env.WEBHOOKS_SVIX_CAPABILITY_POLICY_VERSION",
+          "/env.WEBHOOKS_SVIX_ENVIRONMENT",
+          "/env.WEBHOOKS_SVIX_OPERATIONAL_WEBHOOK_SECRET",
+          "/env.WEBHOOKS_SVIX_OPERATIONAL_WEBHOOK_SECRET_REF",
+          "/env.WEBHOOKS_SVIX_PROVIDER_VERSION",
+          "/env.WEB_PUSH_ENABLED",
+          "/select.feature.messaging-config",
+          "/select.feature.svix-config"
+        ]
+      },
+      {
+        "id": "services",
+        "title": "Optional services and payments",
+        "description": "Include only the optional integrations and payment settings needed for your deployment.",
+        "pointers": [
+          "/env.AI_ANTHROPIC_API_KEY",
+          "/env.AI_API_KEY",
+          "/env.AI_ENDPOINT",
+          "/env.AI_MODEL_ID",
+          "/env.AI_OPENAI_API_KEY",
+          "/env.AI_PROVIDER",
+          "/env.AI_TOOL_PROPOSALS_ENABLED",
+          "/env.GEOCODING_COUNTRY_CODES",
+          "/env.GEOCODING_DATASET_VERSION",
+          "/env.GEOCODING_ENDPOINT",
+          "/env.GEOCODING_LANGUAGE",
+          "/env.GEOCODING_MAXIMUM_RESPONSE_BYTES",
+          "/env.GEOCODING_MAXIMUM_RESULTS",
+          "/env.GEOCODING_MAXIMUM_RETRY_COUNT",
+          "/env.GEOCODING_PROVIDER",
+          "/env.GEOCODING_READINESS_TIMEOUT_MILLISECONDS",
+          "/env.GEOCODING_RETRY_DELAYS_MILLISECONDS",
+          "/env.GEOCODING_SELECTION_LIFETIME_SECONDS",
+          "/env.GEOCODING_TOTAL_TIMEOUT_MILLISECONDS",
+          "/env.LISTMONK_API_KEY",
+          "/env.LISTMONK_API_USERNAME",
+          "/env.LISTMONK_DEFAULT_LIST_ID",
+          "/env.LISTMONK_ENABLED",
+          "/env.LISTMONK_INSTANCE_URL",
+          "/env.LISTMONK_PRECONFIRM_SUBSCRIPTIONS",
+          "/env.LISTMONK_SYNC_ON_REGISTRATION",
+          "/env.PAYMENTS_ORGANIZER_DIRECT_CONNECT_PLATFORM_ID",
+          "/env.PAYMENTS_ORGANIZER_DIRECT_PROVIDER_CODE",
+          "/env.PAYMENTS_STRIPE_MODE",
+          "/env.STRIPE_PLATFORM_SECRET_KEY",
+          "/env.STRIPE_WEBHOOK_SECRET",
+          "/env.WEBHOOKS_ENABLED",
+          "/env.WEBHOOKS_PROVIDER",
+          "/select.feature.integration-config",
+          "/select.feature.payments-config"
+        ]
+      },
+      {
+        "id": "security",
+        "title": "Security and secret providers",
+        "description": "Review security, recovery, authorization and secret-provider settings. Secret entry requires workspace consent.",
+        "pointers": [
+          "/env.ADMISSIONS_CREDENTIAL_LOOKUP_HMAC_KEY",
+          "/env.ADMISSIONS_RECOVERY_CAPABILITY_HMAC_KEY",
+          "/env.ADMISSIONS_SCANNER_CAPABILITY_HMAC_KEY",
+          "/env.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION",
+          "/env.ADMISSIONS__RECOVERY__ACTIVEKEYVERSION",
+          "/env.ADMISSIONS__RECOVERY__CAPABILITYLIFETIMEMINUTES",
+          "/env.ADMISSIONS__RECOVERY__RATELIMITBUCKETCOUNT",
+          "/env.ADMISSIONS__RECOVERY__RATELIMITPERMITCOUNT",
+          "/env.ADMISSIONS__RECOVERY__RATELIMITWINDOWSECONDS",
+          "/env.AUTHENTICATION_LOCAL_JWT_KEY",
+          "/env.AUTHENTICATION_LOCAL_LOCKOUT_DURATION_MINUTES",
+          "/env.AUTHENTICATION_LOCAL_LOCKOUT_THRESHOLD",
+          "/env.CERBOS_ADMIN_PASSWORD",
+          "/env.CERBOS_ADMIN_PASSWORD_HASH",
+          "/env.CERBOS_ADMIN_USERNAME",
+          "/env.CERBOS_GRPC_ENDPOINT",
+          "/env.CERBOS_GRPC_PORT",
+          "/env.CERBOS_HTTP_ENDPOINT",
+          "/env.CERBOS_HTTP_PORT",
+          "/env.CERBOS_PG_URL",
+          "/env.CERBOS_PLAINTEXT_MODE",
+          "/env.CERBOS_USE_TLS",
+          "/env.INFISICAL_CLIENT_ID",
+          "/env.INFISICAL_CLIENT_SECRET",
+          "/env.INFISICAL_ENV",
+          "/env.INFISICAL_PROJECT_ID",
+          "/env.INFISICAL_URL",
+          "/env.PROMOTIONS_CODE_LOOKUP_HMAC_KEY",
+          "/env.RATELIMITING__ANONYMOUSREGISTRATION__CONCURRENCYLIMIT",
+          "/env.RATELIMITING__ANONYMOUSREGISTRATION__IPPERMITLIMIT",
+          "/env.RATELIMITING__ANONYMOUSREGISTRATION__QUEUELIMIT",
+          "/env.RATELIMITING__ANONYMOUSREGISTRATION__SUBNETPERMITLIMIT",
+          "/env.RATELIMITING__ANONYMOUSREGISTRATION__WINDOWSECONDS",
+          "/env.SECRET_PROVIDER",
+          "/env.SETUP_SECRET_BINDING_COMMITMENT_HMAC_KEY",
+          "/env.TICKETING_RECOVERY_MANIFEST_HMAC_KEY",
+          "/env.TICKETING__RECOVERY__BACKLOGTHRESHOLD",
+          "/env.TICKETING__RECOVERY__DECLAREDRPOMINUTES",
+          "/env.TICKETING__RECOVERY__DECLAREDRTOMINUTES",
+          "/env.TICKETING__RECOVERY__ENABLED",
+          "/env.TICKETING__RECOVERY__EXPECTEDRELEASEREVISION",
+          "/env.TICKETING__RECOVERY__EXPECTEDSCHEMAREVISION",
+          "/env.TICKETING__RECOVERY__MANIFESTSIGNINGKEYREFERENCE",
+          "/env.TICKETING__RECOVERY__MINIMUMAUTHORITYFLOOR",
+          "/env.TICKETING__RECOVERY__MINIMUMIDEMPOTENCYFLOOR",
+          "/env.TICKETING__RECOVERY__MINIMUMPROVIDERCURSOR",
+          "/env.TICKETING__RECOVERY__MINIMUMRETAINEDKEYVERSION",
+          "/env.TICKETING__RECOVERY__MINIMUMWORKERFENCE",
+          "/env.TICKETING__RECOVERY__RETAINEDKEYVERSIONS__0",
+          "/env.TICKETING__RECOVERY__UNHEALTHYOLDESTDUESECONDS",
+          "/env.TICKETING__RECOVERY__WARNINGOLDESTDUESECONDS",
+          "/select.feature.cerbos-config",
+          "/select.feature.infisical-config",
+          "/select.feature.security-config"
+        ]
+      },
+      {
+        "id": "operations",
+        "title": "Analytics and agent browser",
+        "description": "Configure reporting and agent-browser credentials only when those capabilities are needed.",
+        "pointers": [
+          "/env.AGENT_BROWSER_PERSONA_PASSWORD",
+          "/env.AGENT_BROWSER_REDIS_PASSWORD",
+          "/env.ANALYTICS_PERSONAL_API_KEY",
+          "/env.ANALYTICS_POSTHOG_HOST",
+          "/env.ANALYTICS_POSTHOG_PUBLIC_KEY",
+          "/env.REPORTING_COOP_ALLOW_LOCAL_PROVIDER_ENDPOINTS",
+          "/env.REPORTING_COOP_API_KEY",
+          "/env.REPORTING_COOP_ENABLED",
+          "/env.REPORTING_COOP_ENDPOINT_URL",
+          "/env.REPORTING_COOP_WEBHOOK_SECRET",
+          "/env.REPORTING_ENABLED",
+          "/env.REPORTING_EVALUATE_SIGNALS",
+          "/env.REPORTING_EXECUTE_DECISIONS",
+          "/env.REPORTING_HEALTH_FAILED_PROVIDER_SYNC_WARNING_THRESHOLD",
+          "/env.REPORTING_HEALTH_STUCK_PROVIDER_SYNC_MINUTES",
+          "/env.REPORTING_MIRROR_REVIEW_QUEUE",
+          "/env.REPORTING_MODE",
+          "/env.REPORTING_OSPREY_ALLOW_LOCAL_PROVIDER_ENDPOINTS",
+          "/env.REPORTING_OSPREY_API_KEY",
+          "/env.REPORTING_OSPREY_ENABLED",
+          "/env.REPORTING_OSPREY_ENDPOINT_URL",
+          "/env.REPORTING_SYNC_REPORTS",
+          "/select.feature.agent-browser-config",
+          "/select.feature.observability-config"
+        ]
+      },
+      {
+        "id": "manifest",
+        "title": "Configuration manifest",
+        "description": "Prepare instance settings and tenant rows for Event validation; preparation does not apply them.",
+        "pointers": [
+          "/configuration-manifest.metadata.name",
+          "/configuration-manifest.spec.instance.settings",
+          "/configuration-manifest.tenants"
+        ]
+      },
+      {
+        "id": "tenant",
+        "title": "Tenant package",
+        "description": "Prepare tenant metadata, settings, branding and draft legal documents for host review.",
+        "pointers": [
+          "/tenant-package.metadata.name",
+          "/tenant-package.metadata.source.tenantName",
+          "/tenant-package.spec.displayName",
+          "/tenant-package.spec.documents.tenant.branding.payload.displayName",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.audience",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.jurisdictionAssumptions.0",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.lifecycleIntent",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.languageTag",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.markdown",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.summary",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.title",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.requiresFreshAcceptance",
+          "/tenant-package.spec.settings"
+        ]
+      },
+      {
+        "id": "operator",
+        "title": "Operator identity",
+        "description": "Prepare operator identity fields. Event owns integrity digests, revision and acceptance.",
+        "pointers": [
+          "/operator-identity.contentDigest",
+          "/operator-identity.document.isOfficialInstance",
+          "/operator-identity.document.jurisdictionCountryCode",
+          "/operator-identity.document.legalName",
+          "/operator-identity.document.operatorId",
+          "/operator-identity.document.operatorKindCode",
+          "/operator-identity.document.publicName",
+          "/operator-identity.document.revision",
+          "/operator-identity.document.websiteUrl",
+          "/operator-identity.revisionHash"
+        ]
+      },
+      {
+        "id": "legal",
+        "title": "Legal drafts",
+        "description": "Prepare localized legal drafts and jurisdiction assumptions for review, never approval or publication.",
+        "pointers": [
+          "/legal-drafts.metadata.name",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.audience",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.jurisdictionAssumptions.0",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.lifecycleIntent",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.languageTag",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.markdown",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.summary",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.title",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.languageTag",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.markdown",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.summary",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.title",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.requiresFreshAcceptance",
+          "/legal-drafts.spec.instance.settings",
+          "/legal-drafts.tenants"
+        ]
+      },
+      {
+        "id": "advanced",
+        "title": "Advanced platform settings",
+        "description": "Review additional platform and control-plane settings only when required. Unknown values remain unset.",
+        "pointers": [
+          "/env.ATPROTO_LOGIN_ENABLED",
+          "/env.ATPROTO_OAUTH_CLIENT_PRIVATE_JWKS",
+          "/env.ATPROTO_SESSION_ENCRYPTION_KEYRING",
+          "/env.ATPROTO_SESSION_JWT_PRIVATE_JWKS",
+          "/env.AUTHORIZATION_PROVIDER",
+          "/env.CONTROL_PLANE_INSTANCE_ID",
+          "/env.CONTROL_PLANE_MANAGED_MODE",
+          "/env.CONTROL_PLANE_MAXIMUM_TENANT_COUNT",
+          "/env.CONTROL_PLANE_REGISTRATION_CREDENTIALS",
+          "/env.CONTROL_PLANE_REGISTRATION_TOKEN",
+          "/env.CONTROL_PLANE_TENANT_ADMINISTRATOR_SIGN_IN_URL",
+          "/env.CONTROL_PLANE_URL",
+          "/env.ERASURE_BUSY_TIMEOUT_SECONDS",
+          "/env.ERASURE_DATABASE_TOPOLOGY",
+          "/env.ERASURE_EMBEDDED_PATH",
+          "/env.ERASURE_WRITER_REPLICA_COUNT",
+          "/env.INSTANCE_ADMIN_PUBLIC_ORIGIN",
+          "/env.LOCALIZATION_TMS_API_KEY",
+          "/env.MANAGED_CLIENT_EXTERNAL_PROVIDER",
+          "/env.MCP_ENABLED",
+          "/env.MCP_ENABLE_LEGACY_SSE",
+          "/env.MCP_ENDPOINT_PATH",
+          "/env.MCP_STATELESS",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__ACTIVATIONSTATUS",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__CHARGETYPE",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__COMPLAINTOWNER",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__DISPUTEOWNER",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__RECONCILIATIONOWNER",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__REFUNDOWNER",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__REFUNDPOLICYLANGUAGETAG",
+          "/env.PAYMENTS__CHECKOUTGOVERNANCE__STATEMENTDESCRIPTOR",
+          "/env.PHYSICAL_TENANCY_MODE",
+          "/env.PRIVACY_ERASURE_IDENTITY_FENCE_KEY",
+          "/env.PRIVACY_ERASURE_IDENTITY_FENCE_KEY_ID",
+          "/env.PROMOTIONS_CODE_LOOKUP_ACTIVE_KEY_VERSION",
+          "/env.PROVISIONING_MODE",
+          "/env.PROVISIONING_TRUSTED",
+          "/env.REGISTRATION_PROVIDER_API_TOKEN",
+          "/env.REGISTRATION_PROVIDER_WEBHOOK_SECRET",
+          "/env.SETUP_SECRET",
+          "/env.SETUP_SECRET_REQUIRED",
+          "/select.capability.deployment",
+          "/select.topology.standalone"
+        ]
+      }
+    ],
+    "journeys": [
+      {
+        "id": "configure",
+        "title": "Prepare Event configuration",
+        "description": "Choose one output, configure relevant sections, then review and deliberately export local files. Event retains validation and apply authority.",
+        "sections": [
+          "basics",
+          "hosting",
+          "database",
+          "identity",
+          "storage",
+          "messaging",
+          "services",
+          "security",
+          "operations",
+          "manifest",
+          "tenant",
+          "operator",
+          "legal",
+          "advanced"
+        ]
+      }
+    ]
+  },
+  "localization": {
+    "defaultLocale": "en",
+    "translations": {
+      "en": {
+        "direction": "ltr"
+      },
+      "ar": {
+        "direction": "rtl",
+        "overrides": {
+          "/presentation/journeys/0/title": "إعداد تكوين Event",
+          "/presentation/journeys/0/description": "اختر ملفا واضبط الأقسام ذات الصلة ثم راجع الملفات وصدّرها محليا بإجراء مقصود. يحتفظ Event بصلاحية التحقق والتطبيق.",
+          "/configuration/properties/operation/title": "الملف المطلوب إعداده",
+          "/configuration/properties/operation/x-configurator/guidance/instructions": "اختر الملف المطلوب إعداده. يغير الاختيار الإعدادات المتاحة ولا يغير التطبيق المستهدف. راجع الملف قبل تصديره؛ يتولى Event التحقق والإذن بالاستخدام.",
+          "/presentation/outputSelector/options/0/title": "متغيرات البيئة",
+          "/presentation/outputSelector/options/1/title": "بيان التكوين",
+          "/presentation/outputSelector/options/2/title": "حزمة المستأجر",
+          "/presentation/outputSelector/options/3/title": "هوية المشغل",
+          "/presentation/outputSelector/options/4/title": "المسودات القانونية",
+          "/presentation/sections/0/title": "الأساسيات",
+          "/presentation/sections/1/title": "الاستضافة وحاويات الخدمات",
+          "/presentation/sections/2/title": "قواعد بيانات التطبيق",
+          "/presentation/sections/3/title": "الهوية وتهيئة المسؤول",
+          "/presentation/sections/4/title": "الملفات وتخزين الكائنات",
+          "/presentation/sections/5/title": "البريد وخطافات الويب",
+          "/presentation/sections/6/title": "الخدمات الاختيارية والمدفوعات",
+          "/presentation/sections/7/title": "الأمان ومزودو الأسرار",
+          "/presentation/sections/8/title": "التحليلات ومتصفح الوكيل",
+          "/presentation/sections/9/title": "بيان التكوين",
+          "/presentation/sections/10/title": "حزمة المستأجر",
+          "/presentation/sections/11/title": "هوية المشغل",
+          "/presentation/sections/12/title": "المسودات القانونية",
+          "/presentation/sections/13/title": "إعدادات المنصة المتقدمة",
+          "/configuration/properties/select.feature.platform-config/title": "تضمين إعدادات المنصة الأساسية",
+          "/configuration/properties/select.feature.platform-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.deployment-config/title": "تضمين إعدادات الاستضافة",
+          "/configuration/properties/select.feature.deployment-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.external-compose-config/title": "تضمين حاويات الخدمات المساندة",
+          "/configuration/properties/select.feature.external-compose-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.database-config/title": "تضمين إعدادات قاعدة بيانات التطبيق",
+          "/configuration/properties/select.feature.database-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.server-database-config/title": "تضمين إصدار خادم قاعدة البيانات",
+          "/configuration/properties/select.feature.server-database-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.postgresql-config/title": "تضمين إعدادات اتصال PostgreSQL",
+          "/configuration/properties/select.feature.postgresql-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.identity-config/title": "تضمين إعدادات الهوية والمشغل",
+          "/configuration/properties/select.feature.identity-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.keycloak-config/title": "تضمين إعدادات Keycloak",
+          "/configuration/properties/select.feature.keycloak-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.configured-bootstrap-config/title": "تضمين إعدادات تهيئة المسؤول",
+          "/configuration/properties/select.feature.configured-bootstrap-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.local-bootstrap-config/title": "تضمين كلمة مرور المسؤول المحلي",
+          "/configuration/properties/select.feature.local-bootstrap-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.storage-config/title": "تضمين إعدادات تسوية التخزين",
+          "/configuration/properties/select.feature.storage-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.local-storage-config/title": "تضمين إعدادات تخزين الملفات المحلي",
+          "/configuration/properties/select.feature.local-storage-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.s3-storage-config/title": "تضمين إعدادات تخزين S3",
+          "/configuration/properties/select.feature.s3-storage-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.messaging-config/title": "تضمين إعدادات البريد والمراسلة",
+          "/configuration/properties/select.feature.messaging-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.svix-config/title": "تضمين إعدادات خطافات الويب Svix",
+          "/configuration/properties/select.feature.svix-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.integration-config/title": "تضمين تكاملات الخدمات الاختيارية",
+          "/configuration/properties/select.feature.integration-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.payments-config/title": "تضمين إعدادات مزود الدفع",
+          "/configuration/properties/select.feature.payments-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.security-config/title": "تضمين إعدادات الأمان والاسترداد",
+          "/configuration/properties/select.feature.security-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.cerbos-config/title": "تضمين إعدادات التفويض Cerbos",
+          "/configuration/properties/select.feature.cerbos-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.infisical-config/title": "تضمين إعدادات مزود الأسرار Infisical",
+          "/configuration/properties/select.feature.infisical-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.observability-config/title": "تضمين إعدادات التحليلات والتقارير",
+          "/configuration/properties/select.feature.observability-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/select.feature.agent-browser-config/title": "تضمين بيانات اعتماد متصفح الوكيل",
+          "/configuration/properties/select.feature.agent-browser-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
+          "/configuration/properties/env.API_ENDPOINT/title": "عنوان API",
+          "/configuration/properties/env.PUBLIC_BASE_URL/title": "عنوان الموقع العام",
+          "/configuration/properties/env.AUTHENTICATION_PROVIDER/title": "مزود المصادقة",
+          "/presentation/sections/0/description": "اختر ملفا وأدخل العناوين العامة المعروفة. التضمين يعرض إعدادات محلية فقط ولا يفعّل تكاملا في التطبيق المستهدف.",
+          "/presentation/sections/1/description": "ضمّن إعدادات النشر أو الحاويات المساندة للخدمات التي تنوي تكوينها فقط.",
+          "/presentation/sections/2/description": "اختر إعدادات قاعدة البيانات المطلوبة ثم أدخل تفاصيل الاتصال محليا.",
+          "/presentation/sections/3/description": "اضبط مزودي الهوية وتفاصيل المشغل وخيارات تهيئة المسؤول المقصودة.",
+          "/presentation/sections/4/description": "اضبط التخزين المحلي أو S3 وراجع خيارات التسوية قبل تحقق التطبيق المستهدف.",
+          "/presentation/sections/5/description": "اضبط خدمات التسليم ومزودي خطافات الويب دون إرسال رسائل أو الاتصال بهم.",
+          "/presentation/sections/6/description": "ضمّن التكاملات الاختيارية وإعدادات الدفع المطلوبة لنشرك فقط.",
+          "/presentation/sections/7/description": "راجع إعدادات الأمان والاسترداد والتفويض ومزودي الأسرار. إدخال الأسرار يتطلب موافقة مساحة العمل.",
+          "/presentation/sections/8/description": "اضبط التقارير وبيانات اعتماد متصفح الوكيل عند الحاجة إلى هذه القدرات فقط.",
+          "/presentation/sections/9/description": "أعد إعدادات النسخة وصفوف المستأجرين ليتحقق منها Event؛ الإعداد لا يطبقها.",
+          "/presentation/sections/10/description": "أعد بيانات المستأجر وإعداداته وهويته المرئية والمسودات القانونية لمراجعة التطبيق المستهدف.",
+          "/presentation/sections/11/description": "أعد حقول هوية المشغل. يتولى Event بصمات التكامل والإصدار والقبول.",
+          "/presentation/sections/12/description": "أعد مسودات قانونية مترجمة وافتراضات الاختصاص للمراجعة وليس للاعتماد أو النشر.",
+          "/presentation/sections/13/description": "راجع إعدادات المنصة ولوحة التحكم الإضافية عند الحاجة فقط. تبقى القيم المجهولة غير محددة.",
+          "/configuration/properties/env.API_ENDPOINT/x-configurator/guidance/instructions": "أدخل عنوان API العام المعروف؛ لا يرسل أي طلب ولا يخترع عنوانا.",
+          "/configuration/properties/env.PUBLIC_BASE_URL/x-configurator/guidance/instructions": "أدخل عنوان الموقع العام المعروف واتركه غير محدد حتى يعرف عنوان النشر.",
+          "/configuration/properties/env.AUTHENTICATION_PROVIDER/x-configurator/guidance/instructions": "أدخل المزود الذي يتوقعه Event. لا يقوم هذا الحقل بالمصادقة أو تفعيل مزود."
+        }
+      }
+    }
+  },
   "applicationVersions": [
     "0.0.0-development"
   ],
@@ -1437,7 +2131,7 @@
       "env.API_ENDPOINT": {
         "description": "Host validator: absolute-uri. Host validation remains required. Host restart: process; startup-owned: true",
         "format": "absolute-uri",
-        "title": "API_ENDPOINT",
+        "title": "API endpoint",
         "type": "string",
         "x-configurator": {
           "applicableWhen": {
@@ -1461,8 +2155,11 @@
               }
             ]
           },
-          "detail": "advanced",
-          "sensitivity": "public"
+          "detail": "basic",
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Enter the known public API address; no request is sent and no endpoint is invented."
+          }
         }
       },
       "env.API_HTTP_PORT": {
@@ -1743,7 +2440,7 @@
       },
       "env.AUTHENTICATION_PROVIDER": {
         "description": "Host validator: authentication-provider. Host validation remains required. Host restart: process; startup-owned: true",
-        "title": "AUTHENTICATION_PROVIDER",
+        "title": "Authentication provider",
         "type": "string",
         "x-configurator": {
           "applicableWhen": {
@@ -1767,8 +2464,11 @@
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "public"
+          "detail": "basic",
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Supply the provider expected by Event. This field does not authenticate or activate a provider."
+          }
         }
       },
       "env.AUTHORIZATION_PROVIDER": {
@@ -8991,7 +9691,7 @@
       "env.PUBLIC_BASE_URL": {
         "description": "Host validator: absolute-uri. Host validation remains required. Host restart: process; startup-owned: true",
         "format": "absolute-uri",
-        "title": "PUBLIC_BASE_URL",
+        "title": "Public site address",
         "type": "string",
         "x-configurator": {
           "applicableWhen": {
@@ -9015,8 +9715,11 @@
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "public"
+          "detail": "basic",
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Enter the known public site address; leave it unset until the deployment address is known."
+          }
         }
       },
       "env.RATELIMITING__ANONYMOUSREGISTRATION__CONCURRENCYLIMIT": {
@@ -12782,11 +13485,15 @@
           "operator-identity",
           "legal-drafts"
         ],
-        "title": "Artifact to prepare",
+        "title": "File to prepare",
         "type": "string",
         "x-configurator": {
           "detail": "standard",
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "initialValue": "environment",
+          "guidance": {
+            "instructions": "Choose the file to prepare. Changing this choice changes applicable settings, not the target application. Review before exporting; Event validates and authorizes any later use."
+          }
         }
       },
       "operator-identity.contentDigest": {
@@ -12979,7 +13686,7 @@
       },
       "select.feature.agent-browser-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.agent-browser-config",
+        "title": "Include agent browser credentials",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -12992,12 +13699,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.cerbos-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.cerbos-config",
+        "title": "Include Cerbos authorization settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13010,12 +13720,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.configured-bootstrap-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.configured-bootstrap-config",
+        "title": "Include administrator bootstrap settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13028,12 +13741,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.database-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.database-config",
+        "title": "Include application database settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13046,12 +13762,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.deployment-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.deployment-config",
+        "title": "Include hosting settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13064,12 +13783,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.external-compose-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.external-compose-config",
+        "title": "Include supporting service containers",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13082,12 +13804,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.identity-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.identity-config",
+        "title": "Include identity and operator settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13100,12 +13825,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.infisical-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.infisical-config",
+        "title": "Include Infisical secret provider settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13118,12 +13846,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.integration-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.integration-config",
+        "title": "Include optional service integrations",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13136,12 +13867,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.keycloak-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.keycloak-config",
+        "title": "Include Keycloak settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13154,12 +13888,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.local-bootstrap-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.local-bootstrap-config",
+        "title": "Include local administrator password",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13172,12 +13909,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.local-storage-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.local-storage-config",
+        "title": "Include local file storage settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13190,12 +13930,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.messaging-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.messaging-config",
+        "title": "Include email and messaging settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13208,12 +13951,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.observability-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.observability-config",
+        "title": "Include analytics and reporting settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13226,12 +13972,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.payments-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.payments-config",
+        "title": "Include payment provider settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13244,12 +13993,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.platform-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.platform-config",
+        "title": "Include basic platform settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13261,13 +14013,16 @@
             "value": "environment"
           },
           "detail": "standard",
-          "initialValue": false,
-          "sensitivity": "public"
+          "initialValue": true,
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.postgresql-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.postgresql-config",
+        "title": "Include PostgreSQL connection settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13280,12 +14035,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.s3-storage-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.s3-storage-config",
+        "title": "Include S3 storage settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13298,12 +14056,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.security-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.security-config",
+        "title": "Include security and recovery settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13316,12 +14077,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.server-database-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.server-database-config",
+        "title": "Include database server version",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13334,12 +14098,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.storage-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.storage-config",
+        "title": "Include storage reconciliation settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13352,12 +14119,15 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.feature.svix-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "select.feature.svix-config",
+        "title": "Include Svix webhook settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -13370,7 +14140,10 @@
           },
           "detail": "standard",
           "initialValue": false,
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "guidance": {
+            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
+          }
         }
       },
       "select.topology.standalone": {
@@ -13961,7 +14734,7 @@
   ],
   "identity": {
     "familyId": "d532b75d-5b62-4276-a03b-2bec28155d3d",
-    "revision": 1
+    "revision": 2
   },
   "outputs": {
     "configuration-manifest.json": {

@@ -78,6 +78,13 @@ All parameters are specified within the **URL fragment** (`#`) using standard UR
 | `entry` | String | 128 chars | Optional | The specific entry point identifier (defaults to first declared entry). |
 | `locale` | String | 35 chars | Optional | A declared locale; omission uses the definition's localization default. |
 
+If an explicit `entry` matches a declared output-selector option, the fresh
+workspace selects that output through its normal answer edit. Omitting `entry`
+leaves the definition's initialization in control; the first-entry fallback is
+metadata, not an answer. Later edits and omissions are not overwritten when a
+view rerenders. Definitions without a matching output selector do not infer
+answer keys from entry names.
+
 Names are closed, unique and case-sensitive. Selector values use admitted ASCII
 letters, digits, `.`, `-` and `_`; version matching is exact, not a semantic
 version range. The entire fragment is bounded to 4,096 characters. A supplied

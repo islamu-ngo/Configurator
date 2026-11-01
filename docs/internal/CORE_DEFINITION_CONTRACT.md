@@ -366,6 +366,18 @@ kebab-case; titles 128, descriptions 2048; counts 64/16. No field-group selector
 old experience aliases or presets are inferred. Detail maps basic/standard/
 advanced to presentation disclosure without changing requiredness.
 
+Optional `presentation.outputSelector` binds one concrete root `pointer` to
+ordered `options`, each with an exact string enum `value`, public `title` (128)
+and nonempty distinct `artifactIds` (64 references per option). Admission limits
+options to 64 and requires exhaustive unique enum coverage. The selected field
+and its root must be public and editable; nullable, conditional, read-only,
+write-only, nested or non-enum bindings reject. Each referenced artifact must
+exist with a root `when` that equals that option's value at the bound root
+pointer. This is descriptive metadata for the existing typed answer edit, not
+another activation evaluator. Initialization still belongs to Core; explicit
+answers and omissions retain precedence. `DefinitionOutputSelector` snapshots
+the path and read-only option/artifact collections.
+
 Guidance has optional instructions (4096), four links, sixteen distinct search
 terms (64 each). Multiline instructions permit technical plain text, not template
 expansion. Links have bounded titles/URLs, static public credential-free HTTPS,

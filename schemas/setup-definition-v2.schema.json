@@ -82,6 +82,57 @@
             "sections"
           ]
         },
+        "outputSelector": {
+          "type": "object",
+          "properties": {
+            "pointer": {
+              "type": "string",
+              "maxLength": 65536,
+              "pattern": "^/(?:[^/~]|~[01])*$"
+            },
+            "options": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "maxLength": 65536
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "artifactIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "title",
+                  "artifactIds"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "pointer",
+            "options"
+          ]
+        },
         "sections": {
           "type": "array",
           "minItems": 1,

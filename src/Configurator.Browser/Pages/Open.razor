@@ -24,7 +24,8 @@
     </section>
     @if (_workspaceOpen)
     {
-        <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" InitialLocale="@selection.Locale" />
+        <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" InitialLocale="@selection.Locale"
+                             InitialEntry="@(selection.EntryExplicit ? selection.Entry : null)" />
         <AppButton Variant="Variant.Outlined" OnClick="ConfirmDiscardAsync">Discard this workspace to choose another definition</AppButton>
     }
     else
@@ -269,8 +270,8 @@
     {
         string fragment = "#src=" + Uri.EscapeDataString(pointer.Source.AbsoluteUri)
             + "&digest=" + selection.Definition.Digest.Value
-            + "&entry=" + Uri.EscapeDataString(selection.Entry)
             + "&locale=" + Uri.EscapeDataString(selection.Locale);
+        if (selection.EntryExplicit) fragment += "&entry=" + Uri.EscapeDataString(selection.Entry);
         if (pointer.AppVersion is { } version) fragment += "&appVersion=" + Uri.EscapeDataString(version);
         _ = BrowserDefinitionPointer.Parse(fragment);
         return new Uri(new Uri(Navigation.BaseUri), "open").AbsoluteUri + fragment;

@@ -209,6 +209,16 @@ Layout/detail never changes validity or grants presets. Consumers must keep
 applicable required/error work reachable; a metadata declaration is not proof
 that every client has qualified that experience.
 
+Use optional `presentation.outputSelector` when a public root string enum chooses
+the output task. Set `pointer` to that setting's exact JSON Pointer and list
+`options` in display order. Each option declares its enum `value`, human `title`
+and nonempty `artifactIds`. Options must cover every enum value exactly once,
+with at most 64 options and 64 artifact references each. Referenced artifacts
+must have a root equality condition on that setting and value. Conditional,
+nullable, protected or read-only selector fields reject. The metadata does not
+supply answers: use `x-configurator.initialValue` for a benign fresh-workspace
+choice; deliberate values and explicit omissions still win.
+
 `x-configurator.guidance` accepts optional instructions (4096 characters), up to
 four static HTTPS links and sixteen distinct search terms. Instructions support
 plain-text multiline technical punctuation, not executable markup or templates.

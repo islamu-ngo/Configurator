@@ -354,6 +354,27 @@ public static class DefinitionSchema
     {
         ["defaultJourney"] = Text(64),
         ["navigation"] = Choice("wizard", "sections"),
+        ["outputSelector"] = Closed(new JsonObject
+        {
+            ["pointer"] = new JsonObject
+            {
+                ["type"] = "string",
+                ["maxLength"] = 65536,
+                ["pattern"] = "^/(?:[^/~]|~[01])*$"
+            },
+            ["options"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["minItems"] = 1,
+                ["maxItems"] = 64,
+                ["items"] = Closed(new JsonObject
+                {
+                    ["value"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536 },
+                    ["title"] = Text(128),
+                    ["artifactIds"] = Strings(64, 128)
+                }, "value", "title", "artifactIds")
+            }
+        }, "pointer", "options"),
         ["sections"] = new JsonObject
         {
             ["type"] = "array",

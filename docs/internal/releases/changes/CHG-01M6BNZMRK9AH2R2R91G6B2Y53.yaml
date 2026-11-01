@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6BNZMRK9AH2R2R91G6B2Y53
+Title: "Start Event configuration with useful output tasks"
+Type: feat
+Scope: definitions
+Summary: "Admit bounded output selectors and publish revision 2 with Environment and platform-settings initialization while preserving explicit answers, omissions, and historical identities."
+Group: task-aware-definition-defaults
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+  Migration:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+  Configuration:
+    Reference: docs/public/definition-cookbook.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/launch-integration.md
+    Disposition: documented

@@ -3,8 +3,9 @@
 These public fixtures derive from first-party
 [ISLAMU Event](https://github.com/ISLAMU/Event) configuration metadata, not
 compiled target code or authority to apply configuration. The reauthored v2
-source uses fresh family `c0d02619-0134-411b-b495-ef302f592669`, revision 1,
-allocated through Configurator's native identity editor. The prior Event family
+source uses family `c0d02619-0134-411b-b495-ef302f592669`,
+allocated through Configurator's native identity editor. The admitted runtime
+owns its current revision and canonical digest. The prior Event family
 and its publication facts are historical, not authority for this new family.
 
 `configurator.json` is the reauthored neutral v2 source, preserving 427 declared
@@ -26,24 +27,97 @@ receipt. It remains unchanged rather than fabricating a new upstream release.
 The browser embeds `definition.json` directly through a resource link; there are
 no separately maintained native/public copies.
 Use `/launch/c0d02619-0134-411b-b495-ef302f592669` on a Configurator origin
-built with this fixture. Its canonical runtime digest is
-`234b97da3612024910846742c0e2cf7c8d3837e794c805eb445582c025fa3f21`.
+built with this fixture. Obtain the current canonical digest by admitting
+`definition.json` rather than reusing a historical pin.
 The historical receipt's upstream URL does not serve this new family.
 Earlier store snapshots retain their bytes and are not silently revised.
 The complete browser workspace accepts typed memory-only answers, with explicit
 consent for secret entry and draft output for deferred secrets.
 No supplied answers, private defaults or private literals are embedded.
 
-Regenerate the local v2 runtime from the repository root:
+## Choose an offline task
+
+The definition binds its public `/operation` enum to five output choices through
+`presentation.outputSelector`. All five artifact IDs and target mappings remain
+unchanged:
+
+| Choice | Artifact ID | File |
+|---|---|---|
+| Environment | `environment` | `event.env` |
+| Configuration manifest | `configuration-manifest` | `configuration-manifest.json` |
+| Tenant package | `tenant-package` | `tenant-package.json` |
+| Operator identity | `operator-identity` | `operator-identity.json` |
+| Legal drafts | `legal-drafts` | `legal-drafts.json` |
+
+A fresh workspace starts at Environment through `initialValue`, without storing
+a supplied answer. Basics includes platform settings by initializing
+`select.feature.platform-config` to true. This only makes the existing offline
+fields applicable; it does not enable authentication, payments, MCP, telemetry
+or another target integration, supply addresses or credentials, or grant secret
+consent. Public API/site addresses and the authentication provider remain unset
+until supplied. Explicit false, another output choice and explicit omissions
+take precedence; reset makes initialization eligible again.
+
+Sections keep inclusion choices beside their hosting, database, identity,
+storage, messaging, optional-service, security and operational settings.
+Manifest, tenant, operator and legal tasks have their own sections; additional
+platform and control-plane fields are in Advanced. Membership follows the
+source's existing capability predicates, not guessed environment-key semantics.
+English and Arabic public labels and guidance do not translate technical keys
+or answer values. Existing string-valued switches retain their declared types:
+no target-contract conversion was proved for this content update.
+
+The optional-store source has the same authored experience in its separate
+family `d532b75d-5b62-4276-a03b-2bec28155d3d`. Its prior release snapshots
+remain immutable; an old pinned definition is not silently upgraded.
+
+## Revise and regenerate
+
+Changed canonical content requires native revision advancement before runtime
+generation. From the repository root, with a current CLI build, create distinct
+next-revision source candidates:
+
+```bash
+mkdir -p .tmp/browser-ux-simplification
+dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
+  definition revise --source examples/islamu-event/configurator.json \
+  --against examples/islamu-event/definition.json \
+  --output .tmp/browser-ux-simplification/event-example-next.json
+dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
+  definition revise --source store/islamu-event/configurator.json \
+  --against store/islamu-event/releases/2.json \
+  --output .tmp/browser-ux-simplification/event-store-next.json
+```
+
+These destinations are create-only. Review both native receipts and candidates,
+then adopt each candidate as its corresponding handwritten source. Never
+hand-increment identity or change historical snapshots. The store command above
+uses the current revision-2 anchor; use the matching immutable anchor when
+revising a later release.
+
+Regenerate the local v2 runtime and append the store release through their
+native owners:
 
 ```bash
 dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
   --configuration Release -- --write-examples
 dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
   --configuration Release -- --check-examples
+dotnet run eng/configurator/BuildDefinitionStore.cs -- \
+  --source store --output .tmp/browser-ux-definition-store --write
+dotnet run eng/configurator/BuildDefinitionStore.cs -- \
+  --source store --output .tmp/browser-ux-definition-store --check
 ```
 
+The example generator also visits the minimal and Grafana examples; their
+unchanged canonical bytes must remain unchanged. The store builder appends the
+new release and generates its catalog; it must not rewrite the prior release.
 The synthetic answer fixtures use the private version 1 answer envelope.
+The deployment-only environment vector must explicitly exclude platform
+settings to keep its original output and readiness: platform inclusion now
+exposes the existing required `env.SETUP_SECRET`. Do not invent a setup secret,
+weaken its requirement or change the independent expected bytes to mask that
+newly applicable work.
 Regeneration does not contact Event or establish target acceptance.
 
 ## Historical Event exporter workflow

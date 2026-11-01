@@ -13,11 +13,14 @@ public sealed record DefinitionPresentation
         string navigation = Text(data, "navigation") ?? "sections";
         Experiences = Array.AsReadOnly(data.GetProperty("journeys").EnumerateArray()
             .Select(experience => new DefinitionExperience(experience, navigation)).ToArray());
+        OutputSelector = data.TryGetProperty("outputSelector", out var selector)
+            ? new DefinitionOutputSelector(selector) : null;
     }
 
     public string DefaultExperience { get; }
     public IReadOnlyList<DefinitionSection> Sections { get; }
     public IReadOnlyList<DefinitionExperience> Experiences { get; }
+    public DefinitionOutputSelector? OutputSelector { get; }
 
     internal static string? Text(JsonElement data, string name) =>
         data.TryGetProperty(name, out var value) ? value.GetString() : null;
@@ -32,6 +35,34 @@ public sealed record DefinitionPresentation
         "advanced" => SetupFieldDisclosure.Advanced,
         _ => SetupFieldDisclosure.Guided
     };
+}
+
+/// <summary>Binds human output choices to one admitted public root enum; selection remains an ordinary answer edit.</summary>
+public sealed record DefinitionOutputSelector
+{
+    internal DefinitionOutputSelector(JsonElement data)
+    {
+        Location = DefinitionPath.Parse(data.GetProperty("pointer").GetString()!);
+        Options = Array.AsReadOnly(data.GetProperty("options").EnumerateArray()
+            .Select(option => new DefinitionOutputOption(option)).ToArray());
+    }
+
+    public DefinitionPath Location { get; }
+    public IReadOnlyList<DefinitionOutputOption> Options { get; }
+}
+
+public sealed record DefinitionOutputOption
+{
+    internal DefinitionOutputOption(JsonElement data)
+    {
+        Value = data.GetProperty("value").GetString()!;
+        Title = data.GetProperty("title").GetString()!;
+        ArtifactIds = DefinitionPresentation.Strings(data, "artifactIds");
+    }
+
+    public string Value { get; }
+    public string Title { get; }
+    public IReadOnlyList<string> ArtifactIds { get; }
 }
 
 public sealed record DefinitionSection

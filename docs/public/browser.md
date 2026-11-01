@@ -24,6 +24,14 @@ its published Release/AOT and custody evidence is recorded separately in
 
 ## Typed editing and language
 
+The current Event definition starts at Environment with a Basics section.
+Its offline platform-settings inclusion is initially on, while API/site addresses
+and the authentication provider remain unset. This does not enable a target
+integration or secret consent. All five output tasks remain available, and an
+explicit launch entry selects its matching declared task once. Later supplied
+choices, explicit false and omissions take precedence over initialization.
+Opening an older pinned definition retains that definition's own behavior.
+
 The workspace edits the admitted v2 schema directly. Typed maps keep literal keys,
 including dots and slashes, separate from editor paths. Add an entry, edit its
 declared value and remove it deliberately; compound values do not require an

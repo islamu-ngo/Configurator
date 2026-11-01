@@ -142,6 +142,17 @@ the admitted configuration. There are no old group selectors or experience
 aliases. Detail is basic/standard/advanced, independent of requiredness.
 Absent presentation is neutral, not an answer preset.
 
+Optional `presentation.outputSelector` supplies human task labels for a public,
+nonnullable, unconditionally editable root string enum. Its `pointer` identifies
+the exact data key; each ordered option has `value`, `title` and nonempty
+`artifactIds`. Admission requires exhaustive unique enum coverage, at most 64
+options and 64 artifact references per option, and each artifact's root equality
+guard must agree with the bound value. The compiler copies this metadata into
+runtime admission rather than interpreting it separately. The shared form maps
+the literal root name to its editor ID before the ordinary typed edit, including
+slash/tilde names. Defaults remain `initialValue`; no display option or resolver
+fallback supplies an answer. See the [task-selection example](../public/definition-cookbook.md#output-choices-without-application-specific-ui).
+
 Schema `description` is the ordinary explanation. Extension guidance has optional
 instructions (4096), at most four links and sixteen search terms. Instructions
 admit multiline plain text and technical punctuation, not template expansion.

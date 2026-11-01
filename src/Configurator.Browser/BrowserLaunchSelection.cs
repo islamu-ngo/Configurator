@@ -10,7 +10,7 @@ public sealed class BrowserLaunchException(string code) : Exception(code)
 }
 
 /// <summary>Captures the exact admitted document, not a mutable registry lookup.</summary>
-public sealed record BrowserLaunchSelection(SetupDefinition Definition, string Entry, string Locale)
+public sealed record BrowserLaunchSelection(SetupDefinition Definition, string Entry, string Locale, bool EntryExplicit)
 {
     internal static IReadOnlySet<string> EditingCapabilities { get; } = new[]
     {
@@ -79,7 +79,7 @@ public sealed record BrowserLaunchSelection(SetupDefinition Definition, string E
             throw new BrowserLaunchException("entry-unknown");
         if (!definition.Locales.Contains(locale, StringComparer.Ordinal))
             throw new BrowserLaunchException("locale-unsupported");
-        return new BrowserLaunchSelection(definition, entry, locale);
+        return new BrowserLaunchSelection(definition, entry, locale, selectors.ContainsKey("entry"));
     }
 
     private static bool ValidEscapes(string text)

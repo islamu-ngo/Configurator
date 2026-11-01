@@ -97,6 +97,132 @@ public sealed class DefinitionPresentationAdmissionTests
         document["configuration"]!["properties"]!["TOKEN"]!.AsObject();
     private static JsonObject Metadata(JsonObject document) => Token(document)["x-configurator"]!.AsObject();
 
+    internal static JsonObject OutputSelectorSource(string fieldName)
+    {
+        string pointer = DefinitionPath.FromSegments([fieldName]).ToPointer();
+        JsonObject source = Authoring();
+        source["configuration"]!["required"] = new JsonArray(fieldName);
+        source["configuration"]!["properties"] = new JsonObject
+        {
+            [fieldName] = JsonNode.Parse("""
+                {"type":"string","enum":["identity","settings"],
+                 "x-configurator":{"sensitivity":"public","initialValue":"settings"}}
+                """)
+        };
+        source["presentation"] = new JsonObject
+        {
+            ["defaultJourney"] = "configure",
+            ["sections"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "output",
+                ["title"] = "Output",
+                ["pointers"] = new JsonArray(pointer)
+            }),
+            ["journeys"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "configure",
+                ["title"] = "Configure",
+                ["sections"] = new JsonArray("output")
+            }),
+            ["outputSelector"] = new JsonObject
+            {
+                ["pointer"] = pointer,
+                ["options"] = new JsonArray(
+                    new JsonObject { ["value"] = "settings", ["title"] = "Settings file", ["artifactIds"] = new JsonArray("settings") },
+                    new JsonObject { ["value"] = "identity", ["title"] = "Identity file", ["artifactIds"] = new JsonArray("identity") })
+            }
+        };
+        var outputs = new JsonObject();
+        foreach (string value in new[] { "settings", "identity" })
+            outputs[value + ".json"] = new JsonObject
+            {
+                ["id"] = value,
+                ["format"] = "json",
+                ["projection"] = new JsonObject
+                {
+                    ["op"] = "literal",
+                    ["value"] = new JsonObject { ["kind"] = value },
+                    ["when"] = new JsonObject
+                    {
+                        ["op"] = "equals",
+                        ["value"] = value,
+                        ["reference"] = new JsonObject { ["scope"] = "root", ["path"] = pointer }
+                    }
+                }
+            };
+        source["outputs"] = outputs;
+        return source;
+    }
+
+    [Test]
+    [Arguments("deployment/target")]
+    [Arguments("file.kind")]
+    public async Task OutputSelectorAdmitsLiteralPointersAndAuthoredOptionOrder(string fieldName)
+    {
+        SetupDefinition definition = Compile(OutputSelectorSource(fieldName));
+        JsonObject runtime = JsonNode.Parse(definition.CanonicalBytes.Span)!.AsObject();
+        JsonNode selector = runtime["presentation"]!["outputSelector"]!;
+        await Assert.That(selector["pointer"]!.GetValue<string>())
+            .IsEqualTo(DefinitionPath.FromSegments([fieldName]).ToPointer());
+        await Assert.That(selector["options"]![0]!["value"]!.GetValue<string>()).IsEqualTo("settings");
+        await Assert.That(Parse(runtime).Digest).IsEqualTo(definition.Digest);
+        DefinitionOutputSelector admitted = definition.Presentation!.OutputSelector!;
+        await Assert.That(admitted.Location).IsEqualTo(DefinitionPath.FromSegments([fieldName]));
+        await Assert.That(admitted.Options[0].Title).IsEqualTo("Settings file");
+        await Assert.That(admitted.Options[0].ArtifactIds.Single()).IsEqualTo("settings");
+        runtime["presentation"]!["outputSelector"]!["options"]!.AsArray().Clear();
+        await Assert.That(admitted.Options.Count).IsEqualTo(2);
+        await Assert.That(() => ((IList<DefinitionOutputOption>)admitted.Options).Clear()).Throws<NotSupportedException>();
+        await Assert.That(() => ((IList<string>)admitted.Options[0].ArtifactIds).Clear()).Throws<NotSupportedException>();
+        foreach (string schema in new[] { DefinitionSchema.Generate(), DefinitionAuthoringSchema.Generate() })
+        {
+            JsonNode selectorSchema = JsonNode.Parse(schema)!["properties"]!["presentation"]!["properties"]!["outputSelector"]!;
+            await Assert.That(selectorSchema["additionalProperties"]!.GetValue<bool>()).IsFalse();
+            await Assert.That(selectorSchema["properties"]!["options"]!["maxItems"]!.GetValue<int>()).IsEqualTo(64);
+        }
+    }
+
+    [Test]
+    public async Task OutputSelectorRejectsProtectedConditionalAndInexactBindings()
+    {
+        foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
+        {
+            root => root["configuration"]!["x-configurator"]!["sensitivity"] = "sensitive",
+            root => root["configuration"]!["properties"]!["task"]!["x-configurator"]!["sensitivity"] = "secret",
+            root => root["configuration"]!["properties"]!["task"]!["readOnly"] = true,
+            root => root["configuration"]!["properties"]!["task"]!["writeOnly"] = true,
+            root => root["configuration"]!["properties"]!["task"]!["type"] = new JsonArray("string", "null"),
+            root => root["configuration"]!["properties"]!["task"]!.AsObject().Remove("enum"),
+            root =>
+            {
+                root["configuration"]!["properties"]!["task"]!["type"] = "boolean";
+                root["configuration"]!["properties"]!["task"]!.AsObject().Remove("enum");
+            },
+            root => root["configuration"]!["properties"]!["task"]!["x-configurator"]!["applicableWhen"] =
+                JsonNode.Parse("""{"op":"exists","reference":{"scope":"root","path":"/enabled"}}"""),
+            root => root["presentation"]!["outputSelector"]!["pointer"] = "/missing",
+            root => root["presentation"]!["outputSelector"]!["pointer"] = "",
+            root => root["presentation"]!["outputSelector"]!["options"]!.AsArray().RemoveAt(1),
+            root => root["presentation"]!["outputSelector"]!["options"]![1]!["value"] = "settings",
+            root => root["presentation"]!["outputSelector"]!["options"]![1]!["value"] = "unknown",
+            root => root["presentation"]!["outputSelector"]!["options"]![0]!["artifactIds"] = new JsonArray(),
+            root => root["presentation"]!["outputSelector"]!["options"]![0]!["artifactIds"] = new JsonArray("missing"),
+            root => root["presentation"]!["outputSelector"]!["options"]![0]!["artifactIds"] = new JsonArray("settings", "settings"),
+            root => root["presentation"]!["outputSelector"]!["options"]![0]!["artifactIds"] = new JsonArray("identity"),
+            root => root["presentation"]!["outputSelector"]!["options"]![0]!["title"] = new string('x', 129),
+            root => root["presentation"]!["outputSelector"]!["options"]![0]!["action"] = "execute",
+            root => root["outputs"]!["settings.json"]!["projection"]!.AsObject().Remove("when")
+        })
+        {
+            JsonObject source = OutputSelectorSource("task");
+            source["configuration"]!["properties"]!["task"]!["x-configurator"]!.AsObject().Remove("initialValue");
+            source["configuration"]!["properties"]!["enabled"] = JsonNode.Parse(
+                """{"type":"boolean","x-configurator":{"sensitivity":"public"}}""");
+            mutate(source);
+            await Assert.That(() => Compile(source)).Throws<SetupDefinitionException>();
+        }
+    }
+
     [Test]
     public async Task EquivalentYamlJsonCompilesPointersAndJourneysInAuthoredOrder()
     {
