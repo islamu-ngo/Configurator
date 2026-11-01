@@ -10,6 +10,13 @@ internal sealed class DefinitionImportProjection
     private sealed record Instruction(JsonElement Projection, DefinitionPath? Path, DefinitionNode? Schema,
         IReadOnlyList<(string Name, Instruction Child)> Children, bool AlwaysEmitted);
 
+    private sealed class AssignmentScope
+    {
+        internal bool Assigned { get; set; }
+        internal Dictionary<string, AssignmentScope> Children { get; } = new(StringComparer.Ordinal);
+        internal bool HasAssignments => Assigned || Children.Count > 0;
+    }
+
     private readonly Instruction _root;
     private readonly DefinitionPath? _selector;
     private readonly JsonElement _selectorValue;
@@ -34,7 +41,7 @@ internal sealed class DefinitionImportProjection
         bool ambiguous = false;
         DefinitionPath? selector = null;
         JsonElement selectorValue = default;
-        var assignments = new List<DefinitionPath>();
+        var assignments = new AssignmentScope();
         try
         {
             JsonElement projection = artifact.Projection;
@@ -50,7 +57,7 @@ internal sealed class DefinitionImportProjection
                 if (selected is null || !publicPath || selected.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence ||
                     selected.Keywords.TryGetProperty("x-configurator", out var metadata) && metadata.TryGetProperty("applicableWhen", out _) ||
                     !DefinitionValidator.ValueValid(selected, selectorValue)) return (null, code);
-                assignments.Add(selector);
+                assignments.Children.Add(selector.Segments[0], new AssignmentScope { Assigned = true });
             }
             Instruction? root = await Compile(projection, definition.Configuration, false, assignments, DefinitionPath.Parse(""), true);
             if (ambiguous) code = "inverse-ambiguous";
@@ -62,7 +69,7 @@ internal sealed class DefinitionImportProjection
         catch (SetupDefinitionException exception) when (exception.Code == "path-limit") { return (null, code); }
 
         async ValueTask<Instruction?> Compile(JsonElement projection, DefinitionNode scope, bool item,
-            List<DefinitionPath> assigned, DefinitionPath target, bool root = false)
+            AssignmentScope assigned, DefinitionPath target, bool root = false)
         {
             await work.InverseAsync();
             if (!root && projection.TryGetProperty("when", out _)) return null;
@@ -78,14 +85,25 @@ internal sealed class DefinitionImportProjection
                 path = DefinitionPath.Parse(reference.GetProperty("path").GetString()!);
                 schema = SourceNode(scope, path, out emitted, out _);
                 if (schema is null) return null;
-                foreach (DefinitionPath prior in assigned)
+                AssignmentScope position = assigned;
+                foreach (string segment in path.Segments)
                 {
                     await work.InverseAsync();
-                    if (!IsPrefix(prior, path) && !IsPrefix(path, prior)) continue;
+                    if (position.Assigned)
+                    {
+                        ambiguous = true;
+                        return null;
+                    }
+                    if (!position.Children.TryGetValue(segment, out AssignmentScope? next))
+                        position.Children.Add(segment, next = new AssignmentScope());
+                    position = next;
+                }
+                if (position.HasAssignments)
+                {
                     ambiguous = true;
                     return null;
                 }
-                assigned.Add(path);
+                position.Assigned = true;
                 if (artifact.Format == "dotenv" && (op != "copy" || target.Segments.Count != 1 ||
                     schema.IsNullable || schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)) return null;
             }
@@ -125,10 +143,10 @@ internal sealed class DefinitionImportProjection
                     break;
                 case "repeat":
                     if (schema!.Type != DefinitionNodeType.Sequence || schema.IsNullable) return null;
-                    var rowAssignments = new List<DefinitionPath>();
+                    var rowAssignments = new AssignmentScope();
                     Instruction? row = await Compile(projection.GetProperty("item"), schema.Items!, true, rowAssignments,
                         DefinitionPath.FromSegments(target.Segments.Append("0")));
-                    if (row is null || !row.AlwaysEmitted || rowAssignments.Count == 0 ||
+                    if (row is null || !row.AlwaysEmitted || !rowAssignments.HasAssignments ||
                         row.Path?.Segments.Count != 0 && (schema.Items!.Type != DefinitionNodeType.Mapping || schema.Items.IsNullable))
                         return null;
                     children.Add(("", row));

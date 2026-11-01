@@ -40,6 +40,14 @@ schema-valid public scalar equality selector may supply artifact context.
 Filtered repetitions, overlapping assignments and guessed hidden values refuse.
 Human-readable documents and lossy projections do not acquire a universal inverse.
 
+Assignment overlap is checked in a compilation-local ordinal segment index, not
+by comparing every new source path against every earlier unrelated copy. Each
+traversed segment charges the existing inverse-work budget. Duplicate,
+ancestor/descendant and selector conflicts still refuse, and each repeated row
+has its own assignment scope. The size, inverse, validation and combined-work
+ceilings are unchanged. Wide flat Environment mappings therefore do not exhaust
+the inverse budget through an incidental quadratic scan.
+
 Every input member must be accounted for as recovered data, structural metadata,
 or unrecognized/unassessed input. Literal mismatches can coexist with assessment
 of recoverable settings; strict autofill still refuses that file. Unknown keys

@@ -166,6 +166,8 @@ selected definition. No old definition, upload or target connection is needed.
    and keep the default purpose, **Compare with this definition**. The capability
    summary distinguishes supported inspection from strict autofill. The local
    input limit is **1 MiB**.
+   Wide direct-key Environment mappings use the same bounded inspection rules;
+   unsupported or overlapping mappings remain refusals, not best-effort imports.
 3. Inspect **Imported file comparison**. Execution, compatibility, assessed
    coverage, finding-inventory completion and file-level autofill eligibility
    are separate facts. A stopped inventory reports a lower bound, not an exact

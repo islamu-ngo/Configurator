@@ -207,8 +207,9 @@ public sealed class DefinitionImportAssessmentTests
         await Assert.That(operation.IsCompletedSuccessfully).IsTrue();
         using var assessment = await operation;
         await Assert.That(yields).IsEqualTo(1);
-        await Assert.That(assessment.Report.WorkUnits).IsEqualTo(28);
-        await Assert.That(assessment.Report.InverseNodes).IsEqualTo(5);
+        // Compilation now charges the single /x path-segment visit.
+        await Assert.That(assessment.Report.WorkUnits).IsEqualTo(29);
+        await Assert.That(assessment.Report.InverseNodes).IsEqualTo(6);
         await Assert.That(assessment.Report.ValidationNodes).IsEqualTo(2);
         ValueTask<DefinitionImportResult> autofill = assessment.AssessAutofillAsync(Empty(), null, Yield);
         await Assert.That(autofill.IsCompletedSuccessfully).IsTrue();
@@ -416,6 +417,23 @@ public sealed class DefinitionImportAssessmentTests
         var answers = assessment.AssessAutofill(Empty()).Answers!;
         await Assert.That(answers.Values["x"].ValueKind).IsEqualTo(JsonValueKind.Null);
         await Assert.That(answers.Values["map"].EnumerateObject().Count()).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task ActualEventEnvironmentCompilationStaysWithinTheExistingInspectionBudget()
+    {
+        using Stream source = typeof(DefinitionImportAssessmentTests).Assembly.GetManifestResourceStream("EventDefinition")!;
+        using var bytes = new MemoryStream();
+        await source.CopyToAsync(bytes);
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes.ToArray());
+        DefinitionImportCapability capability = DefinitionImport.GetCapability(definition, "environment");
+        Console.WriteLine($"COMPARISON_PROJECTION family={definition.FamilyId:D} digest={definition.Digest.Value} code={capability.Code}");
+        await Assert.That(capability.StrictAutofillSupported).IsTrue().Because(capability.Code);
+        using var assessment = DefinitionImport.Inspect(definition, "environment",
+            "API_ENDPOINT=https://comparison.synthetic.example\nPUBLIC_BASE_URL=https://comparison.synthetic.example\n"u8.ToArray());
+        await Assert.That(assessment.Report.ExecutionCompleted).IsTrue();
+        await Assert.That(assessment.Report.InverseNodes).IsLessThanOrEqualTo(65_536);
+        await Assert.That(assessment.Report.WorkUnits).IsLessThanOrEqualTo(131_072);
     }
 
     [Test]
