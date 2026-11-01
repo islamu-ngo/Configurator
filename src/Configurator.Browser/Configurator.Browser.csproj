@@ -30,6 +30,10 @@
                       WithCulture="false" LogicalName="Configurator.Browser.Resources.BrowserStrings.resources" />
     <EmbeddedResource Update="Resources/BrowserStrings.ar.resx"
                       WithCulture="false" LogicalName="Configurator.Browser.Resources.BrowserStrings.ar.resources" />
+    <EmbeddedResource Update="Resources/BrowserUi.resx"
+                      WithCulture="false" LogicalName="Configurator.Browser.Resources.BrowserUi.resources" />
+    <EmbeddedResource Update="Resources/BrowserUi.ar.resx"
+                      WithCulture="false" LogicalName="Configurator.Browser.Resources.BrowserUi.ar.resources" />
     <EmbeddedResource Include="Definitions/**/*.json" />
     <!-- Registry orders resource names; put the neutral first-run example before optional target examples. -->
     <EmbeddedResource Include="../../examples/minimal-self-hosted/setup-definition.json"

@@ -207,6 +207,15 @@ To protect users against malicious redirects or network tampering, Configurator 
   digest pin must pass before workspace entry. Public display labels and family
   GUIDs are not authentication, curation or permission to apply configuration.
 
+Opening another project does not transfer the current answers. If Developer
+contains pending text, resolve it with Apply, Discard or Stay first. Apply updates
+the current workspace only; leaving can still require a separate confirmation
+to discard that workspace. Stay or a cancelled confirmation keeps the current
+project. Invalid text remains available for correction after a failed Apply.
+Revoking consent immediately retires the private Developer document and history,
+without waiting for either decision. See the [Browser Guide](browser.md) for
+the public editing scope and protected-field controls.
+
 ---
 
 ## Where to Go Next

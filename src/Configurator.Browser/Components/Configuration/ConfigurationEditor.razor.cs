@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 
-public partial class ConfigurationEditor
+public partial class ConfigurationEditor : IBrowserPendingChanges
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
     private Task<IJSObjectReference>? _comparisonRendering;
@@ -38,6 +38,10 @@ public partial class ConfigurationEditor
     private ConfigurationConfigurePanel? _configurePanel;
     private ConfigurationReviewPanel? _reviewPanel;
     private ConfigurationFilesPanel? _filesPanel;
+    private ConfigurationDeveloper? _developerPanel;
+    private bool _developerMode;
+    private long _developerEpoch;
+    private long _outputChoiceKey;
     private string _statusKey = "WorkspaceReadyStatus";
     private object?[] _statusArguments = [];
     private string _statusCode = "workspace-ready";
@@ -73,7 +77,8 @@ public partial class ConfigurationEditor
     private bool _ready;
     private bool _beginPending;
     private bool HasWork(DefinitionFormModel form) => !_disposed && _ready && ReferenceEquals(form, _form) &&
-        (form.HasWorkspaceChanges || _prepared.Count > 0 || _importPending || form.ImportComparison is not null);
+        (form.HasWorkspaceChanges || _prepared.Count > 0 || _importPending || form.ImportComparison is not null
+            || _developerPanel is { } developer && ReferenceEquals(developer.Form, form) && developer.HasWork);
     private string PreparationReadiness
     {
         get
@@ -96,6 +101,8 @@ public partial class ConfigurationEditor
     protected override void OnParametersSet()
     {
         if (ReferenceEquals(_pinned, Definition)) return;
+        RetireDeveloper();
+        _developerMode = false;
         RetireView();
         _configurePanel = null;
         _reviewPanel = null;
@@ -146,9 +153,11 @@ public partial class ConfigurationEditor
                 builder.OpenComponent<ConfigurationDiscovery>(0);
                 builder.AddAttribute(1, nameof(ConfigurationDiscovery.Form), form);
                 builder.AddAttribute(2, nameof(ConfigurationDiscovery.Navigate),
-                    EventCallback.Factory.Create<DefinitionDiagnostic>(this, diagnostic =>
+                    EventCallback.Factory.Create<DefinitionDiagnostic>(this, async diagnostic =>
                     {
                         if (_disposed || !ReferenceEquals(form, _form) || lease != _search.Generation) return;
+                        if (!await ResolvePendingAsync() || _disposed || !ReferenceEquals(form, _form)
+                            || lease != _search.Generation) return;
                         _search.CompleteNavigation(this, lease);
                         CorrectField(diagnostic);
                     }));
@@ -199,6 +208,58 @@ public partial class ConfigurationEditor
         }
     }
 
+    public async Task<bool> ResolvePendingAsync()
+    {
+        if (_disposed) return false;
+        ConfigurationDeveloper? panel = _developerPanel;
+        DefinitionFormModel? form = _form;
+        if (panel is null || !ReferenceEquals(panel.Form, form) || !panel.IsDirty) return true;
+        bool resolved = await panel.ResolvePendingAsync();
+        return resolved && !_disposed && _ready && ReferenceEquals(form, _form)
+            && ReferenceEquals(panel, _developerPanel);
+    }
+
+    private void RetireDeveloper()
+    {
+        ConfigurationDeveloper? panel = _developerPanel;
+        _developerPanel = null;
+        ++_developerEpoch;
+        if (panel is not null)
+            _outputRetirement = Task.WhenAll(_outputRetirement, ObserveRetirementAsync([panel.RetireAsync()]));
+        _navigation?.RefreshWork(this, _navigationLease);
+    }
+
+    private async Task RequestEditorModeAsync(bool developer)
+    {
+        if (_developerMode == developer || !await ResolvePendingAsync()) return;
+        RetireDeveloper();
+        _developerMode = developer;
+        _configurePanel = null;
+        SelectWorkflowStage("configure");
+    }
+
+    private async Task RequestWorkflowStageAsync(string stage)
+    {
+        if (_activeWorkflowStage == stage || !await ResolvePendingAsync()) return;
+        SelectWorkflowStage(stage);
+    }
+
+    private async Task RequestOutputChangeAsync(ChangeEventArgs args)
+    {
+        DefinitionFormModel form = _form!;
+        long view = _viewGeneration;
+        if (!await ResolvePendingAsync())
+        {
+            if (ReferenceEquals(form, _form))
+            {
+                ++_outputChoiceKey;
+                if (view == _viewGeneration) RequestFocus(FocusTarget.Output);
+            }
+            return;
+        }
+        RetireDeveloper();
+        ChangeOutput(args);
+    }
     private SetupArtifactDefinition[] ImportArtifacts { get; set; } = [];
     private DefinitionImportCapability? ImportCapability => _importCapabilities.GetValueOrDefault(_importArtifact);
     private void IndexSections()
@@ -224,6 +285,8 @@ public partial class ConfigurationEditor
 
     private void SelectWorkflowStage(string stage)
     {
+        if (_activeWorkflowStage == "configure" && _developerMode && stage != "configure")
+            RetireDeveloper();
         bool leavingFiles = _activeWorkflowStage == "prepare" && stage != "prepare";
         RetireView();
         InvalidateMounts();
@@ -259,6 +322,8 @@ public partial class ConfigurationEditor
         if (field is null) return;
         IReadOnlyList<string> path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
         if (diagnostic.Location is { } location && !_form!.TryResolveCorrection(fieldId, location, out path)) return;
+        RetireDeveloper();
+        _developerMode = false;
         if (OutputSelector is { } selector && field.Name == selector.Location.Segments[0] && path.Count == 1)
         {
             SelectWorkflowStage("configure");
@@ -875,6 +940,8 @@ public partial class ConfigurationEditor
     }
     public async Task DiscardAsync()
     {
+        RetireDeveloper();
+        _developerMode = false;
         RetireView();
         InvalidateMounts();
         DefinitionFormModel form = _form!;
@@ -907,6 +974,7 @@ public partial class ConfigurationEditor
     {
         Appearance.Changed -= AppearanceChanged;
         if (_disposed) return;
+        RetireDeveloper();
         long navigationLease = _navigationLease;
         Task retirement = _outputRetirement;
         RetireView();

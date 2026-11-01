@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6BP0YEYWE8VWAZRE5Y2MR1M
+Title: "Edit public configuration documents in a local Developer view"
+Type: feat
+Scope: browser
+Summary: "Keep pending text and bounded history in one local consent-gated editor, preview changes before atomic Apply, and resolve pending edits before workspace transitions."
+Group: browser-local-developer
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/launch-integration.md
+    Disposition: documented

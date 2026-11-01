@@ -29,9 +29,9 @@
             {
                 <div class="configuration-editor__mode configuration-editor__output">
                     <label for="configuration-output">@UiText("SelectOutput")</label>
-                    <select @ref="_outputControl" id="configuration-output" value="@OutputSelection"
+                    <select @key="_outputChoiceKey" @ref="_outputControl" id="configuration-output" value="@OutputSelection"
                             data-output-field="@DefinitionProfile.FieldId(outputSelector.Location.Segments[0])"
-                            @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeOutput(args); }">
+                            @onchange="args => IsCurrentView(actionForm, actionView) ? RequestOutputChangeAsync(args) : Task.CompletedTask">
                         <option value="-1" disabled>@UiText("NotSupplied")</option>
                         @for (int index = 0; index < outputSelector.Options.Count; ++index)
                         {
@@ -56,9 +56,9 @@
         </div>
         <nav class="configuration-editor__workflow" aria-label="@UiText("ConfigurationWorkflow")">
             <ol>
-                <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == "configure" ? "step" : null)" @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("configure"); }'><span aria-hidden="true">1</span> @UiText("WorkflowConfigure")</button></li>
-                <li><button type="button" data-workflow-step="review" aria-current="@(_activeWorkflowStage == "review" ? "step" : null)" @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }'><span aria-hidden="true">2</span> @UiText("WorkflowReview")</button></li>
-                <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == "prepare" ? "step" : null)" @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("prepare"); }'><span aria-hidden="true">3</span> @UiText("WorkflowFiles")</button></li>
+                <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == "configure" ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("configure") : Task.CompletedTask'><span aria-hidden="true">1</span> @UiText("WorkflowConfigure")</button></li>
+                <li><button type="button" data-workflow-step="review" aria-current="@(_activeWorkflowStage == "review" ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("review") : Task.CompletedTask'><span aria-hidden="true">2</span> @UiText("WorkflowReview")</button></li>
+                <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == "prepare" ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("prepare") : Task.CompletedTask'><span aria-hidden="true">3</span> @UiText("WorkflowFiles")</button></li>
             </ol>
         </nav>
         <div class="configuration-editor__progress" aria-live="polite" aria-atomic="true"
@@ -78,6 +78,14 @@
         @if (_activeWorkflowStage == "configure")
         {
         <div class="configuration-editor__toolbar">
+            <div class="actions" role="group" aria-label="@UiText("ConfigurationAnswers")">
+                <AppButton Variant="@(_developerMode ? Variant.Outlined : Variant.Filled)" data-editing-mode="form"
+                           aria-pressed="@((!_developerMode).ToString().ToLowerInvariant())"
+                           OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(false) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(false, actionForm.Locale)</AppButton>
+                <AppButton Variant="@(_developerMode ? Variant.Filled : Variant.Outlined)" data-editing-mode="developer"
+                           aria-pressed="@_developerMode.ToString().ToLowerInvariant()"
+                           OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(true) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(true, actionForm.Locale)</AppButton>
+            </div>
             <details class="configuration-editor__view-options">
             <summary>@UiText("ProfileDetail")</summary>
             @if (_form.Experiences.Count > 1)
@@ -122,7 +130,7 @@
                 </div>
             </div>
         </div>
-        @if (ImportArtifacts.Length > 0)
+        @if (!_developerMode && ImportArtifacts.Length > 0)
         {
             <details class="configuration-editor__import">
                 <summary>@UiText("StartExistingConfiguration") <span class="configuration-editor__optional">@UiText("Optional")</span></summary>
@@ -173,6 +181,15 @@
                                            Clear="report => { if (IsCurrentView(actionForm, actionView)) ClearComparison(report); }" />
             </details>
         }
+        @if (_developerMode)
+        {
+            <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="_form"
+                                    EnvironmentArtifactId="@(Definition.Artifacts.FirstOrDefault(artifact => artifact.Format == "dotenv")?.Id)"
+                                    DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
+                                    RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
+        }
+        else
+        {
         <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
                                      SelectedChanged="section => { if (IsCurrentView(actionForm, actionView)) SelectSection(section); }"
                                      MountCancellation="_mountCancellation.Token" Validation="_validation"
@@ -181,6 +198,7 @@
         @if (_returnToReview)
         {
             <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
+        }
         }
         }
         @if (_activeWorkflowStage == "review")

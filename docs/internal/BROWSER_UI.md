@@ -90,6 +90,99 @@ No external snippets or expressive UI composition were copied. The AFC/SSO
 review filtered platform semantics and standard form grouping; discretionary
 layout, tokens and component organization remain repository-owned.
 
+## Local Developer editing
+
+`ConfigurationDeveloper` owns one private editor through
+`configuration-developer.js`; `DefinitionFormModel` remains the sole accepted
+answer workspace. Its `Form` and optional `EnvironmentArtifactId` parameters
+select the shared document session, not a second answer dictionary. Public
+coverage is available without consent. Source acquisition and editor mounting
+require the current workspace's enabled privacy state.
+
+Source admission and editor DOM construction use separate tasks through the
+existing `configuration-rendering.js.nextFrame` boundary. The component owns the
+acquired byte array until transfer, rechecks its lease after the yield and clears
+that array on retirement as well as normal completion. Revocation, edits,
+replacement and explicit cancellation cannot mount the held old source.
+
+Preview acknowledges its busy state through that same frame boundary before
+acquiring editor bytes. It supplies the document session's existing cooperative
+publication yield through `nextTask`: owned source bytes have been cleared before
+queued cancellation or edits are serviced, and the session rechecks authority
+before returning a candidate. The component also rechecks its model lease before
+displaying the preview. Bounded parse completion is measured separately from its
+initial feedback.
+
+Apply also paints busy state before freezing and committing the captured
+candidate. It rechecks the model lease and candidate identity after that frame.
+Its completion can clear busy state only for the same uncanceled text version,
+so an obsolete Apply cannot make a newer Preview appear idle.
+
+The bridge imports the checked local bundle and owns one token-fenced slot.
+Typing reports only version, dirty and history-limit metadata. Preview transfers
+UTF-8 bytes into `DefinitionDocumentSession.ParseAsync`; both sides clear owned
+transfer buffers. Apply freezes the current JS version, checks the candidate's
+session/revision/scope authority and performs the shared atomic swap. After a
+successful commit, the panel reopens document metadata and marks the existing
+editor clean without replacing its text or history. A successful commit with an
+observer failure is still successful, not a rollback.
+
+Panel lifetime, source version, form identity and input revision fence every
+continuation. A root render can precede the panel's input notification, so
+`OnAfterRenderAsync` refuses to mount obsolete document metadata rather than
+rescheduling failed mounts. Same-version dirty/history callbacks do not
+invalidate newly reopened authority. Revocation's capture-phase listener
+destroys JS state synchronously before asynchronous managed cleanup. Retirement
+clears reads, candidates, diagnostics, callbacks and listeners; it does not
+promise physical string erasure.
+Explicit user cancellation requests focus on the rendered retirement notice,
+whose next Tab stop is the reopen action. The request is generation-fenced and
+cleared by subsequent retirement; consent revocation, replacement and disposal
+do not request this recovery focus.
+While mounted, the bridge also subscribes to `configurator-custody-abandoned`,
+the existing `pagehide` owner's synchronous event. That event retires the JS
+document, undo history and outstanding read buffer before a hidden history entry
+can retain an operable editor. Retirement removes this listener together with
+the consent listener. The existing `pageshow` policy reloads abandoned realms
+rather than restoring their workspace.
+
+`ConfigurationEditor.ResolvePendingAsync` gates editing-mode, workflow, output
+and correction transitions. `IBrowserPendingChanges` lets
+`BrowserNavigationState` resolve Apply/Discard/Stay before its separate
+accepted-workspace loss confirmation. It rechecks the registration lease before
+capturing the resulting work generation. Locale/theme changes preserve the
+private model. Both Developer resource sets ship in the main assembly, avoiding
+answer-time satellite requests.
+
+Locale metadata carries the current public phrase dictionary as well as label,
+description and language. The engine reconfigures an owned metadata compartment,
+not its document or history. An open search panel is refreshed through the
+installed public panel commands, with connected focus restored afterward.
+The component reapplies its value-free Core diagnostics after reconfiguration;
+source version and candidate authority remain unchanged.
+
+Keyboard/formatting help uses a localized native disclosure above the editor.
+Its full description retains the same accessible-description identifier, while
+scope, representation and pending status remain visible independently. This
+keeps the editing surface closer to the first small-screen viewport without
+dropping format, invalid-text or private-history rules.
+
+The engine derives adaptive syntax colors through the public
+`HighlightStyle.specs`/`HighlightStyle.define` API and the inherited CSS
+`color-scheme`, tinting dark-mode syntax toward the current text token. Gutter
+and caret colors also use the existing semantic tokens. No dependency was added
+and no third-party implementation source was needed. The AppButton primitive
+keeps fill changes immediate so a theme change does not combine its new contrast
+text with an old animated background; border and shadow transitions remain.
+
+The engine entry owns bounded inverse-fragment history, local syntax assistance
+and metadata-only completion. Core and Presentation remain authoritative for
+typed values, scope and application. See the
+[shared editing contract](PRESENTATION_STATE.md) and
+[asset owner](PACKAGING.md#local-editor-assets). Source/component tests do not
+substitute for actual engine, published-cache, IME, assistive-technology or
+participant qualification.
+
 ## Guided workspace
 
 Output tasks come from admitted `presentation.outputSelector` metadata, never

@@ -157,6 +157,71 @@ Inputs dynamically adapt to their declared data types:
 - **List Rows:** Use bounded row controls to add or remove list items. Removed rows are excluded from output bundles.
 - **Explicit Omission:** Use **Actions for...** to explicitly omit a setting without affecting sibling fields. Empty strings (`""`) and `false` are valid supplied values distinct from omission.
 
+### Developer Editing
+
+**Configure** offers **Form** and **Developer** views over the same accepted
+workspace. Developer supports editable-answer JSON and, when available,
+constrained **Environment** settings. Coverage identifies the editable public
+scope and excluded settings; this is not a complete private backup or a promise
+that an arbitrary existing output file can be imported.
+
+Before opening the editor, deliberately enable the existing workspace consent
+control. Anything typed or pasted is private, even in a public-scope document.
+Accepted secrets are never prepopulated. Use masked Form controls for protected
+settings. Declining consent leaves public coverage available without acquiring
+source text.
+
+Typing does not change accepted answers. Use **Parse and preview**, inspect the
+value-free change summary and diagnostics, then choose **Apply**. Invalid,
+unknown, protected or stale changes reject without partially applying the
+document. Well-typed partial answers can be applied; missing required settings
+remain Review work.
+
+- **Editable-answer JSON** represents the captured public scope. Removing a
+  represented answer resets it; explicit omissions remain deliberate suppression.
+  Protected and excluded regions stay outside that operation.
+- **Environment / Merge** changes supplied mapped keys and retains missing keys.
+  **Replace represented scope** explicitly omits missing represented keys.
+  Coverage is captured for the current configuration; changing activation or
+  output settings requires a fresh scope. Empty supplied values are not missing
+  keys. This is deliberately narrower than whole-file import.
+- **Format** is explicit and does not Apply. It preserves valid typed meaning;
+  Environment formatting can normalize line endings, quoting and comments.
+  Invalid text remains available for correction.
+
+You can cancel while the editor opens. Revocation or a workspace change prevents
+obsolete text from opening.
+
+The local editor provides syntax assistance, public-metadata completion, search,
+diagnostics and bounded undo. History retains at most 100 undo groups within a
+4 MiB logical source-plus-history budget. Older history can retire with a visible
+notice; an edit that cannot fit is rejected, never silently truncated.
+Open **Keyboard and formatting help** for the editing rules without pushing the
+document behind an expanded explanation on small screens. Tab moves forward
+without inserting indentation; an open completion list adds one focus stop before
+the next Tab leaves the editor.
+**Cancel editing** retires pending source and history without undoing accepted
+answers. Focus moves to the recovery notice; Tab reaches **Open current workspace
+source** to start again.
+**Parse and preview** acknowledges the request before processing the document,
+while **Cancel editing** remains available. Canceled or changed text cannot
+publish an obsolete preview.
+**Apply** also acknowledges the request before committing. Canceling or editing
+during that opening step leaves the accepted answers unchanged.
+The editor follows the selected appearance, including syntax, gutter and caret
+colors.
+
+Pending text requires **Apply**, **Discard** or **Stay** before changing the
+editing mode, representation or output, following a correction, or navigating
+within the app. Language and appearance preferences do not discard it. Apply
+preserves the current text and history; it does not silently format the source.
+Revocation, clearing, replacement and disposal retire the private editor,
+history, pending transfers and diagnostics. Browser/runtime strings cannot be
+promised physical erasure.
+Leaving the page also retires the editor; browser Back does not restore an
+abandoned private workspace. Reopening starts a fresh workspace, including a
+new consent decision, rather than recovering pending text from browser storage.
+
 ### Finding and Filtering Settings
 
 Quickly locate specific questions using the built-in search palette:

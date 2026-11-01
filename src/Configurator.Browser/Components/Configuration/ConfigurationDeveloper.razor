@@ -1,0 +1,131 @@
+@implements IAsyncDisposable
+@using Configurator.Presentation
+
+<section class="configuration-developer" data-developer-panel dir="@Form.Direction" aria-labelledby="@(_id + "-title")">
+    <h3 class="configuration-developer__heading" id="@(_id + "-title")">@Text("Title")</h3>
+    <p>@Text("Introduction")</p>
+    <div class="configuration-developer__controls">
+        <div class="configuration-developer__choice">
+            <label for="@(_id + "-representation")">@Text("Representation")</label>
+            <select @key="_transitionGeneration" id="@(_id + "-representation")" data-developer-representation value="@RepresentationName"
+                    disabled="@(_busy || _resolution is not null)" @onchange="RepresentationChangedAsync">
+                <option value="canonical">@Text("Canonical")</option>
+                @if (EnvironmentArtifactId is not null)
+                {
+                    <option value="environment">@Text("Environment")</option>
+                }
+            </select>
+        </div>
+        @if (_representation == DefinitionDocumentRepresentation.Environment)
+        {
+            <div class="configuration-developer__choice">
+                <label for="@(_id + "-mode")">@Text("ApplyMode")</label>
+                <select id="@(_id + "-mode")" data-developer-mode value="@(_mode == DefinitionDocumentApplyMode.Merge ? "merge" : "replace")"
+                        disabled="@(_busy || _resolution is not null)" @onchange="ModeChanged">
+                    <option value="merge">@Text("Merge")</option>
+                    <option value="replace">@Text("ReplaceScope")</option>
+                </select>
+            </div>
+        }
+    </div>
+    <p class="configuration-developer__help" data-developer-scope>
+        @Text(_representation == DefinitionDocumentRepresentation.Canonical ? "CanonicalScope" : "EnvironmentScope")
+    </p>
+    <details class="configuration-developer__coverage" data-developer-coverage>
+        <summary>@FormatText("CoverageSummary", Coverage.Count(item => item.State == "Editable"), Coverage.Count(item => item.State != "Editable"))</summary>
+        <p>@Text("CoverageHelp")</p>
+        <ul>
+            @foreach (var item in Coverage.Skip(_coveragePage * PageSize).Take(PageSize))
+            {
+                <li><code dir="ltr">@item.Name</code><span>@Text("Coverage" + item.State)</span></li>
+            }
+        </ul>
+        @if (CoveragePages > 1)
+        {
+            <nav class="actions" aria-label="@Text("CoveragePages")">
+                <AppButton Variant="Variant.Outlined" Disabled="@(_coveragePage == 0)" OnClick="() => _coveragePage--">@Text("Previous")</AppButton>
+                <span>@FormatText("Page", _coveragePage + 1, CoveragePages)</span>
+                <AppButton Variant="Variant.Outlined" Disabled="@(_coveragePage + 1 >= CoveragePages)" OnClick="() => _coveragePage++">@Text("Next")</AppButton>
+            </nav>
+        }
+    </details>
+    @if (!Permitted)
+    {
+        <div class="configuration-developer__notice" data-developer-consent>
+            <h4>@Text("ConsentTitle")</h4>
+            <p>@Text("ConsentRequired")</p>
+            <AppButton Variant="Variant.Outlined" data-action="developer-request-consent" OnClick="() => RequestConsent.InvokeAsync()">@Text("RequestConsent")</AppButton>
+        </div>
+    }
+    else if (_retired || _mountFailed)
+    {
+        <div @ref="_retiredNotice" class="configuration-developer__notice" data-developer-retired
+             role="group" tabindex="-1" aria-labelledby="@(_id + "-retired")">
+            <p id="@(_id + "-retired")">@Text(_mountFailed ? "Unavailable" : "Retired")</p>
+            <AppButton Variant="Variant.Outlined" data-action="developer-reopen" OnClick="ReopenAsync">@Text("Reopen")</AppButton>
+        </div>
+    }
+    else
+    {
+        <div class="configuration-developer__editor-region" aria-busy="@((!_modelReady || _busy).ToString().ToLowerInvariant())">
+            <h4 id="@(_id + "-label")">@Text("EditorLabel")</h4>
+            <details class="configuration-developer__help-disclosure" data-developer-help>
+                <summary>@Text("EditorHelpTitle")</summary>
+                <p id="@HelpId" class="configuration-developer__help">@Text("EditorHelp")</p>
+            </details>
+            <div @ref="_host" class="configuration-developer__editor" data-developer-editor dir="ltr"></div>
+        </div>
+        <div class="actions configuration-developer__actions">
+            <AppButton Variant="Variant.Outlined" data-action="developer-preview" Disabled="@(!_modelReady || _busy)" OnClick="PreviewAsync">@Text("Preview")</AppButton>
+            <AppButton Variant="Variant.Outlined" data-action="developer-format" Disabled="@(!_modelReady || _busy)" OnClick="FormatAsync">@Text("Format")</AppButton>
+            <AppButton data-action="developer-apply" Disabled="@(_busy || _preview?.Candidate is null)" OnClick="ApplyRequestedAsync">@Text("Apply")</AppButton>
+            <AppButton Variant="Variant.Text" Color="Color.Default" data-action="developer-cancel" OnClick="CancelEditingAsync">@Text("Cancel")</AppButton>
+        </div>
+    }
+    <p role="status" data-developer-status data-code="@_statusCode">@Text(_status)</p>
+    @if (_historyLimited)
+    {
+        <p class="configuration-developer__notice" data-developer-history-limited>@Text("HistoryLimited")</p>
+    }
+    @if (_diagnostics.Count > 0 || _diagnosticsTruncated)
+    {
+        <section class="configuration-developer__diagnostics" aria-labelledby="@(_id + "-diagnostics")">
+            <h4 id="@(_id + "-diagnostics")">@Text("Diagnostics")</h4>
+            <p>@Text(_representation == DefinitionDocumentRepresentation.Canonical ? "CanonicalCoordinates" : "EnvironmentCoordinates")</p>
+            <ul>
+                @foreach (var diagnostic in _diagnostics)
+                {
+                    <li data-developer-diagnostic><code>@diagnostic.Code</code> @FormatText("Coordinates", diagnostic.Line, diagnostic.Column)</li>
+                }
+            </ul>
+            @if (_diagnosticsTruncated) { <p data-developer-diagnostics-truncated>@Text("DiagnosticsTruncated")</p> }
+        </section>
+    }
+    @if (_preview?.Candidate is { } candidate)
+    {
+        <section class="configuration-developer__preview" data-developer-preview aria-labelledby="@(_id + "-preview")">
+            <h4 id="@(_id + "-preview")">@FormatText("ChangeCount", candidate.Changes.Count)</h4>
+            <p>@Text(_representation == DefinitionDocumentRepresentation.Canonical ? "CanonicalSummary"
+                : _mode == DefinitionDocumentApplyMode.Merge ? "MergeSummary" : "ReplaceSummary")</p>
+            <ul>
+                @foreach (var change in candidate.Changes)
+                {
+                    <li data-developer-change="@change.Kind"><code dir="ltr">@change.Path.ToPointer()</code><span>@Text("Change" + change.Kind)</span></li>
+                }
+            </ul>
+            <p>@Text("ApplyBoundary")</p>
+        </section>
+    }
+    @if (_resolution is not null)
+    {
+        <section class="configuration-developer__resolution" data-developer-resolution aria-labelledby="@(_id + "-pending")" @onkeydown="PendingKeyAsync">
+            <h4 @ref="_resolutionHeading" id="@(_id + "-pending")" tabindex="-1">@Text("PendingTitle")</h4>
+            <p>@Text("PendingHelp")</p>
+            <div class="actions">
+                <AppButton data-action="developer-resolve-apply" Disabled="@_busy" OnClick='() => ResolveAsync("apply")'>@Text("Apply")</AppButton>
+                <AppButton Variant="Variant.Outlined" data-action="developer-resolve-discard" Disabled="@_busy" OnClick='() => ResolveAsync("discard")'>@Text("Discard")</AppButton>
+                <AppButton Variant="Variant.Outlined" data-action="developer-resolve-stay" Disabled="@_busy" OnClick='() => ResolveAsync("stay")'>@Text("Stay")</AppButton>
+            </div>
+        </section>
+    }
+</section>

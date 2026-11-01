@@ -126,7 +126,14 @@ deterministic public-module responses, not an absent-policy success path.
 
 `BrowserNavigationState` retains only current-editor callbacks, never answers.
 `WorkspaceNavigationGuard` uses Blazor `NavigationLock` and a native browser
-confirmation. Cancel preserves the editor. Confirm invalidates pending work
+confirmation. Before that separate accepted-workspace loss confirmation,
+`IBrowserPendingChanges.ResolvePendingAsync` resolves the current Developer
+document through Apply/Discard/Stay. Stay rejects navigation; invalid Apply
+retains text and cannot release custody. Successful Apply changes the current
+accepted workspace, not the navigation destination. The guard rechecks the
+registration lease after this asynchronous resolution, then captures the updated
+work generation for the loss confirmation.
+Cancel preserves the editor. Confirm invalidates pending work
 synchronously, awaits editor discard and releases custody before route loading.
 Each registration returns an owner-bound lease. Confirmation and post-discard
 checks retain that exact lease, including when the same component starts a new
