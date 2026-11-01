@@ -4,7 +4,7 @@
 > **Status:** Implemented bounded comparison; qualification is candidate-specific
 > **Owner:** Presentation
 > **Contributing reviewers:** Core owns inverse compilation and semantic evaluation
-> **Last Verified:** 2026-10-30
+> **Last Verified:** 2026-11-01
 > **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionImport.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Presentation/DefinitionFormModel.cs`
 
 ## Purpose And Authority
@@ -25,6 +25,9 @@ This document describes the implemented contract across the machine CLI,
 Browser, Desktop and Terminal. The [execution record](reports/ARTIFACT_IMPORT_COMPARISON_2026-10-30.md)
 binds actual candidates, checks, measurements and remaining limits; it does not
 transfer qualification to another host or target application.
+The subsequent bounded-overlap compiler correction and its exact Event candidate
+are recorded in the
+[Browser UX execution evidence](reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md#integrated-task-journeys-and-bounded-event-comparison-correction).
 The operator projection is
 [Import and compare](../public/import-and-compare.md).
 
@@ -56,6 +59,63 @@ are reported by safe input ordinals, never by their raw names.
 The sole `DefinitionValidator` resolves activity, requiredness, variants and
 constraints. Assessment disables initialization, not absence semantics. Normal
 workspace validation and initialization remain distinct from the imported file.
+
+## Captured Editable Environment Scope
+
+`DefinitionImport.CaptureEditableScope` delegates to
+`DefinitionEditableProjection`, not the whole-file inverse compiler. A captured
+dotenv object can expose some active, unambiguous direct public scalar mappings
+even when `CanImport` is false. `Mappings` includes only eligible keys; value-free
+`Coverage` records excluded mappings, and `Controllers` records the condition
+paths kept outside editing. This is partial scope, never full inverse support.
+The [Core contract](CORE_DEFINITION_CONTRACT.md#captured-editable-environment-projection)
+owns path eligibility, controller exclusion and scalar conversion.
+
+The scope captures definition family/revision/digest, artifact ID and answer input
+revision. `IsCurrent` rechecks identity, revision and recomputed coverage. Callers
+must also enforce workspace lifetime and consent. Neither capture nor conversion
+provides mutation, merge/replace semantics or atomic application. Browser Developer
+editing and atomic Apply are not established by these Core APIs.
+
+### Editable-value dotenv codec
+
+`DotenvCodec.Parse` and `Render` share lexical/value rules across two named purposes.
+The default overloads select `DotenvPurpose.TemplatePlaceholders`; only explicit
+`DotenvPurpose.EditableValues` treats decoded empty assignments (`KEY=` or `KEY=""`)
+as `LocalHumanValue` entries with `Value == ""`. Template parsing instead produces
+`EmptyPlaceholder` with null value. Editable rendering rejects placeholders.
+
+Editable parsing accepts strict UTF-8, strips one leading BOM and removes the CR
+only from CRLF pairs. Bare CR still rejects. Blank lines and comments beginning
+at column one are accepted. Rendering sorts keys ordinally, uses LF without a BOM
+and follows the requested final-newline setting; it does not round-trip comments
+or source formatting. Keys begin with `A`-`Z` and contain only uppercase ASCII
+letters, digits or `_`. Exact duplicates and ordinal-ignore-case collisions
+reject, even though lowercase keys are already invalid.
+
+Double-quoted values support only quote/backslash escapes; quoted `#` and `=` are
+literal. Single quotes, inline comments, multiline values, `export`, surrounding
+assignment whitespace, controls and shell characters (`$`, backtick, `;`, `|`,
+`&`, `<`, `>`) reject. A failed parse publishes no partial document.
+
+`EntryLocations` follows document entry order and identifies the value start
+(immediately after `=`); `DiagnosticLocations` follows diagnostic order and points
+to rejected lines at column one, or 1:1 for document errors. Coordinates are
+one-based, preserve source line numbering before CRLF normalization, and count
+decoded UTF-16 columns after stripping the leading BOM, not UTF-8 byte offsets.
+Editable parsing retains at most 100 diagnostics; `DiagnosticsTruncated` is true
+only when further diagnostics were dropped.
+
+The codec retains its existing ceilings: 1,048,576 acquired file bytes (including
+any BOM), 16,384 bytes per source line (excluding LF but including CR), 128 key
+characters, 8,192 decoded value bytes and 2,048 entries. No editable-purpose budget
+relaxation is implied.
+
+Ordinary `DefinitionImport` still explicitly selects `TemplatePlaceholders`,
+rejects BOM/CRLF and refuses null placeholder entries, including decoded empty
+assignments. Its whole-file inverse compilation, assessment and strict atomic
+prefill semantics above are unchanged. Editable parsing does not turn an
+unsupported artifact into an importable one.
 
 ## Observation Evidence
 

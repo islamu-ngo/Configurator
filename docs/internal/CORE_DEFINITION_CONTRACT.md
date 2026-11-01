@@ -357,6 +357,50 @@ and its thin adapters. See [assessment boundaries](IMPORT_COMPARISON.md) and
 [the operator workflow](../public/import-and-compare.md). Actual client and
 resource qualification is recorded separately from this semantic contract.
 
+### Captured editable Environment projection
+
+`DefinitionImport.CaptureEditableScope(definition, artifactId, answers)` returns a
+value-free `DefinitionEditableProjection`, separate from whole-file
+`GetCapability`, `CanImport`, `Inspect` and strict prefill. It requires a selected
+dotenv artifact with an object projection; otherwise it has no editable mappings.
+`IsSupported` means only that at least one captured mapping is editable, not that
+the artifact has a complete inverse.
+
+Capture uses `DefinitionValidator.ValidateDraft` for effective values, inherited
+activity and unresolved/deferred/error facts. Eligible members are valid dotenv
+keys with direct root-scoped copies to non-root, non-nullable scalar paths through
+declared object properties, without variant traversal. The source path and all
+ancestors must be public. Dynamic entries, array indices and compound values are
+not editable. Artifact/member conditions must resolve active, and the validator's
+source node must be active.
+
+`Coverage` contains definition keys, optional exact `DefinitionPath` pointers and
+`DefinitionEditableCoverageKind`, not answers: `Editable`, `ReadOnly`, `Protected`,
+`Inactive`, `ConditionUnresolved`, `Unsupported`, `Ambiguous` or `Controller`.
+Literals/omit start read-only; repeated source paths and case-insensitive key
+collisions exclude ambiguous assignments. Controller references are collected from
+projection conditions and applicable source/ancestor conditions, recursively
+including controllers' own applicability. A mapping equal to, above or below a
+controller path is excluded. Coverage classification also accounts for activity
+and ambiguity; it is not a second schema or disclosure authority.
+
+The capture binds family, definition revision/digest, artifact ID and input
+revision. `IsCurrent` checks definition identity and input revision and compares
+recomputed coverage for the captured artifact. The workspace owner must separately
+fence lifetime and consent; the method neither mutates nor rebases answers.
+`TryConvertValue` accepts only captured editable keys, reuses
+`DefinitionImport.TryDotenvValue`, then checks `DefinitionValidator.ValueValid`.
+Strings retain explicit emptiness when allowed; booleans require `true`/`false`;
+integer/decimal text must match the inverse primitive's exact serialized spelling.
+Null and composite conversion are not inferred.
+
+The shared codec's explicit `DotenvPurpose.EditableValues` preserves empty strings
+and normalizes one leading BOM and CRLF; default `TemplatePlaceholders` behavior
+and ordinary import remain strict. The
+[codec and import boundary](IMPORT_COMPARISON.md#editable-value-dotenv-codec)
+owns exact limits and coordinate semantics. These Core seams do not establish
+Browser Developer editing or atomic Apply delivery.
+
 ## Presentation, guidance and credentials
 
 `SetupDefinition.Presentation` snapshots admitted sections/journeys and their

@@ -18,6 +18,10 @@ public sealed record DefinitionImportResult(bool Succeeded, SetupAnswerSnapshot?
 
 public static class DefinitionImport
 {
+    public static DefinitionEditableProjection CaptureEditableScope(SetupDefinition definition, string artifactId,
+        SetupAnswerSnapshot answers, CancellationToken cancellationToken = default) =>
+        DefinitionEditableProjection.Capture(definition, artifactId, answers, cancellationToken);
+
     public static DefinitionImportCapability GetCapability(SetupDefinition definition, string artifactId)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -344,7 +348,7 @@ public static class DefinitionImport
         cancellationToken.ThrowIfCancellationRequested();
         if (format == "dotenv")
         {
-            DotenvParseResult parsed = DotenvCodec.Parse(bytes);
+            DotenvParseResult parsed = DotenvCodec.Parse(bytes, DotenvPurpose.TemplatePlaceholders, cancellationToken);
             if (!parsed.Succeeded) throw new SetupDefinitionException("input-invalid");
             var entries = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (DotenvEntry entry in parsed.Document!.Entries)

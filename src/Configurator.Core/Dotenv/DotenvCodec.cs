@@ -9,16 +9,27 @@ public static class DotenvCodec
     public const int MaximumKeyCharacters = 128;
     public const int MaximumValueUtf8Bytes = 8_192;
     public const int MaximumEntryCount = 2_048;
+    public const int MaximumEditableDiagnostics = 100;
 
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    public static DotenvParseResult Parse(ReadOnlyMemory<byte> input)
+    public static DotenvParseResult Parse(ReadOnlyMemory<byte> input) =>
+        Parse(input, DotenvPurpose.TemplatePlaceholders);
+
+    public static DotenvParseResult Parse(ReadOnlyMemory<byte> input,
+        DotenvPurpose purpose, CancellationToken cancellationToken = default)
     {
+        if (!Enum.IsDefined(purpose)) throw new ArgumentOutOfRangeException(nameof(purpose));
+        cancellationToken.ThrowIfCancellationRequested();
         if (input.Length > MaximumFileUtf8Bytes)
             return FailedParse("dotenv-file-too-large", "$.document");
         if (input.Length >= 3 && input.Span[0] == 0xEF
             && input.Span[1] == 0xBB && input.Span[2] == 0xBF)
-            return FailedParse("dotenv-bom-forbidden", "$.document");
+        {
+            if (purpose != DotenvPurpose.EditableValues)
+                return FailedParse("dotenv-bom-forbidden", "$.document");
+            input = input[3..];
+        }
 
         string text;
         try
@@ -32,21 +43,27 @@ public static class DotenvCodec
 
         var diagnostics = new List<EnvironmentDiagnostic>();
         var entries = new List<DotenvEntry>();
+        var locations = new List<DotenvSourceLocation>();
+        bool truncated = false;
         var exactKeys = new HashSet<string>(StringComparer.Ordinal);
         var foldedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int start = 0;
         int lineNumber = 1;
         while (start <= text.Length)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             int newline = text.IndexOf('\n', start);
             int end = newline < 0 ? text.Length : newline;
             ReadOnlySpan<char> line = text.AsSpan(start, end - start);
+            int sourceLineBytes = StrictUtf8.GetByteCount(line);
+            if (purpose == DotenvPurpose.EditableValues && newline >= 0 && line.EndsWith("\r", StringComparison.Ordinal))
+                line = line[..^1];
             string path = $"$.lines[{lineNumber}]";
             if (line.IndexOf('\r') >= 0)
                 Add(diagnostics, "dotenv-carriage-return-forbidden", path);
             else if (HasControl(line))
                 Add(diagnostics, "dotenv-control-character", path);
-            else if (StrictUtf8.GetByteCount(line) > MaximumLineUtf8Bytes)
+            else if (sourceLineBytes > MaximumLineUtf8Bytes)
                 Add(diagnostics, "dotenv-line-too-large", path);
             else if (!line.IsEmpty && line[0] != '#')
             {
@@ -56,8 +73,15 @@ public static class DotenvCodec
                     && !line[(line.IndexOf('=') + 2)..].Contains('"')
                     && text.AsSpan(newline + 1).IndexOf('"') >= 0;
                 if (quoteContinues) Add(diagnostics, "dotenv-multiline-forbidden", path);
-                else ParseLine(line, path, entries, exactKeys, foldedKeys, diagnostics);
+                else
+                {
+                    int before = entries.Count;
+                    ParseLine(line, path, entries, exactKeys, foldedKeys, diagnostics, purpose);
+                    if (entries.Count != before)
+                        locations.Add(new(lineNumber, line.IndexOf('=') + 2));
+                }
             }
+            LimitDiagnostics();
 
             if (newline < 0) break;
             start = newline + 1;
@@ -66,20 +90,32 @@ public static class DotenvCodec
 
         if (entries.Count > MaximumEntryCount)
             Add(diagnostics, "dotenv-count-exceeded", "$.document");
+        LimitDiagnostics();
         return diagnostics.Count == 0
-            ? new DotenvParseResult(new DotenvDocument(entries), [])
-            : new DotenvParseResult(null, Ordered(diagnostics));
+            ? new DotenvParseResult(new DotenvDocument(entries), [], locations)
+            : new DotenvParseResult(null, Ordered(diagnostics), diagnosticsTruncated: truncated);
+
+        void LimitDiagnostics()
+        {
+            if (purpose != DotenvPurpose.EditableValues || diagnostics.Count <= MaximumEditableDiagnostics) return;
+            diagnostics.RemoveRange(MaximumEditableDiagnostics, diagnostics.Count - MaximumEditableDiagnostics);
+            truncated = true;
+        }
     }
 
-    public static DotenvRenderResult Render(DotenvDocument document, bool finalNewline)
+    public static DotenvRenderResult Render(DotenvDocument document, bool finalNewline) =>
+        Render(document, finalNewline, DotenvPurpose.TemplatePlaceholders);
+
+    public static DotenvRenderResult Render(DotenvDocument document, bool finalNewline, DotenvPurpose purpose)
     {
         ArgumentNullException.ThrowIfNull(document);
+        if (!Enum.IsDefined(purpose)) throw new ArgumentOutOfRangeException(nameof(purpose));
         DotenvEntry?[] entries = document.Entries.Cast<DotenvEntry?>().ToArray();
         var diagnostics = new List<EnvironmentDiagnostic>();
         var exactKeys = new HashSet<string>(StringComparer.Ordinal);
         var foldedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (int index = 0; index < entries.Length; index++)
-            ValidateEntry(entries[index], $"$.entries[{index}]", exactKeys, foldedKeys, diagnostics);
+            ValidateEntry(entries[index], $"$.entries[{index}]", exactKeys, foldedKeys, diagnostics, purpose);
         if (entries.Length > MaximumEntryCount)
             Add(diagnostics, "dotenv-count-exceeded", "$.document");
         if (diagnostics.Count != 0)
@@ -113,7 +149,8 @@ public static class DotenvCodec
         List<DotenvEntry> entries,
         HashSet<string> exactKeys,
         HashSet<string> foldedKeys,
-        List<EnvironmentDiagnostic> diagnostics)
+        List<EnvironmentDiagnostic> diagnostics,
+        DotenvPurpose purpose)
     {
         if (line.StartsWith("export ", StringComparison.Ordinal))
         {
@@ -147,8 +184,9 @@ public static class DotenvCodec
             return;
         }
         if (IsKey(key) && exactKeys.Contains(key))
-            entries.Add(new DotenvEntry(key, value.Length == 0 ? null : value,
-                value.Length == 0 ? DotenvEntryKind.EmptyPlaceholder : DotenvEntryKind.LocalHumanValue,
+            entries.Add(new DotenvEntry(key, value.Length == 0 && purpose == DotenvPurpose.TemplatePlaceholders ? null : value,
+                value.Length == 0 && purpose == DotenvPurpose.TemplatePlaceholders
+                    ? DotenvEntryKind.EmptyPlaceholder : DotenvEntryKind.LocalHumanValue,
                 false, DotenvProvenance.UserInput));
     }
 
@@ -219,7 +257,8 @@ public static class DotenvCodec
         string path,
         HashSet<string> exactKeys,
         HashSet<string> foldedKeys,
-        List<EnvironmentDiagnostic> diagnostics)
+        List<EnvironmentDiagnostic> diagnostics,
+        DotenvPurpose purpose)
     {
         if (entry is null)
         {
@@ -232,7 +271,9 @@ public static class DotenvCodec
         if (!Enum.IsDefined(entry.Kind)) Add(diagnostics, "dotenv-entry-kind-invalid", path, entry.Key);
         if (!Enum.IsDefined(entry.Provenance)) Add(diagnostics, "dotenv-provenance-invalid", path, entry.Key);
         if (entry.Kind == DotenvEntryKind.EmptyPlaceholder && entry.Value is not null
-            || entry.Kind != DotenvEntryKind.EmptyPlaceholder && string.IsNullOrEmpty(entry.Value))
+            || entry.Kind != DotenvEntryKind.EmptyPlaceholder && (entry.Value is null ||
+                entry.Value.Length == 0 && purpose == DotenvPurpose.TemplatePlaceholders)
+            || purpose == DotenvPurpose.EditableValues && entry.Kind == DotenvEntryKind.EmptyPlaceholder)
             Add(diagnostics, "dotenv-entry-shape-invalid", path, entry.Key);
         if (entry.Value is { } value)
         {
@@ -260,7 +301,7 @@ public static class DotenvCodec
             .Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
     }
 
-    private static bool IsKey(string key) => key.Length is > 0 and <= MaximumKeyCharacters
+    internal static bool IsKey(string key) => key.Length is > 0 and <= MaximumKeyCharacters
         && key[0] is >= 'A' and <= 'Z'
         && key.All(character => character is >= 'A' and <= 'Z' or >= '0' and <= '9' or '_');
 

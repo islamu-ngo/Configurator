@@ -543,6 +543,44 @@ undone. Imported members must survive effective resolution. Remaining required
 work can still exist after successful prefill, so `import-ready` is not complete
 readiness. A failed assessment does not partially mutate the existing snapshot.
 
+### Captured editable Environment mappings
+
+Core can capture a partial editable scope from a selected dotenv output at the
+current answer revision. This is not full-file inverse support or a claim that
+the Browser Developer editor or atomic Apply is delivered.
+
+For an eligible mapping, use a direct root-scoped `copy` from a declared,
+non-nullable public scalar to a valid environment key. Every ancestor must also
+be public. Nested declared properties are supported; literal dotted names remain
+literal pointers, not nested paths. Arrays, dynamic map entries, variant traversal,
+nullable values and compound values are outside this scope.
+
+The output, mapping and source must be active at capture. Unknown conditions do
+not authorize editing. Keys that alias one source, or collide ignoring case, are
+not editable. Activation controllers and mappings overlapping those controller
+paths are excluded so an edit cannot change its own captured scope. Literals and
+`omit` operations do not become editable answers. Coverage records excluded
+mappings without answer values; it is not a complete configuration backup.
+Definition identity, answer revision and recomputed coverage must still match
+before reuse; a capture does not authorize silently rebasing onto newer answers.
+
+The shared dotenv codec has a separate, explicitly selected `EditableValues`
+purpose. In that purpose, `KEY=` and `KEY=""` are explicit empty strings, not
+missing keys or template placeholders. One leading UTF-8 BOM and CRLF line endings
+are accepted; rendering uses LF without a BOM. Blank lines and whole-line comments
+are accepted but are not preserved by rendering. Double quotes support escaped
+quotes and backslashes, with quoted `#` and `=` treated literally. Exact duplicates,
+case collisions, single quotes, inline comments, multiline values and shell syntax
+reject. Values must still convert to their declared scalar type and satisfy its
+constraints; false, zero and an allowed empty string are real values.
+
+Existing codec ceilings remain 1,048,576 file bytes, 16,384 line bytes, 128 key
+characters, 8,192 value bytes and 2,048 entries. Editable parsing retains at most
+100 diagnostics and indicates truncation; failure returns no partial document.
+These rules do not widen normal existing-file import: it still uses strict
+template-placeholder parsing, rejects BOM/CRLF and rejects empty placeholders.
+See the [technical boundaries](../internal/IMPORT_COMPARISON.md#captured-editable-environment-scope).
+
 ### Scaffolding and inference
 
 An example environment file supplies candidate **names**, not inferred types,
