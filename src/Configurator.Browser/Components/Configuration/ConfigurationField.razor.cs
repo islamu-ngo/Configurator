@@ -2,14 +2,17 @@ namespace Configurator.Browser.Components.Configuration;
 
 using System.Text.Json;
 using Configurator.Browser.Components.Common;
+using Configurator.Browser.Resources;
 using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using MudBlazor;
 
 public partial class ConfigurationField
 {
+    [Inject] private IJSRuntime Javascript { get; set; } = null!;
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter, EditorRequired] public DefinitionNode Schema { get; set; } = null!;
     [Parameter, EditorRequired] public IReadOnlyList<string> Path { get; set; } = [];
@@ -25,6 +28,7 @@ public partial class ConfigurationField
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
     private ElementReference _addButton;
     private ElementReference _group;
+    private ElementReference _radioGroup;
     private MudSelect<string>? _choiceControl;
     private AppTextField? _textControl;
     private bool _focusedForRequest;
@@ -36,6 +40,7 @@ public partial class ConfigurationField
     private bool _invalid;
     private bool _disposed;
     private bool _controlMounted;
+    private bool _radiosMounted;
     private long _controlGeneration;
     private long _lastInputRevision = -1;
     private DefinitionFormModel? _rootForm;
@@ -44,6 +49,7 @@ public partial class ConfigurationField
     private DefinitionFormModel? _parameterForm;
     private DefinitionFormProjection? _parameterProjection;
     private long _parameterInputRevision = -1;
+    private string? _parameterLocale;
     private bool _suppressParameterRender;
     private DefinitionEditorPresentation? _presentation;
     private bool _actionsMounted;
@@ -65,6 +71,7 @@ public partial class ConfigurationField
             ? suppliedForm : Form;
         _suppressParameterRender = ReferenceEquals(_parameterForm, form)
             && _parameterInputRevision == form.InputRevision
+            && _parameterLocale == form.Locale
             && ReferenceEquals(_parameterProjection, form.Projection)
             && !(parameters.TryGetValue<DefinitionNode>(nameof(Schema), out var suppliedSchema) && !ReferenceEquals(Schema, suppliedSchema))
             && !PathChanged(nameof(Path), Path)
@@ -84,6 +91,7 @@ public partial class ConfigurationField
             _parameterForm = form;
             _parameterInputRevision = form.InputRevision;
             _parameterProjection = form.Projection;
+            _parameterLocale = form.Locale;
             return updating;
         }
         finally
@@ -103,9 +111,13 @@ public partial class ConfigurationField
                 resolved.Take(Path.Count).SequenceEqual(Path, StringComparer.Ordinal)
             : diagnostic.RelativePath.Take(Path.Count - 1).SequenceEqual(Path.Skip(1)));
     private string ControlId => _controlId ??= Form.GetEditorIdentity(Path);
+    private string Ui(string key) => BrowserStrings.Get(key, Form.Locale);
+    private string UiFormat(string key, params object[] values) =>
+        string.Format(System.Globalization.CultureInfo.GetCultureInfo(Form.Locale), Ui(key), values);
     private string Type => Schema.JsonType;
-    private string Title => TitleOverride ?? _presentation?.Title ?? (Schema.Keywords.TryGetProperty("title", out var value) ? value.GetString()! : "Item");
-    private string? Help => _presentation?.Description ?? (Schema.Keywords.TryGetProperty("description", out var value) ? value.GetString() : null);
+    private string Title => TitleOverride ?? _presentation?.Title ?? (Schema.Keywords.TryGetProperty("title", out var value) ? value.GetString()! : Ui("FieldItem"));
+    private string? Help => _presentation?.Instructions ?? _presentation?.Description
+        ?? (Schema.Keywords.TryGetProperty("description", out var value) ? value.GetString() : null);
     private DefinitionNode ObjectSchema => Value is { } value ? DefinitionValidator.SelectVariant(Schema, value) ?? Schema : Schema;
     private IEnumerable<JsonProperty> MapEntries => ObjectSchema.AdditionalProperties is not null &&
         Value is { ValueKind: JsonValueKind.Object } value
@@ -137,11 +149,23 @@ public partial class ConfigurationField
             ContainsOptionalProperty(child.Value));
     private bool HasChoices => Schema.Keywords.TryGetProperty("enum", out _);
     private JsonElement Choices => Schema.Keywords.GetProperty("enum");
+    private bool UseRadios => !IsMasked && (HasChoices
+        ? Choices.GetArrayLength() is >= 2 and <= 5
+            && Choices.EnumerateArray().Select((choice, index) => ChoiceLabel(index, choice))
+                .All(label => label.Length <= 48 && !label.Contains('\n') && !label.Contains('\r'))
+        : Type == "boolean");
     private static string ChoiceIdentity(int index) => index.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private string ChoiceLabel(int index, JsonElement value)
     {
         string label = _presentation?.Choices[index].Label ?? Display(value);
-        return label.Length == 0 ? "Empty string" : label;
+        return label.Length == 0 ? Ui("EmptyString") : label;
+    }
+    private string SelectionLabel(string? identity)
+    {
+        if (string.IsNullOrEmpty(identity)) return Ui("NotSupplied");
+        if (!HasChoices) return Ui(identity == "true" ? "Yes" : "No");
+        int index = int.Parse(identity, System.Globalization.CultureInfo.InvariantCulture);
+        return ChoiceLabel(index, Choices[index]);
     }
     private string Selection
     {
@@ -182,10 +206,10 @@ public partial class ConfigurationField
     private string? InputPurposeHelp => Metadata(Schema, "credential") is { } credential
         ? credential.GetProperty("acquisition").GetString() switch
         {
-            "issuer" => "Obtain this value from its issuer, then paste it or map a password manager custom field. Do not substitute a locally generated password.",
-            "create" => "Choose a new value that meets the target's requirements. A password manager may help create and retain it.",
-            _ => "Use the value already accepted by your target. A password manager may fill or paste it."
-        } + " Your password manager has independent custody; clearing this workspace does not clear its vault."
+            "issuer" => Ui("CredentialIssuerHelp"),
+            "create" => Ui("CredentialCreateHelp"),
+            _ => Ui("CredentialExistingHelp")
+        } + " " + Ui("CredentialCustodyHelp")
         : null;
     private DefinitionNode ItemSchema => Form.GetListItemMetadata(Path);
     private JsonElement? Value
@@ -219,9 +243,11 @@ public partial class ConfigurationField
         }
         _lastPrivacy = Form.SessionPrivacy;
         bool controlMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path) && Type is not ("object" or "array");
-        if (_controlMounted != controlMounted)
+        bool radiosMounted = controlMounted && UseRadios;
+        if (_controlMounted != controlMounted || _radiosMounted != radiosMounted)
         {
             _controlMounted = controlMounted;
+            _radiosMounted = radiosMounted;
             ++_controlGeneration;
         }
         _controlId = null;
@@ -395,7 +421,22 @@ public partial class ConfigurationField
     }
     private async Task FocusScalarAsync(bool preventScroll = false)
     {
-        if (_textControl is not null && (Type != "boolean" && !HasChoices || IsMasked))
+        if (UseRadios)
+        {
+            DefinitionFormModel form = Form;
+            long revision = form.InputRevision;
+            long generation = _controlGeneration;
+            long focusGeneration = FocusGeneration;
+            string controlId = ControlId;
+            ElementReference element = _radioGroup;
+            await using IJSObjectReference module =
+                await Javascript.InvokeAsync<IJSObjectReference>("import", "./configuration-rendering.js");
+            if (_disposed || !_controlMounted || generation != _controlGeneration || focusGeneration != FocusGeneration
+                || !ReferenceEquals(form, Form) || revision != form.InputRevision || ControlId != controlId || !UseRadios
+                || !Form.IsEditorVisible(Path) || !Form.CanEdit(Path)) return;
+            await module.InvokeVoidAsync("focusRadio", element, preventScroll);
+        }
+        else if (_textControl is not null && (Type != "boolean" && !HasChoices || IsMasked))
             await _textControl.FocusAsync();
         else if (_choiceControl is not null) await _choiceControl.FocusAsync();
     }

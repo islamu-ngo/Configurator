@@ -8,6 +8,9 @@ using Configurator.Core.Definitions;
 
 public enum DefinitionAnswerOrigin { Omitted, Defaulted, Imported, Explicit }
 
+/// <summary>Controls ordinary disclosure only; activation, selected experience and edit authority remain authoritative.</summary>
+public enum DefinitionEditorVisibilityPolicy { Authored, Direct }
+
 public sealed partial class DefinitionFormModel
 {
     public bool SetEditorExpanded(IReadOnlyList<string> path, bool expanded)

@@ -20,3 +20,10 @@ export function nextTask() {
         signal.port2.postMessage(null);
     });
 }
+
+export function focusRadio(element, preventScroll) {
+    if (!element?.isConnected) return;
+    const input = element.querySelector('input[type="radio"]:checked:not(:disabled)')
+        ?? element.querySelector('input[type="radio"]:not(:disabled)');
+    if (input?.isConnected) input.focus({ preventScroll });
+}

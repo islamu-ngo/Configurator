@@ -5,7 +5,7 @@
 
 <span class="configuration-field-help">
     <button type="button" class="configuration-field-help__trigger"
-            aria-label="@("Help with " + PublicTitle)" data-action="field-help"
+            aria-label="@HelpTitle" data-action="field-help"
             @onclick="OpenAsync">
         <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />
     </button>
@@ -17,6 +17,7 @@
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string FieldPath { get; set; } = string.Empty;
     [Parameter] public bool SecretsEnabled { get; set; }
+    [Parameter] public string Locale { get; set; } = "en";
     [Parameter] public string? ContextTitle { get; set; }
     [Parameter] public string? Description { get; set; }
     [Parameter] public string? SectionDescription { get; set; }
@@ -26,13 +27,16 @@
     private bool _disposed;
     private bool? _observedConsent;
     private string? _observedFieldPath;
+    private string? _observedLocale;
     private DefinitionEditorPresentation? _observedPresentation;
     private DefinitionEditorPresentation? _renderedPresentation;
-    private (string Title, string? ContextTitle, string? Description, string? SectionDescription) _rendered;
-    private (string Title, string? ContextTitle, string? Description, string? SectionDescription) RenderState =>
-        (PublicTitle, ContextTitle, Description, SectionDescription);
+    private (string Title, string? ContextTitle, string? Description, string? SectionDescription, string Locale) _rendered;
+    private (string Title, string? ContextTitle, string? Description, string? SectionDescription, string Locale) RenderState =>
+        (PublicTitle, ContextTitle, Description, SectionDescription, Locale);
     private long _generation;
     private string PublicTitle => Presentation?.Title ?? Title;
+    private string HelpTitle => string.Format(System.Globalization.CultureInfo.GetCultureInfo(Locale),
+        BrowserStrings.Get("HelpWithField", Locale), PublicTitle);
     protected override bool ShouldRender() => !_rendered.Equals(RenderState) ||
         !SamePublicMetadata(_renderedPresentation, Presentation);
     protected override void OnAfterRender(bool firstRender)
@@ -42,7 +46,7 @@
     }
     protected override void OnParametersSet()
     {
-        if (_observedConsent.HasValue && (_observedConsent != SecretsEnabled || _observedFieldPath != FieldPath ||
+        if (_observedConsent.HasValue && (_observedConsent != SecretsEnabled || _observedFieldPath != FieldPath || _observedLocale != Locale ||
             !SamePublicMetadata(_observedPresentation, Presentation)))
         {
             ++_generation;
@@ -51,6 +55,7 @@
         }
         _observedConsent = SecretsEnabled;
         _observedFieldPath = FieldPath;
+        _observedLocale = Locale;
         _observedPresentation = Presentation;
     }
     private async Task OpenAsync()
@@ -75,7 +80,7 @@
                 parameters[nameof(ConfigurationInspector.OutputArtifactIds)] = bindings.ArtifactIds;
                 parameters[nameof(ConfigurationInspector.BindingKeys)] = bindings.BindingKeys;
             }
-            var dialog = await Dialogs.ShowAsync<ConfigurationInspector>("Help with " + PublicTitle, parameters,
+            var dialog = await Dialogs.ShowAsync<ConfigurationInspector>(HelpTitle, parameters,
                 new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
             if (_disposed || generation != _generation) dialog.Close();
             else _dialog = dialog;

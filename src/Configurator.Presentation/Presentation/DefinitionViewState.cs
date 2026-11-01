@@ -7,6 +7,7 @@ internal sealed class DefinitionViewState(string selectedExperienceId)
 {
     internal string SelectedExperienceId { get; set; } = selectedExperienceId;
     internal string Locale { get; set; } = "";
+    internal DefinitionEditorVisibilityPolicy EditorVisibility { get; init; }
     internal bool OptionalEditorsExpanded { get; set; }
     internal SetupFieldDisclosure? DisclosureOverride { get; set; }
     internal DefinitionDiscoverySelection DiscoverySelection { get; set; } = new();

@@ -180,7 +180,7 @@ accepted payload containing field data, explicit omissions, input revision and
 stable row identities. Facades resolve the current payload rather than capturing
 retired values; compound public field reads take the form's existing gate.
 `DefinitionViewState` holds experience,
-disclosure, expansion, promotion and discovery bookkeeping. Neither collaborator
+editor visibility policy, disclosure, expansion, promotion and discovery bookkeeping. Neither collaborator
 has a lock, sends notifications or duplicates answers. `DefinitionFormModel`
 retains the sole mutation gate and notification transaction, together with its
 index, facts and projection lifetimes. View-only changes preserve input revision,
@@ -205,11 +205,19 @@ or Advanced independently of the selected authored experience. A null override
 follows that experience's initial disclosure. Explicit selection survives
 experience changes and resets manual expansion overrides, but never edits
 answers, advances the input revision or changes secret consent. Visibility and
-`IsEditorExpanded` use the same effective disclosure, so the expansion action
-cannot disagree with the fields displayed. Required and invalid descendants
+`IsEditorExpanded` use the same effective disclosure under the Authored policy.
+Required and invalid descendants
 remain reachable. Authored experience and section descriptions are preserved
 in the shared projection; clients need no new definition vocabulary or
 answer-bearing view model.
+
+`DefinitionEditorVisibilityPolicy.Direct` is an explicit constructor selection
+used by Browser. It exposes ordinary editable fields without a per-field expansion
+step; it does not supply values, change provenance or create containers. The
+Authored default retains the live native-client disclosure policy. Direct
+visibility still checks the selected experience, active metadata, edit authority
+and explicit group expansion. Required/correction paths keep their existing
+reachability rules. A visibility policy is not secret consent or target authority.
 
 Each form owns one metadata-only `DefinitionFormIndex` for its pinned definition:
 literal schema children, root positions, section membership and experience order,

@@ -20,15 +20,16 @@ public sealed class BrowserExperienceWorkflowTests
             parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
-        var retired = component.FindComponent<MudSelect<string>>().Instance.ValueChanged;
+        var retired = component.FindComponents<ConfigurationField>().Single(field => field.Instance.Path.SequenceEqual(["mode"]))
+            .FindComponent<MudRadioGroup<string>>().Instance.ValueChanged;
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current.test" });
         long revision = form.InputRevision;
-        await component.InvokeAsync(() => retired.InvokeAsync("cluster"));
+        await component.InvokeAsync(() => retired.InvokeAsync("1"));
         await Assert.That(form.Snapshot().Values["mode"].GetString()).IsEqualTo("single");
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "cluster");
         await Assert.That(form.Snapshot().Values["mode"].GetString()).IsEqualTo("cluster");
-        await Assert.That(component.FindAll("[data-field='replicas'] div[role='combobox']").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-field='replicas'] [role='radiogroup']").Count).IsEqualTo(1);
     }
 
     [Test]
@@ -186,11 +187,12 @@ public sealed class BrowserExperienceWorkflowTests
         await Assert.That(component.Find("[data-required-count]").GetAttribute("data-required-count")).IsEqualTo("3");
         await Assert.That(component.Find("[data-ready-count]").GetAttribute("data-ready-count")).IsEqualTo("3");
         await Assert.That(component.Find("[data-workflow-step='configure']").GetAttribute("aria-current")).IsEqualTo("step");
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 
     [Test]
-    public async Task LocalDisclosureDoesNotGrantSecretConsentOrChangeAnswerRevision()
+    public async Task DirectOrdinaryControlsAndGroupDisclosureDoNotGrantSecretConsentOrChangeAnswerRevision()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters =>
@@ -198,7 +200,7 @@ public sealed class BrowserExperienceWorkflowTests
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "essential" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
-        await Assert.That(component.FindAll("[data-field='options.limit'] input")).IsEmpty();
+        await Assert.That(component.FindAll("[data-field='options.limit'] input").Count).IsEqualTo(1);
         await Assert.That(component.FindAll("[data-field='options.api_token'] input")).IsEmpty();
 
         await component.Find("[data-field='options'] button[data-action='expand-optional']")

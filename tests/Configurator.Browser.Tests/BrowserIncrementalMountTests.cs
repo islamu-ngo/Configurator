@@ -48,25 +48,24 @@ public sealed class BrowserIncrementalMountTests
     }
 
     [Test]
-    public async Task DisclosureSupersedesHeldMountWithoutChangingAnswersOrRestoringHiddenControls()
+    public async Task DetailChangesSupersedeHeldMountWithoutChangingAnswersOrCollapsingOrdinaryControls()
     {
         await using var context = BrowserFixture.Context();
         using var frames = new FrameBoundary(context.JSInterop.JSRuntime);
         context.Services.AddSingleton<IJSRuntime>(frames);
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, Definition(advancedTail: true)));
-        await CompleteAsync(component, frames);
         var first = component.FindComponents<ConfigurationField>().Single(field => field.Instance.Path.SequenceEqual(["setting0"])).Instance;
         long revision = first.Form.InputRevision;
-        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         Frame obsolete = await frames.NextAsync();
         await Assert.That(Pending(component) > 0).IsTrue();
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "essential" });
         int focusCalls = frames.FocusCalls;
         await component.InvokeAsync(obsolete.Release);
         await CompleteAsync(component, frames);
-        await Assert.That(component.FindAll("[data-field='setting35'] input")).IsEmpty();
-        await Assert.That(component.FindAll("[data-field='setting35'] [data-action='expand-field']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-field='setting35'] input")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-action='expand-field']")).IsEmpty();
         await Assert.That(frames.FocusCalls).IsEqualTo(focusCalls);
         await Assert.That(first.Form.InputRevision).IsEqualTo(revision);
         await Assert.That(component.FindComponents<ConfigurationField>()
@@ -99,7 +98,6 @@ public sealed class BrowserIncrementalMountTests
         var secret = component.FindComponents<BrowserCredentialEntryTests.EmittedInputField>()
             .Single(field => field.Instance.Path.SequenceEqual(["setting1"]));
         object oldInput = secret.Instance.CaptureInput();
-        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         Frame obsolete = await frames.NextAsync();
 
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });

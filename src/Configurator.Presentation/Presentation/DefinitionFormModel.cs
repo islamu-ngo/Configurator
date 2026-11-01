@@ -30,10 +30,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     public DefinitionFormModel(SetupDefinition definition,
         DefinitionSessionPrivacy sessionPrivacy = DefinitionSessionPrivacy.NativeComplete,
-        IReadOnlySet<string>? supportedCapabilities = null)
+        IReadOnlySet<string>? supportedCapabilities = null,
+        DefinitionEditorVisibilityPolicy editorVisibility = DefinitionEditorVisibilityPolicy.Authored)
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (!Enum.IsDefined(sessionPrivacy)) throw new ArgumentOutOfRangeException(nameof(sessionPrivacy));
+        if (!Enum.IsDefined(editorVisibility)) throw new ArgumentOutOfRangeException(nameof(editorVisibility));
         if (supportedCapabilities is not null && definition.RequiredCapabilities.Any(capability => !supportedCapabilities.Contains(capability)))
             throw new ArgumentException("consumer-capability-unsupported", nameof(supportedCapabilities));
         Definition = definition;
@@ -64,7 +66,11 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 experience.Description)).ToArray()
             : [new DefinitionFormExperience("configure", "Configure", SetupFieldDisclosure.Guided,
                 "sections", Sections.Select(section => section.Id), null)]);
-        _view = new(definition.Presentation?.DefaultExperience ?? "configure") { Locale = _localization.DefaultLocale };
+        _view = new(definition.Presentation?.DefaultExperience ?? "configure")
+        {
+            Locale = _localization.DefaultLocale,
+            EditorVisibility = editorVisibility
+        };
         _index = new DefinitionFormIndex(definition, Sections, Experiences);
     }
 
@@ -213,6 +219,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             DefinitionFormExperience experience = Experiences.Single(item => item.Id == SelectedExperienceId);
             DefinitionFormSection section = _index!.SectionsByField[path[0]];
             if (section is not null && !experience.Sections.Contains(section.Id)) return false;
+            if (_view.EditorVisibility == DefinitionEditorVisibilityPolicy.Direct && CanEdit(path)) return true;
             bool expanded = OptionalEditorsExpanded;
             if (section is not null && _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded))
                 expanded = sectionExpanded;

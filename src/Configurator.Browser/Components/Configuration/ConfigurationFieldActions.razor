@@ -2,7 +2,7 @@
 @using Configurator.Presentation
 
 <span class="configuration-field-actions">
-    <ConfigurationFieldHelp Schema="Schema.Keywords" Presentation="Presentation" Title="@PublicTitle" FieldPath="@string.Join(" / ", Path)"
+    <ConfigurationFieldHelp Locale="@Locale" Schema="Schema.Keywords" Presentation="Presentation" Title="@PublicTitle" FieldPath="@string.Join(" / ", Path)"
                             SecretsEnabled="@SecretsEnabled" GetBindings="CurrentBindings" />
     <span class="configuration-field-actions__menu" data-field-actions-id="@ControlId">
         @if (_menuRequested)
@@ -10,21 +10,21 @@
             <MudMenu Disabled="@(!CanEdit)" Open="_menuOpen" OpenChanged="MenuOpenChanged">
                 <ActivatorContent Context="menu">
                     <MudIconButton @ref="_menuActivator" Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small"
-                                   aria-label="@("Actions for " + PublicTitle)" aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")"
+                                   aria-label="@UiFormat("FieldActions", PublicTitle)" aria-haspopup="menu" aria-expanded="@(_menuOpen ? "true" : "false")"
                                    Disabled="@(!CanEdit)" OnClick="menu.ToggleAsync" />
                 </ActivatorContent>
                 <ChildContent>
                     <MudMenuItem OnClick="() => OnReset.InvokeAsync()" Disabled="@(!CanEdit)"
-                                 data-action="reset" role="menuitem">Reset @PublicTitle</MudMenuItem>
+                                 data-action="reset" role="menuitem">@UiFormat("ResetField", PublicTitle)</MudMenuItem>
                     @if (HasSuggestion)
                     {
                         <MudMenuItem OnClick="() => OnSuggest.InvokeAsync()" Disabled="@(!CanEdit)"
-                                     data-action="suggest" role="menuitem">Use suggested value for @PublicTitle</MudMenuItem>
+                                     data-action="suggest" role="menuitem">@UiFormat("SuggestField", PublicTitle)</MudMenuItem>
                     }
                     @if (Presentation?.Schema.IsNullable ?? Schema.IsNullable)
                     {
                         <MudMenuItem OnClick="() => OnNull.InvokeAsync()" Disabled="@(!CanEdit)"
-                                     data-action="null" role="menuitem">Set @PublicTitle to null</MudMenuItem>
+                                     data-action="null" role="menuitem">@UiFormat("NullField", PublicTitle)</MudMenuItem>
                     }
                     @if (!Required)
                     {
@@ -36,7 +36,7 @@
         }
         else
         {
-            <button type="button" class="configuration-field-actions__trigger" aria-label="@("Actions for " + PublicTitle)"
+            <button type="button" class="configuration-field-actions__trigger" aria-label="@UiFormat("FieldActions", PublicTitle)"
                     aria-haspopup="menu" aria-expanded="false" disabled="@(!CanEdit)" @onclick="OpenMenu">
                 <MudIcon Icon="@Icons.Material.Outlined.MoreVert" Size="Size.Small" aria-hidden="true" />
             </button>
@@ -53,6 +53,7 @@
     [Parameter] public bool Required { get; set; }
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public bool SecretsEnabled { get; set; }
+    [Parameter] public string Locale { get; set; } = "en";
     [Parameter] public long InputRevision { get; set; }
     [Parameter] public EventCallback OnOmit { get; set; }
     [Parameter] public EventCallback OnReset { get; set; }
@@ -64,9 +65,9 @@
     private bool _focusMenuActivator;
     private MudIconButton? _menuActivator;
     private DefinitionEditorPresentation? _renderedPresentation;
-    private (DefinitionNode Schema, string ControlId, string Title, string Path, bool Required, bool CanEdit, bool SecretsEnabled, bool MenuRequested, bool MenuOpen, long InputRevision) _rendered;
-    private (DefinitionNode Schema, string ControlId, string Title, string Path, bool Required, bool CanEdit, bool SecretsEnabled, bool MenuRequested, bool MenuOpen, long InputRevision) RenderState =>
-        (Schema, ControlId, PublicTitle, string.Join(" / ", Path), Required, CanEdit, SecretsEnabled, _menuRequested, _menuOpen, InputRevision);
+    private (DefinitionNode Schema, string ControlId, string Title, string Path, bool Required, bool CanEdit, bool SecretsEnabled, bool MenuRequested, bool MenuOpen, long InputRevision, string Locale) _rendered;
+    private (DefinitionNode Schema, string ControlId, string Title, string Path, bool Required, bool CanEdit, bool SecretsEnabled, bool MenuRequested, bool MenuOpen, long InputRevision, string Locale) RenderState =>
+        (Schema, ControlId, PublicTitle, string.Join(" / ", Path), Required, CanEdit, SecretsEnabled, _menuRequested, _menuOpen, InputRevision, Locale);
     protected override bool ShouldRender() => !_rendered.Equals(RenderState) ||
         !ConfigurationFieldHelp.SamePublicMetadata(_renderedPresentation, Presentation);
     protected override void OnAfterRender(bool firstRender)
@@ -94,7 +95,9 @@
         if (!open) _focusMenuActivator = true;
     }
     private string OmissionLabel => Schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence
-        ? "Omit " + PublicTitle + " and nested answers" : "Omit " + PublicTitle;
+        ? UiFormat("OmitFieldAndChildren", PublicTitle) : UiFormat("OmitField", PublicTitle);
+    private string UiFormat(string key, params object[] values) =>
+        string.Format(System.Globalization.CultureInfo.GetCultureInfo(Locale), BrowserStrings.Get(key, Locale), values);
     private string PublicTitle => Presentation?.Title ?? Title;
     private bool HasSuggestion => (Presentation?.Schema ?? Schema).Keywords.TryGetProperty("x-configurator", out var metadata) &&
         metadata.TryGetProperty("suggestedValue", out _);

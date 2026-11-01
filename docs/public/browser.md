@@ -143,6 +143,11 @@ Definitions can organize complex setup options into guided journeys:
 - **Batched Rendering:** Large sections load controls progressively in small batches to keep the browser responsive.
 - **Error Visibility:** Missing required settings and active validation errors remain accessible regardless of the selected journey.
 
+Ordinary editable settings in the chosen section open directly. You do not need
+to click Configure for each value. Merely displaying a setting does not supply an
+empty string, `false`, `null` or an empty container; values change only through
+deliberate editing. Inactive settings and denied secrets remain unavailable.
+
 ### Form Controls & Container Management
 
 Inputs dynamically adapt to their declared data types:

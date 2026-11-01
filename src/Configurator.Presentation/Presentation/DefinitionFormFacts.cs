@@ -27,9 +27,11 @@ internal sealed class DefinitionFormFacts
             .Select(state => form.GetFieldEditor(state.Id).Input).ToArray();
         InputDiagnostics = Array.AsReadOnly(activeInputs.SelectMany(field => field.InputDiagnostics).ToArray());
         HasInputErrors = activeInputs.Any(field => field.InputDiagnosticCode is not null);
+        var resolvedNodes = new List<(DefinitionNodeState Node, IReadOnlyList<string> Path)>(validation.Nodes.Count);
         foreach (DefinitionNodeState node in validation.Nodes)
         {
             if (!form.TryCorrectionPath(node.FieldId, node.Location, validation, out IReadOnlyList<string> path)) continue;
+            resolvedNodes.Add((node, path));
             _nodes[index.PathKey(path)] = node;
             if (node.IsActive && (node.HasError || node.IsObligation && node.IsMissing))
                 AddPrefixes(path, correction: true);
@@ -52,9 +54,8 @@ internal sealed class DefinitionFormFacts
                     owner.Id == section.Id).ToArray()),
             StringComparer.Ordinal));
         var entries = new List<EntryState>(validation.Nodes.Count);
-        foreach (DefinitionNodeState node in validation.Nodes)
+        foreach (var (node, path) in resolvedNodes)
         {
-            if (!form.TryCorrectionPath(node.FieldId, node.Location, validation, out IReadOnlyList<string> path)) continue;
             if (!form.TryMetadataNode(path, out DefinitionFormIndex.Node metadata, out _, validation)) continue;
             DefinitionFormSection section = index.SectionsByField[node.FieldId];
             bool inputError = false;

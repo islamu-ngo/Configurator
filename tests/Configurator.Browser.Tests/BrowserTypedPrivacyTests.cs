@@ -13,32 +13,27 @@ using Microsoft.JSInterop;
 public sealed class BrowserTypedPrivacyTests
 {
     [Test]
-    public async Task ChoicePopupsPreserveEmptyStringFalseAndAbsence()
+    public async Task VisibleChoicesPreserveEmptyStringFalseAndAbsence()
     {
         await using var context = BrowserFixture.Context();
-        var provider = context.Render<MudBlazor.MudPopoverProvider>();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, WithField("emptyChoice", """
             {"type":"string","title":"Empty choice","enum":["","other"],"x-configurator":{"sensitivity":"public","detail":"standard"}}
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() => form.SetDisclosureOverride(SetupFieldDisclosure.Guided));
-        Task OpenAsync(string field) => component.InvokeAsync(() => component.FindComponents<ConfigurationField>()
-            .Single(item => string.Join('.', item.Instance.Path) == field).FindComponent<MudBlazor.MudSelect<string>>().Instance.OpenMenu());
-        await OpenAsync("emptyChoice");
-        await provider.FindAll("[role=option]")[1].ClickAsync(new MouseEventArgs());
+        Task ClearAsync(string field) => component.InvokeAsync(() => component.FindComponents<ConfigurationField>()
+            .Single(item => string.Join('.', item.Instance.Path) == field).FindComponent<MudBlazor.MudRadioGroup<string>>().Instance.ValueChanged.InvokeAsync(string.Empty));
+        await BrowserFixture.NotifyChoiceAsync(component, "emptyChoice", string.Empty);
         await Assert.That(form.Snapshot().Values["emptyChoice"].GetString()).IsEqualTo("");
-        await OpenAsync("emptyChoice");
-        await provider.FindAll("[role=option]")[0].ClickAsync(new MouseEventArgs());
+        await ClearAsync("emptyChoice");
         await Assert.That(form.Snapshot().Values.ContainsKey("emptyChoice")).IsFalse();
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "cluster");
-        await OpenAsync("replicas");
-        await provider.FindAll("[role=option]")[2].ClickAsync(new MouseEventArgs());
+        await BrowserFixture.NotifyChoiceAsync(component, "replicas", "false");
         await Assert.That(form.Snapshot().Values["replicas"].GetBoolean()).IsFalse();
-        var control = component.Find("[data-field='replicas'] div[role=combobox]");
+        var control = component.Find("[data-field='replicas'] [role=radiogroup]");
         string labelId = control.GetAttribute("aria-labelledby")!;
-        await Assert.That(component.Find("#" + labelId).TagName).IsEqualTo("LABEL");
-        await OpenAsync("replicas");
-        await provider.FindAll("[role=option]")[0].ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("#" + labelId).TextContent).IsNotEmpty();
+        await ClearAsync("replicas");
         await Assert.That(form.Snapshot().Values.ContainsKey("replicas")).IsFalse();
     }
 
@@ -51,16 +46,16 @@ public sealed class BrowserTypedPrivacyTests
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         var editor = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["emptyChoice"]));
-        var options = editor.FindComponents<MudBlazor.MudSelectItem<string>>();
+        var options = editor.FindComponents<MudBlazor.MudRadio<string>>();
         await Assert.That(options[0].Instance.Value).IsNotEqualTo(options[1].Instance.Value);
-        await component.InvokeAsync(() => editor.FindComponent<MudBlazor.MudSelect<string>>().Instance.ValueChanged.InvokeAsync(options[1].Instance.Value));
+        await component.InvokeAsync(() => editor.FindComponent<MudBlazor.MudRadioGroup<string>>().Instance.ValueChanged.InvokeAsync(options[1].Instance.Value));
         await Assert.That(form.Snapshot().Values["emptyChoice"].GetRawText()).IsEqualTo("\"\"");
         var omit = await BrowserFixture.OpenOmissionAsync(context, component, "emptyChoice");
         await Assert.That(omit.GetAttribute("aria-label")).IsEqualTo("Omit Empty choice");
         await Assert.That(omit.GetAttribute("role")).IsEqualTo("menuitem");
         await omit.ClickAsync(new MouseEventArgs());
         await Assert.That(form.Snapshot().Values.ContainsKey("emptyChoice")).IsFalse();
-        await Assert.That(editor.FindComponent<MudBlazor.MudSelect<string>>().Instance.Value).IsEqualTo("");
+        await Assert.That(editor.FindComponent<MudBlazor.MudRadioGroup<string>>().Instance.Value).IsEqualTo("");
     }
 
     [Test]

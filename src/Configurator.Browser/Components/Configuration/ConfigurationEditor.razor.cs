@@ -117,7 +117,8 @@ public partial class ConfigurationEditor
         _importPurpose = "compare";
         _ready = false;
         _beginPending = true;
-        _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets, BrowserLaunchSelection.EditingCapabilities);
+        _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
+            BrowserLaunchSelection.EditingCapabilities, DefinitionEditorVisibilityPolicy.Direct);
         if (InitialLocale is not null && !_form.SelectLocale(InitialLocale))
             throw new InvalidOperationException("locale-unsupported");
         if (InitialEntry is not null) _form.SelectOutput(InitialEntry);
@@ -886,7 +887,8 @@ public partial class ConfigurationEditor
         form.Dispose();
         if (!_disposed && ReferenceEquals(form, _form))
         {
-            _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets);
+            _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
+                editorVisibility: DefinitionEditorVisibilityPolicy.Direct);
             _compact = false;
             IndexSections();
             _form.InputChanged += InputChanged;

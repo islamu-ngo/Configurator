@@ -91,12 +91,12 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.Find($"label[for='{authoredInputId}']").TextContent).Contains("Publisher's exact wording");
         await Assert.That(component.FindAll("#configuration-experience")).IsEmpty();
         await Assert.That(component.Find("[data-experience]").GetAttribute("data-experience")).IsEqualTo("configure");
-        await Assert.That(component.FindAll("[data-field='optional_note'] input")).IsEmpty();
+        await Assert.That(component.Find("[data-field='optional_note'] input").HasAttribute("disabled")).IsFalse();
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() => form.SetAllSectionsExpanded(true));
         await Assert.That(component.Find("[data-field='optional_note'] input").HasAttribute("disabled")).IsFalse();
         await component.InvokeAsync(() => form.SetAllSectionsExpanded(false));
-        await Assert.That(component.FindAll("[data-field='optional_note'] input")).IsEmpty();
+        await Assert.That(component.Find("[data-field='optional_note'] input").HasAttribute("disabled")).IsFalse();
         await Assert.That(component.FindComponents<ConfigurationField>()[0].Instance.Form.Definition.Digest).IsEqualTo(definition.Digest);
     }
 

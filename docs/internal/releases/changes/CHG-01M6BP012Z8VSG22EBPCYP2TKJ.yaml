@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6BP012Z8VSG22EBPCYP2TKJ
+Title: "Edit ordinary settings directly with typed choices"
+Type: feat
+Scope: browser
+Summary: "Mount eligible ordinary controls directly and use controlled short radio choices with localized labels while preserving absence, masking, and generation fences."
+Group: browser-direct-controls
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
