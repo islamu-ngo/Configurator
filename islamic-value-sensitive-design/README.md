@@ -71,6 +71,7 @@ disposition and replacement evidence.
 | [Definition standard redesign](workstreams/i-vsd-definition-standard-redesign.md) | current / plan-aligned | 2026-10-28, supplied packet cutoff, not independently refreshed |
 | [Artifact import and comparison](workstreams/i-vsd-artifact-import-comparison.md) | current / advisory | 2026-10-30 |
 | [Knowledge and contributor experience](workstreams/i-vsd-knowledge-contributor-experience.md) | current / plan-aligned | 2026-10-30 |
+| [Browser UX simplification](workstreams/i-vsd-browser-ux-simplification.md) | current / plan-aligned; implementation awaiting approval | 2026-10-31 |
 
 For each assessment, read its reviewed input, claim boundary, validation gaps,
 finding and mitigation IDs, and lifecycle before reusing a conclusion. A

@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-10-31 Europe/Brussels
+Last Updated: 2026-11-01 Europe/Brussels
 
 ## Index & Recent
 
@@ -335,3 +335,164 @@ not qualify another implementation's parser.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; Operations owns source provenance and execution evidence.
+
+[2026-11-01 Europe/Brussels] — Bound inverse overlap work by source-path depth
+
+**Context**: Integrated Browser qualification compared a tiny synthetic Environment
+file against the bundled Event definition under explicit workspace consent.
+
+**Symptom / Observation**: The comparison refused with `inverse-limit` before
+publishing a report. A Core regression reproduced that result against the exact
+Browser family and canonical digest, independently of browser automation.
+
+**Root Cause**: Inverse compilation compared each copied source path with every
+previous assignment. Hundreds of independent, flat paths exhausted the bounded
+inverse-work counter before file parsing. A smaller imported file could not
+reduce this definition-compilation cost.
+
+**Resolution**: Use a compilation-local ordinal segment index, charging the
+existing budget for each traversed segment. Preserve duplicate,
+ancestor/descendant, selector and repeated-row scope rules. The actual Event
+regression and all 15 strict-import cases pass; the full Release Core,
+Presentation and Browser suites passed 303, 276 and 334 tests respectively.
+Executed commands were `dotnet test --project tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj --configuration Release`,
+the corresponding Presentation project command and the corresponding Browser
+project command. No budget was raised and no warning or test was suppressed.
+Fresh actual-package requalification remains separate from these suite passes.
+
+**Why This Matters for Future Work**: A resource-limit failure can expose
+incidental algorithmic cost rather than an intentionally unsupported format.
+Reproduce it with the admitted definition before weakening a limit or changing
+whole-file import authority. Count actual bounded work, not an obsolete scan.
+
+**References**:
+- `src/Configurator.Core/Definitions/DefinitionImportProjection.cs`
+- `tests/Configurator.Core.Tests/Definitions/DefinitionImportAssessmentTests.cs`
+- `tests/Configurator.Core.Tests/Definitions/DefinitionImportTests.cs`
+- `docs/internal/IMPORT_COMPARISON.md`
+- `docs/internal/reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the import contract owns the algorithm and limits.
+
+---
+
+[2026-11-01 Europe/Brussels] — Measure input feedback on one monotonic clock
+
+**Context**: Published Browser qualification retained forty samples per direction
+and CPU rate, separate first-use costs and five warmups per direction.
+
+**Symptom / Observation**: A consistency audit found one negative feedback value,
+-1.568 ms, among 960 observations. A separate activation sample also contained a
+real 73 ms long task; the invalid clock record did not explain away that task.
+
+**Root Cause**: The sampler subtracted event-time `performance.now()` from the
+timestamp supplied to `requestAnimationFrame`. That frame timestamp can predate
+an input dispatched later within the same frame.
+
+**Resolution**: Read `performance.now()` inside the first animation-frame callback
+as well as at trusted-event capture. Reject nonfinite, negative or misordered
+sample clocks rather than clamping them. Preserve the original cohort and rerun
+the complete declared cohort after correcting instrumentation. The corrected
+candidate's 960 measured records, 120 warmups and 24 first-use observations remain
+retained. Measured feedback maxima were 33.1/132.7 ms at 1x/4x, with no warmed
+1x task over 50 ms. These are scoped technical observations, not operator-study
+or physical-device results.
+
+**Why This Matters for Future Work**: A plausible percentile can hide an invalid
+measurement clock. Audit individual records and retain failures before making
+performance claims; never delete an inconvenient sample or infer a speedup from
+different measurement methods.
+
+**References**:
+- `docs/internal/reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md`
+- `.tmp/browser-ux-simplification/final-interaction-performance-before-activation-correction.json`
+- `.tmp/browser-ux-simplification/final-interaction-performance-corrected-clock.json`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; task-owned instrumentation is not product tooling.
+
+---
+
+[2026-11-01 Europe/Brussels] — Explicit browser tasks separate work from source custody
+
+**Context**: Actual-package Developer qualification crossed managed source
+admission, JavaScript editor construction and provisional document parsing.
+
+**Symptom / Observation**: The retained final-package cohort contained a warmed
+53 ms task. A separate reproduced 57 ms task joined about 34.9 ms of managed work
+with 18.0 ms of editor work; it was not the same warmed sample. Later, a valid
+256 KiB document produced 51.1 ms first-use Preview feedback.
+
+**Root Cause**: Awaited interop does not itself promise a rendering or task
+boundary. Source admission and DOM construction could share one browser task,
+and Preview could finish bounded synchronous parsing before its busy state
+painted. Adding a yield after source acquisition also creates an ownership
+window that a finalizer alone cannot retire promptly.
+
+**Resolution**: Reuse the existing rendering module. Mounting yields after
+admission, retains one alias to its acquired byte array and clears it immediately
+on retirement as well as normal completion. Preview acknowledges work before
+acquiring source and uses the document session's existing cooperative publication
+yield after source bytes are cleared. Captured leases are checked after yields.
+The full Release Browser suite passes 342/342 with
+`dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release`.
+The source-mount build's complete 960-sample cohort passed without removing the
+earlier failure. The later Preview caller change requires its own exact-package
+timing evidence; native suite passes are not that evidence.
+
+**Why This Matters for Future Work**: Individually small managed and JavaScript
+steps can exceed a task budget when joined. Choose an explicit browser boundary,
+not an assumed effect of `await`, and reassess private buffer/candidate retirement
+at each new suspension point. Controlled held-boundary tests prove stale-work
+rejection without timing sleeps.
+
+**References**:
+- `src/Configurator.Browser/Components/Configuration/ConfigurationDeveloper.razor.cs:119`
+- `src/Configurator.Browser/Components/Configuration/ConfigurationDeveloper.razor.cs:346`
+- `src/Configurator.Browser/Components/Configuration/ConfigurationDeveloper.razor.cs:650`
+- `src/Configurator.Browser/wwwroot/configuration-rendering.js:1`
+- `src/Configurator.Presentation/Presentation/DefinitionDocumentSession.cs:182`
+- `tests/Configurator.Browser.Tests/BrowserDeveloperEditingTests.cs`
+- `docs/internal/reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; `docs/internal/BROWSER_UI.md` owns the current mechanism.
+
+[2026-11-01 Europe/Brussels] — Renderer scheduling can distort interaction timing
+
+**Context**: Exact-package Browser UX qualification retained intermittent normal
+input and Developer recovery timing failures after source-level corrections.
+
+**Symptom / Observation**: A scalar trace measured a 61.283 ms task with only
+36.842 ms of thread time. A matched CPU-profile interval had landed on a trivial
+Value getter; it did not prove that getter consumed the full wall interval.
+`chrt -p 553608` then identified the task-owned renderer as `SCHED_IDLE`.
+
+**Root Cause**: This renderer's scheduling environment was not normal-priority
+execution. Wall-clock task/paint latency includes time when a renderer thread
+does not execute; a sampled source frame alone cannot distinguish that interval
+from computation. This finding does not attribute every historical stall to
+one cause or establish how the renderer originally acquired that policy.
+
+**Resolution**: Changed only the owned renderer threads with
+`chrt --all-tasks --other --pid 0 553608`; `chrt -p 553608` then reported
+`SCHED_OTHER`, priority 0. The identical final WASM passed the complete unchanged
+960-sample normal cohort and targeted 40-cycle 1x Cancel/Reopen recheck, retaining
+all earlier failures. Native Browser 345/345 and package Architecture 77/77
+passes remain separate evidence; no product code or timing threshold changed.
+
+**Why This Matters for Future Work**: Record renderer scheduling and compare
+wall with thread time before optimizing a sampled frame for an unexplained
+stall. Correct a demonstrated qualification-environment defect, retain the
+before/after observations, and rerun the affected gate without deleting outliers.
+Normal workstation timing still does not replace human or physical-device study.
+
+**References**:
+- `docs/internal/reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md`
+- `.tmp/browser-ux-simplification/remaining-scalar-thread-trace.json`
+- `.tmp/browser-ux-simplification/final-normal-scheduling-performance.json`
+- `.tmp/browser-ux-simplification/final-normal-scheduling-cancellation.json`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the execution report owns the bounded environment evidence.
