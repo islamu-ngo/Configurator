@@ -18,7 +18,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private readonly DefinitionEditingState _editing;
     private readonly DefinitionViewState _view;
     private readonly DefinitionLocalization _localization;
-    private readonly HashSet<DefinitionPath> _omitted = [];
+    private HashSet<DefinitionPath> Omitted => _editing.Omitted;
     private DefinitionFormIndex? _index;
     private DefinitionFormFacts? _facts;
     private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>>? _orderedEntries;
@@ -38,10 +38,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             throw new ArgumentException("consumer-capability-unsupported", nameof(supportedCapabilities));
         Definition = definition;
         _localization = new(definition);
-        _editing = new(Array.AsReadOnly(definition.Fields.Select(field =>
-            new DefinitionFieldInput(field, Edit, (text, value) => AllowsValue(field, text, value),
-                () => _disposed ? null : ReadValue([field.Id]), RecordOverride, Notify)).ToArray()),
-            sessionPrivacy);
+        _editing = new(definition.Fields, sessionPrivacy, (field, readState) =>
+            new DefinitionFieldInput(field, _gate, readState, Edit, (text, value) => AllowsValue(field, text, value),
+                () => _disposed ? null : ReadValue([field.Id]), RecordOverride, Notify));
         var assigned = new HashSet<string>(StringComparer.Ordinal);
         var sections = new List<DefinitionFormSection>();
         if (definition.Presentation is { } authored)
@@ -332,6 +331,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             RetireImportComparison();
             bool hasProtectedRoots = false;
+            RetireDocument();
             foreach (DefinitionFieldInput field in Fields.Where(field => field.RequiresMasking))
             {
                 hasProtectedRoots = true;
@@ -692,7 +692,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (ReadNode(path) is not JsonArray items || index < 0 || index >= items.Count) return false;
             DefinitionAnswerOrigin[] origins = Enumerable.Range(0, items.Count)
                 .Select(row => AnswerOrigin([.. path, row.ToString(System.Globalization.CultureInfo.InvariantCulture)])).ToArray();
-            DefinitionPath[] omissions = _omitted.ToArray();
+            DefinitionPath[] omissions = Omitted.ToArray();
             RecordMaterializedOrigins(path);
             string identity = GetEditorIdentity(path);
             string removedIdentity = identity + "-row-" +
@@ -704,17 +704,17 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _view.ClearEditorExpansion(removedIdentity, includeSelf: true);
             _view.ClearPromotions(removedIdentity);
             Fields[_index!.FieldPositions[path[0]]].RemoveItemDrafts(path, index);
-            _omitted.Clear();
+            Omitted.Clear();
             foreach (DefinitionPath omitted in omissions)
             {
                 if (omitted.Segments.Count <= path.Count || !omitted.Segments.Take(path.Count).SequenceEqual(path) ||
                     !omitted.TryGetArrayIndex(path.Count, out int row))
                 {
-                    _omitted.Add(omitted);
+                    Omitted.Add(omitted);
                     continue;
                 }
                 if (row == index) continue;
-                _omitted.Add(row > index ? DefinitionPath.FromSegments([
+                Omitted.Add(row > index ? DefinitionPath.FromSegments([
                     .. omitted.Segments.Take(path.Count),
                     (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
                     .. omitted.Segments.Skip(path.Count + 1)]) : omitted);
@@ -802,7 +802,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (candidate is { } value) values[field.Name] = value;
             try
             {
-                _ = new SetupAnswerSnapshot(InputRevision, values, _omitted.Select(path => DataPath(path.Segments)).Where(path =>
+                _ = new SetupAnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)).Where(path =>
                     !values.TryGetValue(path.Segments[0], out JsonElement root) ||
                     !TrySuppliedValue(root, path.Segments.Skip(1), out _)));
             }
@@ -829,7 +829,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     }
 
     private void RemoveSuppliedOmissions() =>
-        _omitted.RemoveWhere(path => _index!.FieldPositions.TryGetValue(path.Segments[0], out int position) &&
+        Omitted.RemoveWhere(path => _index!.FieldPositions.TryGetValue(path.Segments[0], out int position) &&
             TrySuppliedValue(Fields[position].Value, path.Segments.Skip(1), out _));
     public IReadOnlyList<DefinitionFieldInput> Fields => _editing.Fields;
     /// <summary>Returns the owned root editor and its immutable admitted schema by literal field identity.</summary>
@@ -895,6 +895,19 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Whether discarding would lose supplied values, explicit omissions or retained invalid drafts, including inactive drafts.</summary>
+    public bool HasWorkspaceChanges
+    {
+        get
+        {
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                return Omitted.Count > 0 || Fields.Any(input => input.Value is not null || input.InputDiagnosticCode is not null);
+            }
+        }
+    }
+
     public SetupAnswerSnapshot Snapshot()
     {
         lock (_gate)
@@ -906,7 +919,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 if (Fields[position].Value is { } supplied)
                     values.Add(Fields[position].Definition.Name, supplied);
             }
-            return new SetupAnswerSnapshot(InputRevision, values, _omitted.Select(path => DataPath(path.Segments)));
+            return new SetupAnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)));
         }
     }
 
@@ -980,8 +993,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                     ClearRowIdentities([field.Definition.Id]);
                     field.SetImported(value);
                 }
-            _omitted.Clear();
-            _omitted.UnionWith(result.Answers!.Omitted.Select(path => DefinitionPath.FromSegments([
+            Omitted.Clear();
+            Omitted.UnionWith(result.Answers!.Omitted.Select(path => DefinitionPath.FromSegments([
                 Definition.Fields.Single(field => field.Name == path.Segments[0]).Id, .. path.Segments.Skip(1)])));
             OnInputChanged();
             return result;
@@ -1000,6 +1013,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
+        RetireDocument();
         RetireImportComparison();
         _facts = null;
         _orderedEntries = null;
@@ -1032,9 +1046,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (_disposed) return;
             _disposed = true;
+            RetireDocument();
             RetireImportComparison();
             _editing.Clear();
-            _omitted.Clear();
+            Omitted.Clear();
             _facts = null;
             _index = null;
             _orderedEntries = null;
@@ -1104,31 +1119,28 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
 public sealed class DefinitionFieldInput : ObservableObject
 {
+    private readonly object _gate;
+    private readonly Func<DefinitionFieldState> _readState;
     private readonly Action<Func<bool>> _changed;
     private readonly Func<string, JsonElement?, bool> _allowsValue;
     private readonly Func<JsonElement?> _readEffective;
     private readonly Action<IReadOnlyList<string>, bool> _recordOverride;
     private readonly Action<Action> _notify;
-    private string _text;
-    private JsonElement? _value;
-    private readonly List<string[]> _invalidPaths = [];
-    private readonly List<(string[] Path, string Text)> _draftTexts = [];
-    private readonly List<(string[] Path, DefinitionAnswerOrigin Origin)> _origins = [];
-    private DefinitionAnswerOrigin _origin;
-    private string? _inputDiagnosticCode;
+    private DefinitionFieldState State => _readState();
 
-    internal DefinitionFieldInput(SetupFieldDefinition definition, Action<Func<bool>> changed,
+    internal DefinitionFieldInput(SetupFieldDefinition definition, object gate, Func<DefinitionFieldState> readState,
+        Action<Func<bool>> changed,
         Func<string, JsonElement?, bool> allowsValue, Func<JsonElement?> readEffective,
         Action<IReadOnlyList<string>, bool> recordOverride, Action<Action> notify)
     {
         Definition = definition;
+        _gate = gate;
+        _readState = readState;
         _changed = changed;
         _allowsValue = allowsValue;
         _readEffective = readEffective;
         _recordOverride = recordOverride;
         _notify = notify;
-        _text = string.Empty;
-        _origin = DefinitionAnswerOrigin.Omitted;
     }
 
     public SetupFieldDefinition Definition { get; }
@@ -1136,10 +1148,20 @@ public sealed class DefinitionFieldInput : ObservableObject
     public string? Help => Definition.Help;
     public bool RequiresMasking => Definition.Sensitivity != SetupFieldSensitivity.Public;
     public bool HasAnswerBudgetError => InputDiagnosticCode == "answer-budget-exceeded";
-    public string? InputDiagnosticCode => _inputDiagnosticCode ?? (_invalidPaths.Count > 0 ? "input-type-invalid" : null);
-    internal JsonElement? Value => _value;
-    internal bool IsPristineDefault => _value is null && _origin == DefinitionAnswerOrigin.Omitted
-        && _origins.Count == 0 && InputDiagnosticCode is null;
+    public string? InputDiagnosticCode
+    {
+        get
+        {
+            lock (_gate)
+            {
+                DefinitionFieldState state = State;
+                return state.InputDiagnosticCode ?? (state.InvalidPaths.Count > 0 ? "input-type-invalid" : null);
+            }
+        }
+    }
+    internal JsonElement? Value => State.Value;
+    internal bool IsPristineDefault => State.Value is null && State.Origin == DefinitionAnswerOrigin.Omitted
+        && State.Origins.Count == 0 && InputDiagnosticCode is null;
     public IReadOnlyList<string> Choices =>
         Array.AsReadOnly(Definition.Choices.Select(Display).ToArray());
 
@@ -1147,21 +1169,26 @@ public sealed class DefinitionFieldInput : ObservableObject
     {
         get
         {
-            if (_inputDiagnosticCode is not null)
-                yield return new(_inputDiagnosticCode, Definition.Id);
-            foreach (string[] path in _invalidPaths)
-                if (_inputDiagnosticCode is null || path.Length > 1)
+            DefinitionFieldState state = State;
+            if (state.InputDiagnosticCode is not null)
+                yield return new(state.InputDiagnosticCode, Definition.Id);
+            foreach (string[] path in state.InvalidPaths)
+                if (state.InputDiagnosticCode is null || path.Length > 1)
                     yield return new("input-type-invalid", Definition.Id, path.Skip(1).ToArray());
         }
     }
 
     public string Text
     {
-        get => !HasInputError([Definition.Id]) && _readEffective() is { } effective ? Display(effective) : _text;
+        get
+        {
+            lock (_gate)
+                return !HasInputError([Definition.Id]) && _readEffective() is { } effective ? Display(effective) : State.Text;
+        }
         set => _changed(() =>
         {
             bool valid = TryValue(value, out JsonElement? parsed);
-            if (!_allowsValue(value, valid ? parsed : _value))
+            if (!_allowsValue(value, valid ? parsed : State.Value))
             {
                 if (!valid) SetDraftValidity([Definition.Id], false);
                 return true;
@@ -1170,10 +1197,10 @@ public sealed class DefinitionFieldInput : ObservableObject
             if (valid)
             {
                 ClearDrafts([Definition.Id]);
-                _value = parsed?.Clone();
+                State.Value = parsed?.Clone();
                 RecordOrigin([Definition.Id], parsed is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Explicit);
             }
-            SetProperty(ref _text, value);
+            SetProperty(ref State.Text, value);
             return true;
         });
     }
@@ -1190,11 +1217,11 @@ public sealed class DefinitionFieldInput : ObservableObject
             accepted = _allowsValue(text, value);
             if (accepted)
             {
-                _value = value?.Clone();
+                State.Value = value?.Clone();
                 if (recordOrigin) RecordOrigin([Definition.Id],
                     value is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Explicit);
                 SetInputDiagnostic(null);
-                if (!SetProperty(ref _text, text, nameof(Text))) OnPropertyChanged(nameof(Text));
+                if (!SetProperty(ref State.Text, text, nameof(Text))) OnPropertyChanged(nameof(Text));
             }
             return true;
         });
@@ -1204,25 +1231,31 @@ public sealed class DefinitionFieldInput : ObservableObject
     internal void SetImported(JsonElement value)
     {
         SetInputDiagnostic(null);
-        _invalidPaths.Clear();
-        _draftTexts.Clear();
+        State.InvalidPaths.Clear();
+        State.DraftTexts.Clear();
         RecordOrigin([Definition.Id], DefinitionAnswerOrigin.Imported);
         RetainValue(value);
     }
 
     internal void RetainValue(JsonElement value)
     {
-        _value = value.Clone();
-        if (!SetProperty(ref _text, Display(value), nameof(Text))) OnPropertyChanged(nameof(Text));
+        State.Value = value.Clone();
+        if (!SetProperty(ref State.Text, Display(value), nameof(Text))) OnPropertyChanged(nameof(Text));
+    }
+
+    internal void NotifyDocumentChanged()
+    {
+        OnPropertyChanged(nameof(Text));
+        OnPropertyChanged(nameof(InputDiagnosticCode));
     }
 
     internal void Clear()
     {
-        _value = null;
-        _invalidPaths.Clear();
-        _draftTexts.Clear();
+        State.Value = null;
+        State.InvalidPaths.Clear();
+        State.DraftTexts.Clear();
         RecordOrigin([Definition.Id], DefinitionAnswerOrigin.Omitted);
-        if (!SetProperty(ref _text, string.Empty, nameof(Text))) OnPropertyChanged(nameof(Text));
+        if (!SetProperty(ref State.Text, string.Empty, nameof(Text))) OnPropertyChanged(nameof(Text));
         SetInputDiagnostic(null);
     }
 
@@ -1234,67 +1267,70 @@ public sealed class DefinitionFieldInput : ObservableObject
 
     public bool TryValue(out JsonElement? value)
     {
-        bool valid = !HasInputError([Definition.Id]);
-        value = valid ? _readEffective() : null;
-        return valid;
+        lock (_gate)
+        {
+            bool valid = !HasInputError([Definition.Id]);
+            value = valid ? _readEffective() : null;
+            return valid;
+        }
     }
 
     internal bool HasInputError(IReadOnlyList<string> path) =>
-        path.Count == 1 && _inputDiagnosticCode is not null || _invalidPaths.Any(existing => existing.SequenceEqual(path));
+        path.Count == 1 && State.InputDiagnosticCode is not null || State.InvalidPaths.Any(existing => existing.SequenceEqual(path));
 
     internal void SetDraftValidity(IReadOnlyList<string> path, bool valid)
     {
-        _invalidPaths.RemoveAll(existing => existing.SequenceEqual(path));
-        if (!valid) _invalidPaths.Add(path.ToArray());
+        State.InvalidPaths.RemoveAll(existing => existing.SequenceEqual(path));
+        if (!valid) State.InvalidPaths.Add(path.ToArray());
         OnPropertyChanged(nameof(InputDiagnosticCode));
     }
 
     internal bool ClearDrafts(IReadOnlyList<string> path)
     {
-        _draftTexts.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
-        bool changed = _invalidPaths.RemoveAll(existing => existing.Take(path.Count).SequenceEqual(path)) > 0;
+        State.DraftTexts.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
+        bool changed = State.InvalidPaths.RemoveAll(existing => existing.Take(path.Count).SequenceEqual(path)) > 0;
         if (changed) OnPropertyChanged(nameof(InputDiagnosticCode));
         return changed;
     }
 
     internal void ClearDeniedDrafts(Func<IReadOnlyList<string>, bool> canEdit)
     {
-        _draftTexts.RemoveAll(existing => !canEdit(existing.Path));
-        if (_invalidPaths.RemoveAll(path => !canEdit(path)) > 0) OnPropertyChanged(nameof(InputDiagnosticCode));
+        State.DraftTexts.RemoveAll(existing => !canEdit(existing.Path));
+        if (State.InvalidPaths.RemoveAll(path => !canEdit(path)) > 0) OnPropertyChanged(nameof(InputDiagnosticCode));
     }
 
     internal string? DraftText(IReadOnlyList<string> path) =>
-        path.Count == 1 && HasInputError(path) ? _text :
-            _draftTexts.FirstOrDefault(existing => existing.Path.SequenceEqual(path)).Text;
+        path.Count == 1 && HasInputError(path) ? State.Text :
+            State.DraftTexts.FirstOrDefault(existing => existing.Path.SequenceEqual(path)).Text;
 
     internal void RetainDraft(IReadOnlyList<string> path, string? text)
     {
-        _draftTexts.RemoveAll(existing => existing.Path.SequenceEqual(path));
+        State.DraftTexts.RemoveAll(existing => existing.Path.SequenceEqual(path));
         if (text is not null && text.Length <= 65_536 &&
-            _draftTexts.Sum(existing => existing.Text.Length) + text.Length <= 65_536)
-            _draftTexts.Add((path.ToArray(), text));
+            State.DraftTexts.Sum(existing => existing.Text.Length) + text.Length <= 65_536)
+            State.DraftTexts.Add((path.ToArray(), text));
     }
 
     internal DefinitionAnswerOrigin OriginAt(IReadOnlyList<string> path) =>
-        path.Count == 1 || _origins.Count == 0 ? _origin :
-        _origins.Where(existing => path.Take(existing.Path.Length).SequenceEqual(existing.Path))
+        path.Count == 1 || State.Origins.Count == 0 ? State.Origin :
+        State.Origins.Where(existing => path.Take(existing.Path.Length).SequenceEqual(existing.Path))
             .OrderByDescending(existing => existing.Path.Length).Select(existing => existing.Origin)
-            .FirstOrDefault(_origin);
+            .FirstOrDefault(State.Origin);
 
     internal void RecordOrigin(IReadOnlyList<string> path, DefinitionAnswerOrigin origin, bool clearDescendants = true)
     {
         if (clearDescendants && origin != DefinitionAnswerOrigin.Defaulted)
             _recordOverride(path, origin == DefinitionAnswerOrigin.Omitted);
-        _origins.RemoveAll(existing => existing.Path.SequenceEqual(path) ||
+        State.Origins.RemoveAll(existing => existing.Path.SequenceEqual(path) ||
             clearDescendants && existing.Path.Take(path.Count).SequenceEqual(path));
-        if (path.Count == 1) _origin = origin;
-        else _origins.Add((path.ToArray(), origin));
+        if (path.Count == 1) State.Origin = origin;
+        else State.Origins.Add((path.ToArray(), origin));
     }
 
     internal void ForgetOrigin(IReadOnlyList<string> path)
     {
-        _origins.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
-        if (path.Count == 1) _origin = DefinitionAnswerOrigin.Omitted;
+        State.Origins.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
+        if (path.Count == 1) State.Origin = DefinitionAnswerOrigin.Omitted;
     }
 
     internal void RemoveItemDrafts(IReadOnlyList<string> path, int index)
@@ -1302,15 +1338,15 @@ public sealed class DefinitionFieldInput : ObservableObject
         static bool IsRow(string[] candidate, IReadOnlyList<string> prefix, int row) =>
             candidate.Length > prefix.Count && candidate.Take(prefix.Count).SequenceEqual(prefix) &&
             candidate[prefix.Count] == row.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _draftTexts.RemoveAll(existing => IsRow(existing.Path, path, index));
-        _origins.RemoveAll(existing => IsRow(existing.Path, path, index));
-        foreach (string[] existing in _draftTexts.Select(draft => draft.Path).Concat(_origins.Select(origin => origin.Path)))
+        State.DraftTexts.RemoveAll(existing => IsRow(existing.Path, path, index));
+        State.Origins.RemoveAll(existing => IsRow(existing.Path, path, index));
+        foreach (string[] existing in State.DraftTexts.Select(draft => draft.Path).Concat(State.Origins.Select(origin => origin.Path)))
             if (existing.Length > path.Count && existing.Take(path.Count).SequenceEqual(path) &&
                 int.TryParse(existing[path.Count], out int row) && row > index)
                 existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        _invalidPaths.RemoveAll(existing => existing.Length > path.Count &&
+        State.InvalidPaths.RemoveAll(existing => existing.Length > path.Count &&
             existing.Take(path.Count).SequenceEqual(path) && existing[path.Count] == index.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        foreach (string[] existing in _invalidPaths.Where(existing => existing.Length > path.Count &&
+        foreach (string[] existing in State.InvalidPaths.Where(existing => existing.Length > path.Count &&
             existing.Take(path.Count).SequenceEqual(path)))
             if (int.TryParse(existing[path.Count], out int row) && row > index)
                 existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -1319,8 +1355,8 @@ public sealed class DefinitionFieldInput : ObservableObject
 
     internal void SetInputDiagnostic(string? code)
     {
-        if (_inputDiagnosticCode == code) return;
-        _inputDiagnosticCode = code;
+        if (State.InputDiagnosticCode == code) return;
+        State.InputDiagnosticCode = code;
         OnPropertyChanged(nameof(InputDiagnosticCode));
         OnPropertyChanged(nameof(HasAnswerBudgetError));
     }

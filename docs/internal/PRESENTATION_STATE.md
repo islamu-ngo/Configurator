@@ -1,9 +1,9 @@
 # Definition presentation state
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Implemented shared state; qualified pre-release Linux x64 and Browser scope
+> **Status:** Implemented shared state; surface and package qualification remain scoped to dated evidence
 > **Owner:** Presentation
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-10-31
 > **Source Anchors:** `src/Configurator.Presentation/Presentation/`, `src/Configurator.Core/Definitions/`
 
 ## Recursive v2 editing and localized display
@@ -111,10 +111,75 @@ draft withholding diagnostics remain visible even when a particular adopted
 artifact has no deferred secret. This reuses the established outcome owner rather
 than introducing another preparation store.
 
+## Bounded document sessions and atomic Apply
+
+`DefinitionFormModel.OpenDocument` owns at most one disposable
+`DefinitionDocumentSession`. Opening a valid replacement retires the previous
+lease; an invalid artifact request does not destroy an existing lease. The
+session captures actual form ownership, definition digest, input revision,
+representation, privacy generation and value-free scope. It retains no visible
+text or history. Browser integration owns that private model and is qualified
+separately.
+
+Coverage can be inspected before consent. `ReadSource` and source delegates are
+denied under `BrowserNoSecrets`; `NativeComplete` remains the native policy.
+`ReadSource` returns caller-owned restricted UTF-8 bytes, which the caller must
+clear. An invalid draft or invalid supplied value intersecting represented scope
+blocks generation rather than silently discarding the edit.
+
+Canonical source uses the existing answer envelope, limited to supplied public
+values and explicit omissions. Effective defaults are not materialized. Entire
+mixed-sensitivity arrays/maps are excluded; fixed public object branches may be
+represented without their protected siblings. Literal dotted names remain
+literal JSON Pointer segments. Unchanged dormant answers may round-trip; newly
+supplied inactive content must become active before acceptance.
+
+Environment source uses Core's captured active direct-scalar projection.
+`Merge` retains missing keys. Explicit `ReplaceRepresentedScope` records
+omissions for missing represented keys. Canonical replacement differs: absence
+from both `values` and `omitted` resets only represented scope, while `omitted`
+suppresses initialization. An unrepresented ancestor omission cannot be silently
+removed to admit a child edit.
+
+`Parse` snapshots caller memory. `ParseAsync` checks consent before invoking its
+source delegate, owns and clears transferred bytes, and can yield locally before
+publication. Both return a disposable result with an opaque single-use candidate.
+Diagnostics and changes contain codes, admitted paths and bounded coordinates,
+never answer values. Environment coordinates follow the codec; canonical
+structural failures currently use document-level coordinates. At most 100
+diagnostics are retained, with an explicit truncation flag.
+
+The parser builds and validates the complete detached replacement with the
+existing Core codecs and validator. Well-typed partial configuration is allowed:
+missing required values remain Review work. Invalid supplied values, malformed
+structure, protected/out-of-scope content or stale authority reject without
+changing accepted state.
+
+Apply rechecks form/session identity, digest, input revision, document/privacy
+generation, consent, scope and cancellation under the existing mutation gate.
+It reconciles row identities allocated by rendering since capture, transfers the
+accepted payload once, and emits one input revision/event. Unchanged field
+facades and payloads survive; only affected container identities retire. Actual
+changes get Explicit provenance while untouched origins, drafts, omissions and
+protected values remain.
+
+Edits, cancellation, replacement, revocation and disposal retire candidate
+authority. There is no rebase or mutate-then-restore rollback. A subscriber
+failure after commit returns successful application with `ObserverFailed`; it
+cannot reclassify an accepted edit as rejection or roll back a newer reentrant
+edit. Reopen the session after Apply or another accepted/privacy change.
+
+The [document custody ADR](adr/ADR-browser-developer-editing.md) records the
+ownership decision. This shared API is not evidence that the Browser editor,
+offline package, device or assistive-technology qualification is complete.
+
 ## Form state ownership and API migration
 
-`DefinitionEditingState` holds the existing root inputs, privacy mode, input
-revision and stable row identities. `DefinitionViewState` holds experience,
+`DefinitionEditingState` holds stable root input facades, privacy mode and one
+accepted payload containing field data, explicit omissions, input revision and
+stable row identities. Facades resolve the current payload rather than capturing
+retired values; compound public field reads take the form's existing gate.
+`DefinitionViewState` holds experience,
 disclosure, expansion, promotion and discovery bookkeeping. Neither collaborator
 has a lock, sends notifications or duplicates answers. `DefinitionFormModel`
 retains the sole mutation gate and notification transaction, together with its
@@ -166,9 +231,10 @@ roots, diagnostics, correction/required paths, origins, progress and discovery
 entries. It retains no second answer tree. Read-only origin, metadata and identity
 traversal uses the already-owned immutable `JsonElement`; an invalid root still
 denies access to its last valid collection rows. Mutable JSON parsing is confined
-to collection commands that actually need a working tree.
+to collection commands and detached document construction that actually need a
+working tree.
 
-Input intent retires facts, ordered entries, discovery and the visible projection.
+Input intent retires the document lease, facts, ordered entries, discovery and the visible projection.
 Experience changes retire ordered entries and discovery, not answer facts.
 Query/facet changes replace discovery and publish a new view projection while
 reusing its immutable visibility, progress and relevance. Disclosure changes

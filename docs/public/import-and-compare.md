@@ -70,6 +70,34 @@ eligibility reason first. Repair a separate copy of the source under your review
 then reimport it. Keep the original unchanged. Viewing a report grants no
 permission to overwrite current work.
 
+## Editable Document Contract
+
+Document editing is separate from comparing an existing generated file. The
+shared document API presents **Editable answers (public scope)**, not a complete
+backup: protected fields stay in dedicated Form controls, and no masked token
+stands in for a secret. Effective defaults are not copied into editable answers.
+Browser Developer integration and its qualification are tracked separately.
+
+Canonical documents use the answer envelope's `values` and `omitted` members.
+Within captured scope, absence from both resets an answer; an explicit omission
+suppresses initialization. Environment editing instead defaults to merge:
+missing keys retain answers. Only deliberate replacement of represented scope
+records omissions for missing keys. Read the value-free change summary before
+Apply.
+
+Parsing does not edit the form. A valid candidate applies in one revision;
+invalid, out-of-scope or obsolete work changes nothing. Untouched drafts,
+omissions, origins and protected values remain. Missing required settings can
+remain unfinished Review work, but invalid supplied values cannot become
+success. A draft intersecting represented scope must be resolved before editable
+source is generated.
+
+Browser source acquisition requires workspace consent even when the editable
+scope is public: arbitrary pasted text may contain private content. Session and
+candidate authority retire on edits, revocation, replacement or disposal. The
+[shared-state contract](../internal/PRESENTATION_STATE.md#bounded-document-sessions-and-atomic-apply)
+owns the API and lifecycle details.
+
 ## Understand What Was Checked
 
 A completed assessment is not necessarily compatible. Known problems can require

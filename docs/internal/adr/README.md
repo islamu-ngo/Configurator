@@ -28,6 +28,7 @@ for procedures and dated observations. No record is promoted by this index.
 | [Single-pass preparation](ADR-single-pass-preparation-ownership.md) | Accepted composition and staged adoption ownership; not broad preparation responsiveness qualification | [Program evidence and limits](../OPERATIONS.md#cross-platform-quality-program-qualification-2026-10-27) |
 | [Bounded definition v2](ADR-definition-standard-v2.md) | Accepted D01-D12; Core v2 delivered, historical authoring defaults/vocabulary do not establish another interpreter | [Conformance profile](../DEFINITION_CONFORMANCE_PROFILE.md), [v2 qualification](../OPERATIONS.md#definition-v2-qualification) |
 | [Evidence-aware import/comparison](ADR-artifact-import-comparison.md) | Accepted design; implementation and qualification in progress | [Import/comparison contract](../IMPORT_COMPARISON.md); client/package qualification pending, earlier package evidence not inherited |
+| [Public-scope document editing](ADR-browser-developer-editing.md) | Accepted in approved Browser simplification revision 3; one opaque candidate and accepted-state commit, not a dependency approval | [Shared document contract](../PRESENTATION_STATE.md#bounded-document-sessions-and-atomic-apply), [execution evidence](../reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md); Browser integration and qualification pending |
 
 ## Proposed records
 

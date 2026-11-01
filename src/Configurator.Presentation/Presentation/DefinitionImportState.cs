@@ -240,7 +240,7 @@ public sealed partial class DefinitionFormModel
 
     private HashSet<string> ReplaceableImportDefaults() =>
         Fields.Where(field => field.IsPristineDefault &&
-            !_omitted.Any(path => path.Segments[0] == field.Definition.Id))
+            !Omitted.Any(path => path.Segments[0] == field.Definition.Id))
             .Select(field => field.Definition.Id).ToHashSet(StringComparer.Ordinal);
 
     private bool HasImportStorage(SetupAnswerSnapshot answers)

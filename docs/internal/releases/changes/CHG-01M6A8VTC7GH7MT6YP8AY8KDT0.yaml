@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6A8VTC7GH7MT6YP8AY8KDT0
+Title: "Apply document edits in one workspace revision"
+Type: feat
+Scope: browser
+Summary: "Reject invalid or obsolete bulk candidates before one fenced form commit while preserving protected values and untouched editing state."
+Group: browser-ux-atomic-apply
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/adr/ADR-browser-developer-editing.md
+    Disposition: documented

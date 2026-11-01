@@ -98,11 +98,11 @@ public sealed partial class DefinitionFormModel
 
     private void RecordOverride(IReadOnlyList<string> path, bool omitted)
     {
-        if (omitted && _omitted.Any(existing =>
+        if (omitted && Omitted.Any(existing =>
             path.Take(existing.Segments.Count).SequenceEqual(existing.Segments))) return;
-        _omitted.RemoveWhere(existing => existing.Segments.Take(path.Count).SequenceEqual(path) ||
+        Omitted.RemoveWhere(existing => existing.Segments.Take(path.Count).SequenceEqual(path) ||
             path.Take(existing.Segments.Count).SequenceEqual(existing.Segments));
-        if (omitted) _omitted.Add(DefinitionPath.FromSegments(path));
+        if (omitted) Omitted.Add(DefinitionPath.FromSegments(path));
     }
 
     /// <summary>Removes the supplied override and suppression so Core may initialize this location again.</summary>
@@ -132,7 +132,7 @@ public sealed partial class DefinitionFormModel
         }
         long before = InputRevision;
         if (!input.TrySetValue(replacement, recordOrigin: false)) return false;
-        _omitted.RemoveWhere(existing => existing.Segments.Take(path.Count).SequenceEqual(path));
+        Omitted.RemoveWhere(existing => existing.Segments.Take(path.Count).SequenceEqual(path));
         input.ForgetOrigin(path);
         input.ClearDrafts(path);
         ClearRowIdentities(path);
