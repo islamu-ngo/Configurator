@@ -65,7 +65,13 @@ try
         await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 65_536, useAsync: true);
         response.ContentLength64 = input.Length;
         if (context.Request.HttpMethod == "GET")
-            await input.CopyToAsync(response.OutputStream, cancellation.Token);
+        {
+            try { await input.CopyToAsync(response.OutputStream, cancellation.Token); }
+            catch (HttpListenerException) when (!cancellation.IsCancellationRequested)
+            {
+                // A closed browser request must not stop the remaining QA journeys.
+            }
+        }
     }
 }
 catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
