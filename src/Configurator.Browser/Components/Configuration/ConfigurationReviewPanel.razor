@@ -1,0 +1,48 @@
+@implements IDisposable
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+@using Configurator.Browser.Resources
+@using System.Globalization
+
+<section class="configuration-review-panel" aria-labelledby="configuration-review-stage-heading">
+    <h3 @ref="_heading" class="configuration-review-panel__heading" id="configuration-review-stage-heading" tabindex="-1">@BrowserStrings.Get("ReviewTitle", Form.Locale)</h3>
+    <p class="form-help">@BrowserStrings.Get("ReviewHelp", Form.Locale)</p>
+    <section class="configuration-review-panel__summary" data-review-readiness="@Readiness" aria-labelledby="review-summary-heading">
+        <h4 id="review-summary-heading">@Text(Readiness switch { "complete" => "ReviewSummaryComplete", "deferred" => "ReviewSummaryDeferred", _ => "ReviewSummaryBlocked" })</h4>
+        @{ int optionalMissing = Form.Projection.Entries.Count(entry => entry.IsActive && !entry.IsRequired && !entry.IsProvided); }
+        <ul>
+            <li>@Format("ReviewRequiredSummary", Form.Projection.Progress.Ready, Form.Projection.Progress.Required)</li>
+            <li data-review-optional-missing="@optionalMissing">@Format("ReviewOptionalMissing", optionalMissing)</li>
+            <li>@Format("ReviewDeferredSummary", Form.Projection.Progress.Deferred)</li>
+        </ul>
+        @if (Readiness == "complete")
+        {
+            <AppButton data-action="prepare-reviewed" OnClick="() => PrepareComplete.InvokeAsync()">@Text("PrepareComplete")</AppButton>
+        }
+        else if (Readiness == "deferred")
+        {
+            <AppButton data-action="prepare-reviewed-draft" OnClick="() => PrepareDraft.InvokeAsync()">@Text("PrepareDraft")</AppButton>
+        }
+    </section>
+    <ConfigurationReview Definition="Form.Definition" Form="Form" ShowEffects="true" Validation="Validation" DiagnosticCodes="DiagnosticCodes"
+                         InvalidFields="Form.InputDiagnostics" SecretsEnabled="@(Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                         ChangeField="ChangeField" CorrectField="CorrectField" EnableSecrets="EnableSecrets" />
+</section>
+
+@code {
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter] public DefinitionValidationResult? Validation { get; set; }
+    [Parameter] public IReadOnlyList<string> DiagnosticCodes { get; set; } = [];
+    [Parameter] public EventCallback<DefinitionDiagnostic> ChangeField { get; set; }
+    [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
+    [Parameter] public EventCallback EnableSecrets { get; set; }
+    [Parameter] public string Readiness { get; set; } = "blocked";
+    [Parameter] public EventCallback PrepareComplete { get; set; }
+    [Parameter] public EventCallback PrepareDraft { get; set; }
+    private ElementReference _heading;
+    private bool _disposed;
+    public ElementReference? Heading => _disposed ? null : _heading;
+    private string Text(string key) => BrowserStrings.Get(key, Form.Locale);
+    private string Format(string key, params object[] arguments) => string.Format(CultureInfo.GetCultureInfo(Form.Locale), Text(key), arguments);
+    public void Dispose() { _disposed = true; _heading = default; }
+}

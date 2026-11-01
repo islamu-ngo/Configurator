@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6BP0MPSZCYJ7TS09S9ZK2X1
+Title: "Review readiness and recover prepared files without losing answers"
+Type: feat
+Scope: browser
+Summary: "Mount exclusive Configure, Review and Files panels with current-view callbacks, truthful readiness, per-file recovery, and preparation ownership that survives view changes."
+Group: browser-review-files
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

@@ -1,0 +1,33 @@
+@implements IDisposable
+@using Configurator.Browser.Resources
+
+<section class="configuration-files-panel" aria-labelledby="configuration-prepare-heading">
+    <h3 @ref="_heading" class="configuration-files-panel__heading" id="configuration-prepare-heading" tabindex="-1">@BrowserStrings.Get("FilesTitle", Locale)</h3>
+    <p class="form-help">@BrowserStrings.Get("FilesHelp", Locale)</p>
+    <div class="actions configuration-files-panel__actions">
+        @if (Readiness == "blocked" && !HasPreparedFiles)
+        {
+            <AppButton data-action="review-before-prepare" OnClick="() => Review.InvokeAsync()">@BrowserStrings.Get("WorkflowReview", Locale)</AppButton>
+        }
+        <AppButton id="prepare-complete" Variant="@(Readiness == "complete" && !HasPreparedFiles ? Variant.Filled : Variant.Outlined)"
+                   OnClick="() => Prepare.InvokeAsync(false)">@BrowserStrings.Get("PrepareComplete", Locale)</AppButton>
+        <AppButton id="prepare-draft" Variant="@(Readiness == "deferred" && !HasPreparedFiles ? Variant.Filled : Variant.Outlined)"
+                   OnClick="() => Prepare.InvokeAsync(true)">@BrowserStrings.Get("PrepareDraft", Locale)</AppButton>
+        <AppButton id="clear-workspace" Variant="Variant.Text" Color="Color.Default" OnClick="() => Clear.InvokeAsync()">@BrowserStrings.Get("ClearWorkspace", Locale)</AppButton>
+    </div>
+    @ChildContent
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Locale { get; set; } = "en";
+    [Parameter] public EventCallback<bool> Prepare { get; set; }
+    [Parameter] public EventCallback Clear { get; set; }
+    [Parameter] public EventCallback Review { get; set; }
+    [Parameter] public string Readiness { get; set; } = "blocked";
+    [Parameter] public bool HasPreparedFiles { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private ElementReference _heading;
+    private bool _disposed;
+    public ElementReference? Heading => _disposed ? null : _heading;
+    public void Dispose() { _disposed = true; _heading = default; }
+}

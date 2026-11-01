@@ -12,15 +12,6 @@
 .configuration-editor__consent label { display: flex; align-items: center; min-block-size: 2rem; cursor: pointer; }
 .configuration-editor__consent .form-help { margin-block: var(--isl-space-1) 0; font-size: inherit; }
 .configuration-editor__artifact { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-4); }
-.configuration-editor__guided { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr); gap: var(--isl-space-6); margin-block: var(--isl-space-4); }
-.configuration-editor__guided--single { grid-template-columns: minmax(0, 1fr); }
-.configuration-editor__fields { min-inline-size: 0; }
-.configuration-editor__fields section[hidden] { display: none; }
-.configuration-editor__fields h3 { font-size: var(--isl-typography-h5-size); padding-block-end: var(--isl-label-gap); border-block-end: var(--isl-card-border); }
-.configuration-editor__section-description { color: var(--isl-color-text-secondary); margin-block: 0 var(--isl-field-gap); }
-.configuration-editor__guided--single .configuration-editor__fields h3 { padding-block-end: 0; border: 0; margin-block-end: var(--isl-space-2); }
-.configuration-editor__preparation, .configuration-editor__review-stage { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-6); margin-block-start: var(--isl-space-6); }
-.configuration-editor__preparation h3, .configuration-editor__review-stage h3 { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }
 .configuration-editor__import { margin-block-start: var(--isl-space-2); }
 .configuration-editor__import h3 { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }
 .configuration-editor__optional { font-size: .75rem; font-weight: 400; color: var(--isl-color-text-secondary); margin-inline-start: var(--isl-space-2); }
@@ -39,6 +30,6 @@
 @container (max-width: 42rem) {
     .configuration-editor__mode { flex: 1 1 calc((100% - var(--isl-space-3)) / 2); max-inline-size: none; }
     .configuration-editor__consent { flex-basis: 100%; }
-    .configuration-editor__guided, .configuration-editor__import-controls { grid-template-columns: minmax(0, 1fr); }
+    .configuration-editor__import-controls { grid-template-columns: minmax(0, 1fr); }
     .configuration-editor__workflow button { grid-template-columns: minmax(0, 1fr); text-align: center; gap: var(--isl-space-1); padding: var(--isl-space-2); }
 }

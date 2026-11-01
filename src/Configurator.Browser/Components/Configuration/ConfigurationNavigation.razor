@@ -1,31 +1,27 @@
-<nav class="configuration-navigation" aria-label="Configuration sections">
+<nav class="configuration-navigation" aria-label="@T("Sections")">
     <ul>
         @foreach (var section in Sections)
         {
-            <li class="@(Selected == section.Id ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item")"><AppButton Variant="Variant.Text" Color="Color.Default" FullWidth="true" data-section="@section.Id"
-                           aria-current="@(Selected == section.Id ? "true" : null)" OnClick="() => SelectedChanged.InvokeAsync(section.Id)">
+            <li class="@(Selected == section.Id ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item")"><button type="button" class="configuration-navigation__button" data-section="@section.Id"
+                           aria-current="@(Selected == section.Id ? "true" : null)" @onclick="() => SelectedChanged.InvokeAsync(section.Id)">
                 <span class="configuration-navigation__entry">
                     <span>@section.Title</span>
                     <span class="configuration-navigation__count">
                         @if (section.Progress.Required > 0)
                         {
-                            <span>@section.Progress.Ready of @section.Progress.Required required ready</span>
+                            <span>@T("Ready"): @section.Progress.Ready / @section.Progress.Required @T("Required")</span>
                         }
                         else
                         {
-                            <span>Optional settings</span>
+                            <span>@T("Optional")</span>
                         }
                         @if (section.Progress.Missing + section.Progress.Invalid > 0)
                         {
-                            <span>@(section.Progress.Missing + section.Progress.Invalid) need attention</span>
-                        }
-                        @if (Selected == section.Id)
-                        {
-                            <span class="configuration-navigation__current">Current section</span>
+                            <span>@T("NeedsAttention"): @(section.Progress.Missing + section.Progress.Invalid)</span>
                         }
                     </span>
                 </span>
-            </AppButton></li>
+            </button></li>
         }
     </ul>
 </nav>
@@ -34,4 +30,6 @@
     [Parameter, EditorRequired] public IReadOnlyList<ConfigurationSection> Sections { get; set; } = [];
     [Parameter] public string? Selected { get; set; }
     [Parameter] public EventCallback<string> SelectedChanged { get; set; }
+    [Parameter] public string Locale { get; set; } = "en";
+    private string T(string key) => BrowserStrings.Get(key, Locale);
 }

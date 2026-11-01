@@ -1,58 +1,42 @@
 @implements IAsyncDisposable
+@using Configurator.Core.Definitions
 @using Configurator.Presentation
 
+@{ DefinitionFormModel actionForm = _form!; long actionView = _viewGeneration; }
 <MudRTLProvider RightToLeft="@(DisplayDirection == "rtl")">
-<section class="workspace configuration-editor @(_compact ? "configuration-editor--compact" : "")" aria-labelledby="configuration-heading"
+<section @key="_form" class="workspace configuration-editor @(_compact ? "configuration-editor--compact" : "")" aria-labelledby="configuration-heading"
          lang="@_form!.Locale" dir="@DisplayDirection"
          data-experience="@_form!.SelectedExperienceId" data-density="@(_compact ? "compact" : "comfortable")">
     <header class="configuration-editor__header">
-        <h2 @ref="_configureHeading" id="configuration-heading" tabindex="-1">Configuration answers</h2>
-        <p id="session-boundary">Answers stay in this tab. Preparation does not change your target.</p>
+        <h2 @ref="_configureHeading" id="configuration-heading" tabindex="-1">@UiText("WorkspaceTitle")</h2>
+        <p id="session-boundary">@UiText("AnswersStayLocal")</p>
     </header>
     <details class="configuration-editor__boundary">
-        <summary>Privacy and export limits</summary>
-        <p class="form-help" data-declared-outputs>Declared files: @string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)). Inclusion depends on the definition's conditions; target validation remains separate.</p>
-        <p>Preparation does not apply configuration or establish target acceptance. Copy and download deliberately release private output.
-            The browser cannot guarantee restricted file permissions. Closing or reloading discards this workspace;
-            clearing cannot erase files or clipboard contents already exported.</p>
+        <summary>@UiText("PrivacyExportLimits")</summary>
+        <p class="form-help" data-declared-outputs>@UiFormat("DeclaredFiles", string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)))</p>
+        <p>@UiText("WorkspaceExportBoundary")</p>
     </details>
     @if (!_ready)
     {
-        <button @ref="_startButton" class="button" type="button" @onclick="BeginAsync">Start local workspace</button>
+        <button @ref="_startButton" class="button" type="button" @onclick="() => IsCurrentView(actionForm, actionView) ? BeginAsync() : Task.CompletedTask">@UiText("StartWorkspace")</button>
     }
     <fieldset class="configuration-editor__controls" disabled="@(!_ready)">
-        <legend class="sr-only">Local configuration answers</legend>
+        <legend class="sr-only">@UiText("ConfigurationAnswers")</legend>
         @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
             string? currentSectionId = SelectedSection(viewSections); }
-        <nav class="configuration-editor__workflow" aria-label="Configuration workflow">
-            <ol>
-                <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == "configure" ? "step" : null)" @onclick='() => SelectWorkflowStage("configure")'><span aria-hidden="true">1</span> Configure</button></li>
-                <li><button type="button" data-workflow-step="review" aria-current="@(_activeWorkflowStage == "review" ? "step" : null)" @onclick='() => SelectWorkflowStage("review")'><span aria-hidden="true">2</span> Review</button></li>
-                <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == "prepare" ? "step" : null)" @onclick='() => SelectWorkflowStage("prepare")'><span aria-hidden="true">3</span> Prepare</button></li>
-            </ol>
-        </nav>
-        <div class="configuration-editor__progress" aria-live="polite" aria-atomic="true"
-             data-required-count="@progress.Required" data-ready-count="@progress.Ready">
-            @if (progress.Required == 0)
-            {
-                <strong>No required answers</strong>
-            }
-            else
-            {
-                <strong>@progress.Ready of @progress.Required required answers ready</strong>
-                <progress value="@progress.Ready" max="@progress.Required" aria-label="Required answers ready"></progress>
-            }
-            <span>@progress.Missing missing · @progress.Invalid invalid · @progress.Deferred @(progress.Deferred == 1 ? "secret" : "secrets") awaiting entry</span>
-        </div>
         <div class="configuration-editor__toolbar">
-            @if (_form.Experiences.Count > 1)
+            @if (OutputSelector is { } outputSelector)
             {
-                <div class="configuration-editor__mode">
-                    <label for="configuration-experience">Configuration experience</label>
-                    <select id="configuration-experience" value="@_form.SelectedExperienceId" @onchange="ChangeExperience">
-                        @foreach (var experience in _form.DisplayExperiences)
+                <div class="configuration-editor__mode configuration-editor__output">
+                    <label for="configuration-output">@UiText("SelectOutput")</label>
+                    <select @ref="_outputControl" id="configuration-output" value="@OutputSelection"
+                            data-output-field="@DefinitionProfile.FieldId(outputSelector.Location.Segments[0])"
+                            @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeOutput(args); }">
+                        <option value="-1" disabled>@UiText("NotSupplied")</option>
+                        @for (int index = 0; index < outputSelector.Options.Count; ++index)
                         {
-                            <option value="@experience.Id">@experience.Title</option>
+                            <option value="@index.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                    data-output-value="@outputSelector.Options[index].Value">@OutputTitle(index)</option>
                         }
                     </select>
                 </div>
@@ -60,66 +44,106 @@
             @if (_form.Definition.Locales.Count > 1)
             {
                 <div class="configuration-editor__mode">
-                    <label for="configuration-locale">Language</label>
-                    <select id="configuration-locale" value="@_form.Locale" @onchange="ChangeLocale">
+                    <label for="configuration-locale">@UiText("Language")</label>
+                    <select id="configuration-locale" value="@_form.Locale" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeLocale(args); }">
                         @foreach (string locale in _form.Definition.Locales)
                         {
-                            <option value="@locale">@locale</option>
+                            <option value="@locale">@LanguageName(locale)</option>
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+        <nav class="configuration-editor__workflow" aria-label="@UiText("ConfigurationWorkflow")">
+            <ol>
+                <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == "configure" ? "step" : null)" @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("configure"); }'><span aria-hidden="true">1</span> @UiText("WorkflowConfigure")</button></li>
+                <li><button type="button" data-workflow-step="review" aria-current="@(_activeWorkflowStage == "review" ? "step" : null)" @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }'><span aria-hidden="true">2</span> @UiText("WorkflowReview")</button></li>
+                <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == "prepare" ? "step" : null)" @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("prepare"); }'><span aria-hidden="true">3</span> @UiText("WorkflowFiles")</button></li>
+            </ol>
+        </nav>
+        <div class="configuration-editor__progress" aria-live="polite" aria-atomic="true"
+             data-required-count="@progress.Required" data-ready-count="@progress.Ready">
+            @if (progress.Required == 0)
+            {
+                <strong>@UiText("NoRequiredAnswers")</strong>
+            }
+            else
+            {
+                <strong>@UiFormat(progress.Required == 1 ? "RequiredAnswerReady" : "RequiredAnswersReady", progress.Ready, progress.Required)</strong>
+                <progress value="@progress.Ready" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
+            }
+            <span>@UiFormat(progress.Deferred == 1 ? "ReadinessOneSecret" : "ReadinessSecrets", progress.Missing, progress.Invalid, progress.Deferred)</span>
+        </div>
+        <p role="status" class="notice" data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
+        @if (_activeWorkflowStage == "configure")
+        {
+        <div class="configuration-editor__toolbar">
+            <details class="configuration-editor__view-options">
+            <summary>@UiText("ProfileDetail")</summary>
+            @if (_form.Experiences.Count > 1)
+            {
+                <div class="configuration-editor__mode">
+                    <label for="configuration-experience">@UiText("ConfigurationExperience")</label>
+                    <select id="configuration-experience" value="@_form.SelectedExperienceId" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeExperience(args); }">
+                        @foreach (var experience in _form.DisplayExperiences)
+                        {
+                            <option value="@experience.Id">@experience.Title</option>
                         }
                     </select>
                 </div>
             }
             <div class="configuration-editor__mode">
-                <label for="configuration-detail">Detail in this profile</label>
-                <select id="configuration-detail" value="@(_form.DisclosureOverride?.ToString().ToLowerInvariant() ?? "authored")" @onchange="ChangeDetail">
-                    <option value="authored">Default detail</option>
-                    <option value="essential">Basic</option>
-                    <option value="guided">Standard</option>
-                    <option value="advanced">All active</option>
+                <label for="configuration-detail">@UiText("ProfileDetail")</label>
+                <select id="configuration-detail" value="@(_form.DisclosureOverride?.ToString().ToLowerInvariant() ?? "authored")" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeDetail(args); }">
+                    <option value="authored">@UiText("DefaultDetail")</option>
+                    <option value="essential">@UiText("Basic")</option>
+                    <option value="guided">@UiText("Standard")</option>
+                    <option value="advanced">@UiText("AllActive")</option>
                 </select>
             </div>
             <div class="configuration-editor__mode">
-                <label for="configuration-density">Density</label>
-                <select id="configuration-density" value="@(_compact ? "compact" : "comfortable")" @onchange="ChangeDensity">
-                    <option value="comfortable">Comfortable</option>
-                    <option value="compact">Compact</option>
+                <label for="configuration-density">@UiText("Density")</label>
+                <select id="configuration-density" value="@(_compact ? "compact" : "comfortable")" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeDensity(args); }">
+                    <option value="comfortable">@UiText("Comfortable")</option>
+                    <option value="compact">@UiText("Compact")</option>
                 </select>
             </div>
-            <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="this workspace" FieldPath="workspace"
+            <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="@UiText("ThisWorkspace")" FieldPath="workspace"
                                     SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
                                     ContextTitle="@($"{Definition.Title} / {SelectedExperience.Title}")" Description="@SelectedExperience.Description"
                                     SectionDescription="@(currentSectionId is null ? null : _editorSections[currentSectionId].Description)" />
+            </details>
             <div class="configuration-editor__consent">
                 <input @ref="_consentControl" id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                       aria-describedby="session-boundary secret-consent-help" @onchange="ConsentAsync" />
+                       aria-describedby="session-boundary secret-consent-help" @onchange="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask" />
                 <div>
-                    <label for="secret-consent">Enable secret entry for this workspace</label>
-                    <p id="secret-consent-help" class="form-help">Required before reading any configuration file, including unknown content. Values remain masked; turning this off retires comparisons, clears secret answers and invalidates prepared files.</p>
+                    <label for="secret-consent">@UiText("EnableWorkspaceSecrets")</label>
+                    <p id="secret-consent-help" class="form-help">@UiText("WorkspaceSecretHelp")</p>
                 </div>
             </div>
         </div>
         @if (ImportArtifacts.Length > 0)
         {
             <details class="configuration-editor__import">
-                <summary>Start from an existing configuration <span class="configuration-editor__optional">Optional</span></summary>
-                <p class="form-help" id="artifact-import-help">Maximum 1 MiB, read locally without upload. Every file may contain secrets, including obsolete or malformed content; enable workspace secret consent above before reading. Compare leaves answers, drafts and prepared files unchanged.</p>
+                <summary>@UiText("StartExistingConfiguration") <span class="configuration-editor__optional">@UiText("Optional")</span></summary>
+                <p class="form-help" id="artifact-import-help">@UiText("ArtifactImportHelp")</p>
                 <div class="configuration-editor__import-controls">
                     <div class="form-group">
-                        <label for="import-purpose">Purpose</label>
-                        <select id="import-purpose" value="@_importPurpose" @onchange="ChangeImportPurpose">
-                            <option value="compare">Compare with this definition</option>
-                            <option value="fill">Fill fields</option>
+                        <label for="import-purpose">@UiText("ImportPurpose")</label>
+                        <select id="import-purpose" value="@_importPurpose" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeImportPurpose(args); }">
+                            <option value="compare">@UiText("CompareDefinition")</option>
+                            <option value="fill">@UiText("FillFields")</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="import-artifact">Artifact format to import</label>
-                        <select id="import-artifact" value="@_importArtifact" @onchange="ChangeImportFormat">
+                        <label for="import-artifact">@UiText("ImportArtifactFormat")</label>
+                        <select id="import-artifact" value="@_importArtifact" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeImportFormat(args); }">
                             @foreach (var artifact in ImportArtifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="artifact-import">Choose an existing declared artifact</label>
-                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="ImportAsync"
+                        <label for="artifact-import">@UiText("ChooseDeclaredArtifact")</label>
+                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="args => IsCurrentView(actionForm, actionView) ? ImportAsync(args) : Task.CompletedTask"
                                    disabled="@(ImportCapability?.InspectionSupported != true || _importPurpose == "fill" && ImportCapability?.StrictAutofillSupported != true)"
                                    aria-describedby="session-boundary artifact-import-help import-capability" />
                     </div>
@@ -129,109 +153,64 @@
                     <p id="import-capability" class="form-help"
                        data-import-inspection="@capability.InspectionSupported.ToString().ToLowerInvariant()"
                        data-import-strict-autofill="@capability.StrictAutofillSupported.ToString().ToLowerInvariant()">
-                        Inspection: @(capability.InspectionSupported ? "supported" : "unsupported").
-                        Strict autofill: @(capability.StrictAutofillSupported ? "supported; file and workspace checks still apply" : "unsupported").
-                        Only represented content is assessed; target acceptance is not assessed.
+                        @UiText(capability.InspectionSupported ? "InspectionSupported" : "InspectionUnsupported")
+                        @UiText(capability.StrictAutofillSupported ? "AutofillSupported" : "AutofillUnsupported")
+                        @UiText("ImportAssessmentBoundary")
                     </p>
                 }
                 @if (_importPending)
                 {
                     long importGeneration = _generation;
-                    <p aria-live="polite">Reading and comparing a local file. Current answers and prepared output are unchanged.</p>
-                    <AppButton Variant="Variant.Outlined" data-action="cancel-import-comparison" OnClick="() => CancelComparison(importGeneration)">Cancel comparison</AppButton>
+                    <p aria-live="polite">@UiText("ImportPending")</p>
+                    <AppButton Variant="Variant.Outlined" data-action="cancel-import-comparison" OnClick="() => { if (IsCurrentView(actionForm, actionView)) CancelComparison(importGeneration); }">@UiText("CancelComparison")</AppButton>
                 }
                 @if (_importConsentRequired)
                 {
                     <AppButton Variant="Variant.Outlined" data-action="review-import-consent"
-                               OnClick="ReviewImportConsent">Review workspace secret consent</AppButton>
+                               OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReviewImportConsent(); }">@UiText("ReviewSecretConsent")</AppButton>
                 }
-                <ConfigurationImportReview @key="_form" Form="_form" FillFields="AdoptComparison" Clear="report => ClearComparison(report)" />
+                <ConfigurationImportReview @key="_form" Form="_form" FillFields="report => IsCurrentView(actionForm, actionView) ? AdoptComparison(report) : Task.CompletedTask"
+                                           Clear="report => { if (IsCurrentView(actionForm, actionView)) ClearComparison(report); }" />
             </details>
         }
-        @{ var fieldStates = _form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal); var editorSections = viewSections;
-            var sections = editorSections.Where(section => section.Fields.Any(fieldId =>
-                fieldStates[fieldId].IsActive &&
-                (SelectedExperience.Sections.Contains(section.Id) || EditorVisible(fieldId)))).ToArray(); }
-        <div class="@("configuration-editor__guided" + (sections.Length == 1 ? " configuration-editor__guided--single" : ""))" data-navigation="@SelectedExperience.Navigation">
-            @if (sections.Length > 1)
-            {
-                <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id])).ToArray())"
-                                         Selected="SelectedSection(sections)" SelectedChanged="SelectSection" />
-            }
-            <div class="configuration-editor__fields">
-                @foreach (var section in sections.Where(item => item.Id == SelectedSection(sections)))
-                {
-                    <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)"
-                             aria-describedby="@(string.IsNullOrWhiteSpace(section.Description) ? null : SectionId(section.Id) + "-description")">
-                        <h3 @ref="_sectionHeading" id="@SectionId(section.Id)" tabindex="-1">@section.Title</h3>
-                        @if (!string.IsNullOrWhiteSpace(section.Description))
-                        {
-                            <p id="@(SectionId(section.Id) + "-description")" class="configuration-editor__section-description">@section.Description</p>
-                        }
-                        <ConfigurationSectionFields @key="_form" Form="_form" Fields="@(section.Fields.Select(fieldId => fieldStates[fieldId]).ToArray())"
-                                                    MountCancellation="_mountCancellation.Token" Validation="_validation"
-                                                    FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath" />
-                    </section>
-                }
-                @if (SelectedExperience.Navigation == "wizard" && sections.Length > 1)
-                {
-                    int sectionIndex = Array.FindIndex(sections, item => item.Id == SelectedSection(sections));
-                    <div class="actions configuration-editor__section-actions">
-                        @if (sectionIndex > 0)
-                        {
-                            <AppButton Variant="Variant.Outlined" data-action="previous-section" OnClick="() => SelectSection(sections[sectionIndex - 1].Id)">Previous section</AppButton>
-                        }
-                        @if (sectionIndex < sections.Length - 1)
-                        {
-                            <AppButton Variant="Variant.Outlined" data-action="next-section" OnClick="() => SelectSection(sections[sectionIndex + 1].Id)">Next section</AppButton>
-                        }
-                        else
-                        {
-                            <AppButton Variant="Variant.Outlined" OnClick='() => SelectWorkflowStage("review")'>Review configuration</AppButton>
-                        }
-                    </div>
-                }
-            </div>
-        </div>
+        <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
+                                     SelectedChanged="section => { if (IsCurrentView(actionForm, actionView)) SelectSection(section); }"
+                                     MountCancellation="_mountCancellation.Token" Validation="_validation"
+                                     FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
+                                     ReviewRequested='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }' />
         @if (_returnToReview)
         {
-            <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="ReturnToReview">Return to review</AppButton>
+            <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
         }
-        <section class="configuration-editor__review-stage" aria-labelledby="configuration-review-stage-heading">
-            <h3 @ref="_reviewHeading" id="configuration-review-stage-heading" tabindex="-1">Review configuration</h3>
-            <p class="form-help">Check required answers and optional changes before preparing files. Preparation does not apply them to your target.</p>
-            <ConfigurationReview Definition="Definition" Form="_form" ShowEffects="@(_activeWorkflowStage == "review")"
-                                 ChangeField="ChangeReviewField" Validation="_validation" DiagnosticCodes="_diagnostics"
-                                 InvalidFields="_form.InputDiagnostics"
-                                 SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                                 CorrectField="CorrectField" EnableSecrets="EnableSecretsAsync" PrepareDraft="() => PrepareAsync(true)" />
-        </section>
-        <div class="configuration-editor__preparation">
-            <h3 @ref="_prepareHeading" id="configuration-prepare-heading" tabindex="-1">Prepare your files</h3>
-            <p class="form-help">A draft defers missing secrets for local completion. Complete preparation checks all required settings.</p>
-            <div class="actions">
-                <AppButton id="prepare-complete" OnClick="() => PrepareAsync(false)">Prepare complete configuration</AppButton>
-                <AppButton id="prepare-draft" Variant="Variant.Outlined" OnClick="() => PrepareAsync(true)">Prepare draft (defer missing secrets)</AppButton>
-                <AppButton id="clear-workspace" Variant="Variant.Text" Color="Color.Default" OnClick="ClearAsync">Clear answers, comparison and output</AppButton>
-            </div>
-        </div>
-        <p role="status" class="notice" data-code="@_statusCode">@_status</p>
+        }
+        @if (_activeWorkflowStage == "review")
+        {
+            <ConfigurationReviewPanel @ref="_reviewPanel" Form="_form"
+                                 Readiness="@PreparationReadiness"
+                                 PrepareComplete="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(false) : Task.CompletedTask"
+                                 ChangeField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }" Validation="_validation" DiagnosticCodes="_diagnostics"
+                                 CorrectField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }"
+                                 EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask"
+                                 PrepareDraft="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(true) : Task.CompletedTask" />
+        }
+        @if (_activeWorkflowStage == "prepare")
+        {
+        <ConfigurationFilesPanel @ref="_filesPanel" Locale="@_form.Locale"
+                                 Readiness="@PreparationReadiness" HasPreparedFiles="@(_prepared.Count > 0)"
+                                 Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }'
+                                 Prepare="draft => IsCurrentView(actionForm, actionView) ? PrepareAsync(draft) : Task.CompletedTask"
+                                 Clear="() => IsCurrentView(actionForm, actionView) ? ClearAsync() : Task.CompletedTask">
         @foreach (var prepared in _prepared)
         {
-            <section class="configuration-editor__artifact" aria-labelledby="@("artifact-" + prepared.Metadata.ArtifactId)" data-readiness="@(prepared.Metadata.IsDraft ? "draft" : "complete")">
-                <h3 id="@("artifact-" + prepared.Metadata.ArtifactId)">@prepared.Metadata.FileName</h3>
-                <p>@(prepared.Metadata.IsDraft ? "Draft — secrets still required." : "Complete preparation — target validation still required.") Output is private and hidden.</p>
-                @if (prepared.Metadata.Completions.Count > 0)
-                {
-                    <ul>@foreach (var item in prepared.Metadata.Completions) { <li>@item.FieldPath → @item.OutputPath</li> }</ul>
-                }
-                <div class="actions">
-                    <AppButton Variant="Variant.Outlined" OnClick="() => CopyAsync(prepared)">Copy @prepared.Metadata.FileName</AppButton>
-                    <AppButton OnClick="() => DownloadAsync(prepared)">Download @prepared.Metadata.FileName</AppButton>
-                    <AppButton Variant="Variant.Outlined" aria-expanded="@prepared.Revealed.ToString().ToLowerInvariant()" OnClick="() => RevealAsync(prepared)">@(prepared.Revealed ? "Hide" : "Reveal") @prepared.Metadata.FileName</AppButton>
-                </div>
-                <pre @ref="prepared.PreviewElement" hidden="@(!prepared.Revealed)" dir="ltr" tabindex="0" aria-label="@("Private preview of " + prepared.Metadata.FileName)"></pre>
-            </section>
+            <div class="configuration-editor__artifact" @key="prepared">
+                <ConfigurationFiles @ref="prepared.View" Metadata="prepared.Metadata" Locale="@_form.Locale"
+                                    Revealed="@prepared.Revealed" StatusKey="@prepared.StatusKey" StatusCode="@prepared.StatusCode"
+                                    Copy="() => IsCurrentView(actionForm, actionView) ? CopyAsync(prepared) : Task.CompletedTask"
+                                    Download="() => IsCurrentView(actionForm, actionView) ? DownloadAsync(prepared) : Task.CompletedTask"
+                                    Reveal="() => IsCurrentView(actionForm, actionView) ? RevealAsync(prepared) : Task.CompletedTask" />
+            </div>
+        }
+        </ConfigurationFilesPanel>
         }
     </fieldset>
 </section>

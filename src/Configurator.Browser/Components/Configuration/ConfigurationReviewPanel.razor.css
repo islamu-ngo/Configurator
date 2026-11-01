@@ -1,0 +1,5 @@
+.configuration-review-panel { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-6); margin-block-start: var(--isl-space-6); }
+.configuration-review-panel__heading { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }
+.configuration-review-panel__summary { border: var(--isl-card-border); border-radius: var(--isl-radius-sm); padding: var(--isl-space-4); margin-block: var(--isl-space-4); }
+.configuration-review-panel__summary h4 { margin-block: 0 var(--isl-space-2); font-size: var(--isl-typography-h5-size); }
+.configuration-review-panel__summary ul { margin-block: var(--isl-space-2) var(--isl-space-4); padding-inline-start: var(--isl-space-5); }

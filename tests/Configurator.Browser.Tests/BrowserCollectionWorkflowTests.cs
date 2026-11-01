@@ -46,8 +46,9 @@ public sealed class BrowserCollectionWorkflowTests
         }
         else await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
         await Assert.That(form.HasInputErrors).IsFalse();
-        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: true);
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("retained.test");
     }
 
@@ -96,14 +97,16 @@ public sealed class BrowserCollectionWorkflowTests
         string rowsSection = form.Sections.Single(section => section.Fields.Contains("tenants")).Id;
         string generalSection = form.Sections.Single(section => section.Fields.Contains("hostname")).Id;
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "example.test" });
-        await component.Find($"[data-section='{rowsSection}']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.SectionNavigation(context, component).Find($"[data-section='{rowsSection}']").ClickAsync(new MouseEventArgs());
         string[] names = ["alpha", "beta", "alpha"];
         for (int index = 0; index < names.Length; index++)
         {
             await component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
             await component.Find($"[data-field='tenants.{index}.name'] input").InputAsync(new ChangeEventArgs { Value = names[index] });
         }
-        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: true);
+        await Assert.That(component.FindAll(".configuration-output")).IsEmpty();
+        await BrowserFixture.SelectPanelAsync(component, "configure");
 
         foreach (string selector in new[]
         {
@@ -122,9 +125,9 @@ public sealed class BrowserCollectionWorkflowTests
             await Assert.That(component.Find($"[data-field='tenants.{index}'] > fieldset").GetAttribute("aria-invalid")).IsEqualTo("false");
             await Assert.That(component.Find($"[data-field='tenants.{index}.name'] input").GetAttribute("aria-invalid")).IsEqualTo("false");
         }
-        await Assert.That(component.FindAll(".configuration-output")).IsEmpty();
-        await component.Find($"[data-section='{generalSection}']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.SectionNavigation(context, component).Find($"[data-section='{generalSection}']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll($"[data-section-panel='{rowsSection}']")).IsEmpty();
+        await BrowserFixture.SelectPanelAsync(component, "review");
         await component.Find("[data-correction='tenants']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll($"[data-section-panel='{rowsSection}']").Count).IsEqualTo(1);
         await Assert.That(component.Find("[data-field='tenants.2.name'] input").GetAttribute("value")).IsEqualTo("alpha");

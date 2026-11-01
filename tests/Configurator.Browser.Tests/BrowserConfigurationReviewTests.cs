@@ -10,6 +10,30 @@ using Microsoft.AspNetCore.Components.Web;
 public sealed class BrowserConfigurationReviewTests
 {
     [Test]
+    public async Task ReadyReviewOffersPreparationWithoutChangingAnswers()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, Definition()));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        long revision = form.InputRevision;
+
+        await BrowserFixture.SelectPanelAsync(component, "review");
+
+        await Assert.That(component.Find("[data-review-readiness]").GetAttribute("data-review-readiness"))
+            .IsEqualTo("complete");
+        await Assert.That(component.FindAll("[data-review-output='config']").Count).IsEqualTo(1);
+        await Assert.That(component.Find("[data-action='prepare-reviewed']").HasAttribute("disabled")).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+
+        await component.Find("[data-action='prepare-reviewed']").ClickAsync(new MouseEventArgs());
+
+        await Assert.That(component.Find("[data-workflow-step='prepare']").GetAttribute("aria-current")).IsEqualTo("step");
+        await Assert.That(component.FindAll("[data-readiness='complete']").Count).IsEqualTo(1);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
     public async Task ReviewPagesActiveObligationsAndInspectsInactiveMetadataDeliberately()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();

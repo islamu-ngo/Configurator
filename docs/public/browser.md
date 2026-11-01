@@ -121,6 +121,19 @@ On narrow screens, **Menu** reveals navigation without squeezing a second rail
 beside the form. **Settings** contains System, Light, Dark and high-contrast themes,
 plus Automatic, left-to-right and right-to-left direction.
 
+The workspace keeps its output and language selectors above three real panels:
+**Configure**, **Review** and **Files**. Only the current panel mounts interactive
+controls. Changing panels, sections or language preserves accepted answers,
+unfinished inputs, secret consent and the pinned definition. **Setting detail**
+contains secondary profile and Comfortable/Compact density controls.
+
+Leaving **Files** hides its private preview and retires pending file actions, but
+keeps the prepared bundle for a deliberate return. Editing, revoking consent,
+clearing or replacing the workspace invalidates those files. Clearing or leaving
+asks for confirmation only when supplied answers, explicit omissions, unfinished
+inputs, a retained comparison or prepared files would be lost. An untouched
+workspace does not need that extra decision. Cancel keeps the current work.
+
 ### Form Navigation & Journeys
 
 Definitions can organize complex setup options into guided journeys:
@@ -150,11 +163,20 @@ Quickly locate specific questions using the built-in search palette:
 
 ### Review and Diagnostics
 
-The **Review** view provides an overview of your configuration before generating files:
+**Review** distinguishes settings that block preparation, unresolved secrets that
+permit only a draft, and answers ready for complete preparation. Its summary
+counts required answers, optional settings without a value and deferred secrets.
+It does not display private answer values.
 
 - **Active Corrections:** Displays validation errors across all sections with direct links to jump to the affected field.
-- **Configuration Inventory:** Inspect all active settings, defaulted values, deferred secrets, and declared output bindings.
-- **Output Inspection:** Review declared output filenames, formats, and restart guidance.
+- **Configuration Inventory:** Inspect active settings, authored-default origins, supplied/omitted states, deferred secrets and declared output bindings.
+- **Output Inspection:** Review declared filenames, formats and restart guidance. Preparation determines which conditional files are actually included.
+
+When ready, prepare complete files directly from the summary. If only secrets
+remain unresolved, the summary offers a clearly incomplete draft instead.
+Ordinary missing or malformed values must be corrected; a draft never converts
+those errors into success. Correction actions return to the actual input, and
+**Return to Review** preserves answers and consent.
 
 ### Secret Consent & Secret-Deferred Drafts
 
@@ -214,8 +236,9 @@ network requests.
 
 Once answers are validated, choose **Prepare complete configuration** or **Prepare draft**:
 
-- **Masked Staging:** Generated outputs remain redacted on screen until you deliberately choose to reveal them.
+- **Hidden Staging:** Output is not inserted into the private preview until you deliberately choose **Reveal**. **Hide** clears that preview again.
 - **Export Actions:** Use **Copy** to copy contents to the clipboard, or **Download** to trigger a browser file download via short-lived Blob URLs.
+- **File-local Recovery:** Copy or download feedback belongs to its file. If clipboard access fails, **Download** remains immediately available; no answer or artifact contents appear in the error.
 - **Filename Verification:** Verify downloaded filenames before deployment. Some browsers normalize special filenames (for example, downloading `.env` as `env.txt`). Rename the downloaded file if required.
 
 ---

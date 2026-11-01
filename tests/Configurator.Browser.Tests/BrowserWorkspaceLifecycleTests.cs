@@ -42,6 +42,8 @@ public sealed class BrowserWorkspaceLifecycleTests
             using var input = new MemoryStream("""{"mode":"single","hostname":"pending-custody.test"}"""u8.ToArray());
             await component.InvokeAsync(() => component.Instance.LoadAsync(input));
             await Assert.That(input.Position).IsEqualTo(0);
+            // Also exercise navigation already queued before the custody decision.
+            await component.Find("[data-workflow-step='prepare']").TriggerEventAsync("onclick", new MouseEventArgs());
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         }
         finally { policyModule.Release.TrySetResult(); }
@@ -64,6 +66,8 @@ public sealed class BrowserWorkspaceLifecycleTests
         using var input = new MemoryStream("""{"mode":"single","hostname":"rejected-custody.test"}"""u8.ToArray());
         await component.InvokeAsync(() => component.Instance.LoadAsync(input));
         await Assert.That(input.Position).IsEqualTo(0);
+        // A queued navigation cannot grant the rejected workspace output authority.
+        await component.Find("[data-workflow-step='prepare']").TriggerEventAsync("onclick", new MouseEventArgs());
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 
@@ -86,6 +90,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         context.Services.AddSingleton(policy);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+        await component.Find("[data-workflow-step='prepare']").TriggerEventAsync("onclick", new MouseEventArgs());
         // Exercise a queued callback, not a new native click on a disabled control.
         await component.Find("#prepare-draft").TriggerEventAsync("onclick", new MouseEventArgs());
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
@@ -95,10 +100,11 @@ public sealed class BrowserWorkspaceLifecycleTests
     public async Task WarmedDiscoveryAndReviewCannotRestoreRevokedOutputOrHeldImport()
     {
         await using var context = BrowserFixture.Context();
+        SetupDefinition definition = BrowserFixture.Definition;
         var layout = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
             builder.OpenComponent<ConfigurationEditor>(0);
-            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), BrowserFixture.Definition);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
             builder.CloseComponent();
         }));
         var component = layout.FindComponent<ConfigurationEditor>();
@@ -106,29 +112,33 @@ public sealed class BrowserWorkspaceLifecycleTests
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-warmed-secret" });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await layout.Find("#configuration-search").ClickAsync(new MouseEventArgs());
         await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[data-review-path]").Count).IsGreaterThan(0);
-        await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: false);
         await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(1);
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         using var stream = new HeldReadStream("{\"mode\":\"single\",\"hostname\":\"retained.test\",\"credential\":\"synthetic-held-secret\"}"u8.ToArray());
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
         {
             await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            await BrowserFixture.SelectPanelAsync(component, "prepare");
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+            await BrowserFixture.SelectPanelAsync(component, "configure");
             await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
             await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current.test" });
         }
         finally { stream.Release.TrySetResult(); }
         await reading.WaitAsync(TimeSpan.FromSeconds(5));
-        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
         await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("current.test");
-        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("synthetic-held-secret");
         await Assert.That(component.Markup).DoesNotContain("synthetic-warmed-secret");
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 
     [Test]
@@ -197,26 +207,31 @@ public sealed class BrowserWorkspaceLifecycleTests
         component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#secret-consent").Change(true);
         component.Find("[data-field='credential'] input").Input("second-artifact-canary");
-        component.Find("#prepare-complete").Click();
-        component.FindAll(".configuration-editor__artifact")[0].QuerySelector("button")!.Click();
-        exportModule.GateNextOpen = true;
-        Task opening = component.InvokeAsync(() => component.FindAll(".configuration-editor__artifact")[1].QuerySelector("button")!.ClickAsync(new MouseEventArgs()));
-        await exportModule.OpenStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        exportModule.GateNextInvalidate = true;
-        Task denied = component.InvokeAsync(() => component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false }));
-        await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await BrowserFixture.PrepareAsync(component, draft: false);
+        await component.FindAll(".configuration-editor__artifact")[0].QuerySelector("button")!.ClickAsync(new MouseEventArgs());
+        Task opening = Task.CompletedTask;
+        Task denied = Task.CompletedTask;
         try
         {
+            exportModule.GateNextOpen = true;
+            opening = component.InvokeAsync(() => component.FindAll(".configuration-editor__artifact")[1].QuerySelector("button")!.ClickAsync(new MouseEventArgs()));
+            await exportModule.OpenStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            exportModule.GateNextInvalidate = true;
+            // Files exit starts cleanup; revocation must retire the bundle before that cleanup settles.
+            await BrowserFixture.SelectPanelAsync(component, "configure");
+            denied = component.InvokeAsync(() => component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false }));
+            await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             exportModule.OpenRelease.TrySetResult();
             await opening.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(exportModule.Exposures.Count).IsEqualTo(1);
+            await BrowserFixture.SelectPanelAsync(component, "prepare");
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         }
         finally
         {
             exportModule.OpenRelease.TrySetResult();
             exportModule.Release.TrySetResult();
-            await denied.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.WhenAll(opening, denied).WaitAsync(TimeSpan.FromSeconds(5));
         }
     }
 
@@ -232,10 +247,12 @@ public sealed class BrowserWorkspaceLifecycleTests
         component.Find("[data-field='hostname'] input").Input("old.test");
         component.Find("#secret-consent").Change(true);
         component.Find("[data-field='credential'] input").Input("revoked-lifecycle-canary");
-        component.Find("#prepare-complete").Click();
+        await BrowserFixture.PrepareAsync(component, draft: false);
         component.Find(".configuration-editor__artifact button").Click();
         await Assert.That(exportModule.Exposures.Single()).Contains("revoked-lifecycle-canary");
         exportModule.GateNextInvalidate = true;
+        // Keep the required Files-exit cleanup held while Configure revokes consent and accepts an edit.
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         Task denied = component.InvokeAsync(() => component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false }));
         await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
@@ -244,6 +261,7 @@ public sealed class BrowserWorkspaceLifecycleTests
             await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
             var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
             await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
+            await BrowserFixture.SelectPanelAsync(component, "prepare");
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
             await Assert.That(exportModule.HasOpenOutput).IsFalse();
         }
@@ -252,10 +270,11 @@ public sealed class BrowserWorkspaceLifecycleTests
             exportModule.Release.TrySetResult();
             await denied.WaitAsync(TimeSpan.FromSeconds(5));
         }
-        component.Find("#prepare-draft").Click();
+        await BrowserFixture.PrepareAsync(component, draft: true);
         component.Find(".configuration-editor__artifact button").Click();
         await Assert.That(exportModule.Exposures.Last()).Contains("current.test");
         await Assert.That(exportModule.Exposures.Last()).DoesNotContain("revoked-lifecycle-canary");
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
     }
 
@@ -298,14 +317,15 @@ public sealed class BrowserWorkspaceLifecycleTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("old.test");
-        component.Find("#prepare-draft").Click();
+        await BrowserFixture.PrepareAsync(component, draft: true);
         component.Find(".configuration-editor__artifact button").Click();
         exportModule.GateNextInvalidate = true;
         exportModule.FailNextInvalidate = failCleanup;
         Task older = component.InvokeAsync(() => component.Find("#prepare-draft").ClickAsync(new MouseEventArgs()));
         await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         component.Find("[data-field='hostname'] input").Input("current.test");
-        component.Find("#prepare-draft").Click();
+        await BrowserFixture.PrepareAsync(component, draft: true);
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         exportModule.Release.TrySetResult();
         await older.WaitAsync(TimeSpan.FromSeconds(5));
@@ -314,7 +334,11 @@ public sealed class BrowserWorkspaceLifecycleTests
         component.Find(".configuration-editor__artifact button").Click();
         await Assert.That(exportModule.Exposures.Last()).Contains("current.test");
         await Assert.That(exportModule.Exposures.Last()).DoesNotContain("old.test");
-        if (failCleanup) await Assert.That(component.Markup).Contains("output-cleanup-failed");
+        if (failCleanup)
+        {
+            await BrowserFixture.SelectPanelAsync(component, "review");
+            await Assert.That(component.Markup).Contains("output-cleanup-failed");
+        }
         await Assert.That(component.Markup).DoesNotContain("cleanup-fault-canary");
     }
 
@@ -335,7 +359,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "older-navigation.test" });
-        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: true);
         await component.Find(".configuration-editor__artifact button").ClickAsync(new MouseEventArgs());
         exportModule.GateNextInvalidate = true;
         bool? left = null;
@@ -350,6 +374,7 @@ public sealed class BrowserWorkspaceLifecycleTests
                 component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
             else
                 await component.InvokeAsync(component.Instance.BeginAsync);
+            await BrowserFixture.SelectPanelAsync(component, "configure");
             await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
             await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current-navigation.test" });
             await Assert.That(navigation.IsActive).IsTrue();
@@ -434,6 +459,7 @@ public sealed class BrowserWorkspaceLifecycleTests
                     await component.Find("[data-action='cancel-import-comparison']").ClickAsync(new MouseEventArgs());
                     break;
                 case "clear":
+                    await BrowserFixture.SelectPanelAsync(component, "prepare");
                     await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
                     break;
                 case "replace":

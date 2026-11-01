@@ -4,9 +4,9 @@
 > **Kind:** Living contract
 > **Status:** Current browser adapter ownership; published evidence is separate
 > **Owner:** Browser
-> **Last Verified:** 2026-10-30
+> **Last Verified:** 2026-11-01
 > **Source Anchors:** `src/Configurator.Browser/`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/OPERATIONS.md`
-> **Review basis:** Documentation/source-owner reconciliation, not a fresh browser exercise
+> **Review basis:** Source-owner reconciliation and scoped published direct-editing evidence; complete qualification remains separate
 
 The static WebAssembly shell owns navigation and appearance. `Layout/MainLayout`
 provides skip navigation, the header, application navigation, main landmark and footer. Home,
@@ -92,13 +92,66 @@ layout, tokens and component organization remain repository-owned.
 
 ## Guided workspace
 
+Output tasks come from admitted `presentation.outputSelector` metadata, never
+an inferred `/operation` field or enum order. `BrowserLaunchSelection` retains
+explicit-entry intent; Launch/Open pass only a deliberate entry into a fresh
+editor. `DefinitionFormModel.SelectOutput` maps the exact root data name to its
+editor ID and uses the existing typed mutation. A resolver fallback and ordinary
+rerenders cannot replace initialized, supplied or omitted answer state.
+The current Event example and separate optional-store family are revision 2,
+with Environment/platform inclusion initialization and meaningful localized
+sections. Historical store snapshots and the upstream historical receipt retain
+their bytes; no active workspace is upgraded implicitly.
+
 `Components/Configuration/ConfigurationEditor` retains the shared
-`DefinitionFormModel` and workspace operation generations. Browser-owned
-`ConfigurationSection` projections group the shared validated fields. Only the
+`DefinitionFormModel` and workspace operation generations. Shared immutable
+`DefinitionFormSection` snapshots provide section metadata; Browser
+`ConfigurationSection` projections add navigation progress. Only the
 selected section mounts its editors. Moving between sections preserves typed
 answers, unfinished drafts, provenance and logical row identities in the shared
 form, not in retained DOM controls. Active hidden fields still participate in
 shared validation.
+
+Configure, Review and Files have separate mounted children, not hidden interactive
+copies. Their disposal never disposes the parent form or prepared bundle. A
+captured form identity and view generation fence callbacks and post-await focus;
+only a currently mounted eligible heading/control may receive focus. Leaving
+Files invalidates each export capability and clears its preview without disposing
+the prepared workspace. A later deliberate action rechecks current eligibility
+before rearming bytes. Answer edits, revoke, clear and replacement still retire
+the parent bundle synchronously. View navigation cancels pending acquisition,
+not a completed comparison owned by the form.
+
+`BrowserNavigationState` leases derive locale/direction from their registered
+form rather than storing a second language preference. A real locale change
+refreshes chrome; stale leases cannot refresh or clear the current provider.
+English and Arabic UI resources are embedded in the main assembly for offline
+use. Appearance direction remains an explicit override of the derived direction.
+
+The Review panel derives complete-ready, secret-deferred or blocked presentation
+from the existing shared progress and input diagnostics. It does not compose
+artifacts or collect another answer tree. Its ready and draft actions invoke the
+editor's existing preparation/adoption operation. The inner effects list remains
+value-free and names declared output metadata rather than promising inclusion.
+Required/optional/secret state, origin labels and recovery text use the current
+English or Arabic resource set.
+
+`ConfigurationFiles` owns each mounted file's preview element and accessible
+actions, not its bytes or workspace. The editor retains preparation, export and
+post-await eligibility checks. Per-file status keeps failed Copy recovery beside
+an available Download; Reveal/Hide still uses the existing generation-fenced
+export service. Leaving Files drops component references and preview capability
+while retaining the parent prepared workspace.
+
+The navigation lease queries actual work from the current editor. Shared
+`DefinitionFormModel.HasWorkspaceChanges` checks existing supplied values,
+omissions and all invalid drafts, including inactive drafts, without cloning a
+snapshot. Pending acquisition, comparisons, provisional Developer work and
+prepared files also count.
+Untouched-workspace navigation and clearing skip the loss prompt. Cancellation
+preserves work; a late confirmation cannot discard a replaced or changed owner.
+Work-only notifications refresh the navigation guard, not the layout body or
+locale provider. They do not create another dirty-state or answer cache.
 
 `ConfigurationSectionFields` mounts newly editable roots in bounded batches,
 retaining controls already present. The editor supplies its current section's

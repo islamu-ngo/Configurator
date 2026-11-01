@@ -1,21 +1,23 @@
+@using System.Globalization
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
 
 @if (ShowEffects && Form is not null)
 {
-    <section class="configuration-review__effects" data-review-effects aria-label="Configuration effects">
-        <p>Values stay masked here. Answer readiness is separate from file preparation and target acceptance.</p>
+    <section class="configuration-review__effects" data-review-effects aria-label="@Ui("ReviewEffects")">
+        <p>@Ui("ReviewEffectsHelp")</p>
+        <p>@Ui("ReviewDeclaredOutputs")</p>
         <ul class="configuration-review__outputs">
             @foreach (var artifact in Definition.Artifacts)
             {
-                <li><strong>@artifact.FileName</strong> · @artifact.ApplySemantics · restart: @artifact.Restart</li>
+                <li data-review-output="@artifact.Id"><strong>@artifact.FileName</strong> · @artifact.Format · @artifact.ApplySemantics · @UiFormat("ReviewRestart", artifact.Restart)</li>
             }
         </ul>
         <div class="actions">
-            <label><input id="review-include-omitted" type="checkbox" checked="@_includeOmitted" @onchange="IncludeOmitted" /> Inspect omitted optional settings</label>
-            <label><input id="review-include-inactive" type="checkbox" checked="@_includeInactive" @onchange="IncludeInactive" /> Inspect inactive settings (does not enable them)</label>
+            <label><input id="review-include-omitted" type="checkbox" checked="@_includeOmitted" @onchange="IncludeOmitted" /> @Ui("ReviewInspectOmitted")</label>
+            <label><input id="review-include-inactive" type="checkbox" checked="@_includeInactive" @onchange="IncludeInactive" /> @Ui("ReviewInspectInactive")</label>
         </div>
-        <p data-review-count="@_entries.Count">@_entries.Count settings in this review</p>
+        <p data-review-count="@_entries.Count">@UiFormat("ReviewSettingsCount", _entries.Count)</p>
         <ul class="configuration-review__answers">
             @foreach (var entry in _entries.Skip(_page * PageSize).Take(PageSize))
             {
@@ -27,20 +29,20 @@
                         @if (entry.IsActive)
                         {
                             <button type="button" class="button button--secondary" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
-                                    aria-label="@("Change " + FieldTitle(diagnostic))">Change</button>
+                                    aria-label="@UiFormat("ReviewChangeField", FieldTitle(diagnostic))">@Ui("ReviewChange")</button>
                         }
                     </div>
                     <p>@OriginText(entry.Origin) · @StateText(entry)</p>
                     @if (entry.Sensitivity != SetupFieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
                     {
-                        <p>Private value masked.</p>
+                        <p>@Ui("ReviewPrivateMasked")</p>
                     }
                     @if (entry.OutputArtifactIds.Count > 0)
                     {
-                        <details><summary>Declared output bindings</summary>
+                        <details><summary>@Ui("ReviewBindings")</summary>
                             <p>@string.Join(", ", entry.OutputArtifactIds)</p>
                             <p>@string.Join(", ", entry.BindingKeys)</p>
-                            <p>These are declared references, not a guarantee that a conditional output is included.</p>
+                            <p>@Ui("ReviewBindingsHelp")</p>
                         </details>
                     }
                 </li>
@@ -48,12 +50,12 @@
         </ul>
         @if (_entries.Count > PageSize)
         {
-            <nav class="actions" aria-label="Review pages">
+            <nav class="actions" aria-label="@Ui("ReviewPages")">
                 <button type="button" class="button button--secondary" data-action="review-previous"
-                        disabled="@(_page == 0)" @onclick="() => _page--">Previous settings</button>
-                <span role="status">Page @(_page + 1) of @PageCount</span>
+                        disabled="@(_page == 0)" @onclick="() => _page--">@Ui("ReviewPrevious")</button>
+                <span role="status">@UiFormat("ReviewPage", _page + 1, PageCount)</span>
                 <button type="button" class="button button--secondary" data-action="review-next"
-                        disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">Next settings</button>
+                        disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">@Ui("ReviewNext")</button>
             </nav>
         }
     </section>
@@ -62,33 +64,34 @@
 @if (Validation is not null || DiagnosticCodes.Count > 0 || InvalidFields.Count > 0)
 {
     <section class="configuration-review" aria-labelledby="configuration-review-heading" role="@(DiagnosticCodes.Count > 0 ? "alert" : null)">
-        <h3 id="configuration-review-heading">Review preparation</h3>
+        <h3 id="configuration-review-heading">@Ui("ReviewPreparationTitle")</h3>
         @if (Validation?.IsReady == false || InvalidFields.Count > 0 || DiagnosticCodes.Count > 0)
         {
-            <p>Check these settings. Values are omitted from diagnostics.</p>
+            <p>@Ui("ReviewCorrectionsHelp")</p>
             <ul>
                 @foreach (var diagnostic in Validation?.Diagnostics ?? [])
                 {
-                    <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
-                        <span>@ConfigurationDiagnosticText.Describe(diagnostic.Code)</span></li>
+                    <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId"
+                                aria-label="@UiFormat("ReviewCorrectField", FieldTitle(diagnostic))" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
+                        <span>@DescribeDiagnostic(diagnostic.Code)</span></li>
                 }
                 @foreach (DefinitionDiagnostic diagnostic in InvalidFields)
                 {
-                    <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
-                        <span>@ConfigurationDiagnosticText.Describe("input-type-invalid")</span></li>
+                    <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId"
+                                aria-label="@UiFormat("ReviewCorrectField", FieldTitle(diagnostic))" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
+                        <span>@DescribeDiagnostic("input-type-invalid")</span></li>
                 }
             </ul>
             @if (DiagnosticCodes.Count > 0)
             {
-                <details><summary>Preparation details</summary><ul>@foreach (string diagnosticCode in DiagnosticCodes.Distinct(StringComparer.Ordinal)) { <li>@diagnosticCode</li> }</ul></details>
+                <details><summary>@Ui("ReviewDetails")</summary><ul>@foreach (string diagnosticCode in DiagnosticCodes.Distinct(StringComparer.Ordinal)) { <li>@diagnosticCode</li> }</ul></details>
             }
         }
         @if (!SecretsEnabled && Validation?.Fields.Any(field => field.IsActive && field.HasError && field.Definition.Sensitivity == SetupFieldSensitivity.Secret) == true)
         {
-            <p>Secret entry is disabled for these settings. A draft defers only missing secrets; correct ordinary errors first, or enable masked entry for this workspace.</p>
+            <p>@Ui("ReviewSecretsDisabled")</p>
             <div class="actions">
-                <AppButton Variant="Variant.Outlined" data-action="enable-secret-entry" OnClick="() => EnableSecrets.InvokeAsync()">Enable secret entry for this workspace</AppButton>
-                <AppButton Variant="Variant.Outlined" OnClick="() => PrepareDraft.InvokeAsync()">Prepare a draft instead</AppButton>
+                <AppButton Variant="Variant.Outlined" data-action="enable-secret-entry" OnClick="() => EnableSecrets.InvokeAsync()">@Ui("EnableWorkspaceSecrets")</AppButton>
             </div>
         }
     </section>
@@ -105,7 +108,6 @@
     [Parameter] public bool SecretsEnabled { get; set; }
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
-    [Parameter] public EventCallback PrepareDraft { get; set; }
     private const int PageSize = 50;
     private DefinitionFormModel? _observedForm;
     private SetupDefinition? _observedDefinition;
@@ -158,21 +160,39 @@
         else _entries = [];
         _page = Math.Min(_page, PageCount - 1);
     }
-    private static string OriginText(DefinitionAnswerOrigin origin) => origin switch
+    private string Ui(string key) => BrowserStrings.Get(key, Form?.Locale ?? "en");
+    private string UiFormat(string key, params object[] values) =>
+        string.Format(CultureInfo.GetCultureInfo(Form?.Locale ?? "en"), Ui(key), values);
+    private string OriginText(DefinitionAnswerOrigin origin) => Ui(origin switch
     {
-        DefinitionAnswerOrigin.Defaulted => "Authored default",
-        DefinitionAnswerOrigin.Imported => "Imported",
-        DefinitionAnswerOrigin.Explicit => "Explicitly supplied",
-        _ => "Omitted"
-    };
-    private static string StateText(DefinitionDiscoveryEntry entry) => !entry.IsActive ? "Inactive; not exported"
-        : entry.IsDeferred ? "Secret deferred; incomplete"
-        : entry.NeedsAttention ? "Needs correction"
-        : entry.IsReady ? "Answer ready"
-        : entry.IsRequired ? "Required answer missing" : "Optional; no supplied answer";
+        DefinitionAnswerOrigin.Defaulted => "ReviewOriginDefault",
+        DefinitionAnswerOrigin.Imported => "ReviewOriginImported",
+        DefinitionAnswerOrigin.Explicit => "ReviewOriginExplicit",
+        _ => "ReviewOriginOmitted"
+    });
+    private string StateText(DefinitionDiscoveryEntry entry) => Ui(!entry.IsActive ? "ReviewStateInactive"
+        : entry.IsDeferred ? "ReviewStateDeferred"
+        : entry.NeedsAttention ? "ReviewStateCorrection"
+        : entry.IsProvided && entry.IsReady ? "ReviewStateReady"
+        : entry.IsRequired ? "ReviewStateRequiredMissing" : "ReviewStateOptionalMissing");
+    private string DescribeDiagnostic(string code)
+    {
+        string key = code switch
+        {
+            "value-required" => "ReviewValueRequired",
+            "value-type-invalid" or "input-type-invalid" => "ReviewTypeInvalid",
+            "value-duplicate" => "ReviewUniqueKey",
+            "value-invalid" or "value-constraint-invalid" => "ReviewConstraints",
+            "answer-budget-exceeded" => "ReviewInputTooLarge",
+            "draft-dependency-unresolved" => "ReviewDeferredDependency",
+            "artifact-omitted" => "ReviewArtifactOmitted",
+            _ => "ReviewCheckDefinition"
+        };
+        return $"{Ui(key)} ({code})";
+    }
     private string FieldTitle(DefinitionDiagnostic diagnostic)
     {
-        if (!_fieldsById.TryGetValue(diagnostic.FieldId, out var field)) return "Preparation";
+        if (!_fieldsById.TryGetValue(diagnostic.FieldId, out var field)) return Ui("ReviewPreparation");
         var titles = new List<string> { ConfigurationDiagnosticText.Title(field) };
         DefinitionNode node = field.Node;
         foreach (string segment in diagnostic.RelativePath)
@@ -180,14 +200,14 @@
             if (node.Items is { } item && int.TryParse(segment, out int row))
             {
                 node = item;
-                titles.Add($"Item {row + 1}");
+                titles.Add($"{Ui("FieldItem")} {row + 1}");
             }
             else
             {
                 if (!node.Properties.TryGetValue(segment, out var child)) break;
                 node = child;
                 titles.Add(node.Keywords.TryGetProperty("title", out var title) ? title.GetString()!
-                    : string.IsNullOrWhiteSpace(segment) ? "Setting" : segment);
+                    : string.IsNullOrWhiteSpace(segment) ? Ui("FieldSetting") : segment);
             }
         }
         return string.Join(" / ", titles);

@@ -1,0 +1,48 @@
+@implements IDisposable
+@using System.Globalization
+@using Configurator.Browser.Resources
+@using Configurator.Presentation
+
+<section class="configuration-files" aria-labelledby="@("artifact-" + Metadata.ArtifactId)"
+         data-prepared-file="@Metadata.ArtifactId" data-readiness="@(Metadata.IsDraft ? "draft" : "complete")">
+    <h4 id="@("artifact-" + Metadata.ArtifactId)" class="configuration-files__heading">@Metadata.FileName</h4>
+    <p>@Text(Metadata.IsDraft ? "DraftArtifactReadiness" : "CompleteArtifactReadiness") @Text("PrivateOutputHidden")</p>
+    @if (Metadata.Completions.Count > 0)
+    {
+        <ul class="configuration-files__completions">
+            @foreach (var item in Metadata.Completions)
+            {
+                <li><code>@item.FieldPath</code> <span aria-hidden="true">&rarr;</span> <code>@item.OutputPath</code></li>
+            }
+        </ul>
+    }
+    <div class="actions">
+        <AppButton Variant="Variant.Outlined" data-action="copy-file" OnClick="() => Copy.InvokeAsync()">@Format("CopyArtifact", Metadata.FileName)</AppButton>
+        <AppButton data-action="download-file" OnClick="() => Download.InvokeAsync()">@Format("DownloadArtifact", Metadata.FileName)</AppButton>
+        <AppButton Variant="Variant.Outlined" data-action="reveal-file" aria-expanded="@Revealed.ToString().ToLowerInvariant()"
+                   OnClick="() => Reveal.InvokeAsync()">@Format(Revealed ? "HideArtifact" : "RevealArtifact", Metadata.FileName)</AppButton>
+    </div>
+    @if (StatusKey is not null)
+    {
+        <p role="status" class="notice configuration-files__status" data-file-status="@StatusCode">@Format(StatusKey, Metadata.FileName)</p>
+    }
+    <pre @ref="_preview" class="configuration-files__preview" hidden="@(!Revealed)" dir="ltr" tabindex="0"
+         aria-label="@Format("PrivateArtifactPreview", Metadata.FileName)"></pre>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public DefinitionPreparationMetadata Metadata { get; set; } = null!;
+    [Parameter] public string Locale { get; set; } = "en";
+    [Parameter] public bool Revealed { get; set; }
+    [Parameter] public string? StatusKey { get; set; }
+    [Parameter] public string? StatusCode { get; set; }
+    [Parameter] public EventCallback Copy { get; set; }
+    [Parameter] public EventCallback Download { get; set; }
+    [Parameter] public EventCallback Reveal { get; set; }
+    private ElementReference _preview;
+    private bool _disposed;
+    public ElementReference? PreviewElement => _disposed ? null : _preview;
+    private string Text(string key) => BrowserStrings.Get(key, Locale);
+    private string Format(string key, params object?[] arguments) => string.Format(CultureInfo.GetCultureInfo(Locale), Text(key), arguments);
+    public void Dispose() { _disposed = true; _preview = default; }
+}

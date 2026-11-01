@@ -6,7 +6,6 @@ using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserAnswerBudgetTests
 {
@@ -34,7 +33,7 @@ public sealed class BrowserAnswerBudgetTests
         using var activity = new Activity(nameof(PreparingAdoptsEachAdmittedOutputWithoutRecomposingIt));
         activity.Start();
         using var measurement = new ComposedOutputs(activity);
-        await component.Find(draft ? "#prepare-draft" : "#prepare-complete").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft);
         await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(2);
         await Assert.That(measurement.Artifacts.Count).IsEqualTo(2);
         await Assert.That(measurement.Artifacts.SequenceEqual(["first", "second"], StringComparer.Ordinal)).IsTrue();
@@ -62,13 +61,14 @@ public sealed class BrowserAnswerBudgetTests
         string oversizedPart = "synthetic-budget-canary" + new string('x', 65536 - "synthetic-budget-canary".Length);
         for (int index = 0; index < 17; index++)
             await component.Find($"[data-field='text{index}'] input").InputAsync(new ChangeEventArgs { Value = oversizedPart });
-        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: true);
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("answer-budget-exceeded");
         await Assert.That(component.Find("[role=status]").TextContent).DoesNotContain("synthetic-budget-canary");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         await component.Find("[data-field='text16'] input").InputAsync(new ChangeEventArgs { Value = "" });
         await component.Find("[data-field='text15'] input").InputAsync(new ChangeEventArgs { Value = "" });
-        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: true);
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("preparation-ready");
     }
 
@@ -97,9 +97,10 @@ public sealed class BrowserAnswerBudgetTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         await component.Find("[data-field='payload'] input").InputAsync(new ChangeEventArgs { Value = new string('x', 65536) });
-        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: true);
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("preparation-rejected");
+        await BrowserFixture.SelectPanelAsync(component, "review");
         await Assert.That(component.Find("[role=alert]").TextContent).Contains("bundle-limit");
     }
 

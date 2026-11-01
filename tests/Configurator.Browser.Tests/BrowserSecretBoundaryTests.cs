@@ -5,9 +5,46 @@ using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserSecretBoundaryTests
 {
+    [Test]
+    public async Task RevokePreservesOrdinarySiblingAndRejectsRetiredCallback()
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        BrowserFixture.WithField(source, "profile", """
+            {"type":"object","title":"Profile","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+              "name":{"type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}},
+              "token":{"type":"string","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
+            """);
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        context.ComponentFactories.Add<ConfigurationField, BrowserCredentialEntryTests.EmittedInputField>();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        await component.Find("[data-field='profile.name'] input").InputAsync(new ChangeEventArgs { Value = "ordinary-sibling" });
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='profile.token'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-retired-secret" });
+        var token = component.FindComponents<BrowserCredentialEntryTests.EmittedInputField>()
+            .Single(item => item.Instance.Path.SequenceEqual(["profile", "token"]));
+        object callback = token.Instance.CaptureInput();
+        var form = token.Instance.Form;
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await Assert.That(form.Snapshot().Values["profile"].GetRawText()).IsEqualTo("{\"name\":\"ordinary-sibling\"}");
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        long revision = form.InputRevision;
+        await component.InvokeAsync(() => callback switch
+        {
+            EventCallback<ChangeEventArgs> typed => typed.InvokeAsync(new ChangeEventArgs { Value = "synthetic-late-secret" }),
+            EventCallback untyped => untyped.InvokeAsync(new ChangeEventArgs { Value = "synthetic-late-secret" }),
+            MulticastDelegate handler => new EventCallbackWorkItem(handler).InvokeAsync(new ChangeEventArgs { Value = "synthetic-late-secret" }),
+            _ => throw new InvalidOperationException("input-handler-missing")
+        });
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values["profile"].GetRawText()).IsEqualTo("{\"name\":\"ordinary-sibling\"}");
+        await Assert.That(component.Find("[data-field='profile.token'] input").GetAttribute("value")).IsEqualTo("");
+    }
+
     [Test]
     public async Task NestedSecretDenialKeepsOrdinarySiblingAndStartsReplacementWithoutConsent()
     {
@@ -83,7 +120,7 @@ public sealed class BrowserSecretBoundaryTests
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("private-canary");
         var mode = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["mode"]));
-        await Assert.That(mode.FindComponent<MudBlazor.MudSelect<string>>().Instance.Value).IsEqualTo("");
+        await Assert.That(mode.FindComponent<MudBlazor.MudRadioGroup<string>>().Instance.Value).IsEqualTo("");
     }
 
     [Test]

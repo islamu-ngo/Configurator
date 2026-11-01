@@ -36,6 +36,7 @@ for procedures and dated observations. No record is promoted by this index.
 | --- | --- | --- |
 | [Browser answer intent and denial](ADR-browser-answer-intent-and-denial.md) | Proposed; design refined, not implemented or I-VSD-revalidated according to this record | Related later implementation narratives do not silently change this record's acceptance status |
 | [Configuration experience and answer authority](ADR-configuration-experience-and-answer-authority.md) | Proposed planning decision, not implemented or production-qualified according to this record | Use [workspace ADR](ADR-browser-workspace-presentation.md) and current contracts for their narrower accepted scope; do not infer blanket acceptance |
+| [Guided Browser workspace ownership](ADR-browser-guided-workspace-ownership.md) | Original record remains proposed; the later approved implementation plan has delivered related guided-workspace boundaries | This index does not silently promote the record; use current [execution evidence](../reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md) for delivery. Developer editing remains in the same implementation plan |
 
 ## Using historical decision text
 

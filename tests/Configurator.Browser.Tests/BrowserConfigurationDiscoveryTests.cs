@@ -66,7 +66,7 @@ public sealed class BrowserConfigurationDiscoveryTests
         var component = RenderWorkspace(context, Definition());
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() => form.EditValue(["host.name"], "example.test"));
-        await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: false);
         await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(1);
         long revision = form.InputRevision;
         await OpenDiscovery(component);
@@ -155,7 +155,8 @@ public sealed class BrowserConfigurationDiscoveryTests
         long revision = form.InputRevision;
         await component.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "synthetic-discovery-private-value" });
         await Assert.That(component.FindAll("[data-discovery-result]")).IsEmpty();
-        await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: false);
+        await BrowserFixture.SelectPanelAsync(component, "review");
         await component.Find("[data-correction='host.name']").ClickAsync(new MouseEventArgs());
         await Assert.That(form.DiscoveryQuery).IsEqualTo("synthetic-discovery-private-value");
         await Assert.That(form.DiscoverySelection.Facets.Count).IsEqualTo(0);

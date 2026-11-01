@@ -1,0 +1,5 @@
+.configuration-configure-panel { min-inline-size: 0; margin-block: var(--isl-space-4); }
+.configuration-configure-panel__fields { min-inline-size: 0; }
+.configuration-configure-panel__heading { font-size: var(--isl-typography-h5-size); padding-block-end: var(--isl-label-gap); border-block-end: var(--isl-card-border); }
+.configuration-configure-panel__description { color: var(--isl-color-text-secondary); margin-block: 0 var(--isl-field-gap); }
+.configuration-configure-panel--single .configuration-configure-panel__heading { padding-block-end: 0; border: 0; margin-block-end: var(--isl-space-2); }

@@ -46,10 +46,10 @@ public sealed class BrowserEventManifestWorkflowTests
                 }
             });
         }
-        await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.PrepareAsync(component, draft: false);
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
-        await Assert.That(component.Find(".configuration-editor__artifact h3").TextContent).IsEqualTo("configuration-manifest.json");
-        await component.Find(".configuration-editor__artifact button").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find(".configuration-editor__artifact .configuration-files__heading").TextContent).IsEqualTo("configuration-manifest.json");
+        await component.Find(".configuration-editor__artifact [data-action='copy-file']").ClickAsync(new MouseEventArgs());
         byte[] bytes = (byte[])module.Invocations.Single(call => call.Identifier == "open").Arguments[2]!;
         using JsonDocument actual = JsonDocument.Parse(bytes);
         JsonNode expected = JsonNode.Parse("""

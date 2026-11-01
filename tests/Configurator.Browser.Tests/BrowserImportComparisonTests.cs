@@ -42,8 +42,9 @@ public sealed class BrowserImportComparisonTests
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "workspace.test" });
-        await component.Find("#prepare-draft").ClickAsync(new MouseEventArgs());
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await BrowserFixture.PrepareAsync(component, draft: true);
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         long revision = form.InputRevision;
         using var stream = new MemoryStream("""{"mode":"single","hostname":"file.test","credential":"synthetic-compared-secret"}"""u8.ToArray());
 
@@ -53,7 +54,12 @@ public sealed class BrowserImportComparisonTests
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("workspace.test");
         await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
+        var comparison = form.ImportComparison;
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
+        await Assert.That(form.ImportComparison).IsSameReferenceAs(comparison!);
         await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(1);
+        await BrowserFixture.SelectPanelAsync(component, "configure");
+        await Assert.That(form.ImportComparison).IsSameReferenceAs(comparison!);
         await Assert.That(component.Markup).DoesNotContain("synthetic-compared-secret");
         await Assert.That(component.Markup).DoesNotContain("file.test");
         await Assert.That(context.JSInterop.Invocations.Any(call =>

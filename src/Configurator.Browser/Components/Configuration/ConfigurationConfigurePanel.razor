@@ -1,0 +1,78 @@
+@implements IDisposable
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+@using Configurator.Browser.Resources
+@using Microsoft.AspNetCore.Components.Sections
+
+@if (!_disposed && !MountCancellation.IsCancellationRequested)
+{
+    var projection = Form.Projection;
+    var experience = Form.DisplayExperiences.Single(item => item.Id == Form.SelectedExperienceId);
+    var states = Form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
+    string? outputField = Form.Definition.Presentation?.OutputSelector is { } selector
+        ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
+    var sections = Sections.Where(section => section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive &&
+        (experience.Sections.Contains(section.Id) || Form.IsEditorVisible([fieldId])))).ToArray();
+    string? selected = sections.Any(section => section.Id == SelectedSection) ? SelectedSection : sections.FirstOrDefault()?.Id;
+<SectionContent SectionName="configuration-sections">
+    @if (sections.Length > 1)
+    {
+        <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id])).ToArray())"
+                                 Selected="@selected" SelectedChanged="SelectedChanged" Locale="@Form.Locale" />
+    }
+</SectionContent>
+<div class="configuration-configure-panel @(sections.Length == 1 ? "configuration-configure-panel--single" : "")" data-navigation="@experience.Navigation">
+    <div class="configuration-configure-panel__fields">
+        @foreach (var section in sections.Where(section => section.Id == selected))
+        {
+            <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)"
+                     aria-describedby="@(string.IsNullOrWhiteSpace(section.Description) ? null : SectionId(section.Id) + "-description")">
+                <h3 @ref="_heading" class="configuration-configure-panel__heading" id="@SectionId(section.Id)" tabindex="-1">@section.Title</h3>
+                @if (!string.IsNullOrWhiteSpace(section.Description))
+                {
+                    <p id="@(SectionId(section.Id) + "-description")" class="configuration-configure-panel__description">@section.Description</p>
+                }
+                <ConfigurationSectionFields @key="Form" Form="Form" Fields="@(section.Fields.Where(fieldId => fieldId != outputField).Select(fieldId => states[fieldId]).ToArray())"
+                                            MountCancellation="MountCancellation" Validation="Validation"
+                                            FocusField="@FocusField" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+            </section>
+        }
+        @if (experience.Navigation == "wizard" && sections.Length > 1)
+        {
+            int index = Array.FindIndex(sections, section => section.Id == selected);
+            <div class="actions configuration-configure-panel__actions">
+                @if (index > 0)
+                {
+                    <AppButton Variant="Variant.Outlined" data-action="previous-section" OnClick="() => SelectedChanged.InvokeAsync(sections[index - 1].Id)">@BrowserStrings.Get("PreviousSection", Form.Locale)</AppButton>
+                }
+                @if (index < sections.Length - 1)
+                {
+                    <AppButton Variant="Variant.Outlined" data-action="next-section" OnClick="() => SelectedChanged.InvokeAsync(sections[index + 1].Id)">@BrowserStrings.Get("NextSection", Form.Locale)</AppButton>
+                }
+                else
+                {
+                    <AppButton Variant="Variant.Outlined" OnClick="() => ReviewRequested.InvokeAsync()">@BrowserStrings.Get("ReviewConfiguration", Form.Locale)</AppButton>
+                }
+            </div>
+        }
+    </div>
+</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter, EditorRequired] public IReadOnlyList<DefinitionFormSection> Sections { get; set; } = [];
+    [Parameter] public string? SelectedSection { get; set; }
+    [Parameter] public EventCallback<string> SelectedChanged { get; set; }
+    [Parameter] public DefinitionValidationResult? Validation { get; set; }
+    [Parameter] public CancellationToken MountCancellation { get; set; }
+    [Parameter] public string? FocusField { get; set; }
+    [Parameter] public long FocusGeneration { get; set; }
+    [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
+    [Parameter] public EventCallback ReviewRequested { get; set; }
+    private ElementReference _heading;
+    private bool _disposed;
+    public ElementReference? SectionHeading => _disposed ? null : _heading;
+    private string SectionId(string id) => "configuration-section-" + Array.FindIndex(Sections.ToArray(), section => section.Id == id);
+    public void Dispose() { _disposed = true; _heading = default; }
+}

@@ -340,6 +340,17 @@ It consumes value-free projection entries, origin metadata and declared output
 bindings; it never reads answers for review markup. Change uses literal typed
 paths and shared focus promotion; returning refreshes validation without an
 answer revision or automatic consent.
+The Browser readiness summary also consumes the existing progress/input facts:
+ordinary missing or invalid input blocks preparation; unresolved secret leaves
+can permit only a draft. The editor still invokes the authoritative complete or
+draft composer, so a view summary cannot waive validation.
+
+`HasWorkspaceChanges` is a value-free discard query over existing supplied
+values, explicit omissions and input diagnostics from every retained field.
+Inactive invalid drafts therefore still count as work. It neither clones a
+snapshot nor caches another accepted state. Browser adds its pending acquisition,
+comparison and prepared-output ownership when deciding whether loss confirmation
+is needed; its lease and operation generations reject stale confirmations.
 Known import failures retain their typed Core diagnostic through the existing
 operation generation fence. Raw-input consent rejection grants only checkbox
 focus, not current-field correction authority; inactive-field recovery uses shared active

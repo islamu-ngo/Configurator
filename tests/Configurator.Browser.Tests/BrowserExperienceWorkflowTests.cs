@@ -49,9 +49,13 @@ public sealed class BrowserExperienceWorkflowTests
         component.Find("#configuration-detail").Change("advanced");
         component.Find("[data-field='options.api_token'] input").Input("synthetic-density-secret");
         if (invalidDraft) component.Find("[data-field='options.limit'] input").Input("1e");
-        else component.Find("#prepare-complete").Click();
         long revision = form.InputRevision;
         string identity = form.GetEditorIdentity(["options", "api_token"]);
+        if (!invalidDraft)
+        {
+            await BrowserFixture.PrepareAsync(component, draft: false);
+            await BrowserFixture.SelectPanelAsync(component, "configure");
+        }
         foreach (string density in new[] { "compact", "comfortable" })
         {
             component.Find("#configuration-density").Change(density);
@@ -62,12 +66,18 @@ public sealed class BrowserExperienceWorkflowTests
             await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserSecretsEnabled);
             await Assert.That(form.GetEditorIdentity(["options", "api_token"])).IsEqualTo(identity);
             await Assert.That(form.Snapshot().Values["options"].GetProperty("api_token").GetString()).IsEqualTo("synthetic-density-secret");
-            await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(invalidDraft ? 0 : 1);
             if (invalidDraft)
             {
                 await Assert.That(component.Find("[data-field='options.limit'] input").GetAttribute("value")).IsEqualTo("1e");
                 await Assert.That(form.HasInputErrors).IsTrue();
             }
+            await BrowserFixture.SelectPanelAsync(component, "prepare");
+            await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(invalidDraft ? 0 : 1);
+            await BrowserFixture.SelectPanelAsync(component, "configure");
+            await Assert.That(component.FindComponents<ConfigurationField>()[0].Instance.Form).IsSameReferenceAs(form);
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+            if (invalidDraft)
+                await Assert.That(component.Find("[data-field='options.limit'] input").GetAttribute("value")).IsEqualTo("1e");
         }
     }
 
@@ -207,6 +217,7 @@ public sealed class BrowserExperienceWorkflowTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, Definition()));
+        var navigation = BrowserFixture.SectionNavigation(context, component);
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "essential" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.Find("[data-field='options'] button[data-action='expand-optional']")
@@ -214,9 +225,9 @@ public sealed class BrowserExperienceWorkflowTests
         await component.Find("[data-field='options.limit'] input").InputAsync(new ChangeEventArgs { Value = "invalid-number" });
         long revision = form.InputRevision;
 
-        await component.Find("[data-section='tuning']").ClickAsync(new MouseEventArgs());
+        await navigation.Find("[data-section='tuning']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[data-field='options.limit'] input")).IsEmpty();
-        await component.Find("[data-section='decisions']").ClickAsync(new MouseEventArgs());
+        await navigation.Find("[data-section='decisions']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-field='options.limit'] input").GetAttribute("value")).IsEqualTo("invalid-number");
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.HasInputErrors).IsTrue();
@@ -230,13 +241,18 @@ public sealed class BrowserExperienceWorkflowTests
     public async Task GuidanceRendersInertInstructionsAndDeliberatePublicLinks()
     {
         await using var context = BrowserFixture.Context();
+        var definition = Definition();
         var component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
             builder.OpenComponent<ConfigurationEditor>(0);
-            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), Definition());
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
             builder.CloseComponent();
         }));
-        await component.Find("[data-field='enabled'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
+        Task<Exception> rendererFailure = context.Renderer.UnhandledException;
+        Task openHelp = component.Find("[data-field='enabled'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
+        Task settled = await Task.WhenAny(openHelp, rendererFailure).WaitAsync(TimeSpan.FromSeconds(5));
+        if (ReferenceEquals(settled, rendererFailure)) throw await rendererFailure;
+        await openHelp;
         var guidance = component.Find("[role='dialog']");
 
         await Assert.That(guidance.QuerySelectorAll("script")).IsEmpty();

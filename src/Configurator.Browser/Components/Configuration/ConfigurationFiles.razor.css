@@ -1,0 +1,5 @@
+.configuration-files { min-inline-size: 0; }
+.configuration-files__heading { font-size: var(--isl-typography-h5-size); overflow-wrap: anywhere; }
+.configuration-files__completions { overflow-wrap: anywhere; }
+.configuration-files__status { margin-block: var(--isl-space-3); }
+.configuration-files__preview { max-inline-size: 100%; overflow: auto; white-space: pre; }

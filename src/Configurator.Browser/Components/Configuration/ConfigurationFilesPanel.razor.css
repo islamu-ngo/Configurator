@@ -1,0 +1,2 @@
+.configuration-files-panel { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-6); margin-block-start: var(--isl-space-6); }
+.configuration-files-panel__heading { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }

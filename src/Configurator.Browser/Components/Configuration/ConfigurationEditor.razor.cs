@@ -1,7 +1,10 @@
 namespace Configurator.Browser.Components.Configuration;
 
+using System.Globalization;
 using System.Security.Cryptography;
+using System.Text.Json;
 using CommunityToolkit.Mvvm.Messaging;
+using Configurator.Browser.Resources;
 using Configurator.Browser.Services;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
@@ -26,13 +29,17 @@ public partial class ConfigurationEditor
     private readonly List<PreparedArtifact> _prepared = [];
     private readonly List<string> _diagnostics = [];
     private string _activeWorkflowStage = "configure";
-    private string? _focusWorkflowStage;
+    private long _viewGeneration;
+    private (DefinitionFormModel Form, long Generation, FocusTarget Target)? _pendingFocus;
+    private enum FocusTarget { Configure, Review, Files, Consent, Import, Start, Output }
     private int _requiredCount;
     private ElementReference _configureHeading;
-    private ElementReference _sectionHeading;
-    private ElementReference _reviewHeading;
-    private ElementReference _prepareHeading;
-    private string _status = "Supply ordinary settings. Secret entry is disabled.";
+    private ElementReference _outputControl;
+    private ConfigurationConfigurePanel? _configurePanel;
+    private ConfigurationReviewPanel? _reviewPanel;
+    private ConfigurationFilesPanel? _filesPanel;
+    private string _statusKey = "WorkspaceReadyStatus";
+    private object?[] _statusArguments = [];
     private string _statusCode = "workspace-ready";
     private string _importArtifact = string.Empty;
     private string _importPurpose = "compare";
@@ -52,7 +59,6 @@ public partial class ConfigurationEditor
     private string? _focusField;
     private IReadOnlyList<string> _focusPath = [];
     private long _focusGeneration;
-    private bool _focusConsent;
     private bool _returnToReview;
     private ElementReference _consentControl;
     private long _generation;
@@ -62,15 +68,21 @@ public partial class ConfigurationEditor
     private CancellationTokenSource? _readCancellation;
     private byte[]? _readBuffer;
     private InputFile? _fileInput;
-    private bool _restoreFocus;
     private ElementReference _startButton;
-    private bool _focusStart;
     private bool _disposed;
     private bool _ready;
     private bool _beginPending;
     private bool HasWork(DefinitionFormModel form) => !_disposed && _ready && ReferenceEquals(form, _form) &&
         (form.HasWorkspaceChanges || _prepared.Count > 0 || _importPending || form.ImportComparison is not null);
-
+    private string PreparationReadiness
+    {
+        get
+        {
+            DefinitionFormProgress progress = _form!.Projection.Progress;
+            return _form.HasInputErrors || _form.HasAnswerBudgetError || progress.Invalid > 0 || progress.Missing > progress.Deferred
+                ? "blocked" : progress.Deferred > 0 ? "deferred" : "complete";
+        }
+    }
     private bool _compact;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
@@ -78,12 +90,16 @@ public partial class ConfigurationEditor
     private long _navigationLease;
     private WorkspaceSearchState? _search;
     private long _searchLease;
-    private Dictionary<string, EditorSection> _editorSections = new(StringComparer.Ordinal);
+    private Dictionary<string, DefinitionFormSection> _editorSections = new(StringComparer.Ordinal);
     private DefinitionDiscoverySelection? _observedDiscoverySelection;
 
     protected override void OnParametersSet()
     {
         if (ReferenceEquals(_pinned, Definition)) return;
+        RetireView();
+        _configurePanel = null;
+        _reviewPanel = null;
+        _filesPanel = null;
         InvalidateMounts();
         Invalidate();
         _search?.Release(this, _searchLease);
@@ -140,26 +156,63 @@ public partial class ConfigurationEditor
     }
 
     private DefinitionFormExperience SelectedExperience => _form!.DisplayExperiences.Single(item => item.Id == _form.SelectedExperienceId);
+    private DefinitionOutputSelector? OutputSelector => _form?.Definition.Presentation?.OutputSelector;
+    private string UiText(string key) => BrowserStrings.Get(key, _form!.Locale);
+    private string UiFormat(string key, params object?[] arguments) =>
+        string.Format(CultureInfo.GetCultureInfo(_form!.Locale), UiText(key), arguments);
+    private string LanguageName(string locale) => CultureInfo.GetCultureInfo(locale).TwoLetterISOLanguageName switch
+    {
+        "en" => UiText("EnglishLanguage"),
+        "ar" => UiText("ArabicLanguage"),
+        _ => CultureInfo.GetCultureInfo(locale).NativeName
+    };
+    private void SetStatus(string key, params object?[] arguments)
+    {
+        _statusKey = key;
+        _statusArguments = arguments;
+    }
+    private string OutputSelection
+    {
+        get
+        {
+            if (OutputSelector is not { } selector || !_form!.Validate().TryGetEffectiveValue(selector.Location, out JsonElement value)) return "-1";
+            string? selected = value.GetString();
+            for (int index = 0; index < selector.Options.Count; ++index)
+                if (selector.Options[index].Value == selected) return index.ToString(CultureInfo.InvariantCulture);
+            return "-1";
+        }
+    }
+    private string OutputTitle(int index) => _form!.LocalizedText(DefinitionPath.FromSegments(
+        ["presentation", "outputSelector", "options", index.ToString(CultureInfo.InvariantCulture), "title"]), OutputSelector!.Options[index].Title)!;
+    private void ChangeOutput(ChangeEventArgs args)
+    {
+        if (OutputSelector is not { } selector || args.Value is not string choice
+            || !int.TryParse(choice, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+            || index < 0 || index >= selector.Options.Count) return;
+        if (!_form!.SelectOutput(selector.Options[index].Value)) return;
+        _selectedSection = null;
+        if (_activeWorkflowStage != "configure")
+        {
+            SelectWorkflowStage("configure");
+            RequestFocus(FocusTarget.Output);
+        }
+    }
+
     private SetupArtifactDefinition[] ImportArtifacts { get; set; } = [];
     private DefinitionImportCapability? ImportCapability => _importCapabilities.GetValueOrDefault(_importArtifact);
-    private sealed record EditorSection(string Id, string Title, IReadOnlyList<string> Fields, string? Description);
     private void IndexSections()
     {
         _observedDiscoverySelection = _form!.DiscoverySelection;
         _sectionLocale = _form.Locale;
-        _editorSections = _form.DisplaySections.ToDictionary(section => section.Id, section =>
-            new EditorSection(section.Id, section.Title, section.Fields, section.Description),
-            StringComparer.Ordinal);
+        _editorSections = _form.DisplaySections.ToDictionary(section => section.Id, StringComparer.Ordinal);
     }
-    private EditorSection[] EditorSections()
+    private DefinitionFormSection[] EditorSections()
     {
         return _form!.Projection.Sections
             .Select(section => _editorSections[section.Id])
             .ToArray();
     }
-    private bool EditorVisible(string fieldId) => _form!.IsEditorVisible([fieldId]);
-    private string SectionId(string section) => "configuration-section-" + Array.FindIndex(EditorSections(), item => item.Id == section);
-    private string? SelectedSection(IReadOnlyList<EditorSection> sections) =>
+    private string? SelectedSection(IReadOnlyList<DefinitionFormSection> sections) =>
         sections.Any(item => item.Id == _selectedSection) ? _selectedSection : sections.Count > 0 ? sections[0].Id : null;
     private void SelectSection(string section)
     {
@@ -170,11 +223,33 @@ public partial class ConfigurationEditor
 
     private void SelectWorkflowStage(string stage)
     {
+        bool leavingFiles = _activeWorkflowStage == "prepare" && stage != "prepare";
+        RetireView();
         InvalidateMounts();
-        _focusField = null;
+        // Retire in-flight work without discarding a completed comparison owned by the form.
+        if (_importPending)
+        {
+            InvalidateImport();
+            SetStatus("ImportCancelledStatus");
+            _statusCode = "import-cancelled";
+        }
+        else ++_generation;
         _activeWorkflowStage = stage;
-        _focusWorkflowStage = stage;
+        if (stage != "configure") _configurePanel = null;
+        if (stage != "review") _reviewPanel = null;
+        if (stage != "prepare") _filesPanel = null;
         if (stage == "review") _validation = _form!.Validate();
+        RequestFocus(stage switch { "review" => FocusTarget.Review, "prepare" => FocusTarget.Files, _ => FocusTarget.Configure });
+        if (leavingFiles)
+        {
+            Task[] retirements = _prepared.Select(artifact =>
+            {
+                artifact.Revealed = false;
+                artifact.View = null;
+                return artifact.Export.InvalidateAsync().AsTask();
+            }).ToArray();
+            _outputRetirement = Task.WhenAll(_outputRetirement, ObserveRetirementAsync(retirements));
+        }
     }
     private void CorrectField(DefinitionDiagnostic diagnostic)
     {
@@ -183,17 +258,22 @@ public partial class ConfigurationEditor
         if (field is null) return;
         IReadOnlyList<string> path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
         if (diagnostic.Location is { } location && !_form!.TryResolveCorrection(fieldId, location, out path)) return;
+        if (OutputSelector is { } selector && field.Name == selector.Location.Segments[0] && path.Count == 1)
+        {
+            SelectWorkflowStage("configure");
+            RequestFocus(FocusTarget.Output);
+            return;
+        }
         bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
-        InvalidateMounts();
+        SelectWorkflowStage("configure");
         _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
         _focusField = denied ? null : field.Id;
         _focusPath = denied ? [] : path;
-        _activeWorkflowStage = "configure";
-        _focusWorkflowStage = null;
+        _pendingFocus = null;
         ++_focusGeneration;
-        _focusConsent = denied;
+        if (denied) RequestFocus(FocusTarget.Consent);
     }
     private void ChangeReviewField(DefinitionDiagnostic diagnostic)
     {
@@ -205,10 +285,19 @@ public partial class ConfigurationEditor
         _returnToReview = false;
         SelectWorkflowStage("review");
     }
-    private void ReviewImportConsent() => _focusConsent = true;
+    private void ReviewImportConsent()
+    {
+        SelectWorkflowStage("configure");
+        RequestFocus(FocusTarget.Consent);
+    }
     private void ImportComparisonChanged(object? sender, EventArgs args)
     {
-        if (_disposed || !_ready || !ReferenceEquals(sender, _form) || _form!.ImportComparison is null) return;
+        if (_disposed || !_ready || !ReferenceEquals(sender, _form)) return;
+        if (_form!.ImportComparison is null)
+        {
+            _navigation?.RefreshWork(this, _navigationLease);
+            return;
+        }
         // Publishing private comparison state renews custody, never answer-editor state.
         DefinitionFormModel form = _form;
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
@@ -218,17 +307,22 @@ public partial class ConfigurationEditor
         DefinitionFormModel form = _form!;
         await ConsentAsync(new ChangeEventArgs { Value = true });
         if (!_disposed && ReferenceEquals(form, _form) && form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)
-            _focusConsent = true;
+        {
+            SelectWorkflowStage("configure");
+            RequestFocus(FocusTarget.Consent);
+        }
     }
 
     private void InputChanged(object? sender, EventArgs args)
     {
+        if (_disposed || !ReferenceEquals(sender, _form)) return;
+        RetireView();
         InvalidateMounts();
         _focusField = null;
         Invalidate();
         int required = _form!.Projection.Progress.Required;
-        _status = required == _requiredCount ? "Answers changed. Previous output has been discarded."
-            : $"Required work changed from {_requiredCount} to {required} answers. Previous output has been discarded.";
+        if (required == _requiredCount) SetStatus("AnswersChangedStatus");
+        else SetStatus("RequiredWorkChangedStatus", _requiredCount, required);
         _requiredCount = required;
         _statusCode = "answers-changed";
         _search?.Refresh(this, _searchLease);
@@ -236,6 +330,7 @@ public partial class ConfigurationEditor
     }
     private void ViewChanged(object? sender, EventArgs args)
     {
+        if (_disposed || !ReferenceEquals(sender, _form)) return;
         if (_sectionLocale != _form!.Locale)
         {
             IndexSections();
@@ -248,6 +343,7 @@ public partial class ConfigurationEditor
             _observedDiscoverySelection = _form.DiscoverySelection;
             return;
         }
+        RetireView();
         InvalidateMounts();
         _focusField = null;
         StateHasChanged();
@@ -258,6 +354,17 @@ public partial class ConfigurationEditor
         _mountCancellation.Dispose();
         _mountCancellation = new CancellationTokenSource();
     }
+    private bool IsCurrentView(DefinitionFormModel form, long generation) =>
+        !_disposed && ReferenceEquals(form, _form) && generation == _viewGeneration;
+    private void RetireView()
+    {
+        ++_viewGeneration;
+        ++_focusGeneration;
+        _pendingFocus = null;
+        _focusField = null;
+        _focusPath = [];
+    }
+    private void RequestFocus(FocusTarget target) => _pendingFocus = (_form!, _viewGeneration, target);
     private void ChangeDetail(ChangeEventArgs args)
     {
         switch (args.Value)
@@ -281,9 +388,7 @@ public partial class ConfigurationEditor
     {
         if (args.Value is not string id || !_form!.SelectExperience(id)) return;
         _selectedSection = null;
-        _focusField = null;
-        _activeWorkflowStage = "configure";
-        _focusWorkflowStage = null;
+        SelectWorkflowStage("configure");
     }
     private void ChangeImportFormat(ChangeEventArgs args)
     {
@@ -291,7 +396,7 @@ public partial class ConfigurationEditor
         if (!Definition.Artifacts.Any(item => item.Id == artifactId)) return;
         InvalidateImport();
         _importArtifact = artifactId!;
-        _status = "Artifact selection changed. Comparison discarded; answers and prepared output retained.";
+        SetStatus("ImportFormatChangedStatus");
         _statusCode = "import-format-changed";
     }
     private void ChangeImportPurpose(ChangeEventArgs args)
@@ -299,15 +404,15 @@ public partial class ConfigurationEditor
         if (args.Value is not ("compare" or "fill")) return;
         InvalidateImport();
         _importPurpose = (string)args.Value;
-        _status = "Import purpose changed. Comparison discarded; answers and prepared output retained.";
+        SetStatus("ImportPurposeChangedStatus");
         _statusCode = "import-purpose-changed";
     }
     private void ClearComparison()
     {
         InvalidateImport();
-        _status = "Comparison cleared or cancelled. Answers and prepared output retained.";
+        SetStatus("ImportClearedStatus");
         _statusCode = "import-cleared";
-        _restoreFocus = true;
+        RequestFocus(FocusTarget.Import);
     }
     private void ClearComparison(DefinitionImportReport report)
     {
@@ -323,6 +428,7 @@ public partial class ConfigurationEditor
         var cancellation = new CancellationTokenSource();
         _readCancellation = cancellation;
         _importPending = true;
+        _navigation?.RefreshWork(this, _navigationLease);
         StateHasChanged();
         try { await AdoptComparisonAsync(report, cancellation.Token); }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
@@ -332,6 +438,7 @@ public partial class ConfigurationEditor
             {
                 _readCancellation = null;
                 _importPending = false;
+                _navigation?.RefreshWork(this, _navigationLease);
             }
             cancellation.Dispose();
             if (!_disposed) StateHasChanged();
@@ -351,9 +458,8 @@ public partial class ConfigurationEditor
             ? _generation != generation + 1 || form.InputRevision != revision + 1
             : _generation != generation || cancellationToken.IsCancellationRequested) return;
         _statusCode = result.Succeeded ? "imported" : result.Code;
-        _status = result.Succeeded ? "Eligible file answers filled atomically. Review current workspace readiness before preparation."
-            : "Autofill refused (" + result.Code + "). No answers changed. Review the comparison and repair a separate copy or deliberately clear conflicting workspace inputs, then re-import.";
-        if (result.Succeeded) { ++_fileKey; _restoreFocus = true; }
+        SetStatus(result.Succeeded ? "ImportedStatus" : "AutofillRefusedStatus", result.Code);
+        if (result.Succeeded) { ++_fileKey; RequestFocus(FocusTarget.Import); }
     }
     private async ValueTask YieldComparisonAsync(CancellationToken cancellationToken)
     {
@@ -370,14 +476,14 @@ public partial class ConfigurationEditor
         if (_form!.SessionPrivacy != DefinitionSessionPrivacy.BrowserSecretsEnabled)
         {
             _importConsentRequired = true;
-            _status = "File not read (import-secret-consent-required). Enable secret entry for this workspace before reading any configuration file, including unknown or malformed content.";
+            SetStatus("ImportConsentRequiredStatus");
             _statusCode = "import-secret-consent-required";
             return false;
         }
         if (ImportCapability is not { InspectionSupported: true } ||
             _importPurpose == "fill" && !ImportCapability.StrictAutofillSupported)
         {
-            _status = "File not read. The selected artifact does not support this import purpose.";
+            SetStatus("ImportUnsupportedStatus");
             _statusCode = ImportCapability?.Code ?? "inverse-unsupported";
             return false;
         }
@@ -391,7 +497,7 @@ public partial class ConfigurationEditor
         form.SetSecretEntryEnabled(enabled);
         if (generation == _generation) Invalidate();
         Task retirement = _outputRetirement;
-        _status = enabled ? "Secret entry enabled for this workspace. Values remain masked." : "Secret entry revoked. Secret answers and output discarded; ordinary settings retained.";
+        SetStatus(enabled ? "SecretEntryEnabledStatus" : "SecretEntryRevokedStatus");
         _statusCode = enabled ? "secret-entry-enabled" : "secret-entry-revoked";
         await retirement;
     }
@@ -399,6 +505,7 @@ public partial class ConfigurationEditor
     private async Task PrepareAsync(bool draft)
     {
         if (_disposed || !_ready) return;
+        if (_activeWorkflowStage != "prepare") SelectWorkflowStage("prepare");
         DefinitionFormModel form = _form!;
         long generation = _generation + 1;
         await InvalidateOutputAsync();
@@ -408,14 +515,14 @@ public partial class ConfigurationEditor
         try { answers = form.Snapshot(); }
         catch (SetupDefinitionException)
         {
-            _status = "Answers exceed the shared preparation limit. Reduce input sizes before preparing configuration.";
+            SetStatus("AnswersBudgetExceededStatus");
             _statusCode = "answer-budget-exceeded";
             _diagnostics.Add("answer-budget-exceeded");
             return;
         }
         if (form.HasAnswerBudgetError)
         {
-            _status = "An input exceeded the shared preparation limit. Reduce or clear the rejected field before preparing configuration.";
+            SetStatus("InputBudgetExceededStatus");
             _statusCode = "answer-budget-exceeded";
             _diagnostics.Add("answer-budget-exceeded");
             return;
@@ -424,7 +531,7 @@ public partial class ConfigurationEditor
         if (form.HasInputErrors)
         {
             _diagnostics.Add("input-type-invalid");
-            _status = "Correct invalid field values before preparing configuration.";
+            SetStatus("InputTypeInvalidStatus");
             _statusCode = "input-type-invalid";
             return;
         }
@@ -440,7 +547,7 @@ public partial class ConfigurationEditor
                 if (draftBundle.Artifacts.Count == 0 || draftBundle.Diagnostics.Any(item => item.Code is not ("draft-dependency-unresolved" or "artifact-omitted")))
                 {
                     _diagnostics.AddRange(draftBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
-                    _status = "No configuration prepared. Correct required settings or reduce output size.";
+                    SetStatus("PreparationRejectedStatus");
                     _statusCode = "preparation-rejected";
                     return;
                 }
@@ -453,7 +560,7 @@ public partial class ConfigurationEditor
                 if (!completeBundle.Succeeded)
                 {
                     _diagnostics.AddRange(completeBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
-                    _status = "No configuration prepared. Correct required settings or reduce output size.";
+                    SetStatus("PreparationRejectedStatus");
                     _statusCode = "preparation-rejected";
                     return;
                 }
@@ -474,7 +581,7 @@ public partial class ConfigurationEditor
                     if (workspace.Result is not DefinitionPreparationMetadata { Succeeded: true } metadata)
                     {
                         if (workspace.Result is DefinitionPreparationMetadata failure) _diagnostics.AddRange(failure.DiagnosticCodes);
-                        _status = "No configuration prepared. Prepare the current workspace again.";
+                        SetStatus("PreparationRetryStatus");
                         _statusCode = "preparation-rejected";
                         return;
                     }
@@ -488,9 +595,9 @@ public partial class ConfigurationEditor
             _navigation?.RefreshWork(this, _navigationLease);
             bool incompleteDraft = draft && (_prepared.Any(item => item.Metadata.IsDraft) ||
                 _diagnostics.Contains("draft-dependency-unresolved"));
-            _status = incompleteDraft
-                ? $"Prepared {_prepared.Count} draft artifact(s). Deferred secrets or withheld outputs still require completion."
-                : $"Prepared {_prepared.Count} private artifact(s). Reveal, copy or download each explicitly.";
+            SetStatus(incompleteDraft
+                ? (_prepared.Count == 1 ? "PreparedDraftStatus" : "PreparedDraftsStatus")
+                : (_prepared.Count == 1 ? "PreparedArtifactStatus" : "PreparedArtifactsStatus"), _prepared.Count);
             _statusCode = "preparation-ready";
         }
         finally
@@ -502,41 +609,55 @@ public partial class ConfigurationEditor
     }
     private async Task CopyAsync(PreparedArtifact artifact)
     {
-        if (!_prepared.Contains(artifact)) return;
+        DefinitionFormModel form = _form!;
+        long view = _viewGeneration;
+        if (!IsCurrentExport(artifact, form, view)) return;
         InvalidateImport();
+        if (!artifact.Export.HasOutput) artifact.Export.SetOutput(artifact.Workspace.Output);
         bool copied = await artifact.Export.CopyAsync();
-        if (!_prepared.Contains(artifact)) return;
-        _status = copied ? "Current artifact copied. Clipboard contents remain outside this workspace." : "Clipboard unavailable or denied. Use Download instead.";
-        _statusCode = copied ? "copied" : "clipboard-unavailable";
+        if (!IsCurrentExport(artifact, form, view)) return;
+        artifact.StatusKey = copied ? "ArtifactCopiedStatus" : "ClipboardUnavailableStatus";
+        artifact.StatusCode = copied ? "copied" : "clipboard-unavailable";
     }
     private async Task DownloadAsync(PreparedArtifact artifact)
     {
-        if (!_prepared.Contains(artifact)) return;
+        DefinitionFormModel form = _form!;
+        long view = _viewGeneration;
+        if (!IsCurrentExport(artifact, form, view)) return;
         InvalidateImport();
+        if (!artifact.Export.HasOutput) artifact.Export.SetOutput(artifact.Workspace.Output);
         bool downloaded = await artifact.Export.DownloadAsync(artifact.Metadata.FileName!, artifact.Metadata.MediaType!);
-        if (!_prepared.Contains(artifact)) return;
-        _status = downloaded ? $"Download requested as {artifact.Metadata.FileName}. If your browser changes the filename, rename it to this declared name. Protect the downloaded file on your device." : "Download could not start. Prepare current output again.";
+        if (!IsCurrentExport(artifact, form, view)) return;
+        artifact.StatusKey = downloaded ? "DownloadRequestedStatus" : "DownloadUnavailableStatus";
+        artifact.StatusCode = downloaded ? "download-requested" : "download-unavailable";
     }
     private async Task RevealAsync(PreparedArtifact artifact)
     {
-        if (!_prepared.Contains(artifact)) return;
+        DefinitionFormModel form = _form!;
+        long view = _viewGeneration;
+        if (!IsCurrentExport(artifact, form, view)) return;
         InvalidateImport();
         if (artifact.Revealed)
         {
-            await artifact.Export.InvalidateAsync();
-            if (!_prepared.Contains(artifact)) return;
-            artifact.Export.SetOutput(artifact.Workspace.Output);
             artifact.Revealed = false;
-            _status = "Private preview hidden.";
+            await artifact.Export.InvalidateAsync();
+            if (!IsCurrentExport(artifact, form, view)) return;
+            artifact.StatusKey = "PreviewHiddenStatus";
+            artifact.StatusCode = "preview-hidden";
             return;
         }
+        if (artifact.View?.PreviewElement is not { } preview) return;
+        if (!artifact.Export.HasOutput) artifact.Export.SetOutput(artifact.Workspace.Output);
         artifact.Revealed = true;
         StateHasChanged();
-        bool revealed = await artifact.Export.RevealAsync(artifact.PreviewElement);
-        if (!_prepared.Contains(artifact)) return;
+        bool revealed = await artifact.Export.RevealAsync(preview);
+        if (!IsCurrentExport(artifact, form, view)) return;
         artifact.Revealed = revealed;
-        _status = revealed ? "Private preview revealed. Hide or clear it when finished." : "Preview unavailable. Use Download instead.";
+        artifact.StatusKey = revealed ? "PreviewRevealedStatus" : "PreviewUnavailableStatus";
+        artifact.StatusCode = revealed ? "preview-revealed" : "preview-unavailable";
     }
+    private bool IsCurrentExport(PreparedArtifact artifact, DefinitionFormModel form, long view) =>
+        IsCurrentView(form, view) && _ready && _activeWorkflowStage == "prepare" && _prepared.Contains(artifact);
     private Task ImportAsync(InputFileChangeEventArgs args) =>
         LoadAsync(async (buffer, token) =>
         {
@@ -565,7 +686,7 @@ public partial class ConfigurationEditor
         if (!CanReadImport())
         {
             ++_fileKey;
-            _restoreFocus = true;
+            RequestFocus(FocusTarget.Import);
             StateHasChanged();
             return;
         }
@@ -578,6 +699,7 @@ public partial class ConfigurationEditor
         byte[] buffer = new byte[MaximumImportBytes + 1];
         _readBuffer = buffer;
         _importPending = true;
+        _navigation?.RefreshWork(this, _navigationLease);
         bool tooLarge = false;
         StateHasChanged();
         try
@@ -599,14 +721,12 @@ public partial class ConfigurationEditor
                 cancellation.IsCancellationRequested) return;
             if (tooLarge)
             {
-                _status = "File rejected: maximum size is 1 MiB. Answers and prepared output retained.";
+                SetStatus("ImportTooLargeStatus");
                 _statusCode = "import-too-large";
                 return;
             }
             _statusCode = result.Code;
-            _status = result.Succeeded
-                ? "Imported file comparison completed. Answers, drafts and prepared output are unchanged; target acceptance is not assessed."
-                : "Comparison refused (" + result.Code + "). No answers changed. Check the declared format and repair a separate copy before re-importing.";
+            SetStatus(result.Succeeded ? "ImportComparedStatus" : "ImportRefusedStatus", result.Code);
             if (result.Succeeded && purpose == "fill")
             {
                 await AdoptComparisonAsync(result.Report!, cancellation.Token);
@@ -617,7 +737,7 @@ public partial class ConfigurationEditor
             if (generation == _generation && ReferenceEquals(form, _form))
             {
                 form.ClearImportComparison();
-                _status = "Comparison could not finish. No answers changed; repair a separate copy or choose the file again.";
+                SetStatus("ImportReadFailedStatus");
                 _statusCode = "import-read-failed";
             }
         }
@@ -629,8 +749,9 @@ public partial class ConfigurationEditor
             {
                 _readCancellation = null;
                 _importPending = false;
+                _navigation?.RefreshWork(this, _navigationLease);
                 ++_fileKey;
-                _restoreFocus = true;
+                RequestFocus(FocusTarget.Import);
             }
             cancellation.Dispose();
             if (!_disposed) await InvokeAsync(StateHasChanged);
@@ -638,21 +759,26 @@ public partial class ConfigurationEditor
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        DefinitionFormModel form = _form!;
+        long generation = _viewGeneration;
         if (firstRender || _beginPending) { _beginPending = false; await BeginAsync(); }
-        if (_focusWorkflowStage is { } stage)
+        if (!IsCurrentView(form, generation) || _pendingFocus is not { } request) return;
+        _pendingFocus = null;
+        if (!IsCurrentView(request.Form, request.Generation)) return;
+        ElementReference? target = request.Target switch
         {
-            _focusWorkflowStage = null;
-            ElementReference heading = stage switch
-            {
-                "review" => _reviewHeading,
-                "prepare" => _prepareHeading,
-                _ => string.IsNullOrEmpty(_sectionHeading.Id) ? _configureHeading : _sectionHeading
-            };
-            await heading.FocusAsync();
-        }
-        if (_focusStart) { _focusStart = false; await _startButton.FocusAsync(preventScroll: true); }
-        if (_focusConsent) { _focusConsent = false; await _consentControl.FocusAsync(); }
-        if (_restoreFocus && _fileInput?.Element is { } element) { _restoreFocus = false; await element.FocusAsync(preventScroll: true); }
+            FocusTarget.Configure when _ready && _activeWorkflowStage == "configure" => _configurePanel?.SectionHeading ?? _configureHeading,
+            FocusTarget.Review when _ready && _activeWorkflowStage == "review" => _reviewPanel?.Heading,
+            FocusTarget.Files when _ready && _activeWorkflowStage == "prepare" => _filesPanel?.Heading,
+            FocusTarget.Consent when _ready && _activeWorkflowStage == "configure" => _consentControl,
+            FocusTarget.Import when _ready && _activeWorkflowStage == "configure" => _fileInput?.Element,
+            FocusTarget.Output when _ready && OutputSelector is not null => _outputControl,
+            FocusTarget.Start when !_ready => _startButton,
+            _ => null
+        };
+        if (target is not { } element || string.IsNullOrEmpty(element.Id)) return;
+        await element.FocusAsync(preventScroll: request.Target is FocusTarget.Import or FocusTarget.Start);
+        if (!IsCurrentView(request.Form, request.Generation)) return;
     }
     public async Task BeginAsync()
     {
@@ -677,12 +803,12 @@ public partial class ConfigurationEditor
         if (_ready)
         {
             _offlineLease = lease;
-            _status = form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled
-                ? "Secret entry enabled for this workspace. Values remain masked."
-                : "Supply ordinary settings. Secret entry is disabled.";
+            SetStatus(form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled
+                ? "SecretEntryEnabledStatus" : "WorkspaceReadyStatus");
             _statusCode = "workspace-ready";
         }
-        else { _status = "Offline app preparation is incomplete. Finish loading public app assets before entering answers."; _statusCode = "app-preparation-incomplete"; }
+        else { SetStatus("AppPreparationIncompleteStatus"); _statusCode = "app-preparation-incomplete"; }
+        _navigation?.RefreshWork(this, _navigationLease);
         if (!_disposed) StateHasChanged();
     }
     public void Invalidate() => _ = InvalidateOutputAsync();
@@ -709,6 +835,7 @@ public partial class ConfigurationEditor
         _importPending = false;
         _importConsentRequired = false;
         _form?.ClearImportComparison();
+        _navigation?.RefreshWork(this, _navigationLease);
         if (releaseFileControl) ++_fileKey;
     }
     private async Task ObserveRetirementAsync(Task[] retirements)
@@ -720,6 +847,8 @@ public partial class ConfigurationEditor
             // and never let a retired owner mutate current policy or bytes.
             if (!_disposed) await InvokeAsync(() =>
             {
+                if (_disposed) return;
+                // Value-free cleanup warnings belong to the editor lifetime, not the retired form.
                 _diagnostics.Add("output-cleanup-failed");
                 StateHasChanged();
             });
@@ -727,18 +856,25 @@ public partial class ConfigurationEditor
     }
     private async Task ClearAsync()
     {
+        if (_disposed || !_ready) return;
+        DefinitionFormModel current = _form!;
+        long view = _viewGeneration;
+        long operation = _generation;
+        if (HasWork(current) && !await Javascript.InvokeAsync<bool>("confirm", UiText("DiscardConfirm"))) return;
+        if (!IsCurrentView(current, view) || operation != _generation) return;
         Task discarding = DiscardAsync();
         long generation = _generation;
         DefinitionFormModel form = _form!;
         await discarding;
         if (_disposed || generation != _generation || !ReferenceEquals(form, _form) || _ready) return;
         ++_fileKey;
-        _status = "Answers and output cleared. Secret entry is disabled. Start a new local workspace to continue.";
+        SetStatus("WorkspaceClearedStatus");
         _statusCode = "workspace-cleared";
-        _focusStart = true;
+        RequestFocus(FocusTarget.Start);
     }
     public async Task DiscardAsync()
     {
+        RetireView();
         InvalidateMounts();
         DefinitionFormModel form = _form!;
         long lease = _offlineLease;
@@ -771,6 +907,7 @@ public partial class ConfigurationEditor
         if (_disposed) return;
         long navigationLease = _navigationLease;
         Task retirement = _outputRetirement;
+        RetireView();
         _disposed = true;
         _mountCancellation.Cancel();
         _mountCancellation.Dispose();
@@ -802,8 +939,10 @@ public partial class ConfigurationEditor
         public DefinitionPreparationMetadata Metadata { get; }
         public SetupPresentationWorkspace Workspace { get; }
         public BrowserArtifactExport Export { get; }
-        public ElementReference PreviewElement;
+        public ConfigurationFiles? View;
         public bool Revealed { get; set; }
+        public string? StatusKey { get; set; }
+        public string? StatusCode { get; set; }
         public async ValueTask DisposeAsync()
         {
             try { Workspace.Dispose(); }

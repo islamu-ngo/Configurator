@@ -92,19 +92,19 @@ public sealed class BrowserIncrementalMountTests
         await CompleteAsync(component, frames);
         await component.Find("[data-field='setting0'] input").InputAsync(new ChangeEventArgs { Value = "ordinary-retained" });
         await component.Find("[data-field='setting1'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-retired-secret" });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await BrowserFixture.PrepareAsync(component, draft: false);
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
+        await BrowserFixture.SelectPanelAsync(component, "configure");
         var secret = component.FindComponents<BrowserCredentialEntryTests.EmittedInputField>()
             .Single(field => field.Instance.Path.SequenceEqual(["setting1"]));
-        var form = secret.Instance.Form;
         object oldInput = secret.Instance.CaptureInput();
-        await component.Find("#prepare-complete").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         Frame obsolete = await frames.NextAsync();
 
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
         await Assert.That(form.Snapshot().Values.ContainsKey("setting1")).IsFalse();
         await Assert.That(component.FindAll("[data-field='setting1'] input")).IsEmpty();
-        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         int focusCalls = frames.FocusCalls;
         await component.InvokeAsync(obsolete.Release);
         await component.InvokeAsync(() => InvokeInputAsync(oldInput, "synthetic-late-secret"));
@@ -113,6 +113,10 @@ public sealed class BrowserIncrementalMountTests
         await Assert.That(form.Snapshot().Values["setting0"].GetString()).IsEqualTo("ordinary-retained");
         await Assert.That(form.Snapshot().Values.ContainsKey("setting1")).IsFalse();
         await Assert.That(component.FindAll("[data-field='setting1'] input")).IsEmpty();
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
+        await BrowserFixture.SelectPanelAsync(component, "configure");
+        await CompleteAsync(component, frames);
 
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await CompleteAsync(component, frames);
@@ -120,8 +124,9 @@ public sealed class BrowserIncrementalMountTests
         await Assert.That(component.Find("[data-field='setting1'] input").GetAttribute("value")).IsEqualTo("");
         await Assert.That(component.Markup).DoesNotContain("synthetic-retired-secret");
         await Assert.That(component.Markup).DoesNotContain("synthetic-late-secret");
-        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await AssertCompleteAsync(component);
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 
     [Test]
@@ -181,10 +186,11 @@ public sealed class BrowserIncrementalMountTests
         context.Services.AddSingleton<IJSRuntime>(frames);
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, Definition(sectioned: true)));
+        var navigation = BrowserFixture.SectionNavigation(context, component);
         Frame obsolete = await frames.NextAsync();
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.Find("[data-field='setting0'] input").InputAsync(new ChangeEventArgs { Value = "retained-section-answer" });
-        await component.Find("[data-section='second']").ClickAsync(new MouseEventArgs());
+        await navigation.Find("[data-section='second']").ClickAsync(new MouseEventArgs());
         int focusCalls = frames.FocusCalls;
         await component.InvokeAsync(obsolete.Release);
         await CompleteAsync(component, frames);
@@ -255,10 +261,11 @@ public sealed class BrowserIncrementalMountTests
         int focusCalls = frames.FocusCalls;
         await component.InvokeAsync(initial.Release);
         await component.InvokeAsync(correction.Release);
-        await CompleteAsync(component, frames);
 
         await Assert.That(frames.FocusCalls).IsEqualTo(focusCalls);
         await Assert.That(component.Find("[data-workflow-step='review']").GetAttribute("aria-current")).IsEqualTo("step");
+        await BrowserFixture.SelectPanelAsync(component, "configure");
+        await CompleteAsync(component, frames);
         await Assert.That(component.FindComponents<ConfigurationField>().All(field => !field.Instance.FocusFirstControl)).IsTrue();
         await Assert.That(component.FindAll("[data-configuration-mount] input")).Count().IsEqualTo(36);
         await AssertCompleteAsync(component);

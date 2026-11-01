@@ -22,6 +22,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         InputFile selected = input.Instance;
         await component.InvokeAsync(() => input.UploadFiles(InputFileContent.CreateFromBinary("invalid"u8.ToArray(), "invalid.json", contentType: "application/json")));
         await Assert.That(ReferenceEquals(selected, component.FindComponent<InputFile>().Instance)).IsFalse();
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 
@@ -44,6 +45,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         await pending.WaitAsync(TimeSpan.FromSeconds(5));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values).IsEmpty();
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("synthetic-local-import-secret");
         await Assert.That(older.CapturedBuffer.ToArray().All(value => value == 0)).IsTrue();
@@ -67,7 +69,10 @@ public sealed class BrowserTemplateReadLifecycleTests
             if (transition == "edit")
                 await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
             else if (transition == "clear")
+            {
+                await BrowserFixture.SelectPanelAsync(component, "prepare");
                 await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+            }
             else if (transition == "replacement")
                 await component.InvokeAsync(() => component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2))));
             else await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
@@ -111,6 +116,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         await Assert.That(stream.CapturedBuffer.ToArray().All(value => value == 0)).IsTrue();
         using var failed = new FailedReadStream();
         await component.InvokeAsync(() => component.Instance.LoadAsync(failed));
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("import-read-failed");
     }
