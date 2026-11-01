@@ -59,6 +59,22 @@ complete statically linked component notices; the retained review explicitly
 does not establish that complete binary component inventory.
 See `docs/internal/legal/dependencies/git-cliff.md`.
 
+## Local Browser editor
+
+The local CodeMirror editor uses the 17-component MIT closure recorded in
+`docs/internal/legal/dependencies/codemirror.md`. Its generated
+`vendor/configuration-editor.manifest.json` retains exact component identities,
+versions, archive integrities and license hashes. Keep
+`vendor/configuration-editor.LICENSE.txt` with the Browser bundle: it contains
+the complete original notices and disclaimers, including Marijn Haverbeke's and
+Arun Srinivasan's applicable copyright lines.
+
+These paths are relative to the published Browser web root. In this repository,
+the generated files live under `src/Configurator.Browser/wwwroot/vendor/`.
+The root MIT license does not replace these original terms or transfer
+third-party ownership. No npm, Node or Bun executable is conveyed by this
+Browser asset bundle.
+
 ## Browser hosting container
 
 The optional Browser image uses pinned Microsoft .NET SDK and ASP.NET Core

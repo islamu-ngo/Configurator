@@ -56,4 +56,9 @@
           Condition="'$(PublishDir)' != ''">
     <RemoveDir Directories="$(PublishDir)wwwroot/definition-store" />
   </Target>
+
+  <Target Name="VerifyBrowserEditorAssets" BeforeTargets="PrepareForPublish">
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)/../.."
+          Command="dotnet run --file &quot;$(MSBuildProjectDirectory)/../../eng/configurator/BuildBrowserEditor.cs&quot; -- --check &quot;$(MSBuildProjectDirectory)/../..&quot;" />
+  </Target>
 </Project>

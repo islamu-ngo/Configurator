@@ -8,6 +8,8 @@ const publicAssets = new Set([
     'Configurator.Browser.styles.css', 'manifest.webmanifest',
     'pwa-lifecycle.js', 'browser-definition-source.js', 'browser-artifacts.js',
     'browser-appearance.js', 'browser-store.js', 'workspace-interactions.js', 'configuration-rendering.js',
+    'js/configuration-developer.js', 'vendor/configuration-editor.js',
+    'vendor/configuration-editor.manifest.json', 'vendor/configuration-editor.LICENSE.txt',
     '_content/MudBlazor/MudBlazor.min.css', '_content/MudBlazor/MudBlazor.min.js',
     'icons/configurator-192.svg', 'icons/configurator-512.svg'
 ]);

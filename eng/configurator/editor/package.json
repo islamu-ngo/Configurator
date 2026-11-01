@@ -1,0 +1,27 @@
+{
+  "name": "configurator-browser-editor",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "@codemirror/autocomplete": "6.20.4",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/lint": "6.9.7",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15"
+  },
+  "configuratorEditor": {
+    "approval": "approved",
+    "closureSha256": "0494667e39ad04b311fd84b37ed53397e156020156198ee3ce1626b090664bd9",
+    "recordSha256": "6de435ddbfc05c43e6983b0882892142794073d0d99f1c99d753473f163a50f2",
+    "lockSha256": "fe664dfbbf3eeac5f530e172ef7125fefced26ae3b016cfef142fe838217a6bd",
+    "noticesSha256": "281fa74258cf5b84111aa2f77a749ac06de39ac4d3c34c3eb4e1e3d03f248d5d",
+    "node": "26.9.0",
+    "npm": "12.0.2",
+    "bun": "1.4.2"
+  }
+}

@@ -89,6 +89,46 @@ build. SDK-generated Brotli/gzip sidecars are transport encodings of public asse
 the store package test requires each sidecar to decode to its exact canonical
 JSON bytes and rejects any other store file.
 
+### Local editor assets
+
+`eng/configurator/BuildBrowserEditor.cs` owns the local editor bundle. Its source
+manifest and native npm lock under `eng/configurator/editor/` pin the reviewed
+component graph. The recipe binds the documented approval decision, lock,
+original-notice hash and exact Node/npm/Bun build-tool versions. These tools are
+used for regeneration, not conveyed as Browser runtimes.
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet run --file eng/configurator/BuildBrowserEditor.cs -- --self-test
+dotnet run --file eng/configurator/BuildBrowserEditor.cs -- --write "$PWD"
+dotnet run --file eng/configurator/BuildBrowserEditor.cs -- --check "$PWD"
+```
+
+Generation disables npm lifecycle scripts, verifies installed original terms
+against the approved closure and invokes the local bundler. Never hand-edit the
+three generated files under `wwwroot/vendor/`: `configuration-editor.js`,
+`configuration-editor.manifest.json` and `configuration-editor.LICENSE.txt`.
+The manifest binds input, component, toolchain and output identities. Its
+component inventory supplements the separate NuGet/runtime notice inventory.
+
+`VerifyBrowserEditorAssets` runs the offline freshness check before Browser
+publication. It requires no npm installation or dependency download. Missing
+approval, changed inputs/closure/toolchain metadata, altered output or omitted
+terms fail closed. `PublishConfiguratorBrowser` additionally requires all
+editor files in the actual publication. The worker allowlist includes only the
+fixed public bridge, bundle, manifest and notice URLs; no source text, history,
+diagnostics or answer-derived completion enters that inventory.
+
+Distribute the complete notice file alongside the bundle. The root
+`THIRD-PARTY-NOTICES.md` routes reviewers to the exact
+[dependency decision](legal/dependencies/codemirror.md); original component
+copyright and permission text is not replaced by the project's MIT license.
+The [native owner guide](../../eng/configurator/editor/README.md) describes
+metadata-only review and generation. Reproducible assets and package hashes do
+not establish runtime custody or user-experience qualification.
+
+### Optional definition store assets
+
 Optional store inclusion is explicit through `DefinitionStoreSourceRoot` on
 `PublishConfiguratorBrowser`; the empty property never reads or requires `store/`.
 `PrepareDefinitionStoreAssets` in the Browser project invokes the native

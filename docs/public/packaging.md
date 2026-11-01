@@ -70,6 +70,13 @@ islamu-configurator/
 > [!TIP]
 > Do not move the executable out of its folder without copying the `schemas/` directory, as the CLI references local schemas for validation.
 
+For the Browser, preserve the entire `wwwroot/`, including its local editor
+bundle, component manifest and original notices under `vendor/`. Do not copy
+only `index.html` or replace the editor with a runtime CDN. Ordinary .NET source
+builds verify the checked assets; regenerating them uses the exact toolchain and
+native recipe in the [editor build guide](../../eng/configurator/editor/README.md).
+The npm/Node/Bun build tools are not part of the Browser runtime.
+
 ### 2. Verify Your Host Environment
 
 Run the built-in diagnostic tool to verify host compatibility and filesystem features:
