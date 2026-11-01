@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="CatalogueTitle" xml:space="preserve"><value>Choose a project</value></data>
+  <data name="CatalogueIntro" xml:space="preserve"><value>Find a configuration to prepare locally. Your answers stay in this tab.</value></data>
+  <data name="LocalWorkspace" xml:space="preserve"><value>Local workspace</value></data>
+  <data name="AnswersStayLocal" xml:space="preserve"><value>Your answers stay in this tab.</value></data>
+  <data name="ProjectSearch" xml:space="preserve"><value>Search projects, definitions or tags</value></data>
+  <data name="ProjectCount" xml:space="preserve"><value>Definitions shown</value></data>
+  <data name="NoProjects" xml:space="preserve"><value>No matching definitions</value></data>
+  <data name="SearchRecovery" xml:space="preserve"><value>Try a different name or open a local file or public link.</value></data>
+  <data name="DirectoryLoading" xml:space="preserve"><value>Loading optional public project metadata…</value></data>
+  <data name="DirectoryUnavailable" xml:space="preserve"><value>Optional directory unavailable. Definitions already in this app and local files remain usable.</value></data>
+  <data name="DirectoryEmpty" xml:space="preserve"><value>No optional directory is included in this package.</value></data>
+  <data name="AvailableInApp" xml:space="preserve"><value>Available in this app</value></data>
+  <data name="DirectorySource" xml:space="preserve"><value>Optional directory</value></data>
+  <data name="Configure" xml:space="preserve"><value>Configure</value></data>
+  <data name="SourceDetails" xml:space="preserve"><value>Source and definition details</value></data>
+  <data name="Family" xml:space="preserve"><value>Family identity</value></data>
+  <data name="Revision" xml:space="preserve"><value>Definition revision</value></data>
+  <data name="Digest" xml:space="preserve"><value>Canonical SHA-256 digest</value></data>
+  <data name="Publisher" xml:space="preserve"><value>Publisher claim</value></data>
+  <data name="ApplicationId" xml:space="preserve"><value>Application ID</value></data>
+  <data name="ApplicationVersions" xml:space="preserve"><value>Declared application versions</value></data>
+  <data name="EntryPoints" xml:space="preserve"><value>Entry points</value></data>
+  <data name="Entry" xml:space="preserve"><value>Entry point</value></data>
+  <data name="Locales" xml:space="preserve"><value>Locales</value></data>
+  <data name="Language" xml:space="preserve"><value>Language</value></data>
+  <data name="OutputNames" xml:space="preserve"><value>Output filenames</value></data>
+  <data name="SourceRepository" xml:space="preserve"><value>Source repository</value></data>
+  <data name="License" xml:space="preserve"><value>Declared license</value></data>
+  <data name="TrustBoundary" xml:space="preserve"><value>Publisher and project labels do not authenticate a publisher. Preparation grants no target administration or apply permission; the target validates and accepts your files.</value></data>
+  <data name="OtherSources" xml:space="preserve"><value>Have your own definition?</value></data>
+  <data name="OpenFileOrLink" xml:space="preserve"><value>Open a local file or public link</value></data>
+  <data name="BackToCatalogue" xml:space="preserve"><value>All projects</value></data>
+  <data name="Project" xml:space="preserve"><value>Project</value></data>
+  <data name="ProjectUnavailable" xml:space="preserve"><value>This directory project is unavailable.</value></data>
+  <data name="AvailableRevisions" xml:space="preserve"><value>Available definition revisions</value></data>
+  <data name="ChooseRevision" xml:space="preserve"><value>Choose a definition revision</value></data>
+  <data name="SelectRevision" xml:space="preserve"><value>Select a revision</value></data>
+  <data name="CheckingSnapshot" xml:space="preserve"><value>Checking public snapshot…</value></data>
+  <data name="ReviewRevision" xml:space="preserve"><value>Review this revision</value></data>
+  <data name="RevisionRejected" xml:space="preserve"><value>This revision could not be admitted.</value></data>
+  <data name="ReadyToOpen" xml:space="preserve"><value>Ready to open</value></data>
+  <data name="FreshWorkspace" xml:space="preserve"><value>Open a fresh local workspace with secret entry disabled. The workspace retains this exact definition.</value></data>
+  <data name="ConfigureRevision" xml:space="preserve"><value>Configure this revision</value></data>
+  <data name="VersionClaims" xml:space="preserve"><value>Application versions are declared compatibility labels, separate from definition revisions. The target application remains responsible for validation and acceptance.</value></data>
+  <data name="OpenTitle" xml:space="preserve"><value>Open your definition</value></data>
+  <data name="OpenIntro" xml:space="preserve"><value>Use a local JSON or YAML file or a public definition link when your project is not in the catalogue.</value></data>
+  <data name="FromDevice" xml:space="preserve"><value>From your device</value></data>
+  <data name="LocalFile" xml:space="preserve"><value>Local definition file</value></data>
+  <data name="LocalFileIntro" xml:space="preserve"><value>Use a JSON or YAML definition when disconnected or when a publisher blocks cross-origin access.</value></data>
+  <data name="ChooseFile" xml:space="preserve"><value>Choose a definition JSON or YAML file</value></data>
+  <data name="FileLimits" xml:space="preserve"><value>JSON or YAML · maximum 4 MiB. Compact maintainer sources are compiled locally before answers; files grant no publisher authenticity.</value></data>
+  <data name="PublicSource" xml:space="preserve"><value>From a public source</value></data>
+  <data name="PublicUrl" xml:space="preserve"><value>Public definition URL</value></data>
+  <data name="PublicUrlIntro" xml:space="preserve"><value>Use a direct HTTPS link to a public JSON definition.</value></data>
+  <data name="SourceUrl" xml:space="preserve"><value>Public definition file URL</value></data>
+  <data name="SourceUrlHelp" xml:space="preserve"><value>The source must allow cross-origin reading. For private repositories or blocked access, use a local file.</value></data>
+  <data name="OptionalSelectors" xml:space="preserve"><value>Optional digest and selectors</value></data>
+  <data name="ApplicationVersion" xml:space="preserve"><value>Declared application version</value></data>
+  <data name="ReviewingDefinition" xml:space="preserve"><value>Reviewing definition…</value></data>
+  <data name="ReviewPublicDefinition" xml:space="preserve"><value>Review public definition</value></data>
+  <data name="RetainedDefinitions" xml:space="preserve"><value>Retained public definitions</value></data>
+  <data name="RetentionHelp" xml:space="preserve"><value>This definition remains in memory unless you deliberately retain its public metadata. Never retain a definition containing private explanatory text or defaults.</value></data>
+  <data name="ConfirmPublicMetadata" xml:space="preserve"><value>I confirm this definition is safe to retain as public metadata</value></data>
+  <data name="RetainDefinition" xml:space="preserve"><value>Retain definition for offline use</value></data>
+  <data name="OpenWorkspace" xml:space="preserve"><value>Open configuration workspace</value></data>
+  <data name="DefinitionOnlyLink" xml:space="preserve"><value>Definition-only link (no answers)</value></data>
+  <data name="CopyDefinitionLink" xml:space="preserve"><value>Copy definition link</value></data>
+  <data name="DiscardToChoose" xml:space="preserve"><value>Discard workspace and choose another definition</value></data>
+  <data name="DiscardConfirm" xml:space="preserve"><value>Discard this workspace's answers and output and continue? Choose Cancel to keep editing.</value></data>
+  <data name="SourceReady" xml:space="preserve"><value>Choose a public publisher link or a local definition. Answers are never carried by this route.</value></data>
+  <data name="SourceLoading" xml:space="preserve"><value>Reading public definition metadata before collecting answers…</value></data>
+  <data name="SourceAdmitted" xml:space="preserve"><value>Definition admitted and pinned. Review its details before opening the workspace.</value></data>
+  <data name="LocalAdmitted" xml:space="preserve"><value>Local definition admitted. Open a fresh workspace with secret entry disabled.</value></data>
+  <data name="SourceRejected" xml:space="preserve"><value>Source selection rejected. Choose a local JSON or YAML definition instead.</value></data>
+  <data name="DefinitionRejected" xml:space="preserve"><value>Definition rejected; no workspace was created.</value></data>
+  <data name="LinkCopied" xml:space="preserve"><value>Definition-only link copied. It contains no answers.</value></data>
+  <data name="LinkCopyUnavailable" xml:space="preserve"><value>Copy is unavailable. Select the definition-only link and copy it manually.</value></data>
+  <data name="DefinitionRetained" xml:space="preserve"><value>Public definition retained for offline reopening. Answers and output are never retained.</value></data>
+  <data name="RetentionUnavailable" xml:space="preserve"><value>Offline retention could not complete. The memory-only workspace remains available.</value></data>
+  <data name="WorkspaceDiscarded" xml:space="preserve"><value>Answers and output discarded. Choose another definition.</value></data>
+  <data name="WorkspaceTitle" xml:space="preserve"><value>Configuration workspace</value></data>
+  <data name="LaunchRejected" xml:space="preserve"><value>Launch rejected</value></data>
+  <data name="LaunchRejectedHelp" xml:space="preserve"><value>This launch cannot select a definition.</value></data>
+  <data name="Code" xml:space="preserve"><value>Code</value></data>
+  <data name="SkipToContent" xml:space="preserve"><value>Skip to main content</value></data>
+  <data name="HomeLabel" xml:space="preserve"><value>Configurator projects</value></data>
+  <data name="Menu" xml:space="preserve"><value>Menu</value></data>
+  <data name="CloseMenu" xml:space="preserve"><value>Close menu</value></data>
+  <data name="ApplicationNavigation" xml:space="preserve"><value>Application navigation</value></data>
+  <data name="Workspace" xml:space="preserve"><value>Workspace</value></data>
+  <data name="Help" xml:space="preserve"><value>Help</value></data>
+  <data name="Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Appearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="System" xml:space="preserve"><value>System</value></data>
+  <data name="Light" xml:space="preserve"><value>Light</value></data>
+  <data name="Dark" xml:space="preserve"><value>Dark</value></data>
+  <data name="LightHighContrast" xml:space="preserve"><value>Light high contrast</value></data>
+  <data name="DarkHighContrast" xml:space="preserve"><value>Dark high contrast</value></data>
+  <data name="Direction" xml:space="preserve"><value>Direction</value></data>
+  <data name="Automatic" xml:space="preserve"><value>Automatic</value></data>
+  <data name="LeftToRight" xml:space="preserve"><value>Left to right</value></data>
+  <data name="RightToLeft" xml:space="preserve"><value>Right to left</value></data>
+  <data name="FindSetting" xml:space="preserve"><value>Find a setting</value></data>
+  <data name="OpenSettingSearch" xml:space="preserve"><value>Open setting search</value></data>
+  <data name="SearchSettings" xml:space="preserve"><value>Search settings</value></data>
+  <data name="SettingSearchResults" xml:space="preserve"><value>Setting search results</value></data>
+  <data name="WorkspaceSettings" xml:space="preserve"><value>Settings in this workspace</value></data>
+  <data name="CloseSettingSearch" xml:space="preserve"><value>Close setting search</value></data>
+  <data name="Close" xml:space="preserve"><value>Close</value></data>
+  <data name="SearchHelp" xml:space="preserve"><value>Search definition metadata, never answers. Up to 256 characters and 16 words.</value></data>
+  <data name="SearchLimits" xml:space="preserve"><value>Use no more than 256 characters and 16 words.</value></data>
+  <data name="FooterPurpose" xml:space="preserve"><value>Prepare locally. Validate and apply with your target application.</value></data>
+  <data name="SupportLinks" xml:space="preserve"><value>Support links</value></data>
+  <data name="HelpPrivacy" xml:space="preserve"><value>Help and privacy</value></data>
+  <data name="SourceContributions" xml:space="preserve"><value>Source and contributions</value></data>
+  <data name="NewTab" xml:space="preserve"><value>(new tab)</value></data>
+  <data name="Review" xml:space="preserve"><value>Review</value></data>
+  <data name="Files" xml:space="preserve"><value>Files</value></data>
+  <data name="Sections" xml:space="preserve"><value>Sections</value></data>
+  <data name="ConfigurationAnswers" xml:space="preserve"><value>Configuration answers</value></data>
+  <data name="Required" xml:space="preserve"><value>Required</value></data>
+  <data name="Optional" xml:space="preserve"><value>Optional</value></data>
+  <data name="Advanced" xml:space="preserve"><value>Advanced</value></data>
+  <data name="NotSupplied" xml:space="preserve"><value>Not supplied</value></data>
+  <data name="Reset" xml:space="preserve"><value>Reset</value></data>
+  <data name="Omit" xml:space="preserve"><value>Omit</value></data>
+  <data name="SetNull" xml:space="preserve"><value>Set null</value></data>
+  <data name="ApplySuggestion" xml:space="preserve"><value>Use suggestion</value></data>
+  <data name="FieldHelp" xml:space="preserve"><value>Setting help</value></data>
+  <data name="FieldItem" xml:space="preserve"><value>Item</value></data>
+  <data name="FieldSetting" xml:space="preserve"><value>Setting</value></data>
+  <data name="Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="No" xml:space="preserve"><value>No</value></data>
+  <data name="EmptyString" xml:space="preserve"><value>Empty string</value></data>
+  <data name="FieldActions" xml:space="preserve"><value>Actions for {0}</value></data>
+  <data name="HelpWithField" xml:space="preserve"><value>Help with {0}</value></data>
+  <data name="ResetField" xml:space="preserve"><value>Reset {0}</value></data>
+  <data name="SuggestField" xml:space="preserve"><value>Use suggested value for {0}</value></data>
+  <data name="NullField" xml:space="preserve"><value>Set {0} to null</value></data>
+  <data name="OmitField" xml:space="preserve"><value>Omit {0}</value></data>
+  <data name="OmitFieldAndChildren" xml:space="preserve"><value>Omit {0} and nested answers</value></data>
+  <data name="FieldVariantType" xml:space="preserve"><value>{0} type</value></data>
+  <data name="HideOptionalSettings" xml:space="preserve"><value>Hide optional settings</value></data>
+  <data name="ShowOptionalSettings" xml:space="preserve"><value>Show optional settings</value></data>
+  <data name="FieldNullSupplied" xml:space="preserve"><value>Null is supplied. Reset or choose another value to continue editing.</value></data>
+  <data name="SupplyFieldObject" xml:space="preserve"><value>Supply {0} object</value></data>
+  <data name="SupplyFieldList" xml:space="preserve"><value>Supply an empty {0} list</value></data>
+  <data name="FieldListItem" xml:space="preserve"><value>{0} item</value></data>
+  <data name="RemoveFieldItem" xml:space="preserve"><value>Remove {0} item {1}</value></data>
+  <data name="AddFieldItem" xml:space="preserve"><value>Add {0} item</value></data>
+  <data name="FieldItemCount" xml:space="preserve"><value>{0} / {1} items</value></data>
+  <data name="RemoveFieldEntry" xml:space="preserve"><value>Remove entry</value></data>
+  <data name="AddFieldEntry" xml:space="preserve"><value>Add entry</value></data>
+  <data name="FieldNewEntryKey" xml:space="preserve"><value>{0} new entry key</value></data>
+  <data name="FieldInvalidMapKey" xml:space="preserve"><value>Use a valid bounded key that is not already present.</value></data>
+  <data name="FieldSecretDenied" xml:space="preserve"><value>Secret entry is disabled for this workspace. Enable it deliberately above, or complete a downloaded draft locally.</value></data>
+  <data name="FieldInputTypeInvalid" xml:space="preserve"><value>Supply a value of the declared type. (input-type-invalid)</value></data>
+  <data name="FieldBooleanHelp" xml:space="preserve"><value>Use true or false.</value></data>
+  <data name="FieldDeclaredChoices" xml:space="preserve"><value>Declared choices: {0}.</value></data>
+  <data name="CredentialIssuerHelp" xml:space="preserve"><value>Obtain this value from its issuer, then paste it or map a password manager custom field. Do not substitute a locally generated password.</value></data>
+  <data name="CredentialCreateHelp" xml:space="preserve"><value>Choose a new value that meets the target's requirements. A password manager may help create and retain it.</value></data>
+  <data name="CredentialExistingHelp" xml:space="preserve"><value>Use the value already accepted by your target. A password manager may fill or paste it.</value></data>
+  <data name="CredentialCustodyHelp" xml:space="preserve"><value>Your password manager has independent custody; clearing this workspace does not clear its vault.</value></data>
+  <data name="AddItem" xml:space="preserve"><value>Add item</value></data>
+  <data name="RemoveItem" xml:space="preserve"><value>Remove item</value></data>
+  <data name="PrepareFiles" xml:space="preserve"><value>Prepare files</value></data>
+  <data name="PrepareComplete" xml:space="preserve"><value>Prepare complete configuration</value></data>
+  <data name="PrepareDraft" xml:space="preserve"><value>Prepare draft</value></data>
+  <data name="Preparing" xml:space="preserve"><value>Preparing…</value></data>
+  <data name="Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Download" xml:space="preserve"><value>Download</value></data>
+  <data name="Reveal" xml:space="preserve"><value>Reveal</value></data>
+  <data name="Hide" xml:space="preserve"><value>Hide</value></data>
+  <data name="Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="NeedsAttention" xml:space="preserve"><value>Needs attention</value></data>
+  <data name="SecretCompletion" xml:space="preserve"><value>Secret completion</value></data>
+  <data name="AllowSecrets" xml:space="preserve"><value>Allow secret entry in this workspace</value></data>
+  <data name="RevokeSecrets" xml:space="preserve"><value>Revoke secret entry and clear secrets</value></data>
+  <data name="ImportExisting" xml:space="preserve"><value>Compare existing configuration</value></data>
+  <data name="ReviewTitle" xml:space="preserve"><value>Review your configuration</value></data>
+  <data name="ReviewHelp" xml:space="preserve"><value>Check readiness, resolve required corrections and review optional work before preparing files.</value></data>
+  <data name="ReviewSummaryComplete" xml:space="preserve"><value>Ready to prepare complete files</value></data>
+  <data name="ReviewSummaryDeferred" xml:space="preserve"><value>Secrets still need completion</value></data>
+  <data name="ReviewSummaryBlocked" xml:space="preserve"><value>Correct ordinary settings before preparing files</value></data>
+  <data name="ReviewOptionalMissing" xml:space="preserve"><value>Optional settings without a supplied value: {0}</value></data>
+  <data name="ReviewRequiredSummary" xml:space="preserve"><value>Required answers ready: {0} / {1}</value></data>
+  <data name="ReviewDeferredSummary" xml:space="preserve"><value>Unresolved secret answers: {0}</value></data>
+  <data name="ReviewDeclaredOutputs" xml:space="preserve"><value>Declared files; preparation determines which are included.</value></data>
+  <data name="ReviewEffects" xml:space="preserve"><value>Configuration effects</value></data>
+  <data name="ReviewEffectsHelp" xml:space="preserve"><value>Values stay masked here. Answer readiness is separate from file preparation and target acceptance. The target application remains responsible for validation and acceptance.</value></data>
+  <data name="ReviewRestart" xml:space="preserve"><value>Restart: {0}</value></data>
+  <data name="ReviewInspectOmitted" xml:space="preserve"><value>Inspect omitted optional settings</value></data>
+  <data name="ReviewInspectInactive" xml:space="preserve"><value>Inspect inactive settings (does not enable them)</value></data>
+  <data name="ReviewSettingsCount" xml:space="preserve"><value>{0} settings in this review</value></data>
+  <data name="ReviewChange" xml:space="preserve"><value>Change</value></data>
+  <data name="ReviewChangeField" xml:space="preserve"><value>Change {0}</value></data>
+  <data name="ReviewCorrectField" xml:space="preserve"><value>Correct {0}</value></data>
+  <data name="ReviewPrivateMasked" xml:space="preserve"><value>Private value masked.</value></data>
+  <data name="ReviewBindings" xml:space="preserve"><value>Declared output bindings</value></data>
+  <data name="ReviewBindingsHelp" xml:space="preserve"><value>These are declared references, not a guarantee that a conditional output is included.</value></data>
+  <data name="ReviewPages" xml:space="preserve"><value>Review pages</value></data>
+  <data name="ReviewPrevious" xml:space="preserve"><value>Previous settings</value></data>
+  <data name="ReviewPage" xml:space="preserve"><value>Page {0} of {1}</value></data>
+  <data name="ReviewNext" xml:space="preserve"><value>Next settings</value></data>
+  <data name="ReviewPreparationTitle" xml:space="preserve"><value>Review preparation</value></data>
+  <data name="ReviewCorrectionsHelp" xml:space="preserve"><value>Check these settings. Values are omitted from diagnostics.</value></data>
+  <data name="ReviewDetails" xml:space="preserve"><value>Preparation details</value></data>
+  <data name="ReviewSecretsDisabled" xml:space="preserve"><value>Secret entry is disabled for these settings. A draft defers only missing secrets; correct ordinary errors first, or enable masked entry for this workspace.</value></data>
+  <data name="ReviewOriginDefault" xml:space="preserve"><value>Authored default</value></data>
+  <data name="ReviewOriginImported" xml:space="preserve"><value>Imported</value></data>
+  <data name="ReviewOriginExplicit" xml:space="preserve"><value>Explicitly supplied</value></data>
+  <data name="ReviewOriginOmitted" xml:space="preserve"><value>Omitted</value></data>
+  <data name="ReviewStateInactive" xml:space="preserve"><value>Inactive; not exported</value></data>
+  <data name="ReviewStateDeferred" xml:space="preserve"><value>Secret deferred; incomplete</value></data>
+  <data name="ReviewStateCorrection" xml:space="preserve"><value>Needs correction</value></data>
+  <data name="ReviewStateReady" xml:space="preserve"><value>Answer ready</value></data>
+  <data name="ReviewStateRequiredMissing" xml:space="preserve"><value>Required answer missing</value></data>
+  <data name="ReviewStateOptionalMissing" xml:space="preserve"><value>Optional; no supplied answer</value></data>
+  <data name="ReviewPreparation" xml:space="preserve"><value>Preparation</value></data>
+  <data name="ReviewValueRequired" xml:space="preserve"><value>Supply the required value.</value></data>
+  <data name="ReviewTypeInvalid" xml:space="preserve"><value>Use the declared field type.</value></data>
+  <data name="ReviewUniqueKey" xml:space="preserve"><value>Each item must have a unique declared key.</value></data>
+  <data name="ReviewConstraints" xml:space="preserve"><value>Check the declared field constraints.</value></data>
+  <data name="ReviewInputTooLarge" xml:space="preserve"><value>Reduce or clear the oversized input.</value></data>
+  <data name="ReviewDeferredDependency" xml:space="preserve"><value>Finish the deferred secret locally before evaluating dependent settings.</value></data>
+  <data name="ReviewArtifactOmitted" xml:space="preserve"><value>This draft omits an artifact with unresolved dependencies.</value></data>
+  <data name="ReviewCheckDefinition" xml:space="preserve"><value>Check this setting against the declared definition.</value></data>
+  <data name="FilesTitle" xml:space="preserve"><value>Prepare and export files</value></data>
+  <data name="FilesHelp" xml:space="preserve"><value>Prepare a complete configuration or an incomplete draft, then deliberately copy or download each file for target validation.</value></data>
+  <data name="ClearWorkspace" xml:space="preserve"><value>Clear workspace</value></data>
+  <data name="PreviousSection" xml:space="preserve"><value>Previous section</value></data>
+  <data name="NextSection" xml:space="preserve"><value>Next section</value></data>
+  <data name="ReviewConfiguration" xml:space="preserve"><value>Review configuration</value></data>
+  <data name="ReturnToReview" xml:space="preserve"><value>Return to review</value></data>
+  <data name="WorkflowConfigure" xml:space="preserve"><value>Configure</value></data>
+  <data name="WorkflowReview" xml:space="preserve"><value>Review</value></data>
+  <data name="WorkflowFiles" xml:space="preserve"><value>Files</value></data>
+  <data name="SelectOutput" xml:space="preserve"><value>Output</value></data>
+  <data name="ConfigurationExperience" xml:space="preserve"><value>Configuration task</value></data>
+  <data name="ProfileDetail" xml:space="preserve"><value>Setting detail</value></data>
+  <data name="DefaultDetail" xml:space="preserve"><value>Default detail</value></data>
+  <data name="Basic" xml:space="preserve"><value>Basic</value></data>
+  <data name="Standard" xml:space="preserve"><value>Standard</value></data>
+  <data name="AllActive" xml:space="preserve"><value>All active settings</value></data>
+  <data name="StartWorkspace" xml:space="preserve"><value>Start local workspace</value></data>
+  <data name="ConfigureProject" xml:space="preserve"><value>Configure {0}</value></data>
+  <data name="PrivacyExportLimits" xml:space="preserve"><value>Privacy and export limits</value></data>
+  <data name="DeclaredFiles" xml:space="preserve"><value>Declared files: {0}. Inclusion depends on the definition's conditions; target validation remains separate.</value></data>
+  <data name="WorkspaceExportBoundary" xml:space="preserve"><value>Preparation does not apply configuration or establish target acceptance. Copy and download deliberately release private output. The browser cannot guarantee restricted file permissions. Closing or reloading discards this workspace; clearing cannot erase files or clipboard contents already exported.</value></data>
+  <data name="ConfigurationWorkflow" xml:space="preserve"><value>Configuration workflow</value></data>
+  <data name="NoRequiredAnswers" xml:space="preserve"><value>No required answers</value></data>
+  <data name="RequiredAnswerReady" xml:space="preserve"><value>{0} of {1} required answer ready</value></data>
+  <data name="RequiredAnswersReady" xml:space="preserve"><value>{0} of {1} required answers ready</value></data>
+  <data name="RequiredAnswersProgress" xml:space="preserve"><value>Required answers ready</value></data>
+  <data name="ReadinessOneSecret" xml:space="preserve"><value>{0} missing · {1} invalid · {2} secret awaiting entry</value></data>
+  <data name="ReadinessSecrets" xml:space="preserve"><value>{0} missing · {1} invalid · {2} secrets awaiting entry</value></data>
+  <data name="Density" xml:space="preserve"><value>Density</value></data>
+  <data name="Comfortable" xml:space="preserve"><value>Comfortable</value></data>
+  <data name="Compact" xml:space="preserve"><value>Compact</value></data>
+  <data name="EnglishLanguage" xml:space="preserve"><value>English</value></data>
+  <data name="ArabicLanguage" xml:space="preserve"><value>Arabic</value></data>
+  <data name="ThisWorkspace" xml:space="preserve"><value>this workspace</value></data>
+  <data name="EnableWorkspaceSecrets" xml:space="preserve"><value>Enable secret entry for this workspace</value></data>
+  <data name="WorkspaceSecretHelp" xml:space="preserve"><value>Required before reading any configuration file, including unknown content. Values remain masked; turning this off retires comparisons, clears secret answers and invalidates prepared files.</value></data>
+  <data name="StartExistingConfiguration" xml:space="preserve"><value>Start from an existing configuration</value></data>
+  <data name="ArtifactImportHelp" xml:space="preserve"><value>Maximum 1 MiB, read locally without upload. Every file may contain secrets, including obsolete or malformed content; enable workspace secret consent above before reading. Compare leaves answers, drafts and prepared files unchanged.</value></data>
+  <data name="ImportPurpose" xml:space="preserve"><value>Purpose</value></data>
+  <data name="CompareDefinition" xml:space="preserve"><value>Compare with this definition</value></data>
+  <data name="FillFields" xml:space="preserve"><value>Fill fields</value></data>
+  <data name="ImportArtifactFormat" xml:space="preserve"><value>Artifact format to import</value></data>
+  <data name="ChooseDeclaredArtifact" xml:space="preserve"><value>Choose an existing declared artifact</value></data>
+  <data name="InspectionSupported" xml:space="preserve"><value>Inspection: supported.</value></data>
+  <data name="InspectionUnsupported" xml:space="preserve"><value>Inspection: unsupported.</value></data>
+  <data name="AutofillSupported" xml:space="preserve"><value>Strict autofill: supported; file and workspace checks still apply.</value></data>
+  <data name="AutofillUnsupported" xml:space="preserve"><value>Strict autofill: unsupported.</value></data>
+  <data name="ImportAssessmentBoundary" xml:space="preserve"><value>Only represented content is assessed; target acceptance is not assessed.</value></data>
+  <data name="ImportPending" xml:space="preserve"><value>Reading and comparing a local file. Current answers and prepared output are unchanged.</value></data>
+  <data name="CancelComparison" xml:space="preserve"><value>Cancel comparison</value></data>
+  <data name="ReviewSecretConsent" xml:space="preserve"><value>Review workspace secret consent</value></data>
+  <data name="DraftArtifactReadiness" xml:space="preserve"><value>Draft — secrets still required.</value></data>
+  <data name="CompleteArtifactReadiness" xml:space="preserve"><value>Complete preparation — target validation still required.</value></data>
+  <data name="PrivateOutputHidden" xml:space="preserve"><value>Output is private and hidden.</value></data>
+  <data name="CopyArtifact" xml:space="preserve"><value>Copy {0}</value></data>
+  <data name="DownloadArtifact" xml:space="preserve"><value>Download {0}</value></data>
+  <data name="RevealArtifact" xml:space="preserve"><value>Reveal {0}</value></data>
+  <data name="HideArtifact" xml:space="preserve"><value>Hide {0}</value></data>
+  <data name="PrivateArtifactPreview" xml:space="preserve"><value>Private preview of {0}</value></data>
+  <data name="WorkspaceReadyStatus" xml:space="preserve"><value>Supply ordinary settings. Secret entry is disabled.</value></data>
+  <data name="ImportCancelledStatus" xml:space="preserve"><value>File reading cancelled. Current answers and prepared output are retained.</value></data>
+  <data name="AnswersChangedStatus" xml:space="preserve"><value>Answers changed. Previous output has been discarded.</value></data>
+  <data name="RequiredWorkChangedStatus" xml:space="preserve"><value>Required work changed from {0} to {1} answers. Previous output has been discarded.</value></data>
+  <data name="ImportFormatChangedStatus" xml:space="preserve"><value>Artifact selection changed. Comparison discarded; answers and prepared output retained.</value></data>
+  <data name="ImportPurposeChangedStatus" xml:space="preserve"><value>Import purpose changed. Comparison discarded; answers and prepared output retained.</value></data>
+  <data name="ImportClearedStatus" xml:space="preserve"><value>Comparison cleared or cancelled. Answers and prepared output retained.</value></data>
+  <data name="ImportedStatus" xml:space="preserve"><value>Eligible file answers filled atomically. Review current workspace readiness before preparation.</value></data>
+  <data name="AutofillRefusedStatus" xml:space="preserve"><value>Autofill refused ({0}). No answers changed. Review the comparison and repair a separate copy or deliberately clear conflicting workspace inputs, then re-import.</value></data>
+  <data name="ImportConsentRequiredStatus" xml:space="preserve"><value>File not read (import-secret-consent-required). Enable secret entry for this workspace before reading any configuration file, including unknown or malformed content.</value></data>
+  <data name="ImportUnsupportedStatus" xml:space="preserve"><value>File not read. The selected artifact does not support this import purpose.</value></data>
+  <data name="SecretEntryEnabledStatus" xml:space="preserve"><value>Secret entry enabled for this workspace. Values remain masked.</value></data>
+  <data name="SecretEntryRevokedStatus" xml:space="preserve"><value>Secret entry revoked. Secret answers and output discarded; ordinary settings retained.</value></data>
+  <data name="AnswersBudgetExceededStatus" xml:space="preserve"><value>Answers exceed the shared preparation limit. Reduce input sizes before preparing configuration.</value></data>
+  <data name="InputBudgetExceededStatus" xml:space="preserve"><value>An input exceeded the shared preparation limit. Reduce or clear the rejected field before preparing configuration.</value></data>
+  <data name="InputTypeInvalidStatus" xml:space="preserve"><value>Correct invalid field values before preparing configuration.</value></data>
+  <data name="PreparationRejectedStatus" xml:space="preserve"><value>No configuration prepared. Correct required settings or reduce output size.</value></data>
+  <data name="PreparationRetryStatus" xml:space="preserve"><value>No configuration prepared. Prepare the current workspace again.</value></data>
+  <data name="PreparedDraftStatus" xml:space="preserve"><value>Prepared {0} draft artifact. Deferred secrets or withheld outputs still require completion.</value></data>
+  <data name="PreparedDraftsStatus" xml:space="preserve"><value>Prepared {0} draft artifacts. Deferred secrets or withheld outputs still require completion.</value></data>
+  <data name="PreparedArtifactStatus" xml:space="preserve"><value>Prepared {0} private artifact. Reveal, copy or download each explicitly.</value></data>
+  <data name="PreparedArtifactsStatus" xml:space="preserve"><value>Prepared {0} private artifacts. Reveal, copy or download each explicitly.</value></data>
+  <data name="ArtifactCopiedStatus" xml:space="preserve"><value>Current artifact copied. Clipboard contents remain outside this workspace.</value></data>
+  <data name="ClipboardUnavailableStatus" xml:space="preserve"><value>Clipboard unavailable or denied. Use Download instead.</value></data>
+  <data name="DownloadRequestedStatus" xml:space="preserve"><value>Download requested as {0}. If your browser changes the filename, rename it to this declared name. Protect the downloaded file on your device.</value></data>
+  <data name="DownloadUnavailableStatus" xml:space="preserve"><value>Download could not start. Prepare current output again.</value></data>
+  <data name="PreviewHiddenStatus" xml:space="preserve"><value>Private preview hidden.</value></data>
+  <data name="PreviewRevealedStatus" xml:space="preserve"><value>Private preview revealed. Hide or clear it when finished.</value></data>
+  <data name="PreviewUnavailableStatus" xml:space="preserve"><value>Preview unavailable. Use Download instead.</value></data>
+  <data name="ImportTooLargeStatus" xml:space="preserve"><value>File rejected: maximum size is 1 MiB. Answers and prepared output retained.</value></data>
+  <data name="ImportComparedStatus" xml:space="preserve"><value>Imported file comparison completed. Answers, drafts and prepared output are unchanged; target acceptance is not assessed.</value></data>
+  <data name="ImportRefusedStatus" xml:space="preserve"><value>Comparison refused ({0}). No answers changed. Check the declared format and repair a separate copy before re-importing.</value></data>
+  <data name="ImportReadFailedStatus" xml:space="preserve"><value>Comparison could not finish. No answers changed; repair a separate copy or choose the file again.</value></data>
+  <data name="AppPreparationIncompleteStatus" xml:space="preserve"><value>Offline app preparation is incomplete. Finish loading public app assets before entering answers.</value></data>
+  <data name="WorkspaceClearedStatus" xml:space="preserve"><value>Answers and output cleared. Secret entry is disabled. Start a new local workspace to continue.</value></data>
+</root>

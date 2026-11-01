@@ -68,6 +68,9 @@ public partial class ConfigurationEditor
     private bool _disposed;
     private bool _ready;
     private bool _beginPending;
+    private bool HasWork(DefinitionFormModel form) => !_disposed && _ready && ReferenceEquals(form, _form) &&
+        (form.HasWorkspaceChanges || _prepared.Count > 0 || _importPending || form.ImportComparison is not null);
+
     private bool _compact;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
@@ -109,7 +112,8 @@ public partial class ConfigurationEditor
         _form.ImportComparisonChanged += ImportComparisonChanged;
         _importArtifact = ImportArtifacts.FirstOrDefault()?.Id ?? string.Empty;
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
-        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
+        DefinitionFormModel form = _form;
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
         RegisterSearch();
     }
 
@@ -206,7 +210,8 @@ public partial class ConfigurationEditor
     {
         if (_disposed || !_ready || !ReferenceEquals(sender, _form) || _form!.ImportComparison is null) return;
         // Publishing private comparison state renews custody, never answer-editor state.
-        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
+        DefinitionFormModel form = _form;
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
     }
     private async Task EnableSecretsAsync()
     {
@@ -231,7 +236,11 @@ public partial class ConfigurationEditor
     }
     private void ViewChanged(object? sender, EventArgs args)
     {
-        if (_sectionLocale != _form!.Locale) IndexSections();
+        if (_sectionLocale != _form!.Locale)
+        {
+            IndexSections();
+            _navigation?.RefreshCulture(this, _navigationLease);
+        }
         _search?.Refresh(this, _searchLease);
         // Discovery owns its input events and rerenders its own query results.
         if (!ReferenceEquals(_observedDiscoverySelection, _form!.DiscoverySelection))
@@ -476,6 +485,7 @@ public partial class ConfigurationEditor
             }
             _prepared.AddRange(staged);
             staged.Clear();
+            _navigation?.RefreshWork(this, _navigationLease);
             bool incompleteDraft = draft && (_prepared.Any(item => item.Metadata.IsDraft) ||
                 _diagnostics.Contains("draft-dependency-unresolved"));
             _status = incompleteDraft
@@ -649,9 +659,9 @@ public partial class ConfigurationEditor
         if (_disposed) return;
         _ready = false;
         Invalidate();
-        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync) ?? 0;
-        long generation = _generation;
         DefinitionFormModel form = _form!;
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
+        long generation = _generation;
         await Offline.InitializeAsync();
         if (_disposed || generation != _generation) return;
         ValueTask<bool> beginning = Offline.BeginWorkspaceAsync();
@@ -683,6 +693,7 @@ public partial class ConfigurationEditor
         _prepared.Clear();
         _diagnostics.Clear();
         _validation = null;
+        _navigation?.RefreshWork(this, _navigationLease);
         // Start every retirement before awaiting any JS cleanup. Each owner
         // revokes its workspace, bytes and generation synchronously.
         Task[] retirements = previous.Select(prepared => prepared.DisposeAsync().AsTask()).ToArray();

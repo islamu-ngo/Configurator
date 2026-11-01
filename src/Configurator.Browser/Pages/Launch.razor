@@ -3,17 +3,19 @@
 @inject BrowserDefinitionRegistry Registry
 @inject NavigationManager Navigation
 
-<PageTitle>Configurator configuration workspace</PageTitle>
+<PageTitle>@T("WorkspaceTitle") · Configurator</PageTitle>
 @if (_selection is { } selected)
 {
-    <section class="launch-header" aria-labelledby="launch-heading">
-        <h1 id="launch-heading">@selected.Definition.Title</h1>
-        <p>Local workspace · definition revision <strong data-revision="@selected.Definition.Revision">@selected.Definition.Revision</strong></p>
+    <section class="launch-header" lang="@Culture.Locale" aria-labelledby="launch-heading">
+        <h1 id="launch-heading"><bdi>@selected.Definition.Title</bdi></h1>
         <details>
-            <summary>Definition details and trust boundary</summary>
-            <p>Canonical digest <code data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
-            <p>Entry: @selected.Entry. Locale: @selected.Locale (metadata selection, not a translation guarantee).</p>
-            <p>Publisher claim: @selected.Definition.Publisher. A family GUID does not authenticate a publisher.</p>
+            <summary>@T("SourceDetails")</summary>
+            <p>@T("Revision") <strong data-revision="@selected.Definition.Revision"><bdi dir="ltr">@selected.Definition.Revision</bdi></strong></p>
+            <p>@T("Family"): <bdi dir="ltr">@selected.Definition.FamilyId.ToString("D")</bdi></p>
+            <p>@T("Digest") <code dir="ltr" data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
+            <p>@T("Entry"): <bdi dir="ltr">@selected.Entry</bdi> · @T("Language"): <bdi dir="ltr">@selected.Locale</bdi></p>
+            <p>@T("Publisher"): <bdi>@selected.Definition.Publisher</bdi></p>
+            <p>@T("TrustBoundary")</p>
         </details>
     </section>
     <ConfigurationEditor @key="selected" @ref="_editor" Definition="@selected.Definition" InitialLocale="@selected.Locale"
@@ -21,12 +23,14 @@
 }
 else
 {
-    <h1>Launch rejected</h1>
-    <p role="alert" data-code="@_error">This launch cannot select a bundled definition. Code: @_error.</p>
-    <NavLink href="">Return to bundled definitions</NavLink>
+    <h1>@T("LaunchRejected")</h1>
+    <p role="alert" data-code="@_error">@T("LaunchRejectedHelp") @T("Code"): <bdi dir="ltr">@_error</bdi></p>
+    <NavLink href="">@T("BackToCatalogue")</NavLink>
 }
 
 @code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
     [Parameter] public string FamilyId { get; set; } = string.Empty;
     private BrowserLaunchSelection? _selection;
     private ConfigurationEditor? _editor;

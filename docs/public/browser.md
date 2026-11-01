@@ -102,21 +102,24 @@ Configurator uses standalone Blazor WebAssembly rather than Blazor Server:
 
 ### Loading Definitions
 
-Start by selecting a configuration definition from the **Home** screen:
-- **Bundled Examples:** Choose from built-in sample applications.
-- **Definition Store:** Search the public [Definition Store](definition-store.md) by project name or publisher.
-- **Local File Upload:** Upload a local `.json` or `.yaml` definition (up to 4 MiB). Compact maintainer sources are compiled locally in your browser.
-- **Pinned Publisher Link:** Open an authorized public URL pointing to a published definition.
+Start at **Choose a project**. One search covers definitions available in the app
+and optional [Definition Store](definition-store.md) metadata. A card identifies
+whether its definition is already available locally or needs public-source review.
+Matching family, revision and digest identify the same content; a publisher label
+does not establish authenticity or target approval.
 
-Upon loading, the header displays the verified title, publisher, family UUID, revision, and computed SHA-256 digest.
+**Open a local file or public link** is the secondary entry for your own definition.
+Local `.json` or `.yaml` files are limited to 4 MiB; compact maintainer sources
+compile locally. Public links use the bounded, credential-free HTTPS admission
+flow before answer collection. Source details expose title, publisher, family,
+revision and computed digest without making that metadata the main editing task.
 
 ### Workspace Layout & Appearance
 
-The application bar provides controls to customize your viewing experience:
-- **Color Themes:** Toggle between System, Light, Dark, and High-Contrast palettes.
-- **Text Direction:** Supports Automatic, Left-to-Right (LTR), and Right-to-Left (RTL) reading directions.
-- **Display Density:** Choose Comfortable or Compact spacing.
-- **Session Safety:** Leaving the workspace prompts a confirmation dialog to discard transient data before loading another definition.
+The desktop rail contains application and configuration-section navigation.
+On narrow screens, **Menu** reveals navigation without squeezing a second rail
+beside the form. **Settings** contains System, Light, Dark and high-contrast themes,
+plus Automatic, left-to-right and right-to-left direction.
 
 ### Form Navigation & Journeys
 

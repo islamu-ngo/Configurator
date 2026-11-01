@@ -3,26 +3,28 @@
 
 <div class="theme-quick-switcher">
     <div class="theme-quick-switcher__control">
-        <label for="appearance-mode">Appearance</label>
+        <label for="appearance-mode">@T("Appearance")</label>
         <select id="appearance-mode" value="@Appearance.Current.ThemeMode" @onchange="ModeChanged">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="lighthighcontrast">Light high contrast</option>
-            <option value="darkhighcontrast">Dark high contrast</option>
+            <option value="system">@T("System")</option>
+            <option value="light">@T("Light")</option>
+            <option value="dark">@T("Dark")</option>
+            <option value="lighthighcontrast">@T("LightHighContrast")</option>
+            <option value="darkhighcontrast">@T("DarkHighContrast")</option>
         </select>
     </div>
     <div class="theme-quick-switcher__control">
-        <label for="appearance-direction">Direction</label>
+        <label for="appearance-direction">@T("Direction")</label>
         <select id="appearance-direction" value="@Appearance.Current.Direction" @onchange="DirectionChanged">
-            <option value="auto">Automatic</option>
-            <option value="ltr">Left to right</option>
-            <option value="rtl">Right to left</option>
+            <option value="auto">@T("Automatic")</option>
+            <option value="ltr">@T("LeftToRight")</option>
+            <option value="rtl">@T("RightToLeft")</option>
         </select>
     </div>
 </div>
 
 @code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
     protected override void OnInitialized() => Appearance.Changed += AppearanceChanged;
 
     private void AppearanceChanged(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);

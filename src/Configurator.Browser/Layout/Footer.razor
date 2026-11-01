@@ -1,12 +1,17 @@
 <footer class="site-footer">
     <div class="site-footer__content">
         <div class="site-footer__about">
-            <span class="site-footer__brand">ISLAMU Configurator</span>
-            <p>Prepare locally. Validate and apply with your target application.</p>
+            <span class="site-footer__brand"><bdi dir="ltr">ISLAMU Configurator</bdi></span>
+            <p>@T("FooterPurpose")</p>
         </div>
-        <nav aria-label="Support links">
-            <a href="help">Help and privacy</a>
-            <a href="https://github.com/ISLAMU/Configurator" rel="noopener noreferrer" target="_blank">Source and contributions <span class="sr-only">(new tab)</span><span aria-hidden="true">↗</span></a>
+        <nav aria-label="@T("SupportLinks")">
+            <a href="help">@T("HelpPrivacy")</a>
+            <a href="https://github.com/ISLAMU/Configurator" rel="noopener noreferrer" target="_blank">@T("SourceContributions") <span class="sr-only">@T("NewTab")</span><span aria-hidden="true">↗</span></a>
         </nav>
     </div>
 </footer>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+}

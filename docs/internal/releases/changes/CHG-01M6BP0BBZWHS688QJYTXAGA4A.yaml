@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6BP0BBZWHS688QJYTXAGA4A
+Title: "Find projects through one localized navigation surface"
+Type: feat
+Scope: browser
+Summary: "Unify bundled and directory discovery, preserve exact revision entry links, and share application and section navigation in one responsive English and Arabic rail."
+Group: browser-project-discovery
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

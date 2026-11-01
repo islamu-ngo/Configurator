@@ -1,26 +1,31 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject AppearanceThemeService Appearance
+@inject BrowserNavigationState NavigationState
 
-<MudRTLProvider RightToLeft="@Appearance.IsRtl">
+<CascadingValue Value="@NavigationState.Culture">
+<MudRTLProvider RightToLeft="@IsRtl">
     <MudThemeProvider Theme="@_theme" IsDarkMode="@Appearance.IsDark" ObserveSystemDarkModeChange="false" />
     <MudPopoverProvider />
     <MudDialogProvider />
     <MudSnackbarProvider />
     <WorkspaceNavigationGuard />
-    <a class="skip-link" href="#main-content" @onclick="SkipToContentAsync" @onclick:preventDefault>Skip to main content</a>
-    <div class="main-layout" dir="@(Appearance.IsRtl ? "rtl" : "ltr")">
+    <div class="main-layout" lang="@NavigationState.Culture.Locale" dir="@(IsRtl ? "rtl" : "ltr")">
+        <a class="main-layout__skip-link" href="#main-content" @onclick="SkipToContentAsync" @onclick:preventDefault>@BrowserStrings.Get("SkipToContent", NavigationState.Culture.Locale)</a>
         <NavMenu />
-        <div class="main-layout__workspace">
-            <main @ref="_mainContent" id="main-content" class="main-layout__main" tabindex="-1">@Body</main>
+        <main @ref="_mainContent" id="main-content" class="main-layout__main" tabindex="-1">@Body</main>
+        <div class="main-layout__footer">
             <Footer />
         </div>
     </div>
 </MudRTLProvider>
+</CascadingValue>
 
 @code {
     private MudTheme _theme = new();
     private ElementReference _mainContent;
+    private bool IsRtl => (Appearance.Current.Direction == "auto"
+        ? NavigationState.Culture.Direction : Appearance.Current.Direction) == "rtl";
 
     private async Task SkipToContentAsync() => await _mainContent.FocusAsync();
 
@@ -28,6 +33,7 @@
     {
         _theme = Appearance.CreateTheme();
         Appearance.Changed += AppearanceChanged;
+        NavigationState.Changed += CultureChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -41,5 +47,11 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose() => Appearance.Changed -= AppearanceChanged;
+    private void CultureChanged(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Appearance.Changed -= AppearanceChanged;
+        NavigationState.Changed -= CultureChanged;
+    }
 }

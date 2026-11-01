@@ -7,40 +7,49 @@
 @using Configurator.Core.Definitions
 @using Microsoft.JSInterop
 
-<PageTitle>Open a configuration definition</PageTitle>
-<div class="open-page">
+<PageTitle>@T(_workspaceOpen ? "WorkspaceTitle" : "OpenTitle") · Configurator</PageTitle>
+<div class="open-page" lang="@Culture.Locale">
 <header class="page-header">
-    <p class="eyebrow">Choose your starting point</p>
-    <h1>Open a configuration definition</h1>
-    <p class="lede">Open a local JSON or YAML file or a public definition link. Review its identity before starting a local workspace.</p>
+    @if (_workspaceOpen && _selection is { } current)
+    {
+        <h1><bdi>@current.Definition.Title</bdi></h1>
+    }
+    else
+    {
+        <h1>@T("OpenTitle")</h1>
+        <p class="lede">@T("OpenIntro")</p>
+        <a href="">@T("BackToCatalogue")</a>
+    }
 </header>
 @if (_selection is { } selection)
 {
-    <section aria-labelledby="source-heading">
-        <h2 id="source-heading">@selection.Definition.Title</h2>
-        <p>Publisher claim: @selection.Definition.Publisher. This label does not authenticate the publisher.</p>
-        <p>Revision @selection.Definition.Revision; canonical digest <code>@selection.Definition.Digest.Value</code>.</p>
-        <p>Entry @selection.Entry; locale @selection.Locale. Preparation grants no target administration or apply authority.</p>
-    </section>
+    <details class="open-page__identity">
+        <summary>@T("SourceDetails")@if (!_workspaceOpen) { <text>: </text><bdi>@selection.Definition.Title</bdi> }</summary>
+        <p>@T("Publisher"): <bdi>@selection.Definition.Publisher</bdi></p>
+        <p>@T("Family"): <bdi dir="ltr">@selection.Definition.FamilyId.ToString("D")</bdi></p>
+        <p>@T("Revision") <bdi dir="ltr">@selection.Definition.Revision</bdi> · @T("Digest") <code dir="ltr">@selection.Definition.Digest.Value</code></p>
+        <p>@T("Entry"): <bdi dir="ltr">@selection.Entry</bdi> · @T("Language"): <bdi dir="ltr">@selection.Locale</bdi></p>
+        <p>@T("TrustBoundary")</p>
+    </details>
     @if (_workspaceOpen)
     {
         <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" InitialLocale="@selection.Locale"
                              InitialEntry="@(selection.EntryExplicit ? selection.Entry : null)" />
-        <AppButton Variant="Variant.Outlined" OnClick="ConfirmDiscardAsync">Discard this workspace to choose another definition</AppButton>
+        <AppButton Variant="Variant.Outlined" data-action="discard-workspace" OnClick="ConfirmDiscardAsync">@T("DiscardToChoose")</AppButton>
     }
     else
     {
-        <p>This definition remains in memory unless you deliberately retain its public metadata. Never retain a definition containing private explanatory text or defaults.</p>
-        <label><input type="checkbox" @bind="_publicSafeConfirmed" /> I confirm this definition is safe to retain as public metadata</label>
+        <p>@T("RetentionHelp")</p>
+        <label><input type="checkbox" @bind="_publicSafeConfirmed" /> @T("ConfirmPublicMetadata")</label>
         <div class="actions">
-            <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">Retain definition for offline use</AppButton>
-            <AppButton data-action="open-workspace" OnClick="OpenWorkspace">Open configuration workspace</AppButton>
+            <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">@T("RetainDefinition")</AppButton>
+            <AppButton data-action="open-workspace" OnClick="OpenWorkspace">@T("OpenWorkspace")</AppButton>
         </div>
         @if (_shareLink is { } shareLink)
         {
-            <label for="definition-share-link">Definition-only link (no answers)</label>
+            <label for="definition-share-link">@T("DefinitionOnlyLink")</label>
             <input class="form-control" id="definition-share-link" value="@shareLink" readonly dir="ltr" />
-            <AppButton Variant="Variant.Outlined" OnClick="CopyDefinitionLinkAsync">Copy definition link</AppButton>
+            <AppButton Variant="Variant.Outlined" OnClick="CopyDefinitionLinkAsync">@T("CopyDefinitionLink")</AppButton>
         }
     }
 }
@@ -49,67 +58,73 @@
     <div class="open-page__sources">
     <section class="open-page__source" aria-labelledby="local-source-heading">
     <AppCard>
-        <p class="eyebrow">From your device</p>
-        <h2 id="local-source-heading">Local definition file</h2>
-        <p>Use a JSON or YAML definition when disconnected or when a publisher blocks cross-origin access.</p>
+        <p class="eyebrow">@T("FromDevice")</p>
+        <h2 id="local-source-heading">@T("LocalFile")</h2>
+        <p>@T("LocalFileIntro")</p>
         <div class="form-group">
-            <label for="definition-file">Choose a definition JSON or YAML file</label>
+            <label for="definition-file">@T("ChooseFile")</label>
             <InputFile @key="_fileKey" id="definition-file" @ref="_fileInput" OnChange="LoadLocalAsync" disabled="@_loading" accept=".json,.yaml,.yml,application/json,application/yaml,text/yaml" aria-describedby="definition-file-help" />
-            <p id="definition-file-help" class="form-help">JSON or YAML · maximum 4 MiB. Compact maintainer sources are compiled locally before answers; files grant no publisher authenticity.</p>
+            <p id="definition-file-help" class="form-help">@T("FileLimits")</p>
         </div>
     </AppCard>
     </section>
     <section class="open-page__source" aria-labelledby="public-source-heading">
     <AppCard>
-        <p class="eyebrow">From a public source</p>
-        <h2 id="public-source-heading">Public definition URL</h2>
-        <p>Use a direct HTTPS link to a public JSON definition.</p>
+        <p class="eyebrow">@T("PublicSource")</p>
+        <h2 id="public-source-heading">@T("PublicUrl")</h2>
+        <p>@T("PublicUrlIntro")</p>
         <div class="form-group">
-            <label for="source-url">Public definition file URL</label>
+            <label for="source-url">@T("SourceUrl")</label>
             <input class="form-control" id="source-url" type="url" maxlength="2048" dir="ltr" placeholder="https://example.org/definition.json" aria-describedby="source-url-help" @bind="_sourceUrl" @bind:event="oninput" disabled="@_loading" />
-            <p id="source-url-help" class="form-help">The source must allow cross-origin reading. For private repositories or blocked access, use a local file.</p>
+            <p id="source-url-help" class="form-help">@T("SourceUrlHelp")</p>
         </div>
         <details>
-            <summary>Optional digest and selectors</summary>
+            <summary>@T("OptionalSelectors")</summary>
             <div class="open-page__selectors">
             <div class="form-group">
-            <label for="source-digest">Canonical SHA-256 digest</label>
+            <label for="source-digest">@T("Digest")</label>
             <input class="form-control" id="source-digest" maxlength="64" dir="ltr" @bind="_digest" disabled="@_loading" />
             </div>
             <div class="form-group">
-            <label for="source-version">Declared application version</label>
-            <input class="form-control" id="source-version" maxlength="64" @bind="_appVersion" disabled="@_loading" />
+            <label for="source-version">@T("ApplicationVersion")</label>
+            <input class="form-control" id="source-version" maxlength="64" dir="ltr" @bind="_appVersion" disabled="@_loading" />
             </div>
             <div class="form-group">
-            <label for="source-entry">Entry point</label>
-            <input class="form-control" id="source-entry" maxlength="128" @bind="_entry" disabled="@_loading" />
+            <label for="source-entry">@T("Entry")</label>
+            <input class="form-control" id="source-entry" maxlength="128" dir="ltr" @bind="_entry" disabled="@_loading" />
             </div>
             <div class="form-group">
-            <label for="source-locale">Locale</label>
-            <input class="form-control" id="source-locale" maxlength="35" @bind="_locale" disabled="@_loading" />
+            <label for="source-locale">@T("Language")</label>
+            <input class="form-control" id="source-locale" maxlength="35" dir="ltr" @bind="_locale" disabled="@_loading" />
             </div>
             </div>
         </details>
         <div class="actions">
-            <AppButton id="load-public-source" Disabled="@_loading" OnClick="LoadPublicAsync">@(_loading ? "Reviewing definition…" : "Review public definition")</AppButton>
+            <AppButton id="load-public-source" Disabled="@_loading" OnClick="LoadPublicAsync">@T(_loading ? "ReviewingDefinition" : "ReviewPublicDefinition")</AppButton>
         </div>
     </AppCard>
     </section>
     </div>
     @if (_retained.Count > 0)
     {
-        <h2>Retained public definitions</h2>
+        <h2>@T("RetainedDefinitions")</h2>
         <ul>@foreach (SetupDefinition definition in _retained)
         {
-            <li><button type="button" @onclick="() => SelectRetained(definition)">@definition.Title — revision @definition.Revision</button></li>
+            <li><button type="button" @onclick="() => SelectRetained(definition)"><bdi>@definition.Title</bdi> · @T("Revision") <bdi dir="ltr">@definition.Revision</bdi></button></li>
         }</ul>
     }
 }
-<p class="notice" role="status" data-code="@_statusCode">@_status</p>
-<NavLink class="text-link" href="">Return to bundled definitions</NavLink>
+@if (!_workspaceOpen)
+{
+    <p class="notice" role="status" data-code="@_statusCode">@T(_statusKey)
+        @if (_statusKey is "SourceRejected" or "DefinitionRejected") { <span>@T("Code"): <bdi dir="ltr">@_statusCode</bdi></span> }
+    </p>
+}
 </div>
 
 @code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
     private BrowserDefinitionSource? _source;
     private BrowserLaunchSelection? _selection;
     private ConfigurationEditor? _editor;
@@ -131,7 +146,7 @@
     private string? _shareLink;
     private IJSObjectReference? _linkModule;
     private string _statusCode = "source-ready";
-    private string _status = "Choose a public publisher link or a local definition. Answers are never carried by this route.";
+    private string _statusKey = "SourceReady";
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,7 +175,7 @@
         Uri uri = Navigation.ToAbsoluteUri(request);
         if (uri.Query.Length == 0 && uri.Fragment.Length == 0) return;
         _loading = true;
-        _status = "Loading public definition metadata before collecting answers…";
+        _statusKey = "SourceLoading";
         _statusCode = "source-loading";
         try
         {
@@ -169,14 +184,14 @@
             if (_disposed || generation != _generation) return;
             _selection = selection;
             _shareLink = ShareLink(pointer, selection);
-            _status = "Definition admitted and pinned. Open this workspace, or deliberately retain public metadata first.";
+            _statusKey = "SourceAdmitted";
             _statusCode = "source-admitted";
         }
         catch (BrowserLaunchException exception)
         {
             if (_disposed || generation != _generation) return;
             _statusCode = exception.Code;
-            _status = "Source selection rejected. Choose a local definition JSON or YAML file instead. Code: " + exception.Code + ".";
+            _statusKey = "SourceRejected";
         }
         finally { if (generation == _generation) _loading = false; }
     }
@@ -199,7 +214,7 @@
             _selection = BrowserLaunchSelection.Resolve(new SetupDefinitionRegistry([definition]),
                 definition.FamilyId.ToString("D"), "");
             _statusCode = "source-admitted";
-            _status = "Local definition admitted. Open a fresh workspace with secret entry disabled.";
+            _statusKey = "LocalAdmitted";
         }
         catch (BrowserLaunchException exception) { if (generation == _generation) Reject(exception.Code); }
         catch (IOException) { if (generation == _generation) Reject("source-unavailable"); }
@@ -214,7 +229,7 @@
         _selection = null;
         _shareLink = null;
         _statusCode = code;
-        _status = "Definition rejected; no workspace was created. Code: " + code + ".";
+        _statusKey = "DefinitionRejected";
     }
 
     private void SelectRetained(SetupDefinition definition)
@@ -247,7 +262,7 @@
         _publicSafeConfirmed = false;
         _loading = true;
         _statusCode = "source-loading";
-        _status = "Reading public definition metadata before answers…";
+        _statusKey = "SourceLoading";
         try
         {
             string fragment = "#src=" + Uri.EscapeDataString(_sourceUrl.Trim());
@@ -260,7 +275,7 @@
             _selection = selection;
             _shareLink = ShareLink(pointer, selection);
             _statusCode = "source-admitted";
-            _status = "Definition admitted and pinned. Review its identity before opening the workspace.";
+            _statusKey = "SourceAdmitted";
         }
         catch (BrowserLaunchException exception) { if (!_disposed && generation == _generation) Reject(exception.Code); }
         finally { if (!_disposed && generation == _generation) _loading = false; }
@@ -293,13 +308,13 @@
             bool copied = await _linkModule.InvokeAsync<bool>("copyDefinitionLink", link);
             if (_disposed || generation != _generation) return;
             _statusCode = copied ? "definition-link-copied" : "definition-link-copy-unavailable";
-            _status = copied ? "Definition-only link copied. It contains no answers." : "Copy is unavailable. Select the definition-only link and copy it manually.";
+            _statusKey = copied ? "LinkCopied" : "LinkCopyUnavailable";
         }
         catch (JSException)
         {
             if (_disposed || generation != _generation) return;
             _statusCode = "definition-link-copy-unavailable";
-            _status = "Copy is unavailable. Select the definition-only link and copy it manually.";
+            _statusKey = "LinkCopyUnavailable";
         }
     }
 
@@ -308,7 +323,7 @@
         long generation = _generation;
         try
         {
-            bool confirmed = await Javascript.InvokeAsync<bool>("confirm", "Discard this workspace's answers and output? Choose Cancel to keep editing.");
+            bool confirmed = await Javascript.InvokeAsync<bool>("confirm", T("DiscardConfirm"));
             if (confirmed && !_disposed && generation == _generation) await DiscardAsync();
         }
         catch (JSException) { }
@@ -319,7 +334,7 @@
         if (_selection is null || !_publicSafeConfirmed) return;
         bool retained = await Offline.PrepareOfflineAsync(_selection.Definition, _publicSafeConfirmed);
         _statusCode = retained ? "definition-retained" : "offline-preparation-unavailable";
-        _status = retained ? "Public definition retained for offline reopening. Answers and output are never retained." : "Offline retention could not complete. The memory-only workspace remains available.";
+        _statusKey = retained ? "DefinitionRetained" : "RetentionUnavailable";
         if (retained) _retained = await Offline.ReadRetainedDefinitionsAsync();
     }
 
@@ -337,7 +352,7 @@
         _fileKey++;
         _restoreFileFocus = true;
         _statusCode = "workspace-discarded";
-        _status = "Answers and output discarded. Choose another definition.";
+        _statusKey = "WorkspaceDiscarded";
     }
 
     private void LocationChanged(object? sender, LocationChangedEventArgs args)

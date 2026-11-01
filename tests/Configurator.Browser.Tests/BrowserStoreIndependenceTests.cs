@@ -23,7 +23,7 @@ public sealed class BrowserStoreIndependenceTests
             module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(bytes);
             var component = context.Render<Pages.Store>();
             await Assert.That(component.Find("a[href=open]")).IsNotNull();
-            await Assert.That(component.FindAll("[role=status]")).Count().IsEqualTo(1);
+            await Assert.That(component.Find(".catalogue__directory-status[role=status]")).IsNotNull();
             await using var source = new BrowserDefinitionSource(registry, context.JSInterop.JSRuntime, policy);
             using var input = new MemoryStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
             SetupDefinition admitted = await source.ReadLocalAsync(input);
@@ -32,7 +32,7 @@ public sealed class BrowserStoreIndependenceTests
     }
 
     [Test]
-    public async Task NamesAndTagsFilterInStableOrderAndMetadataIsEscaped()
+    public async Task CanonicalMatchesMergeSourcesAndSearchNamesAndTagsWithoutRenderingMetadata()
     {
         var registry = new BrowserDefinitionRegistry([]);
         await using var context = BrowserFixture.Context(registry);
@@ -49,20 +49,21 @@ public sealed class BrowserStoreIndependenceTests
         var module = context.JSInterop.SetupModule("./browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(index.ToJsonString()));
         var component = context.Render<Pages.Store>();
-        await Assert.That(component.FindAll("article h2 a")[1].TextContent).IsEqualTo("Zulu <script>metadata</script>");
-        await Assert.That(component.FindAll("article h2 a")[0].TextContent).IsEqualTo("alpha");
-        await Assert.That(component.FindAll("script")).IsEmpty();
-        await component.Find("#store-search").InputAsync("zULu");
         await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
-        await component.Find("#store-search").InputAsync(string.Empty);
-        await component.Find("#store-tag").ChangeAsync("self-hosted");
-        await Assert.That(component.FindAll("article")).Count().IsEqualTo(2);
-        await component.Find("#store-search").InputAsync("no-matching-project");
+        await Assert.That(component.Find("details a[href='store/demo?revision=1']").TextContent).Contains("Zulu <script>metadata</script>");
+        await Assert.That(component.Find("details a[href='store/another?revision=1']").TextContent).Contains("alpha");
+        await Assert.That(component.FindAll("script")).IsEmpty();
+        await component.Find("#catalogue-search").InputAsync("zULu");
+        await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
+        await component.Find("#catalogue-search").InputAsync("alpha");
+        await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
+        await component.Find("#catalogue-search").InputAsync("self-hosted");
+        await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
+        await component.Find("#catalogue-search").InputAsync("no-matching-project");
         await Assert.That(component.FindAll("article")).IsEmpty();
-        await Assert.That(component.FindAll(".notice h2")).Count().IsEqualTo(1);
-        await component.Find("#store-search").InputAsync(string.Empty);
-        await Assert.That(component.FindAll("article")).Count().IsEqualTo(2);
-        await Assert.That(component.FindAll(".notice h2")).IsEmpty();
+        await Assert.That(component.Find("a[href=open]")).IsNotNull();
+        await component.Find("#catalogue-search").InputAsync(string.Empty);
+        await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
     }
 
     [Test]

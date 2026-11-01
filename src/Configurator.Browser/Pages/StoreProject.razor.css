@@ -1,4 +1,4 @@
-.store-project { display: grid; gap: var(--isl-space-4); min-inline-size: 0; }
+.store-project { display: grid; gap: var(--isl-space-4); min-inline-size: 0; container-type: inline-size; }
 .store-project__metadata { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(0, 3fr); gap: var(--isl-space-2) var(--isl-space-4); }
 .store-project__metadata dd { margin-inline-start: 0; overflow-wrap: anywhere; }
 .store-project code { overflow-wrap: anywhere; }
@@ -7,4 +7,5 @@
 .store-project__metadata dt { color: var(--isl-color-text-secondary); font-size: .875rem; }
 .store-project h2 { font-size: var(--isl-typography-h4-size); margin-block: var(--isl-space-4) 0; }
 .store-project > a { inline-size: fit-content; min-block-size: var(--isl-target-min); display: inline-flex; align-items: center; }
-@media (max-width: 36rem) { .store-project__metadata { grid-template-columns: minmax(0, 1fr); } }
+.store-project summary { cursor: pointer; }
+@container (max-width: 36rem) { .store-project__metadata { grid-template-columns: minmax(0, 1fr); } }

@@ -5,11 +5,90 @@ using Configurator.Browser.Services;
 public sealed class BrowserNavigationStateTests
 {
     [Test]
+    public async Task PendingResolutionCannotLeaveAReplacementRegistration()
+    {
+        var navigation = new BrowserNavigationState();
+        var resolution = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var owner = new PendingOwner(_ =>
+        {
+            entered.SetResult();
+            return resolution.Task;
+        });
+        navigation.Register(owner, () => { }, () => Task.CompletedTask, () => ("en", "ltr"), () => true);
+        int confirmations = 0, discarded = 0;
+        Task<bool> leaving = navigation.TryLeaveAsync(() =>
+        {
+            confirmations++;
+            return Task.FromResult(true);
+        });
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            navigation.Register(owner, () => { }, () => { discarded++; return Task.CompletedTask; },
+                () => ("en", "ltr"), () => true);
+        }
+        finally { resolution.TrySetResult(true); }
+
+        await Assert.That(await leaving.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
+        await Assert.That(confirmations).IsEqualTo(0);
+        await Assert.That(discarded).IsEqualTo(0);
+        await Assert.That(navigation.IsActive).IsTrue();
+    }
+
+    [Test]
+    public async Task StayingWithPendingDocumentPreventsWorkspaceLossConfirmation()
+    {
+        var navigation = new BrowserNavigationState();
+        var owner = new PendingOwner(_ => Task.FromResult(false));
+        int confirmations = 0, discarded = 0;
+        navigation.Register(owner, () => { }, () => { discarded++; return Task.CompletedTask; },
+            () => ("en", "ltr"), () => true);
+
+        bool left = await navigation.TryLeaveAsync(() =>
+        {
+            confirmations++;
+            return Task.FromResult(true);
+        });
+
+        await Assert.That(left).IsFalse();
+        await Assert.That(confirmations).IsEqualTo(0);
+        await Assert.That(discarded).IsEqualTo(0);
+        await Assert.That(navigation.IsActive).IsTrue();
+    }
+
+    [Test]
+    public async Task DiscardingOnlyPendingTextDoesNotPromptForAnUntouchedForm()
+    {
+        var navigation = new BrowserNavigationState();
+        bool work = true;
+        long lease = 0;
+        var owner = new PendingOwner(current =>
+        {
+            work = false;
+            navigation.RefreshWork(current, lease);
+            return Task.FromResult(true);
+        });
+        lease = navigation.Register(owner, () => { }, () => Task.CompletedTask,
+            () => ("en", "ltr"), () => work);
+        int confirmations = 0;
+        bool left = await navigation.TryLeaveAsync(() =>
+        {
+            confirmations++;
+            return Task.FromResult(true);
+        });
+
+        await Assert.That(left).IsTrue();
+        await Assert.That(confirmations).IsEqualTo(0);
+        await Assert.That(navigation.HasWork).IsFalse();
+    }
+
+    [Test]
     public async Task KeepingEditingPreservesOwnerAndDoesNotDiscard()
     {
         var navigation = new BrowserNavigationState();
         int discarded = 0;
-        navigation.Register(new object(), () => discarded++, () => Task.CompletedTask);
+        navigation.Register(new object(), () => discarded++, () => Task.CompletedTask, () => ("en", "ltr"), () => true);
         bool left = await navigation.TryLeaveAsync(() => Task.FromResult(false));
         await Assert.That(left).IsFalse();
         await Assert.That(navigation.IsActive).IsTrue();
@@ -23,7 +102,7 @@ public sealed class BrowserNavigationStateTests
         var cleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         bool invalidated = false;
-        navigation.Register(new object(), () => invalidated = true, () => { entered.SetResult(); return cleanup.Task; });
+        navigation.Register(new object(), () => invalidated = true, () => { entered.SetResult(); return cleanup.Task; }, () => ("en", "ltr"), () => true);
         Task<bool> leaving = navigation.TryLeaveAsync(() => Task.FromResult(true));
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(invalidated).IsTrue();
@@ -50,7 +129,7 @@ public sealed class BrowserNavigationStateTests
         {
             entered.TrySetResult();
             return cleanup.Task;
-        });
+        }, () => ("en", "ltr"), () => true);
         Task<bool> leaving = navigation.TryLeaveAsync(() => Task.FromResult(true));
         try
         {
@@ -59,7 +138,7 @@ public sealed class BrowserNavigationStateTests
             if (replacement == "released-same-owner") navigation.Release(owner, lease);
             navigation.Register(replacement == "different-owner" ? new object() : owner,
                 () => replacementInvalidated = true,
-                () => { replacementDiscarded = true; return Task.CompletedTask; });
+                () => { replacementDiscarded = true; return Task.CompletedTask; }, () => ("en", "ltr"), () => true);
         }
         finally { cleanup.TrySetResult(); }
 
@@ -80,10 +159,10 @@ public sealed class BrowserNavigationStateTests
         var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         object older = new();
         int discarded = 0;
-        long olderLease = navigation.Register(older, () => discarded++, () => Task.CompletedTask);
+        long olderLease = navigation.Register(older, () => discarded++, () => Task.CompletedTask, () => ("en", "ltr"), () => true);
         Task<bool> leaving = navigation.TryLeaveAsync(() => confirmation.Task);
         object current = new();
-        navigation.Register(current, () => discarded++, () => Task.CompletedTask);
+        navigation.Register(current, () => discarded++, () => Task.CompletedTask, () => ("en", "ltr"), () => true);
         navigation.Release(older, olderLease);
         confirmation.SetResult(true);
         await Assert.That(await leaving).IsFalse();
@@ -99,13 +178,13 @@ public sealed class BrowserNavigationStateTests
         var navigation = new BrowserNavigationState();
         object owner = new();
         bool currentDiscarded = false;
-        long previous = navigation.Register(owner, () => { }, () => Task.CompletedTask);
+        long previous = navigation.Register(owner, () => { }, () => Task.CompletedTask, () => ("en", "ltr"), () => true);
         if (releasePrevious) navigation.Release(owner, previous);
         navigation.Register(owner, () => { }, () =>
         {
             currentDiscarded = true;
             return Task.CompletedTask;
-        });
+        }, () => ("en", "ltr"), () => true);
         navigation.Release(owner, previous);
         await Assert.That(navigation.IsActive).IsTrue();
         await Assert.That(currentDiscarded).IsFalse();
@@ -122,7 +201,7 @@ public sealed class BrowserNavigationStateTests
         bool replaced = false;
         long current = 0;
         navigation.Changed += Replace;
-        long previous = navigation.Register(owner, () => { }, () => Task.CompletedTask);
+        long previous = navigation.Register(owner, () => { }, () => Task.CompletedTask, () => ("en", "ltr"), () => true);
         navigation.Changed -= Replace;
         navigation.Release(owner, previous);
         await Assert.That(navigation.IsActive).IsTrue();
@@ -133,7 +212,44 @@ public sealed class BrowserNavigationStateTests
         {
             if (replaced) return;
             replaced = true;
-            current = navigation.Register(owner, () => { }, () => Task.CompletedTask);
+            current = navigation.Register(owner, () => { }, () => Task.CompletedTask, () => ("en", "ltr"), () => true);
         }
+    }
+
+    [Test]
+    public async Task ChangedWorkRetiresConfirmationWithoutRerenderingChrome()
+    {
+        var navigation = new BrowserNavigationState();
+        object owner = new();
+        bool discarded = false;
+        long lease = navigation.Register(owner, () => { }, () => { discarded = true; return Task.CompletedTask; },
+            () => ("en", "ltr"), () => true);
+        int chromeChanges = 0, workChanges = 0;
+        navigation.Changed += (_, _) => chromeChanges++;
+        navigation.WorkChanged += (_, _) => workChanges++;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<bool> leaving = navigation.TryLeaveAsync(() =>
+        {
+            entered.TrySetResult();
+            return confirmation.Task;
+        });
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            navigation.RefreshWork(owner, lease);
+        }
+        finally { confirmation.TrySetResult(true); }
+
+        await Assert.That(await leaving.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
+        await Assert.That(discarded).IsFalse();
+        await Assert.That(chromeChanges).IsEqualTo(0);
+        await Assert.That(workChanges).IsEqualTo(1);
+        await Assert.That(navigation.IsActive).IsTrue();
+    }
+
+    private sealed class PendingOwner(Func<PendingOwner, Task<bool>> resolve) : IBrowserPendingChanges
+    {
+        public Task<bool> ResolvePendingAsync() => resolve(this);
     }
 }

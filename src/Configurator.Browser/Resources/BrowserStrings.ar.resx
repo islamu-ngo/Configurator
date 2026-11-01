@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="CatalogueTitle" xml:space="preserve"><value>اختر مشروعًا</value></data>
+  <data name="CatalogueIntro" xml:space="preserve"><value>ابحث عن إعداد لتحضيره محليًا. تبقى إجاباتك في علامة التبويب هذه.</value></data>
+  <data name="LocalWorkspace" xml:space="preserve"><value>مساحة عمل محلية</value></data>
+  <data name="AnswersStayLocal" xml:space="preserve"><value>تبقى إجاباتك في علامة التبويب هذه.</value></data>
+  <data name="ProjectSearch" xml:space="preserve"><value>ابحث في المشاريع أو التعريفات أو الوسوم</value></data>
+  <data name="ProjectCount" xml:space="preserve"><value>التعريفات المعروضة</value></data>
+  <data name="NoProjects" xml:space="preserve"><value>لا توجد تعريفات مطابقة</value></data>
+  <data name="SearchRecovery" xml:space="preserve"><value>جرّب اسمًا آخر أو افتح ملفًا محليًا أو رابطًا عامًا.</value></data>
+  <data name="DirectoryLoading" xml:space="preserve"><value>جارٍ تحميل بيانات المشاريع العامة الاختيارية…</value></data>
+  <data name="DirectoryUnavailable" xml:space="preserve"><value>الدليل الاختياري غير متاح. يمكنك استخدام التعريفات الموجودة في التطبيق والملفات المحلية.</value></data>
+  <data name="DirectoryEmpty" xml:space="preserve"><value>لا تتضمن هذه الحزمة دليلًا اختياريًا.</value></data>
+  <data name="AvailableInApp" xml:space="preserve"><value>متاح في هذا التطبيق</value></data>
+  <data name="DirectorySource" xml:space="preserve"><value>الدليل الاختياري</value></data>
+  <data name="Configure" xml:space="preserve"><value>إعداد</value></data>
+  <data name="SourceDetails" xml:space="preserve"><value>تفاصيل المصدر والتعريف</value></data>
+  <data name="Family" xml:space="preserve"><value>هوية العائلة</value></data>
+  <data name="Revision" xml:space="preserve"><value>مراجعة التعريف</value></data>
+  <data name="Digest" xml:space="preserve"><value>بصمة SHA-256 للمحتوى الموحّد</value></data>
+  <data name="Publisher" xml:space="preserve"><value>الناشر المعلَن</value></data>
+  <data name="ApplicationId" xml:space="preserve"><value>معرّف التطبيق</value></data>
+  <data name="ApplicationVersions" xml:space="preserve"><value>إصدارات التطبيق المعلَنة</value></data>
+  <data name="EntryPoints" xml:space="preserve"><value>نقاط الدخول</value></data>
+  <data name="Entry" xml:space="preserve"><value>نقطة الدخول</value></data>
+  <data name="Locales" xml:space="preserve"><value>اللغات</value></data>
+  <data name="Language" xml:space="preserve"><value>اللغة</value></data>
+  <data name="OutputNames" xml:space="preserve"><value>أسماء ملفات المخرجات</value></data>
+  <data name="SourceRepository" xml:space="preserve"><value>مستودع المصدر</value></data>
+  <data name="License" xml:space="preserve"><value>الترخيص المعلَن</value></data>
+  <data name="TrustBoundary" xml:space="preserve"><value>لا تثبت أسماء الناشرين والمشاريع هوية الناشر. لا يمنح التحضير صلاحية إدارة التطبيق الهدف أو تطبيق الإعدادات؛ يتحقق التطبيق الهدف من ملفاتك ويقرر قبولها.</value></data>
+  <data name="OtherSources" xml:space="preserve"><value>هل لديك تعريف خاص بك؟</value></data>
+  <data name="OpenFileOrLink" xml:space="preserve"><value>افتح ملفًا محليًا أو رابطًا عامًا</value></data>
+  <data name="BackToCatalogue" xml:space="preserve"><value>جميع المشاريع</value></data>
+  <data name="Project" xml:space="preserve"><value>المشروع</value></data>
+  <data name="ProjectUnavailable" xml:space="preserve"><value>هذا المشروع غير متاح في الدليل.</value></data>
+  <data name="AvailableRevisions" xml:space="preserve"><value>مراجعات التعريف المتاحة</value></data>
+  <data name="ChooseRevision" xml:space="preserve"><value>اختر مراجعة التعريف</value></data>
+  <data name="SelectRevision" xml:space="preserve"><value>اختر مراجعة</value></data>
+  <data name="CheckingSnapshot" xml:space="preserve"><value>جارٍ التحقق من النسخة العامة…</value></data>
+  <data name="ReviewRevision" xml:space="preserve"><value>راجع هذه المراجعة</value></data>
+  <data name="RevisionRejected" xml:space="preserve"><value>تعذّر قبول هذه المراجعة.</value></data>
+  <data name="ReadyToOpen" xml:space="preserve"><value>جاهز للفتح</value></data>
+  <data name="FreshWorkspace" xml:space="preserve"><value>افتح مساحة عمل محلية جديدة مع تعطيل إدخال الأسرار. تحتفظ مساحة العمل بهذا التعريف بعينه.</value></data>
+  <data name="ConfigureRevision" xml:space="preserve"><value>استخدم هذه المراجعة للإعداد</value></data>
+  <data name="VersionClaims" xml:space="preserve"><value>إصدارات التطبيق هي تسميات توافق معلَنة، وهي منفصلة عن مراجعات التعريف. يبقى التحقق والقبول من مسؤولية التطبيق الهدف.</value></data>
+  <data name="OpenTitle" xml:space="preserve"><value>افتح تعريفك</value></data>
+  <data name="OpenIntro" xml:space="preserve"><value>استخدم ملف JSON أو YAML محليًا أو رابط تعريف عامًا إذا لم يكن مشروعك في الفهرس.</value></data>
+  <data name="FromDevice" xml:space="preserve"><value>من جهازك</value></data>
+  <data name="LocalFile" xml:space="preserve"><value>ملف تعريف محلي</value></data>
+  <data name="LocalFileIntro" xml:space="preserve"><value>استخدم تعريف JSON أو YAML عند انقطاع الاتصال أو عندما يمنع الناشر الوصول من مصدر مختلف.</value></data>
+  <data name="ChooseFile" xml:space="preserve"><value>اختر ملف تعريف JSON أو YAML</value></data>
+  <data name="FileLimits" xml:space="preserve"><value>JSON أو YAML · الحد الأقصى 4 MiB. تُحوَّل مصادر التأليف المختصرة محليًا قبل الإجابات؛ ولا يثبت الملف هوية الناشر.</value></data>
+  <data name="PublicSource" xml:space="preserve"><value>من مصدر عام</value></data>
+  <data name="PublicUrl" xml:space="preserve"><value>رابط تعريف عام</value></data>
+  <data name="PublicUrlIntro" xml:space="preserve"><value>استخدم رابط HTTPS مباشرًا لتعريف JSON عام.</value></data>
+  <data name="SourceUrl" xml:space="preserve"><value>رابط ملف التعريف العام</value></data>
+  <data name="SourceUrlHelp" xml:space="preserve"><value>يجب أن يسمح المصدر بالقراءة من مصدر مختلف. للمستودعات الخاصة أو الوصول المحظور، استخدم ملفًا محليًا.</value></data>
+  <data name="OptionalSelectors" xml:space="preserve"><value>بصمة ومحددات اختيارية</value></data>
+  <data name="ApplicationVersion" xml:space="preserve"><value>إصدار التطبيق المعلَن</value></data>
+  <data name="ReviewingDefinition" xml:space="preserve"><value>جارٍ مراجعة التعريف…</value></data>
+  <data name="ReviewPublicDefinition" xml:space="preserve"><value>راجع التعريف العام</value></data>
+  <data name="RetainedDefinitions" xml:space="preserve"><value>التعريفات العامة المحفوظة</value></data>
+  <data name="RetentionHelp" xml:space="preserve"><value>يبقى هذا التعريف في الذاكرة ما لم تختر حفظ بياناته العامة. لا تحفظ تعريفًا يحتوي على نصوص تفسيرية أو قيم افتراضية خاصة.</value></data>
+  <data name="ConfirmPublicMetadata" xml:space="preserve"><value>أؤكد أن هذا التعريف آمن للحفظ بوصفه بيانات عامة</value></data>
+  <data name="RetainDefinition" xml:space="preserve"><value>احفظ التعريف للاستخدام دون اتصال</value></data>
+  <data name="OpenWorkspace" xml:space="preserve"><value>افتح مساحة عمل الإعداد</value></data>
+  <data name="DefinitionOnlyLink" xml:space="preserve"><value>رابط التعريف فقط (بلا إجابات)</value></data>
+  <data name="CopyDefinitionLink" xml:space="preserve"><value>انسخ رابط التعريف</value></data>
+  <data name="DiscardToChoose" xml:space="preserve"><value>تخلّص من مساحة العمل واختر تعريفًا آخر</value></data>
+  <data name="DiscardConfirm" xml:space="preserve"><value>هل تريد التخلص من إجابات مساحة العمل ومخرجاتها والمتابعة؟ اختر إلغاء لمواصلة التحرير.</value></data>
+  <data name="SourceReady" xml:space="preserve"><value>اختر رابط ناشر عامًا أو تعريفًا محليًا. لا تُنقل الإجابات عبر هذا المسار.</value></data>
+  <data name="SourceLoading" xml:space="preserve"><value>جارٍ قراءة بيانات التعريف العامة قبل جمع الإجابات…</value></data>
+  <data name="SourceAdmitted" xml:space="preserve"><value>قُبل التعريف وثُبّت. راجع تفاصيله قبل فتح مساحة العمل.</value></data>
+  <data name="LocalAdmitted" xml:space="preserve"><value>قُبل التعريف المحلي. افتح مساحة عمل جديدة مع تعطيل إدخال الأسرار.</value></data>
+  <data name="SourceRejected" xml:space="preserve"><value>رُفض اختيار المصدر. اختر ملف تعريف JSON أو YAML محليًا بدلًا منه.</value></data>
+  <data name="DefinitionRejected" xml:space="preserve"><value>رُفض التعريف؛ لم تُنشأ مساحة عمل.</value></data>
+  <data name="LinkCopied" xml:space="preserve"><value>نُسخ رابط التعريف فقط. لا يحتوي على إجابات.</value></data>
+  <data name="LinkCopyUnavailable" xml:space="preserve"><value>النسخ غير متاح. حدّد رابط التعريف وانسخه يدويًا.</value></data>
+  <data name="DefinitionRetained" xml:space="preserve"><value>حُفظ التعريف العام لإعادة فتحه دون اتصال. لا تُحفظ الإجابات والمخرجات مطلقًا.</value></data>
+  <data name="RetentionUnavailable" xml:space="preserve"><value>تعذّر الحفظ للاستخدام دون اتصال. تبقى مساحة العمل المتاحة في الذاكرة قابلة للاستخدام.</value></data>
+  <data name="WorkspaceDiscarded" xml:space="preserve"><value>تم التخلص من الإجابات والمخرجات. اختر تعريفًا آخر.</value></data>
+  <data name="WorkspaceTitle" xml:space="preserve"><value>مساحة عمل الإعداد</value></data>
+  <data name="LaunchRejected" xml:space="preserve"><value>رُفض التشغيل</value></data>
+  <data name="LaunchRejectedHelp" xml:space="preserve"><value>لا يمكن لهذا المسار اختيار تعريف.</value></data>
+  <data name="Code" xml:space="preserve"><value>الرمز</value></data>
+  <data name="SkipToContent" xml:space="preserve"><value>انتقل إلى المحتوى الرئيسي</value></data>
+  <data name="HomeLabel" xml:space="preserve"><value>مشاريع Configurator</value></data>
+  <data name="Menu" xml:space="preserve"><value>القائمة</value></data>
+  <data name="CloseMenu" xml:space="preserve"><value>أغلق القائمة</value></data>
+  <data name="ApplicationNavigation" xml:space="preserve"><value>التنقل في التطبيق</value></data>
+  <data name="Workspace" xml:space="preserve"><value>مساحة العمل</value></data>
+  <data name="Help" xml:space="preserve"><value>المساعدة</value></data>
+  <data name="Settings" xml:space="preserve"><value>الضبط</value></data>
+  <data name="Appearance" xml:space="preserve"><value>المظهر</value></data>
+  <data name="System" xml:space="preserve"><value>النظام</value></data>
+  <data name="Light" xml:space="preserve"><value>فاتح</value></data>
+  <data name="Dark" xml:space="preserve"><value>داكن</value></data>
+  <data name="LightHighContrast" xml:space="preserve"><value>فاتح عالي التباين</value></data>
+  <data name="DarkHighContrast" xml:space="preserve"><value>داكن عالي التباين</value></data>
+  <data name="Direction" xml:space="preserve"><value>الاتجاه</value></data>
+  <data name="Automatic" xml:space="preserve"><value>تلقائي</value></data>
+  <data name="LeftToRight" xml:space="preserve"><value>من اليسار إلى اليمين</value></data>
+  <data name="RightToLeft" xml:space="preserve"><value>من اليمين إلى اليسار</value></data>
+  <data name="FindSetting" xml:space="preserve"><value>ابحث عن إعداد</value></data>
+  <data name="OpenSettingSearch" xml:space="preserve"><value>افتح البحث في الإعدادات</value></data>
+  <data name="SearchSettings" xml:space="preserve"><value>ابحث في الإعدادات</value></data>
+  <data name="SettingSearchResults" xml:space="preserve"><value>نتائج البحث في الإعدادات</value></data>
+  <data name="WorkspaceSettings" xml:space="preserve"><value>الإعدادات في مساحة العمل هذه</value></data>
+  <data name="CloseSettingSearch" xml:space="preserve"><value>أغلق البحث في الإعدادات</value></data>
+  <data name="Close" xml:space="preserve"><value>إغلاق</value></data>
+  <data name="SearchHelp" xml:space="preserve"><value>ابحث في بيانات التعريف، لا في الإجابات. حتى 256 حرفًا و16 كلمة.</value></data>
+  <data name="SearchLimits" xml:space="preserve"><value>استخدم 256 حرفًا و16 كلمة كحد أقصى.</value></data>
+  <data name="FooterPurpose" xml:space="preserve"><value>حضّر محليًا. تحقّق وطبّق باستخدام التطبيق الهدف.</value></data>
+  <data name="SupportLinks" xml:space="preserve"><value>روابط الدعم</value></data>
+  <data name="HelpPrivacy" xml:space="preserve"><value>المساعدة والخصوصية</value></data>
+  <data name="SourceContributions" xml:space="preserve"><value>المصدر والمساهمات</value></data>
+  <data name="NewTab" xml:space="preserve"><value>(علامة تبويب جديدة)</value></data>
+  <data name="Review" xml:space="preserve"><value>مراجعة</value></data>
+  <data name="Files" xml:space="preserve"><value>الملفات</value></data>
+  <data name="Sections" xml:space="preserve"><value>الأقسام</value></data>
+  <data name="ConfigurationAnswers" xml:space="preserve"><value>إجابات الإعداد</value></data>
+  <data name="Required" xml:space="preserve"><value>مطلوب</value></data>
+  <data name="Optional" xml:space="preserve"><value>اختياري</value></data>
+  <data name="Advanced" xml:space="preserve"><value>متقدم</value></data>
+  <data name="NotSupplied" xml:space="preserve"><value>غير مقدَّم</value></data>
+  <data name="Reset" xml:space="preserve"><value>إعادة ضبط</value></data>
+  <data name="Omit" xml:space="preserve"><value>حذف من المخرجات</value></data>
+  <data name="SetNull" xml:space="preserve"><value>تعيين قيمة فارغة</value></data>
+  <data name="ApplySuggestion" xml:space="preserve"><value>استخدم الاقتراح</value></data>
+  <data name="FieldHelp" xml:space="preserve"><value>مساعدة الإعداد</value></data>
+  <data name="FieldItem" xml:space="preserve"><value>عنصر</value></data>
+  <data name="FieldSetting" xml:space="preserve"><value>إعداد</value></data>
+  <data name="Yes" xml:space="preserve"><value>نعم</value></data>
+  <data name="No" xml:space="preserve"><value>لا</value></data>
+  <data name="EmptyString" xml:space="preserve"><value>نص فارغ</value></data>
+  <data name="FieldActions" xml:space="preserve"><value>إجراءات {0}</value></data>
+  <data name="HelpWithField" xml:space="preserve"><value>مساعدة بشأن {0}</value></data>
+  <data name="ResetField" xml:space="preserve"><value>أعد ضبط {0}</value></data>
+  <data name="SuggestField" xml:space="preserve"><value>استخدم القيمة المقترحة لـ {0}</value></data>
+  <data name="NullField" xml:space="preserve"><value>عيّن {0} إلى null</value></data>
+  <data name="OmitField" xml:space="preserve"><value>احذف {0} من المخرجات</value></data>
+  <data name="OmitFieldAndChildren" xml:space="preserve"><value>احذف {0} والإجابات المتداخلة من المخرجات</value></data>
+  <data name="FieldVariantType" xml:space="preserve"><value>نوع {0}</value></data>
+  <data name="HideOptionalSettings" xml:space="preserve"><value>أخفِ الإعدادات الاختيارية</value></data>
+  <data name="ShowOptionalSettings" xml:space="preserve"><value>أظهر الإعدادات الاختيارية</value></data>
+  <data name="FieldNullSupplied" xml:space="preserve"><value>تم تقديم القيمة null. أعد الضبط أو اختر قيمة أخرى لمتابعة التحرير.</value></data>
+  <data name="SupplyFieldObject" xml:space="preserve"><value>قدّم كائن {0}</value></data>
+  <data name="SupplyFieldList" xml:space="preserve"><value>قدّم قائمة {0} فارغة</value></data>
+  <data name="FieldListItem" xml:space="preserve"><value>عنصر {0}</value></data>
+  <data name="RemoveFieldItem" xml:space="preserve"><value>أزل العنصر {1} من {0}</value></data>
+  <data name="AddFieldItem" xml:space="preserve"><value>أضف عنصرًا إلى {0}</value></data>
+  <data name="FieldItemCount" xml:space="preserve"><value>العناصر: {0} من {1}</value></data>
+  <data name="RemoveFieldEntry" xml:space="preserve"><value>أزل الإدخال</value></data>
+  <data name="AddFieldEntry" xml:space="preserve"><value>أضف إدخالًا</value></data>
+  <data name="FieldNewEntryKey" xml:space="preserve"><value>مفتاح إدخال جديد لـ {0}</value></data>
+  <data name="FieldInvalidMapKey" xml:space="preserve"><value>استخدم مفتاحًا صالحًا ضمن الحدود المسموحة وغير موجود مسبقًا.</value></data>
+  <data name="FieldSecretDenied" xml:space="preserve"><value>إدخال الأسرار معطّل في مساحة العمل هذه. فعّله عمدًا من الأعلى، أو أكمل مسودة منزّلة محليًا.</value></data>
+  <data name="FieldInputTypeInvalid" xml:space="preserve"><value>قدّم قيمة من النوع المعلَن. (input-type-invalid)</value></data>
+  <data name="FieldBooleanHelp" xml:space="preserve"><value>استخدم true أو false.</value></data>
+  <data name="FieldDeclaredChoices" xml:space="preserve"><value>الخيارات المعلَنة: {0}.</value></data>
+  <data name="CredentialIssuerHelp" xml:space="preserve"><value>احصل على هذه القيمة من الجهة المصدرة، ثم الصقها أو اربطها بحقل مخصص في مدير كلمات المرور. لا تستبدلها بكلمة مرور مولّدة محليًا.</value></data>
+  <data name="CredentialCreateHelp" xml:space="preserve"><value>اختر قيمة جديدة تستوفي متطلبات التطبيق الهدف. قد يساعدك مدير كلمات المرور على إنشائها وحفظها.</value></data>
+  <data name="CredentialExistingHelp" xml:space="preserve"><value>استخدم القيمة التي يقبلها التطبيق الهدف بالفعل. يمكن لمدير كلمات المرور تعبئتها أو لصقها.</value></data>
+  <data name="CredentialCustodyHelp" xml:space="preserve"><value>يحتفظ مدير كلمات المرور بقيمك بصورة مستقلة؛ مسح مساحة العمل لا يمسح خزنته.</value></data>
+  <data name="AddItem" xml:space="preserve"><value>أضف عنصرًا</value></data>
+  <data name="RemoveItem" xml:space="preserve"><value>أزل العنصر</value></data>
+  <data name="PrepareFiles" xml:space="preserve"><value>حضّر الملفات</value></data>
+  <data name="PrepareComplete" xml:space="preserve"><value>حضّر إعدادًا مكتملًا</value></data>
+  <data name="PrepareDraft" xml:space="preserve"><value>حضّر مسودة</value></data>
+  <data name="Preparing" xml:space="preserve"><value>جارٍ التحضير…</value></data>
+  <data name="Copy" xml:space="preserve"><value>نسخ</value></data>
+  <data name="Download" xml:space="preserve"><value>تنزيل</value></data>
+  <data name="Reveal" xml:space="preserve"><value>إظهار</value></data>
+  <data name="Hide" xml:space="preserve"><value>إخفاء</value></data>
+  <data name="Clear" xml:space="preserve"><value>مسح</value></data>
+  <data name="Cancel" xml:space="preserve"><value>إلغاء</value></data>
+  <data name="Ready" xml:space="preserve"><value>جاهز</value></data>
+  <data name="NeedsAttention" xml:space="preserve"><value>يحتاج إلى مراجعة</value></data>
+  <data name="SecretCompletion" xml:space="preserve"><value>استكمال الأسرار</value></data>
+  <data name="AllowSecrets" xml:space="preserve"><value>اسمح بإدخال الأسرار في مساحة العمل هذه</value></data>
+  <data name="RevokeSecrets" xml:space="preserve"><value>ألغِ السماح بإدخال الأسرار وامسحها</value></data>
+  <data name="ImportExisting" xml:space="preserve"><value>قارن بإعداد موجود</value></data>
+  <data name="ReviewTitle" xml:space="preserve"><value>راجع إعداداتك</value></data>
+  <data name="ReviewHelp" xml:space="preserve"><value>تحقّق من الجاهزية وصحّح المشكلات المطلوبة وراجع العمل الاختياري قبل تحضير الملفات.</value></data>
+  <data name="ReviewSummaryComplete" xml:space="preserve"><value>جاهز لتحضير ملفات مكتملة</value></data>
+  <data name="ReviewSummaryDeferred" xml:space="preserve"><value>لا تزال الأسرار بحاجة إلى استكمال</value></data>
+  <data name="ReviewSummaryBlocked" xml:space="preserve"><value>صحّح الإعدادات العادية قبل تحضير الملفات</value></data>
+  <data name="ReviewOptionalMissing" xml:space="preserve"><value>إعدادات اختيارية دون قيمة مقدَّمة: {0}</value></data>
+  <data name="ReviewRequiredSummary" xml:space="preserve"><value>الإجابات المطلوبة الجاهزة: {0} / {1}</value></data>
+  <data name="ReviewDeferredSummary" xml:space="preserve"><value>الإجابات السرية غير المكتملة: {0}</value></data>
+  <data name="ReviewDeclaredOutputs" xml:space="preserve"><value>ملفات معلَنة؛ يحدّد التحضير أيّها سيُضمَّن.</value></data>
+  <data name="ReviewEffects" xml:space="preserve"><value>آثار الإعدادات</value></data>
+  <data name="ReviewEffectsHelp" xml:space="preserve"><value>تبقى القيم محجوبة هنا. جاهزية الإجابات منفصلة عن تحضير الملفات وقبول التطبيق الهدف؛ ويظل التطبيق الهدف مسؤولًا عن التحقق من الملفات وقبولها.</value></data>
+  <data name="ReviewRestart" xml:space="preserve"><value>إعادة التشغيل: {0}</value></data>
+  <data name="ReviewInspectOmitted" xml:space="preserve"><value>افحص الإعدادات الاختيارية المستبعَدة</value></data>
+  <data name="ReviewInspectInactive" xml:space="preserve"><value>افحص الإعدادات غير النشطة (لا يؤدي ذلك إلى تفعيلها)</value></data>
+  <data name="ReviewSettingsCount" xml:space="preserve"><value>الإعدادات في هذه المراجعة: {0}</value></data>
+  <data name="ReviewChange" xml:space="preserve"><value>تغيير</value></data>
+  <data name="ReviewChangeField" xml:space="preserve"><value>غيّر {0}</value></data>
+  <data name="ReviewCorrectField" xml:space="preserve"><value>صحّح {0}</value></data>
+  <data name="ReviewPrivateMasked" xml:space="preserve"><value>القيمة الخاصة محجوبة.</value></data>
+  <data name="ReviewBindings" xml:space="preserve"><value>ارتباطات المخرجات المعلَنة</value></data>
+  <data name="ReviewBindingsHelp" xml:space="preserve"><value>هذه مراجع معلَنة، وليست ضمانًا لتضمين ملف مشروط.</value></data>
+  <data name="ReviewPages" xml:space="preserve"><value>صفحات المراجعة</value></data>
+  <data name="ReviewPrevious" xml:space="preserve"><value>الإعدادات السابقة</value></data>
+  <data name="ReviewPage" xml:space="preserve"><value>الصفحة {0} من {1}</value></data>
+  <data name="ReviewNext" xml:space="preserve"><value>الإعدادات التالية</value></data>
+  <data name="ReviewPreparationTitle" xml:space="preserve"><value>مراجعة التحضير</value></data>
+  <data name="ReviewCorrectionsHelp" xml:space="preserve"><value>تحقّق من هذه الإعدادات. لا تتضمن رسائل التشخيص القيم.</value></data>
+  <data name="ReviewDetails" xml:space="preserve"><value>تفاصيل التحضير</value></data>
+  <data name="ReviewSecretsDisabled" xml:space="preserve"><value>إدخال الأسرار معطّل لهذه الإعدادات. تؤجّل المسودة الأسرار الناقصة فقط؛ صحّح الأخطاء في الإعدادات العادية أولًا، أو فعّل الإدخال المحجوب لمساحة العمل هذه.</value></data>
+  <data name="ReviewOriginDefault" xml:space="preserve"><value>قيمة افتراضية من التعريف</value></data>
+  <data name="ReviewOriginImported" xml:space="preserve"><value>مستورد</value></data>
+  <data name="ReviewOriginExplicit" xml:space="preserve"><value>مقدَّم صراحةً</value></data>
+  <data name="ReviewOriginOmitted" xml:space="preserve"><value>مستبعَد</value></data>
+  <data name="ReviewStateInactive" xml:space="preserve"><value>غير نشط؛ لا يُصدَّر</value></data>
+  <data name="ReviewStateDeferred" xml:space="preserve"><value>السر مؤجَّل؛ غير مكتمل</value></data>
+  <data name="ReviewStateCorrection" xml:space="preserve"><value>يحتاج إلى تصحيح</value></data>
+  <data name="ReviewStateReady" xml:space="preserve"><value>الإجابة جاهزة</value></data>
+  <data name="ReviewStateRequiredMissing" xml:space="preserve"><value>الإجابة المطلوبة ناقصة</value></data>
+  <data name="ReviewStateOptionalMissing" xml:space="preserve"><value>اختياري؛ لم تُقدَّم إجابة</value></data>
+  <data name="ReviewPreparation" xml:space="preserve"><value>التحضير</value></data>
+  <data name="ReviewValueRequired" xml:space="preserve"><value>قدّم القيمة المطلوبة.</value></data>
+  <data name="ReviewTypeInvalid" xml:space="preserve"><value>استخدم النوع المعلَن للحقل.</value></data>
+  <data name="ReviewUniqueKey" xml:space="preserve"><value>يجب أن يكون لكل عنصر مفتاح معلَن فريد.</value></data>
+  <data name="ReviewConstraints" xml:space="preserve"><value>تحقّق من القيود المعلَنة للحقل.</value></data>
+  <data name="ReviewInputTooLarge" xml:space="preserve"><value>قلّل حجم المدخل المتجاوز للحد أو امسحه.</value></data>
+  <data name="ReviewDeferredDependency" xml:space="preserve"><value>أكمل السر المؤجَّل محليًا قبل تقييم الإعدادات المعتمدة عليه.</value></data>
+  <data name="ReviewArtifactOmitted" xml:space="preserve"><value>تستبعد هذه المسودة ملفًا له اعتماديات غير محسومة.</value></data>
+  <data name="ReviewCheckDefinition" xml:space="preserve"><value>تحقّق من هذا الإعداد وفق التعريف المعلَن.</value></data>
+  <data name="FilesTitle" xml:space="preserve"><value>حضّر الملفات وصدّرها</value></data>
+  <data name="FilesHelp" xml:space="preserve"><value>حضّر إعدادًا مكتملًا أو مسودة غير مكتملة، ثم اختر نسخ كل ملف أو تنزيله للتحقق منه في التطبيق الهدف.</value></data>
+  <data name="ClearWorkspace" xml:space="preserve"><value>امسح مساحة العمل</value></data>
+  <data name="PreviousSection" xml:space="preserve"><value>القسم السابق</value></data>
+  <data name="NextSection" xml:space="preserve"><value>القسم التالي</value></data>
+  <data name="ReviewConfiguration" xml:space="preserve"><value>راجع الإعدادات</value></data>
+  <data name="ReturnToReview" xml:space="preserve"><value>عُد إلى المراجعة</value></data>
+  <data name="WorkflowConfigure" xml:space="preserve"><value>إعداد</value></data>
+  <data name="WorkflowReview" xml:space="preserve"><value>مراجعة</value></data>
+  <data name="WorkflowFiles" xml:space="preserve"><value>الملفات</value></data>
+  <data name="SelectOutput" xml:space="preserve"><value>المخرجات</value></data>
+  <data name="ConfigurationExperience" xml:space="preserve"><value>مهمة الإعداد</value></data>
+  <data name="ProfileDetail" xml:space="preserve"><value>تفاصيل الإعدادات</value></data>
+  <data name="DefaultDetail" xml:space="preserve"><value>التفاصيل الافتراضية</value></data>
+  <data name="Basic" xml:space="preserve"><value>أساسي</value></data>
+  <data name="Standard" xml:space="preserve"><value>قياسي</value></data>
+  <data name="AllActive" xml:space="preserve"><value>جميع الإعدادات النشطة</value></data>
+  <data name="StartWorkspace" xml:space="preserve"><value>ابدأ مساحة عمل محلية</value></data>
+  <data name="ConfigureProject" xml:space="preserve"><value>إعداد {0}</value></data>
+  <data name="PrivacyExportLimits" xml:space="preserve"><value>حدود الخصوصية والتصدير</value></data>
+  <data name="DeclaredFiles" xml:space="preserve"><value>الملفات المعلَنة: {0}. يعتمد تضمينها على شروط التعريف؛ ويبقى تحقق التطبيق الهدف مستقلًا.</value></data>
+  <data name="WorkspaceExportBoundary" xml:space="preserve"><value>لا يطبّق التحضير الإعدادات ولا يثبت قبول التطبيق الهدف لها. يتيح النسخ والتنزيل إخراج البيانات الخاصة بقرار منك. لا يستطيع المتصفح ضمان أذونات مقيّدة للملفات. يؤدي الإغلاق أو إعادة التحميل إلى التخلص من مساحة العمل؛ ولا يمحو المسح الملفات أو محتويات الحافظة التي صُدّرت بالفعل.</value></data>
+  <data name="ConfigurationWorkflow" xml:space="preserve"><value>خطوات إعداد التكوين</value></data>
+  <data name="NoRequiredAnswers" xml:space="preserve"><value>لا توجد إجابات مطلوبة</value></data>
+  <data name="RequiredAnswerReady" xml:space="preserve"><value>الإجابات المطلوبة الجاهزة: {0} من {1}</value></data>
+  <data name="RequiredAnswersReady" xml:space="preserve"><value>الإجابات المطلوبة الجاهزة: {0} من {1}</value></data>
+  <data name="RequiredAnswersProgress" xml:space="preserve"><value>الإجابات المطلوبة الجاهزة</value></data>
+  <data name="ReadinessOneSecret" xml:space="preserve"><value>إجابات ناقصة: {0} · إجابات غير صالحة: {1} · أسرار بانتظار الإدخال: {2}</value></data>
+  <data name="ReadinessSecrets" xml:space="preserve"><value>إجابات ناقصة: {0} · إجابات غير صالحة: {1} · أسرار بانتظار الإدخال: {2}</value></data>
+  <data name="Density" xml:space="preserve"><value>كثافة العرض</value></data>
+  <data name="Comfortable" xml:space="preserve"><value>مريح</value></data>
+  <data name="Compact" xml:space="preserve"><value>مضغوط</value></data>
+  <data name="EnglishLanguage" xml:space="preserve"><value>الإنجليزية</value></data>
+  <data name="ArabicLanguage" xml:space="preserve"><value>العربية</value></data>
+  <data name="ThisWorkspace" xml:space="preserve"><value>مساحة العمل هذه</value></data>
+  <data name="EnableWorkspaceSecrets" xml:space="preserve"><value>تمكين إدخال الأسرار لمساحة العمل هذه</value></data>
+  <data name="WorkspaceSecretHelp" xml:space="preserve"><value>مطلوب قبل قراءة أي ملف إعدادات، بما في ذلك المحتوى غير المعروف. تبقى القيم محجوبة؛ ويؤدي إيقاف هذا الخيار إلى إنهاء المقارنات ومسح الإجابات السرية وإبطال الملفات المحضّرة.</value></data>
+  <data name="StartExistingConfiguration" xml:space="preserve"><value>البدء من إعدادات موجودة</value></data>
+  <data name="ArtifactImportHelp" xml:space="preserve"><value>الحد الأقصى 1 MiB، وتتم القراءة محليًا دون رفع. قد يحتوي أي ملف على أسرار، حتى إن كان محتواه قديمًا أو غير صالح؛ فعّل الموافقة على إدخال الأسرار أعلاه قبل القراءة. لا تغيّر المقارنة الإجابات أو المسودات أو الملفات المحضّرة.</value></data>
+  <data name="ImportPurpose" xml:space="preserve"><value>الغرض</value></data>
+  <data name="CompareDefinition" xml:space="preserve"><value>المقارنة مع هذا التعريف</value></data>
+  <data name="FillFields" xml:space="preserve"><value>تعبئة الحقول</value></data>
+  <data name="ImportArtifactFormat" xml:space="preserve"><value>صيغة الملف المراد استيراده</value></data>
+  <data name="ChooseDeclaredArtifact" xml:space="preserve"><value>اختر ملفًا موجودًا من الملفات المعلَنة</value></data>
+  <data name="InspectionSupported" xml:space="preserve"><value>الفحص: مدعوم.</value></data>
+  <data name="InspectionUnsupported" xml:space="preserve"><value>الفحص: غير مدعوم.</value></data>
+  <data name="AutofillSupported" xml:space="preserve"><value>التعبئة التلقائية الصارمة: مدعومة؛ وتظل فحوص الملف ومساحة العمل مطلوبة.</value></data>
+  <data name="AutofillUnsupported" xml:space="preserve"><value>التعبئة التلقائية الصارمة: غير مدعومة.</value></data>
+  <data name="ImportAssessmentBoundary" xml:space="preserve"><value>يقتصر التقييم على المحتوى الممثّل في التعريف؛ ولا يشمل قبول التطبيق الهدف.</value></data>
+  <data name="ImportPending" xml:space="preserve"><value>جارٍ قراءة ملف محلي ومقارنته. لم تتغير الإجابات الحالية والمخرجات المحضّرة.</value></data>
+  <data name="CancelComparison" xml:space="preserve"><value>إلغاء المقارنة</value></data>
+  <data name="ReviewSecretConsent" xml:space="preserve"><value>مراجعة الموافقة على إدخال الأسرار</value></data>
+  <data name="DraftArtifactReadiness" xml:space="preserve"><value>مسودة — لا يزال إدخال الأسرار مطلوبًا.</value></data>
+  <data name="CompleteArtifactReadiness" xml:space="preserve"><value>اكتمل التحضير — لا يزال تحقق التطبيق الهدف مطلوبًا.</value></data>
+  <data name="PrivateOutputHidden" xml:space="preserve"><value>المخرجات خاصة ومخفية.</value></data>
+  <data name="CopyArtifact" xml:space="preserve"><value>نسخ {0}</value></data>
+  <data name="DownloadArtifact" xml:space="preserve"><value>تنزيل {0}</value></data>
+  <data name="RevealArtifact" xml:space="preserve"><value>إظهار {0}</value></data>
+  <data name="HideArtifact" xml:space="preserve"><value>إخفاء {0}</value></data>
+  <data name="PrivateArtifactPreview" xml:space="preserve"><value>معاينة خاصة للملف {0}</value></data>
+  <data name="WorkspaceReadyStatus" xml:space="preserve"><value>أدخل الإعدادات العادية. إدخال الأسرار معطّل.</value></data>
+  <data name="ImportCancelledStatus" xml:space="preserve"><value>أُلغيت قراءة الملف. تم الاحتفاظ بالإجابات الحالية والمخرجات المحضّرة.</value></data>
+  <data name="AnswersChangedStatus" xml:space="preserve"><value>تغيرت الإجابات. تم التخلص من المخرجات السابقة.</value></data>
+  <data name="RequiredWorkChangedStatus" xml:space="preserve"><value>تغير عدد الإجابات المطلوبة من {0} إلى {1}. تم التخلص من المخرجات السابقة.</value></data>
+  <data name="ImportFormatChangedStatus" xml:space="preserve"><value>تغير اختيار الملف. تم التخلص من المقارنة والاحتفاظ بالإجابات والمخرجات المحضّرة.</value></data>
+  <data name="ImportPurposeChangedStatus" xml:space="preserve"><value>تغير غرض الاستيراد. تم التخلص من المقارنة والاحتفاظ بالإجابات والمخرجات المحضّرة.</value></data>
+  <data name="ImportClearedStatus" xml:space="preserve"><value>مُسحت المقارنة أو أُلغيت. تم الاحتفاظ بالإجابات والمخرجات المحضّرة.</value></data>
+  <data name="ImportedStatus" xml:space="preserve"><value>عُبّئت الإجابات المؤهلة من الملف دفعة واحدة. راجع جاهزية مساحة العمل الحالية قبل التحضير.</value></data>
+  <data name="AutofillRefusedStatus" xml:space="preserve"><value>رُفضت التعبئة التلقائية ({0}). لم تتغير الإجابات. راجع المقارنة وأصلح نسخة منفصلة، أو امسح عمدًا المدخلات المتعارضة في مساحة العمل، ثم أعد الاستيراد.</value></data>
+  <data name="ImportConsentRequiredStatus" xml:space="preserve"><value>لم يُقرأ الملف (import-secret-consent-required). فعّل إدخال الأسرار لمساحة العمل هذه قبل قراءة أي ملف إعدادات، بما في ذلك المحتوى غير المعروف أو غير الصالح.</value></data>
+  <data name="ImportUnsupportedStatus" xml:space="preserve"><value>لم يُقرأ الملف. الملف المعلَن المختار لا يدعم غرض الاستيراد هذا.</value></data>
+  <data name="SecretEntryEnabledStatus" xml:space="preserve"><value>تم تمكين إدخال الأسرار لمساحة العمل هذه. تبقى القيم محجوبة.</value></data>
+  <data name="SecretEntryRevokedStatus" xml:space="preserve"><value>أُلغي الإذن بإدخال الأسرار. تم التخلص من الإجابات السرية والمخرجات والاحتفاظ بالإعدادات العادية.</value></data>
+  <data name="AnswersBudgetExceededStatus" xml:space="preserve"><value>تتجاوز الإجابات حد التحضير المشترك. قلّل أحجام المدخلات قبل تحضير الإعدادات.</value></data>
+  <data name="InputBudgetExceededStatus" xml:space="preserve"><value>تجاوز أحد المدخلات حد التحضير المشترك. قلّل محتوى الحقل المرفوض أو امسحه قبل تحضير الإعدادات.</value></data>
+  <data name="InputTypeInvalidStatus" xml:space="preserve"><value>صحّح قيم الحقول غير الصالحة قبل تحضير الإعدادات.</value></data>
+  <data name="PreparationRejectedStatus" xml:space="preserve"><value>لم تُحضّر أي إعدادات. صحّح الإعدادات المطلوبة أو قلّل حجم المخرجات.</value></data>
+  <data name="PreparationRetryStatus" xml:space="preserve"><value>لم تُحضّر أي إعدادات. أعد تحضير مساحة العمل الحالية.</value></data>
+  <data name="PreparedDraftStatus" xml:space="preserve"><value>عدد ملفات المسودة المحضّرة: {0}. لا تزال الأسرار المؤجّلة أو المخرجات المحجوبة تتطلب الإكمال.</value></data>
+  <data name="PreparedDraftsStatus" xml:space="preserve"><value>عدد ملفات المسودة المحضّرة: {0}. لا تزال الأسرار المؤجّلة أو المخرجات المحجوبة تتطلب الإكمال.</value></data>
+  <data name="PreparedArtifactStatus" xml:space="preserve"><value>عدد الملفات الخاصة المحضّرة: {0}. أظهر كل ملف أو انسخه أو نزّله بقرار صريح منك.</value></data>
+  <data name="PreparedArtifactsStatus" xml:space="preserve"><value>عدد الملفات الخاصة المحضّرة: {0}. أظهر كل ملف أو انسخه أو نزّله بقرار صريح منك.</value></data>
+  <data name="ArtifactCopiedStatus" xml:space="preserve"><value>نُسخ الملف الحالي. تبقى محتويات الحافظة خارج مساحة العمل هذه.</value></data>
+  <data name="ClipboardUnavailableStatus" xml:space="preserve"><value>الحافظة غير متاحة أو رُفض الوصول إليها. استخدم التنزيل بدلًا من ذلك.</value></data>
+  <data name="DownloadRequestedStatus" xml:space="preserve"><value>طُلب التنزيل بالاسم {0}. إذا غيّر المتصفح اسم الملف، فأعد تسميته بهذا الاسم المعلَن. احمِ الملف المنزّل على جهازك.</value></data>
+  <data name="DownloadUnavailableStatus" xml:space="preserve"><value>تعذّر بدء التنزيل. أعد تحضير المخرجات الحالية.</value></data>
+  <data name="PreviewHiddenStatus" xml:space="preserve"><value>أُخفيت المعاينة الخاصة.</value></data>
+  <data name="PreviewRevealedStatus" xml:space="preserve"><value>أُظهرت المعاينة الخاصة. أخفها أو امسحها عند الانتهاء.</value></data>
+  <data name="PreviewUnavailableStatus" xml:space="preserve"><value>المعاينة غير متاحة. استخدم التنزيل بدلًا من ذلك.</value></data>
+  <data name="ImportTooLargeStatus" xml:space="preserve"><value>رُفض الملف: الحد الأقصى للحجم هو 1 MiB. تم الاحتفاظ بالإجابات والمخرجات المحضّرة.</value></data>
+  <data name="ImportComparedStatus" xml:space="preserve"><value>اكتملت مقارنة الملف المستورد. لم تتغير الإجابات والمسودات والمخرجات المحضّرة؛ ولا يُقيّم قبول التطبيق الهدف.</value></data>
+  <data name="ImportRefusedStatus" xml:space="preserve"><value>رُفضت المقارنة ({0}). لم تتغير الإجابات. تحقق من الصيغة المعلَنة وأصلح نسخة منفصلة قبل إعادة الاستيراد.</value></data>
+  <data name="ImportReadFailedStatus" xml:space="preserve"><value>تعذّر إكمال المقارنة. لم تتغير الإجابات؛ أصلح نسخة منفصلة أو اختر الملف مجددًا.</value></data>
+  <data name="AppPreparationIncompleteStatus" xml:space="preserve"><value>لم يكتمل تجهيز التطبيق للعمل دون اتصال. أكمل تحميل ملفات التطبيق العامة قبل إدخال الإجابات.</value></data>
+  <data name="WorkspaceClearedStatus" xml:space="preserve"><value>مُسحت الإجابات والمخرجات. إدخال الأسرار معطّل. ابدأ مساحة عمل محلية جديدة للمتابعة.</value></data>
+</root>

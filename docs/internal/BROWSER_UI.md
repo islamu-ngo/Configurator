@@ -20,8 +20,9 @@ AOT trades a larger public payload/cache for lower managed interaction cost.
 The [public hosting guide](../public/browser.md) gives the build command;
 [Operations](OPERATIONS.md) records exact package costs and runtime evidence.
 
-At every viewport width, application navigation expands inline from a named Menu
-button. Escape closes it and restores focus to that button. This disclosure
+At desktop widths, application and section navigation share one visible rail.
+On narrow screens, the named Menu button reveals it inline. Escape closes that
+disclosure and restores focus to the button. This disclosure
 does not create a modal or trap focus. Skip navigation focuses the main landmark
 without changing the URL, so it cannot discard a live workspace through a
 fragment navigation.
@@ -62,15 +63,19 @@ Shared native text controls explicitly opt into `form-control`; MudBlazor
 continues to own its outlined inputs. Control borders use the input palette,
 while decorative card borders use the divider palette. Normal themes use a
 teal action accent; high-contrast themes retain their monochrome palettes.
-The shell uses component spacing tokens without reserving a permanent sidebar. Its main
-column fills the viewport and keeps the footer below content without a fixed
-overlay. Navigation icons are local MudBlazor SVGs with decorative semantics.
+The shell uses a header/body/footer grid with one desktop navigation rail spanning
+the body. Application and section navigation share that rail; narrow screens use
+the named Menu surface. The main column has a shrinkable inline track and the
+footer stays below content without a fixed overlay. Navigation icons are local
+MudBlazor SVGs with decorative semantics.
 
-Open configuration groups local-file and HTTPS entry in independently named
-sections with labels and connected format/help text. Store filters have a
-separate surface and a recoverable no-match state. Cards retain complete
-descriptions and align revision actions without clipping content. The editor
-groups field view and explicit secret consent in a responsive toolbar,
+`Catalogue` owns the single project query across admitted local definitions and
+optional directory metadata. It merges only matching family/revision/digest tuples;
+source details retain canonical identity and specific-revision links. Local-file
+and HTTPS entry remain independently named recovery sections with connected help.
+The editor keeps output/language selection common to all workflow panels and moves
+profile/density controls into secondary setting detail. Explicit secret consent
+remains a deliberate workspace action. The editor
 distinguishes complete and draft preparation, and keeps optional artifact
 import in its own labelled section. Container queries reflow editor controls
 within the available workspace width; logical spacing supports RTL.

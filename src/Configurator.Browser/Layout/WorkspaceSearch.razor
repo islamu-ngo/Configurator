@@ -8,24 +8,24 @@
     long generation = SearchState.Generation;
     <div class="workspace-search @(_open ? "workspace-search--open" : "")" @ref="_root" @onkeydown="args => HandleKey(generation, args)">
         <div class="workspace-search__entry" @onclick="() => OpenAsync(generation)">
-            <MudTextField T="string" @ref="_input" InputId="configuration-search" Label="Find a setting"
+            <MudTextField T="string" @ref="_input" InputId="configuration-search" Label="@T("FindSetting")"
                           Value="@SearchState.Query" ValueChanged="value => Search(generation, value)"
                           Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"
                           MaxLength="256" UserAttributes="@InputAttributes" />
         </div>
         <button type="button" class="button button--secondary workspace-search__trigger"
-                aria-label="Open setting search" aria-expanded="@(_open ? "true" : "false")"
-                aria-controls="workspace-search-results" @onclick="() => OpenAsync(generation)">Search settings</button>
+                aria-label="@T("OpenSettingSearch")" aria-expanded="@(_open ? "true" : "false")"
+                aria-controls="workspace-search-results" @onclick="() => OpenAsync(generation)">@T("SearchSettings")</button>
         @if (_open)
         {
-            <section id="workspace-search-results" class="workspace-search__results" aria-label="Setting search results">
+            <section id="workspace-search-results" class="workspace-search__results" aria-label="@T("SettingSearchResults")">
                 <div class="workspace-search__heading">
-                    <strong>Settings in this workspace</strong>
-                    <button type="button" class="button button--secondary" aria-label="Close setting search"
-                            @onclick="() => CloseAsync(generation)">Close</button>
+                    <strong>@T("WorkspaceSettings")</strong>
+                    <button type="button" class="button button--secondary" aria-label="@T("CloseSettingSearch")"
+                            @onclick="() => CloseAsync(generation)">@T("Close")</button>
                 </div>
-                <p class="form-help">Search definition metadata, never answers. Up to 256 characters and 16 words.</p>
-                @if (_queryRejected) { <p role="status">Use no more than 256 characters and 16 words.</p> }
+                <p class="form-help">@T("SearchHelp")</p>
+                @if (_queryRejected) { <p role="status">@T("SearchLimits")</p> }
                 @SearchState.Content
             </section>
         }
@@ -33,6 +33,8 @@
 }
 
 @code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
     private static readonly Dictionary<string, object> InputAttributes = new()
     {
         ["autocomplete"] = "off", ["spellcheck"] = "false"

@@ -7,6 +7,7 @@ using Configurator.Browser.Pages;
 using Configurator.Browser.Services;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 public sealed class BrowserShellTests
@@ -106,38 +107,93 @@ public sealed class BrowserShellTests
     }
 
     [Test]
-    public async Task ShellProvidesNamedRoutesMainSkipAndLocalSourceWithoutStore()
+    public async Task ShellProvidesNamedRoutesMainSkipAndLocalSourceWhenDirectoryUnavailable()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<App>();
         await Assert.That(component.FindAll("main")).Count().IsEqualTo(1);
-        await Assert.That(component.Find("a.skip-link").GetAttribute("href")).IsEqualTo("#main-content");
+        await Assert.That(component.Find("a[href='#main-content']").TextContent).IsEqualTo("Skip to main content");
         await Assert.That(component.Find("main").GetAttribute("id")).IsEqualTo("main-content");
         await Assert.That(component.FindAll("h1")).Count().IsEqualTo(1);
-        await Assert.That(component.Find("nav[aria-label='Application navigation'] a[href='']").TextContent).IsEqualTo("Home");
-        await Assert.That(component.Find("nav[aria-label='Application navigation'] a[href='open']").TextContent).IsEqualTo("Open configuration");
+        await Assert.That(component.Find("nav[aria-label='Application navigation'] a[href='']").TextContent).IsNotEmpty();
+        await Assert.That(component.FindAll("nav[aria-label='Application navigation'] a[href='store']")).IsEmpty();
+        await Assert.That(component.Find("nav[aria-label='Application navigation'] a[href='open']").TextContent).IsNotEmpty();
         await Assert.That(component.Find("nav[aria-label='Application navigation'] a[href='help']").TextContent).IsEqualTo("Help");
-        await Assert.That(context.JSInterop.Invocations.Any(call => call.Identifier.Contains("readAsset", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(component.FindAll("header .nav-menu__brand")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("footer")).Count().IsEqualTo(1);
+        await Assert.That(component.FindComponents<WorkspaceSearch>()).Count().IsEqualTo(1);
+        await Assert.That(component.FindComponents<WorkspaceNavigationGuard>()).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-code='store-size-invalid']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("a[href^='launch/']")).Count().IsEqualTo(1);
         var help = context.Render<Help>();
         await Assert.That(help.FindAll("h1")).Count().IsEqualTo(1);
         await Assert.That(help.Find("a[href='open']").TextContent).IsEqualTo("Open configuration");
     }
 
     [Test]
-    public async Task NavigationDisclosureSupportsEscapeAndReturnsFocusToItsTrigger()
+    public async Task NavigationDisclosureSupportsEscapeCloseAndReturnsFocusToItsTrigger()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<NavMenu>();
-        var toggle = component.Find("button[aria-controls='application-navigation']");
-        await Assert.That(toggle.GetAttribute("aria-expanded")).IsEqualTo("false");
-        toggle.Click();
-        await Assert.That(component.Find("button").GetAttribute("aria-expanded")).IsEqualTo("true");
-        component.Find("nav").KeyDown("Escape");
-        await Assert.That(component.Find("button").GetAttribute("aria-expanded")).IsEqualTo("false");
-        toggle.Click();
-        toggle.KeyDown("Escape");
-        await Assert.That(component.Find("button").GetAttribute("aria-expanded")).IsEqualTo("false");
-        await Assert.That(context.JSInterop.Invocations.Any(call => call.Identifier == "Blazor._internal.domWrapper.focus")).IsTrue();
+        const string trigger = "button[aria-controls='application-navigation']";
+        await Assert.That(component.Find(trigger).TextContent).IsEqualTo("Menu");
+        await Assert.That(component.Find(trigger).GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(component.Find("#application-navigation").GetAttribute("aria-label")).IsEqualTo("Application navigation");
+        await component.Find(trigger).ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find(trigger).GetAttribute("aria-expanded")).IsEqualTo("true");
+        await component.Find("nav").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        await Assert.That(component.Find(trigger).GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus")).IsEqualTo(1);
+        object menuFocusTarget = context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]!;
+
+        await component.Find(trigger).ClickAsync(new MouseEventArgs());
+        await component.Find(trigger).KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        await Assert.That(component.Find(trigger).GetAttribute("aria-expanded")).IsEqualTo("false");
+        await component.Find(trigger).ClickAsync(new MouseEventArgs());
+        await component.Find("nav button").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find(trigger).GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus")).IsEqualTo(3);
+        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]).IsEqualTo(menuFocusTarget);
+    }
+
+    [Test]
+    public async Task NavigationSelectionClosesTheDisclosureWithoutReplacingSearch()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<NavMenu>();
+        var search = component.FindComponent<WorkspaceSearch>().Instance;
+        await component.Find("button[aria-controls='application-navigation']").ClickAsync(new MouseEventArgs());
+        await component.Find("nav a[href='open']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("button[aria-controls='application-navigation']").GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(ReferenceEquals(component.FindComponent<WorkspaceSearch>().Instance, search)).IsTrue();
+    }
+
+    [Test]
+    public async Task SettingsEscapeClosesOnlySettingsBeforeClosingNavigation()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<NavMenu>();
+        const string menu = "button[aria-controls='application-navigation']";
+        const string settings = "nav button[aria-controls='navigation-settings']";
+        await Assert.That(component.Find(settings).TextContent).IsEqualTo("Settings");
+        await Assert.That(component.Find(settings).GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(component.Find("#navigation-settings").HasAttribute("hidden")).IsTrue();
+        await Assert.That(component.FindComponents<ThemeQuickSwitcher>()).IsEmpty();
+        await component.Find(menu).ClickAsync(new MouseEventArgs());
+        await component.Find(settings).ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find(settings).GetAttribute("aria-expanded")).IsEqualTo("true");
+        await Assert.That(component.Find("#navigation-settings").HasAttribute("hidden")).IsFalse();
+        await Assert.That(component.FindComponents<ThemeQuickSwitcher>()).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("header #appearance-mode")).IsEmpty();
+
+        await component.Find("#appearance-mode").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        await Assert.That(component.Find(settings).GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(component.Find(menu).GetAttribute("aria-expanded")).IsEqualTo("true");
+        await Assert.That(component.FindComponents<ThemeQuickSwitcher>()).IsEmpty();
+        object settingsFocusTarget = context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]!;
+        await component.Find(settings).KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        await Assert.That(component.Find(menu).GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]).IsNotEqualTo(settingsFocusTarget);
     }
 
     [Test]
@@ -146,6 +202,8 @@ public sealed class BrowserShellTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<App>();
         string heading = component.Find("h1").TextContent;
+        string route = context.Services.GetRequiredService<NavigationManager>().Uri;
+        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("label[for='appearance-mode']").TextContent).IsEqualTo("Appearance");
         await Assert.That(component.Find("label[for='appearance-direction']").TextContent).IsEqualTo("Direction");
         component.Find("#appearance-mode").Change("darkhighcontrast");
@@ -153,6 +211,11 @@ public sealed class BrowserShellTests
         await Assert.That(component.Find("h1").TextContent).IsEqualTo(heading);
         await Assert.That(component.Find(".main-layout").GetAttribute("dir")).IsEqualTo("rtl");
         await Assert.That(component.Find("#appearance-mode").GetAttribute("value")).IsEqualTo("darkhighcontrast");
+        await Assert.That(context.Services.GetRequiredService<NavigationManager>().Uri).IsEqualTo(route);
+        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
+        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("#appearance-mode").GetAttribute("value")).IsEqualTo("darkhighcontrast");
+        await Assert.That(component.Find("#appearance-direction").GetAttribute("value")).IsEqualTo("rtl");
     }
 
     [Test]
@@ -175,14 +238,15 @@ public sealed class BrowserShellTests
         exports.SetupVoid("invalidate", _ => true).SetVoidResult();
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
         var component = context.Render<App>();
+        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("synthetic.example.test");
-        component.Find("#prepare-draft").Click();
+        await BrowserFixture.PrepareAsync(component, draft: true);
         component.Find(".configuration-editor__artifact button").Click();
         byte[] before = (byte[])exports.Invocations.Single(call => call.Identifier == "open").Arguments[2]!;
         component.Find("#appearance-mode").Change("dark");
         component.Find("#appearance-direction").Change("rtl");
-        component.Find("a.skip-link").Click();
+        component.Find("a[href='#main-content']").Click();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         component.Find(".configuration-editor__artifact button").Click();
         byte[] after = (byte[])exports.Invocations.Last(call => call.Identifier == "open").Arguments[2]!;

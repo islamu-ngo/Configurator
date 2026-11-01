@@ -8,6 +8,7 @@ using Bunit;
 using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Sections;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
@@ -55,8 +56,10 @@ internal static class BrowserFixture
         context.Services.AddScoped<AppearanceThemeService>();
         context.Services.AddScoped<BrowserNavigationState>();
         context.Services.AddScoped<BrowserOfflinePolicy>();
+        context.Services.AddScoped<DefinitionStoreCatalog>();
         context.Services.AddScoped<WorkspaceSearchState>();
         context.Services.AddSingleton(new PopoverHost());
+        context.Services.AddSingleton(new SectionNavigationHost());
         context.Services.AddMudServices();
         var appearance = context.JSInterop.SetupModule("./browser-appearance.js");
         appearance.Setup<string?>("read", _ => true).SetResult(null);
@@ -68,6 +71,8 @@ internal static class BrowserFixture
         offline.Setup<BrowserOfflineState>("initialize", _ => true).SetResult(new BrowserOfflineState(true, true, true));
         offline.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
         offline.SetupVoid("endWorkspace", _ => true).SetVoidResult();
+        var store = context.JSInterop.SetupModule("./browser-store.js");
+        store.Setup<byte[]>("readAsset", _ => true).SetResult([]);
         var interactions = context.JSInterop.SetupModule("./workspace-interactions.js");
         interactions.SetupVoid("watch", _ => true).SetVoidResult();
         interactions.SetupVoid("unwatch", _ => true).SetVoidResult();
@@ -75,6 +80,23 @@ internal static class BrowserFixture
         rendering.SetupVoid("nextFrame", _ => true).SetVoidResult();
         rendering.SetupVoid("nextTask", _ => true).SetVoidResult();
         return context;
+    }
+
+    internal static async Task SelectPanelAsync<T>(IRenderedComponent<T> component, string panel)
+        where T : class, IComponent
+    {
+        await component.InvokeAsync(async () =>
+        {
+            IElement action = component.Find($"[data-workflow-step='{panel}']");
+            if (action.GetAttribute("aria-current") != "step") await action.ClickAsync(new MouseEventArgs());
+        });
+    }
+
+    internal static async Task PrepareAsync<T>(IRenderedComponent<T> component, bool draft)
+        where T : class, IComponent
+    {
+        await SelectPanelAsync(component, "prepare");
+        await component.Find(draft ? "#prepare-draft" : "#prepare-complete").ClickAsync(new MouseEventArgs());
     }
 
     internal static async Task<IElement> OpenOmissionAsync<T>(BunitContext context, IRenderedComponent<T> component, string field)
@@ -104,12 +126,31 @@ internal static class BrowserFixture
         internal IRenderedComponent<MudPopoverProvider>? Provider { get; set; }
     }
 
+    internal static IRenderedComponent<IComponent> SectionNavigation<T>(BunitContext context, IRenderedComponent<T> component)
+        where T : class, IComponent
+    {
+        if (component.FindComponents<SectionOutlet>().Count > 0) return component;
+        var host = context.Services.GetRequiredService<SectionNavigationHost>();
+        return host.Outlet ??= context.Render<SectionOutlet>(parameters =>
+            parameters.Add(item => item.SectionName, "configuration-sections"));
+    }
+
+    private sealed class SectionNavigationHost
+    {
+        internal IRenderedComponent<SectionOutlet>? Outlet { get; set; }
+    }
+
     internal static Task NotifyChoiceAsync<T>(IRenderedComponent<T> component, string field, string value)
         where T : class, IComponent
     {
+        IElement? output = component.FindAll("#configuration-output").SingleOrDefault();
+        if (output?.GetAttribute("data-output-field") == field)
+        {
+            IElement option = output.QuerySelectorAll("option").Single(item => item.GetAttribute("data-output-value") == value);
+            return output.ChangeAsync(new ChangeEventArgs { Value = option.GetAttribute("value") });
+        }
         var editor = component.FindComponents<ConfigurationField>()
             .Single(item => string.Join('.', item.Instance.Path) == field);
-        var choice = editor.FindComponent<MudSelect<string>>();
         string selection = value;
         // Resolve canonical declared values, never translated labels or ordinal aliases.
         if (editor.Instance.Schema.Keywords.TryGetProperty("enum", out JsonElement choices))
@@ -119,6 +160,10 @@ internal static class BrowserFixture
                     : candidate.item.GetRawText() == value).ordinal;
             selection = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+        var radios = editor.FindComponents<MudRadioGroup<string>>().SingleOrDefault();
+        if (radios is not null)
+            return component.InvokeAsync(() => radios.Instance.ValueChanged.InvokeAsync(selection));
+        var choice = editor.FindComponent<MudSelect<string>>();
         return component.InvokeAsync(() => choice.Instance.ValueChanged.InvokeAsync(selection));
     }
 

@@ -4,10 +4,14 @@
 @inject Microsoft.JSInterop.IJSRuntime Javascript
 @inject NavigationManager Navigation
 
-<NavigationLock ConfirmExternalNavigation="@State.IsActive" OnBeforeInternalNavigation="BeforeNavigationAsync" />
+<NavigationLock ConfirmExternalNavigation="@State.HasWork" OnBeforeInternalNavigation="BeforeNavigationAsync" />
 
 @code {
-    protected override void OnInitialized() => State.Changed += Changed;
+    protected override void OnInitialized()
+    {
+        State.Changed += Changed;
+        State.WorkChanged += Changed;
+    }
 
     private async Task BeforeNavigationAsync(LocationChangingContext context)
     {
@@ -15,7 +19,7 @@
         try
         {
             bool leave = await State.TryLeaveAsync(async () =>
-                await Javascript.InvokeAsync<bool>("confirm", "Discard this workspace's answers and output and continue? Choose Cancel to keep editing.")
+                await Javascript.InvokeAsync<bool>("confirm", BrowserStrings.Get("DiscardConfirm", State.Culture.Locale))
                 && !context.CancellationToken.IsCancellationRequested);
             if (!leave) context.PreventNavigation();
         }
@@ -23,5 +27,9 @@
     }
 
     private void Changed(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
-    public void Dispose() => State.Changed -= Changed;
+    public void Dispose()
+    {
+        State.Changed -= Changed;
+        State.WorkChanged -= Changed;
+    }
 }

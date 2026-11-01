@@ -293,17 +293,24 @@ public sealed class BrowserDefinitionSourceTests
         component.FindAll("button").Single(button => button.TextContent == "Open configuration workspace").Click();
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
-        component.Find("#prepare-draft").Click();
+        await BrowserFixture.PrepareAsync(component, draft: true);
         component.Find(".configuration-editor__artifact button").Click();
-        Task discard = component.FindAll("button").Single(button => button.TextContent == "Discard this workspace to choose another definition")
-            .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
-        await Assert.That(cleanup.Invocations.Count).IsEqualTo(1);
-        transport.Setup<byte[]>("fetchDefinition", "https://other.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
-            .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
-        await component.InvokeAsync(() => navigation.NavigateTo("/open#src=https%3A%2F%2Fother.example%2Fdefinition.json"));
-        await Assert.That(component.Find("[data-code=source-admitted]").TextContent).Contains("admitted");
-        cleanup.SetVoidResult();
-        await discard.WaitAsync(TimeSpan.FromSeconds(5));
+        Task? discard = null;
+        try
+        {
+            discard = component.Find("[data-action='discard-workspace']")
+                .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+            await Assert.That(cleanup.Invocations.Count).IsEqualTo(1);
+            transport.Setup<byte[]>("fetchDefinition", "https://other.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
+                .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
+            await component.InvokeAsync(() => navigation.NavigateTo("/open#src=https%3A%2F%2Fother.example%2Fdefinition.json"));
+            await Assert.That(component.Find("[data-code=source-admitted]").TextContent).Contains("admitted");
+        }
+        finally
+        {
+            cleanup.SetVoidResult();
+            if (discard is not null) await discard.WaitAsync(TimeSpan.FromSeconds(5));
+        }
         await Assert.That(component.Find("[data-code=source-admitted]").TextContent).Contains("admitted");
         await Assert.That(component.FindAll("button").Any(button => button.TextContent == "Open configuration workspace")).IsTrue();
     }

@@ -25,6 +25,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Both languages travel with the app; changing workspace locale performs no satellite fetch. -->
+    <EmbeddedResource Update="Resources/BrowserStrings.resx"
+                      WithCulture="false" LogicalName="Configurator.Browser.Resources.BrowserStrings.resources" />
+    <EmbeddedResource Update="Resources/BrowserStrings.ar.resx"
+                      WithCulture="false" LogicalName="Configurator.Browser.Resources.BrowserStrings.ar.resources" />
     <EmbeddedResource Include="Definitions/**/*.json" />
     <!-- Registry orders resource names; put the neutral first-run example before optional target examples. -->
     <EmbeddedResource Include="../../examples/minimal-self-hosted/setup-definition.json"

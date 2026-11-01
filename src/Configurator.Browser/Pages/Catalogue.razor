@@ -1,36 +1,154 @@
 @page "/"
+@implements IDisposable
+@using Configurator.Core.Definitions
 @inject BrowserDefinitionRegistry Registry
+@inject DefinitionStoreCatalog Catalog
 
-<PageTitle>Home · Configurator</PageTitle>
-<header class="hero page-header catalogue__hero" aria-labelledby="catalogue-heading">
-    <p class="eyebrow">Local configuration workspace</p>
-    <h1 id="catalogue-heading">Prepare your configuration</h1>
-    <p class="lede">
-        Open a definition, answer the questions and prepare your files.
-        Your answers stay in this tab. Secret entry is optional.
-    </p>
-    <div class="actions">
-        <AppButton Href="open">Open configuration</AppButton>
-        <AppButton Href="store" Variant="Variant.Outlined">Browse Definition Store</AppButton>
+<PageTitle>@T("CatalogueTitle") · Configurator</PageTitle>
+<div class="catalogue" lang="@Culture.Locale">
+    <header class="page-header catalogue__hero" aria-labelledby="catalogue-heading">
+        <p class="eyebrow">@T("LocalWorkspace")</p>
+        <h1 id="catalogue-heading">@T("CatalogueTitle")</h1>
+        <p class="lede">@T("CatalogueIntro")</p>
+    </header>
+    <div class="catalogue__search">
+        <label for="catalogue-search">@T("ProjectSearch")</label>
+        <input class="form-control" id="catalogue-search" type="search" maxlength="256"
+               @bind="_query" @bind:event="oninput" />
     </div>
-</header>
-<ol class="catalogue__steps" aria-label="Configuration workflow">
-    <li><span class="catalogue__step-number" aria-hidden="true">1</span><div><strong>Choose a definition</strong><p>Use a bundled project, a local file or a public link.</p></div></li>
-    <li><span class="catalogue__step-number" aria-hidden="true">2</span><div><strong>Configure locally</strong><p>Follow the guided sections and choose how to handle secrets.</p></div></li>
-    <li><span class="catalogue__step-number" aria-hidden="true">3</span><div><strong>Prepare your files</strong><p>Export a draft or complete configuration for target validation.</p></div></li>
-</ol>
-<section aria-labelledby="definitions-heading">
-    <h2 id="definitions-heading">Bundled definitions</h2>
+    <p role="status">@T("ProjectCount"): @Visible.Count()</p>
     <div class="catalogue__definitions">
-        @foreach (var definition in Registry.Current.Definitions)
+        @foreach (CatalogueDefinition choice in Visible)
         {
-            <AppCard>
-                <h3>@definition.Title</h3>
-                <p>Definition revision @definition.Revision · Publisher claim: @definition.Publisher</p>
-                <p>Family identity does not authenticate a publisher.</p>
-                <AppButton Href="@($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}")" Variant="Variant.Outlined">Configure @definition.Title</AppButton>
-            </AppCard>
+            <article class="catalogue__definition" @key="(choice.Family, choice.Revision, choice.Digest)">
+                <h2><bdi>@choice.Title</bdi></h2>
+                <p>@T(choice.Local is null ? "DirectorySource" : "AvailableInApp") · @T("Revision") <bdi dir="ltr">@choice.Revision</bdi></p>
+                @if (choice.Sources.FirstOrDefault(source => !string.IsNullOrWhiteSpace(source.Description)) is { } describedSource)
+                {
+                    <p><bdi>@describedSource.Description</bdi></p>
+                }
+                @if (choice.Local is { } outputDefinition)
+                {
+                    <p>@T("OutputNames"): <bdi dir="ltr">@string.Join(", ", outputDefinition.Artifacts.Select(artifact => artifact.FileName))</bdi></p>
+                }
+                @if (choice.Local is { } local)
+                {
+                    <AppButton Href="@($"launch/{local.FamilyId:D}?digest={local.Digest.Value}")"
+                               aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), local.Title)">@T("Configure")</AppButton>
+                }
+                else
+                {
+                    <AppButton Href="@($"store/{choice.Sources[0].ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("ReviewRevision")</AppButton>
+                }
+                <details>
+                    <summary>@T("SourceDetails")</summary>
+                    <dl class="catalogue__metadata">
+                        <dt>@T("Family")</dt><dd><bdi dir="ltr">@choice.Family.ToString("D")</bdi></dd>
+                        <dt>@T("Revision")</dt><dd><bdi dir="ltr">@choice.Revision</bdi></dd>
+                        <dt>@T("Digest")</dt><dd><code dir="ltr">@choice.Digest</code></dd>
+                        @if (choice.Local is { } definition)
+                        {
+                            <dt>@T("Publisher")</dt><dd><bdi>@definition.Publisher</bdi></dd>
+                            <dt>@T("ApplicationId")</dt><dd><bdi dir="ltr">@definition.ApplicationId</bdi></dd>
+                            <dt>@T("OutputNames")</dt><dd><bdi dir="ltr">@string.Join(", ", definition.Artifacts.Select(artifact => artifact.FileName))</bdi></dd>
+                        }
+                    </dl>
+                    @foreach (DefinitionStoreProject source in choice.Sources)
+                    {
+                        <p><a href="@($"store/{source.ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("DirectorySource"): <bdi>@source.Name</bdi></a></p>
+                        <p><bdi>@source.Description</bdi></p>
+                    }
+                    <p>@T("TrustBoundary")</p>
+                </details>
+            </article>
         }
     </div>
-</section>
-<p>Prepare the app for offline use while online. <a href="help">Learn about offline use, privacy and target validation.</a></p>
+    @if (!Visible.Any())
+    {
+        <h2>@T("NoProjects")</h2>
+        <p>@T("SearchRecovery")</p>
+    }
+    <p class="catalogue__directory-status" role="status" data-code="@_error">
+        @if (_loading) { @T("DirectoryLoading") }
+        else if (_error is not null) { @T("DirectoryUnavailable") }
+        else if (_projects.Count == 0) { @T("DirectoryEmpty") }
+    </p>
+    <aside class="catalogue__recovery" aria-labelledby="catalogue-recovery-heading">
+        <h2 id="catalogue-recovery-heading">@T("OtherSources")</h2>
+        <a href="open">@T("OpenFileOrLink")</a>
+        <a href="help">@T("HelpPrivacy")</a>
+    </aside>
+</div>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<DefinitionStoreProject> _projects = [];
+    private IReadOnlyList<CatalogueDefinition> _choices = [];
+    private string _query = string.Empty;
+    private string? _error;
+    private bool _loading = true;
+    private bool _disposed;
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+    private IEnumerable<CatalogueDefinition> Visible => _choices
+        .Where(choice => Matches(choice, _query.Trim()))
+        .OrderByDescending(choice => choice.Title.Equals(_query.Trim(), StringComparison.OrdinalIgnoreCase))
+        .ThenByDescending(choice => choice.Title.StartsWith(_query.Trim(), StringComparison.OrdinalIgnoreCase))
+        .ThenByDescending(choice => choice.Local is not null)
+        .ThenByDescending(choice => choice.Local?.Artifacts.Count ?? 0)
+        .ThenBy(choice => choice.Title, StringComparer.OrdinalIgnoreCase)
+        .ThenByDescending(choice => choice.Revision)
+        .ThenBy(choice => choice.Family)
+        .ThenBy(choice => choice.Digest, StringComparer.Ordinal);
+
+    protected override async Task OnInitializedAsync()
+    {
+        BuildChoices();
+        try
+        {
+            IReadOnlyList<DefinitionStoreProject> projects = await Catalog.LoadAsync(_lifetime.Token);
+            if (_disposed) return;
+            _projects = projects;
+            BuildChoices();
+        }
+        catch (BrowserLaunchException exception) { if (!_disposed) _error = exception.Code; }
+        finally { if (!_disposed) _loading = false; }
+    }
+
+    private void BuildChoices()
+    {
+        var choices = Registry.Current.Definitions.Select(definition => new CatalogueDefinition(
+            definition.FamilyId, definition.Revision, definition.Digest.Value, definition.Title, definition, [])).ToList();
+        foreach (DefinitionStoreProject project in _projects)
+        {
+            foreach (DefinitionStoreRevision revision in project.Revisions)
+            {
+                int index = choices.FindIndex(choice => choice.Family == project.FamilyId
+                    && choice.Revision == revision.Revision && choice.Digest == revision.Digest);
+                if (index < 0)
+                    choices.Add(new CatalogueDefinition(project.FamilyId, revision.Revision, revision.Digest, revision.Title, null, [project]));
+                else
+                    choices[index] = choices[index] with { Sources = [.. choices[index].Sources, project] };
+            }
+        }
+        _choices = choices;
+    }
+
+    private static bool Matches(CatalogueDefinition choice, string query) =>
+        choice.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+        || choice.Local?.ApplicationId.Contains(query, StringComparison.OrdinalIgnoreCase) == true
+        || choice.Sources.Any(source => source.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || source.ApplicationId.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || source.Description.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || source.Tags.Any(tag => tag.Contains(query, StringComparison.OrdinalIgnoreCase)));
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+
+    private sealed record CatalogueDefinition(Guid Family, long Revision, string Digest, string Title,
+        SetupDefinition? Local, IReadOnlyList<DefinitionStoreProject> Sources);
+}
