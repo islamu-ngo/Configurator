@@ -57,11 +57,13 @@ public sealed class ProtectedArtifactWriterTests
     }
 
     [Test]
-    public async Task NewFileHasExactBytesOwnerModeAndNoSidecars()
+    [Arguments(OutputFileName)]
+    [Arguments("إعداد-é-😀")]
+    public async Task NewFileHasExactBytesOwnerModeAndNoSidecars(string fileName)
     {
         if (!OperatingSystem.IsLinux()) return;
         using var directory = new TestDirectory();
-        string target = Path.Combine(directory.Path, OutputFileName);
+        string target = Path.Combine(directory.Path, fileName);
         byte[] bytes = RandomNumberGenerator.GetBytes(64);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(ArtifactKind.Environment, target, bytes);
         await Assert.That((await preparation.CommitAsync()).Succeeded).IsTrue();
