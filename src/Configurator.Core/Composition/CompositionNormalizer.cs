@@ -5,62 +5,6 @@ using System.Text;
 using System.Text.Json;
 using Configurator.Core.Definitions;
 
-internal sealed class CompositionException : Exception
-{
-    internal CompositionException(CompositionFailureCode code) : base("Setup composition failed.") => Code = code;
-    internal CompositionFailureCode Code { get; }
-}
-
-internal abstract record CompositionNode
-{
-    internal DefinitionSourceSpan? SourceSpan { get; init; }
-}
-internal sealed record CompositionMap(IReadOnlyDictionary<string, CompositionNode> Entries) : CompositionNode;
-internal sealed record CompositionSequence(IReadOnlyList<CompositionNode> Entries) : CompositionNode;
-internal sealed record CompositionScalar(CompositionScalarKind Kind, string? Value) : CompositionNode;
-
-internal enum CompositionScalarKind
-{
-    String,
-    Integer,
-    Boolean,
-    Null,
-    JsonNumber
-}
-
-internal enum CompositionKeyPolicy { CollisionSafe, Exact }
-
-internal sealed class CompositionBudget
-{
-    private readonly CompositionLimits _limits;
-    private int _nodes;
-    private int _scalarCharacters;
-
-    internal CompositionBudget(CompositionLimits limits) => _limits = limits;
-    internal int Nodes => _nodes;
-
-    internal void Node(int depth)
-    {
-        if (depth > _limits.NestingDepth)
-            throw new CompositionException(CompositionFailureCode.LimitExceeded);
-        try { _nodes = checked(_nodes + 1); }
-        catch (OverflowException) { throw new CompositionException(CompositionFailureCode.LimitExceeded); }
-        if (_nodes > _limits.NormalizedNodes)
-            throw new CompositionException(CompositionFailureCode.LimitExceeded);
-    }
-
-    internal void Scalar(string? value)
-    {
-        int length = value?.Length ?? 0;
-        if (length > _limits.ScalarCharacters)
-            throw new CompositionException(CompositionFailureCode.LimitExceeded);
-        try { _scalarCharacters = checked(_scalarCharacters + length); }
-        catch (OverflowException) { throw new CompositionException(CompositionFailureCode.LimitExceeded); }
-        if (_scalarCharacters > _limits.AggregateScalarCharacters)
-            throw new CompositionException(CompositionFailureCode.LimitExceeded);
-    }
-}
-
 internal static class CompositionNormalizer
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
@@ -308,38 +252,5 @@ internal static class CompositionNormalizer
             default:
                 throw new CompositionException(CompositionFailureCode.InvalidDocument);
         }
-    }
-}
-
-/// <summary>Indexes parser offsets only; it does not interpret document syntax.</summary>
-internal sealed class CompositionSourceText
-{
-    private readonly int[] _lineStarts;
-    private int _byteOffset;
-    private int _characterOffset;
-
-    internal CompositionSourceText(string text)
-    {
-        var starts = new List<int> { 0 };
-        for (int index = 0; index < text.Length; index++)
-            if (text[index] == '\n') starts.Add(index + 1);
-        _lineStarts = starts.ToArray();
-    }
-
-    internal int CharacterOffset(ReadOnlySpan<byte> bytes, int offset)
-    {
-        _characterOffset += Encoding.UTF8.GetCharCount(bytes[_byteOffset..offset]);
-        _byteOffset = offset;
-        return _characterOffset;
-    }
-
-    internal DefinitionSourceSpan Span(int start, int end)
-    {
-        int startLine = Array.BinarySearch(_lineStarts, start);
-        if (startLine < 0) startLine = ~startLine - 1;
-        int endLine = Array.BinarySearch(_lineStarts, end);
-        if (endLine < 0) endLine = ~endLine - 1;
-        return new DefinitionSourceSpan(0, startLine + 1, start - _lineStarts[startLine] + 1,
-            endLine + 1, end - _lineStarts[endLine] + 1);
     }
 }
