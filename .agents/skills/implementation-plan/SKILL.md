@@ -51,6 +51,16 @@ priority: high
 8. Present a self-contained plan brief with changed behavior, mechanisms,
    choices, checks and unresolved risks. Stop before product implementation.
 
+## Final Response
+
+Present the completed implementation plan in the answer as a self-contained brief
+and link the plan, tasks and context artifacts. End the answer with this exact block:
+
+### Recommended Next Action
+
+Run /senior-cto-feedback in a fresh session if you want an adversarial Senior CTO architectural audit of the plan triad first, or
+Run /implement-tasks to begin executing Phase 1 (TASK-1.1) directly.
+
 ## Resources
 
 Retrieve only the resource for the current stage; do not preload the library.
