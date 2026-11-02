@@ -1,7 +1,6 @@
 @implements IDisposable
-@using Microsoft.JSInterop
 @inject Configurator.Browser.Services.BrowserNavigationState State
-@inject Microsoft.JSInterop.IJSRuntime Javascript
+@inject IDialogService Dialogs
 @inject NavigationManager Navigation
 
 <NavigationLock ConfirmExternalNavigation="@State.HasWork" OnBeforeInternalNavigation="BeforeNavigationAsync" />
@@ -16,14 +15,9 @@
     private async Task BeforeNavigationAsync(LocationChangingContext context)
     {
         if (context.TargetLocation == Navigation.Uri) return;
-        try
-        {
-            bool leave = await State.TryLeaveAsync(async () =>
-                await Javascript.InvokeAsync<bool>("confirm", BrowserStrings.Get("DiscardConfirm", State.Culture.Locale))
-                && !context.CancellationToken.IsCancellationRequested);
-            if (!leave) context.PreventNavigation();
-        }
-        catch (JSException) { context.PreventNavigation(); }
+        bool leave = await State.TryLeaveAsync(() =>
+            AppDiscardDialog.ConfirmAsync(Dialogs, State.Culture.Locale, context.CancellationToken));
+        if (!leave) context.PreventNavigation();
     }
 
     private void Changed(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);

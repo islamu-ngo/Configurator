@@ -425,6 +425,11 @@ Reveal, copy and download remain deliberate operations owned by
 `BrowserNavigationState` and `WorkspaceNavigationGuard` confirm route departure.
 Cancellation keeps the workspace. Confirmation invalidates current operations
 synchronously, then awaits discard before allowing another source/store route.
+`AppDiscardDialog` presents internal discard decisions through the shared Mud
+dialog host, with an explicit workspace locale, a named dialog, Cancel first and
+Escape dismissal. The dialog host owns focus trapping and restoration. A
+superseded navigation cancels its pending dialog; caller generations still reject
+late decisions. `NavigationLock` retains browser-managed external unload prompts.
 See [Presentation state](PRESENTATION_STATE.md) for generation ownership and
 [Operations](OPERATIONS.md#browser-custody-and-offline-verification) for actual
 published-browser evidence.

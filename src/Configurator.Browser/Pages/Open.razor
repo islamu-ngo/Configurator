@@ -4,6 +4,7 @@
 @inject BrowserOfflinePolicy Offline
 @inject Microsoft.JSInterop.IJSRuntime Javascript
 @inject NavigationManager Navigation
+@inject IDialogService Dialogs
 @using Configurator.Core.Definitions
 @using Microsoft.JSInterop
 
@@ -151,6 +152,7 @@
     private string _locale = string.Empty;
     private string? _shareLink;
     private IJSObjectReference? _linkModule;
+    private CancellationTokenSource? _discardConfirmation;
     private string _statusCode = "source-ready";
     private string _statusKey = "SourceReady";
 
@@ -166,6 +168,7 @@
     private async Task SelectSourceAsync()
     {
         if (_disposed || _request == Navigation.Uri) return;
+        CancelDiscardConfirmation();
         long generation = ++_generation;
         string request = Navigation.Uri;
         _request = request;
@@ -206,6 +209,7 @@
 
     private async Task LoadLocalAsync(InputFileChangeEventArgs args)
     {
+        CancelDiscardConfirmation();
         long generation = ++_generation;
         _source!.Invalidate();
         _selection = null;
@@ -242,6 +246,7 @@
 
     private void SelectRetained(Definition definition)
     {
+        CancelDiscardConfirmation();
         _generation++;
         _source!.Invalidate();
         _shareLink = null;
@@ -263,6 +268,7 @@
     private async Task LoadPublicAsync()
     {
         if (_loading || _workspaceOpen || _disposed) return;
+        CancelDiscardConfirmation();
         long generation = ++_generation;
         _source!.Invalidate();
         _selection = null;
@@ -335,13 +341,27 @@
 
     private async Task ConfirmDiscardAsync()
     {
+        if (_disposed) return;
+        CancelDiscardConfirmation();
+        using var confirmation = new CancellationTokenSource();
+        _discardConfirmation = confirmation;
         long generation = _generation;
         try
         {
-            bool confirmed = await Javascript.InvokeAsync<bool>("confirm", T("DiscardConfirm"));
+            bool confirmed = await AppDiscardDialog.ConfirmAsync(Dialogs, Culture.Locale, confirmation.Token);
             if (confirmed && !_disposed && generation == _generation) await DiscardAsync();
         }
-        catch (JSException) { }
+        finally
+        {
+            if (ReferenceEquals(_discardConfirmation, confirmation)) _discardConfirmation = null;
+        }
+    }
+
+    private void CancelDiscardConfirmation()
+    {
+        CancellationTokenSource? confirmation = _discardConfirmation;
+        _discardConfirmation = null;
+        confirmation?.Cancel();
     }
 
     private async Task RetainAsync()
@@ -355,6 +375,7 @@
 
     private async Task DiscardAsync()
     {
+        CancelDiscardConfirmation();
         long generation = ++_generation;
         _source!.Invalidate();
         if (_editor is not null) await _editor.DiscardAsync();
@@ -373,6 +394,7 @@
     private void LocationChanged(object? sender, LocationChangedEventArgs args)
     {
         if (_disposed || args.Location == _request) return;
+        CancelDiscardConfirmation();
         _generation++;
         _source?.Invalidate();
         _editor?.Invalidate();
@@ -395,6 +417,7 @@
     {
         if (_disposed) return;
         _disposed = true;
+        CancelDiscardConfirmation();
         _generation++;
         Navigation.LocationChanged -= LocationChanged;
         _editor?.Invalidate();

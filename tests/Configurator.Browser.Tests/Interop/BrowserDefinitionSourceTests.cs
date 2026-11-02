@@ -291,7 +291,6 @@ public sealed class BrowserDefinitionSourceTests
     public async Task LateWorkspaceDiscardCannotEraseNewSourceSelection()
     {
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
-        context.JSInterop.Setup<bool>("confirm", _ => true).SetResult(true);
         var lifecycle = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         lifecycle.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
         lifecycle.Setup<string[]>("retainedDigests").SetResult([]);
@@ -318,6 +317,10 @@ public sealed class BrowserDefinitionSourceTests
         {
             discard = component.Find("[data-action='discard-workspace']")
                 .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+            await component.InvokeAsync(() => { });
+            Task decision = component.Find("[data-action='confirm-discard']")
+                .ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+            await decision.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(cleanup.Invocations.Count).IsEqualTo(1);
             transport.Setup<byte[]>("fetchDefinition", "https://other.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
                 .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());

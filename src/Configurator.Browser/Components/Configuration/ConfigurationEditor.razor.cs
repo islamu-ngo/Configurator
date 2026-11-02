@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.Messaging;
+using Configurator.Browser.Components.Common;
 using Configurator.Browser.Resources;
 using Configurator.Browser.Services;
 using Configurator.Core.Artifacts;
@@ -16,6 +17,7 @@ using Microsoft.JSInterop;
 public partial class ConfigurationEditor : IBrowserPendingChanges
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
+    [Inject] private MudBlazor.IDialogService Dialogs { get; set; } = null!;
     private Task<IJSObjectReference>? _comparisonRendering;
     [Inject] private BrowserOfflinePolicy Offline { get; set; } = null!;
     [Inject] private IServiceProvider Services { get; set; } = null!;
@@ -965,7 +967,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         DefinitionFormModel current = _form!;
         long view = _viewGeneration;
         long operation = _generation;
-        if (HasWork(current) && !await Javascript.InvokeAsync<bool>("confirm", UiText("DiscardConfirm"))) return;
+        if (HasWork(current) && !await AppDiscardDialog.ConfirmAsync(Dialogs, current.Locale, _mountCancellation.Token)) return;
         if (!IsCurrentView(current, view) || operation != _generation) return;
         Task discarding = DiscardAsync();
         long generation = _generation;

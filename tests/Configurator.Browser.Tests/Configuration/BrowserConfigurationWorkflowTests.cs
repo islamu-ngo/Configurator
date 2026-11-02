@@ -10,43 +10,63 @@ using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor;
 
 public sealed class BrowserConfigurationWorkflowTests
 {
     [Test]
-    public async Task LateClearConfirmationCannotDiscardReplacementWorkspace()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task RetiringEditorDismissesPendingClearDecision(bool dispose)
     {
         await using var context = BrowserFixture.Context();
-        var prompted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var confirmation = context.JSInterop.Setup<bool>("confirm", _ =>
+        using var confirmation = new DiscardPrompt(context);
+        var host = context.Render<CascadingValue<bool>>(parameters => parameters
+            .Add(item => item.Value, true)
+            .Add(item => item.ChildContent, builder =>
+            {
+                builder.OpenComponent<ConfigurationEditor>(0);
+                builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), BrowserFixture.Definition);
+                builder.CloseComponent();
+            }));
+        var component = host.FindComponent<ConfigurationEditor>();
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
+        Task clearing = component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        await confirmation.Opened.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
         {
-            prompted.TrySetResult();
-            return true;
-        });
+            if (dispose) host.Render(parameters => parameters.Add(item => item.Value, true).Add(item => item.ChildContent, (RenderFragment?)null));
+            else component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
+            await clearing.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(confirmation.IsOpen).IsFalse();
+        }
+        finally
+        {
+            if (confirmation.IsOpen) await confirmation.DecideAsync(false);
+            await clearing.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Test]
+    public async Task ClearDecisionRetiresBeforeReplacementWorkspaceCanBeEdited()
+    {
+        await using var context = BrowserFixture.Context();
+        using var confirmation = new DiscardPrompt(context);
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "original.test" });
         await BrowserFixture.SelectPanelAsync(component, "prepare");
         Task clearing = component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
-        DefinitionFormModel? replacement = null;
-        long revision = -1;
-        try
-        {
-            await prompted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
-            await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
-            await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "replacement.test" });
-            replacement = component.FindComponents<ConfigurationField>()[0].Instance.Form;
-            revision = replacement.InputRevision;
-        }
-        finally
-        {
-            confirmation.SetResult(true);
-            await clearing.WaitAsync(TimeSpan.FromSeconds(5));
-        }
+        await confirmation.Opened.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
+        await clearing.WaitAsync(TimeSpan.FromSeconds(5));
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "replacement.test" });
+        DefinitionFormModel replacement = component.FindComponents<ConfigurationField>()[0].Instance.Form;
 
-        await Assert.That(replacement!.InputRevision).IsEqualTo(revision);
+        await Assert.That(confirmation.IsOpen).IsFalse();
         await Assert.That(replacement.Snapshot().Values["hostname"].GetString()).IsEqualTo("replacement.test");
         await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsFalse();
     }
@@ -66,8 +86,7 @@ public sealed class BrowserConfigurationWorkflowTests
         source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.literal", "schema.boolean", "schema.integer", "schema.object", "values.initial");
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
-        var confirmation = context.JSInterop.Setup<bool>("confirm", _ => true);
-        confirmation.SetResult(false);
+        using var confirmation = new DiscardPrompt(context);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "enabled", "true");
         await component.Find("[data-field='attempts'] input").InputAsync(new ChangeEventArgs { Value = "unfinished-number" });
@@ -78,9 +97,11 @@ public sealed class BrowserConfigurationWorkflowTests
         await Assert.That(form.ReadDraftText(["attempts"])).IsEqualTo("unfinished-number");
         await BrowserFixture.SelectPanelAsync(component, "prepare");
 
-        await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        Task clearing = component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        await confirmation.DecideAsync(false);
+        await clearing.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await Assert.That(confirmation.Invocations.Count).IsEqualTo(1);
+        await Assert.That(confirmation.Count).IsEqualTo(1);
         await Assert.That(form.ReadDraftText(["attempts"])).IsEqualTo("unfinished-number");
     }
 
@@ -156,15 +177,14 @@ public sealed class BrowserConfigurationWorkflowTests
     public async Task ClearConfirmsOnlyWhenItWouldDiscardWorkAndCancellationPreservesIt()
     {
         await using var context = BrowserFixture.Context();
-        var confirmation = context.JSInterop.Setup<bool>("confirm", _ => true);
-        confirmation.SetResult(false);
+        using var confirmation = new DiscardPrompt(context);
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await BrowserFixture.SelectPanelAsync(component, "prepare");
 
         await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
 
-        await Assert.That(confirmation.Invocations.Count).IsEqualTo(0);
+        await Assert.That(confirmation.Count).IsEqualTo(0);
         await component.Find(".configuration-editor > button").ClickAsync(new MouseEventArgs());
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
@@ -172,17 +192,20 @@ public sealed class BrowserConfigurationWorkflowTests
         long revision = form.InputRevision;
         await BrowserFixture.SelectPanelAsync(component, "prepare");
 
-        await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        Task cancelled = component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        await confirmation.DecideAsync(false);
+        await cancelled.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await Assert.That(confirmation.Invocations.Count).IsEqualTo(1);
+        await Assert.That(confirmation.Count).IsEqualTo(1);
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("retained.test");
         await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsFalse();
 
-        confirmation.SetResult(true);
-        await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        Task confirmed = component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        await confirmation.DecideAsync(true);
+        await confirmed.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await Assert.That(confirmation.Invocations.Count).IsEqualTo(2);
+        await Assert.That(confirmation.Count).IsEqualTo(2);
         await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }

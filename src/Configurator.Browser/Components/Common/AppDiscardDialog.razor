@@ -1,0 +1,28 @@
+<MudDialog DefaultFocus="DefaultFocus.FirstChild">
+    <DialogContent>
+        <p lang="@Locale" dir="@(Locale == "ar" ? "rtl" : "ltr")">@BrowserStrings.Get("DiscardConfirm", Locale)</p>
+    </DialogContent>
+    <DialogActions>
+        <AppButton Variant="Variant.Text" OnClick="Cancel" data-action="keep-workspace">@BrowserStrings.Get("Cancel", Locale)</AppButton>
+        <AppButton Color="Color.Error" OnClick="Discard" data-action="confirm-discard">@BrowserStrings.Get("Discard", Locale)</AppButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+    [Parameter] public string Locale { get; set; } = "en";
+
+    private void Cancel() => Dialog.Cancel();
+    private void Discard() => Dialog.Close(DialogResult.Ok(true));
+
+    public static async Task<bool> ConfirmAsync(IDialogService dialogs, string locale, CancellationToken cancellationToken = default)
+    {
+        if (cancellationToken.IsCancellationRequested) return false;
+        var parameters = new DialogParameters { [nameof(Locale)] = locale };
+        IDialogReference dialog = await dialogs.ShowAsync<AppDiscardDialog>(BrowserStrings.Get("Discard", locale), parameters,
+            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        using CancellationTokenRegistration registration = cancellationToken.Register(() => dialog.Close());
+        DialogResult? result = await dialog.Result;
+        return !cancellationToken.IsCancellationRequested && result is { Canceled: false, Data: true };
+    }
+}

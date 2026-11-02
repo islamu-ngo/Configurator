@@ -203,18 +203,27 @@ public sealed class LaunchRouteTests
     {
         var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
         await using var context = BrowserFixture.Context(registry);
-        context.JSInterop.Setup<bool>("confirm", _ => true).SetResult(true);
-        var navigation = context.Services.GetRequiredService<NavigationManager>();
+        var navigation = new RendererNavigationManager(context);
+        context.Services.AddSingleton<NavigationManager>(navigation);
         navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         var component = context.Render<App>();
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         await BrowserFixture.PrepareAsync(component, draft: true);
         registry.Replace([BrowserFixture.Revision(2)]);
         await component.InvokeAsync(() => navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0&entry=setup"));
+        await component.Find("[data-action='keep-workspace']").ClickAsync(new MouseEventArgs());
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(component.Find("[data-revision]").GetAttribute("data-revision")).IsEqualTo("1");
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsNotEmpty();
+        await component.InvokeAsync(() => navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0&entry=setup"));
+        await component.Find("[data-action='confirm-discard']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(component.Find("[data-revision]").GetAttribute("data-revision")).IsEqualTo("2");
         await Assert.That(component.FindAll("a[download]")).IsEmpty();
         await component.InvokeAsync(() => navigation.NavigateTo($"/launch/{BrowserFixture.Family}?entry=missing"));
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(component.Find("[role=alert]").GetAttribute("data-code")).IsEqualTo("entry-unknown");
         await Assert.That(component.FindAll("main select")).IsEmpty();
     }

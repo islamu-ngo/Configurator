@@ -240,6 +240,9 @@ Pending text requires **Apply**, **Discard** or **Stay** before changing the
 editing mode, representation or output, following a correction, or navigating
 within the app. Language and appearance preferences do not discard it. Apply
 preserves the current text and history; it does not silently format the source.
+Leaving a workspace with changes opens an in-app confirmation in the workspace
+language. **Cancel** or Escape keeps the workspace; **Discard** permits the
+requested change. Closing or reloading the browser uses its own exit warning.
 Revocation, clearing, replacement and disposal retire the private editor,
 history, pending transfers and diagnostics. Browser/runtime strings cannot be
 promised physical erasure.
