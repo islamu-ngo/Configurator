@@ -2,7 +2,7 @@ namespace Configurator.Core.Tests;
 
 using System.Reflection;
 
-internal static class SetupCompositionTestContract
+internal static class CompositionTestContract
 {
     internal const string CompilerTypeName =
         "Configurator.Core.Composition.CompositionCompiler";

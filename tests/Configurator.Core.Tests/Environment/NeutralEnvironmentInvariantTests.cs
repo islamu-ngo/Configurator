@@ -1,5 +1,5 @@
-using Configurator.Core.Dotenv;
 using System.Text;
+using Configurator.Core.Dotenv;
 using Configurator.Core.Environment;
 
 namespace Configurator.Core.Tests.EnvironmentTests;

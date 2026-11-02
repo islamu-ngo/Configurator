@@ -2,7 +2,7 @@ using Configurator.Core.Composition;
 
 namespace Configurator.Core.Tests;
 
-public sealed class SetupCompositionScaleTests
+public sealed class CompositionScaleTests
 {
     [Test]
     public async Task AdmissionNeverClampsFallsBackOrAcceptsUnboundEvidence()

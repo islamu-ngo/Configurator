@@ -8,7 +8,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Core;
 using Configurator.Core.Definitions;
 
-public sealed class SetupPresentationModelTests
+public sealed class PresentationModelTests
 {
     private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(5);
 

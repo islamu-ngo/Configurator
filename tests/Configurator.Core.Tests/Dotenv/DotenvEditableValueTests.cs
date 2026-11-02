@@ -1,8 +1,7 @@
-using Configurator.Core.Dotenv;
-namespace Configurator.Core.Tests.Environment;
+namespace Configurator.Core.Tests.Dotenv;
 
 using System.Text;
-using Configurator.Core.Environment;
+using Configurator.Core.Dotenv;
 
 public sealed class DotenvEditableValueTests
 {

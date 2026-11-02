@@ -2,7 +2,7 @@ namespace Configurator.Core.Tests;
 
 using System.Reflection;
 
-public sealed class SetupCompositionInvariantTests
+public sealed class CompositionInvariantTests
 {
     [Test]
     public async Task KeyShapeMatrixIsClosedAndCollisionAware() =>
@@ -50,7 +50,7 @@ public sealed class SetupCompositionInvariantTests
     [Test]
     public async Task ParserCeilingsPinExactBoundariesAndCheckedArithmetic()
     {
-        CompositionLimit[] limits = SetupCompositionTestContract.Limits;
+        CompositionLimit[] limits = CompositionTestContract.Limits;
 
         await Assert.That(limits.Select(limit => limit.Name).Distinct(StringComparer.Ordinal)
             .Count()).IsEqualTo(limits.Length);
@@ -179,7 +179,7 @@ public sealed class SetupCompositionInvariantTests
     [Test]
     public async Task Phase8WorstBreakUsesExactBarrierAndProducesNothing()
     {
-        CompositionWorstBreak breaker = SetupCompositionTestContract.WorstBreak;
+        CompositionWorstBreak breaker = CompositionTestContract.WorstBreak;
 
         await Assert.That(breaker.Barrier).IsEqualTo("publication-commit");
         await Assert.That(breaker.DirectoryMutation).IsEqualTo("retargeted-open-entry");
@@ -194,7 +194,7 @@ public sealed class SetupCompositionInvariantTests
     [Test]
     public async Task ApprovedPublicCompositionCompilerOwnerExists()
     {
-        Type compiler = SetupCompositionTestContract.RequireCompiler();
+        Type compiler = CompositionTestContract.RequireCompiler();
 
         await Assert.That(compiler.IsPublic).IsTrue();
     }
@@ -203,7 +203,7 @@ public sealed class SetupCompositionInvariantTests
         CompositionMatrix matrix,
         params string[] requiredCases)
     {
-        CompositionVector[] vectors = SetupCompositionTestContract.For(matrix);
+        CompositionVector[] vectors = CompositionTestContract.For(matrix);
         HashSet<string> cases = vectors.Select(vector => vector.Case)
             .ToHashSet(StringComparer.Ordinal);
 

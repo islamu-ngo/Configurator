@@ -1,11 +1,11 @@
-using Configurator.Core.Dotenv;
 using System.Text;
 using Configurator.Core;
+using Configurator.Core.Dotenv;
 using Configurator.Core.Environment;
 
 namespace Configurator.Core.Tests;
 
-public sealed class SetupArtifactSensitivityTests
+public sealed class ArtifactSensitivityTests
 {
     [Test]
     public async Task GeneratedEnvironmentAndUnknownKindsHaveNoPublicProjection()

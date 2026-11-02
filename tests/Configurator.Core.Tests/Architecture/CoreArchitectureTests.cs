@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Tests;
 
 using System.Collections;
@@ -9,7 +8,7 @@ using System.Runtime.CompilerServices;
 using Configurator.Core;
 
 [Category("Architecture")]
-public sealed class SetupCoreArchitectureTests
+public sealed class CoreArchitectureTests
 {
     private static readonly Assembly ProductAssembly = typeof(ArtifactDigest).Assembly;
 
