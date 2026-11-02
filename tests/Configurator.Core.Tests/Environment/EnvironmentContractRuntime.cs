@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Tests.EnvironmentTests;
 
 using System.Collections;
@@ -7,7 +6,7 @@ using Configurator.Core;
 
 internal sealed class EnvironmentContractRuntime
 {
-    private readonly Assembly _assembly = typeof(SetupProfile).Assembly;
+    private readonly Assembly _assembly = typeof(ArtifactDigest).Assembly;
 
     internal string[] MissingCataloguePrerequisites(string repositoryRoot)
     {
@@ -28,7 +27,7 @@ internal sealed class EnvironmentContractRuntime
 
     internal Type RequireType(string shortName) => Type(shortName)
         ?? throw new InvalidOperationException(
-            $"Missing final owner '{EnvironmentContractExpectedVectors.ProductNamespace}.{shortName}'.");
+            $"Missing final owner '{OwnerNamespace(shortName)}.{shortName}'.");
 
     internal string[] VerifyCataloguePublicSurface()
     {
@@ -176,11 +175,14 @@ internal sealed class EnvironmentContractRuntime
 
     private string[] MissingTypes(IEnumerable<string> names) => names
         .Where(name => Type(name) is null)
-        .Select(name => $"missing-owner:{EnvironmentContractExpectedVectors.ProductNamespace}.{name}")
+        .Select(name => $"missing-owner:{OwnerNamespace(name)}.{name}")
         .Order(StringComparer.Ordinal).ToArray();
 
     private Type? Type(string shortName) => _assembly.GetType(
-        $"{EnvironmentContractExpectedVectors.ProductNamespace}.{shortName}", throwOnError: false);
+        $"{OwnerNamespace(shortName)}.{shortName}", throwOnError: false);
+
+    private static string OwnerNamespace(string shortName) => shortName.StartsWith("Dotenv", StringComparison.Ordinal)
+        ? EnvironmentContractExpectedVectors.DotenvNamespace : EnvironmentContractExpectedVectors.ProductNamespace;
 
     private static bool IsExecutableExpressionType(Type type)
     {

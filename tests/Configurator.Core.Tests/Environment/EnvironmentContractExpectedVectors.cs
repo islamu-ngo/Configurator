@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Tests.EnvironmentTests;
 
 using System.Text;
@@ -6,6 +5,7 @@ using System.Text;
 internal static class EnvironmentContractExpectedVectors
 {
     internal const string ProductNamespace = "Configurator.Core.Environment";
+    internal const string DotenvNamespace = "Configurator.Core.Dotenv";
     internal const string MachineCatalogueRelativePath =
         "tests/Configurator.Core.Tests/EventHandoff/environment-catalogue.json";
 
