@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6F7S3MJH5DZTPTK0J1QN434
+Title: "apply shared bounds when adding map entries"
+Type: fix
+Scope: privacy
+Summary: "apply shared bounds when adding map entries."
+Group: terminal-05
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "apply shared bounds when adding map entries. Existing custody and output authority boundaries remain enforced."
+  Migration:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "apply shared bounds when adding map entries."

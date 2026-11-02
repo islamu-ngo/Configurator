@@ -140,28 +140,8 @@ internal sealed class TerminalFieldEditor
             : slot.Form.SetValue(path, JsonSerializer.SerializeToElement(choice == 1));
     }
 
-    internal static bool AddMapEntry(Slot slot, string key)
-    {
-        if (!slot.IsMap || slot.ObjectSchema.Properties.ContainsKey(key) ||
-            Value(slot) is { ValueKind: JsonValueKind.Object } mapping && mapping.TryGetProperty(key, out _)) return false;
-        int count = Value(slot) is { ValueKind: JsonValueKind.Object } current ? current.EnumerateObject().Count() : 0;
-        int maximumEntries = slot.ObjectSchema.Keywords.TryGetProperty("maxProperties", out JsonElement maximum)
-            ? maximum.GetInt32() : Configurator.Core.Composition.CompositionLimits.DefaultMappingEntries;
-        if (count >= maximumEntries) return false;
-        string[] path = [.. slot.FullPath, key];
-        try { _ = DefinitionPath.FromSegments(path); }
-        catch (DefinitionException) { return false; }
-        DefinitionNode schema = slot.ObjectSchema.AdditionalProperties!;
-        JsonElement initial = schema.Type switch
-        {
-            DefinitionNodeType.Text => JsonSerializer.SerializeToElement(""),
-            DefinitionNodeType.Boolean => JsonSerializer.SerializeToElement(false),
-            DefinitionNodeType.WholeNumber or DefinitionNodeType.Number => JsonSerializer.SerializeToElement(0),
-            DefinitionNodeType.Sequence => JsonSerializer.SerializeToElement(Array.Empty<object>()),
-            _ => JsonSerializer.SerializeToElement(new Dictionary<string, object>())
-        };
-        return slot.Form.SetValue(path, initial);
-    }
+    internal static bool AddMapEntry(Slot slot, string key) =>
+        slot.IsMap && slot.Form.AddMapEntry(slot.FullPath, key);
 
     internal static bool Write(Slot slot, string text, int listIndex = 0)
     {
