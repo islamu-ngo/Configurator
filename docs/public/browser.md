@@ -104,7 +104,11 @@ Configurator uses standalone Blazor WebAssembly rather than Blazor Server:
 
 Start at **Choose a project**. One search covers definitions available in the app
 and optional [Definition Store](definition-store.md) metadata. A card identifies
-whether its definition is already available locally or needs public-source review.
+the application and whether its primary definition is available locally or comes
+from the directory. **Configure** admits an exact directory snapshot and opens
+it directly. **Source details** preserves alternate families and revisions;
+ambiguous sources require a deliberate choice. Projects group by exact
+application identifier, never by title alone.
 Matching family, revision and digest identify the same content; a publisher label
 does not establish authenticity or target approval.
 

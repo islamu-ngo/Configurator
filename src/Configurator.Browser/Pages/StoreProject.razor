@@ -15,7 +15,7 @@
     }
     else if (_project is null)
     {
-        <p role="status" data-code="@_error">@T("ProjectUnavailable") <a href="open">@T("OpenFileOrLink")</a></p>
+        <p role="status" data-code="@_error">@T("ProjectUnavailable") <a href="open" @ref="_recoveryLink">@T("OpenFileOrLink")</a></p>
     }
     else
     {
@@ -39,7 +39,8 @@
             }
         </ul>
         <label for="store-revision">@T("ChooseRevision")</label>
-        <select id="store-revision" value="@_revision" @onchange="SelectRevision" disabled="@_busy">
+        <select id="store-revision" @ref="_revisionInput" value="@_revision" @onchange="SelectRevision" disabled="@_busy"
+                aria-describedby="@(_error is null ? null : "store-revision-error")">
             <option value="">@T("SelectRevision")</option>
             @foreach (DefinitionStoreRevision revision in _project.Revisions)
             {
@@ -57,23 +58,11 @@
                 <dt>@T("Digest")</dt><dd><code dir="ltr">@selected.Digest</code></dd>
             </dl>
             <p>@T("VersionClaims")</p>
-            @if (_admitted is null)
-            {
-                <AppButton OnClick="ReviewAsync" Disabled="@_busy">@T(_busy ? "CheckingSnapshot" : "ReviewRevision")</AppButton>
-            }
+            <AppButton OnClick="OpenWorkspaceAsync" Disabled="@_busy">@T(_busy ? "CheckingSnapshot" : "ConfigureRevision")</AppButton>
         }
         @if (_error is not null)
         {
-            <p role="alert" data-code="@_error">@T("RevisionRejected") @T("Code"): <bdi dir="ltr">@_error</bdi></p>
-        }
-        @if (_admitted is { } definition)
-        {
-            <AppCard>
-                <h2>@T("ReadyToOpen") <bdi>@definition.Title</bdi></h2>
-                <p>@T("Revision") <bdi dir="ltr">@definition.Revision</bdi> · @T("Digest") <code dir="ltr">@definition.Digest.Value</code></p>
-                <p>@T("FreshWorkspace")</p>
-                <AppButton OnClick="OpenWorkspace">@T("ConfigureRevision")</AppButton>
-            </AppCard>
+            <p id="store-revision-error" role="alert" data-code="@_error">@T("RevisionRejected") @T("Code"): <bdi dir="ltr">@_error</bdi></p>
         }
     }
 </section>
@@ -85,12 +74,14 @@
     private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
     private CancellationTokenSource? _lifetime;
     private DefinitionStoreProject? _project;
-    private SetupDefinition? _admitted;
     private string _revision = string.Empty;
     private string? _error;
     private bool _loading;
     private bool _busy;
     private bool _disposed;
+    private bool _focusRevision;
+    private ElementReference _revisionInput;
+    private ElementReference _recoveryLink;
     private (string Project, string? Revision)? _request;
     private DefinitionStoreRevision? Selected => _project?.Revisions.SingleOrDefault(item => item.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture) == _revision);
 
@@ -105,7 +96,6 @@
         _loading = true;
         _busy = false;
         _project = null;
-        _admitted = null;
         _revision = string.Empty;
         _error = null;
         try
@@ -116,44 +106,64 @@
             if (_project is null) _error = "store-project-unavailable";
             else if (_project.Revisions.Any(revision => revision.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture) == RequestedRevision))
                 _revision = RequestedRevision!;
+            else if (RequestedRevision is not null)
+            {
+                _error = "store-revision-unavailable";
+                _focusRevision = true;
+            }
         }
         catch (BrowserLaunchException exception) { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _error = exception.Code; }
-        finally { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _loading = false; }
+        finally
+        {
+            if (!_disposed && ReferenceEquals(_lifetime, lifetime))
+            {
+                _loading = false;
+                _focusRevision = _error is not null;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusRevision || _disposed || _loading) return;
+        _focusRevision = false;
+        await (_project is null ? _recoveryLink : _revisionInput).FocusAsync();
     }
 
     private void SelectRevision(ChangeEventArgs args)
     {
         _revision = args.Value?.ToString() ?? string.Empty;
-        _admitted = null;
         _error = null;
     }
 
-    private async Task ReviewAsync()
+    private async Task OpenWorkspaceAsync()
     {
-        if (Selected is not { } selected || _lifetime is null) return;
+        if (_disposed || _busy || Selected is not { } selected || _lifetime is null) return;
         CancellationTokenSource lifetime = _lifetime;
         _busy = true;
         _error = null;
         try
         {
             SetupDefinition definition = await Catalog.OpenAsync(ProjectId, selected.Revision, lifetime.Token);
-            if (!_disposed && ReferenceEquals(_lifetime, lifetime) && Selected == selected) _admitted = definition;
+            if (!_disposed && ReferenceEquals(_lifetime, lifetime) && Selected == selected)
+                Navigation.NavigateTo($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
         }
-        catch (BrowserLaunchException exception) { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _error = exception.Code; }
+        catch (BrowserLaunchException exception)
+        {
+            if (!_disposed && ReferenceEquals(_lifetime, lifetime))
+            {
+                _error = exception.Code;
+                _focusRevision = true;
+            }
+        }
         finally { if (!_disposed && ReferenceEquals(_lifetime, lifetime)) _busy = false; }
-    }
-
-    private void OpenWorkspace()
-    {
-        if (_admitted is not { } definition) return;
-        Navigation.NavigateTo($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
     }
 
     public void Dispose()
     {
+        if (_disposed) return;
         _disposed = true;
         _lifetime?.Cancel();
         _lifetime?.Dispose();
-        _admitted = null;
     }
 }

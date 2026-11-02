@@ -47,7 +47,7 @@ internal static class Program
 
         foreach (string route in new[]
         {
-            "/", "/open", "/help", "/store",
+            "/", "/open", "/help",
             "/store/{slug:nonfile}", "/launch/{id:nonfile}"
         })
         {

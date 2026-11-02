@@ -7,6 +7,17 @@ WebAssembly. App assets and public definitions can be fetched before answer
 custody; answers and artifacts do not belong in links, requests or public
 caches. Secret entry requires explicit consent in each new workspace.
 
+The home catalogue at `/` offers direct **Configure** actions for exact sources.
+Optional `/store/{projectId}` details preserve explicit revision selection; the
+former `/store` catalogue alias is removed. An unavailable requested revision
+never silently selects another. If a launch stops working after reload, reopen
+the original definition file or public link: session-only definitions and
+previous answers are not automatically restored.
+
+A public definition link with an explicit valid `entry` opens that task directly
+after bounded definition admission and selector validation. A link without an
+explicit output retains definition inspection before opening the workspace.
+
 ---
 
 ## The Launch & Configuration Flow

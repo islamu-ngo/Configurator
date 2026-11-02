@@ -326,4 +326,6 @@
   <data name="ImportReadFailedStatus" xml:space="preserve"><value>Comparison could not finish. No answers changed; repair a separate copy or choose the file again.</value></data>
   <data name="AppPreparationIncompleteStatus" xml:space="preserve"><value>Offline app preparation is incomplete. Finish loading public app assets before entering answers.</value></data>
   <data name="WorkspaceClearedStatus" xml:space="preserve"><value>Answers and output cleared. Secret entry is disabled. Start a new local workspace to continue.</value></data>
+  <data name="EntrySourceRecovery" xml:space="preserve"><value>Check the public HTTPS definition URL and selectors, or open the original JSON or YAML definition from your device. No answers have been restored.</value></data>
+  <data name="EntryReopenHelp" xml:space="preserve"><value>A definition opened only in this session may be unavailable after reload. Reopen its original definition file or public link to start a fresh workspace. Your previous answers are not stored.</value></data>
 </root>

@@ -3,6 +3,7 @@
 @using Configurator.Core.Definitions
 @inject BrowserDefinitionRegistry Registry
 @inject DefinitionStoreCatalog Catalog
+@inject NavigationManager Navigation
 
 <PageTitle>@T("CatalogueTitle") · Configurator</PageTitle>
 <div class="catalogue" lang="@Culture.Locale">
@@ -18,51 +19,62 @@
     </div>
     <p role="status">@T("ProjectCount"): @Visible.Count()</p>
     <div class="catalogue__definitions">
-        @foreach (CatalogueDefinition choice in Visible)
+        @foreach (CatalogueProject project in Visible)
         {
-            <article class="catalogue__definition" @key="(choice.Family, choice.Revision, choice.Digest)">
-                <h2><bdi>@choice.Title</bdi></h2>
-                <p>@T(choice.Local is null ? "DirectorySource" : "AvailableInApp") · @T("Revision") <bdi dir="ltr">@choice.Revision</bdi></p>
-                @if (choice.Sources.FirstOrDefault(source => !string.IsNullOrWhiteSpace(source.Description)) is { } describedSource)
+            <article class="catalogue__definition" @key="project.ApplicationId">
+                <h2><bdi>@project.Title</bdi></h2>
+                @if (project.Primary is { Local: { } local })
                 {
-                    <p><bdi>@describedSource.Description</bdi></p>
-                }
-                @if (choice.Local is { } outputDefinition)
-                {
-                    <p>@T("OutputNames"): <bdi dir="ltr">@string.Join(", ", outputDefinition.Artifacts.Select(artifact => artifact.FileName))</bdi></p>
-                }
-                @if (choice.Local is { } local)
-                {
+                    <p>@T("AvailableInApp")</p>
                     <AppButton Href="@($"launch/{local.FamilyId:D}?digest={local.Digest.Value}")"
                                aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), local.Title)">@T("Configure")</AppButton>
                 }
-                else
+                else if (project.Primary is { } directory)
                 {
-                    <AppButton Href="@($"store/{choice.Sources[0].ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("ReviewRevision")</AppButton>
+                    <p>@T("DirectorySource")</p>
+                    <AppButton data-action="open-directory" OnClick="() => OpenDirectoryAsync(directory)" Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
                 }
-                <details>
+                <details open="@(project.Primary is null)">
                     <summary>@T("SourceDetails")</summary>
-                    <dl class="catalogue__metadata">
-                        <dt>@T("Family")</dt><dd><bdi dir="ltr">@choice.Family.ToString("D")</bdi></dd>
-                        <dt>@T("Revision")</dt><dd><bdi dir="ltr">@choice.Revision</bdi></dd>
-                        <dt>@T("Digest")</dt><dd><code dir="ltr">@choice.Digest</code></dd>
-                        @if (choice.Local is { } definition)
-                        {
-                            <dt>@T("Publisher")</dt><dd><bdi>@definition.Publisher</bdi></dd>
-                            <dt>@T("ApplicationId")</dt><dd><bdi dir="ltr">@definition.ApplicationId</bdi></dd>
-                            <dt>@T("OutputNames")</dt><dd><bdi dir="ltr">@string.Join(", ", definition.Artifacts.Select(artifact => artifact.FileName))</bdi></dd>
-                        }
-                    </dl>
-                    @foreach (DefinitionStoreProject source in choice.Sources)
-                    {
-                        <p><a href="@($"store/{source.ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("DirectorySource"): <bdi>@source.Name</bdi></a></p>
-                        <p><bdi>@source.Description</bdi></p>
-                    }
                     <p>@T("TrustBoundary")</p>
+                    @foreach (CatalogueDefinition choice in project.Choices)
+                    {
+                        <section @key="choice">
+                            <h3><bdi>@choice.Title</bdi> · @T(choice.Local is null ? "DirectorySource" : "AvailableInApp")</h3>
+                            <dl class="catalogue__metadata">
+                                <dt>@T("Family")</dt><dd><bdi dir="ltr">@choice.Family.ToString("D")</bdi></dd>
+                                <dt>@T("Revision")</dt><dd><bdi dir="ltr">@choice.Revision</bdi></dd>
+                                <dt>@T("Digest")</dt><dd><code dir="ltr">@choice.Digest</code></dd>
+                                <dt>@T("Publisher")</dt><dd><bdi>@(choice.Local?.Publisher ?? choice.Directory!.Publisher)</bdi></dd>
+                                <dt>@T("ApplicationId")</dt><dd><bdi dir="ltr">@choice.ApplicationId</bdi></dd>
+                                <dt>@T("OutputNames")</dt><dd><bdi dir="ltr">@string.Join(", ", choice.Local?.Artifacts.Select(artifact => artifact.FileName) ?? choice.Directory!.OutputNames)</bdi></dd>
+                            </dl>
+                            @if (choice != project.Primary)
+                            {
+                                @if (choice.Local is { } alternative)
+                                {
+                                    <AppButton Href="@($"launch/{alternative.FamilyId:D}?digest={alternative.Digest.Value}")">@T("ConfigureRevision")</AppButton>
+                                }
+                                else
+                                {
+                                    <AppButton OnClick="() => OpenDirectoryAsync(choice)" Disabled="@_opening">@T("ConfigureRevision")</AppButton>
+                                }
+                            }
+                            @foreach (DefinitionStoreProject source in choice.Sources)
+                            {
+                                <p><a href="@($"store/{source.ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("DirectorySource"): <bdi>@source.Name</bdi></a></p>
+                                <p><bdi>@source.Description</bdi></p>
+                            }
+                        </section>
+                    }
                 </details>
             </article>
         }
     </div>
+    @if (_openError is not null)
+    {
+        <p role="alert" data-code="@_openError">@T("RevisionRejected") <a href="open" @ref="_recoveryLink">@T("OpenFileOrLink")</a></p>
+    }
     @if (!Visible.Any())
     {
         <h2>@T("NoProjects")</h2>
@@ -85,21 +97,22 @@
     private readonly CancellationTokenSource _lifetime = new();
     private IReadOnlyList<DefinitionStoreProject> _projects = [];
     private IReadOnlyList<CatalogueDefinition> _choices = [];
+    private IReadOnlyList<CatalogueProject> _groups = [];
     private string _query = string.Empty;
     private string? _error;
     private bool _loading = true;
     private bool _disposed;
+    private bool _opening;
+    private string? _openError;
+    private bool _focusRecovery;
+    private ElementReference _recoveryLink;
     private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
-    private IEnumerable<CatalogueDefinition> Visible => _choices
-        .Where(choice => Matches(choice, _query.Trim()))
+    private IEnumerable<CatalogueProject> Visible => _groups
+        .Where(project => project.Choices.Any(choice => Matches(choice, _query.Trim())))
         .OrderByDescending(choice => choice.Title.Equals(_query.Trim(), StringComparison.OrdinalIgnoreCase))
         .ThenByDescending(choice => choice.Title.StartsWith(_query.Trim(), StringComparison.OrdinalIgnoreCase))
-        .ThenByDescending(choice => choice.Local is not null)
-        .ThenByDescending(choice => choice.Local?.Artifacts.Count ?? 0)
         .ThenBy(choice => choice.Title, StringComparer.OrdinalIgnoreCase)
-        .ThenByDescending(choice => choice.Revision)
-        .ThenBy(choice => choice.Family)
-        .ThenBy(choice => choice.Digest, StringComparer.Ordinal);
+        .ThenBy(choice => choice.ApplicationId, StringComparer.Ordinal);
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,20 +131,68 @@
     private void BuildChoices()
     {
         var choices = Registry.Current.Definitions.Select(definition => new CatalogueDefinition(
-            definition.FamilyId, definition.Revision, definition.Digest.Value, definition.Title, definition, [])).ToList();
+            definition.FamilyId, definition.Revision, definition.Digest.Value, definition.Title, definition, null, [])).ToList();
         foreach (DefinitionStoreProject project in _projects)
         {
             foreach (DefinitionStoreRevision revision in project.Revisions)
             {
                 int index = choices.FindIndex(choice => choice.Family == project.FamilyId
-                    && choice.Revision == revision.Revision && choice.Digest == revision.Digest);
+                    && choice.Revision == revision.Revision && choice.Digest == revision.Digest
+                    && choice.ApplicationId == project.ApplicationId
+                    && (choice.Local is { } local ? DefinitionStoreCatalog.MatchesDefinition(project, revision, local)
+                        : SameMetadata(choice.Directory!, revision)));
                 if (index < 0)
-                    choices.Add(new CatalogueDefinition(project.FamilyId, revision.Revision, revision.Digest, revision.Title, null, [project]));
+                    choices.Add(new CatalogueDefinition(project.FamilyId, revision.Revision, revision.Digest, revision.Title, null, revision, [project]));
                 else
                     choices[index] = choices[index] with { Sources = [.. choices[index].Sources, project] };
             }
         }
         _choices = choices;
+        _groups = choices.GroupBy(choice => choice.ApplicationId, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                CatalogueDefinition[] candidates = group.OrderByDescending(choice => choice.Local is not null)
+                    .ThenBy(choice => choice.Family).ThenByDescending(choice => choice.Revision)
+                    .ThenBy(choice => choice.Digest, StringComparer.Ordinal).ToArray();
+                CatalogueDefinition[] local = candidates.Where(choice => choice.Local is not null).ToArray();
+                CatalogueDefinition? primary = local.Length == 1 ? local[0] : candidates.Length == 1 ? candidates[0] : null;
+                return new CatalogueProject(group.Key, (primary ?? candidates[0]).Title, primary, candidates);
+            }).ToArray();
+    }
+
+    private static bool SameMetadata(DefinitionStoreRevision left, DefinitionStoreRevision right) =>
+        left.Title == right.Title && left.Publisher == right.Publisher
+        && left.ApplicationVersions.SequenceEqual(right.ApplicationVersions, StringComparer.Ordinal)
+        && left.EntryPoints.SequenceEqual(right.EntryPoints, StringComparer.Ordinal)
+        && left.Locales.SequenceEqual(right.Locales, StringComparer.Ordinal)
+        && left.OutputNames.SequenceEqual(right.OutputNames, StringComparer.Ordinal);
+
+    private async Task OpenDirectoryAsync(CatalogueDefinition choice)
+    {
+        if (_disposed || _opening || choice.Local is not null || !_choices.Contains(choice)) return;
+        _opening = true;
+        _openError = null;
+        try
+        {
+            SetupDefinition definition = await Catalog.OpenAsync(choice.Sources[0].ProjectId, choice.Revision, _lifetime.Token);
+            if (!_disposed) Navigation.NavigateTo($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
+        }
+        catch (BrowserLaunchException exception)
+        {
+            if (!_disposed)
+            {
+                _openError = exception.Code;
+                _focusRecovery = true;
+            }
+        }
+        finally { if (!_disposed) _opening = false; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusRecovery || _disposed) return;
+        _focusRecovery = false;
+        await _recoveryLink.FocusAsync();
     }
 
     private static bool Matches(CatalogueDefinition choice, string query) =>
@@ -144,11 +205,18 @@
 
     public void Dispose()
     {
+        if (_disposed) return;
         _disposed = true;
         _lifetime.Cancel();
         _lifetime.Dispose();
     }
 
     private sealed record CatalogueDefinition(Guid Family, long Revision, string Digest, string Title,
-        SetupDefinition? Local, IReadOnlyList<DefinitionStoreProject> Sources);
+        SetupDefinition? Local, DefinitionStoreRevision? Directory, IReadOnlyList<DefinitionStoreProject> Sources)
+    {
+        public string ApplicationId => Local?.ApplicationId ?? Sources[0].ApplicationId;
+    }
+
+    private sealed record CatalogueProject(string ApplicationId, string Title, CatalogueDefinition? Primary,
+        IReadOnlyList<CatalogueDefinition> Choices);
 }

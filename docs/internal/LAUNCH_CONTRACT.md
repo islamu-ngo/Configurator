@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Implemented browser boundary; target acceptance is separate
 > **Owner:** Browser
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-11-01
 > **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/Presentation/`
 
 ## V2 typed workspace admission and callbacks
@@ -73,12 +73,25 @@ changes cannot upgrade a running workspace.
 ## Definition source boundary
 
 Optional `DefinitionStoreCatalog` discovery is browser-owned public metadata,
-loaded only on Store pages without an active workspace. Packaged same-origin
+loaded only on catalogue/source pages without an active workspace. Packaged same-origin
 snapshots use a separate bounded asset reader; Core admission, exact indexed
 identity/digest checks and `BrowserDefinitionRegistry` history still gate entry.
 No store index is required by startup, independent sources, Core or native
 clients. Store metadata cannot authenticate publishers or infer application
 compatibility beyond declared versions. See [store ownership](DEFINITION_STORE.md).
+
+The home catalogue groups public candidates by exact application identifier,
+retains canonical source alternatives, and opens an exact directory candidate
+with one action through `DefinitionStoreCatalog.OpenAsync`. Its read/workspace
+generation gates still precede digest-pinned navigation. The optional project
+inspector performs the same admission when Configure is selected; it does not
+add a second confirmation. Missing explicit revisions never fall back to latest.
+Unavailable session-only launch identities explain how to reopen the original
+definition file or public link, without restoring answers or fetching silently.
+An `/open` pointer carrying an explicit entry opens its admitted selection
+directly after fetch/admission and the existing component generation check.
+Pointers without an explicit entry retain source inspection. No answer controls
+mount while source admission is pending.
 
 The worker inventories optional store URLs separately from required app assets.
 Only required assets determine installation and readiness. Explicit Store reads

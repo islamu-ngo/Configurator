@@ -37,11 +37,15 @@ flowchart LR
 
 When you open the Configurator WebAssembly application:
 
-1. **Access the Store Tab:** Click **Store** in the main navigation bar.
+1. **Choose a project:** Open the home catalogue. Definitions are grouped by their exact application identifier; matching titles alone never combine projects.
 2. **Search and Filter:** Search applications by name, keywords, or curated category tags (e.g. `monitoring`, `database`, `proxy`).
-3. **Inspect Application Details:** Review the project's publisher, source repository, supported application versions, and generated configuration files (`.env`, JSON, YAML).
-4. **Choose a Revision:** Select the exact definition revision that matches your target deployment version.
-5. **Start Configuration:** Click **Configure** to open an interactive workspace pinned to that canonical definition.
+3. **Start Configuration:** Use **Configure** for the explicitly identified available source. A directory choice is checked against its exact indexed identity before the workspace opens in the same action.
+4. **Choose alternatives when needed:** **Source details** retains other families and revisions, publisher metadata, application versions and filenames. Multiple ambiguous candidates require an explicit choice; no revision is silently selected as latest.
+5. **Inspect a directory revision:** Optional project details let you choose an exact revision and configure it directly. An unavailable requested revision reports an error instead of substituting another.
+
+Application identifiers and publisher labels organize navigation, not trust.
+The catalogue lives at `/`; the former `/store` alias is removed. Exact
+directory details remain at `/store/{projectId}`.
 
 > [!NOTE]
 > The store is entirely optional. If you run a custom or private Configurator build without a bundled store, the **Open** tab remains fully operational for loading local files or deep-link URLs.

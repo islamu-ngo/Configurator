@@ -326,4 +326,6 @@
   <data name="ImportReadFailedStatus" xml:space="preserve"><value>تعذّر إكمال المقارنة. لم تتغير الإجابات؛ أصلح نسخة منفصلة أو اختر الملف مجددًا.</value></data>
   <data name="AppPreparationIncompleteStatus" xml:space="preserve"><value>لم يكتمل تجهيز التطبيق للعمل دون اتصال. أكمل تحميل ملفات التطبيق العامة قبل إدخال الإجابات.</value></data>
   <data name="WorkspaceClearedStatus" xml:space="preserve"><value>مُسحت الإجابات والمخرجات. إدخال الأسرار معطّل. ابدأ مساحة عمل محلية جديدة للمتابعة.</value></data>
+  <data name="EntrySourceRecovery" xml:space="preserve"><value>تحقق من رابط تعريف HTTPS العام وخياراته، أو افتح ملف التعريف الأصلي بصيغة JSON أو YAML من جهازك. لم تتم استعادة أي إجابات.</value></data>
+  <data name="EntryReopenHelp" xml:space="preserve"><value>قد لا يتوفر التعريف المفتوح في هذه الجلسة فقط بعد إعادة التحميل. أعد فتح ملف التعريف الأصلي أو رابطه العام لبدء مساحة عمل جديدة. لا تُخزّن إجاباتك السابقة.</value></data>
 </root>

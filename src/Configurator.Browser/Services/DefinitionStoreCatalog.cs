@@ -47,13 +47,7 @@ public sealed class DefinitionStoreCatalog(BrowserDefinitionRegistry registry, I
         try
         {
             SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes);
-            if (definition.FamilyId != project.FamilyId || definition.ApplicationId != project.ApplicationId
-                || definition.Revision != selected.Revision || definition.Digest.Value != selected.Digest
-                || definition.Publisher != selected.Publisher || definition.Title != selected.Title
-                || !definition.ApplicationVersions.SequenceEqual(selected.ApplicationVersions, StringComparer.Ordinal)
-                || !definition.EntryPoints.SequenceEqual(selected.EntryPoints, StringComparer.Ordinal)
-                || !definition.Locales.SequenceEqual(selected.Locales, StringComparer.Ordinal)
-                || !definition.Artifacts.Select(artifact => artifact.FileName).SequenceEqual(selected.OutputNames, StringComparer.Ordinal))
+            if (!MatchesDefinition(project, selected, definition))
                 throw new BrowserLaunchException("store-snapshot-mismatch");
             Guard(cancellationToken);
             if (workspaceGeneration != policy.WorkspaceGeneration) throw new BrowserLaunchException("store-invalidated");
@@ -63,6 +57,15 @@ public sealed class DefinitionStoreCatalog(BrowserDefinitionRegistry registry, I
         catch (SetupDefinitionException exception) { throw new BrowserLaunchException(exception.Code); }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
+
+    internal static bool MatchesDefinition(DefinitionStoreProject project, DefinitionStoreRevision revision, SetupDefinition definition) =>
+        definition.FamilyId == project.FamilyId && definition.ApplicationId == project.ApplicationId
+        && definition.Revision == revision.Revision && definition.Digest.Value == revision.Digest
+        && definition.Publisher == revision.Publisher && definition.Title == revision.Title
+        && definition.ApplicationVersions.SequenceEqual(revision.ApplicationVersions, StringComparer.Ordinal)
+        && definition.EntryPoints.SequenceEqual(revision.EntryPoints, StringComparer.Ordinal)
+        && definition.Locales.SequenceEqual(revision.Locales, StringComparer.Ordinal)
+        && definition.Artifacts.Select(artifact => artifact.FileName).SequenceEqual(revision.OutputNames, StringComparer.Ordinal);
 
     public static IReadOnlyList<DefinitionStoreProject> ParseIndex(ReadOnlyMemory<byte> bytes)
     {

@@ -5,7 +5,7 @@
 > **Contributing reviewers:** Native store tooling and Browser discovery
 > **Source Anchors:** `eng/configurator/BuildDefinitionStore.cs`, `store/`, `schemas/definition-store-curation-v1.schema.json`
 > **Status:** Optional static discovery; no publisher authentication or host authority
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-11-01
 
 ## Ownership and flow
 
@@ -148,6 +148,18 @@ source admission. Browser checks snapshot identity/digest against this metadata
 before opening and retains registry conflict history. It loads discovery only
 when requested before live answer work. The public projection is
 [definition-store.md](../public/definition-store.md).
+
+The `/` catalogue groups candidates by ordinal application identifier for
+navigation only. Canonical family/revision/digest remains the selection identity.
+An unambiguous locally available candidate has the primary action; alternatives
+remain in source details. Otherwise only a sole candidate has a primary action.
+Directory configuration awaits `OpenAsync` admission before navigating to a
+digest-pinned launch. Component disposal cancels pending reads; the catalog's
+workspace and read generations reject stale publication. Project details retain
+explicit revision choice, with no extra confirmation after successful admission.
+Invalid explicit revisions report unavailable and never select a fallback.
+The obsolete `/store` catalogue alias and its local-host fallback are removed;
+`/store/{projectId}` remains the optional source/revision inspector.
 
 The published worker includes optional store URLs in its exact SDK-manifest
 allowlist, but only core UI/runtime assets determine offline readiness. A

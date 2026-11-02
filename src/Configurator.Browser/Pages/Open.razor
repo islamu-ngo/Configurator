@@ -75,7 +75,7 @@
         <p>@T("PublicUrlIntro")</p>
         <div class="form-group">
             <label for="source-url">@T("SourceUrl")</label>
-            <input class="form-control" id="source-url" type="url" maxlength="2048" dir="ltr" placeholder="https://example.org/definition.json" aria-describedby="source-url-help" @bind="_sourceUrl" @bind:event="oninput" disabled="@_loading" />
+            <input class="form-control" id="source-url" @ref="_sourceInput" type="url" maxlength="2048" dir="ltr" placeholder="https://example.org/definition.json" aria-describedby="source-url-help" @bind="_sourceUrl" @bind:event="oninput" disabled="@_loading" />
             <p id="source-url-help" class="form-help">@T("SourceUrlHelp")</p>
         </div>
         <details>
@@ -119,6 +119,10 @@
     <p class="notice" role="status" data-code="@_statusCode">@T(_statusKey)
         @if (_statusKey is "SourceRejected" or "DefinitionRejected") { <span>@T("Code"): <bdi dir="ltr">@_statusCode</bdi></span> }
     </p>
+    @if (_statusKey is "SourceRejected" or "DefinitionRejected")
+    {
+        <p>@T("EntrySourceRecovery")</p>
+    }
 }
 </div>
 
@@ -137,6 +141,8 @@
     private bool _publicSafeConfirmed;
     private bool _disposed;
     private bool _restoreFileFocus;
+    private bool _restoreSourceFocus;
+    private ElementReference _sourceInput;
     private InputFile? _fileInput;
     private string _sourceUrl = string.Empty;
     private string _digest = string.Empty;
@@ -184,6 +190,7 @@
             if (_disposed || generation != _generation) return;
             _selection = selection;
             _shareLink = ShareLink(pointer, selection);
+            _workspaceOpen = selection.EntryExplicit;
             _statusKey = "SourceAdmitted";
             _statusCode = "source-admitted";
         }
@@ -192,6 +199,7 @@
             if (_disposed || generation != _generation) return;
             _statusCode = exception.Code;
             _statusKey = "SourceRejected";
+            _restoreSourceFocus = true;
         }
         finally { if (generation == _generation) _loading = false; }
     }
@@ -277,7 +285,14 @@
             _statusCode = "source-admitted";
             _statusKey = "SourceAdmitted";
         }
-        catch (BrowserLaunchException exception) { if (!_disposed && generation == _generation) Reject(exception.Code); }
+        catch (BrowserLaunchException exception)
+        {
+            if (!_disposed && generation == _generation)
+            {
+                Reject(exception.Code);
+                _restoreSourceFocus = true;
+            }
+        }
         finally { if (!_disposed && generation == _generation) _loading = false; }
     }
 
@@ -366,6 +381,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_restoreSourceFocus && !_workspaceOpen && !_disposed)
+        {
+            _restoreSourceFocus = false;
+            await _sourceInput.FocusAsync();
+        }
         if (!_restoreFileFocus || _fileInput is null) return;
         _restoreFileFocus = false;
         await _fileInput.Element!.Value.FocusAsync();

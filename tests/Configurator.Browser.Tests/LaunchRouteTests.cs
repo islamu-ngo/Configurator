@@ -93,13 +93,13 @@ public sealed class LaunchRouteTests
         await Assert.That(component.Find("[data-digest]").GetAttribute("data-digest"))
             .IsEqualTo(definition.Digest.Value);
         await BrowserFixture.NotifyChoiceAsync(component, "operation", "environment");
+        component.Find("#configuration-detail").Change("advanced");
         await Assert.That(component.FindAll("[data-field]").Count).IsGreaterThan(1);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         string securitySection = form.Sections.Single(section =>
             section.Fields.Contains("select.feature.security-config")).Id;
         await BrowserFixture.SectionNavigation(context, component).Find($"[data-section='{securitySection}']").ClickAsync(new MouseEventArgs());
         await BrowserFixture.NotifyChoiceAsync(component, "select.feature.security-config", "true");
-        component.Find("#configuration-detail").Change("advanced");
         string targetSection = form.Sections.Single(section =>
             section.Fields.Contains("env.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION")).Id;
         if (component.Find("[data-section-panel]").GetAttribute("data-section-panel") != targetSection)

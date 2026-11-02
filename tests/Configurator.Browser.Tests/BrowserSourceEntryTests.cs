@@ -2,12 +2,37 @@ namespace Configurator.Browser.Tests;
 
 using Bunit;
 using Configurator.Browser.Pages;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 public sealed class BrowserSourceEntryTests
 {
+    [Test]
+    public async Task ExplicitOutputLinkOpensOnlyAfterPublicDefinitionAdmission()
+    {
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        var pwa = context.JSInterop.SetupModule("./pwa-lifecycle.js");
+        pwa.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
+        pwa.Setup<string[]>("retainedDigests").SetResult([]);
+        var source = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var pending = source.Setup<byte[]>("fetchDefinition", _ => true);
+        string entry = BrowserFixture.Definition.EntryPoints[0];
+        context.Services.GetRequiredService<NavigationManager>().NavigateTo(
+            "open#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json&entry=" + Uri.EscapeDataString(entry));
+        var page = context.Render<Open>();
+        await Assert.That(pending.Invocations).Count().IsEqualTo(1);
+        await Assert.That(page.FindAll(".configuration-editor")).IsEmpty();
+        var opened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        page.OnMarkupUpdated += (_, _) =>
+        {
+            if (page.FindAll(".configuration-editor").Count == 1) opened.TrySetResult();
+        };
+        await page.InvokeAsync(() => pending.SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray()));
+        await opened.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
     [Test]
     public async Task SourceInputsHaveConnectedLabelsAndFormatHelp()
     {
@@ -99,10 +124,11 @@ public sealed class BrowserSourceEntryTests
         context.Services.AddSingleton(policy);
         var page = context.Render<Open>();
         page.Find("#source-url").Input("https://publisher.example/definition.json?token=synthetic-private-canary");
-        page.Find("#load-public-source").Click();
+        await page.Find("#load-public-source").ClickAsync(new MouseEventArgs());
         await Assert.That(page.Find("[role=status]").TextContent).DoesNotContain("synthetic-private-canary");
         await Assert.That(page.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("source-invalid");
         await Assert.That(page.FindAll("#definition-file")).Count().IsEqualTo(1);
         await Assert.That(page.FindAll("#definition-share-link")).IsEmpty();
+        await Assert.That(context.JSInterop.Invocations.Any(call => call.Identifier == "Blazor._internal.domWrapper.focus")).IsTrue();
     }
 }
