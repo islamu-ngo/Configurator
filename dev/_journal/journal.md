@@ -608,3 +608,46 @@ heading over revealing a hidden label in document flow.
 
 **Promotion Consideration**:
 - [x] Shared workspace and CLI contracts document the stable eligibility rule.
+
+[2026-11-02 Europe/Brussels] — Probe observations need compiler-owned seams
+
+**Context**: The architecture refactor moves and decomposes import owners while preserving the existing retention measurements.
+
+**Symptom / Observation**: The import probe targets depended on exact private source statements, generated alternate compiler inputs and rejected missing or duplicate text anchors. A harmless rename or extraction could therefore break measurement without changing the measured lifecycle.
+
+**Root Cause**: Instrumentation encoded its ownership relationships as source-text searches rather than compiler-checked references. Native callbacks also used string-based AppContext lookups, and Terminal inspection relied on private reflection.
+
+**Resolution**: Conditional internal hooks and typed engineering bridges now observe the same read, task, proposal, disposal and clearing events. Friend access and probe source inclusion exist only in explicitly instrumented builds. An isolated Linux Desktop candidate completed six warmups and twenty measured compare/clear cycles; all final owner vectors confirmed disposal, cleared input and no retained weak owners. The ordinary binary check `dotnet run --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --no-build -- --treenode-filter "/*/*/StandaloneArchitectureTests/CompiledProductClosureHasNoEventOrTestDependency" --minimum-expected-tests 8` passed all eight owners. These observations do not qualify other hosts, Browser publication or a release performance budget.
+
+**Why This Matters for Future Work**: Preserve the measured events and fixture identity when changing instrumentation. Compiler-owned seams make caller migrations explicit; separate output directories and compiled exclusion checks prevent diagnostic listeners from becoming production retention paths. The related synchronization decision retains one object/Monitor domain across aliases rather than changing only its field type.
+
+**References**:
+- `eng/configurator/ImportComparisonMemoryProbe.targets`
+- `eng/configurator/NativeImportComparisonProbe.targets`
+- `eng/configurator/NativeImportComparisonProbe.cs`
+- `docs/internal/IMPORT_COMPARISON.md`
+- `docs/internal/adr/ADR-domain-vocabulary-and-workspace-ownership.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal; the import procedure and ownership ADR carry the current contract.
+
+[2026-11-02 Europe/Brussels] — Delayed bUnit navigation needs renderer dispatch
+
+**Context**: While implementing Browser internal discard dialogs, the launch-route test moved from immediate JavaScript confirmation to an awaited Mud dialog.
+
+**Symptom / Observation**: Navigation history reported success and `NavigationManager.Uri` changed, while the rendered definition remained at revision 1. A method-only first-chance trace identified `Dispatcher.AssertAccess` through `Router.Refresh`, `Router.OnLocationChanged`, `NavigationManager.NotifyLocationChanged` and bUnit's delayed navigation continuation. The renderer's unhandled-exception task remained empty.
+
+**Root Cause**: With installed bUnit 2.8.6, the delayed location-guard continuation notified the Router outside its renderer dispatcher. This external test navigation boundary failed before the application's location-change listener received the update; extending render waits could not fix it.
+
+**Resolution**: The affected scenario uses `RendererNavigationManager`, an external navigation boundary that executes the actual location-changing guards and location notification on the renderer dispatcher, with an awaited completion task. The test checks cancellation preserving the old workspace and confirmation replacing it. Temporary exception probes were removed. `dotnet run --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --no-build -- --minimum-expected-tests 394` passed 394/394 with none skipped.
+
+**Why This Matters for Future Work**: A succeeded simulated URL change is not evidence that the Router was notified. Diagnose the external navigation boundary before changing production lifecycle or weakening stale-workspace assertions. Rendered component handle disposal also differs from removing the real component subtree; lifecycle tests must exercise renderer-managed disposal.
+
+**References**:
+- `tests/Configurator.Browser.Tests/Fixtures/RendererNavigationManager.cs`
+- `tests/Configurator.Browser.Tests/Navigation/LaunchRouteTests.cs`
+- `tests/Configurator.Browser.Tests/Navigation/BrowserDiscardDialogTests.cs`
+- `tests/Configurator.Browser.Tests/Configuration/BrowserConfigurationWorkflowTests.cs`
+
+**Promotion Consideration**:
+- [x] Stays in journal; re-evaluate the boundary when upgrading bUnit.
