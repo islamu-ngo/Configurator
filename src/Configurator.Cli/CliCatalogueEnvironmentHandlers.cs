@@ -14,7 +14,7 @@ internal static class CliCatalogueEnvironmentHandlers
             ? definition.Fields.OrderBy(item => item.Id, StringComparer.Ordinal).ToArray()
             : definition.Fields.Where(item => item.Id == command.Key).ToArray();
         if (command.Operation != "list" && fields.Length == 0)
-            return CliResults.Failure(CliExitCode.Validation, "catalogue-key-unknown", "$.key");
+            return CliResults.Failure(CliExitCode.Validation, "catalogue-key-unknown", "/key");
 
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))

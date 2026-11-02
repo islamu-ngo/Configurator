@@ -69,7 +69,7 @@ internal static class CliResults
         CliMachineCoverage? coverage = null, CliMachineReadiness? readiness = null) =>
         new(CliExitCode.Success, [], artifacts ?? [], coverage ?? EmptyCoverage(), readiness ?? Ready());
 
-    internal static CliCommandResult Failure(CliExitCode exit, string code, string path = "$.arguments") =>
+    internal static CliCommandResult Failure(CliExitCode exit, string code, string path = "/arguments") =>
         new(exit, [new(code, path, "error")], [], EmptyCoverage(), exit switch
         {
             CliExitCode.Blocked => new("blocked", [], ["command-boundary"]),

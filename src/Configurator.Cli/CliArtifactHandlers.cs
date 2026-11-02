@@ -23,13 +23,13 @@ internal static class CliArtifactHandlers
             return await BundleAsync(command, invocation, definition, ledger, cancellationToken);
         ArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == command.Artifact);
         if (artifact is null)
-            return CliResults.Failure(CliExitCode.Validation, "artifact-unknown", "$.artifact");
+            return CliResults.Failure(CliExitCode.Validation, "artifact-unknown", "/artifact");
         if (command.Family == "env" && artifact.Format != DefinitionArtifactFormat.Dotenv
             || command.Format is not null && artifact.Format.ToToken() != command.Format)
-            return CliResults.Failure(CliExitCode.Usage, "artifact-format-mismatch", "$.artifact");
+            return CliResults.Failure(CliExitCode.Usage, "artifact-format-mismatch", "/artifact");
         if (artifact.ApplySemantics == DefinitionTargetUpdateMode.Import
             && command.Operation is "create" or "format" or "export" or "preview" or "render")
-            return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "$.artifact");
+            return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "/artifact");
 
         if (command.Operation is "check-existing" or "prefill")
             return await AssessExistingAsync(command, invocation, definition, artifact, ledger, cancellationToken);
@@ -48,9 +48,9 @@ internal static class CliArtifactHandlers
             string revisionName = definition.Fields.Single(field => field.Id == command.RevisionField).Name;
             if (answers.Values.TryGetValue(revisionName, out JsonElement supplied)
                 && (supplied.ValueKind != JsonValueKind.String || supplied.GetString() != command.ExpectedRevision))
-                return CliResults.Failure(CliExitCode.Validation, "revision-conflict", "$.input");
+                return CliResults.Failure(CliExitCode.Validation, "revision-conflict", "/input");
             if (answers.Omitted.Any(path => path.Segments.Count == 1 && path.Segments[0] == revisionName))
-                return CliResults.Failure(CliExitCode.Validation, "revision-conflict", "$.input");
+                return CliResults.Failure(CliExitCode.Validation, "revision-conflict", "/input");
             var values = answers.Values.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
             values[revisionName] = JsonSerializer.SerializeToElement(command.ExpectedRevision);
             answers = new(answers.InputRevision, values, answers.Omitted);
@@ -75,14 +75,14 @@ internal static class CliArtifactHandlers
         }
         DefinitionArtifactResult composed = DefinitionArtifactComposer.Compose(definition, artifact.Id, answers, cancellationToken);
         if (!composed.Succeeded)
-            return CliResults.Failure(CliExitCode.Validation, "artifact-composition-failed", "$.input");
+            return CliResults.Failure(CliExitCode.Validation, "artifact-composition-failed", "/input");
         using DefinitionArtifact output = composed.Artifact!;
         ReadOnlyMemory<byte> outputBytes = output.Bytes;
         try
         {
             if (command.Answers is not null && !await EquivalentInputAsync(
                 invocation, command.Input!, artifact.Format.ToToken(), outputBytes, cancellationToken))
-                return CliResults.Failure(CliExitCode.Data, "artifact-projection-mismatch", "$.input");
+                return CliResults.Failure(CliExitCode.Data, "artifact-projection-mismatch", "/input");
             if (command.Operation == "diff")
             {
                 if (command.Answers is not null)
@@ -94,7 +94,7 @@ internal static class CliArtifactHandlers
                 AnswerSnapshot baseline = await CliIoOperations.AnswersAsync(invocation, command.Baseline!, command.InputRevision, cancellationToken);
                 DefinitionArtifactResult previous = DefinitionArtifactComposer.Compose(definition, artifact.Id, baseline, cancellationToken);
                 if (!previous.Succeeded)
-                    return CliResults.Failure(CliExitCode.Validation, "baseline-invalid", "$.baseline");
+                    return CliResults.Failure(CliExitCode.Validation, "baseline-invalid", "/baseline");
                 using DefinitionArtifact prior = previous.Artifact!;
                 ReadOnlyMemory<byte> priorBytes = prior.Bytes;
                 try
@@ -220,7 +220,7 @@ internal static class CliArtifactHandlers
         if (!result.Succeeded)
             return CliResults.Failure(result.Code == "answer-conflict" ? CliExitCode.Validation
                 : result.Code == "inverse-unsupported" || result.Code == "import-unsupported"
-                    ? CliExitCode.Blocked : CliExitCode.Data, result.Code, "$.input");
+                    ? CliExitCode.Blocked : CliExitCode.Data, result.Code, "/input");
 
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, result.Answers!, cancellationToken);
         var coverage = new CliMachineCoverage(
@@ -238,7 +238,7 @@ internal static class CliArtifactHandlers
             };
 
         if (command.Output == "-")
-            return CliResults.Failure(CliExitCode.Blocked, "restricted-stdout", "$.output");
+            return CliResults.Failure(CliExitCode.Blocked, "restricted-stdout", "/output");
         byte[] bytes = AnswerSnapshotCodec.Serialize(result.Answers!);
         try
         {
@@ -263,7 +263,7 @@ internal static class CliArtifactHandlers
         string[] ids = command.Artifacts!;
         if (definition.Artifacts.Any(item => ids.Contains(item.Id, StringComparer.Ordinal)
             && item.ApplySemantics == DefinitionTargetUpdateMode.Import))
-            return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "$.artifacts");
+            return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "/artifacts");
         AnswerSnapshot answers = await CliIoOperations.AnswersAsync(invocation, command.Input!, command.InputRevision, cancellationToken);
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers, cancellationToken);
         if (!bundle.Succeeded)

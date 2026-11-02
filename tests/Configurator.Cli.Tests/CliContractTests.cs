@@ -5,6 +5,18 @@ namespace Configurator.Cli.Tests;
 
 public sealed class CliContractTests
 {
+    [Test]
+    [Arguments("/a.b/~0/~1/0", "/a.b/~0/~1/0")]
+    [Arguments("/", "/")]
+    [Arguments("", "")]
+    [Arguments("$.input", "")]
+    [Arguments("/bad~2escape", "")]
+    public async Task DiagnosticPointersPreserveEscapedSegmentsAndRejectOtherSyntax(string path, string expected)
+    {
+        CliMachineDiagnostic diagnostic = CliMachineOutput.Sanitize(new("invalid-input", path, "error"));
+        await Assert.That(diagnostic.Path).IsEqualTo(expected);
+    }
+
     private static readonly string[] SourceFields = ["schemaPath", "documentIndex", "startLine", "startColumn", "endLine", "endColumn"];
     private static readonly string[] CorrectionFields = ["inputRevision", "fieldId", "segments"];
     private static readonly string[] SchemaFields = ["kind", "id", "digest", "profile", "authoringContractVersion",

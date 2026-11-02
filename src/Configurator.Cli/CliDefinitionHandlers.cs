@@ -90,10 +90,10 @@ internal static class CliDefinitionHandlers
             using ISetupCliPublicFilePreparation? idMap = command.IdMap is null ? null : files.PrepareCreate(command.IdMap, map!, maximumBytes, true);
             return await PublishAsync(idMap is null ? [canonical] : [canonical, idMap], result, ledger, cancellationToken).ConfigureAwait(false);
         }
-        catch (DefinitionFileException exception) { return ledger.Preserve(CliResults.Failure(CliExitCode.Data, exception.Code, "$.source")); }
+        catch (DefinitionFileException exception) { return ledger.Preserve(CliResults.Failure(CliExitCode.Data, exception.Code, "/source")); }
         catch (DefinitionSchemaImportException exception)
         {
-            var diagnostics = new[] { new CliMachineDiagnostic(exception.Code, "$.schema", "error") }
+            var diagnostics = new[] { new CliMachineDiagnostic(exception.Code, "/schema", "error") }
                 .Concat(exception.Transformations.Select(TransformationDiagnostic)).ToArray();
             return new(CliExitCode.Data, diagnostics, [], CliResults.EmptyCoverage(), new("incomplete", ["schema-review-required"], []));
         }
@@ -106,7 +106,7 @@ internal static class CliDefinitionHandlers
                 Diagnostics = [new(exception.Code, "/source", "error") { Source = source }]
             };
         }
-        catch (DecoderFallbackException) { return CliResults.Failure(CliExitCode.Data, "definition-source-invalid", "$.source"); }
+        catch (DecoderFallbackException) { return CliResults.Failure(CliExitCode.Data, "definition-source-invalid", "/source"); }
     }
 
     private static CliCommandResult Schema(string kind)
@@ -327,7 +327,7 @@ internal static class CliDefinitionHandlers
             }
             ledger.Cleanup(cleanupFailed ? "failed" : "completed");
         }
-        return ledger.Preserve(cleanupFailed ? CliResults.Failure(CliExitCode.Io, "definition-cleanup-failed", "$.source") : result);
+        return ledger.Preserve(cleanupFailed ? CliResults.Failure(CliExitCode.Io, "definition-cleanup-failed", "/source") : result);
     }
 
     private static JsonObject EnvironmentKeys(ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken)

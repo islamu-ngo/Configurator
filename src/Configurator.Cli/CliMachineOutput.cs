@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Configurator.Core;
+using Configurator.Core.Definitions;
 
 namespace Configurator.Cli;
 
@@ -145,9 +146,10 @@ internal static class CliMachineOutput
 
     internal static CliMachineDiagnostic Sanitize(CliMachineDiagnostic diagnostic)
     {
-        string pointer = diagnostic.Path.StartsWith("$.", StringComparison.Ordinal)
-            ? "/" + diagnostic.Path[2..].Replace(".", "/", StringComparison.Ordinal) : diagnostic.Path == "$" ? "" : diagnostic.Path;
-        if (pointer.Length > 256 || pointer.Any(char.IsControl) || pointer.Length > 0 && pointer[0] != '/') pointer = "";
+        string pointer = diagnostic.Path;
+        if (pointer.Length > 256 || pointer.Any(char.IsControl)) pointer = "";
+        try { pointer = DefinitionPath.Parse(pointer).ToPointer(); }
+        catch (DefinitionException) { pointer = ""; }
         string code = diagnostic.Code.Length is > 0 and <= 96 && diagnostic.Code.All(character => char.IsAsciiLetterOrDigit(character) || character == '-')
             ? diagnostic.Code : "diagnostic-invalid";
         CliMachineSourceLocation? source = diagnostic.Source;

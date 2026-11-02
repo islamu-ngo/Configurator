@@ -90,6 +90,8 @@ Root mode switches may precede the command (`--machine doctor`) or follow it
 (`doctor --machine`). Preflight retains duplicate/conflict checks before dispatch.
 Arguments rejected by the bounded invocation constructor use the same delivery
 boundary as other usage failures, without fabricating a different command.
+Diagnostic producers supply JSON Pointers directly; rendering validates pointer
+syntax without interpreting dots in property names as path separators.
 
 ### Bounded operation execution
 
