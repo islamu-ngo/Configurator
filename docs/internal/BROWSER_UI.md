@@ -228,6 +228,16 @@ The workspace help control receives the form's explicit locale, including its
 accessible name and inspector dialog. Field and workspace help therefore use
 the same locale owner.
 
+`BlazorWebAssemblyLoadAllGlobalizationData` selects the SDK's full ICU data at
+startup. Definitions can declare locales beyond the provider's en/ar resource
+catalog, and workspace switching does not reload the app. Startup-culture shard
+selection is therefore insufficient: an en-US boot otherwise loads EFIGS data,
+which omits Arabic; fixing this with the non-CJK shard would instead omit
+admitted Japanese, Korean and Chinese cultures. The ICU data is a public startup
+asset, never an answer-bearing request. This configuration adds no dependency
+or translation-quality claim. Microsoft documents the supported selection
+mechanisms in [Blazor globalization](https://learn.microsoft.com/en-us/aspnet/core/blazor/globalization-localization?view=aspnetcore-10.0#net-globalization-and-international-components-for-unicode-icu-support-blazor-webassembly).
+
 Output tasks come from admitted `presentation.outputSelector` metadata, never
 an inferred `/operation` field or enum order. `BrowserLaunchSelection` retains
 explicit-entry intent; Launch/Open pass only a deliberate entry into a fresh

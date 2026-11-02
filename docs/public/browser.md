@@ -52,6 +52,11 @@ fall back to base text. Automatic direction follows locale metadata; an explicit
 direction preference still wins. Language changes do not edit answers, invalidate
 prepared files, convert numeric units, or reload the workspace.
 
+The public app package includes the .NET globalization data needed to format
+values in a declared workspace locale even when the browser started in another
+language. This does not translate definition-authored text or expand the
+provider's English/Arabic interface translations.
+
 Unsupported required editing capabilities refuse before answer collection.
 Required or invalid work remains reachable even when optional settings or a
 journey are hidden. Correction links resolve typed property/row/map-entry
