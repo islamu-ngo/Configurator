@@ -15,6 +15,7 @@ using Configurator.Desktop.Views;
 
 public sealed class MainWindowBindingTests
 {
+    private static readonly string[] PathEditorNames = ["DefinitionPath", "ExistingFilePath", "OutputDirectory", "FileName"];
 
     [Test]
     [NotInParallel]
@@ -39,10 +40,16 @@ public sealed class MainWindowBindingTests
                     Dispatcher.UIThread.RunJobs();
                     string? english = window.GetControl<Button>("Validate").Content?.ToString();
                     string englishPin = loader.DefinitionPin;
+                    object? selectedExperience = window.GetControl<ComboBox>("Experience").SelectedItem;
                     workspace.SelectedLocale = "ar";
                     Dispatcher.UIThread.RunJobs();
                     string? arabic = window.GetControl<Button>("Validate").Content?.ToString();
                     string arabicPin = loader.DefinitionPin;
+                    var experience = window.GetControl<ComboBox>("Experience");
+                    bool experienceSelected = selectedExperience is not null &&
+                        ReferenceEquals(experience.SelectedItem, selectedExperience) && experience.SelectionBoxItem is not null;
+                    bool pathsLeftToRight = PathEditorNames
+                        .All(name => window.GetControl<TextBox>(name).FlowDirection == FlowDirection.LeftToRight);
                     bool readable = true;
                     foreach (ThemeVariant variant in new[] { ThemeVariant.Light, ThemeVariant.Dark, DesktopTheme.HighContrast })
                     {
@@ -54,7 +61,7 @@ public sealed class MainWindowBindingTests
                             readable = false;
                         else readable &= Contrast(foreground.Color, background.Color) >= 4.5;
                     }
-                    return (english, arabic, englishPin, arabicPin, readable);
+                    return (english, arabic, englishPin, arabicPin, experienceSelected, pathsLeftToRight, readable);
                 }
                 finally { window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
@@ -62,6 +69,7 @@ public sealed class MainWindowBindingTests
             await Assert.That(state.arabic!.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
             await Assert.That(state.arabicPin).IsNotEqualTo(state.englishPin);
             await Assert.That(state.arabicPin.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+            await Assert.That((state.experienceSelected, state.pathsLeftToRight)).IsEqualTo((true, true));
             await Assert.That(state.readable).IsTrue();
         }
         finally { await Task.Run(session.Dispose); }

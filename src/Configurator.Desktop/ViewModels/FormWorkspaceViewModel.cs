@@ -17,7 +17,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private readonly FormFieldFactory _factory;
     private DefinitionFormModel? _form;
     private IReadOnlyList<FieldViewModel> _fields = [];
-    private IReadOnlyList<DefinitionFormExperience> _experiences = [];
+    private IReadOnlyList<ExperienceChoiceViewModel> _experiences = [];
     private string? _experienceLocale;
     private bool _disposed;
 
@@ -51,7 +51,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     public DefinitionFormModel? Form => _form;
     public IReadOnlyList<FieldViewModel> Fields => _fields;
-    public IReadOnlyList<DefinitionFormExperience> Experiences => _experiences;
+    public IReadOnlyList<ExperienceChoiceViewModel> Experiences => _experiences;
     public IReadOnlyList<string> Locales => Form?.Definition.Locales ?? [];
     public Configurator.Desktop.Resources.DesktopStrings Strings => new(Form?.Locale);
     public string LocaleLabel => Strings.LocaleLabel;
@@ -61,7 +61,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         get => Form?.Locale;
         set { if (!_disposed && value is not null) Form?.SelectLocale(value); }
     }
-    public DefinitionFormExperience? SelectedExperience
+    public ExperienceChoiceViewModel? SelectedExperience
     {
         get => Experiences.FirstOrDefault(experience => experience.Id == Form?.SelectedExperienceId);
         set
@@ -95,7 +95,8 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         _factory.Dispose();
         _form?.Dispose();
         _form = form;
-        _experiences = form?.DisplayExperiences ?? [];
+        _experiences = form?.DisplayExperiences.Select(experience =>
+            new ExperienceChoiceViewModel(experience.Id, experience.Title)).ToArray() ?? [];
         _experienceLocale = form?.Locale;
         if (form is not null)
         {
@@ -137,8 +138,8 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         if (_experienceLocale != Form?.Locale)
         {
             _experienceLocale = Form?.Locale;
-            _experiences = Form?.DisplayExperiences ?? [];
-            OnPropertyChanged(nameof(Experiences));
+            foreach (DefinitionFormExperience experience in Form?.DisplayExperiences ?? [])
+                _experiences.Single(choice => choice.Id == experience.Id).RefreshTitle(experience.Title);
         }
         OnPropertyChanged(nameof(SelectedLocale));
         OnPropertyChanged(nameof(FlowDirection));

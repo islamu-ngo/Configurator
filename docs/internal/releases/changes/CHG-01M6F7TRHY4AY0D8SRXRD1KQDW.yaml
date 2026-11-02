@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7TRHY4AY0D8SRXRD1KQDW
+Title: "retain desktop selection and path order in RTL"
+Type: fix
+Scope: localization
+Summary: "retain desktop selection and path order in RTL."
+Group: desktop-05-rtl-selection
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "retain desktop selection and path order in RTL."

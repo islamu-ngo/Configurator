@@ -27,7 +27,7 @@
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="{Binding Workspace.Strings[DefinitionPath]}" />
-          <TextBox Name="DefinitionPath" Text="{Binding Loader.DefinitionPath, Mode=TwoWay}"
+          <TextBox Name="DefinitionPath" FlowDirection="LeftToRight" Text="{Binding Loader.DefinitionPath, Mode=TwoWay}"
                    AutomationProperties.Name="{Binding Workspace.Strings[DefinitionPath]}" />
         </StackPanel>
         <Button Grid.Column="1" Name="SelectDefinition" Content="{Binding Workspace.Strings[ChooseDefinition]}"
@@ -45,7 +45,7 @@
                     ItemsSource="{Binding Workspace.Experiences}"
                     SelectedItem="{Binding Workspace.SelectedExperience, Mode=TwoWay}">
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="presentation:DefinitionFormExperience">
+              <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
                 <TextBlock Text="{Binding Title}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
@@ -89,7 +89,7 @@
         </StackPanel>
         <StackPanel Grid.Column="1">
           <TextBlock Text="{Binding Workspace.Strings[FileName]}" />
-          <TextBox Name="FileName" Text="{Binding Publisher.FileName, Mode=TwoWay}" AutomationProperties.Name="{Binding Workspace.Strings[FileName]}" />
+          <TextBox Name="FileName" FlowDirection="LeftToRight" Text="{Binding Publisher.FileName, Mode=TwoWay}" AutomationProperties.Name="{Binding Workspace.Strings[FileName]}" />
         </StackPanel>
       </Grid>
       <TextBlock Text="{Binding Workspace.Strings[BundleOutputs]}" />
@@ -115,7 +115,7 @@
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="{Binding Workspace.Strings[ImportPath]}" TextWrapping="Wrap" />
-          <TextBox Name="ExistingFilePath" Text="{Binding Publisher.ExistingFilePath, Mode=TwoWay}"
+          <TextBox Name="ExistingFilePath" FlowDirection="LeftToRight" Text="{Binding Publisher.ExistingFilePath, Mode=TwoWay}"
                    AutomationProperties.Name="{Binding Workspace.Strings[ImportPath]}" />
         </StackPanel>
         <Button Grid.Column="1" Name="SelectImport" Content="{Binding Workspace.Strings[ChooseImport]}"
@@ -131,7 +131,7 @@
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
       <StackPanel>
         <TextBlock Text="{Binding Workspace.Strings[OutputDirectory]}" />
-        <TextBox Name="OutputDirectory" Text="{Binding Publisher.OutputDirectory, Mode=TwoWay}"
+        <TextBox Name="OutputDirectory" FlowDirection="LeftToRight" Text="{Binding Publisher.OutputDirectory, Mode=TwoWay}"
                  AutomationProperties.Name="{Binding Workspace.Strings[OutputDirectory]}" />
       </StackPanel>
         <Button Grid.Column="1" Name="SelectOutput" Content="{Binding Workspace.Strings[ChooseFolder]}"
