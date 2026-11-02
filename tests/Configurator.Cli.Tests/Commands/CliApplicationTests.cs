@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;

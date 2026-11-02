@@ -5,7 +5,7 @@
 > **Status:** Current source-grounded recipes; example edits and commands unexecuted
 > **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/CliContractTests.cs`, `tests/Configurator.Browser.Tests/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
+> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/Contracts/CliContractTests.cs`, `tests/Configurator.Browser.Tests/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
 > **Review basis:** Named source, test bodies and project files inspected on 2026-10-30; no recipe execution, builds, tests or host exercises
 
 Choose the behavior you want to change, then follow its owner, example edit and
@@ -184,12 +184,12 @@ formatting or a private answer file.
 constructs a 0.0.1 envelope and newline-framed bytes.
 [`CliCommandSchemaMetadata`](../../src/Configurator.Cli/Commands/CliCommandSchemaMetadata.cs)
 generates the schema.
-[`CliContractTests.MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility`](../../tests/Configurator.Cli.Tests/CliContractTests.cs)
+[`CliContractTests.MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility`](../../tests/Configurator.Cli.Tests/Contracts/CliContractTests.cs)
 mutates a synthetic envelope and checks `machine-version`.
-[`CliMachineContractVerifier`](../../tests/Configurator.Cli.Tests/CliMachineContractVerifier.cs)
-and [`CliContractSpecification`](../../tests/Configurator.Cli.Tests/CliContractSpecification.cs)
+[`CliMachineContractVerifier`](../../tests/Configurator.Cli.Tests/Contracts/CliMachineContractVerifier.cs)
+and [`CliContractSpecification`](../../tests/Configurator.Cli.Tests/Contracts/CliContractSpecification.cs)
 provide independent closed-field and vocabulary expectations.
-[`CliMachineBoundaryTests`](../../tests/Configurator.Cli.Tests/CliMachineBoundaryTests.cs)
+[`CliMachineBoundaryTests`](../../tests/Configurator.Cli.Tests/Contracts/CliMachineBoundaryTests.cs)
 also verifies actual CLI output through `CliFixture`, rather than only generated
 schema metadata.
 
