@@ -3,7 +3,7 @@ using Configurator.Artifacts;
 namespace Configurator.Cli;
 
 /// <summary>Explicit native public-file authority; path checks do not establish captured-handle authority.</summary>
-public sealed class PublicDefinitionFiles : ISetupCliAuthoringFiles
+public sealed class PublicDefinitionFiles : ICliAuthoringFiles
 {
     public ValueTask<string> DiscoverSourceAsync(string root, string? source, CancellationToken cancellationToken) =>
         new(Task.Run(() => DefinitionSourceFiles.Discover(root, source), cancellationToken));
@@ -25,7 +25,7 @@ public sealed class PublicDefinitionFiles : ISetupCliAuthoringFiles
     public ValueTask<bool> ExistsAsync(string path, CancellationToken cancellationToken) =>
         new(Task.Run(() => File.Exists(DefinitionSourceFiles.SafePath(path)), cancellationToken));
 
-    public ISetupCliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical)
+    public ICliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical)
     {
         if (bytes.Length < 1 || bytes.Length > Math.Min(maximumBytes, DefinitionSourceFiles.MaximumBytes))
             throw new DefinitionFileException("definition-source-bound");
@@ -33,7 +33,7 @@ public sealed class PublicDefinitionFiles : ISetupCliAuthoringFiles
     }
 
     private sealed class Preparation(PublicDefinitionFiles files, string path, ReadOnlyMemory<byte> bytes,
-        int maximumBytes, bool acceptIdentical) : ISetupCliPublicFilePreparation
+        int maximumBytes, bool acceptIdentical) : ICliPublicFilePreparation
     {
         // Identical-file reads remain bounded by this invocation rather than the native owner's fixed ceiling.
         private readonly DefinitionSourceFiles.PreparedArtifact _prepared = DefinitionSourceFiles.PrepareCreate(path, bytes);

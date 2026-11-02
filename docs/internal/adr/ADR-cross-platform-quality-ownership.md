@@ -183,12 +183,12 @@ still used by its consumer. This is native I/O isolation, not a Browser CPU
 scheduler. The existing Linux directory-source reader inside Core remains a
 qualified exception, with a [focused relocation trigger](../../../dev/backlog/core-directory-source-boundary.md).
 
-CLI `CliIo` requires `ISetupCliAuthoringFiles`; the invocation carries it to
+CLI `CliIo` requires `ICliAuthoringFiles`; the invocation carries it to
 handlers and Program explicitly supplies `PublicDefinitionFiles`. Discovery,
 bounded source/anchor/fork/example/schema reads, existence checks and staged
 create-only public publication use that capability. Non-authoring fixtures
 reject it explicitly; there is no ambient native fallback or compatibility
-constructor. `ISetupCliPublicFilePreparation` owns staging/commit/disposal and
+constructor. `ICliPublicFilePreparation` owns staging/commit/disposal and
 preserves ordered publication facts.
 
 Changed revisions use an explicit separate non-source/non-discovery `--output`

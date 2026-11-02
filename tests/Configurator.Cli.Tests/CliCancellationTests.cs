@@ -201,7 +201,7 @@ public sealed class CliCancellationTests
     }
 
     private static Task<CliExitCode> RunAsync(RecordingInput input, ControlledWriter output,
-        CancellationToken cancellationToken, bool bundle = false, string inputPath = "answers.json", ISetupCliWriter? error = null)
+        CancellationToken cancellationToken, bool bundle = false, string inputPath = "answers.json", ICliWriter? error = null)
     {
         string[] arguments = bundle
             ? ["artifact", "bundle-create", "--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
@@ -221,7 +221,7 @@ public sealed class CliCancellationTests
         await Assert.That(result.RootElement.GetProperty("completion").GetString()).IsEqualTo("cancelled");
     }
 
-    private sealed class RecordingInput : ISetupCliInput
+    private sealed class RecordingInput : ICliInput
     {
         internal string? BlockedPath { get; init; }
         internal string Answers { get; init; } = CliFixture.Answers;
@@ -246,7 +246,7 @@ public sealed class CliCancellationTests
         }
     }
 
-    private sealed class ControlledWriter(string boundary) : ISetupCliWriter
+    private sealed class ControlledWriter(string boundary) : ICliWriter
     {
         public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
             ValueTask.FromResult<ProtectedArtifactStatus?>(null);
@@ -315,7 +315,7 @@ public sealed class CliCancellationTests
         }
     }
 
-    private sealed class ErrorWriter(bool broken) : ISetupCliWriter
+    private sealed class ErrorWriter(bool broken) : ICliWriter
     {
         public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
             ValueTask.FromResult<ProtectedArtifactStatus?>(ProtectedArtifactStatus.UnsupportedPlatform);

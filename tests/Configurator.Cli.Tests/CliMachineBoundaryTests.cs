@@ -463,7 +463,7 @@ public sealed class CliMachineBoundaryTests
         }
     }
 
-    private sealed class PublicationWriter(CliFixture fixture, CliPublicationResult? result) : ISetupCliWriter
+    private sealed class PublicationWriter(CliFixture fixture, CliPublicationResult? result) : ICliWriter
     {
         public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
             fixture.CheckArtifactDestinationAsync(path, cancellationToken);
@@ -493,7 +493,7 @@ public sealed class CliMachineBoundaryTests
         }
     }
 
-    private sealed class FailingWriter(int prefix) : ISetupCliWriter
+    private sealed class FailingWriter(int prefix) : ICliWriter
     {
         public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
             ValueTask.FromResult<ProtectedArtifactStatus?>(ProtectedArtifactStatus.UnsupportedPlatform);

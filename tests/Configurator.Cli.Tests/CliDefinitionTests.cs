@@ -697,7 +697,7 @@ public sealed class CliDefinitionTests
         await Assert.That(File.Exists(files.Path("configurator.yaml"))).IsFalse();
     }
 
-    private sealed class ControlledAuthoringFiles : ISetupCliAuthoringFiles
+    private sealed class ControlledAuthoringFiles : ICliAuthoringFiles
     {
         private readonly PublicDefinitionFiles _native = new();
         internal bool DenyDiscovery { get; init; }
@@ -728,7 +728,7 @@ public sealed class CliDefinitionTests
             return _native.ExistsAsync(path, cancellationToken);
         }
 
-        public ISetupCliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical)
+        public ICliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical)
         {
             Reject(DenyPrepare);
             return new ControlledPreparation(_native.PrepareCreate(path, bytes, maximumBytes, acceptIdentical), BeforeCommit);
@@ -741,8 +741,8 @@ public sealed class CliDefinitionTests
             throw new UnauthorizedAccessException();
         }
 
-        private sealed class ControlledPreparation(ISetupCliPublicFilePreparation native,
-            Func<CancellationToken, Task>? beforeCommit) : ISetupCliPublicFilePreparation
+        private sealed class ControlledPreparation(ICliPublicFilePreparation native,
+            Func<CancellationToken, Task>? beforeCommit) : ICliPublicFilePreparation
         {
             public ValueTask StageAsync(CancellationToken cancellationToken) => native.StageAsync(cancellationToken);
             public async ValueTask<bool> CommitAsync(CancellationToken cancellationToken)

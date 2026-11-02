@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6F7Q4FNZD822KPGH7EN2GRJ
+Title: "align CLI interface names with their owner"
+Type: refactor
+Scope: architecture
+Summary: "align CLI interface names with their owner."
+Group: cli-04
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Replace ISetupCliInput, ISetupCliWriter, ISetupCliAuthoringFiles, ISetupCliPublicFilePreparation and ISetupCliCommandSettings references with their ICli counterparts and rebuild."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Replace ISetupCliInput, ISetupCliWriter, ISetupCliAuthoringFiles, ISetupCliPublicFilePreparation and ISetupCliCommandSettings references with their ICli counterparts and rebuild."
+  Configuration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable

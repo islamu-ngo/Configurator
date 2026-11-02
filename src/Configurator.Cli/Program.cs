@@ -97,7 +97,7 @@ internal static class CliProgram
         };
     }
 
-    private sealed class SystemInput(SafePipeHandle? standardInput) : ISetupCliInput
+    private sealed class SystemInput(SafePipeHandle? standardInput) : ICliInput
     {
         public async ValueTask<CliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
         {
@@ -129,7 +129,7 @@ internal static class CliProgram
         }
     }
 
-    internal sealed class SystemWriter(Stream standardOutput, IProtectedArtifactWriter? protectedWriter = null) : ISetupCliWriter
+    internal sealed class SystemWriter(Stream standardOutput, IProtectedArtifactWriter? protectedWriter = null) : ICliWriter
     {
         private readonly IProtectedArtifactWriter _protectedWriter = protectedWriter ?? new ProtectedArtifactWriter();
 

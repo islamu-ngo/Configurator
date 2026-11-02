@@ -66,19 +66,19 @@ public sealed class DefinitionSourceFileTests
         using var files = new DefinitionTestDirectory();
         string destination = files.Path("releases/1.json");
         var authority = new PublicDefinitionFiles();
-        using (ISetupCliPublicFilePreparation first = authority.PrepareCreate(destination, "original"u8.ToArray(), 4 * 1024 * 1024, true))
+        using (ICliPublicFilePreparation first = authority.PrepareCreate(destination, "original"u8.ToArray(), 4 * 1024 * 1024, true))
         {
             await first.StageAsync(work.Token);
             await Assert.That(await first.CommitAsync(work.Token)).IsTrue();
         }
-        using (ISetupCliPublicFilePreparation identical = authority.PrepareCreate(destination, "original"u8.ToArray(), 4 * 1024 * 1024, true))
+        using (ICliPublicFilePreparation identical = authority.PrepareCreate(destination, "original"u8.ToArray(), 4 * 1024 * 1024, true))
         {
             await identical.StageAsync(work.Token);
             await Assert.That(File.ReadAllText(destination)).IsEqualTo("original");
             await Assert.That(await identical.CommitAsync(work.Token)).IsFalse();
         }
         await Assert.That(Directory.GetFiles(files.Path("releases")).Length).IsEqualTo(1);
-        using (ISetupCliPublicFilePreparation conflicting = authority.PrepareCreate(destination, "replacement"u8.ToArray(), 4 * 1024 * 1024, true))
+        using (ICliPublicFilePreparation conflicting = authority.PrepareCreate(destination, "replacement"u8.ToArray(), 4 * 1024 * 1024, true))
         {
             await conflicting.StageAsync(work.Token);
             await Assert.That(() => conflicting.CommitAsync(work.Token).AsTask()).Throws<DefinitionFileException>();
@@ -94,7 +94,7 @@ public sealed class DefinitionSourceFileTests
         using var files = new DefinitionTestDirectory();
         string destination = files.Path("releases/1.json");
         var authority = new PublicDefinitionFiles();
-        using ISetupCliPublicFilePreparation prepared = authority.PrepareCreate(destination, "candidate"u8.ToArray(), 4 * 1024 * 1024, true);
+        using ICliPublicFilePreparation prepared = authority.PrepareCreate(destination, "candidate"u8.ToArray(), 4 * 1024 * 1024, true);
         await prepared.StageAsync(work.Token);
         await Assert.That(File.Exists(destination)).IsFalse();
         File.WriteAllText(destination, "editor-owned");
@@ -109,7 +109,7 @@ public sealed class DefinitionSourceFileTests
         using var files = new DefinitionTestDirectory();
         string destination = files.Path("releases/1.json");
         var authority = new PublicDefinitionFiles();
-        using (ISetupCliPublicFilePreparation prepared = authority.PrepareCreate(destination, "candidate"u8.ToArray(), 4 * 1024 * 1024, true))
+        using (ICliPublicFilePreparation prepared = authority.PrepareCreate(destination, "candidate"u8.ToArray(), 4 * 1024 * 1024, true))
         {
             await prepared.StageAsync(work.Token);
             await Assert.That(File.Exists(destination)).IsFalse();
@@ -126,7 +126,7 @@ public sealed class DefinitionSourceFileTests
         string candidate = files.Path("candidate.yaml");
         File.WriteAllText(source, "original");
         var authority = new PublicDefinitionFiles();
-        using ISetupCliPublicFilePreparation prepared = authority.PrepareCreate(candidate, "replacement"u8.ToArray(), 4 * 1024 * 1024, false);
+        using ICliPublicFilePreparation prepared = authority.PrepareCreate(candidate, "replacement"u8.ToArray(), 4 * 1024 * 1024, false);
         await prepared.StageAsync(work.Token);
         File.WriteAllText(source, "editor change");
         await Assert.That(await prepared.CommitAsync(work.Token)).IsTrue();
@@ -152,7 +152,7 @@ public sealed class DefinitionSourceFileTests
         Directory.CreateSymbolicLink(files.Path("linked"), files.Path("real"));
         await Assert.That(() =>
         {
-            using ISetupCliPublicFilePreparation prepared = authority.PrepareCreate(files.Path("linked/new.yaml"), Encoding.UTF8.GetBytes("new"), 4 * 1024 * 1024, false);
+            using ICliPublicFilePreparation prepared = authority.PrepareCreate(files.Path("linked/new.yaml"), Encoding.UTF8.GetBytes("new"), 4 * 1024 * 1024, false);
         }).Throws<DefinitionFileException>();
         await Assert.That(File.ReadAllText(target)).IsEqualTo("original");
     }
@@ -165,7 +165,7 @@ public sealed class DefinitionSourceFileTests
         string source = files.Path("configurator.yaml");
         File.WriteAllText(source, "original");
         var authority = new PublicDefinitionFiles();
-        using (ISetupCliPublicFilePreparation prepared = authority.PrepareCreate(files.Path("candidate.yaml"), "replacement"u8.ToArray(), 4 * 1024 * 1024, false))
+        using (ICliPublicFilePreparation prepared = authority.PrepareCreate(files.Path("candidate.yaml"), "replacement"u8.ToArray(), 4 * 1024 * 1024, false))
         {
             await prepared.StageAsync(work.Token);
             await work.CancelAsync();
@@ -174,7 +174,7 @@ public sealed class DefinitionSourceFileTests
                 using CliInputBuffer input = await authority.ReadAsync(files.Path("missing.yaml"), 4 * 1024 * 1024, work.Token);
             })
                 .Throws<OperationCanceledException>();
-            using ISetupCliPublicFilePreparation cancelled = authority.PrepareCreate(files.Path("new/source.yaml"), "new"u8.ToArray(), 4 * 1024 * 1024, false);
+            using ICliPublicFilePreparation cancelled = authority.PrepareCreate(files.Path("new/source.yaml"), "new"u8.ToArray(), 4 * 1024 * 1024, false);
             await Assert.That(() => cancelled.StageAsync(work.Token).AsTask()).Throws<OperationCanceledException>();
             await Assert.That(() => prepared.CommitAsync(work.Token).AsTask()).Throws<OperationCanceledException>();
         }
@@ -191,8 +191,8 @@ public sealed class DefinitionSourceFileTests
         string first = files.Path("definition.json");
         string second = files.Path("id-map.json");
         var authority = new PublicDefinitionFiles();
-        using (ISetupCliPublicFilePreparation canonical = authority.PrepareCreate(first, "canonical"u8.ToArray(), 4 * 1024 * 1024, false))
-        using (ISetupCliPublicFilePreparation mapping = authority.PrepareCreate(second, "mapping"u8.ToArray(), 4 * 1024 * 1024, false))
+        using (ICliPublicFilePreparation canonical = authority.PrepareCreate(first, "canonical"u8.ToArray(), 4 * 1024 * 1024, false))
+        using (ICliPublicFilePreparation mapping = authority.PrepareCreate(second, "mapping"u8.ToArray(), 4 * 1024 * 1024, false))
         {
             await canonical.StageAsync(work.Token);
             await mapping.StageAsync(work.Token);

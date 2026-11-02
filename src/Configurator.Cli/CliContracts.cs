@@ -11,28 +11,28 @@ namespace Configurator.Cli;
 public enum CliMode { Text, Machine }
 public enum CliExitCode { Success = 0, Validation = 2, Incomplete = 3, Blocked = 4, Usage = 64, Data = 65, Internal = 70, Io = 74, Cancelled = 130 }
 
-public interface ISetupCliInput
+public interface ICliInput
 {
     ValueTask<CliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken);
 }
 
 /// <summary>Supplies an invocation's public authoring authority, independently of private answer I/O.</summary>
-public interface ISetupCliAuthoringFiles
+public interface ICliAuthoringFiles
 {
     ValueTask<string> DiscoverSourceAsync(string root, string? source, CancellationToken cancellationToken);
     ValueTask<CliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken);
     ValueTask<bool> ExistsAsync(string path, CancellationToken cancellationToken);
-    ISetupCliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical);
+    ICliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical);
 }
 
 /// <summary>Separates staging, create-only publication and cleanup for truthful ordered receipts.</summary>
-public interface ISetupCliPublicFilePreparation : IDisposable
+public interface ICliPublicFilePreparation : IDisposable
 {
     ValueTask StageAsync(CancellationToken cancellationToken);
     ValueTask<bool> CommitAsync(CancellationToken cancellationToken);
 }
 
-public interface ISetupCliWriter
+public interface ICliWriter
 {
     ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken);
 
@@ -54,8 +54,8 @@ public sealed record CliPublicationResult(IReadOnlyList<CliPublicationOutcome> O
 
 public sealed record CliIo
 {
-    public CliIo(ISetupCliInput input, ISetupCliWriter output, ISetupCliWriter error,
-        ISetupCliAuthoringFiles authoringFiles, int maximumOutputBytes, int maximumBytes)
+    public CliIo(ICliInput input, ICliWriter output, ICliWriter error,
+        ICliAuthoringFiles authoringFiles, int maximumOutputBytes, int maximumBytes)
     {
         Input = input ?? throw new ArgumentNullException(nameof(input));
         Output = output ?? throw new ArgumentNullException(nameof(output));
@@ -66,10 +66,10 @@ public sealed record CliIo
         MaximumOutputBytes = maximumOutputBytes;
         MaximumBytes = maximumBytes;
     }
-    public ISetupCliInput Input { get; }
-    public ISetupCliWriter Output { get; }
-    public ISetupCliWriter Error { get; }
-    public ISetupCliAuthoringFiles AuthoringFiles { get; }
+    public ICliInput Input { get; }
+    public ICliWriter Output { get; }
+    public ICliWriter Error { get; }
+    public ICliAuthoringFiles AuthoringFiles { get; }
     public int MaximumOutputBytes { get; }
     public int MaximumBytes { get; }
     public override string ToString() => $"{nameof(CliIo)}:OutputBytes={MaximumOutputBytes}:Bytes={MaximumBytes}";

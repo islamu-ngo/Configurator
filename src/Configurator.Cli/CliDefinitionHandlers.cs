@@ -20,7 +20,7 @@ internal static class CliDefinitionHandlers
             cancellationToken.ThrowIfCancellationRequested();
             if (command.Operation == "init") return await InitializeAsync(command, invocation, ledger, cancellationToken).ConfigureAwait(false);
             if (command.Operation == "schema") return Schema(command.SchemaKind);
-            ISetupCliAuthoringFiles files = invocation.Io.AuthoringFiles;
+            ICliAuthoringFiles files = invocation.Io.AuthoringFiles;
             int maximumBytes = invocation.Io.MaximumBytes;
             string source = await files.DiscoverSourceAsync(command.Root ?? ".", command.Source, cancellationToken).ConfigureAwait(false);
             using CliInputBuffer input = await files.ReadAsync(source, maximumBytes, cancellationToken).ConfigureAwait(false);
@@ -50,7 +50,7 @@ internal static class CliDefinitionHandlers
                 cancellationToken.ThrowIfCancellationRequested();
                 CliCommandResult revisedResult = Receipt("authoring-source", yaml, revised, "not-attempted", revisedDefinition.Digest.Value);
                 ledger.Plan(invocation, command, revisedResult);
-                using ISetupCliPublicFilePreparation candidate = files.PrepareCreate(command.Output, revised, maximumBytes, false);
+                using ICliPublicFilePreparation candidate = files.PrepareCreate(command.Output, revised, maximumBytes, false);
                 return await PublishAsync([candidate], revisedResult, ledger, cancellationToken).ConfigureAwait(false);
             }
             await VerifyAnchorAsync(files, maximumBytes, anchor, definition, false, cancellationToken).ConfigureAwait(false);
@@ -86,8 +86,8 @@ internal static class CliDefinitionHandlers
             }
             CliCommandResult result = CliResults.Success(artifacts) with { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
             ledger.Plan(invocation, command, result);
-            using ISetupCliPublicFilePreparation canonical = files.PrepareCreate(destination, definition.CanonicalBytes, maximumBytes, true);
-            using ISetupCliPublicFilePreparation? idMap = command.IdMap is null ? null : files.PrepareCreate(command.IdMap, map!, maximumBytes, true);
+            using ICliPublicFilePreparation canonical = files.PrepareCreate(destination, definition.CanonicalBytes, maximumBytes, true);
+            using ICliPublicFilePreparation? idMap = command.IdMap is null ? null : files.PrepareCreate(command.IdMap, map!, maximumBytes, true);
             return await PublishAsync(idMap is null ? [canonical] : [canonical, idMap], result, ledger, cancellationToken).ConfigureAwait(false);
         }
         catch (DefinitionFileException exception) { return ledger.Preserve(CliResults.Failure(CliExitCode.Data, exception.Code, "/source")); }
@@ -196,7 +196,7 @@ internal static class CliDefinitionHandlers
         CliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
         string root = command.Root ?? ".";
-        ISetupCliAuthoringFiles files = invocation.Io.AuthoringFiles;
+        ICliAuthoringFiles files = invocation.Io.AuthoringFiles;
         int maximumBytes = invocation.Io.MaximumBytes;
         if (command.ForkFrom is not null)
         {
@@ -212,7 +212,7 @@ internal static class CliDefinitionHandlers
             cancellationToken.ThrowIfCancellationRequested();
             CliCommandResult forkResult = Receipt("authoring-source", yaml, fork, "not-attempted", definition.Digest.Value);
             ledger.Plan(invocation, command, forkResult);
-            using ISetupCliPublicFilePreparation preparedFork = files.PrepareCreate(command.Output, fork, maximumBytes, false);
+            using ICliPublicFilePreparation preparedFork = files.PrepareCreate(command.Output, fork, maximumBytes, false);
             return await PublishAsync([preparedFork], forkResult, ledger, cancellationToken).ConfigureAwait(false);
         }
         if (command.ProjectId is null || command.ProjectName is null || command.ApplicationVersion is null)
@@ -272,7 +272,7 @@ internal static class CliDefinitionHandlers
         CliCommandResult result = Receipt("authoring-source", format == "yaml", bytes, "not-attempted", compiled.Digest.Value) with
         { Diagnostics = transformations.Select(TransformationDiagnostic).ToArray() };
         ledger.Plan(invocation, command, result);
-        using ISetupCliPublicFilePreparation preparedSource = files.PrepareCreate(output, bytes, maximumBytes, false);
+        using ICliPublicFilePreparation preparedSource = files.PrepareCreate(output, bytes, maximumBytes, false);
         return await PublishAsync([preparedSource], result, ledger, cancellationToken).ConfigureAwait(false);
     }
 
@@ -291,13 +291,13 @@ internal static class CliDefinitionHandlers
         });
     }
 
-    private static async Task<CliCommandResult> PublishAsync(ISetupCliPublicFilePreparation[] prepared,
+    private static async Task<CliCommandResult> PublishAsync(ICliPublicFilePreparation[] prepared,
         CliCommandResult result, CliOutcomeLedger ledger, CancellationToken cancellationToken)
     {
         bool cleanupFailed = false;
         try
         {
-            foreach (ISetupCliPublicFilePreparation artifact in prepared)
+            foreach (ICliPublicFilePreparation artifact in prepared)
                 await artifact.StageAsync(cancellationToken).ConfigureAwait(false);
             for (int index = 0; index < prepared.Length; index++)
             {
@@ -320,7 +320,7 @@ internal static class CliDefinitionHandlers
         }
         finally
         {
-            foreach (ISetupCliPublicFilePreparation artifact in prepared)
+            foreach (ICliPublicFilePreparation artifact in prepared)
             {
                 try { artifact.Dispose(); }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { cleanupFailed = true; }
@@ -383,7 +383,7 @@ internal static class CliDefinitionHandlers
         }
     }
 
-    private static async ValueTask VerifyAnchorAsync(ISetupCliAuthoringFiles files, int maximumBytes,
+    private static async ValueTask VerifyAnchorAsync(ICliAuthoringFiles files, int maximumBytes,
         string anchor, Definition definition, bool required,
         CancellationToken cancellationToken)
     {

@@ -70,7 +70,7 @@ public sealed class CliApplication
             {
                 if (text.GetStringBuilder().Length == 0) CliHumanOutput.Render(console, result, invocation.Culture);
                 byte[] bytes = Encoding.UTF8.GetBytes(text.ToString());
-                ISetupCliWriter writer = command.Output == "-" || result.Exit != CliExitCode.Success
+                ICliWriter writer = command.Output == "-" || result.Exit != CliExitCode.Success
                     ? invocation.Io.Error : invocation.Io.Output;
                 if (bytes.Length > 0) await writer.WriteAsync("-", bytes, invocation.Io.MaximumOutputBytes, delivery.Token);
             }
@@ -130,7 +130,7 @@ internal sealed class CliCommandRuntime(CliApplication application, CliInvocatio
 {
     internal CliCommandResult? Result { get; private set; }
     internal CliCommand? Command { get; private set; }
-    internal async Task<int> ExecuteAsync(string family, string operation, ISetupCliCommandSettings settings,
+    internal async Task<int> ExecuteAsync(string family, string operation, ICliCommandSettings settings,
         IRemainingArguments remaining, CancellationToken cancellationToken)
     {
         if (settings is CliCommandSettings typed && invocation.Mode == CliMode.Machine)

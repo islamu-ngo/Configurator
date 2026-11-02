@@ -2,13 +2,13 @@ using Spectre.Console.Cli;
 
 namespace Configurator.Cli.Commands;
 
-internal interface ISetupCliCommandSettings
+internal interface ICliCommandSettings
 {
     string? ValidateInput();
     CliCommand Bind(string family, string operation, CliMode invocationMode);
 }
 
-internal abstract class CliCommandSettings : CommandSettings, ISetupCliCommandSettings
+internal abstract class CliCommandSettings : CommandSettings, ICliCommandSettings
 {
     [CommandOption("--machine")]
     public bool Machine { get; set; }

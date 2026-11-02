@@ -27,7 +27,7 @@ No independent algorithm policy or ambient input discovery belongs to this adapt
 Explicit generation replaces a leaf omission through the ordinary answer edit;
 omitted ancestors remain ineligible, matching the interactive workspace contract.
 
-`ISetupCliWriter.CheckArtifactDestinationAsync` performs a disposable protected
+`ICliWriter.CheckArtifactDestinationAsync` performs a disposable protected
 preparation before expensive generation. This rejects detectable destination and
 platform failures without publishing a file. Actual publication repeats the
 create-only boundary so the check grants no authority across races.
@@ -102,7 +102,7 @@ Spectre's command-help formatting remains framework-owned.
 
 ### Bounded operation execution
 
-`CliIo` requires separate `ISetupCliAuthoringFiles` authority in addition
+`CliIo` requires separate `ICliAuthoringFiles` authority in addition
 to private artifact I/O and safe output writers. Program explicitly constructs
 `PublicDefinitionFiles`; embedders must supply the capability and non-authoring
 fixtures reject access. All definition discovery, bounded reads, existence checks
@@ -160,7 +160,7 @@ an alias. Core composes the selected
 artifacts in definition order with an aggregate byte limit before native output.
 Import-semantic artifacts are excluded so a bundle cannot bypass explicit
 revision binding. The check reports local composition metadata only. Create
-passes the complete ordered bundle through `ISetupCliWriter.WriteBundleAsync` to
+passes the complete ordered bundle through `ICliWriter.WriteBundleAsync` to
 `ProtectedArtifactBundlePublisher`: all destinations are prepared before the
 first commit, then create-only commits may leave a written prefix if a later
 race or I/O failure occurs. The machine envelope reports the full ID, established
@@ -185,7 +185,7 @@ Target integrity validation is not duplicated here.
 
 ## Publication and machine output
 
-`ISetupCliWriter.WriteArtifactAsync` has no default plain-file implementation.
+`ICliWriter.WriteArtifactAsync` has no default plain-file implementation.
 The native adapter calls `IProtectedArtifactWriter.PrepareAsync(kind, path,
 bytes, cancellation)` and commits the preparation once. Public catalogue stdout
 uses `ProtectedArtifactWriter.WritePublic`. Answer-derived output is classified
@@ -263,10 +263,10 @@ callers migrate directly, without compatibility wrappers:
 
 - `CliApplication.RunAsync(invocation, cancellationToken = default)` returns
   `Task<CliExitCode>`.
-- `ISetupCliInput.ReadAsync(path, maximumBytes, cancellationToken)` returns
+- `ICliInput.ReadAsync(path, maximumBytes, cancellationToken)` returns
   `ValueTask<CliInputBuffer>`. The disposable buffer owns its `byte[]` and
   clears it on disposal; the consumer must dispose it even when parsing fails.
-- `ISetupCliWriter.WriteAsync(..., cancellationToken)` returns `ValueTask`;
+- `ICliWriter.WriteAsync(..., cancellationToken)` returns `ValueTask`;
   `WriteArtifactAsync(..., cancellationToken)` and
   `WriteBundleAsync(..., cancellationToken)` return
   `ValueTask<CliPublicationResult>`, preserving completion, publication and

@@ -6,7 +6,7 @@ namespace Configurator.Cli;
 /// <summary>Supplies bounded local schema documents without granting Core filesystem or network authority.</summary>
 internal static class DefinitionSchemaSourceFiles
 {
-    internal static async ValueTask<DefinitionSchemaImportResult> ImportAsync(ISetupCliAuthoringFiles files, int maximumBytes,
+    internal static async ValueTask<DefinitionSchemaImportResult> ImportAsync(ICliAuthoringFiles files, int maximumBytes,
         string path, bool acceptBoundedSemantics,
         CancellationToken cancellationToken)
     {

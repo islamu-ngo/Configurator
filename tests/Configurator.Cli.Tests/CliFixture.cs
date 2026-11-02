@@ -6,7 +6,7 @@ using Configurator.Core.Artifacts;
 
 namespace Configurator.Cli.Tests;
 
-internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
+internal sealed class CliFixture : ICliInput, ICliWriter
 {
     internal const string Definition = """
         {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
@@ -45,8 +45,8 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
     internal int MaximumRead { get; private set; }
     internal bool BundleBlocked { get; set; }
     internal int? BundleFailureAfter { get; set; }
-    internal static ISetupCliAuthoringFiles RejectingAuthoringFiles { get; } = new RejectingFiles();
-    internal ISetupCliAuthoringFiles AuthoringFiles { get; set; } = RejectingAuthoringFiles;
+    internal static ICliAuthoringFiles RejectingAuthoringFiles { get; } = new RejectingFiles();
+    internal ICliAuthoringFiles AuthoringFiles { get; set; } = RejectingAuthoringFiles;
     internal int MaximumBytes { get; set; } = 4 * 1024 * 1024;
     internal string? ArtifactFailurePath { get; set; }
     internal Action<string>? ArtifactPublished { get; set; }
@@ -151,7 +151,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             new CliPublicationResult(results.Select(result => new CliPublicationOutcome(result)).ToArray()));
     }
 
-    private sealed class ErrorWriter(CliFixture owner) : ISetupCliWriter
+    private sealed class ErrorWriter(CliFixture owner) : ICliWriter
     {
         public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
             ValueTask.FromResult<ProtectedArtifactStatus?>(ProtectedArtifactStatus.UnsupportedPlatform);
@@ -169,7 +169,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             throw new IOException();
     }
 
-    private sealed class RejectingFiles : ISetupCliAuthoringFiles
+    private sealed class RejectingFiles : ICliAuthoringFiles
     {
         public ValueTask<string> DiscoverSourceAsync(string root, string? source, CancellationToken cancellationToken) =>
             throw new UnauthorizedAccessException();
@@ -177,7 +177,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             throw new UnauthorizedAccessException();
         public ValueTask<bool> ExistsAsync(string path, CancellationToken cancellationToken) =>
             throw new UnauthorizedAccessException();
-        public ISetupCliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical) =>
+        public ICliPublicFilePreparation PrepareCreate(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, bool acceptIdentical) =>
             throw new UnauthorizedAccessException();
     }
 }

@@ -224,7 +224,7 @@ network authentication, target apply or persistent browser answer custody.
 Spectre registry/preflight and current machine envelope. `CliDefinitionHandlers`
 owns scaffolding, compilation and revision comparison. Discovery/read/existence/
 staged publication, including schema references, use invocation-scoped
-`ISetupCliAuthoringFiles`; `CliIo` requires it explicitly and Program supplies
+`ICliAuthoringFiles`; `CliIo` requires it explicitly and Program supplies
 `PublicDefinitionFiles`. Non-authoring fixtures reject that authority.
 
 Initialization requires project ID/name and exact application version, or an
