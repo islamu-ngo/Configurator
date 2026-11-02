@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F8WBVM74ZDEAW8J0SHC8RX
+Title: "explain shared editing and generation boundaries"
+Type: docs
+Scope: privacy
+Summary: "explain shared editing and generation boundaries."
+Group: final-08-boundary-guidance
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "explain shared editing and generation boundaries. Existing custody and output authority boundaries remain enforced."
+  Migration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable

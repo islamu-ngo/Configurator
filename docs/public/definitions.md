@@ -433,6 +433,11 @@ does not enable generation. Definition admission is separate from implementation
 availability: profiles without a complete validator block readiness with
 `secret-profile-unavailable` and cannot start operations.
 
+CLI and interactive generation use the same active-field and read-only rules.
+Generation can supply an explicitly omitted leaf, but cannot repopulate an
+explicitly omitted ancestor. Replacing a leaf preserves other answers; interactive
+generation also requires the current workspace's consent and editor revision.
+
 A reference cannot lower inherited sensitivity or replace an inherited secret
 policy with a conflicting one. Metadata is public policy, never secret values,
 issuer authentication, or proof that a target accepts the result.
@@ -459,7 +464,7 @@ or per-journey validation aliases in the 0.0.1 source.
 
 ### Localization
 
-Configurator's shared secret requirements and generated navigation use the
+Configurator's shared validation, secret requirements and import guidance use the
 workspace language, with English fallback for unsupported languages. Changing a
 workspace language refreshes guidance and generated navigation titles without
 changing answers or prepared output. Definition-authored titles remain governed

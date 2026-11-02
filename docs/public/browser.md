@@ -4,7 +4,7 @@
 > **Status:** Implemented browser workspace; target acceptance remains separate
 > **Owner:** Browser
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/LAUNCH_CONTRACT.md`
+> **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/`, `docs/internal/LAUNCH_CONTRACT.md`
 
 ISLAMU Configurator Browser is a static, client-side web application built with Blazor WebAssembly and MudBlazor. It prepares configuration artifacts for validation by the target application without installing native software.
 
@@ -35,7 +35,10 @@ Opening an older pinned definition retains that definition's own behavior.
 The workspace edits the admitted schema directly. Typed maps keep literal keys,
 including dots and slashes, separate from editor paths. Add an entry, edit its
 declared value and remove it deliberately; compound values do not require an
-unrestricted JSON text area. Provider alternatives use the declared discriminator
+unrestricted JSON text area. Duplicate keys, invalid bounded paths and additions
+beyond the declared `maxProperties` or engine ceiling are rejected without
+changing answers, including when a nested edit would create a missing container.
+Provider alternatives use the declared discriminator
 and show only the selected branch. Changing a provider replaces its old payload.
 
 Choice labels are display text, not answer values. Equal labels can represent
@@ -400,6 +403,7 @@ dotnet msbuild eng/configurator/Configurator.Release.proj \
 ```
 
 Serve the resulting `artifacts/configurator/browser/wwwroot/` directory using any standard web server (Nginx, Caddy, Cloudflare Pages, S3). Ensure:
+
 - HTTPS is enabled in production.
 - Proper MIME types for `.wasm` (`application/wasm`) and `.json` are served.
 - Single-page application (SPA) fallback redirects unknown routes to `index.html`.

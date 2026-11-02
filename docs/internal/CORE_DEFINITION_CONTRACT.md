@@ -560,6 +560,13 @@ wire spellings explicitly, including `password-hash`, `RS256`, `P-256` and
 Undefined enum values reject at cryptographic entry points. Canonical definition
 bytes remain owned by admission, so this internal typing does not alter digests.
 
+`DefinitionSecretOperations` owns pure admitted-schema traversal and immutable
+answer replacement for CLI and Presentation. It resolves ordinal data paths to
+typed validation locations, rejects read-only or explicitly omitted ancestors,
+and requires an active locally generatable leaf. Replacement preserves unrelated
+answers and omissions. Presentation still owns consent, stable editor identity,
+operation generations and the final guarded mutation; Core grants no workspace
+or publication authority.
 
 Archived `SetupCompositionInvariantTests` inventory checks are not parser-attack
 proof. Production boundary tests and actual target acceptance must be recorded
