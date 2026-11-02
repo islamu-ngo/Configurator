@@ -14,6 +14,18 @@ DTOs, built-in catalogue, HTTP client or implicit application selection remain.
 
 ## Data and control flow
 
+### Workspace language and status
+
+`TerminalStrings` resolves chrome and native publication guidance using the
+form's explicit locale, with English fallback. A workspace language change
+refreshes the window title, static controls, validation guidance and selected
+receipt without changing process culture or another workspace. Shared import,
+validation and secret guidance comes from `PresentationStrings`.
+Publication status remains backed by typed installation, verification and
+cleanup facts. User guidance translates those facts; adapter diagnostic codes
+remain separate from rendered prose in `StatusCode`.
+
+
 ### Schema-driven secret actions
 
 `TerminalWindow.Secrets` delegates generation and derivation to

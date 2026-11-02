@@ -1,18 +1,13 @@
 namespace Configurator.Terminal;
 
-using System.ComponentModel;
-using System.Drawing;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Configurator.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
-using global::Terminal.Gui.App;
 using global::Terminal.Gui.Drawing;
 using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
-using global::Terminal.Gui.Views;
 
 internal sealed partial class TerminalWindow
 {
@@ -166,6 +161,7 @@ internal sealed partial class TerminalWindow
 
     private void ShowField(bool preserveLocation = true)
     {
+        RefreshLocale();
         _loading = true;
         try
         {
@@ -198,27 +194,28 @@ internal sealed partial class TerminalWindow
             _experience.Text = Safe(experience.Title);
             _experience.Enabled = _operation.Form.Experiences.Count > 1;
             _optionalEditors.Text = _operation.Form.OptionalEditorsExpanded
-                ? TerminalStrings.Get("DefaultDisclosure") : TerminalStrings.Get("OptionalEditors");
-            _locale.Text = TerminalStrings.Get("Locale") + ": " + _operation.Form.Locale + " (" + _operation.Form.Direction + ")";
+                ? LocalizedText("DefaultDisclosure") : LocalizedText("OptionalEditors");
+            _locale.Text = LocalizedText("Locale") + ": " + _operation.Form.Locale + " (" + _operation.Form.Direction + ")";
             _locale.Enabled = _operation.Form.Definition.Locales.Count > 1;
             bool rtl = _operation.Form.Direction == "rtl";
             // Align RTL metadata without reversing Latin fallback or technical text.
             _fieldLabel.TextDirection = _help.TextDirection = _experience.TextDirection = TextDirection.LeftRight_TopBottom;
             _fieldLabel.TextAlignment = _help.TextAlignment = _experience.TextAlignment = rtl ? Alignment.End : Alignment.Start;
             RefreshCommands();
+            if (_operation.Form.ImportComparison is not null) ShowComparison();
         }
         finally { _loading = false; }
     }
 
-    private void ShowFieldLabel(int count) => _fieldLabel.Text = _slot is null ? TerminalStrings.Get("NoFields")
-        : Safe($"{_fieldIndex + 1}/{count} {_slot.Title} ({_slot.ScalarType})"
-            + (_slot.IsList ? $" [{_itemIndex + 1}/{TerminalFieldEditor.ItemCount(_slot) + 1}]" : "")
-            + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + TerminalStrings.Get("Required") : "")
-            + (TerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + TerminalStrings.Get("NullValue")
+    private void ShowFieldLabel(int count) => _fieldLabel.Text = _slot is null ? LocalizedText("NoFields")
+        : Safe($"{LocalizedNumber(_fieldIndex + 1)}/{LocalizedNumber(count)} {_slot.Title} ({_slot.ScalarType})"
+            + (_slot.IsList ? $" [{LocalizedNumber(_itemIndex + 1)}/{LocalizedNumber(TerminalFieldEditor.ItemCount(_slot) + 1)}]" : "")
+            + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + LocalizedText("Required") : "")
+            + (TerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + LocalizedText("NullValue")
                 : _operation.Form.AnswerOrigin(_slot.FullPath) switch
                 {
-                    DefinitionAnswerOrigin.Omitted => " | " + TerminalStrings.Get("Omitted"),
-                    DefinitionAnswerOrigin.Generated => " | " + TerminalStrings.Get("GeneratedValue"),
+                    DefinitionAnswerOrigin.Omitted => " | " + LocalizedText("Omitted"),
+                    DefinitionAnswerOrigin.Generated => " | " + LocalizedText("GeneratedValue"),
                     _ => ""
                 }));
 
@@ -229,13 +226,13 @@ internal sealed partial class TerminalWindow
         _value.Visible = scalar && _slot is { RequiresMasking: false };
         _masked.Visible = scalar && _slot is { RequiresMasking: true } || !_tooSmall && _slot is { IsMap: true };
         _addItem.Visible = !_tooSmall && (_slot is { IsList: true } or { IsMap: true });
-        _addItem.Text = TerminalStrings.Get(_slot is { IsMap: true } ? "AddMapEntry" : "AddItem");
+        _addItem.Text = LocalizedText(_slot is { IsMap: true } ? "AddMapEntry" : "AddItem");
         _supplyContainer.Visible = !_tooSmall && _slot is { IsContainer: true } && _slot.Schema.Variants.Count == 0;
         _clearContainer.Visible = !_tooSmall && _slot is not null;
-        _clearContainer.Text = TerminalStrings.Get("OmitValue");
+        _clearContainer.Text = LocalizedText("OmitValue");
         _choice.Visible = !_tooSmall && _slot is not null &&
             (_slot.Schema.Variants.Count > 0 || TerminalFieldEditor.Choices(_slot).Count > 0);
-        _choice.Text = TerminalStrings.Get(_slot is not null && _slot.Schema.Variants.Count > 0 ? "ChooseVariant" : "Choose");
+        _choice.Text = LocalizedText(_slot is not null && _slot.Schema.Variants.Count > 0 ? "ChooseVariant" : "Choose");
         _null.Visible = !_tooSmall && _slot is not null && _slot.Schema.IsNullable;
         _reset.Visible = !_tooSmall && _slot is not null;
         _suggest.Visible = !_tooSmall && _slot is not null && HasSuggestion(_slot.Schema);
@@ -248,7 +245,7 @@ internal sealed partial class TerminalWindow
         _generateSecret.Visible = secret;
         _revealSecret.Visible = secret;
         _copySecret.Visible = secret;
-        _revealSecret.Text = TerminalStrings.Get(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
+        _revealSecret.Text = LocalizedText(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
     }
 
     private void FocusInput()
@@ -305,7 +302,7 @@ internal sealed partial class TerminalWindow
         int next = (current + 1) % choices.Count;
         if (!TerminalFieldEditor.SelectChoice(_slot, next, _itemIndex)) { Status("DraftInvalid"); return; }
         ShowField();
-        if (!_slot.RequiresMasking) _status.Text = Safe($"{next + 1}/{choices.Count} " + choices[next]);
+        if (!_slot.RequiresMasking) _status.Text = Safe($"{LocalizedNumber(next + 1)}/{LocalizedNumber(choices.Count)} " + choices[next]);
         FocusInput();
     }
 
@@ -345,24 +342,24 @@ internal sealed partial class TerminalWindow
         {
             int selected = _slot.Schema.Variants.ToList().FindIndex(variant => ReferenceEquals(variant, _slot.ObjectSchema));
             if (selected >= 0)
-                text += $"\n{selected + 1}/{_slot.Schema.Variants.Count} " +
+                text += $"\n{LocalizedNumber(selected + 1)}/{LocalizedNumber(_slot.Schema.Variants.Count)} " +
                     _operation.Form.GetVariantTitle(_slot.FullPath, selected);
         }
-        if (_slot is { IsMap: true }) text = TerminalStrings.Get("MapKeyHelp") + "\n" + text;
+        if (_slot is { IsMap: true }) text = LocalizedText("MapKeyHelp") + "\n" + text;
         if (_slot is { IsList: true } list && TerminalFieldEditor.HasItem(list, _itemIndex))
             text += "\n" + TerminalStrings.FormatHelp(
-                _operation.Form.GetEditorPresentation(TerminalFieldEditor.EditPath(list, _itemIndex)), list.Schema.Items!.Keywords);
+                _operation.Form.GetEditorPresentation(TerminalFieldEditor.EditPath(list, _itemIndex)), list.Schema.Items!.Keywords, _operation.Form.Locale);
         if (_slot is { RequiresMasking: true, IsObject: false, IsObjectList: false })
         {
             DefinitionSecretValidation rules = _operation.Form.GetSecretValidation(
                 TerminalFieldEditor.EditPath(_slot, _itemIndex));
             text += "\n" + string.Join("\n", rules.Requirements.Select(rule => rule.Message)
-                .Concat(rules.Failures.Select(rule => TerminalStrings.Get("SecretRuleFailed") + " " + rule.Message)));
+                .Concat(rules.Failures.Select(rule => LocalizedText("SecretRuleFailed") + " " + rule.Message)));
         }
         IReadOnlyList<string> pages = TerminalStrings.HelpPages(text, Math.Max(2, (Viewport.Width - 4) / 2));
         _helpPage %= Math.Max(1, pages.Count);
         _help.Text = pages.Count > 0 ? pages[_helpPage] : "";
-        _helpNext.Text = TerminalStrings.Get("Help") + $" {_helpPage + 1}/{Math.Max(1, pages.Count)}";
+        _helpNext.Text = LocalizedText("Help") + $" {LocalizedNumber(_helpPage + 1)}/{LocalizedNumber(Math.Max(1, pages.Count))}";
         _helpNext.Enabled = pages.Count > 1;
     }
 
@@ -397,7 +394,8 @@ internal sealed partial class TerminalWindow
             _fieldIndex = index;
             _helpPage = 0;
             ShowField(preserveLocation: false);
-            _status.Text = Safe(diagnostic.Code + ":" + diagnostic.FieldId);
+            StatusCode = diagnostic.Code;
+            _status.Text = PresentationStrings.Diagnostic(diagnostic.Code, _operation.Form.Locale);
             FocusInput();
             return;
         }

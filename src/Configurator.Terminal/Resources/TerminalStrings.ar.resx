@@ -14,10 +14,6 @@
   <data name="InvalidOutput" xml:space="preserve"><value>أعد تجهيز ملفات الإخراج المحددة قبل الحفظ.</value></data>
   <data name="Cancelled" xml:space="preserve"><value>أُلغيت العملية ومُسحت البيانات الخاصة.</value></data>
   <data name="Writing" xml:space="preserve"><value>جارٍ كتابة الإخراج المحمي...</value></data>
-  <data name="DisplayMode" xml:space="preserve"><value>_العرض</value></data>
-  <data name="ModeGuided" xml:space="preserve"><value>موجّه</value></data>
-  <data name="ModeAdvanced" xml:space="preserve"><value>متقدم</value></data>
-  <data name="ModeAllDeclared" xml:space="preserve"><value>كل الحقول المعلنة</value></data>
   <data name="Choose" xml:space="preserve"><value>تبديل ال_خيار</value></data>
   <data name="Previous" xml:space="preserve"><value>الحقل ال_سابق</value></data>
   <data name="Next" xml:space="preserve"><value>الحقل ال_تالي</value></data>
@@ -32,11 +28,6 @@
   <data name="ImportSelected" xml:space="preserve"><value>_مقارنة الملف</value></data>
   <data name="FillFields" xml:space="preserve"><value>_تعبئة الحقول</value></data>
   <data name="NextFinding" xml:space="preserve"><value>النتيجة ال_تالية</value></data>
-  <data name="ComparisonCompatible" xml:space="preserve"><value>متوافق ضمن النطاق المفحوص</value></data>
-  <data name="ComparisonChangesRequired" xml:space="preserve"><value>تغييرات مطلوبة</value></data>
-  <data name="ComparisonIncomplete" xml:space="preserve"><value>الفحص غير مكتمل</value></data>
-  <data name="ComparisonUnsupported" xml:space="preserve"><value>الاستعادة العكسية غير مدعومة</value></data>
-  <data name="ComparisonInvalidInput" xml:space="preserve"><value>إدخال غير صالح</value></data>
   <data name="CoverageComplete" xml:space="preserve"><value>التغطية مكتملة</value></data>
   <data name="CoverageIncomplete" xml:space="preserve"><value>التغطية غير مكتملة</value></data>
   <data name="InventoryComplete" xml:space="preserve"><value>حصر النتائج مكتمل</value></data>
@@ -46,12 +37,6 @@
   <data name="ComparisonRecovery" xml:space="preserve"><value>راجع نسخة منفصلة وأصلحها ثم أعد المقارنة. لم يُفحص قبول التطبيق الهدف.</value></data>
   <data name="FindingInformation" xml:space="preserve"><value>معلومة</value></data>
   <data name="FindingError" xml:space="preserve"><value>خطأ</value></data>
-  <data name="FindingMissingRequired" xml:space="preserve"><value>قيمة مطلوبة مفقودة</value></data>
-  <data name="FindingInvalidSuppliedValue" xml:space="preserve"><value>غير صالح لهذا التعريف</value></data>
-  <data name="FindingUnrecognizedInput" xml:space="preserve"><value>إدخال غير معروف</value></data>
-  <data name="FindingStructuralOutputChange" xml:space="preserve"><value>تغيير بنيوي في المخرج</value></data>
-  <data name="FindingUnassessed" xml:space="preserve"><value>غير مفحوص</value></data>
-  <data name="FindingContextDerivedValue" xml:space="preserve"><value>اختيار عام مستنتج من السياق</value></data>
   <data name="ImportReady" xml:space="preserve"><value>تم استيراد الحقول المدعومة. راجع الإجابات المحجوبة وتحقق منها.</value></data>
   <data name="ImportReading" xml:space="preserve"><value>جارٍ قراءة الملف المحلي. يؤدي التعديل أو المسح إلى إلغاء الاستيراد.</value></data>
   <data name="ImportAdopting" xml:space="preserve"><value>جارٍ ملء الحقول من المقارنة المحتفظ بها. يؤدي التعديل أو المسح إلى إلغاء الاستيراد.</value></data>
@@ -123,4 +108,19 @@
   <data name="GeneratedPassword" xml:space="preserve"><value>كلمة المرور الأصلية المولّدة</value></data>
   <data name="GeneratedValue" xml:space="preserve"><value>مولّدة محليًا</value></data>
   <data name="GeneratedPasswordNotice" xml:space="preserve"><value>انسخ كلمة المرور صراحةً قبل الإغلاق. يؤدي الإغلاق إلى حذف النتيجة المؤقتة.</value></data>
+  <data name="OutputWritten" xml:space="preserve"><value>تم الإنشاء</value></data>
+  <data name="OutputInvalidRequest" xml:space="preserve"><value>طلب إخراج غير صالح</value></data>
+  <data name="OutputTargetExists" xml:space="preserve"><value>الوجهة موجودة بالفعل</value></data>
+  <data name="OutputUnsafeTarget" xml:space="preserve"><value>لا يمكن حماية الوجهة</value></data>
+  <data name="OutputTargetChanged" xml:space="preserve"><value>فشل التحقق من الوجهة</value></data>
+  <data name="OutputPermissionDenied" xml:space="preserve"><value>الإذن مرفوض</value></data>
+  <data name="OutputIoFailure" xml:space="preserve"><value>فشلت عملية التخزين</value></data>
+  <data name="OutputUnsupportedPlatform" xml:space="preserve"><value>الحفظ المحمي غير متاح على هذه المنصة</value></data>
+  <data name="InstallationEstablished" xml:space="preserve"><value>تم إنشاء الملف</value></data>
+  <data name="VerificationSucceeded" xml:space="preserve"><value>نجح التحقق الفوري</value></data>
+  <data name="VerificationFailed" xml:space="preserve"><value>فشل التحقق الفوري</value></data>
+  <data name="CurrentIntegrityNotGuaranteed" xml:space="preserve"><value>سلامة الملف المستمرة غير مضمونة</value></data>
+  <data name="CompletionCompleted" xml:space="preserve"><value>اكتملت العملية</value></data>
+  <data name="CompletionCancelled" xml:space="preserve"><value>أُلغيت العملية</value></data>
+  <data name="CompletionObserverFailed" xml:space="preserve"><value>فشل عرض نتيجة الحفظ</value></data>
 </root>

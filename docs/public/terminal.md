@@ -5,6 +5,12 @@ powered by Terminal.Gui v2. It prepares candidate configuration files locally
 from an admitted definition, without network access, background daemons or remote
 target connectivity. The target independently validates and authorizes their use.
 
+The workspace's selected language controls its buttons, help and save guidance.
+English and Arabic are supported, with English fallback for other locales.
+Changing the workspace language does not change the host's language. Save
+receipts distinguish file creation, immediate verification and cleanup; a
+created file's continued integrity is never guaranteed by the receipt.
+
 The [support index](../internal/STATUS.md) distinguishes actual Terminal process
 exercises from Desktop X11 scenarios and package admission.
 

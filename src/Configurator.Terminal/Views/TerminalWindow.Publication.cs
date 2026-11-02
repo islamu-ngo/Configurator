@@ -1,18 +1,7 @@
 namespace Configurator.Terminal;
 
-using System.ComponentModel;
-using System.Drawing;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
-using Configurator.Presentation;
-using global::Terminal.Gui.App;
-using global::Terminal.Gui.Drawing;
-using global::Terminal.Gui.Text;
-using global::Terminal.Gui.ViewBase;
-using global::Terminal.Gui.Views;
 
 internal sealed partial class TerminalWindow
 {
@@ -23,9 +12,9 @@ internal sealed partial class TerminalWindow
         try
         {
             bool ready = _operation.PrepareAsync().GetAwaiter().GetResult();
-            _status.Text = ready ? TerminalStrings.Get("PreviewReady") + " "
-                + _operation.Preparation!.ArtifactCount + " " + TerminalStrings.Get("Selected")
-                : TerminalStrings.Get("DraftInvalid");
+            _status.Text = ready ? LocalizedText("PreviewReady") + " "
+                + _operation.Preparation!.ArtifactCount + " " + LocalizedText("Selected")
+                : LocalizedText("DraftInvalid");
         }
         catch (DefinitionException) { Status("DraftInvalid"); }
         RefreshCommands();
@@ -57,7 +46,10 @@ internal sealed partial class TerminalWindow
                     || window._callbackGeneration != generation || Volatile.Read(ref window._closeRequested) != 0) return;
                 window.UpdatePublication();
                 if (window._receipt is null)
-                    window._status.Text = TerminalStrings.Get("InvalidOutput") + " terminal-operation-failed";
+                {
+                    window._status.Text = window.LocalizedText("InvalidOutput");
+                    window.StatusCode = "terminal-operation-failed";
+                }
                 window.RefreshCommands();
             });
         }
@@ -133,7 +125,7 @@ internal sealed partial class TerminalWindow
     private void ShowOutcome()
     {
         if (_receipt is null) return;
-        _status.Text = TerminalStrings.FormatReceipt(_receipt, _outcomeIndex);
+        _status.Text = TerminalStrings.FormatReceipt(_receipt, _outcomeIndex, _operation.Form.Locale);
         _nextOutcome.Visible = !_tooSmall && _receipt.Outcomes.Count > 1;
         _nextAttempt.Visible = !_tooSmall;
         _status.SetNeedsDraw();

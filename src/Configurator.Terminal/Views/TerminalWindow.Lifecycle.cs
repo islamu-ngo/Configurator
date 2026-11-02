@@ -1,18 +1,10 @@
 namespace Configurator.Terminal;
 
 using System.ComponentModel;
-using System.Drawing;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using Configurator.Artifacts;
-using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
-using global::Terminal.Gui.Drawing;
-using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
-using global::Terminal.Gui.Views;
 
 internal sealed partial class TerminalWindow
 {
@@ -75,8 +67,8 @@ internal sealed partial class TerminalWindow
             }
             ProtectedArtifactPublicationReceipt? receipt = window._operation.LatestPublication;
             if (receipt is not null)
-                window._status.Text = (unknown ? TerminalStrings.Get("ShutdownUnknown") + " " : string.Empty)
-                    + TerminalStrings.FormatClosingReceipt(receipt);
+                window._status.Text = (unknown ? window.LocalizedText("ShutdownUnknown") + " " : string.Empty)
+                    + TerminalStrings.FormatClosingReceipt(receipt, window._operation.Form.Locale);
             window.DetachObservers();
             window._allowStop = true;
             window._application.RequestStop(window);

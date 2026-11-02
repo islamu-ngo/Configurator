@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7RKP05MRS1MZAGQV8B5CQ
+Title: "follow the terminal workspace language"
+Type: fix
+Scope: localization
+Summary: "follow the terminal workspace language."
+Group: terminal-02
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "follow the terminal workspace language."

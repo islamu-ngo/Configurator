@@ -1,8 +1,6 @@
 namespace Configurator.Terminal;
 
-using System.ComponentModel;
 using System.Drawing;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Configurator.Artifacts;
@@ -10,7 +8,6 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
 using global::Terminal.Gui.Drawing;
-using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
 using global::Terminal.Gui.Views;
 
@@ -81,6 +78,26 @@ internal sealed partial class TerminalWindow : Window
     private bool _allowStop;
     private Task _shutdown = Task.CompletedTask;
     private Task _saveObservation = Task.CompletedTask;
+    private readonly Dictionary<View, string> _localizedControls = [];
+    private string? _renderedLocale;
+    private string _statusKey = "Ready";
+    private DefinitionDiagnostic[] _statusDiagnostics = [];
+
+    private string LocalizedText(string key) => TerminalStrings.Get(key, _operation.Form.Locale);
+    private string LocalizedNumber(int value) => value.ToString(TerminalStrings.Culture(_operation.Form.Locale));
+
+    private void RefreshLocale()
+    {
+        if (_renderedLocale == _operation.Form.Locale) return;
+        bool refreshStatus = _status.Text == RenderStatus(_renderedLocale ?? _operation.Form.Locale);
+        _renderedLocale = _operation.Form.Locale;
+        Title = LocalizedText("WindowTitle");
+        foreach ((View control, string key) in _localizedControls) control.Text = LocalizedText(key);
+        _smallNotice.Text = LocalizedText("TerminalTooSmall");
+        if (_receipt is not null) UpdatePublication();
+        else if (refreshStatus) Status(_statusKey, _statusDiagnostics);
+        ShowArtifact();
+    }
 
     internal TerminalWindow(IApplication application, PresentationWorkspace workspace,
         TerminalArtifactOperation operation, TerminalSecretBuffer secret,
@@ -102,7 +119,7 @@ internal sealed partial class TerminalWindow : Window
         _application.Invoke(() => Configurator.Engineering.MeasureNativeImportComparison.Attach(this));
 #endif
         _editor = new(operation.Form);
-        Title = TerminalStrings.Get("WindowTitle");
+        Title = LocalizedText("WindowTitle");
         Width = Dim.Fill();
         Height = Dim.Fill();
         var definition = operation.Form.Definition;
@@ -139,7 +156,7 @@ internal sealed partial class TerminalWindow : Window
         var artifact = Button("Artifact", 1, 12, CycleArtifact);
         var selectOutput = Button("SelectOutput", 27, 12, ToggleOutput);
         _artifactLabel = new Label { X = 1, Y = 13, Width = Dim.Fill(2) };
-        var fileLabel = new Label { X = 1, Y = 14, Text = TerminalStrings.Get("ImportFile") };
+        var fileLabel = new Label { X = 1, Y = 14, Text = LocalizedText("ImportFile") };
         _importPath = new TextField { X = 20, Y = 14, Width = Dim.Fill(2) };
         _import = Button("ImportSelected", 1, 15, ImportSelected);
         _fillImport = Button("FillFields", 25, 15, FillFields);
@@ -157,7 +174,7 @@ internal sealed partial class TerminalWindow : Window
             Y = 18,
             Width = Dim.Fill(2),
             ReadOnly = true,
-            Text = TerminalStrings.Get("Ready")
+            Text = LocalizedText("Ready")
         };
         _null = Button("SetNull", 1, 19, () => EditTyped("SetNull"));
         _reset = Button("ResetValue", 25, 19, () => EditTyped("ResetValue"));
@@ -170,14 +187,16 @@ internal sealed partial class TerminalWindow : Window
         _copySecret = Button("CopySecret", 49, 22, CopySecret);
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
-        var limitations = new Label { X = 1, Y = 23, Width = Dim.Fill(2), Height = 2, Text = TerminalStrings.Get("Limitations") };
+        var limitations = new Label { X = 1, Y = 23, Width = Dim.Fill(2), Height = 2, Text = LocalizedText("Limitations") };
+        _localizedControls.Add(fileLabel, "ImportFile");
+        _localizedControls.Add(limitations, "Limitations");
         _smallNotice = new Label
         {
             X = 1,
             Y = 1,
             Width = Dim.Fill(2),
             Height = 3,
-            Text = TerminalStrings.Get("TerminalTooSmall"),
+            Text = LocalizedText("TerminalTooSmall"),
             Visible = false
         };
         Add(heading, _locale, _correction, _experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
@@ -208,6 +227,7 @@ internal sealed partial class TerminalWindow : Window
 
     internal int ExitCode { get; private set; } = 4;
     internal string StatusText => _status.Text;
+    internal string? StatusCode { get; private set; }
     internal SecretTextField MaskedInput => _masked;
     internal TextField PublicInput => _value;
     internal Task ImportCompletion => _importOperation.Completion;
@@ -224,7 +244,7 @@ internal sealed partial class TerminalWindow : Window
             X = x,
             Y = y,
             Height = 1,
-            Text = TerminalStrings.Get(key),
+            Text = LocalizedText(key),
             BorderStyle = LineStyle.None,
             ShadowStyle = null
         };
@@ -235,6 +255,7 @@ internal sealed partial class TerminalWindow : Window
             if (key != "RemoveItem") _confirmRemove = false;
             action();
         };
+        if (_renderedLocale is null) _localizedControls.Add(button, key);
         return button;
     }
 
@@ -266,8 +287,8 @@ internal sealed partial class TerminalWindow : Window
     {
         var artifact = _operation.Form.Definition.Artifacts.Single(item => item.Id == _operation.ArtifactId);
         _artifactLabel.Text = Safe($"{artifact.Id} | "
-            + $"{(_operation.CurrentArtifactSelected ? TerminalStrings.Get("Selected") : TerminalStrings.Get("NotSelected"))} "
-            + $"{_operation.SelectedArtifactIds.Count}/{_operation.Form.Definition.Artifacts.Count} | "
+            + $"{(_operation.CurrentArtifactSelected ? LocalizedText("Selected") : LocalizedText("NotSelected"))} "
+            + $"{LocalizedNumber(_operation.SelectedArtifactIds.Count)}/{LocalizedNumber(_operation.Form.Definition.Artifacts.Count)} | "
             + $"{artifact.FileName} | {artifact.Format.ToToken()} | {artifact.ApplySemantics.ToToken()} | {artifact.Restart.ToToken()}");
     }
 
@@ -277,18 +298,23 @@ internal sealed partial class TerminalWindow : Window
         try
         {
             var validation = _operation.Form.Validate();
-            _status.Text = validation.IsReady && !_operation.Form.HasInputErrors
-                ? TerminalStrings.Get("PreviewReady")
-                : TerminalStrings.Get("DraftInvalid") + " " +
-                    string.Join(", ", validation.Diagnostics.Select(item => Safe(item.Code + ":" +
-                        JsonSerializer.Serialize(new[] { item.FieldId }.Concat(item.RelativePath)))));
+            Status(validation.IsReady && !_operation.Form.HasInputErrors ? "PreviewReady" : "DraftInvalid",
+                validation.Diagnostics);
         }
         catch (DefinitionException) { Status("DraftInvalid"); }
     }
 
-    private void Status(string key)
+    private string RenderStatus(string locale) => TerminalStrings.Get(_statusKey, locale)
+        + (_statusDiagnostics.Length == 0 ? string.Empty : " " + string.Join(", ",
+            _statusDiagnostics.Select(diagnostic => PresentationStrings.Diagnostic(diagnostic.Code, locale)
+                + " " + JsonSerializer.Serialize(new[] { diagnostic.FieldId }.Concat(diagnostic.RelativePath)))));
+
+    private void Status(string key, IEnumerable<DefinitionDiagnostic>? diagnostics = null)
     {
-        _status.Text = TerminalStrings.Get(key);
+        _statusDiagnostics = diagnostics?.Distinct().ToArray() ?? [];
+        StatusCode = _statusDiagnostics.FirstOrDefault()?.Code;
+        _statusKey = key;
+        _status.Text = RenderStatus(_operation.Form.Locale);
         _status.ClearHistoryChanges();
         _status.SetNeedsDraw();
     }
@@ -306,12 +332,13 @@ internal sealed partial class TerminalWindow : Window
         _nextFinding.Enabled = available && _operation.Form.ImportComparison is { Findings.Count: > 0 };
         _generateSecret.Enabled = available && _slot is not null && _operation.Form.CanGenerateSecret(
             TerminalFieldEditor.EditPath(_slot, _itemIndex));
-        _generateSecret.Text = TerminalStrings.Get(_secret.Count > 0 ? "RegenerateSecret" : "GenerateSecret");
+        _generateSecret.Text = LocalizedText(_secret.Count > 0 ? "RegenerateSecret" : "GenerateSecret");
         _revealSecret.Enabled = available && _secret.Count > 0;
         _copySecret.Enabled = available && _secret.Count > 0;
     }
 
     private void ViewportUpdated(object? sender, DrawEventArgs args) => ApplyViewportPolicy(args.NewViewport.Size);
+
     internal void ApplyViewportPolicy(Size size)
     {
         _tooSmall = size.Width < MinimumTerminalWidth || size.Height < MinimumTerminalHeight;

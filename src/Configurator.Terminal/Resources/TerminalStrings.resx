@@ -14,10 +14,6 @@
   <data name="InvalidOutput" xml:space="preserve"><value>Prepare the selected outputs again before saving.</value></data>
   <data name="Cancelled" xml:space="preserve"><value>Operation cancelled; private state cleared.</value></data>
   <data name="Writing" xml:space="preserve"><value>Writing protected output...</value></data>
-  <data name="DisplayMode" xml:space="preserve"><value>_Disclosure</value></data>
-  <data name="ModeGuided" xml:space="preserve"><value>Guided</value></data>
-  <data name="ModeAdvanced" xml:space="preserve"><value>Advanced</value></data>
-  <data name="ModeAllDeclared" xml:space="preserve"><value>All declared</value></data>
   <data name="Choose" xml:space="preserve"><value>Cycle _choice</value></data>
   <data name="Previous" xml:space="preserve"><value>_Previous field</value></data>
   <data name="Next" xml:space="preserve"><value>_Next field</value></data>
@@ -32,11 +28,6 @@
   <data name="ImportSelected" xml:space="preserve"><value>Compare fi_le</value></data>
   <data name="FillFields" xml:space="preserve"><value>_Fill fields</value></data>
   <data name="NextFinding" xml:space="preserve"><value>Next findin_g</value></data>
-  <data name="ComparisonCompatible" xml:space="preserve"><value>Compatible in assessed scope</value></data>
-  <data name="ComparisonChangesRequired" xml:space="preserve"><value>Changes required</value></data>
-  <data name="ComparisonIncomplete" xml:space="preserve"><value>Assessment incomplete</value></data>
-  <data name="ComparisonUnsupported" xml:space="preserve"><value>Unsupported inverse</value></data>
-  <data name="ComparisonInvalidInput" xml:space="preserve"><value>Invalid input</value></data>
   <data name="CoverageComplete" xml:space="preserve"><value>Coverage complete</value></data>
   <data name="CoverageIncomplete" xml:space="preserve"><value>Coverage incomplete</value></data>
   <data name="InventoryComplete" xml:space="preserve"><value>Finding inventory complete</value></data>
@@ -46,12 +37,6 @@
   <data name="ComparisonRecovery" xml:space="preserve"><value>Review and repair a separate copy, then compare again. Target acceptance is unassessed.</value></data>
   <data name="FindingInformation" xml:space="preserve"><value>INFO</value></data>
   <data name="FindingError" xml:space="preserve"><value>ERROR</value></data>
-  <data name="FindingMissingRequired" xml:space="preserve"><value>Missing required</value></data>
-  <data name="FindingInvalidSuppliedValue" xml:space="preserve"><value>Invalid for this definition</value></data>
-  <data name="FindingUnrecognizedInput" xml:space="preserve"><value>Unrecognized input</value></data>
-  <data name="FindingStructuralOutputChange" xml:space="preserve"><value>Structural output change</value></data>
-  <data name="FindingUnassessed" xml:space="preserve"><value>Unassessed</value></data>
-  <data name="FindingContextDerivedValue" xml:space="preserve"><value>Public context-derived selector</value></data>
   <data name="ImportReady" xml:space="preserve"><value>Supported fields imported. Review the masked answers and validate.</value></data>
   <data name="ImportReading" xml:space="preserve"><value>Reading local artifact. Editing or clearing cancels this import.</value></data>
   <data name="ImportAdopting" xml:space="preserve"><value>Filling fields from the retained comparison. Editing or clearing cancels this import.</value></data>
@@ -123,4 +108,19 @@
   <data name="GeneratedPassword" xml:space="preserve"><value>Generated original password</value></data>
   <data name="GeneratedValue" xml:space="preserve"><value>generated locally</value></data>
   <data name="GeneratedPasswordNotice" xml:space="preserve"><value>Copy this password deliberately before closing. Closing dismisses the transient result.</value></data>
+  <data name="OutputWritten" xml:space="preserve"><value>Created</value></data>
+  <data name="OutputInvalidRequest" xml:space="preserve"><value>Invalid output request</value></data>
+  <data name="OutputTargetExists" xml:space="preserve"><value>Destination already exists</value></data>
+  <data name="OutputUnsafeTarget" xml:space="preserve"><value>Destination cannot be protected</value></data>
+  <data name="OutputTargetChanged" xml:space="preserve"><value>Destination verification failed</value></data>
+  <data name="OutputPermissionDenied" xml:space="preserve"><value>Permission denied</value></data>
+  <data name="OutputIoFailure" xml:space="preserve"><value>Storage operation failed</value></data>
+  <data name="OutputUnsupportedPlatform" xml:space="preserve"><value>Protected saving is unavailable on this platform</value></data>
+  <data name="InstallationEstablished" xml:space="preserve"><value>installation established</value></data>
+  <data name="VerificationSucceeded" xml:space="preserve"><value>immediate verification succeeded</value></data>
+  <data name="VerificationFailed" xml:space="preserve"><value>immediate verification failed</value></data>
+  <data name="CurrentIntegrityNotGuaranteed" xml:space="preserve"><value>continued integrity is not guaranteed</value></data>
+  <data name="CompletionCompleted" xml:space="preserve"><value>Completed</value></data>
+  <data name="CompletionCancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="CompletionObserverFailed" xml:space="preserve"><value>Save reporting failed</value></data>
 </root>

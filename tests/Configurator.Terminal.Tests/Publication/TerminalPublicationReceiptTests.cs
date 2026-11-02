@@ -8,6 +8,22 @@ using Configurator.Terminal;
 public sealed class TerminalPublicationReceiptTests
 {
     [Test]
+    public async Task ReceiptGuidanceUsesExplicitLocaleAndPreservesTypedFacts()
+    {
+        var receipt = new ProtectedArtifactPublicationReceipt(Guid.NewGuid(),
+            [new("config", ProtectedArtifactCommitResult.Installed(false))], true,
+            ProtectedArtifactBundleCompletionCode.Completed);
+        string english = TerminalStrings.FormatReceipt(receipt, 0, "en");
+        string arabic = TerminalStrings.FormatReceipt(receipt, 0, "ar");
+        await Assert.That(arabic).IsNotEqualTo(english);
+        await Assert.That(TerminalStrings.FormatReceipt(receipt, 0, "fr")).IsEqualTo(english);
+        await Assert.That(arabic).DoesNotContain("TargetChanged");
+        await Assert.That(arabic).DoesNotContain("installation-established");
+        await Assert.That(receipt.Outcomes[0].Result!.InstallationEstablished).IsTrue();
+        await Assert.That(receipt.Outcomes[0].Result!.VerificationSucceeded).IsFalse();
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     public async Task InstalledUnverifiedReceiptSurvivesCancellationAndPrivateClear(bool cleanupFailed)
@@ -42,14 +58,14 @@ public sealed class TerminalPublicationReceiptTests
         await Assert.That(operation.IsPrepared).IsFalse();
         await Assert.That(form.Snapshot().Values.ContainsKey("token")).IsFalse();
         string status = TerminalStrings.FormatReceipt(receipt, 0);
-        await Assert.That(status).Contains("installation-established");
-        await Assert.That(status).Contains("verification-failed");
-        await Assert.That(status).Contains("current-integrity-not-guaranteed");
+        await Assert.That(status).Contains(TerminalStrings.Get("InstallationEstablished"));
+        await Assert.That(status).Contains(TerminalStrings.Get("VerificationFailed"));
+        await Assert.That(status).Contains(TerminalStrings.Get("CurrentIntegrityNotGuaranteed"));
         await Assert.That(status).DoesNotContain(TerminalStrings.Get("ProtectedDraftSaved"));
         await Assert.That(status).DoesNotContain("privateValue");
         await Assert.That(status).DoesNotContain("/synthetic/private-output");
         await Assert.That(TerminalStrings.FormatReceipt(receipt, 1)).Contains(TerminalStrings.Get("NotAttempted"));
-        await Assert.That(TerminalStrings.FormatClosingReceipt(receipt)).Contains("installation-established");
+        await Assert.That(TerminalStrings.FormatClosingReceipt(receipt)).Contains(TerminalStrings.Get("InstallationEstablished"));
     }
 
     [Test]
@@ -66,7 +82,7 @@ public sealed class TerminalPublicationReceiptTests
         await Assert.That(receipt.IsSettled).IsTrue();
         await Assert.That(receipt.Outcomes[0].Result).IsNull();
         string status = TerminalStrings.FormatReceipt(receipt, 0);
-        await Assert.That(status).Contains("terminal-operation-failed");
+        await Assert.That(status).Contains(TerminalStrings.Get("PublicationFailed"));
         await Assert.That(status).Contains(TerminalStrings.Get("PublicationUnknown"));
         await Assert.That(status).DoesNotContain("synthetic-private-path");
     }

@@ -434,6 +434,9 @@ public sealed class TerminalGuiAdapterTests
             await harness.ChangeView(() => harness.Form.SelectLocale("ar"));
             await Assert.That(harness.Window.Title).IsNotEqualTo(englishTitle);
             await Assert.That(harness.Window.StatusText).IsNotEqualTo(englishStatus);
+            Label artifact = harness.Window.SubViews.OfType<Label>()
+                .Single(label => label.Text.Contains("config.json", StringComparison.Ordinal));
+            await Assert.That(artifact.Text).Contains(TerminalStrings.Get("Selected", "ar"));
             await Assert.That(english.Window.Title).IsEqualTo(englishTitle);
         }
         finally { CultureInfo.CurrentUICulture = previous; }
@@ -450,7 +453,7 @@ public sealed class TerminalGuiAdapterTests
             [
                 "WindowTitle", "ImportFile", "Close", "Ready", "Limitations", "TerminalTooSmall",
                 "InvalidSecret", "SecretCommandsDisabled", "InvalidOutput", "Cancelled", "Writing",
-                "DisplayMode", "ModeGuided", "ModeAdvanced", "ModeAllDeclared", "Choose", "Previous",
+                "Choose", "Previous",
                 "Next", "ApplyField", "PreviousItem", "NextItem", "RemoveItem", "AddItem", "Artifact",
                 "SelectOutput", "Selected", "NotSelected", "ImportSelected", "ImportReady",
                 "ImportFailed", "NextOutcome", "NotAttempted", "PartialBundle", "ManualRecovery",
@@ -462,8 +465,8 @@ public sealed class TerminalGuiAdapterTests
             foreach (string culture in new[] { "en", "ar" })
             {
                 CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
-                await Assert.That(keys.All(key => TerminalStrings.Get(key) != key
-                    && !string.IsNullOrWhiteSpace(TerminalStrings.Get(key)))).IsTrue();
+                await Assert.That(keys.All(key => TerminalStrings.Get(key, culture) != key
+                    && !string.IsNullOrWhiteSpace(TerminalStrings.Get(key, culture)))).IsTrue();
             }
         }
         finally { CultureInfo.CurrentUICulture = previous; }
@@ -551,7 +554,7 @@ public sealed class TerminalGuiAdapterTests
         Directory.CreateDirectory(directory);
         try
         {
-            using var harness = new Harness(initialize: true, directory: directory);
+            using var harness = new Harness(initialize: true, directory: directory, manualDispatch: true);
             var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             harness.Workspace.PropertyChanged += (_, args) =>
             {
@@ -561,6 +564,7 @@ public sealed class TerminalGuiAdapterTests
             Button prepare = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("PreparePreview"));
             Button save = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("SaveProtected"));
             await Assert.That(prepare.InvokeCommand(Command.Accept)).IsTrue();
+            harness.DrainCallbacks();
             await Assert.That(harness.Operation.IsPrepared).IsTrue();
             await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
             await Assert.That(save.InvokeCommand(Command.Accept)).IsTrue();
@@ -703,8 +707,8 @@ public sealed class TerminalGuiAdapterTests
         string second = harness.Window.StatusText;
         await Assert.That(next.InvokeCommand(Command.Accept)).IsTrue();
         string third = harness.Window.StatusText;
-        await Assert.That(first).Contains("config: Written");
-        await Assert.That(second).Contains("environment: TargetExists");
+        await Assert.That(first).Contains("config: " + TerminalStrings.Get("OutputWritten"));
+        await Assert.That(second).Contains("environment: " + TerminalStrings.Get("OutputTargetExists"));
         await Assert.That(third).Contains("yaml: " + TerminalStrings.Get("NotAttempted"));
         await Assert.That(first).Contains(TerminalStrings.Get("ManualRecovery"));
         await Assert.That(first).DoesNotContain("privateValue");
@@ -723,12 +727,14 @@ public sealed class TerminalGuiAdapterTests
                 beforePublication: _ => ++attempt == 1 ? Task.CompletedTask
                     : throw new InvalidOperationException("synthetic-private-fault"));
             harness.Window.Prepare();
+            harness.DrainCallbacks();
             harness.Window.Save();
             await harness.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             harness.DrainCallbacks();
             await Assert.That(harness.Window.ExitCode).IsEqualTo(0);
             harness.Form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-retry";
             harness.Window.Prepare();
+            harness.DrainCallbacks();
             harness.Window.Save();
             await harness.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             harness.DrainCallbacks();
@@ -762,8 +768,8 @@ public sealed class TerminalGuiAdapterTests
             string first = harness.Window.StatusText;
             await Assert.That(history.InvokeCommand(Command.Accept)).IsTrue();
             string second = harness.Window.StatusText;
-            await Assert.That(first + second).Contains("config: Written");
-            await Assert.That(first + second).Contains("config: TargetExists");
+            await Assert.That(first + second).Contains("config: " + TerminalStrings.Get("OutputWritten"));
+            await Assert.That(first + second).Contains("config: " + TerminalStrings.Get("OutputTargetExists"));
             await Assert.That(first + second).DoesNotContain("privateValue");
             await Assert.That(first + second).DoesNotContain(directory);
             await Assert.That(harness.Operation.IsPrepared).IsFalse();

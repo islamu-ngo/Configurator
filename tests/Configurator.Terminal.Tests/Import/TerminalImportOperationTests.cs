@@ -711,7 +711,7 @@ public sealed class TerminalImportOperationTests
             if (previousSave)
             {
                 await Assert.That(status).Contains(TerminalStrings.Get("ShutdownUnknown"));
-                await Assert.That(status).Contains("config: Written");
+                await Assert.That(status).Contains("config: " + TerminalStrings.Get("OutputWritten"));
             }
             else await Assert.That(status).IsEqualTo(TerminalStrings.Get("ShutdownUnknown"));
             release.TrySetResult();
@@ -769,7 +769,7 @@ public sealed class TerminalImportOperationTests
             await Assert.That(harness.Operation.CurrentPublication!.IsUnknown).IsTrue();
             await Assert.That(status).Contains(attempt.ToString("N"));
             await Assert.That(status).Contains("config");
-            await Assert.That(status).Contains(nameof(ProtectedArtifactStatus.Written));
+            await Assert.That(status).Contains(TerminalStrings.Get("OutputWritten"));
             await Assert.That(status).Contains("environment");
             await Assert.That(status).Contains(TerminalStrings.Get("PublicationUnknown"));
             await Assert.That(status).DoesNotContain(directory);
@@ -830,13 +830,13 @@ public sealed class TerminalImportOperationTests
                 harness.Window.PublicInput.Text = "sample";
                 harness.Form.Fields.Single(input => input.Definition.Id == "token").Text = "synthetic-private";
                 harness.Window.Prepare();
-                harness.Button("SaveProtected").InvokeCommand(Command.Accept);
             });
+            await owner.InvokeAsync(() => harness.Button("SaveProtected").InvokeCommand(Command.Accept));
             await harness!.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             string status = string.Empty;
             await owner.InvokeAsync(() => status = harness.Window.StatusText);
             await Assert.That(harness.Workspace.IsBusy).IsFalse();
-            await Assert.That(status).Contains("terminal-operation-failed");
+            await Assert.That(status).Contains(TerminalStrings.Get("PublicationFailed"));
             await Assert.That(status).DoesNotContain("synthetic-private-path");
         }
         finally { await owner.InvokeAsync(() => harness?.Dispose()); }

@@ -1,18 +1,7 @@
 namespace Configurator.Terminal;
 
-using System.ComponentModel;
-using System.Drawing;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using Configurator.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
-using global::Terminal.Gui.App;
-using global::Terminal.Gui.Drawing;
-using global::Terminal.Gui.Text;
-using global::Terminal.Gui.ViewBase;
-using global::Terminal.Gui.Views;
 
 internal sealed partial class TerminalWindow
 {
@@ -37,13 +26,7 @@ internal sealed partial class TerminalWindow
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Suspend the current slice without waiting for the terminal's timer cadence.
-#if CONFIGURATOR_NATIVE_IMPORT_PROBE
-        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
-#endif
         await Task.Yield();
-#if CONFIGURATOR_NATIVE_IMPORT_PROBE
-        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
-#endif
         cancellationToken.ThrowIfCancellationRequested();
     }
 
@@ -81,24 +64,25 @@ internal sealed partial class TerminalWindow
     {
         var form = _operation.Form;
         if (form.ImportComparison is not { } report) return;
-        string compatibility = TerminalStrings.Get("Comparison" + report.Compatibility);
-        string coverage = TerminalStrings.Get(report.CoverageComplete ? "CoverageComplete" : "CoverageIncomplete");
-        string inventory = TerminalStrings.Get(report.InventoryComplete ? "InventoryComplete" : "InventoryIncomplete");
-        _help.Text = Safe($"{compatibility} | {coverage} | {inventory} | {report.RetainedFindingCount}");
+        string compatibility = PresentationStrings.ImportCompatibility(report.Compatibility, form.Locale);
+        string coverage = LocalizedText(report.CoverageComplete ? "CoverageComplete" : "CoverageIncomplete");
+        string inventory = LocalizedText(report.InventoryComplete ? "InventoryComplete" : "InventoryIncomplete");
+        _help.Text = Safe($"{compatibility} | {coverage} | {inventory} | {LocalizedNumber(report.RetainedFindingCount)}");
         if (_comparisonIndex >= 0 && report.Findings.Count > 0)
         {
             _comparisonIndex %= report.Findings.Count;
             DefinitionImportFinding finding = report.Findings[_comparisonIndex];
             DefinitionImportSchemaExplanation? explanation = form.ExplainImportFinding(finding);
-            string severity = TerminalStrings.Get(finding.Kind is DefinitionImportFindingKind.Unassessed
+            string severity = LocalizedText(finding.Kind is DefinitionImportFindingKind.Unassessed
                 or DefinitionImportFindingKind.ContextDerivedValue ? "FindingInformation" : "FindingError");
-            _help.Text += "\n" + Safe($"{_comparisonIndex + 1}/{report.RetainedFindingCount} [{severity}] " +
-                TerminalStrings.Get("Finding" + finding.Kind) + " " + finding.Code +
+            _help.Text += "\n" + Safe($"{LocalizedNumber(_comparisonIndex + 1)}/{LocalizedNumber(report.RetainedFindingCount)} [{severity}] " +
+                PresentationStrings.ImportFinding(finding.Kind, form.Locale) +
                 (explanation is null ? "" : " | " + explanation.Title));
         }
-        string eligibility = TerminalStrings.Get(form.CanAdoptImportComparison ? "AutofillEligible" : "AutofillRefused");
-        _status.Text = Safe(eligibility + " " + form.ImportAutofillCode +
-            (form.CanAdoptImportComparison ? "" : " " + TerminalStrings.Get("ComparisonRecovery")));
+        string eligibility = LocalizedText(form.CanAdoptImportComparison ? "AutofillEligible" : "AutofillRefused");
+        StatusCode = form.ImportAutofillCode;
+        _status.Text = Safe(eligibility + " " + PresentationStrings.ImportAutofill(form.ImportAutofillCode, form.Locale) +
+            (form.CanAdoptImportComparison ? "" : " " + LocalizedText("ComparisonRecovery")));
         _status.ClearHistoryChanges();
         _help.SetNeedsDraw();
         _status.SetNeedsDraw();
@@ -126,7 +110,11 @@ internal sealed partial class TerminalWindow
                     Status("ImportReady");
                 }
             }
-            else _status.Text = TerminalStrings.Get("ImportFailed") + " " + result.Code;
+            else
+            {
+                Status("ImportFailed");
+                StatusCode = result.Code;
+            }
         }
         _status.ClearHistoryChanges();
         RefreshCommands();

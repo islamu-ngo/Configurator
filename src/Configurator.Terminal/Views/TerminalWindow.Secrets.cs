@@ -22,7 +22,7 @@ internal sealed partial class TerminalWindow
         _loading = true;
         try { _masked.SetRevealed(!_masked.IsRevealed); }
         finally { _loading = false; }
-        _revealSecret.Text = TerminalStrings.Get(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
+        _revealSecret.Text = LocalizedText(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
         _masked.SetFocus();
     }
 
@@ -52,18 +52,18 @@ internal sealed partial class TerminalWindow
         if (policy is { Kind: DefinitionSecretKind.PasswordHash or DefinitionSecretKind.Digest, Generation.Input: DefinitionSecretInput.Entered })
         {
             using var buffer = new TerminalSecretBuffer(65536, urlSafeOnly: false);
-            using var dialog = new Dialog { Title = TerminalStrings.Get("SecretDerivationInput"), Width = Dim.Percent(90), Height = 9 };
+            using var dialog = new Dialog { Title = LocalizedText("SecretDerivationInput"), Width = Dim.Percent(90), Height = 9 };
             var field = new SecretTextField(buffer) { X = 1, Y = 1, Width = Dim.Fill(2) };
             bool accepted = false;
             var accept = Button("GenerateSecret", 1, 3, () => { accepted = true; _application.RequestStop(dialog); });
             var cancel = Button("Close", 49, 3, () => _application.RequestStop(dialog));
             var notice = new Label { X = 1, Y = 5, Width = Dim.Fill(2), Height = 2 };
-            field.InputRejected += (_, _) => notice.Text = TerminalStrings.Get("SecretInputLimit");
+            field.InputRejected += (_, _) => notice.Text = LocalizedText("SecretInputLimit");
             Button? reveal = null;
             reveal = Button("ShowSecret", 25, 3, () =>
             {
                 field.SetRevealed(!field.IsRevealed);
-                reveal!.Text = TerminalStrings.Get(field.IsRevealed ? "HideSecret" : "ShowSecret");
+                reveal!.Text = LocalizedText(field.IsRevealed ? "HideSecret" : "ShowSecret");
             });
             dialog.Add(field, accept, reveal, cancel, notice);
             _secretDialog = dialog;
@@ -105,17 +105,17 @@ internal sealed partial class TerminalWindow
         string? password = _operation.Form.CopyGeneratedPassword();
         if (password is null) return;
         using var buffer = new TerminalSecretBuffer(4096, urlSafeOnly: false);
-        using var dialog = new Dialog { Title = TerminalStrings.Get("GeneratedPassword"), Width = Dim.Percent(90), Height = 10 };
+        using var dialog = new Dialog { Title = LocalizedText("GeneratedPassword"), Width = Dim.Percent(90), Height = 10 };
         var field = new SecretTextField(buffer) { X = 1, Y = 1, Width = Dim.Fill(2), ReadOnly = true };
         field.TryReplaceSensitiveInput(password);
-        var notice = new Label { X = 1, Y = 5, Width = Dim.Fill(2), Height = 2, Text = TerminalStrings.Get("GeneratedPasswordNotice") };
+        var notice = new Label { X = 1, Y = 5, Width = Dim.Fill(2), Height = 2, Text = LocalizedText("GeneratedPasswordNotice") };
         Button? reveal = null;
         reveal = Button("ShowSecret", 1, 3, () =>
         {
             field.SetRevealed(!field.IsRevealed);
-            reveal!.Text = TerminalStrings.Get(field.IsRevealed ? "HideSecret" : "ShowSecret");
+            reveal!.Text = LocalizedText(field.IsRevealed ? "HideSecret" : "ShowSecret");
         });
-        var copy = Button("CopySecret", 25, 3, () => notice.Text = TerminalStrings.Get(
+        var copy = Button("CopySecret", 25, 3, () => notice.Text = LocalizedText(
             field.TryCopy(NativeClipboard()) ? "SecretCopied" : "SecretClipboardUnavailable"));
         var close = Button("Close", 49, 3, () => _application.RequestStop(dialog));
         dialog.Add(field, reveal, copy, close, notice);
