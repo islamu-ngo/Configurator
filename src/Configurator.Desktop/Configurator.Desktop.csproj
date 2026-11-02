@@ -4,8 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <SetupTargetEnabled>true</SetupTargetEnabled>
-    <SetupTargetRole>OfflineDesktop</SetupTargetRole>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

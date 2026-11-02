@@ -6,8 +6,6 @@
     <RootNamespace>Configurator.Browser</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <SetupTargetEnabled>true</SetupTargetEnabled>
-    <SetupTargetRole>StandalonePublicBrowser</SetupTargetRole>
     <IsPackable>false</IsPackable>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
     <RunAOTCompilation Condition="'$(Configuration)' == 'Release'">true</RunAOTCompilation>

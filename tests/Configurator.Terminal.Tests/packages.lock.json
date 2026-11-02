@@ -265,7 +265,6 @@
           "Configurator.Artifacts": "[0.0.1, )",
           "Configurator.Core": "[0.0.1, )",
           "Configurator.Presentation": "[0.0.1, )",
-          "Microsoft.Extensions.DependencyInjection": "[10.0.10, )",
           "Terminal.Gui": "[2.5.0, )"
         }
       },
@@ -288,15 +287,6 @@
         "contentHash": "fVi053xdpda9Em7vSkmgVxO/PtgC2m78ekReKWsgcyskqY0U82Bz/MONwxpGzI0hElYKJfw+fupqMVeKW3fSaA==",
         "dependencies": {
           "Microsoft.Extensions.Primitives": "10.0.11"
-        }
-      },
-      "Microsoft.Extensions.DependencyInjection": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.10, )",
-        "resolved": "10.0.10",
-        "contentHash": "ANyvsgkNBRvcJh2XLgn8veGmajf+8m0AbKK+HPWdRL1yraSNVVSmQhFntLtdz/C795jxqqup+k05cs/3jZQPOA==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.10"
         }
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
