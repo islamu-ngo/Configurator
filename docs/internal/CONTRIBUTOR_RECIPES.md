@@ -5,7 +5,7 @@
 > **Status:** Current source-grounded recipes; example edits and commands unexecuted
 > **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/Contracts/CliContractTests.cs`, `tests/Configurator.Browser.Tests/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
+> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/Contracts/CliContractTests.cs`, `tests/Configurator.Browser.Tests/Configuration/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
 > **Review basis:** Named source, test bodies and project files inspected on 2026-10-30; no recipe execution, builds, tests or host exercises
 
 Choose the behavior you want to change, then follow its owner, example edit and
@@ -277,9 +277,9 @@ mutation and Core owns validity. Start with
 captures form, path, input revision and action generation for callbacks.
 [`ConfigurationField.razor.cs`](../../src/Configurator.Browser/Components/Configuration/ConfigurationField.razor.cs)
 checks those facts in `IsCurrentAction` before `ChooseVariant` mutates state.
-[`DefinitionFormModel`](../../src/Configurator.Presentation/Presentation/DefinitionFormModel.cs)
+[`DefinitionFormModel`](../../src/Configurator.Presentation/Form/DefinitionFormModel.cs)
 owns the shared form.
-[`BrowserEditingTests.RetiredVariantCallbackCannotEditAfterViewOnlyUnmountAndRemount`](../../tests/Configurator.Browser.Tests/BrowserEditingTests.cs)
+[`BrowserEditingTests.RetiredVariantCallbackCannotEditAfterViewOnlyUnmountAndRemount`](../../tests/Configurator.Browser.Tests/Configuration/BrowserEditingTests.cs)
 already holds a stale callback across collapse/expand. Its local `Form()` fixture
 declares synthetic `first` and `second` variants.
 

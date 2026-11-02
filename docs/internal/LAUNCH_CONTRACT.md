@@ -4,7 +4,7 @@
 > **Status:** Implemented browser boundary; target acceptance is separate
 > **Owner:** Browser
 > **Last Verified:** 2026-11-01
-> **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/Presentation/`
+> **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/`
 
 ## V3 typed workspace admission and callbacks
 

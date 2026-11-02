@@ -65,7 +65,7 @@ creates an absent parent object. Keep private literals out of default, initial,
 suggested, example and const metadata.
 
 Source anchors:
-[`DefinitionTypedEditingTests`](../../tests/Configurator.Presentation.Tests/DefinitionTypedEditingTests.cs)
+[`DefinitionTypedEditingTests`](../../tests/Configurator.Presentation.Tests/Form/DefinitionTypedEditingTests.cs)
 and [`DefinitionSemanticTests`](../../tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs).
 Private answer files represent omission in `omitted`, not by converting it to
 JSON null. Reset and suggestion adoption are deliberate editing operations,
@@ -163,7 +163,7 @@ identity increment or a rewrite of historical releases.
 
 Source anchors:
 [`DefinitionPresentationAdmissionTests`](../../tests/Configurator.Core.Tests/Definitions/DefinitionPresentationAdmissionTests.cs)
-and [`EventDefinitionFormTests`](../../tests/Configurator.Presentation.Tests/EventDefinitionFormTests.cs).
+and [`EventDefinitionFormTests`](../../tests/Configurator.Presentation.Tests/Form/EventDefinitionFormTests.cs).
 The documentation fragment is illustrative; these anchors do not assert that
 verification has run for a particular release.
 
@@ -459,7 +459,7 @@ destinations without queries; fragments are allowed. No interpolation,
 prefetch, automatic fetch or answer transfer is permitted. Instructions cannot
 fetch credentials or grant issuer authority. See the maintained
 [minimal source](../../examples/minimal-self-hosted/configurator.yaml),
-[`DefinitionTypedEditingTests`](../../tests/Configurator.Presentation.Tests/DefinitionTypedEditingTests.cs)
+[`DefinitionTypedEditingTests`](../../tests/Configurator.Presentation.Tests/Form/DefinitionTypedEditingTests.cs)
 and [`DefinitionPresentation`](../../src/Configurator.Core/Definitions/DefinitionPresentation.cs).
 
 ## Secret policy and target format

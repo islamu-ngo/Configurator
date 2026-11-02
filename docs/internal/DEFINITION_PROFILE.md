@@ -4,7 +4,7 @@
 > **Status:** Current bounded-v0.0.1 contract; package and host qualification is recorded separately
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`
+> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`
 
 The [public standard](../public/definition-standard.md) owns adopter syntax.
 The [technical conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) records

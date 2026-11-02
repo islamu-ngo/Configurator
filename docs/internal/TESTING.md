@@ -150,7 +150,7 @@ exit 2. Its validated `Configurator.Core` report contains 3,188/3,783 class-line
 entries and 2,737/3,683 branches, but this is **failed-run evidence**, not a green
 Core baseline. Default collector instrumentation adds
 `Microsoft.CodeCoverage.Instrumentation.Static.Tracker` types; the unchanged
-`SetupCoreArchitectureTests.ProductAssemblyRemainsBclAndApprovedYamlOnlyWithoutAmbientAuthority`
+`CoreArchitectureTests.ProductAssemblyRemainsBclAndApprovedYamlOnlyWithoutAmbientAuthority`
 guard correctly rejects their ambient I/O and mutable statics. A dynamic-only
 configuration passed all 145 tests but emitted an empty `<packages />` report;
 the evidence tool rejected it with exit 1 rather than claiming coverage.

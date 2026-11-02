@@ -291,7 +291,6 @@ including root, empty names, slashes and tildes. Facts and discovery relevance
 share these keys without JSON serialization. Stable logical editor and row
 identities remain separate from current physical paths, so moving a row does
 not change its editor identity.
-
 `GetFieldEditor` retrieves the existing owned root editor and schema through that literal-ID
 index. Browser field mounting uses it rather than repeatedly scanning roots and
 decoding definition IDs from JSON. Cached display metadata and frozen binding
@@ -612,7 +611,7 @@ contains no target API transport. Event's live adapter remains Event-owned.
 `DefinitionPresentationOperationTests` covers captured snapshots and the
 edit/cancel/disposal import fence; `DefinitionImportTests` covers rejected
 inverse inputs, `DefinitionBundleTests` covers aggregate composition, and
-`SetupPresentationModelTests` covers accepted/replaced/discarded private-byte
+`PresentationModelTests` covers accepted/replaced/discarded private-byte
 ownership.
 Terminal, desktop and browser verification is separate; these tests are not
 visual QA.

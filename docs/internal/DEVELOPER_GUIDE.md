@@ -5,7 +5,7 @@
 > **Status:** Current orientation; source-inspected, not a runtime qualification
 > **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `PROJECTS.md`, `global.json`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Presentation/DefinitionFormModel.cs`, `src/Configurator.Artifacts/ProtectedArtifactBundlePublisher.cs`
+> **Source Anchors:** `PROJECTS.md`, `global.json`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Form/DefinitionFormModel.cs`, `src/Configurator.Artifacts/ProtectedArtifactBundlePublisher.cs`
 > **Review basis:** Source and contract inspection on 2026-10-30; no build, test or client execution
 
 Use this guide to locate the owner of a change before opening an editor. A good
@@ -49,7 +49,7 @@ project registry.
 | Change | Start in | Inspect with |
 | --- | --- | --- |
 | Definition validity or composition | `src/Configurator.Core/Definitions/` and `src/Configurator.Core/Artifacts/` | `tests/Configurator.Core.Tests/Definitions/` |
-| Workspace edits, snapshots or stale-result rejection | `src/Configurator.Presentation/Presentation/` | `tests/Configurator.Presentation.Tests/` |
+| Workspace edits, snapshots or stale-result rejection | `src/Configurator.Presentation/` | `tests/Configurator.Presentation.Tests/` |
 | Protected create-only writes | `src/Configurator.Artifacts/` | `tests/Configurator.Artifacts.Tests/` |
 | Machine invocation or JSON result | `src/Configurator.Cli/` | `tests/Configurator.Cli.Tests/` |
 | Rendered browser interaction | `src/Configurator.Browser/Components/Configuration/` | `tests/Configurator.Browser.Tests/` |

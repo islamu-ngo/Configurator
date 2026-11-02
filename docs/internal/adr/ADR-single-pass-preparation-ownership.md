@@ -49,7 +49,7 @@ Source anchors:
 
 - [Core bundle composition](../../../src/Configurator.Core/Artifacts/DefinitionBundleComposer.cs)
 - [Core artifact composition](../../../src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs)
-- [Prepared adoption](../../../src/Configurator.Presentation/Presentation/DefinitionPresentationOperation.cs)
+- [Prepared adoption](../../../src/Configurator.Presentation/Workspace/DefinitionPresentationOperation.cs)
 - [Browser preparation](../../../src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs)
 - [Core contract](../CORE_DEFINITION_CONTRACT.md)
 - [Presentation contract](../PRESENTATION_STATE.md)

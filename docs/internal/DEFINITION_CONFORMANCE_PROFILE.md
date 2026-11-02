@@ -129,7 +129,7 @@ Predicate expected-value compatibility uses the same signed range at
 `src/Configurator.Core/Definitions/DefinitionCodec.cs:625`.
 The shared scalar editor uses `long.TryParse` with invariant
 `NumberStyles.Integer`, not Int32
-(`src/Configurator.Presentation/Presentation/DefinitionScalarEditing.cs:23`).
+(`src/Configurator.Presentation/Form/DefinitionScalarEditing.cs:23`).
 Empty numeric editor text is a draft/absence state, not a zero or null integer.
 
 Strict UTF-8 decoding and scalar re-encoding reject invalid byte sequences and

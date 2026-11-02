@@ -5,7 +5,7 @@
 > **Status:** Proposed by CTO review; not user-approved or implemented
 > **Owner:** Browser
 > **Last Verified:** 2026-10-31
-> **Source Anchors:** src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs, src/Configurator.Presentation/Presentation/DefinitionFormModel.cs, docs/internal/BROWSER_UI.md
+> **Source Anchors:** src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs, src/Configurator.Presentation/Form/DefinitionFormModel.cs, docs/internal/BROWSER_UI.md
 
 ## Context
 

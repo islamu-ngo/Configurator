@@ -4,7 +4,7 @@
 > **Owner:** Core
 > **Status:** Qualified pre-release adoption map; target and other-host acceptance remain separate
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/OPERATIONS.md`
+> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/`, `docs/internal/OPERATIONS.md`
 
 This is the technical companion to [portable adoption](../public/integrating.md)
 and the [cookbook](../public/definition-cookbook.md). Preserve the detailed API,
@@ -25,7 +25,7 @@ target certification or I-VSD closure.
 | Snapshot private input | `AnswerSnapshotCodec.cs`, `Definition.cs` | Independent private answer 0.0.1, exact `values` tree and concrete `omitted` paths; caller mutation cannot alter the snapshot |
 | Resolve and validate | `DefinitionValidator.cs` | One effective-value policy, typed predicates, relationships, constraints and safe revision-bound correction coordinates |
 | Compose outputs | `src/Configurator.Core/Artifacts/` | Complete/draft/bundle composition consumes admitted schema and snapshot; restricted disposable results bind definition/input revisions |
-| Edit and adopt | `src/Configurator.Presentation/Presentation/` | Existing immutable workspace ownership, typed editing and operation generations; stale results cannot acquire current output authority |
+| Edit and adopt | `src/Configurator.Presentation/` | Existing immutable workspace ownership, typed editing and operation generations; stale results cannot acquire current output authority |
 
 The [version reference](../public/definition-reference.md#which-document-are-you-editing)
 distinguishes authoring/runtime, command and private-answer contracts.

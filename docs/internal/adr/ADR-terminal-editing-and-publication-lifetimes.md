@@ -27,7 +27,7 @@ an import that captured the old state. The outermost form mutation completes
 under its gate before notifications run. Browser consent revocation remains
 the separate secret-leaf operation; terminal clearing grants no browser consent.
 
-`PresentationWorkspace` atomically matches and settles each operation.
+`SetupPresentationWorkspace` atomically matches and settles each operation.
 An accepted outcome retains its operation identity through notification
 delivery: a subscriber failure can clear that outcome without disturbing a
 newer operation or result. Invalidation attempts all notification groups before
@@ -36,7 +36,7 @@ jointly govern cancellation-source retirement. Cancellation can release the
 visible workspace before its discarded worker has finished; the workspace still
 owns, observes and clears that late result.
 
-`TerminalImportOperation` owns one bounded physical read and its admission
+`SetupTerminalImportOperation` owns one bounded physical read and its admission
 callback. Blocking file-open work runs off the terminal owner. Admission checks
 definition digest, artifact, answer revision, local generation and cancellation,
 then uses the form's import boundary on the owner. Cancellation cannot release
@@ -59,7 +59,7 @@ commits; cleanup failure remains explicit without erasing an established
 Written status. Temporary buffers are still cleared. Unexpected programming
 faults propagate; they are not converted into a claim that nothing happened.
 
-`TerminalArtifactOperation` separately owns physical publication and copied,
+`SetupTerminalArtifactOperation` separately owns physical publication and copied,
 value-free receipts: one active attempt and the newest 16 settled attempts,
 each bounded to 64 declared artifact outcomes. A cancelled workspace cannot
 start overlapping physical publication. Edits and private clearing retain
@@ -90,8 +90,8 @@ remain in the [terminal follow-up backlog](../../../dev/backlog/terminal-hardeni
 
 Regression owners are `SetupPresentationModelTests`, `DefinitionPrivateClearTests`,
 `DefinitionContainerPresenceTests`, `DefinitionScalarEditingTests`,
-`TerminalImportOperationTests`, `TerminalPublicationReceiptTests`,
-`TerminalGuiAdapterTests` and `ProtectedArtifactBundleTests`. They cover
+`SetupTerminalImportOperationTests`, `SetupTerminalPublicationReceiptTests`,
+`SetupTerminalGuiAdapterTests` and `ProtectedArtifactBundleTests`. They cover
 faulting observers, reentrant replacement, cancelled read/admission, bounded
 shutdown and every real-writer committed prefix. Exact execution evidence stays
 in task context; durable behavioral contracts are in

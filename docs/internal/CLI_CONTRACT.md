@@ -60,8 +60,8 @@ fixed value-safe codes rather than leaking framework diagnostics. No secret-word
 substring filter rejects filenames or admitted IDs, and no ambient environment
 enumeration supplies inputs or rejects an invocation.
 
-`CliInvocation(arguments, mode, io)` has no environment constructor argument;
-`CliEnvironmentPresence` is removed without a compatibility adapter. Answers
+`CliInvocation(arguments, mode, io)` has no environment constructor argument.
+The former `SetupCliEnvironmentPresence` is removed without a compatibility adapter. Answers
 come only from explicitly selected bounded files or redirected stdin. Removing
 ambient/substring filtering does not relax definition admission, path/control
 checks or protected output, and actual private values still do not belong in

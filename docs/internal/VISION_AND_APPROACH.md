@@ -61,10 +61,11 @@ Configurator solves this dilemma through seven concrete, focused goals:
    publication on qualified Linux hosts. Credential acquisition metadata is not
    evidence of a local credential generator; such a capability needs its own
    implementation and qualification before being described as delivered.
-   Core's `LocalSecretGenerator` does implement a 256-bit opaque URL-safe
-   environment-value generator with disposable owned buffers
-   (`src/Configurator.Core/Secrets/LocalSecretGenerator.cs`). That API does not
-   prove every definition credential descriptor has a rendered generation action.
+   Core's `SecretGenerator` and `SecretDerivation` implement admitted local
+   profiles with disposable `SecretValue` ownership. The
+   [cryptographic contract](SECRET_CRYPTOGRAPHY.md) records supported formats and
+   qualification limits; a Core API alone does not prove that every credential
+   descriptor has a rendered generation action on every client.
 5. **Upstream Ownership via Deep Linking:** Maintainers keep definitions directly within their own repositories and embed "Configure Visually" deep links in their documentation, bypassing centralized store bottlenecks.
 6. **Deterministic Machine & AI Interfaces:** CLI commands output structured JSON envelopes, sanitized-view SHA-256 digests, and value-free diagnostics designed for automated pipelines and AI agents.
 7. **Conformance-Backed Version Integrity:** Support exact declared application versions and deterministic artifact generation validated by checked golden fixtures rather than runtime version heuristics.

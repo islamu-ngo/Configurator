@@ -113,7 +113,7 @@ prefix; there is no whole-bundle rollback. See
 | `PresentationWorkspace` | `Configurator.Presentation` | Manages atomic operation settlement, generation fencing, and subscriber notifications across operations. |
 | `ProtectedArtifactBundlePublisher` | `Configurator.Artifacts` | Executes Linux create-only, no-replace file writes with per-file status recording and receipt generation. |
 | `BoundedFileInput` | `Configurator.Artifacts` | Asynchronous file reader isolated from UI dispatchers with strict size limits and buffer disposal. |
-| `CliApplication` | `Configurator.Cli` | Spectre-based CLI command runner emitting pre-sized JSON receipts with sanitized view digests. |
+| `SetupCliApplication` | `Configurator.Cli` | Spectre-based CLI command runner emitting pre-sized JSON receipts with sanitized view digests. |
 
 ## Layer Rules & Dependency Constraints
 
