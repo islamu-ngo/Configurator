@@ -35,7 +35,7 @@
                 }
                 <details><summary>@T("DiscoveryMatchDetails")</summary>
                     <code>@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</code>
-                    <p>@T("DiscoveryMatchReason"): @MatchTitle(match.MatchReason.ToToken()).</p>
+                    <p>@T("DiscoveryMatchReason"): @MatchTitle(match.MatchReason).</p>
                     @if (entry.ActiveControllerFields.Count > 0)
                     {
                         <p>@T("DiscoveryControllers"): @string.Join(", ", entry.ActiveControllerFields.Select(id => Form.GetEditorPresentation([id])?.Title ?? Form.Definition.Fields.Single(field => field.Id == id).Title))</p>
@@ -159,10 +159,15 @@
         ? Form.DisplaySections.Single(section => section.Id == value).Title
         : facet == DefinitionDiscoveryFacet.Artifact ? Form.Definition.Artifacts.Single(artifact => artifact.Id == value).FileName
         : T("DiscoveryOption_" + value);
-    private string MatchTitle(string reason) => T(reason switch
+    private string MatchTitle(DefinitionDiscoveryMatchReason reason) => T(reason switch
     {
-        "binding-key" => "DiscoveryMatchOutput", "field-id" => "DiscoveryMatchField",
-        "title" => "DiscoveryMatchTitle", "search-term" => "DiscoveryMatchTerms",
-        "help" => "DiscoveryMatchHelp", "all" => "DiscoveryFilters", _ => "DiscoveryMatchMetadata"
+        DefinitionDiscoveryMatchReason.BindingKey => "DiscoveryMatchOutput",
+        DefinitionDiscoveryMatchReason.FieldId => "DiscoveryMatchField",
+        DefinitionDiscoveryMatchReason.Title => "DiscoveryMatchTitle",
+        DefinitionDiscoveryMatchReason.SearchTerm => "DiscoveryMatchTerms",
+        DefinitionDiscoveryMatchReason.Help => "DiscoveryMatchHelp",
+        DefinitionDiscoveryMatchReason.All => "DiscoveryFilters",
+        DefinitionDiscoveryMatchReason.Metadata => "DiscoveryMatchMetadata",
+        _ => throw new ArgumentOutOfRangeException(nameof(reason))
     });
 }
