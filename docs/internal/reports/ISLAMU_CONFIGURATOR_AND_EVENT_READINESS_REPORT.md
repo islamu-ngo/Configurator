@@ -211,7 +211,7 @@ ISLAMU Event separates public topology planning from confidential local secret p
    Download your `public-template.json`.
 
 2. **💻 Native Offline CLI / Terminal (Secrets & Artifact Generation):**
-   Install [`ISLAMU Configurator`](https://github.com/ISLAMU/Configurator) on your deployment host 
+   Install [`ISLAMU Configurator`](https://github.com/islamu-ngo/Configurator) on your deployment host 
    to supply database passwords, API tokens, and generate restricted deployment files:
    ```bash
    # Interactive Terminal UI
