@@ -199,6 +199,13 @@ bounded backlogs. None is a hidden incomplete branch of this selected profile.
 
 ## Verification Policy
 
+Shared builds pin SDK analyzer rules to .NET `10.0` in Recommended mode and
+enable build style analysis. The existing file-scoped namespace convention is
+enforced as a build warning and therefore fails under warnings-as-errors.
+Other style suggestions remain editor guidance unless explicitly promoted.
+This policy adds no analyzer package or warning suppression; verification must
+compile the affected source to exercise the selected diagnostics.
+
 Use SDK 10.0.302 and Microsoft.Testing.Platform. Set the current workstation
 temporary root before native tool/test execution:
 
@@ -1552,7 +1559,7 @@ capture paths are local ignored evidence, not shipped answer storage.
 
 | Check | Exact command or selection | Result |
 | --- | --- | --- |
-| Untouched receipt baseline | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/*TerminalPublicationReceiptTests/*" --minimum-expected-tests 1` | 9 passed, 0 failed/skipped; 768 ms |
+| Untouched receipt baseline | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/*SetupTerminalPublicationReceiptTests/*" --minimum-expected-tests 1` | 9 passed, 0 failed/skipped; 768 ms |
 | Untouched Desktop baseline | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1` | 185 passed, 0 failed/skipped; executable 2.897 s |
 | Shared fact owner build | `dotnet build src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release --verbosity quiet` | Exit 0; 2 s wall |
 | Terminal preservation | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1` | 83 passed, 0 failed/skipped; 2.933 s |
@@ -2001,3 +2008,212 @@ Local evidence uses `$TMPDIR/development-baseline-*` and ignored
 validation passed 66 files/973 links after this final record; skills passed their
 three existing validators. Other OS/device/assistive-technology qualification was
 not repeated for this contract reset. No commit or remote publication occurred.
+
+## Import measurement compiler seams
+
+Import comparison candidates now opt into conditional compiler hooks instead of
+MSBuild source-text replacement. The [instrumentation procedure](IMPORT_COMPARISON.md#instrumentation-ownership)
+describes the switches, synthetic fixtures and actual native entrypoints. Typed
+internal callbacks and Terminal partial-window access make renamed observations
+compiler-checked. Callback state and friend access are absent from ordinary builds;
+the compiled product boundary check verifies that exclusion separately.
+
+The six native memory warmups, twenty observed cycles, timing samples and weak
+ownership observations retain their existing definitions. Replacing the hook
+mechanism does not renew previous latency, memory, published-WASM or host results.
+Current qualification and limits are recorded below.
+
+## Architecture and conventions qualification (2026-11-02)
+
+This implementation was executed directly in the existing checkout, including
+its concurrent development changes. It introduces explicit domain wire maps,
+structural answer paths, cohesive Core owners and one shared workspace mutation
+authority. Client resources use explicit workspace locales; native selection
+outcomes are typed; Browser editor handles and callbacks retire with their
+workspace. The [ownership decision](adr/ADR-domain-vocabulary-and-workspace-ownership.md)
+records the boundaries and retained Monitor synchronization. Internal C# names
+and namespaces were migrated directly without compatibility aliases. Public
+product and contract versions remain `0.0.1`.
+
+### Source and owner evidence
+
+Verification used SDK 10.0.302 on Linux x64, `TMPDIR="$HOME/.cache/agent-tmp"`,
+`DOTNET_PROCESSOR_COUNT=2`, and serialized Release builds with
+`-m:1 /p:UseSharedCompilation=false /nodeReuse:false`. The final consolidated
+`dotnet format Configurator.slnx --verify-no-changes --no-restore` and
+`dotnet build Configurator.slnx --configuration Release --verbosity quiet`
+passed with zero warnings/errors. After the Browser help, globalization and
+search corrections, a final `dotnet restore Configurator.slnx --locked-mode`,
+format verification and solution Release build all passed again; the final
+build reported zero warnings/errors in 36.87 seconds. Package qualification is
+separate below.
+
+Each owner was physically executed with MTP's `--minimum-expected-tests 1`
+guard; all reported zero failures and zero skipped tests:
+
+| Owner | Passed | Covered boundary |
+|---|---:|---|
+| Core | 469 | Bounded admission, explicit vocabulary, canonical identity, paths and secrets |
+| Artifacts | 66 | Restricted create-only output, partial receipts and bounded native input |
+| Presentation | 307 | Workspace generations, custody, import retirement and shared map bounds |
+| CLI | 270 | Parser-level machine envelopes, cancellation, localization and artifact outcomes |
+| Terminal | 150 | Dispatcher completion, locale, keyboard routing and offline editing |
+| Desktop | 297 | Typed selection, reactive locale, themes and retired workspace results |
+| Browser | 395 | Custody, import/export, resources, module retirement and navigation |
+| Architecture/packages | 83 | Compiled dependency boundaries, release guards and actual native/Browser package contents |
+
+The final Architecture run completed in 55.497 seconds after all native and both
+normal Browser packages were refreshed. The eight suites total 2,037 passing
+cases. Its six new release-guard cases prove diagnostic flags reject before
+existing output is changed; they are included in the 83, not additional cases.
+
+The subsequent supported MudBlazor `GetState` search correction passed an
+additional 14 Browser shell cases and a zero-warning/error owner build. The
+navigation test boundary dispatches location notifications through bUnit's
+renderer, matching Blazor's UI dispatch contract; the actual navigation guard
+and its cancellation assertions remain exercised.
+
+Native schema and command-schema freshness checks passed, as did all four
+maintained definition examples. Command reference generation was current,
+three contract ratchets were current, two editor assets validated, the portable
+skill validated, and license policy accepted 98 package/version pairs. Generated
+outputs were checked through their owning tools; no diagnostic was suppressed.
+
+### Native packages and actual host
+
+The Linux x64 CLI, Terminal and Desktop outputs are self-contained, untrimmed,
+compressed single-file applications. This does not claim native AOT support.
+
+| Package | Executable SHA-256 | Actual qualification |
+|---|---|---|
+| CLI | `d20c255b71df97c448524f90de331aac55b96c0d4de3b2da39eaf79cb2c831a1` | Validator self-test accepted 6/rejected 79 cases; all 6 actual package cohorts passed |
+| Terminal | `c8faf924f6f7e1cd363a4bda35f7ea122aac7a6fef528975a9cf8ceb36e9228c` | English/Arabic 80×24 PTYs, resize, masked input, Tab/Shift+Tab, Clear and Close |
+| Desktop | `0b0d3c52614bba05e7905a4ff009d5148c74f9a232870d6dd3eb729c10a37f9e` | Actual package retained Custom selection through Arabic switch, displayed LTR native paths and closed with exit 0 |
+
+The CLI package and validator schema hashes both equal
+`b3db48d898d53db5b58ea6cfc1f518ab5ed07579f77d7eae5b76b5271c8a4be2`.
+Final CLI/Terminal republishing preserved executable hashes, so the matching
+runtime evidence remains applicable. All package notices were retained.
+Desktop's native-host runner separately passed 21 checks in English and 21 in
+Arabic on Linux X11. See the [Desktop evidence](DESKTOP_CLIENT.md#native-qualification)
+and [Terminal contract](TERMINAL_CLIENT.md) for the runtime mechanisms and limits.
+
+The isolated Desktop environment lacked services required for a native file
+dialog. Selection and failure behavior passed typed-boundary/native-host tests,
+but real dialog completion is unqualified. Other operating systems, physical
+devices, assistive technologies and community Arabic review remain unqualified.
+
+### Import ownership diagnostics
+
+Separate instrumented Desktop and Terminal builds each completed six warmups
+and twenty observed cycles on .NET 10.0.10. The maximum synthetic input was
+237,596 bytes, SHA-256
+`799183a80c43b4ee16736baea82e03f83aee01843fb0c41e9ec28a7f674cf95d`.
+Every observed cycle saw live owners before retirement, recorded 593 checkpoints,
+and finished with owner vector `[1,1,1,1,0,0,0,0,0,0]`: proposal creation, input
+disposal, cleared bytes and proposal disposal observed, then six absent weak
+owners. Maximum conservative whole-heap/retired-heap observations were
+32,772,848/7,803,640 bytes for Desktop and 63,112,056/5,026,320 bytes for Terminal.
+These diagnostic whole-heap observations do not establish a release performance
+budget. Terminal's probe candidate precedes the independent keyboard correction.
+
+The Artifacts suite directly observes retained input and publication memory
+becoming zero after success, cancellation and exceptional paths. `SecretValue`
+tests establish copy isolation, idempotent disposal and revoked access; clearing
+its private character array remains source-reviewed rather than directly
+observed by those tests. No inspection API or friend-assembly expansion was
+introduced solely to expose that buffer. This does not claim erasure of immutable
+strings or operating-system clipboard copies.
+
+The ordinary compiled dependency closure passed eight runtime-owner checks with
+no engineering probe types or callbacks. Ordinary release targets additionally
+reject any of the three diagnostic switches with `CONFIGURATOR_PROBE_RELEASE_FORBIDDEN`;
+six actual target invocations rejected before modifying existing output.
+
+An isolated Browser Release/AOT candidate then passed twenty actual file-input
+and Clear interactions through Chrome DevTools. Every cycle positively observed
+live proposal, evidence, answers and assignments before clearing. Rechecking all
+cycles after collection produced `[20,0,1,1,1,1,1,0,0,0,0,0]` for every cycle:
+twenty starts, zero probe errors, five observed lifecycle facts and five absent
+weak owners. The numeric receipt SHA-256 is
+`df57c7c564fdfee03ebf2fb47be25d332104d184eac26999e6be0203fb848997`.
+Its native WASM SHA-256 is
+`16ca022549dddf8ccb82164fde3fdfc24885bb379b58b52dc1b531e1c6b6035b`;
+its Browser Webcil SHA-256 is
+`9aeffdbf2898615bf5637214de9dff585dae41e798c15ce798017902a417b50b`.
+An initial automation upload addressed a retired file-input element and generated
+a disposed-reference console error without observing input. Re-querying the
+current element allowed all twenty observed cycles to complete. That diagnostic
+page is not claimed to have a clean console; missing input was not counted as a
+passing cycle. Ordinary-package absence is qualified separately.
+
+### Published Browser checkpoint
+
+Chrome DevTools exercised a published AOT candidate with full ICU globalization:
+English/Arabic rendering, masked secret generation, consent revocation clearing
+all secret fields and output, literal map keys with duplicate/count/length
+rejection, and empty local/session storage. Earlier candidate checks additionally
+verified focus restoration, editor retirement, offline cached reload and an
+uncached-origin offline rejection. All 99 inspected cached bodies matched public
+package assets; definition cache was empty. Deliberate JSON download was also
+independently saved and its synthetic content confirmed by the user.
+
+These observations retain their candidate identity; final Store/no-Store
+publication and container checks are separate. The final Store-enabled package
+contains 393 files, full ICU data and two catalogue definitions. Its ordered
+inventory SHA-256 is
+`ef66e1b910e2c0c80d74440c4846613f3d26098f4f0cc9c4fe364d00bcca3b55`;
+its service-worker manifest SHA-256 is
+`af4d3b2a9e133d7df879e18cbf194b294c4f38cf36adef3151e3afa8480a5df8`;
+its native WASM SHA-256 is
+`544ac939aad6278346a328f309fc34d8836340ff33a940c6ccae593683256d04`.
+A fresh browser context booted this exact candidate, confirmed full
+globalization and absent engineering exports, and exercised search results,
+Escape focus restoration, query retention and field navigation. Editing while
+search was closed kept it closed and retained the query. No warning or error
+was reported on that page. Republishing the default output from Store-enabled
+to no-Store removed all catalogue assets and left 384 files. Its inventory
+SHA-256 is `a3d495c5262780d16e9a551b539307e67905855270c0fc71c8538304e130d792`;
+its manifest SHA-256 is
+`e261fc0d40fc1d4f91d1d62dc88e39e517acf0cda563f8351eadcd35e9e8fd1d`.
+Both variants retain the same native WASM hash above. Final Architecture package
+checks passed against both outputs.
+
+### Browser Host containers
+
+The no-Store image built successfully from the current source and ran read-only
+as UID 1654 with all capabilities dropped and `no-new-privileges`. Actual HTTP
+checks passed for public routes, unknown/private paths, methods, MIME and exact
+asset bytes, security headers and absence of the synthetic private marker in
+logs. Its public payload contained 384 files, full ICU data and no Store assets.
+The image identity is
+`sha256:62b80043dd546318fa8587ea008a2343f543644f8d285b427cd419b5d4170714`;
+its worker manifest SHA-256 is
+`55645009c0d6694c8b39ab57ddb2932117180d742b7097b051993d4932d572c2`;
+its native WASM SHA-256 is
+`36fcb68d122d32e4b57d7f6e555157912217c76c4a4e1dcd001300b41ec03ffb`.
+Container builds have their own payload identity; workstation hashes are not
+substituted for these bytes. A fresh Chrome context booted the no-Store image,
+showed two built-in definitions with explicit optional-directory-unavailable
+guidance, and opened the Minimal workspace with secret entry disabled. Runtime
+globalization was `all`, engineering exports were absent and local/session
+storage was empty. The missing optional index produced a handled resource error through the
+active worker; an explicit verification fetch repeated it. This page is not
+claimed to have a clean console.
+
+The Store-enabled image also built successfully and passed the same hardened
+runtime assertions, including exact Store-index bytes. It contains 393 files and
+one full ICU asset. Its image identity is
+`sha256:3ccc2a6af70e89702dce86f4368f4c550580e17c339b303aa698972a6142c0e5`;
+its worker manifest SHA-256 is
+`c066d2a3407f988dc0323fb9d8ae3ebd9788dc39c36e88cd3c552d4d15fe34c4`.
+Both images have the same native WASM hash above. A separate read-only fixture
+container verified `.mjs` MIME and exact bytes without modifying either emitted
+package; that temporary fixture container was removed afterward. A fresh Chrome
+context booted the Store-enabled image, fetched its two-project optional index
+with HTTP 200 and JSON MIME, and opened a built-in workspace. Full ICU mode,
+native WASM identity and absent engineering exports were confirmed; local/session
+storage was empty and no console warning or error was reported on that page.
+
+No remote publication, signing, trust promotion or target application acceptance
+is implied by these local checks.
