@@ -1,8 +1,427 @@
 # Browser configuration experience - I-VSD planning assessment
 
-Last Updated: 2026-10-31 Europe/Brussels
+Last Updated: 2026-11-02 Europe/Brussels
 
 ## Review Metadata
+
+- Mode: planning
+- Subject: Task-first browser configuration and Event definition experience
+- Workstream: browser-ux-simplification
+- Report kind: Provider-responsibility planning assessment
+- Report status: current
+- Disposition: plan-aligned
+- Evidence cutoff: 2026-11-01
+- Reviewed input: completed plan/context/tasks revision 5; revision-5 revalidation below; older native receipts retain their original scope
+- Assessment revision: 4
+- Supersedes: assessment revision 3 for current alignment only; original findings, receipts, working-tree additions and historical analysis are retained
+- User approval: revision-5 implementation approved November 1 in the current checkout, with clean breaking changes; no worktree, commit or publication authorized
+- CTO review: not reviewed for revision 5
+
+## November 2 execution status
+
+The approved implementation now has integrated native and local-package evidence
+in the [execution report](../../docs/internal/reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md#revision-5-integrated-native-and-package-verification).
+This status update does not change the assessment's planning evidence cutoff or
+claim a new provider-responsibility review. All seven finding/mitigation pairs
+remain open: final browser timing has failed retained limits, and comparative
+participant, physical-device and assistive-technology evidence remains missing.
+No measured benefit, target acceptance or complete experience qualification is
+claimed. The reviewed custody and target-authority boundaries are unchanged.
+
+## Revision-5 schema extension revalidation - current
+
+The user requested new phases for explicit choices, provider dependencies and
+progressive disclosure. This assessment revalidates plan/context/tasks revision 5,
+including retained revision-4 obligations. Its current handoff takes precedence
+over older revision-specific handoffs below. This is planning alignment only;
+the subsequent November 1 instruction authorizes implementation, while every
+finding remains open pending its required evidence. This execution-status update
+preserves the reviewed behavior, provider responsibilities and seven mappings.
+
+### Evidence, stakeholders and responsibility
+
+R5-E01-R5-E05 in the plan derive from current source inspection at
+`a7b09f3cfba0d14a63e3c28402e4effea3299023`: 361 environment fields with no enums,
+an independent Keycloak inclusion toggle, existing generic choice/predicate
+support, absent credential-purpose metadata and incomplete archived target
+evidence. No new browser session, runtime test or target validation occurred.
+The prior browser inspection, receipts and report edits remain intact.
+
+Operators should not need to memorize undocumented machine values or discover
+missing credentials after export. Maintainers control schema completeness,
+dependency rules, defaults, disclosure, explanations and secret lifetime. Event
+maintainers retain authority over valid values and provider requirements;
+Configurator cannot invent them from names. English/Arabic, keyboard/AT users,
+self-hosters and users configuring an existing service need equivalent outcomes.
+Existing-service authentication must not force unrelated local deployment secrets.
+
+### Revalidated findings and mitigations
+
+- **IVSD-F001 / IVSD-M001:** Excellence and truthful benefit claims require
+  reducing actual work. Phases 13/14 remove memorized values and redundant
+  provider toggles; phase 15 reveals relevant obligations. U19,U21,U24,U27 and
+  tasks 13.1-13.3,14.2,15.2,16.2 map this existing high-severity design risk.
+  Actual improvement still requires phase-12 human/device evidence.
+- **IVSD-F002 / IVSD-M002:** Amanah and deliberate choice require target-backed
+  closed lists, exact typed identity and no guessed defaults. U19-U22,U26 and
+  tasks 13.1-13.2,14.1-14.2 preserve presence, separate service connection from
+  deployment, and reject invented catalogue completeness. This high-severity
+  constraint remains open; target owners resolve missing parser/version evidence.
+- **IVSD-F003 / IVSD-M003:** Rights of people and avoiding spying constrain
+  hidden secret lifetime. U20,U23,U25 and tasks 14.1-14.3,15.1 require local-only
+  retention, inactive-secret exclusion from drafts/complete artifacts, consent
+  and revoke across inactive branches. This critical privacy risk needs runtime
+  Red/Green proof; hiding a field is not proof of deletion or export exclusion.
+- **IVSD-F004 / IVSD-M004:** Non-harm requires non-destructive switch-back and
+  stale-operation fencing. U23,U26 and tasks 14.1,14.3,16.2 reuse one transient
+  owner, resolve dirty Developer work and invalidate stale output/callbacks.
+  This critical state/privacy risk remains open. Silent clearing and an extra
+  private branch cache were rejected for data-loss and custody complexity.
+- **IVSD-F005 / IVSD-M005:** Equitable access requires operable dropdowns,
+  localized labels, visible required corrections and stable keyboard focus.
+  U24,U26 and tasks 13.3,15.2-15.3,12.3 retain actual Browser and human/AT gates.
+  Labels cannot alter machine identity; this existing accessibility risk is not
+  resolved by source inspection or a choice-count assertion.
+- **IVSD-F006 / IVSD-M006:** Truthful guidance distinguishes required companions,
+  credential acquisition and target acceptance. U21,U22,U25,U27 and tasks
+  14.2,15.1-15.2,16.1-16.2 must explain public reasons without secret values,
+  never imply credential issuance or a verified Event deployment. Target evidence
+  and lexical-format equivalence remain implementation validation gaps.
+- **IVSD-F007 / IVSD-M007:** Bounded local operation and reproducibility remain
+  required through U20,U23,U27 and tasks 13.1,14.3,16.1-16.3. Reject live
+  answer-bearing lookup requests, executable dependency expressions and a second
+  Browser evaluator; use native definition revision/generation and independent
+  contract vectors. Actual final-package evidence remains with phase 12.
+
+These are extensions of the existing findings, not new resolved findings or
+severity downgrades. Existing principle, ownership and severity records below
+remain authoritative where not restated. No religious-legal conclusion or new
+scholarly escalation is introduced. Payment/religious-content policy, telemetry,
+hosting, monetization and publication authority remain outside this extension.
+
+### Planning Handoff - revision 5
+
+- Workstream: browser-ux-simplification; status current; disposition plan-aligned.
+- Reviewed inputs: the same plan/context/tasks filenames, revision 5, scenarios
+  U19-U27 and phases 13-16 plus all retained U01-U18/S01-S27 obligations.
+- Required mappings: all seven stable pairs map above and in the plan's added
+  mapping table; no finding is closed by planning or moved to another workstream.
+- Sequence: 7 -> 8 -> 9 -> 13 -> 14 -> 10 -> 11 -> 15 -> 16 -> 12. Final
+  qualification includes these changes and unfinished task 6.4.
+- Evidence gates: exact target values/requirements before affected phase closure;
+  runtime privacy proof before implementation completion; physical participant/
+  device/AT evidence before qualification closure. None is replaced by a guess.
+- Refresh triggers: changes to enum openness/defaults, provider authority,
+  private lookup retrieval, inactive secret retention/export/revoke, disclosure/
+  consent, mitigation mappings or final qualification thresholds.
+- User authorization: planning only; CTO review not performed for revision 5.
+
+Lifecycle: 2026-11-01, assessment 3/revision-4 alignment -> assessment 4/revision-5
+alignment after re-evaluating R5-E01-R5-E05 and mapping every inherited pair.
+No implementation or ethical-outcome certification is claimed.
+
+Revision-5 native input receipt (`sha256sum`, plan/context/tasks respectively):
+
+```text
+5d9ad75d3e7d92d516d1ba8aef38335f54bb24c14565c0a8918929559a8d830f
+95d35d0d1784ffac81b1e808b77ee3b514707dc2d887cbb6f75ee356c6c61031
+94f9acd7db09c86dcbfc693a5255bea5c6f235b5a3919a39ada719bbdb3a6ae6
+```
+
+Native documentation validation passed four files, 40 local links, zero errors;
+tracked diff and explicit ignored-triad whitespace checks passed. Product suites
+were intentionally not executed for this planning-only change.
+
+## Executive Summary
+
+The following revision-4 summary and revalidation remain the task-first baseline;
+the revision-5 extension above adds the current schema scope and supersedes only
+its revision/alignment statements. Historical evidence is not renewed.
+
+Operators should be able to configure Event without first learning Configurator's
+source, schema and workspace mechanisms. The November 1 browser inspection
+establishes concrete obstacles: obstructed mobile search, required work buried
+in Advanced, technical compound labels, repeated entry actions and weak failure
+recovery. Maintainers control these burdens and should correct them rather than
+declare the previous redesign usable because source/package tests passed.
+
+Revision 4 addresses those obligations with six corrective slices in the same
+workstream, while preserving the existing engine, one accepted workspace,
+explicit private-input consent, exact source identity and deliberate export.
+Its real bounded legal/localization objects are a clean input-shape migration,
+not an adapter that preserves the difficult old form. Target-owned integrity
+remains a documented Event step, not new authority granted to Configurator.
+
+The completed plan maps all seven existing finding/mitigation pairs to U01-U18
+and executable work, preserves the unfinished comparative/device/AT gate and
+the original stricter performance thresholds, and does not introduce a service,
+dependency, telemetry or automatic application. This supports current /
+plan-aligned for the design only. All findings remain open; no implementation,
+usability superiority, accessibility certification, Event acceptance or
+religious-legal conclusion follows. No foundational design question blocks
+planning; missing human/platform evidence blocks later qualification claims.
+
+## Revision 4 intake - current assessment scope
+
+The revision-2 metadata, seven findings, original mappings and hash receipts
+below remain preserved historical evidence. The current receipt supersedes their
+planning alignment, not their original evidence or the outstanding mitigations.
+
+The shared evidence is the November 1 Chrome DevTools inspection in the planning
+session and source inspection at repository
+`a7b09f3cfba0d14a63e3c28402e4effea3299023`. The inspected app was the freshly
+published Debug build on localhost port 7444, including packaged Store content;
+it was not a new Release/AOT qualification. The evidence includes all six route
+types, ten Environment sections, five output forms, preparation/recovery, and
+390x844 mobile search. A DOM hit test established that the centre of the
+Configure SETUP_SECRET result hit the Files step's span. Existing source/package
+and timing records remain scoped to their original builds.
+
+### Intake recommendation and responsibility
+
+Reduce the effort imposed on operators through task-first entry, essential-first
+questions, meaningful compound labels, concise Review and direct corrections.
+Retain the existing public-only Developer scope, explicit consent before private
+acquisition, revision/generation fences, deliberate export and truthful target
+authority. Removing those safeguards to reduce clicks would transfer complexity
+and harm to operators rather than solve the UX problem.
+
+All seven existing finding/mitigation pairs remain applicable and open. F001/M001
+requires actual task advantage, not a prettier screen; F002/M002 constrains
+defaults and presence; F003/M003 protects raw input; F004/M004 protects accepted
+work and stale operations; F005/M005 includes the obstructed mobile result;
+F006/M006 requires correction and honest handoff; F007/M007 preserves local,
+bounded, reproducible operation.
+
+Maintainers control source grouping, defaults, navigation, explanations,
+corrections and evidence claims. Operators retain setting and export choices;
+Event retains validation, integrity and apply authority. English/Arabic users,
+keyboard/screen-reader users and self-hosters need equivalent outcomes. No new
+payment policy, religious-content adjudication, hosting service, dependency,
+telemetry or scholarly ruling is proposed. Missing participant/device evidence
+is an engineering/product qualification gap, not grounds to invent a pass.
+
+The completed revision-4 triad is revalidated and hash-bound in the current
+receipt below. Material design choices are
+planner proposals, not user approvals. There is no unresolved foundational
+intake question: existing custody/identity contracts settle the boundaries, and
+the user has explicitly chosen clean breaking migrations. Exact source metadata
+and target-owned integrity behavior were checked before final task design.
+
+## Revision-4 revalidation
+
+### Evidence and validation level
+
+The current shared packet is R4-E01 through R4-E14 in the plan: direct browser
+inspection, current source/LSP/test reads and public authoring instructions.
+The independent read-only source track verified intentional family separation,
+native revision/generation, literal dotted legal-answer properties, existing
+bounded list/object support, and Event-owned integrity. It executed no tests,
+commands or source generation. Exact current canonical digests were observed in
+the browser, not independently recomputed for the new proposed source.
+
+The current triad was checked against this packet and the seven inherited
+principle mappings. Current source observations do not renew historical
+performance/package receipts. The Debug browser finding is reproducible evidence
+of a defect, not proof of its sole CSS cause or of representative task outcomes.
+
+### IVSD-F001 / IVSD-M001 - reduce actual operator work
+
+Lifecycle remains open, severity high, claim type design risk with observed
+friction. Excellence and truthfulness require useful completed tasks rather than
+more options or improved screenshots. U02-U08 and U18 reduce discovery and
+schema-learning burden; tasks 8.2, 9.2, 10.2 and 12.1-12.3 require actual outcome
+checks. Existing task 6.4 and all nine comparisons remain in this plan.
+Browser maintainers own corrections; the steward owns participant access.
+No human study was run, so reduced click/time targets are requirements, not
+measured improvement. No scholarly escalation applies.
+
+### IVSD-F002 / IVSD-M002 - retain deliberate choice and exact identity
+
+Lifecycle remains open, severity high, claim type design constraint. Amanah and
+avoiding deception apply when a prominent project action could conceal a distinct
+family or imply a publisher is trusted. U02-U04,U06,U08,U09 and tasks 8.1-8.2,
+9.1-9.2 keep application grouping separate from admission, preserve both Event
+families and native revision advancement, and forbid defaults that invent
+credentials or integration authority. Real nested legal inputs deliberately
+migrate synthetic answer callers; expected target bytes remain independent.
+Definitions/Browser owners must prove presence and identity boundaries. Event
+owns integrity and semantic acceptance; unexplained target behavior is escalated
+to its maintainer, not guessed in Browser.
+
+### IVSD-F003 / IVSD-M003 - compact consent without weakening custody
+
+Lifecycle remains open, severity critical, claim type foreseeable privacy risk.
+Rights of people, trust and avoiding spying require explicit consent before raw
+configuration-file/editor acquisition, not a global warning that users must
+memorize. U13,U15,U16 and tasks 10.1-10.2,11.1-11.2,12.2 move the action to its
+context while retaining a visible revocation route, the public-only editor scope
+and complete retirement. Maintainers control these sinks and must test real
+late read/history/export callbacks with synthetic sentinels. Public ordinary
+fields remain usable without private-input consent. New full-private-document
+editing would require fresh design review; it is not authorized here.
+
+### IVSD-F004 / IVSD-M004 - fewer steps must not lose accepted work
+
+Lifecycle remains open, severity critical, claim type state/privacy risk.
+Non-harm and rights of people require one accepted workspace, guarded dirty
+transitions and revision-bound correction. U03,U11,U13,U16,U17 and tasks 8.1,
+10.1,11.1-11.2,12.2 keep source admission before answers, strict import conflicts,
+atomic Developer Apply and stale-operation fences. A failed retry may retire
+its previous file as today, but must preserve accepted answers/drafts and explain
+that retirement. Rejecting a second retained-output store is a deliberate
+complexity/authority trade-off. Browser/Presentation owners must establish the
+missing invariant before implementation; design text alone proves no race.
+
+### IVSD-F005 / IVSD-M005 - actual access, not nominal controls
+
+Lifecycle remains open, severity high, claim type observed operability defect
+and design risk. Justice and excellence apply because a visible Configure button
+that receives Files clicks denies the intended task, especially on a phone.
+U01,U05,U07,U08,U15,U18 and tasks 7.1-7.2,9.2,10.2,12.1-12.3 require true hit-target,
+keyboard/focus, semantic grouping, English/Arabic and real device/AT evidence.
+The browser hit test is stronger than a component CSS assertion but cannot prove
+screen-reader or physical touch/IME behavior. Accessibility and Browser owners
+retain that validation; participant/resource gaps cannot become a pass.
+
+### IVSD-F006 / IVSD-M006 - honest correction and target handoff
+
+Lifecycle remains open, severity high, claim type design/communication risk.
+Sidq and Amanah require a candidate file to be distinguished from accepted Event
+configuration. U09-U12,U14,U17 and tasks 9.2,11.1-11.2,12.1 put required corrections
+first, explain required versus optional deferred secrets, avoid vague size advice
+and state the documented Event identity preparation step. The plan never hides
+required integrity values while claiming completion or computes target-owned
+hashes/revisions. Browser and definition owners must validate synthetic output
+and actual UI handoff; Event maintains its semantic/authorization authority.
+Legal drafts remain drafts requiring qualified review, never approval/publication.
+
+### IVSD-F007 / IVSD-M007 - keep local operation and measured promises
+
+Lifecycle remains open, severity high, claim type operational/design constraint.
+Promise-keeping, respect for property and avoiding spying require the existing
+local editor/asset closure and offline custody to survive visual restructuring.
+U03,U14,U16,U18, inherited S22/S25/S26 and tasks 8.1,10.1,12.1-12.3 preserve no
+automatic live-answer fetch, no new dependency/CDN/telemetry, bounded work and the
+original stricter latency samples/thresholds. Existing reviewed dependency
+provenance is retained, not reopened or treated as absent. Package maintainers
+own actual fresh AOT/store variants and private-sink qualification. Distribution
+changes, if later requested, still require their existing Steward authority.
+
+### Stakeholders and six-domain coverage
+
+Novice operators benefit from fewer decisions; experienced operators retain
+search, exact keys and Developer tools. English/Arabic and AT users need
+equivalent task access, not merely mirrored CSS. Maintainers own source defaults,
+grouping, state mechanisms and honest claims; definition authors cannot grant
+trust through labels; self-hosters serve public assets; Event administrators own
+acceptance/apply; people whose systems are configured bear the cost of errors.
+
+Strategic: measured usefulness, not lock-in or tool adoption for its own sake.
+Design: understandable questions, explicit consequential choices and accessible
+recovery. Technical: one accepted state, bounded data and exact authority.
+Operational: local/offline behavior, documented target handoff and truthful
+failure modes. Governance: source/release/provenance ownership and separate
+implementation approval. Evaluation: unchanged comparison, timing, device and
+participant gates. No financing, interest, advertising, ranking/AI, moderation or
+religious-content policy changes are proposed; those domains are not applicable.
+
+### Alternatives and overlooked failures
+
+Rejected: reducing clicks by implicit consent, treating same-title sources as
+trusted equivalents, inventing target integrity, hiding required inputs, a bespoke
+Event-only engine, or declaring a visual pass as usability proof. Keeping the
+entire technical workspace upfront preserves expert affordances but fails the
+newcomer's task; secondary expert access retains capability without that burden.
+The remaining trade-off is deliberate privacy interaction and target handoff
+instead of false one-click deployment.
+
+Watch for translated labels changing keys, real nested arrays breaking strict
+inverse coverage, a visually compact consent action losing its revoke route,
+default Fill fields silently accepting conflicts, old route recovery choosing
+another source, and old performance receipts being relabelled as new evidence.
+Named scenarios/tasks cover these risks; existing inverse refusals stay strict.
+
+### Validation gaps and escalation
+
+No new product build, suite, source generator, package publication, stakeholder
+study or physical-platform exercise ran during this planning request. New
+implementation and comparative evidence remain required. Earlier timed cohorts,
+editor distribution records and historical hashes retain their original scope.
+Translation quality and device/OS-IME/AT access remain engineering/product gates.
+Any religious-legal conclusion requires qualified Sunni scholarly authority;
+none is needed to complete this plan. No foundational design choice is unresolved.
+
+## Revision-4 planning handoff and receipt
+
+- Workstream: browser-ux-simplification.
+- Status: current / plan-aligned; assessment revision 3 for plan/context/tasks revision 4.
+- Reviewed input: current revision-4 sections, preserved S01-S27 and original
+  comparison/budget obligations, plus R4-E01..R4-E14.
+- Findings and mitigations: IVSD-F001 -> IVSD-M001 through IVSD-F007 -> IVSD-M007,
+  all retained and open.
+- Required plan mappings: current plan Section 9 and current task phases 7-12.
+- User approval: awaiting implementation approval. CTO review: not reviewed for
+  revision 4. No product, Git, deployment or publication authority is granted.
+- Escalations before qualification: physical-device/OS-IME/AT and participant
+  evidence; before any changed target semantics, Event-owner resolution; before
+  religious-legal claims, qualified Sunni review; before new distribution
+  authority, Steward review.
+- Refresh triggers: changed consent, defaults/presence, identity/source grouping,
+  target integrity/acceptance authority, private-state or export lifetime,
+  mitigation/task mappings, dependencies/network, accessibility behavior or
+  qualification thresholds. Status-only evidence receipts do not change design.
+
+| Finding / mitigation | Current scenarios | Current tasks |
+| --- | --- | --- |
+| IVSD-F001 / IVSD-M001 | U02-U08,U18,S27 | 8.2,9.2,10.2,12.1-12.3 |
+| IVSD-F002 / IVSD-M002 | U02-U04,U06,U08,U09 | 8.1-8.2,9.1-9.2 |
+| IVSD-F003 / IVSD-M003 | U13,U15,U16 | 10.1-10.2,11.1-11.2,12.2 |
+| IVSD-F004 / IVSD-M004 | U03,U11,U13,U16,U17 | 8.1,10.1,11.1-11.2,12.2 |
+| IVSD-F005 / IVSD-M005 | U01,U05,U07,U08,U15,U18 | 7.1-7.2,9.2,10.2,12.1-12.3 |
+| IVSD-F006 / IVSD-M006 | U09-U12,U14,U17 | 9.2,11.1-11.2,12.1 |
+| IVSD-F007 / IVSD-M007 | U03,U14,U16,U18,S22,S25,S26 | 8.1,10.1,12.1-12.3 |
+
+### Revision-4 lifecycle
+
+| Date | Previous | New | Trigger and evidence |
+| --- | --- | --- | --- |
+| 2026-11-01 | Assessment 2 current for revision 3 | Assessment 3 draft / ready-for-planning | New direct browser evidence and explicit clean-breaking planning request |
+| 2026-11-01 | Assessment 3 draft | Assessment 3 current / plan-aligned | Completed revision-4 triad revalidated against R4-E01..R4-E14; all seven pairs mapped; native receipt follows |
+
+### Native revision-4 input receipt
+
+Native `sha256sum` executed in the assigned checkout on November 1, exit 0:
+
+| Reviewed input | SHA-256 |
+| --- | --- |
+| Plan revision 4 | `f8994316a0d28e459199ef84875713ea0b44b208fb1627b642bc4e9f231c674b` |
+| Context revision 4 | `4905767269a6348ee950943a6904e8b8da56be6072b1f4c04f0f4f7956dd1599` |
+| Tasks revision 4 | `bcd4e57f0faab01b101ddf964fa32d7b00df89f6a83926865ff33ac93fa8019c` |
+
+The native explicit-file Markdown checker first passed all four planning files:
+`DOC_CHECK files=4 local_links=40 errors=0`, exit 0. Native whitespace checking
+also passed for all four files, including ignored local triad files. The task
+ledger's inherited extra blank EOF line was removed; no product/test content was
+changed. The final scope inspection found only this assessment modified among
+tracked files; the three existing ignored triad files contain the new revision.
+No product build, suite, dependency install, browser restart or Git write occurred
+for planning. The final link recheck covers this receipt as well; its terminal
+result is reported in the handoff.
+
+Hashes establish reviewed document identity, not runtime or scholarly proof.
+Later material design changes invalidate this receipt's planning alignment;
+record a new receipt without deleting these or the earlier revision-1/3 hashes.
+
+---
+
+## Historical revision-2 assessment - original evidence and receipts
+
+The remaining original analysis, metadata and receipts bind their named earlier
+revisions. They are preserved history; current revision-4 metadata, claim
+boundaries and handoff above take precedence.
+
+## Historical revision-2 review metadata
 
 - Mode: planning
 - Subject: Browser UX simplification and schema-aware Developer editing
