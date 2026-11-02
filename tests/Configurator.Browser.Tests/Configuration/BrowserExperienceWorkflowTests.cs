@@ -110,6 +110,30 @@ public sealed class BrowserExperienceWorkflowTests
     }
 
     [Test]
+    public async Task WorkspaceHelpUsesTheSelectedLocaleForItsAccessibleNameAndInspector()
+    {
+        await using var context = BrowserFixture.Context();
+        JsonNode source = JsonNode.Parse(Definition().CanonicalBytes.Span)!;
+        source["locales"] = new JsonArray("ar", "en");
+        source["localization"] = JsonNode.Parse("""{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}""");
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
+            builder.CloseComponent();
+        }));
+        await component.Find("#configuration-locale").ChangeAsync(new ChangeEventArgs { Value = "ar" });
+        var help = component.FindComponents<ConfigurationFieldHelp>().Single(item => item.Instance.FieldPath == "workspace");
+        string name = help.Find("button").GetAttribute("aria-label")!;
+        await Assert.That(name.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+        await Assert.That(name.Any(character => character is >= 'A' and <= 'Z' or >= 'a' and <= 'z')).IsFalse();
+        await help.Find("button").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find(".configuration-inspector").GetAttribute("lang")).IsEqualTo("ar");
+        await Assert.That(component.Find(".configuration-inspector").GetAttribute("dir")).IsEqualTo("rtl");
+    }
+
+    [Test]
     public async Task AuthoredDescriptionsReachTheSectionAndWorkspaceInspector()
     {
         await using var context = BrowserFixture.Context();

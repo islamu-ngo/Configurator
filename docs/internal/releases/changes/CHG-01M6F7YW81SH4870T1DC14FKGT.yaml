@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7YW81SH4870T1DC14FKGT
+Title: "keep workspace help in the selected language"
+Type: fix
+Scope: accessibility
+Summary: "keep workspace help in the selected language."
+Group: browser-08-workspace-help-locale
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "keep workspace help in the selected language."

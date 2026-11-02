@@ -224,6 +224,10 @@ participant qualification.
 
 ## Guided workspace
 
+The workspace help control receives the form's explicit locale, including its
+accessible name and inspector dialog. Field and workspace help therefore use
+the same locale owner.
+
 Output tasks come from admitted `presentation.outputSelector` metadata, never
 an inferred `/operation` field or enum order. `BrowserLaunchSelection` retains
 explicit-entry intent; Launch/Open pass only a deliberate entry into a fresh

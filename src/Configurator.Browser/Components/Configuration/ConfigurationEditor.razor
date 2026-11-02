@@ -112,6 +112,7 @@
                 </select>
             </div>
             <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="@UiText("ThisWorkspace")" FieldPath="workspace"
+                                    Locale="@_form.Locale"
                                     SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
                                     ContextTitle="@($"{Definition.Title} / {SelectedExperience.Title}")" Description="@SelectedExperience.Description"
                                     SectionDescription="@(currentSectionId is null ? null : _editorSections[currentSectionId].Description)" />
