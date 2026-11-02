@@ -28,23 +28,23 @@ public sealed class SetupCliDefinitionTests
     }
 
     [Test]
-    [Arguments("authoring", "urn:islamu:configurator:authoring:v2")]
-    [Arguments("runtime", "urn:islamu:configurator:setup-definition:v2")]
-    [Arguments("answers", "urn:islamu:configurator:answers:v1")]
-    [Arguments("command", "https://schemas.islamu.org/configurator/command/v4/schema.json")]
+    [Arguments("authoring", "urn:islamu:configurator:authoring:v0.0.1")]
+    [Arguments("runtime", "urn:islamu:configurator:setup-definition:v0.0.1")]
+    [Arguments("answers", "urn:islamu:configurator:answers:v0.0.1")]
+    [Arguments("command", "urn:islamu:configurator:cli:v0.0.1")]
     public async Task SchemaDiscoveryUsesOnlyBuiltInPublicMetadataWithoutFileAuthority(string kind, string id)
     {
         var io = new CliFixture();
         await Assert.That(await io.RunAsync("definition", "schema", "--kind", kind, "--machine"))
             .IsEqualTo(SetupCliExitCode.Success);
         using JsonDocument output = JsonDocument.Parse(io.StandardOutput);
-        await Assert.That(output.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+        await Assert.That(output.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
         JsonElement schema = output.RootElement.GetProperty("schema");
         await Assert.That(schema.GetProperty("kind").GetString()).IsEqualTo(kind);
         await Assert.That(schema.GetProperty("document").GetProperty("$id").GetString()).IsEqualTo(id);
-        await Assert.That(schema.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
-        await Assert.That(schema.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
-        await Assert.That(schema.GetProperty("answerContractVersion").GetInt32()).IsEqualTo(1);
+        await Assert.That(schema.GetProperty("authoringContractVersion").GetString()).IsEqualTo("0.0.1");
+        await Assert.That(schema.GetProperty("runtimeSchemaVersion").GetString()).IsEqualTo("0.0.1");
+        await Assert.That(schema.GetProperty("answerContractVersion").GetString()).IsEqualTo("0.0.1");
         await Assert.That(schema.GetProperty("capabilities").EnumerateArray().Any(item => item.GetString() == "predicate.item")).IsTrue();
     }
 
@@ -68,7 +68,7 @@ public sealed class SetupCliDefinitionTests
     }
 
     private const string CurrentSource = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"d6788869-273c-4d44-b969-d8a54f6a9caf","revision":1},
          "project":{"id":"example","name":"Authoring"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,
@@ -103,15 +103,15 @@ public sealed class SetupCliDefinitionTests
         await Assert.That(await InitializeAsync(io, files)).IsEqualTo(SetupCliExitCode.Success);
         string source = files.Path("configurator.yaml");
         byte[] initial = File.ReadAllBytes(source);
-        await Assert.That(Encoding.UTF8.GetString(initial)).Contains("urn:islamu:configurator:authoring:v2");
+        await Assert.That(Encoding.UTF8.GetString(initial)).Contains("urn:islamu:configurator:authoring:v0.0.1");
         await Assert.That(await InitializeAsync(io, files)).IsEqualTo(SetupCliExitCode.Data);
         await Assert.That(File.ReadAllBytes(source).AsSpan().SequenceEqual(initial)).IsTrue();
         await Assert.That(await io.RunAsync("definition", "check", "--root", files.Root, "--machine")).IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
         using (JsonDocument receipt = JsonDocument.Parse(io.StandardOutput))
         {
-            await Assert.That(receipt.RootElement.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
-            await Assert.That(receipt.RootElement.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
+            await Assert.That(receipt.RootElement.GetProperty("authoringContractVersion").GetString()).IsEqualTo("0.0.1");
+            await Assert.That(receipt.RootElement.GetProperty("runtimeSchemaVersion").GetString()).IsEqualTo("0.0.1");
         }
         await Assert.That(await io.RunAsync("definition", "build", "--root", files.Root, "--machine")).IsEqualTo(SetupCliExitCode.Success);
         string release = files.Path("dist/configurator/revisions/1.json");

@@ -850,9 +850,8 @@ public sealed class SetupPresentationModelTests
         await Assert.That(form.InputDiagnostics[0].Code).IsEqualTo("answer-budget-exceeded");
         await Assert.That(form.InputDiagnostics[0].ToString()).DoesNotContain(canary);
         await Assert.That(form.ToString()).DoesNotContain(canary);
-        await Assert.That(typeof(SetupPresentationWorkspace).Assembly.GetExportedTypes().SelectMany(type =>
-            type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
-                | BindingFlags.DeclaredOnly)).Any(property => ForbiddenSensitiveName(property.Name))).IsFalse();
+        await Assert.That(System.Text.Json.JsonSerializer.Serialize(form.SecretOperation)).DoesNotContain(canary);
+        await Assert.That(System.Text.Json.JsonSerializer.Serialize(form.GetSecretValidation(["title"]))).DoesNotContain(canary);
     }
 
     private static async Task AssertInvalidAllocationTerminates(
@@ -909,7 +908,7 @@ public sealed class SetupPresentationModelTests
     }
 
     private static SetupDefinition PublicDefinition() => SetupDefinitionCodec.ParseJson("""
-        {"schemaVersion":2,"profile":"bounded-v2","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
+        {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
          "project":{"id":"example","publisher":"example","name":"Example"},"applicationVersions":["1"],
          "entryPoints":["setup"],"locales":["en"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
@@ -940,8 +939,7 @@ public sealed class SetupPresentationModelTests
         await Assert.That(actual.Span.SequenceEqual(expected.Span)).IsTrue();
     }
 
-    private static SetupReadinessResult CoreResult() => SetupReadiness.Evaluate(
-        new SetupReadinessInput([], [], []));
+    private static object CoreResult() => new();
 
     private static bool ForbiddenSensitiveName(string name) =>
         name.Contains("Secret", StringComparison.OrdinalIgnoreCase)

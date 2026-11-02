@@ -1,5 +1,5 @@
 {
-  "answerContractVersion": 1,
+  "answerContractVersion": "0.0.1",
   "values": {
     "legal-drafts.metadata.name": "example-legal-drafts",
     "legal-drafts.spec.instance.settings": {},

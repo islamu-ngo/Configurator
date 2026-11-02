@@ -12,7 +12,7 @@ public sealed class BrowserStoreIndependenceTests
     [Test]
     public async Task MissingMalformedAndEmptyStoreLeaveLocalAdmissionUsable()
     {
-        foreach (byte[] bytes in new[] { Array.Empty<byte>(), Encoding.UTF8.GetBytes("not JSON"), Encoding.UTF8.GetBytes("{\"schemaVersion\":1,\"projects\":[]}") })
+        foreach (byte[] bytes in new[] { Array.Empty<byte>(), Encoding.UTF8.GetBytes("not JSON"), Encoding.UTF8.GetBytes("{\"schemaVersion\":\"0.0.1\",\"projects\":[]}") })
         {
             var registry = new BrowserDefinitionRegistry([]);
             using var context = BrowserFixture.Context(registry);

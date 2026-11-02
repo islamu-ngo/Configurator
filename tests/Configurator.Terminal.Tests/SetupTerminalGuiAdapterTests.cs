@@ -330,7 +330,7 @@ public sealed class SetupTerminalGuiAdapterTests
     private static System.Text.Json.Nodes.JsonObject EditingSource(string properties, string required = "[]")
     {
         var source = System.Text.Json.Nodes.JsonNode.Parse($$$$$$"""
-            {"$schema":"urn:islamu:configurator:authoring:v2",
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"9282a2b1-84a0-436d-8c4d-1c75b81d314c","revision":1},
              "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],"entryPoints":["setup"],
              "configuration":{"type":"object","additionalProperties":false,"required":{{{{{{required}}}}}},
@@ -415,6 +415,28 @@ public sealed class SetupTerminalGuiAdapterTests
         await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[8]");
         remove.InvokeCommand(Command.Accept);
         await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[]");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task WorkspaceLocaleOverridesHostAndRefreshesChrome()
+    {
+        CultureInfo previous = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ar");
+            using var harness = new Harness(manualDispatch: true);
+            string englishTitle = harness.Window.Title;
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en");
+            using var english = new Harness();
+            await Assert.That(englishTitle).IsEqualTo(english.Window.Title);
+            string englishStatus = harness.Window.StatusText;
+            await harness.ChangeView(() => harness.Form.SelectLocale("ar"));
+            await Assert.That(harness.Window.Title).IsNotEqualTo(englishTitle);
+            await Assert.That(harness.Window.StatusText).IsNotEqualTo(englishStatus);
+            await Assert.That(english.Window.Title).IsEqualTo(englishTitle);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
     }
 
     [Test]

@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.Resources;
+using Configurator.Desktop.Services;
 using Configurator.Presentation;
 
 /// <summary>
@@ -59,6 +60,8 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     protected bool IsProvided => _provided;
     protected FieldViewModel Root => _root ?? this;
     protected DefinitionFormModel Form => Root._form!;
+    internal ISecretClipboardService? Clipboard { get; set; }
+    protected ISecretClipboardService? SecretClipboard => Root.Clipboard;
     internal virtual IEnumerable<FieldViewModel> Descendants => [];
     internal string EditorIdentity { get; set; } = string.Empty;
     public string Id => _id;
@@ -117,14 +120,14 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         .Where(name => Schema.Keywords.TryGetProperty(name, out _))
         .Select(name => $"{name}: {Schema.Keywords.GetProperty(name).GetRawText()}"));
     public bool RequiresMasking { get; }
-    public char PasswordChar => RequiresMasking ? '●' : '\0';
+    public virtual char PasswordChar => RequiresMasking ? '●' : '\0';
     public bool IsPublic => !RequiresMasking;
     public bool HasProtectedDescendants => RequiresMasking || Descendants.Any(child => child.HasProtectedDescendants);
     public bool HasSuggestion => !HasProtectedDescendants && TryExtensionValue("suggestedValue", out _);
     public bool HasError { get => _hasError; private set => SetProperty(ref _hasError, value); }
     public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
     public bool IsRequired { get => _isRequired; private set => SetProperty(ref _isRequired, value); }
-    public string ErrorText => HasError ? "A valid value is required. Check the declared type and constraints."
+    public virtual string ErrorText => HasError ? "A valid value is required. Check the declared type and constraints."
         : IsRequired ? "Required" : "Optional";
     public int FocusRequestVersion => _focusRequestVersion;
     public int SupplyFocusRequestVersion => _supplyFocusRequestVersion;
@@ -265,7 +268,10 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasSuggestion));
         ApplySuggestionCommand.NotifyCanExecuteChanged();
         RemoveCommand.NotifyCanExecuteChanged();
+        OnRefreshed();
     }
+
+    protected virtual void OnRefreshed() { }
 
     protected IReadOnlyList<string> FullPath() => Parent is null ? [Id]
         : [.. Parent.FullPath(), Parent is ListFieldViewModel list
@@ -299,9 +305,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             extension.TryGetProperty(name, out value);
     }
     private static bool HasNonPublicSchema(DefinitionNode schema) =>
-        schema.Keywords.TryGetProperty("writeOnly", out var writeOnly) && writeOnly.GetBoolean() ||
-        !schema.Keywords.TryGetProperty("x-configurator", out var extension) ||
-        !extension.TryGetProperty("sensitivity", out var sensitivity) || sensitivity.GetString() != "public" ||
+        DefinitionSensitivityPolicy.SensitivityOf(schema) != SetupFieldSensitivity.Public ||
         schema.Properties.Values.Any(HasNonPublicSchema) ||
         schema.Items is { } item && HasNonPublicSchema(item) ||
         schema.AdditionalProperties is { } additional && HasNonPublicSchema(additional) ||

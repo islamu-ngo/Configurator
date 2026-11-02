@@ -143,8 +143,9 @@ public sealed class BrowserDefinitionStoreTests
     {
         foreach (string document in new[]
         {
-            "private-canary", "{\"schemaVersion\":1,\"schemaVersion\":1,\"projects\":[]}",
-            "{\"schemaVersion\":1,\"projects\":null}", "{\"schemaVersion\":2,\"projects\":[]}"
+            "private-canary", "{\"schemaVersion\":\"0.0.1\",\"schemaVersion\":\"0.0.1\",\"projects\":[]}",
+            "{\"schemaVersion\":\"0.0.1\",\"projects\":null}", "{\"schemaVersion\":\"unsupported\",\"projects\":[]}",
+            "{\"schemaVersion\":1,\"projects\":[]}"
         })
         {
             BrowserLaunchException? failure = null;
@@ -182,7 +183,7 @@ public sealed class BrowserDefinitionStoreTests
     {
         definition ??= BrowserFixture.Definition;
         return JsonNode.Parse($$"""
-            {"schemaVersion":1,"projects":[{"projectId":"demo","name":"Demo","description":"Public configuration","sourceRepository":"https://publisher.example/demo","license":"MIT","tags":["self-hosted"],"applicationId":"{{definition.ApplicationId}}","familyId":"{{definition.FamilyId:D}}","revisions":[{"revision":{{definition.Revision}},"digest":"{{definition.Digest.Value}}","publisher":"{{definition.Publisher}}","title":"{{definition.Title}}","applicationVersions":{{new JsonArray(definition.ApplicationVersions.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()).ToJsonString()}},"entryPoints":{{new JsonArray(definition.EntryPoints.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()).ToJsonString()}},"locales":{{new JsonArray(definition.Locales.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()).ToJsonString()}},"outputNames":{{new JsonArray(definition.Artifacts.Select(value => (JsonNode?)JsonValue.Create(value.FileName)).ToArray()).ToJsonString()}},"snapshotPath":"definitions/demo/{{definition.Revision}}.json"}]}]}
+            {"schemaVersion":"0.0.1","projects":[{"projectId":"demo","name":"Demo","description":"Public configuration","sourceRepository":"https://publisher.example/demo","license":"MIT","tags":["self-hosted"],"applicationId":"{{definition.ApplicationId}}","familyId":"{{definition.FamilyId:D}}","revisions":[{"revision":{{definition.Revision}},"digest":"{{definition.Digest.Value}}","publisher":"{{definition.Publisher}}","title":"{{definition.Title}}","applicationVersions":{{new JsonArray(definition.ApplicationVersions.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()).ToJsonString()}},"entryPoints":{{new JsonArray(definition.EntryPoints.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()).ToJsonString()}},"locales":{{new JsonArray(definition.Locales.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()).ToJsonString()}},"outputNames":{{new JsonArray(definition.Artifacts.Select(value => (JsonNode?)JsonValue.Create(value.FileName)).ToArray()).ToJsonString()}},"snapshotPath":"definitions/demo/{{definition.Revision}}.json"}]}]}
             """)!;
     }
 }

@@ -10,10 +10,10 @@ using Configurator.Core;
 [Category("Architecture")]
 public sealed class SetupCoreArchitectureTests
 {
-    private static readonly Assembly ProductAssembly = typeof(SetupProfile).Assembly;
+    private static readonly Assembly ProductAssembly = typeof(ArtifactDigest).Assembly;
 
     [Test]
-    public async Task ProductAssemblyRemainsBclAndApprovedYamlOnlyWithoutAmbientAuthority()
+    public async Task ProductAssemblyKeepsApprovedDependenciesAndBoundedCryptoAuthority()
     {
         string[] violations = SetupCoreAssemblyVerifier.VerifyAssembly(ProductAssembly);
 
@@ -69,6 +69,7 @@ public sealed class SetupCoreArchitectureTests
             new AssemblyName("System.Runtime"),
             new AssemblyName("netstandard"),
             new AssemblyName("YamlDotNet"),
+            new AssemblyName("BouncyCastle.Cryptography"),
             new AssemblyName("Unapproved.Dependency")
         ]);
         SyntheticNamespaceCanaries canaries = SyntheticVerifierFactory.CreateNamespaceCanaries();
@@ -118,35 +119,7 @@ public sealed class SetupCoreArchitectureTests
     }
 
     [Test]
-    public async Task PublicCollectionInputsAreSnapshottedAndInvariantlyOrdered()
-    {
-        var capabilities = new List<SetupCapabilityKey>
-        {
-            new("legal"), new("configuration"), new("legal")
-        };
-        var topology = new List<SetupTopologyKey> { new("split"), new("single") };
-        var sections = new List<PortableSectionKey>
-        {
-            new("tenant.settings"), new("instance.documents")
-        };
-        var profile = new SetupProfile(new SetupProfileIdentity("offline"), capabilities, topology);
-        var selection = new SetupCoverageInput(sections, []);
-
-        capabilities.Clear();
-        topology.Add(new SetupTopologyKey("added"));
-        sections[0] = new PortableSectionKey("extensions");
-
-        await Assert.That(string.Join(",", profile.Capabilities.Select(item => item.Value)))
-            .IsEqualTo("configuration,legal");
-        await Assert.That(string.Join(",", profile.Topology.Select(item => item.Value)))
-            .IsEqualTo("single,split");
-        await Assert.That(string.Join(",", selection.Required.Select(item => item.Value)))
-            .IsEqualTo("instance.documents,tenant.settings");
-        await Assert.That(((IList)profile.Capabilities).IsReadOnly).IsTrue();
-    }
-
-    [Test]
-    public async Task DigestEqualityFormattingAndOrderingAreCultureIndependentAndRepeatable()
+    public async Task DigestEqualityAndFormattingAreCultureIndependentAndRepeatable()
     {
         const string expected = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
         CultureInfo originalCulture = CultureInfo.CurrentCulture;
@@ -159,16 +132,8 @@ public sealed class SetupCoreArchitectureTests
                 CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(cultureName);
                 ArtifactDigest computed = ArtifactDigest.Compute("abc"u8);
                 ArtifactDigest parsed = ArtifactDigest.Parse(expected.ToUpperInvariant());
-                var keys = new[]
-                {
-                    new PortableSectionKey("tenant.settings"),
-                    new PortableSectionKey("instance.settings")
-                }.Order().Select(item => item.Value).ToArray();
-
                 await Assert.That(computed.ToString()).IsEqualTo(expected);
                 await Assert.That(parsed).IsEqualTo(computed);
-                await Assert.That(string.Join(",", keys))
-                    .IsEqualTo("instance.settings,tenant.settings");
             }
         }
         finally
@@ -178,88 +143,6 @@ public sealed class SetupCoreArchitectureTests
         }
     }
 
-    [Test]
-    public async Task ReadinessDerivesReadyIncompleteAndBlockedWithoutValues()
-    {
-        PortableSectionKey instance = new("instance.settings");
-        PortableSectionKey tenant = new("tenant.settings");
-        SetupReadinessResult ready = SetupReadiness.Evaluate(
-            new SetupReadinessInput([instance], [instance, tenant], []));
-        SetupReadinessResult incomplete = SetupReadiness.Evaluate(
-            new SetupReadinessInput([tenant, instance], [tenant], []));
-        SetupReadinessResult blocked = SetupReadiness.Evaluate(
-            new SetupReadinessInput([instance], [instance], [tenant]));
-
-        await Assert.That(ready.State).IsEqualTo(SetupReadinessState.Ready);
-        await Assert.That(incomplete.State).IsEqualTo(SetupReadinessState.Incomplete);
-        await Assert.That(incomplete.Missing.Select(item => item.Value))
-            .IsEquivalentTo(["instance.settings"]);
-        await Assert.That(blocked.State).IsEqualTo(SetupReadinessState.Blocked);
-        await Assert.That(blocked.Blocked.Select(item => item.Value))
-            .IsEquivalentTo(["tenant.settings"]);
-    }
-
-    [Test]
-    public async Task DiffAndCoverageUseOnlyOrderedSectionKeysAndDigests()
-    {
-        PortableSectionKey a = new("instance.documents");
-        PortableSectionKey b = new("instance.settings");
-        PortableSectionKey c = new("tenant.settings");
-        ArtifactDigest first = ArtifactDigest.Compute("first"u8);
-        ArtifactDigest second = ArtifactDigest.Compute("second"u8);
-        var baseline = new Dictionary<PortableSectionKey, ArtifactDigest>
-        {
-            [b] = first,
-            [a] = first
-        };
-        var candidate = new Dictionary<PortableSectionKey, ArtifactDigest>
-        {
-            [c] = second,
-            [b] = second
-        };
-        SetupDiffInput input = new(baseline, candidate);
-        SetupCoverageInput coverageInput = new([c, a, b], [b, a]);
-
-        baseline.Clear();
-        candidate.Clear();
-        SetupDiffResult diff = SetupDiff.Compare(input);
-        SetupCoverageResult coverage = SetupCoverage.Calculate(coverageInput);
-
-        await Assert.That(diff.Added.Select(item => item.Value)).IsEquivalentTo(["tenant.settings"]);
-        await Assert.That(diff.Removed.Select(item => item.Value)).IsEquivalentTo(["instance.documents"]);
-        await Assert.That(diff.Changed.Select(item => item.Value)).IsEquivalentTo(["instance.settings"]);
-        await Assert.That(diff.Unchanged).IsEmpty();
-        await Assert.That(coverage.Covered.Select(item => item.Value))
-            .IsEquivalentTo(["instance.documents", "instance.settings"]);
-        await Assert.That(coverage.Missing.Select(item => item.Value))
-            .IsEquivalentTo(["tenant.settings"]);
-        await Assert.That(coverage.IsComplete).IsFalse();
-    }
-
-    [Test]
-    public async Task WorkflowTransitionsAreExplicitRepeatableAndInvalidTransitionsAreValueSafe()
-    {
-        SetupTransitionResult validated = SetupWorkflow.Transition(
-            SetupWorkflowState.Draft, SetupWorkflowAction.Validate);
-        SetupTransitionResult ready = SetupWorkflow.Transition(
-            validated.State, SetupWorkflowAction.MarkReady);
-        SetupTransitionResult exported = SetupWorkflow.Transition(
-            ready.State, SetupWorkflowAction.Export);
-        SetupTransitionResult invalid = SetupWorkflow.Transition(
-            SetupWorkflowState.Draft, SetupWorkflowAction.Export);
-        SetupTransitionResult repeated = SetupWorkflow.Transition(
-            SetupWorkflowState.Draft, SetupWorkflowAction.Export);
-
-        await Assert.That(exported.State).IsEqualTo(SetupWorkflowState.Exported);
-        await Assert.That(exported.Succeeded).IsTrue();
-        await Assert.That(invalid.Succeeded).IsFalse();
-        await Assert.That(invalid.State).IsEqualTo(SetupWorkflowState.Draft);
-        await Assert.That(invalid.Diagnostic).IsEqualTo(repeated.Diagnostic);
-        await Assert.That(invalid.Diagnostic!.Code.Value).IsEqualTo("invalid-transition");
-        await Assert.That(invalid.Diagnostic.Path.Value).IsEqualTo("$.workflow.state");
-        await Assert.That(invalid.Diagnostic.GetType().GetProperties().Select(property => property.Name))
-            .IsEquivalentTo(["Code", "Path", "Severity"]);
-    }
 }
 
 internal static class SetupCoreAssemblyVerifier
@@ -304,7 +187,7 @@ internal static class SetupCoreAssemblyVerifier
     internal static string[] VerifyAssemblyReferences(IEnumerable<AssemblyName> references) =>
         references.Where(reference => reference.Name is not null
                 && !reference.Name.StartsWith("System", StringComparison.Ordinal)
-                && reference.Name is not "netstandard" and not "YamlDotNet")
+                && reference.Name is not "netstandard" and not "YamlDotNet" and not "BouncyCastle.Cryptography")
             .Select(reference => $"forbidden assembly reference {reference.Name}")
             .ToArray();
 
@@ -352,7 +235,7 @@ internal static class SetupCoreAssemblyVerifier
     internal static string[] VerifyTypes(IEnumerable<Type> types, Assembly? reviewedAssembly = null)
     {
         Type[] closure = types.ToArray();
-        reviewedAssembly ??= typeof(SetupProfile).Assembly;
+        reviewedAssembly ??= typeof(ArtifactDigest).Assembly;
         var failures = new List<string>();
         foreach (Type type in closure)
         {
@@ -367,7 +250,7 @@ internal static class SetupCoreAssemblyVerifier
                 && !isEnvironmentContract
                 && !isCompositionContract
                 && type.Namespace is not "Configurator.Core.Definitions" and not "Configurator.Core.Definitions.Authoring"
-                    and not "Configurator.Core.Artifacts")
+                    and not "Configurator.Core.Artifacts" and not "Configurator.Core.Secrets")
                 failures.Add($"forbidden public namespace {type.FullName}");
 
             foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
@@ -379,7 +262,8 @@ internal static class SetupCoreAssemblyVerifier
             }
 
             if (isPublicContract && HasForbiddenPublicName(type.Name)
-                && !(isEnvironmentContract && IsApprovedEnvironmentName(type.Name)))
+                && !(isEnvironmentContract && IsApprovedEnvironmentName(type.Name))
+                && !IsApprovedSecretName(type, type.Name))
                 failures.Add($"forbidden public type claim {type.FullName}");
 
             foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
@@ -390,7 +274,8 @@ internal static class SetupCoreAssemblyVerifier
                 if (isPublicContract && IsMutableCollection(property.PropertyType))
                     failures.Add($"mutable collection {type.FullName}.{property.Name}");
                 if (isPublicContract && HasForbiddenPublicName(property.Name)
-                    && !(isEnvironmentContract && IsApprovedEnvironmentName(property.Name)))
+                    && !(isEnvironmentContract && IsApprovedEnvironmentName(property.Name))
+                    && !IsApprovedSecretName(type, property.Name))
                     failures.Add($"forbidden public member claim {type.FullName}.{property.Name}");
                 if (isPublicContract && IsForbiddenDependency(property.PropertyType))
                     failures.Add($"forbidden public dependency {type.FullName}.{property.Name}");
@@ -422,7 +307,8 @@ internal static class SetupCoreAssemblyVerifier
             {
                 if (isPublicContract
                     && ((HasForbiddenPublicName(method.Name)
-                        && !(isEnvironmentContract && IsApprovedEnvironmentName(method.Name)))
+                        && !(isEnvironmentContract && IsApprovedEnvironmentName(method.Name))
+                        && !IsApprovedSecretName(type, method.Name))
                     || method.GetParameters().Any(parameter =>
                         HasForbiddenPublicName(parameter.Name ?? string.Empty)
                         && !(isEnvironmentContract && IsApprovedEnvironmentName(parameter.Name ?? string.Empty)))))
@@ -455,13 +341,25 @@ internal static class SetupCoreAssemblyVerifier
         ForbiddenPublicFragments.Any(fragment =>
             name.Contains(fragment, StringComparison.OrdinalIgnoreCase));
 
+    private static bool IsApprovedSecretName(Type owner, string name) => owner.FullName switch
+    {
+        "Configurator.Core.Definitions.DefinitionNode" => name is "Secret" or "get_Secret",
+        "Configurator.Core.Definitions.DefinitionSensitivityPolicy" => name is "ContainsSecret" or "DeclaresSecret",
+        "Configurator.Core.Definitions.DefinitionSecretConstraints" => name == owner.Name,
+        "Configurator.Core.Definitions.DefinitionSecretSpecification" => name == owner.Name,
+        "Configurator.Core.Definitions.DefinitionSecretGeneration" => name == owner.Name || name is "Password" or "get_Password" or "set_Password",
+        "Configurator.Core.Secrets.SecretGenerationResult" => name == owner.Name || name is "GeneratedPassword" or "get_GeneratedPassword",
+        "Configurator.Core.Secrets.SecretGenerator" or "Configurator.Core.Secrets.SecretDerivation"
+            or "Configurator.Core.Secrets.SecretKeyMaterial" or "Configurator.Core.Secrets.SecretValue"
+            or "Configurator.Core.Secrets.SecretValueValidator" => name == owner.Name,
+        _ => false,
+    };
+
     private static bool IsApprovedEnvironmentName(string name) => name is
         "Provider" or "Providers" or "get_Providers"
         or "SecretBindingEnvironmentKeys" or "get_SecretBindingEnvironmentKeys"
         or "secretBindingEnvironmentKeys" or "IsSecret" or "get_IsSecret" or "isSecret"
         or "Value" or "get_Value" or "value" or "CopyValue" or "CopyUtf8Bytes"
-        or "GeneratedDotenvValue" or "LocalSecretGenerationProfile"
-        or "LocalSecretGenerator" or "LocalSecretGenerationResult"
         or "ComposeNoSecrets" or "ComposeWithSecrets";
 
     private static bool IsForbiddenDependency(Type type)
@@ -648,7 +546,7 @@ internal static class SetupCoreAssemblyVerifier
             && caller.Namespace == CompositionNamespace
             && calledNamespace.StartsWith("System.IO", StringComparison.Ordinal))
             return true;
-        return caller.FullName == "Configurator.Core.Environment.LocalSecretGenerator"
+        return caller.FullName == "Configurator.Core.Secrets.SecretGenerator"
             && (called.DeclaringType == typeof(System.Security.Cryptography.RandomNumberGenerator)
                 || called.DeclaringType?.IsSubclassOf(
                     typeof(System.Security.Cryptography.RandomNumberGenerator)) == true);

@@ -90,7 +90,7 @@ public sealed class SetupCliApplicationTests
         await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
         using (JsonDocument receipt = JsonDocument.Parse(io.StandardOutput))
         {
-            await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+            await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
             await Assert.That(receipt.RootElement.TryGetProperty("assessment", out _)).IsFalse();
             await Assert.That(receipt.RootElement.GetProperty("preparation").GetString()).IsEqualTo("ready");
         }
@@ -106,7 +106,7 @@ public sealed class SetupCliApplicationTests
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-import-marker");
 
         io.Files["existing.json"] = """{"name":"private-import-marker","enabled":true}"""u8.ToArray();
-        io.Files["answers.json"] = """{"answerContractVersion":1,"values":{"service.name":"different"},"omitted":[]}"""u8.ToArray();
+        io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"service.name":"different"},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.RunAsync(["artifact", "prefill", .. args, "--answers", "answers.json",
             "--output", "rejected.json"])).IsEqualTo(SetupCliExitCode.Validation);
         await Assert.That(io.Files.ContainsKey("rejected.json")).IsFalse();
@@ -139,7 +139,7 @@ public sealed class SetupCliApplicationTests
         await Assert.That(await io.ArtifactAsync("diff", options: ["--baseline", "baseline.json"])).IsEqualTo(SetupCliExitCode.Success);
         using JsonDocument same = JsonDocument.Parse(io.StandardOutput);
         await Assert.That(same.RootElement.GetProperty("coverage").GetProperty("coveredCount").GetInt32()).IsEqualTo(1);
-        io.Files["baseline.json"] = """{"answerContractVersion":1,"values":{"service.name":"different-marker"},"omitted":[]}"""u8.ToArray();
+        io.Files["baseline.json"] = """{"answerContractVersion":"0.0.1","values":{"service.name":"different-marker"},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.ArtifactAsync("diff", options: ["--baseline", "baseline.json"])).IsEqualTo(SetupCliExitCode.Success);
         using JsonDocument changed = JsonDocument.Parse(io.StandardOutput);
         await Assert.That(changed.RootElement.GetProperty("coverage").GetProperty("missingCount").GetInt32()).IsEqualTo(1);
@@ -200,20 +200,20 @@ public sealed class SetupCliApplicationTests
     public async Task ReadinessCoverageActivationAndInvalidAnswersHaveTruthfulOutcomes()
     {
         var io = new CliFixture();
-        io.Files["answers.json"] = """{"answerContractVersion":1,"values":{},"omitted":[]}"""u8.ToArray();
+        io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.ArtifactAsync("coverage")).IsEqualTo(SetupCliExitCode.Incomplete);
         using JsonDocument missing = JsonDocument.Parse(io.StandardOutput);
         await Assert.That(missing.RootElement.GetProperty("coverage").GetProperty("missingCount").GetInt32()).IsEqualTo(1);
-        io.Files["answers.json"] = """{"answerContractVersion":1,"values":{"service.name":42},"omitted":[]}"""u8.ToArray();
+        io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"service.name":42},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.ArtifactAsync("validate")).IsEqualTo(SetupCliExitCode.Validation);
-        io.Files["answers.json"] = """{"answerContractVersion":1,"values":{"unknown":"hidden-marker"},"omitted":[]}"""u8.ToArray();
+        io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"unknown":"hidden-marker"},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.ArtifactAsync("validate")).IsEqualTo(SetupCliExitCode.Validation);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("hidden-marker");
         JsonObject definition = JsonNode.Parse(CliFixture.Definition)!.AsObject();
         definition["configuration"]!["properties"]!["service.name"]!["x-configurator"]!["applicableWhen"] =
             JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}""");
         io.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
-        io.Files["answers.json"] = """{"answerContractVersion":1,"values":{"enabled":false},"omitted":[]}"""u8.ToArray();
+        io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"enabled":false},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.ArtifactAsync("validate")).IsEqualTo(SetupCliExitCode.Success);
     }
 
@@ -234,7 +234,7 @@ public sealed class SetupCliApplicationTests
     {
         var io = new CliFixture();
         foreach (byte[] bytes in new[] { "[]"u8.ToArray(), "{bad}"u8.ToArray(),
-            """{"answerContractVersion":1,"values":{"service.name":"first","service.name":"second"},"omitted":[]}"""u8.ToArray(), new byte[4 * 1024 * 1024] })
+            """{"answerContractVersion":"0.0.1","values":{"service.name":"first","service.name":"second"},"omitted":[]}"""u8.ToArray(), new byte[4 * 1024 * 1024] })
         {
             io.Files["answers.json"] = bytes;
             await Assert.That(await io.ArtifactAsync("create", options: ["--output", "prepared.json"])).IsEqualTo(SetupCliExitCode.Data);

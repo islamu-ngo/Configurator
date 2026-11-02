@@ -7,7 +7,7 @@ namespace Configurator.Cli.Tests;
 public sealed class ArtifactComparisonTests
 {
     private const string Definition = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
          "project":{"id":"example","name":"Comparison"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,"required":["name"],
@@ -33,7 +33,7 @@ public sealed class ArtifactComparisonTests
         await Assert.That((int)result).IsEqualTo(exit);
         using JsonDocument document = JsonDocument.Parse(fixture.StandardOutput);
         JsonElement root = document.RootElement;
-        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
         await Assert.That(root.GetProperty("completion").GetString()).IsEqualTo(completion);
         await Assert.That(root.GetProperty("preparation").GetString()).IsEqualTo("not-evaluated");
         await Assert.That(root.GetProperty("targetAcceptance").GetString()).IsEqualTo("unassessed");
@@ -46,12 +46,12 @@ public sealed class ArtifactComparisonTests
     }
 
     [Test]
-    public async Task ReceiptIdentifiesVersionFourBeforeAnyAssessment()
+    public async Task ReceiptIdentifiesVersionFiveBeforeAnyAssessment()
     {
         var fixture = new CliFixture();
         await fixture.RunAsync("--help", "--machine");
         using JsonDocument document = JsonDocument.Parse(fixture.StandardOutput);
-        await Assert.That(document.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+        await Assert.That(document.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
     }
 
     [Test]
@@ -224,7 +224,7 @@ public sealed class ArtifactComparisonTests
     {
         var fixture = new CliFixture();
         fixture.Files["definition.json"] = """
-            {"$schema":"urn:islamu:configurator:authoring:v2",
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
              "project":{"id":"example","name":"Partial comparison"},"applicationVersions":["1"],
              "configuration":{"type":"object","additionalProperties":false,"required":["name","port"],

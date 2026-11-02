@@ -15,9 +15,7 @@ public enum DefinitionSessionPrivacy
 internal static class DefinitionSecretPolicy
 {
     internal static bool IsSecret(DefinitionNode schema, bool inherited = false) => inherited ||
-        schema.Keywords.TryGetProperty("writeOnly", out JsonElement writeOnly) && writeOnly.ValueKind == JsonValueKind.True ||
-        schema.Keywords.TryGetProperty("x-configurator", out JsonElement metadata) &&
-        metadata.TryGetProperty("sensitivity", out JsonElement sensitivity) && sensitivity.GetString() == "secret";
+        DefinitionSensitivityPolicy.SensitivityOf(schema) == SetupFieldSensitivity.Secret;
 
     internal static bool ContainsSecret(DefinitionNode schema, JsonElement value, bool inherited = false)
     {

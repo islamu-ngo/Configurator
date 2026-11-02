@@ -415,16 +415,18 @@ public sealed class ProtectedArtifactBundleTests
     private static DefinitionArtifact[] Artifacts(long inputRevision = 1)
     {
         const string json = """
-            {"schemaVersion":1,"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1,
-             "applicationId":"example.service","applicationVersions":["1.0"],"publisher":"example",
-             "title":"Example","entryPoints":["setup"],"locales":["en"],
-             "fields":[{"id":"service.name","type":"string","required":true,"sensitivity":"public",
-             "disclosure":"guided","title":"Service name"}],
+            {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1,
+             "project":{"id":"example.service","name":"Example","publisher":"example"},
+             "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["en"],
+             "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["service.name"],
+              "properties":{"service.name":{"type":"string","title":"Service name",
+               "x-configurator":{"sensitivity":"public","detail":"standard"}}}},
              "artifacts":[
-              {"id":"one","format":"json","fileName":"one.json","applySemantics":"create",
-               "restart":"none","projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}},
-              {"id":"two","format":"yaml","fileName":"two.yaml","applySemantics":"create",
-               "restart":"none","projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}}]}
+              {"id":"one","format":"json","fileName":"one.json","targetUpdateMode":"create",
+               "restartRequirement":"none","projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}},
+              {"id":"two","format":"yaml","fileName":"two.yaml","targetUpdateMode":"create",
+               "restartRequirement":"none","projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}}]}
             """;
         SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(json));
         using var document = System.Text.Json.JsonDocument.Parse("""{"service.name":"sample"}""");

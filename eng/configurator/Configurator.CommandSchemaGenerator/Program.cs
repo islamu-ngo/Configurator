@@ -19,12 +19,9 @@ try
     while (current is not null && !File.Exists(Path.Combine(current.FullName, "Configurator.slnx"))) current = current.Parent;
     if (current is null) throw new InvalidDataException("repository-root-not-found");
     string path = Path.Combine(current.FullName, SetupCliCommandSchemaMetadata.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-    string[] retiredPaths = [Path.Combine(current.FullName, "schemas", "islamu-configurator-command-v1.schema.json"),
-        Path.Combine(current.FullName, "schemas", "islamu-configurator-command-v2.schema.json"),
-        Path.Combine(current.FullName, "schemas", "islamu-configurator-command-v3.schema.json")];
     if (args[0] == "--check")
     {
-        if (retiredPaths.Any(File.Exists) || !File.Exists(path) || !File.ReadAllBytes(path).AsSpan().SequenceEqual(expected))
+        if (!File.Exists(path) || !File.ReadAllBytes(path).AsSpan().SequenceEqual(expected))
         {
             Console.Error.WriteLine("configurator-command-schema-stale");
             return 1;
@@ -33,7 +30,6 @@ try
         return 0;
     }
     File.WriteAllBytes(path, expected);
-    foreach (string retiredPath in retiredPaths) File.Delete(retiredPath);
     Console.WriteLine("configurator-command-schema-generated");
     return 0;
 }

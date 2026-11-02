@@ -17,7 +17,7 @@ public sealed class StandalonePackageTests
         string directory = Path.Combine(ReleaseTestPaths.PackageRoot, surface, "linux-x64");
         await Assert.That(File.Exists(Path.Combine(directory, executable))).IsTrue();
         foreach (string path in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md",
-            "schemas/setup-definition-v2.schema.json", "schemas/islamu-configurator-command-v4.schema.json",
+            "schemas/setup-definition.schema.json", "schemas/configurator-cli.schema.json",
             "contracts/package.json", "contracts/native-release-capabilities.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
         await AssertPackagedDefinitionContracts(directory);
@@ -68,7 +68,7 @@ public sealed class StandalonePackageTests
             "css/layers.css", "css/reset.css", "css/base.css", "css/tokens.css", "css/mudblazor-overrides.css",
             "css/components.css", "css/utilities.css", "browser-appearance.js", "browser-store.js", "workspace-interactions.js",
             "_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js",
-            "contracts/browser-release-capabilities.json", "schemas/setup-definition-v2.schema.json" })
+            "contracts/browser-release-capabilities.json", "schemas/setup-definition.schema.json" })
             await Assert.That(File.Exists(Path.Combine(directory, path))).IsTrue().Because(path);
         await AssertPackagedDefinitionContracts(directory);
         using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "manifest.webmanifest")));
@@ -122,10 +122,10 @@ public sealed class StandalonePackageTests
         using JsonDocument baseline = JsonDocument.Parse(baselineBytes);
         foreach ((string fileName, string? digestProperty) in new (string, string?)[]
         {
-            ("setup-definition-v2.schema.json", "definitionSchemaSha256"),
-            ("configurator-authoring-v2.schema.json", "authoringSchemaSha256"),
-            ("islamu-configurator-command-v4.schema.json", "commandSchemaSha256"),
-            ("configurator-answers-v1.schema.json", null)
+            ("setup-definition.schema.json", "definitionSchemaSha256"),
+            ("configurator-authoring.schema.json", "authoringSchemaSha256"),
+            ("configurator-cli.schema.json", "commandSchemaSha256"),
+            ("configurator-answers.schema.json", null)
         })
         {
             byte[] distributed = File.ReadAllBytes(Path.Combine(directory, "schemas", fileName));
@@ -135,10 +135,10 @@ public sealed class StandalonePackageTests
             if (digestProperty is not null)
                 await Assert.That(digest).IsEqualTo(baseline.RootElement.GetProperty(digestProperty).GetString()).Because(fileName);
         }
-        foreach (string retired in new[] { "setup-definition-v1.schema.json", "configurator-authoring-v1.schema.json",
-            "islamu-configurator-command-v1.schema.json", "islamu-configurator-command-v2.schema.json",
-            "islamu-configurator-command-v3.schema.json" })
-            await Assert.That(File.Exists(Path.Combine(directory, "schemas", retired))).IsFalse().Because(retired);
+        await Assert.That(Directory.GetFiles(Path.Combine(directory, "schemas"), "*.schema.json", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(Path.Combine(directory, "schemas"), path)))
+            .IsEquivalentTo(["configurator-authoring.schema.json", "setup-definition.schema.json",
+                "configurator-answers.schema.json", "configurator-cli.schema.json", "definition-store-curation.schema.json"]);
         await Assert.That(baseline.RootElement.GetProperty("targetApply").GetBoolean()).IsFalse();
         await Assert.That(baseline.RootElement.GetProperty("signedPublicationEnabled").GetBoolean()).IsFalse();
     }

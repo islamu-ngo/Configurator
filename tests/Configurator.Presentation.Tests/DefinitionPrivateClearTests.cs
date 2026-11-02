@@ -222,7 +222,7 @@ public sealed class DefinitionPrivateClearTests
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
-      "schemaVersion":2,"profile":"bounded-v2","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
+      "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
       "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],
       "entryPoints":["setup"],"locales":["en"],
       "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],

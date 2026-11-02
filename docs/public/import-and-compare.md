@@ -113,6 +113,13 @@ scope. It does not prove historical additions, removals or renames, a safe
 application upgrade, a running deployment's state, or acceptance by the target
 application. Target validation and authorization remain the application's job.
 
+Secret policies apply to imported supplied values as well as typed or generated
+values. A malformed supplied secret is invalid; it is not a missing secret that
+a draft may defer. Local hash-format checks do not run the hash's KDF or verify
+the original password, and key-format validation does not prove target
+acceptance. See the [secret-policy guide](definition-cookbook.md#secret-policy-and-target-format)
+and [shared import contract](../internal/IMPORT_COMPARISON.md).
+
 ## Keep Private Input Local
 
 Treat every configuration file as potentially secret-bearing, even when its

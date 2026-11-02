@@ -255,7 +255,7 @@ public sealed class BrowserExportLifecycleTests
         if (dispose) await Assert.That(module.Disposed).IsTrue();
     }
 
-    private sealed class GatedJavascript(IJSRuntime? fallback = null) : IJSRuntime
+    internal sealed class GatedJavascript(IJSRuntime? fallback = null) : IJSRuntime
     {
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<IJSObjectReference> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -268,7 +268,7 @@ public sealed class BrowserExportLifecycleTests
             return (TValue)(object)await Release.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
         }
     }
-    private sealed class RecordingModule : IJSObjectReference
+    internal sealed class RecordingModule : IJSObjectReference
     {
         internal int PrivateOpeningCount { get; private set; }
         internal int RegistrationCount { get; private set; }

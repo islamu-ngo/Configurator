@@ -140,15 +140,15 @@ public sealed class BrowserCredentialEntryTests
         source["configuration"]!["required"] = new JsonArray("created", "existing");
         source["configuration"]!["properties"] = JsonNode.Parse("""
         {"created":{"type":"string","title":"Create password",
-          "x-configurator":{"sensitivity":"secret","detail":"basic","credential":{"kind":"password","acquisition":"create"}}},
+          "x-configurator":{"sensitivity":"secret","detail":"basic","secret":{"kind":"password","acquisition":"local"}}},
          "existing":{"type":"string","title":"Existing password",
-          "x-configurator":{"sensitivity":"secret","detail":"basic","credential":{"kind":"password","acquisition":"existing"}}},
+          "x-configurator":{"sensitivity":"secret","detail":"basic","secret":{"kind":"password","acquisition":"existing"}}},
          "issuer":{"type":"string","title":"Issuer token",
-          "x-configurator":{"sensitivity":"secret","detail":"advanced","credential":{"kind":"opaque-token","acquisition":"issuer"}}}}
+          "x-configurator":{"sensitivity":"secret","detail":"advanced","secret":{"kind":"opaque-token","acquisition":"issuer","encoding":"base64url"}}}}
         """);
         source.Remove("presentation");
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
-        BrowserFixture.SetCapabilities(source, "projection.literal", "schema.object", "schema.string");
+        BrowserFixture.SetCapabilities(source, "projection.literal", "schema.object", "schema.string", "schema.secret");
         return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

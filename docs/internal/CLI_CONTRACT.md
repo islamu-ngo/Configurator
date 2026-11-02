@@ -1,20 +1,48 @@
 # CLI contract
 
 > **Audience:** Contributors | Maintainers
-> **Status:** Machine v4 implemented; package qualification pending
+> **Status:** Machine 0.0.1 implemented; package qualification pending
 > **Owner:** CLI
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `src/Configurator.Cli/SetupCliApplication.cs`, `src/Configurator.Cli/SetupCliMachineOutput.cs`, `schemas/islamu-configurator-command-v4.schema.json`
+> **Source Anchors:** `src/Configurator.Cli/SetupCliApplication.cs`, `src/Configurator.Cli/SetupCliMachineOutput.cs`, `schemas/configurator-cli.schema.json`
 
 The CLI references only Configurator.Core, Configurator.Artifacts and the admitted
 Spectre packages. The public [command usage](../public/cli.md) documents all
 options, input semantics, confidentiality and exits.
 The [generated command reference](../public/cli-command-reference.md) projects
-public metadata from the generated v4 schema; it is not another parser or
+public metadata from the generated 0.0.1 schema; it is not another parser or
 semantic specification. Regenerate the schema before the reference and check
 both using the [native reference commands](../../eng/knowledge/README.md#generated-command-reference).
 
 ## Execution
+
+### Schema-driven secret operations
+
+`SecretCommands` registers `secret generate` and `secret derive` with explicit
+definition, literal pointer, contextual answers and a fresh output destination.
+`SetupCliSecretHandlers` uses Core admission, contextual node validation,
+`SecretGenerator` and `SecretValueValidator`. CLI retains its Core/Artifacts-only
+dependency direction; interactive operation generations remain in Presentation.
+No independent algorithm policy or ambient input discovery belongs to this adapter.
+Explicit generation replaces a leaf omission through the ordinary answer edit;
+omitted ancestors remain ineligible, matching the interactive workspace contract.
+
+`ISetupCliWriter.CheckArtifactDestinationAsync` performs a disposable protected
+preparation before expensive generation. This rejects detectable destination and
+platform failures without publishing a file. Actual publication repeats the
+create-only boundary so the check grants no authority across races.
+Entered secret input uses `SetupCliInputBuffer`, strict UTF-8 and a 64 KiB ceiling.
+Temporary decoded characters, serialized answers and plaintext sidecar bytes are
+zeroed in `finally`; immutable JSON/string copies cannot promise total erasure.
+
+Generated-input hashes/digests require a distinct original-password destination.
+The handler reserves both logical artifact receipts before writing, records the
+sidecar outcome before attempting answer publication, and retains that outcome
+through exceptions, cancellation and delivery failures using `SetupCliOutcomeLedger`.
+The input workspace is never modified. A failed second write does not remove
+the only original password. Secret-family artifacts have no serialized `digest`;
+the machine serializer and 0.0.1 schema enforce this boundary independently of the handler.
+Readiness describes the resulting workspace, including unrelated missing values.
 
 `SetupCliCommandRegistry` declares the public command tree and typed settings;
 strict Spectre binding is the sole grammar authority. It admits `--option=value`
@@ -288,7 +316,7 @@ metadata presence. Successful preparation deliberately remains
 Diagnostic `path` uses bounded RFC 6901 pointers, with an empty pointer for the
 document root and `~0`/`~1` escaping for member tokens. Optional numeric `line`
 and `column` are one-based; column counts Unicode scalars. `byteOffset` is
-zero-based in the original UTF-8 source. The v2 slots do not implement deferred
+zero-based in the original UTF-8 source. The current slots do not implement deferred
 Core source mapping or repair. No raw exception, answer value or private path is
 part of the machine view.
 
@@ -321,7 +349,7 @@ facts/findings. Findings order by classification, code, schema and source coordi
 It never hashes private answers or persists them. Same-view private-value changes
 need not change it; this digest is not authentication or a private file digest.
 
-Machine v4 diagnostics carry mutually exclusive optional `source` and
+Machine 0.0.1 diagnostics carry mutually exclusive optional `source` and
 `correction` objects. `SetupCliDefinitionHandlers` preserves compiler codes and
 public source-map coordinates; importer keyword codes are lowercased to the
 machine code vocabulary. `SetupCliResults.Diagnostic` converts Core correction
@@ -347,13 +375,15 @@ independent versions 2/2/1; text mode emits the public document only. Neither
 operation grants revision, publication or target-acceptance authority.
 
 `SetupCliCommandSchemaMetadata.GenerateSchema()` generates the closed
-`islamu-configurator-command/v4` envelope plus registry operation/option metadata.
+`islamu-configurator-command/v0.0.1` envelope plus registry operation/option metadata.
 The generator's `--write` and `--check` locate `Configurator.slnx`; `--stdout`
 returns schema bytes without needing a repository checkout.
-The native generator retires command v1, v2 and v3 through owned-output cleanup; the
+The native generator writes only `schemas/configurator-cli.schema.json`; the
 `RefreshConfiguratorSchemas` packaging stage refreshes only owned packaged schemas.
-Authoring/runtime v2 remain current: changing the command receipt does not change
-their vocabularies. The independent specification/verifier must migrate with the
+Product, authoring/runtime, answer, command and Store versions remain `0.0.1`
+during development. Obsolete local schemas belong in ignored `schemas/archive/`,
+not a compatibility parser or a per-version retirement list.
+The independent specification/verifier must migrate with the
 compiled schema, rather than using production serialization as its oracle.
 
 The [runtime decision](adr/ADR-cli-command-runtime.md) records result, cooperative

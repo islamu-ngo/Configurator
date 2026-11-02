@@ -73,7 +73,7 @@ public sealed class BrowserOutputSelectionTests
     public async Task EventStartsAtEnvironmentAndBasicsWithoutSelectingAnOutput()
     {
         BrowserDefinitionRegistry registry = BrowserDefinitionRegistry.LoadBundled();
-        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
+        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}");
         var component = context.Render<App>();
@@ -90,7 +90,7 @@ public sealed class BrowserOutputSelectionTests
     {
         string pointer = DefinitionPath.FromSegments([fieldName]).ToPointer();
         return SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes("""
-            {"$schema":"urn:islamu:configurator:authoring:v2",
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"d66d02af-6a66-4396-9717-452e8eb9541b","revision":1},
              "project":{"id":"example.output","name":"Output selection"},"applicationVersions":["1.0"],
              "entryPoints":["identity","settings"],

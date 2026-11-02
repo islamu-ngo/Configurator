@@ -8,7 +8,7 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionPresentationAdmissionTests
 {
     private const string Source = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
          "project":{"id":"example.service","name":"Example Service"},"applicationVersions":["1.0"],
          "configuration":{"type":"object","additionalProperties":false,"required":["TOKEN"],
@@ -19,7 +19,7 @@ public sealed class DefinitionPresentationAdmissionTests
                "guidance":{"instructions":"Obtain the credential from your administrator.",
                  "links":[{"title":"Public instructions","url":"https://example.org/docs/credentials"}],
                  "searchTerms":["access","credential"]},
-               "credential":{"kind":"opaque-token","acquisition":"issuer"}}}}},
+               "secret":{"kind":"opaque-token","acquisition":"issuer","encoding":"base64url"}}}}},
          "presentation":{"defaultJourney":"recommended","navigation":"wizard",
            "sections":[{"id":"access","title":"Access","pointers":["/TOKEN"]},
              {"id":"network","title":"Network","pointers":["/Service port"]}],
@@ -29,7 +29,7 @@ public sealed class DefinitionPresentationAdmissionTests
         """;
 
     private const string Yaml = """
-        $schema: urn:islamu:configurator:authoring:v2
+        $schema: urn:islamu:configurator:authoring:v0.0.1
         identity:
           familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
           revision: 1
@@ -60,9 +60,10 @@ public sealed class DefinitionPresentationAdmissionTests
                     - title: Public instructions
                       url: https://example.org/docs/credentials
                   searchTerms: [access, credential]
-                credential:
+                secret:
                   kind: opaque-token
                   acquisition: issuer
+                  encoding: base64url
         presentation:
           defaultJourney: recommended
           navigation: wizard
@@ -247,7 +248,7 @@ public sealed class DefinitionPresentationAdmissionTests
         await Assert.That(runtime.ContainsKey("presentation")).IsFalse();
         JsonNode metadata = runtime["configuration"]!["properties"]!["SERVICE_TOKEN"]!["x-configurator"]!;
         await Assert.That(metadata["guidance"] is null).IsTrue();
-        await Assert.That(metadata["credential"] is null).IsTrue();
+        await Assert.That(metadata["secret"] is null).IsTrue();
         await Assert.That(definition.Presentation is null).IsTrue();
     }
 
@@ -270,8 +271,8 @@ public sealed class DefinitionPresentationAdmissionTests
         await Assert.That(() => ((IList<DefinitionExperience>)presentation.Experiences).Clear()).Throws<NotSupportedException>();
         SetupFieldDefinition field = definition.Fields.Single(field => field.Id == "TOKEN");
         await Assert.That(field.Disclosure).IsEqualTo(SetupFieldDisclosure.Essential);
-        await Assert.That(field.InputPurpose!.Kind).IsEqualTo("opaque-token");
-        await Assert.That(field.InputPurpose.Acquisition).IsEqualTo("issuer");
+        await Assert.That(field.Node.Secret!.Kind).IsEqualTo("opaque-token");
+        await Assert.That(field.Node.Secret.Acquisition).IsEqualTo("issuer");
         await Assert.That(field.Guidance!.Links[0].Url).IsEqualTo("https://example.org/docs/credentials");
         await Assert.That(() => ((IList<DefinitionGuidanceLink>)field.Guidance.Links).Clear()).Throws<NotSupportedException>();
         await Assert.That(() => ((IList<string>)field.Guidance.SearchTerms).Clear()).Throws<NotSupportedException>();
@@ -501,11 +502,11 @@ public sealed class DefinitionPresentationAdmissionTests
             root => root["presentation"]!["navigation"] = null,
             root => Metadata(root)["detail"] = null,
             root => Metadata(root)["guidance"] = null,
-            root => Metadata(root)["credential"] = null,
+            root => Metadata(root)["secret"] = null,
             root => Metadata(root)["guidance"]!["links"] = null,
             root => Metadata(root)["guidance"]!["searchTerms"] = null,
-            root => Metadata(root)["credential"]!["kind"] = null,
-            root => Metadata(root)["credential"]!["generation"] = new JsonObject(),
+            root => Metadata(root)["secret"]!["kind"] = null,
+            root => Metadata(root)["secret"]!["generation"] = new JsonObject(),
             root => Token(root)["comment"] = "synthetic-private-marker"
         })
         {
@@ -516,38 +517,39 @@ public sealed class DefinitionPresentationAdmissionTests
     }
 
     [Test]
-    public async Task CredentialVocabularyAndAcquisitionAreClosedAndNeverImplyGeneration()
+    public async Task SecretVocabularyAndAcquisitionAreClosedAndDoNotImplyGeneration()
     {
-        foreach (string kind in new[] { "password", "opaque-token", "symmetric-key", "private-key", "connection-string" })
-            foreach (string acquisition in new[] { "existing", "create", "issuer" })
+        foreach (string kind in new[] { "password", "connection-string" })
+            foreach (string acquisition in new[] { "existing", "local", "issuer" })
             {
                 JsonObject source = Authoring();
-                Metadata(source)["credential"] = new JsonObject { ["kind"] = kind, ["acquisition"] = acquisition };
-                bool allowed = acquisition == "existing" || acquisition == "create" && kind is "password" or "symmetric-key"
-                    || acquisition == "issuer" && kind != "symmetric-key";
-                if (allowed) _ = Compile(source);
+                Metadata(source)["secret"] = new JsonObject { ["kind"] = kind, ["acquisition"] = acquisition };
+                _ = Compile(source);
+                Metadata(source)["secret"]!["generation"] = new JsonObject();
+                if (acquisition == "local" && kind == "password") _ = Compile(source);
                 else await Reject(() => Compile(source));
             }
         foreach (string credential in new[] { """{"kind":"certificate","acquisition":"existing"}""",
             """{"kind":"password","acquisition":"generate"}""", """{"kind":"password"}""",
-            """{"acquisition":"existing"}""", """{"kind":"password","acquisition":"create","generation":{}}""",
+            """{"acquisition":"existing"}""", """{"kind":"password","acquisition":"create"}""",
+            """{"kind":"password","acquisition":"existing","generation":{}}""",
             """{"kind":"password","acquisition":"existing","autocomplete":"current-password"}""" })
         {
             JsonObject source = Authoring();
-            Metadata(source)["credential"] = JsonNode.Parse(credential);
+            Metadata(source)["secret"] = JsonNode.Parse(credential);
             await Reject(() => Compile(source));
         }
     }
 
     [Test]
-    public async Task CredentialRequiresAnEffectivelySecretStringLeafIncludingInheritedContext()
+    public async Task SecretPolicyRequiresAStringAndEstablishesItsSensitivityFloor()
     {
-        foreach (string sensitivity in new[] { "public", "sensitive" })
-        {
-            JsonObject source = Authoring();
-            Metadata(source)["sensitivity"] = sensitivity;
-            await Reject(() => Compile(source));
-        }
+        JsonObject contradictory = Authoring();
+        Metadata(contradictory)["sensitivity"] = "public";
+        await Reject(() => Compile(contradictory));
+        JsonObject sensitive = Authoring();
+        Metadata(sensitive)["sensitivity"] = "sensitive";
+        await Assert.That(Compile(sensitive).Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
         foreach (string type in new[] { "integer", "boolean", "object", "array" })
         {
             JsonObject source = Authoring();
@@ -566,8 +568,8 @@ public sealed class DefinitionPresentationAdmissionTests
             JsonObject source = Authoring();
             JsonNode container = JsonNode.Parse("""
                 {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"secret"},
-                 "properties":{"child":{"type":"string","x-configurator":{"sensitivity":"public",
-                   "credential":{"kind":"password","acquisition":"existing"}}}}}
+                 "properties":{"child":{"type":"string","x-configurator":{
+                   "secret":{"kind":"password","acquisition":"existing"}}}}}
                 """)!;
             source["configuration"]!["properties"]!["TOKEN"] = array
                 ? new JsonObject
@@ -579,13 +581,13 @@ public sealed class DefinitionPresentationAdmissionTests
                 : container;
             SetupDefinition definition = Compile(source);
             await Assert.That(definition.Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
-            Metadata(source)["sensitivity"] = "public";
-            if (array) Token(source)["items"]!["x-configurator"]!["sensitivity"] = "public";
+            JsonNode child = array ? Token(source)["items"]!["properties"]!["child"]! : Token(source)["properties"]!["child"]!;
+            child["x-configurator"]!["sensitivity"] = "public";
             await Reject(() => Compile(source));
         }
         JsonObject enumeration = Authoring();
-        Token(enumeration)["enum"] = new JsonArray("one");
-        await Assert.That(Compile(enumeration).Fields.Single(field => field.Id == "TOKEN").InputPurpose!.Kind).IsEqualTo("opaque-token");
+        Token(enumeration)["enum"] = new JsonArray("c3ludGhldGlj");
+        await Assert.That(Compile(enumeration).Fields.Single(field => field.Id == "TOKEN").Node.Secret!.Kind).IsEqualTo("opaque-token");
     }
 
     [Test]
@@ -602,7 +604,7 @@ public sealed class DefinitionPresentationAdmissionTests
         inherited["configuration"]!["properties"]!["TOKEN"] = JsonNode.Parse("""
             {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"secret"},
              "properties":{"child":{"type":"string","default":"synthetic-private-marker","x-configurator":{"sensitivity":"public",
-               "credential":{"kind":"password","acquisition":"existing"}}}}}
+               "secret":{"kind":"password","acquisition":"existing"}}}}}
             """);
         await Reject(() => Compile(inherited));
     }
@@ -615,7 +617,7 @@ public sealed class DefinitionPresentationAdmissionTests
         {
             source => source["presentation"]!["journeys"]![0]!["title"] = "A different title",
             source => Metadata(source)["guidance"]!["instructions"] = "Different public guidance.",
-            source => Metadata(source)["credential"]!["acquisition"] = "existing"
+            source => Metadata(source)["secret"]!["acquisition"] = "existing"
         })
         {
             JsonObject source = Authoring();

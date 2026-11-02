@@ -97,7 +97,7 @@ public sealed class DefinitionDocumentEditingTests
             "protected" => Envelope("""{"secret":"synthetic-private"}"""),
             "mixed" => Envelope("""{"mixedRows":[]}"""),
             "oversized" => new byte[4_194_305],
-            "shape" => """{"answerContractVersion":1,"values":[],"omitted":[]}"""u8.ToArray(),
+            "shape" => """{"answerContractVersion":"0.0.1","values":[],"omitted":[]}"""u8.ToArray(),
             "nestedUnknown" => Envelope("""{"pair":{"synthetic-unknown":[]}}"""),
             "invalidArray" => Envelope("""{"rows":[42]}"""),
             "fieldBudget" => Envelope("{\"text\":\"" + new string('x', 65_537) + "\"}"),
@@ -545,11 +545,11 @@ public sealed class DefinitionDocumentEditingTests
     }
 
     private static byte[] Envelope(string values, string omitted = "[]") =>
-        Encoding.UTF8.GetBytes($$"""{"answerContractVersion":1,"values":{{values}},"omitted":{{omitted}}}""");
+        Encoding.UTF8.GetBytes($$"""{"answerContractVersion":"0.0.1","values":{{values}},"omitted":{{omitted}}}""");
 
     private static SetupDefinition Definition() => SetupDefinitionSourceCodec.ParseJson("""
         {
-          "$schema":"urn:islamu:configurator:authoring:v2",
+          "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},
           "project":{"id":"document","name":"Document"},"applicationVersions":["1"],
           "configuration":{"type":"object","additionalProperties":false,

@@ -95,6 +95,7 @@ public sealed class SetupCliApplication
                 "catalogue" => await SetupCliCatalogueEnvironmentHandlers.CatalogueAsync(command, invocation, ledger, cancellationToken),
                 "artifact" or "env" => await SetupCliArtifactHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
                 "definition" => await SetupCliDefinitionHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
+                "secret" => await SetupCliSecretHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
                 "doctor" => SetupCliArtifactHandlers.Doctor(),
                 _ => SetupCliResults.Failure(SetupCliExitCode.Usage, "command-unknown")
             };

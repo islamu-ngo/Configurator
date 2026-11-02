@@ -1,13 +1,14 @@
 {
-  "schemaVersion": 1,
-  "definitionSchemaSha256": "227c914a58d4c6674a49bab00e0d16e90d633676bf1fe5fa87f7f90c0f852afe",
-  "authoringSchemaSha256": "bbc1f5419d81e033cfb9c2befbe93788fdb4283ab543f8b0579324c6a3c357eb",
-  "commandSchemaSha256": "eb66591d8e448b87a7dd89cef2390fd6daacad6318867ef7d64a7286caf7675f",
+  "schemaVersion": "0.0.1",
+  "definitionSchemaSha256": "11650832b4a5f4e5a60ee1e3735929f27b54f276541522dc5af3f309cde311a1",
+  "authoringSchemaSha256": "ec968c70a571752dde7a100f17c85cceb6c32f9993eae33540eda765add3c748",
+  "commandSchemaSha256": "b3db48d898d53db5b58ea6cfc1f518ab5ed07579f77d7eae5b76b5271c8a4be2",
   "commandFamilies": [
     "catalogue",
     "artifact",
     "env",
     "definition",
+    "secret",
     "doctor"
   ],
   "targetApply": false,

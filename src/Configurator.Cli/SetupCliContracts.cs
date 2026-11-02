@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Configurator.Artifacts;
@@ -33,6 +34,8 @@ public interface ISetupCliPublicFilePreparation : IDisposable
 
 public interface ISetupCliWriter
 {
+    ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken);
+
     ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken);
 
     ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
@@ -75,7 +78,7 @@ public sealed record SetupCliIo
 public sealed record SetupCliInvocation
 {
     private readonly string[] _arguments;
-    public SetupCliInvocation(IEnumerable<string> arguments, SetupCliMode mode, SetupCliIo io)
+    public SetupCliInvocation(IEnumerable<string> arguments, SetupCliMode mode, SetupCliIo io, CultureInfo? culture = null)
     {
         ArgumentNullException.ThrowIfNull(arguments);
         _arguments = arguments.ToArray();
@@ -84,10 +87,12 @@ public sealed record SetupCliInvocation
             throw new ArgumentException("argument-bound-exceeded", nameof(arguments));
         Mode = mode;
         Io = io ?? throw new ArgumentNullException(nameof(io));
+        Culture = CultureInfo.ReadOnly((CultureInfo)(culture ?? CultureInfo.CurrentUICulture).Clone());
     }
     public IReadOnlyList<string> Arguments => Array.AsReadOnly((string[])_arguments.Clone());
     public SetupCliMode Mode { get; }
     public SetupCliIo Io { get; }
+    public CultureInfo Culture { get; }
     public override string ToString() => $"{nameof(SetupCliInvocation)}:Mode={Mode}:Count={_arguments.Length}";
 }
 
@@ -108,7 +113,7 @@ public sealed record SetupCliMachineLocationSegment(string Kind,
 public sealed record SetupCliMachineCorrectionLocation(long InputRevision, string FieldId,
     IReadOnlyList<SetupCliMachineLocationSegment> Segments);
 public sealed record SetupCliMachineSchema(string Kind, string Id, string Digest, string Profile,
-    int AuthoringContractVersion, int RuntimeSchemaVersion, int AnswerContractVersion,
+    string AuthoringContractVersion, string RuntimeSchemaVersion, string AnswerContractVersion,
     IReadOnlyList<string> Capabilities, JsonElement Document);
 public sealed record SetupCliMachineCoverage
 {
@@ -145,7 +150,8 @@ public sealed record SetupCliMachineReadiness
     private static string[] Snapshot(IEnumerable<string> values) =>
         values.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
 }
-public sealed record SetupCliMachineArtifact(string Kind, string MediaType, string Digest, string Sensitivity,
+public sealed record SetupCliMachineArtifact(string Kind, string MediaType,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Digest, string Sensitivity,
     [property: JsonIgnore] SetupCliMachineCoverage Coverage,
     [property: JsonIgnore] SetupCliMachineReadiness Readiness, string PathIntent, string WriteStatus)
 {
@@ -259,9 +265,9 @@ public sealed record SetupCliMachineEnvelope
     public SetupCliMachineCoverage Coverage { get; }
     public SetupCliMachineReadiness Readiness { get; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? AuthoringContractVersion { get; init; }
+    public string? AuthoringContractVersion { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? RuntimeSchemaVersion { get; init; }
+    public string? RuntimeSchemaVersion { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SetupCliMachineSchema? Schema { get; init; }
 }

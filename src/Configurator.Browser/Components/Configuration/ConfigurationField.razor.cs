@@ -60,6 +60,8 @@ public partial class ConfigurationField
     private string? _focusMapEntry;
     private long _mapFocusGeneration;
     private DefinitionSessionPrivacy _lastPrivacy;
+    private bool _secretRevealed;
+    private long _secretRevision = -1;
 
     public override Task SetParametersAsync(ParameterView parameters)
     {
@@ -106,7 +108,9 @@ public partial class ConfigurationField
     // parameter updates with unchanged projection need no field-tree work.
     protected override bool ShouldRender() => !_suppressParameterRender;
 
-    private string Error => string.Join(" ", Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
+    private string Error => string.Join(" ", Schema.Secret is not null
+        ? Form.GetSecretValidation(Path, Validation is not null).Failures.Select(item => item.Message)
+        : Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
     private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
         (diagnostic.Location is { } location
             ? Form.TryResolveCorrection(diagnostic.FieldId, location, out IReadOnlyList<string> resolved) &&
@@ -134,7 +138,7 @@ public partial class ConfigurationField
             return "";
         }
     }
-    private bool HasHelp => !string.IsNullOrWhiteSpace(Help)
+    private bool HasHelp => !string.IsNullOrWhiteSpace(Help) || IsMultilineSecret
         || InputPurposeHelp is not null || IsMasked && Type == "boolean";
     private bool Required => Form.GetEditorState(Path)?.IsRequired ?? RequiredOverride ?? false;
     private bool HasOptionalChildren => ContainsOptionalProperty(ObjectSchema);
@@ -181,32 +185,30 @@ public partial class ConfigurationField
             return "";
         }
     }
-    private static bool DeclaresSecret(DefinitionNode schema) =>
-        schema.Keywords.TryGetProperty("writeOnly", out var writeOnly) && writeOnly.GetBoolean()
-        || Metadata(schema, "sensitivity")?.GetString() == "secret";
+    private static bool DeclaresSecret(DefinitionNode schema) => DefinitionSensitivityPolicy.DeclaresSecret(schema);
     private bool IsSecret => InheritedSecret || DeclaresSecret(Schema)
         || Path.Count == 1 && DeclaresSecret(Form.Definition.Configuration);
+    private bool IsMultilineSecret => Schema.Secret is { Kind: "private-key", Encoding: "pkcs8-pem" };
     private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
-    private bool IsMasked => IsSecret || InheritedSensitive || Metadata(Schema, "sensitivity")?.GetString() != "public"
-        || Path.Count == 1 && Metadata(Form.Definition.Configuration, "sensitivity")?.GetString() != "public";
+    private bool IsMasked => IsSecret || InheritedSensitive || DefinitionSensitivityPolicy.SensitivityOf(Schema) != SetupFieldSensitivity.Public
+        || Path.Count == 1 && DefinitionSensitivityPolicy.SensitivityOf(Form.Definition.Configuration) != SetupFieldSensitivity.Public;
     private int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var value) ? value.GetInt32() : SetupCompositionLimits.DefaultSequenceEntries;
     private int Count => Value is { ValueKind: JsonValueKind.Array } value ? value.GetArrayLength() : 0;
     private string Text => !Form.CanEdit(Path) ? string.Empty : Path.Count == 1
         ? _rootInput!.Text
         : Form.ReadDraftText(Path) ?? (Value is { } value ? Display(value) : string.Empty);
-    private string Autocomplete => Form.CanEdit(Path) && Metadata(Schema, "credential") is { } credential
-        && credential.GetProperty("kind").GetString() == "password"
-        ? credential.GetProperty("acquisition").GetString() switch
+    private string Autocomplete => Form.CanEdit(Path) && Schema.Secret is { Kind: "password" } secret
+        ? secret.Acquisition switch
         {
-            "create" => "section-" + ControlId + " new-password",
+            "local" => "section-" + ControlId + " new-password",
             "existing" => "section-" + ControlId + " current-password",
             _ => "off"
         } : "off";
-    private string? InputPurposeHelp => Metadata(Schema, "credential") is { } credential
-        ? credential.GetProperty("acquisition").GetString() switch
+    private string? InputPurposeHelp => Schema.Secret is { } secret
+        ? secret.Acquisition switch
         {
             "issuer" => Ui("CredentialIssuerHelp"),
-            "create" => Ui("CredentialCreateHelp"),
+            "local" => Ui("CredentialCreateHelp"),
             _ => Ui("CredentialExistingHelp")
         } + " " + Ui("CredentialCustodyHelp")
         : null;
@@ -229,6 +231,12 @@ public partial class ConfigurationField
     protected override void OnParametersSet()
     {
         if (_suppressParameterRender) return;
+        if (!ReferenceEquals(_rootForm, Form) || _secretRevision != Form.InputRevision || _lastPrivacy != Form.SessionPrivacy)
+        {
+            if (_secretRevealed && IsMultilineSecret) ++_controlGeneration;
+            _secretRevealed = false;
+        }
+        _secretRevision = Form.InputRevision;
         _presentation = Form.GetEditorPresentation(Path);
         bool actionsMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path);
         if (_actionsMounted != actionsMounted)
@@ -301,11 +309,22 @@ public partial class ConfigurationField
         if (_disposed || !_controlMounted || _controlGeneration != expectedControlGeneration || !ReferenceEquals(Form, expectedForm) || Form.InputRevision != expectedRevision
             || !Path.SequenceEqual(expectedPath)) return false;
         if (changeOnly && _lastInputRevision == expectedRevision && Text == text) return false;
+        bool keepMultilineVisible = IsMultilineSecret && _secretRevealed;
         EditText(text);
+        if (keepMultilineVisible) { _secretRevealed = true; _secretRevision = Form.InputRevision; }
         _lastInputRevision = changeOnly ? -1 : Form.InputRevision;
         return true;
     }
     private Task NotifyValidityAsync() => ValidationChanged.InvokeAsync((ControlId, Path[0], _invalid));
+    private void SetSecretRevealed(bool revealed)
+    {
+        if (IsMultilineSecret && revealed != _secretRevealed)
+        {
+            ++_controlGeneration;
+            if (revealed) _focusAfterAction = true;
+        }
+        _secretRevealed = revealed;
+    }
     private (IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys) InspectorBindings()
     {
         var entry = Form.Projection.Entries.FirstOrDefault(item => item.FieldId == Path[0]

@@ -33,7 +33,7 @@ public sealed class DesktopApplicationTests
         var result = await InWindow(window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
-            shell.Loader.LoadDefinition(ViewModels.DefinitionV2EditingTests.Definition().CanonicalBytes.ToArray());
+            shell.Loader.LoadDefinition(ViewModels.DefinitionEditingTests.Definition().CanonicalBytes.ToArray());
             window.UpdateLayout();
             Dispatcher.UIThread.RunJobs();
             var form = shell.Workspace.Form!;
@@ -876,7 +876,7 @@ public sealed class DesktopApplicationTests
         var result = await InWindowAsync(async window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
-            shell.Loader.LoadDefinition(ViewModels.DefinitionV2EditingTests.Definition().CanonicalBytes);
+            shell.Loader.LoadDefinition(ViewModels.DefinitionEditingTests.Definition().CanonicalBytes);
             byte[] input = JsonSerializer.SerializeToUtf8Bytes(new
             {
                 named = Enumerable.Range(0, 70).ToDictionary(index => "private-entry-" + index, _ => 0)
@@ -1140,7 +1140,7 @@ public sealed class DesktopApplicationTests
     internal static byte[] Definition(long revision = 1) => Encoding.UTF8.GetBytes(
         """
         {
-          "schemaVersion":2,"profile":"bounded-v2","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
+          "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
           "revision":REVISION,"project":{"id":"example.service","name":"Example setup","publisher":"example"},
           "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["en"],
           "requiredCapabilities":["predicate.root","projection.copy","projection.list","projection.object",

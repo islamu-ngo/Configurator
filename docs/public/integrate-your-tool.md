@@ -1,5 +1,5 @@
 ---
-description: "Author, review and distribute a bounded-v2 public configuration definition beside your application."
+description: "Author, review and distribute a bounded-v0.0.1 public configuration definition beside your application."
 ---
 
 # Integrate Your Tool
@@ -9,8 +9,8 @@ application. Core compiles it into immutable canonical runtime JSON; clients
 collect private answers separately and prepare declared files offline.
 Preparation never installs configuration or grants target administration.
 
-The implemented standard uses authoring v2 and runtime schemaVersion 2 with
-profile `bounded-v2`. The [current reference](definition-reference.md), supported-shape
+The implemented standard uses authoring 0.0.1 and runtime schemaVersion "0.0.1" with
+profile `bounded-v0.0.1`. The [current reference](definition-reference.md), supported-shape
 [cookbook](definition-cookbook.md) and [portable workflow](integrating.md)
 describe the admitted contract. The [definition standard](definition-standard.md)
 explains portability and conformance; it is not a promise of unrestricted JSON Schema or
@@ -27,7 +27,7 @@ target acceptance.
 
 Revision 1/2 are family revisions, not authoring or runtime contract versions.
 Successful check/build reports the independent authoring/runtime handshake as
-2/2. See the [version reference](definition-reference.md#which-document-are-you-editing)
+the string `0.0.1` in both fields. See the [version reference](definition-reference.md#which-document-are-you-editing)
 for the separate current command envelope and answer contracts.
 
 Run `definition lint --source configurator.yaml --machine` for advisory authoring
@@ -43,7 +43,7 @@ are the complete neutral example; use them rather than a second full raw copy
 that can drift. They include required secret entry, optional nested settings,
 root applicability, journeys, guidance and dotenv/JSON/YAML mappings.
 
-Current checked example identities are fresh v2 families, each at revision 1:
+Historical v2 example identities were separate families, each at revision 1:
 
 | Source | Family |
 |---|---|
@@ -51,11 +51,13 @@ Current checked example identities are fresh v2 families, each at revision 1:
 | `examples/grafana-13.2.2/configurator.yaml` | `ffc20a25-7ea5-4138-be3b-88f678cac36b` |
 | `examples/islamu-event/configurator.json` | `c0d02619-0134-411b-b495-ef302f592669` |
 
-The native `--check-examples` check confirmed source/runtime agreement **3/3**
+The historical native `--check-examples` check confirmed source/runtime agreement **3/3**
 on 2026-10-28. Agreement proves reproducible compilation of these
 sources, not target startup, Grafana provisioning acceptance, Event acceptance
-or qualification of every interactive scenario. Never copy these family IDs
-into your own integration.
+or qualification of every interactive scenario. The 0.0.1 migration allocates new
+families through native tooling; inspect the current source/runtime rather than
+using these historical identities. Never copy example family IDs into your own
+integration.
 
 ### Author configuration, not metadata IDs
 
@@ -183,7 +185,7 @@ islamu-configurator definition build --machine
 ```
 
 Build normally writes `dist/configurator/revisions/1.json`. The runtime includes
-`schemaVersion: 2`, `profile: bounded-v2` and computed sorted
+`schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1` and computed sorted
 `requiredCapabilities`. Its SHA-256 binds the entire canonical definition.
 Consumers must refuse unsupported mandatory semantics before answer collection;
 generated metadata alone does not prove a client's editing support.
@@ -215,7 +217,7 @@ islamu-configurator definition init \
   --machine
 ```
 
-The importer produces a v2 `configuration` schema, not the old `fields` map.
+The importer produces the current `configuration` schema, not the old `fields` map.
 It retains selected title/description and supported closed-object/scalar/array
 constraints. Defaults are discarded, ordinary nodes are sensitive, and
 `writeOnly` raises the secret floor. Format remains a separate advisory annotation,
@@ -226,7 +228,7 @@ or suggested value; no importer infers that a hostname or port is public.
 
 The flag acknowledges encountered bounded numeric-domain differences (Int64 and
 exact bounded decimals), and nullable provider semantics that admit null outside
-branch selection. It does not acknowledge arbitrary losses. Native v2 requiredness
+branch selection. It does not acknowledge arbitrary losses. Native 0.0.1 requiredness
 is presence and string length is Unicode-scalar based; the old whitespace and
 UTF-16 differences are not the current native contract.
 
@@ -243,7 +245,7 @@ The flag cannot bypass unsupported assertions or privacy. See the
 
 ## Private answers and qualification
 
-Private answer files use `answerContractVersion: 1`, object `values` and array
+Private answer files use `answerContractVersion: "0.0.1"`, object `values` and array
 `omitted`. Values preserve exact names and nesting; omissions are concrete
 RFC6901 pointers. This envelope is not public source, store metadata or a browser
 cache payload. A prepared secret-deferred draft remains incomplete.

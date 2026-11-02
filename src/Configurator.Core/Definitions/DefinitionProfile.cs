@@ -10,16 +10,16 @@ public static class DefinitionProfile
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    public const string Id = "bounded-v2";
-    public const string AuthoringSchemaId = "urn:islamu:configurator:authoring:v2";
-    public const int RuntimeSchemaVersion = 2;
+    public const string Id = "bounded-v" + ConfiguratorVersion.Current;
+    public const string AuthoringSchemaId = "urn:islamu:configurator:authoring:v" + ConfiguratorVersion.Current;
+    public const string RuntimeSchemaVersion = ConfiguratorVersion.Current;
 
     /// <summary>Closed semantic capability registry. Required subsets are computed by admission.</summary>
     public static IReadOnlyList<string> Capabilities { get; } = Array.AsReadOnly(new[]
     {
         "predicate.item", "predicate.root", "projection.copy", "projection.index", "projection.list", "projection.literal", "projection.object",
         "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
-        "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
+        "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object", "schema.secret",
         "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",
         "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "values.initial", "values.suggested"
     });

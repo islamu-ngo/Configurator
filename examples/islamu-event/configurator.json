@@ -1,5 +1,5 @@
 {
-  "$schema": "urn:islamu:configurator:authoring:v2",
+  "$schema": "urn:islamu:configurator:authoring:v0.0.1",
   "presentation": {
     "defaultJourney": "configure",
     "navigation": "sections",
@@ -867,8 +867,8 @@
     "legal-drafts"
   ],
   "identity": {
-    "familyId": "c0d02619-0134-411b-b495-ef302f592669",
-    "revision": 6
+    "familyId": "ea55cccf-dce5-4f88-8ea1-6dd211714edc",
+    "revision": 1
   },
   "outputs": {
     "configuration-manifest.json": {
@@ -5840,10 +5840,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -6033,7 +6029,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "connection-string",
             "acquisition": "existing"
           },
@@ -6130,7 +6126,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -6561,10 +6557,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -6817,7 +6809,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -7096,7 +7088,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -7192,10 +7184,6 @@
                 }
               }
             ]
-          },
-          "credential": {
-            "kind": "symmetric-key",
-            "acquisition": "existing"
           },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
@@ -7346,7 +7334,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -7574,7 +7562,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -7939,7 +7927,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "connection-string",
             "acquisition": "existing"
           },
@@ -8607,7 +8595,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -8736,7 +8724,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -8991,10 +8979,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -9027,10 +9011,6 @@
                 }
               }
             ]
-          },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
           },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
@@ -9095,7 +9075,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -9162,10 +9142,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "symmetric-key",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -9231,10 +9207,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -9267,10 +9239,6 @@
                 }
               }
             ]
-          },
-          "credential": {
-            "kind": "symmetric-key",
-            "acquisition": "existing"
           },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
@@ -10257,10 +10225,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -11161,7 +11125,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -11230,10 +11194,6 @@
           },
           "guidance": {
             "instructions": "Obtain this confidential client's secret from the Keycloak realm administrator. Use the client identified by KEYCLOAK_CLIENT_ID; Configurator does not contact Keycloak."
-          },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "issuer"
           }
         }
       },
@@ -12344,7 +12304,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "connection-string",
             "acquisition": "existing"
           },
@@ -13264,7 +13224,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -13361,7 +13321,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -13920,7 +13880,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "connection-string",
             "acquisition": "existing"
           },
@@ -14061,10 +14021,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -14158,10 +14114,6 @@
                 }
               }
             ]
-          },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
           },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
@@ -14522,10 +14474,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -14715,10 +14663,6 @@
           },
           "guidance": {
             "instructions": "Supply the existing setup secret expected by Event, or create one using Event's documented setup procedure. Configurator does not issue or derive it."
-          },
-          "credential": {
-            "kind": "opaque-token",
-            "acquisition": "existing"
           }
         }
       },
@@ -15336,7 +15280,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "connection-string",
             "acquisition": "existing"
           },
@@ -15373,7 +15317,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -15472,10 +15416,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "symmetric-key",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -15539,7 +15479,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "connection-string",
             "acquisition": "existing"
           },
@@ -16127,10 +16067,6 @@
               }
             ]
           },
-          "credential": {
-            "kind": "private-key",
-            "acquisition": "existing"
-          },
           "guidance": {
             "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
           }
@@ -16642,7 +16578,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },
@@ -16771,7 +16707,7 @@
               }
             ]
           },
-          "credential": {
+          "secret": {
             "kind": "password",
             "acquisition": "existing"
           },

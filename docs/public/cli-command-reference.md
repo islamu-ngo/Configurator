@@ -4,9 +4,9 @@
 > **Kind:** Generated reference
 > **Status:** Generated vocabulary; not a qualification or execution receipt
 > **Owner:** CLI
-> **Source Anchors:** `schemas/islamu-configurator-command-v4.schema.json`, `eng/knowledge/RenderCommandReference.cs`
+> **Source Anchors:** `schemas/configurator-cli.schema.json`, `eng/knowledge/RenderCommandReference.cs`
 
-Generated from the [command schema](../../schemas/islamu-configurator-command-v4.schema.json).
+Generated from the [command schema](../../schemas/configurator-cli.schema.json).
 Do not edit this projection. Run the owning command-schema freshness check first,
 then `dotnet run --file eng/knowledge/RenderCommandReference.cs -- --write`.
 Output is UTF-8 without BOM, with LF newlines and ordinal ordering.
@@ -27,12 +27,12 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | Machine field | Value |
 | --- | --- |
 | &#36;schema | https://json-schema.org/draft/2020-12/schema |
-| &#36;id | https://schemas.islamu.org/configurator/command/v4/schema.json |
-| schemaVersion | islamu-configurator-command/v4 |
+| &#36;id | urn:islamu:configurator:cli:v0.0.1 |
+| schemaVersion | islamu-configurator-command/v0.0.1 |
 | generatedBy | Configurator.CommandSchemaGenerator |
-| authoringDiscriminator | urn:islamu:configurator:authoring:v2 |
-| authoringContractVersion | 2 |
-| runtimeSchemaVersion | 2 |
+| authoringDiscriminator | urn:islamu:configurator:authoring:v0.0.1 |
+| authoringContractVersion | 0.0.1 |
+| runtimeSchemaVersion | 0.0.1 |
 | maximumArtifactSelections | 64 |
 | maximumOutputBytes | 65536 |
 | maximumDetailBytes | 8192 |
@@ -61,6 +61,7 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | --format | false |
 | --from-env-example | false |
 | --from-schema | false |
+| --generated-password-output | false |
 | --help | false |
 | --id-map | false |
 | --input | false |
@@ -72,9 +73,12 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | --name | false |
 | --offset | false |
 | --output | false |
+| --pointer | false |
 | --project-id | false |
 | --revision-field | false |
 | --root | false |
+| --secret-input-file | false |
+| --secret-input-stdin | false |
 | --source | false |
 | --text | false |
 
@@ -113,3 +117,6 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | env | &#40;union&#41; | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | env | render | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | env | validate | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
+| secret | &#40;union&#41; | --definition&#44; --generated-password-output&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --secret-input-file&#44; --secret-input-stdin&#44; --text |
+| secret | derive | --definition&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --secret-input-file&#44; --secret-input-stdin&#44; --text |
+| secret | generate | --definition&#44; --generated-password-output&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --text |

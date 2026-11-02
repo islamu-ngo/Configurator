@@ -8,6 +8,28 @@ namespace Configurator.Cli.Tests;
 public sealed class SetupCliProgramTests
 {
     [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task MachineModeBeforeOrAfterCommandProducesOneEnvelope(bool before)
+    {
+        ProcessResult result = await ExecuteAsync(before ? ["--machine", "doctor"] : ["doctor", "--machine"]);
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(result.StandardError).IsEmpty();
+        await Assert.That(SetupCliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
+        await Assert.That(result.StandardOutput.Count(value => value == (byte)'\n')).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task OversizedArgumentsProduceOneSafeUsageEnvelope()
+    {
+        ProcessResult result = await ExecuteAsync(["doctor", "--machine", new string('x', 4097)]);
+        await Assert.That(result.ExitCode).IsEqualTo(64);
+        await Assert.That(result.StandardError).IsEmpty();
+        await Assert.That(SetupCliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
+        await Assert.That(result.StandardOutput.Count(value => value == (byte)'\n')).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task TerminalStdinRejectsWithoutWaitingForEof()
     {
         if (!OperatingSystem.IsLinux())
@@ -184,7 +206,7 @@ public sealed class SetupCliProgramTests
         using var files = new NativeFixture();
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new
         {
-            answerContractVersion = 1,
+            answerContractVersion = "0.0.1",
             values = new Dictionary<string, string> { ["service.name"] = value },
             omitted = Array.Empty<string>()
         }));

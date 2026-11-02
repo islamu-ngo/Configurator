@@ -1,7 +1,7 @@
-$schema: urn:islamu:configurator:authoring:v2
+$schema: urn:islamu:configurator:authoring:v0.0.1
 # Fresh v2 family allocated through the native identity editor.
 identity:
-  familyId: "9b6a7b3e-45bf-4485-8fa1-d7888938c09b"
+  familyId: "4d8950ad-972c-4357-8605-7a7c89c05a17"
   revision: 1
 project:
   id: example.service
@@ -98,9 +98,9 @@ configuration:
       x-configurator:
         sensitivity: secret
         detail: basic
-        credential:
+        secret:
           kind: password
-          acquisition: create
+          acquisition: local
         guidance:
           instructions: Create and retain the password in your own password manager. Configurator does not generate it or install it on the target.
           searchTerms: [password, credential, access]
@@ -113,9 +113,6 @@ configuration:
       x-configurator:
         sensitivity: secret
         detail: advanced
-        credential:
-          kind: opaque-token
-          acquisition: issuer
         guidance:
           instructions: Obtain a scoped service token through your issuer's documented administrator workflow. Ask that administrator about permissions and expiry; do not substitute the local service password. No provider documentation link is supplied because this neutral example names no provider.
           searchTerms: [issuer, token, integration, permissions]

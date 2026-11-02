@@ -10,7 +10,7 @@ public sealed class DefinitionAuthoringIdentityTests
 {
     internal const string Yaml = """
         # Keep this maintainer comment.
-        $schema: urn:islamu:configurator:authoring:v2
+        $schema: urn:islamu:configurator:authoring:v0.0.1
         identity:
           familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
           revision: 1 # only this token is managed
@@ -92,7 +92,7 @@ public sealed class DefinitionAuthoringIdentityTests
     {
         foreach (string source in new[]
         {
-            DefinitionAuthoringTests.Source.Replace("authoring:v2", "authoring:v1", StringComparison.Ordinal),
+            DefinitionAuthoringTests.Source.Replace("authoring:v0.0.1", "authoring:unsupported", StringComparison.Ordinal),
             DefinitionAuthoringTests.Source.Replace("\"identity\":", "\"schemaVersion\":1,\"identity\":", StringComparison.Ordinal),
             DefinitionAuthoringTests.Source.Replace("\"properties\":{", "\"properties\":{\"SERVICE_PORT\":{\"type\":\"boolean\"},", StringComparison.Ordinal)
         })
@@ -103,7 +103,7 @@ public sealed class DefinitionAuthoringIdentityTests
     public async Task MultilineLiteralsAndQuotedNumbersRetainStringSemantics()
     {
         const string source = """
-            $schema: urn:islamu:configurator:authoring:v2
+            $schema: urn:islamu:configurator:authoring:v0.0.1
             identity: {familyId: 69cdb122-41d2-4fab-9b82-7929a889c726, revision: 1}
             project: {id: example.service, name: Example}
             applicationVersions: ["1.0"]

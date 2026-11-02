@@ -1,19 +1,19 @@
 # Maintainer authoring contract
 
 > **Audience:** Maintainers | Contributors | AI agents
-> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
+> **Status:** Current bounded-v0.0.1 contract; package and host qualification is recorded separately
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/SetupDefinitionSourceCodec.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `schemas/configurator-authoring-v2.schema.json`
+> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/SetupDefinitionSourceCodec.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `schemas/configurator-authoring.schema.json`
 
 ## Source and admission
 
-The discriminator is `$schema: urn:islamu:configurator:authoring:v2`.
+The discriminator is `$schema: urn:islamu:configurator:authoring:v0.0.1`.
 Required roots are `identity`, `project`, `applicationVersions`, `configuration`
 and `outputs`; optional roots are `entryPoints`, `presentation`, `localization`,
-`annotations`. Unknown members reject. Source v1 is not an alternate parser path.
+`annotations`. Unknown members reject. No older source format is an alternate parser path.
 The [public reference](../public/definition-reference.md) and
-[standard](../public/definition-standard.md) project the implemented bounded-v2
+[standard](../public/definition-standard.md) project the implemented bounded-v0.0.1
 contract. Use the [integration workflow](../public/integrating.md) for adoption,
 the [cookbook](../public/definition-cookbook.md) for supported patterns, and the
 [technical conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) for detailed
@@ -22,16 +22,16 @@ admission mechanisms and limits.
 `DefinitionAuthoringCodec.ParseJson/ParseYaml` snapshots bounded exact-key source.
 `DefinitionAuthoringCompiler.Compile` builds the runtime envelope, expands output
 mappings, then calls `SetupDefinitionCodec.AdmitCompiled`. That owner computes
-`profile: bounded-v2` and sorted `requiredCapabilities`, and finishes through
+`profile: bounded-v0.0.1` and sorted `requiredCapabilities`, and finishes through
 public runtime admission. Runtime parsing verifies the computed set rather than
 trusting authors. No second evaluator or general JSON Schema validator exists.
 
 `SetupDefinitionSourceCodec` selects source by the exact `$schema` discriminator
-or runtime by `schemaVersion: 2`. Conflicting/unknown discriminators reject;
+or runtime by `schemaVersion: "0.0.1"`. Conflicting/unknown discriminators reject;
 there is no parser fallback. Public source, runtime, private answer and command
-versions are independent. Private answers use `answerContractVersion: 1`;
+formats are separate but share the fixed development version `0.0.1`. Private answers use `answerContractVersion: "0.0.1"`;
 the [CLI contract](CLI_CONTRACT.md) owns the separate command envelope, and
-check/build handshake versions are 2/2.
+both check/build handshake version fields contain the string `0.0.1`.
 
 Lint shares the source admission path and adds bounded warnings without
 publication. Schema discovery returns built-in public documents only; it runs
@@ -64,12 +64,21 @@ Closed discriminated provider branches and acyclic configuration-root local
 references are supported. Format is annotation unless assertFormat is true.
 
 `x-configurator` admits sensitivity, initialValue, suggestedValue, notBlank,
-uniqueBy, applicableWhen, assertFormat, detail, guidance, credential, choices and units.
+uniqueBy, applicableWhen, assertFormat, detail, guidance, secret, choices and units.
 Public initial/suggested/default/example/const metadata must pass privacy and
 value admission. Private ancestors prevent literal-value leakage through public
 leaves; protected descendants raise effective container sensitivity.
 Missing sensitivity remains sensitive. Unknown members, invalid constraints,
 reference errors, cycles and resource overflow reject with value-free codes.
+
+Typed `secret` metadata establishes a secret sensitivity floor. Local `$ref`
+overrides cannot downgrade that floor or replace a conflicting secret policy.
+Standard string bounds and the typed policy constrain both entered and generated
+values. Secret generation is an explicit local operation; admission never runs a
+KDF or contacts a credential issuer. See the [cryptography contract](SECRET_CRYPTOGRAPHY.md)
+for exact encodings, algorithm ceilings and qualification, and the
+[authoring cookbook](../public/definition-cookbook.md#secret-policy-and-target-format)
+for the public-policy workflow. The retired `credential` annotation is rejected.
 
 `SetupFieldDefinition.Name` preserves the exact root data key; `Id` is bounded
 metadata. Names fitting the identifier grammar retain their ID unless they start
@@ -111,7 +120,7 @@ an absent optional object. Required means property presence, not nonblank text.
 Null is supplied only when nullable; false, zero and empty containers are supplied.
 
 Private snapshots contain exact-name `values` plus distinct concrete `omitted`
-pointers under answerContractVersion 1. Supplied/suppressed conflicts and
+pointers under answerContractVersion "0.0.1". Supplied/suppressed conflicts and
 overlapping omissions reject atomically. Validation, drafts and composition
 consume the same effective configuration.
 
@@ -238,10 +247,10 @@ Public paths reject ancestor symlinks. Staged writes use same-directory temporar
 files and no-overwrite rename; generated output cannot replace source/discovery
 candidates. This path boundary is not captured-handle/root authority or CAS.
 Machine diagnostics are bounded structural codes, never source scalars or private
-paths. Successful check/build reports authoringContractVersion=2 and
-runtimeSchemaVersion=2; downstream independently verifies the canonical digest.
-The command envelope is independently versioned by the CLI owner, separately from the 2/2 authoring/runtime handshake
-and private-answer v1.
+paths. Successful check/build reports authoringContractVersion: "0.0.1" and
+runtimeSchemaVersion: "0.0.1"; downstream independently verifies the canonical digest.
+The command envelope belongs to the CLI owner, separately from the authoring/runtime handshake
+and private-answer 0.0.1.
 
 ## Public schema import
 
@@ -269,14 +278,14 @@ Standalone null schemas convert to a nullable scalar with enum `[null]`.
 Strict import reports `schema-bounded-semantics-required` for encountered
 `schema-numeric-bounded-domain` or `schema-nullable-variant-domain`;
 acknowledgment permits those named differences,
-never unsupported assertions or privacy loss. Native v2 no longer substitutes
+never unsupported assertions or privacy loss. Native 0.0.1 no longer substitutes
 required-string-whitespace or UTF-16-length semantics. CLI compiles before source
 creation; import is not proof of target-validator equivalence.
 
 ## Generated schemas and examples
 
 The native `Configurator.DefinitionSchemaGenerator` owns `--write` and `--check`
-for authoring-v2/runtime-v2/answers-v1 schemas, and `--write-examples`,
+for authoring-0.0.1/runtime-0.0.1/answers-0.0.1 schemas, and `--write-examples`,
 `--renew-example-families`, `--check-examples` for the three maintained pairs.
 Renewal uses the native identity editor and allocates fresh family/revision 1;
 ordinary writing does not authorize rewriting published identity history.
@@ -286,7 +295,7 @@ The [support index](STATUS.md) links source/runtime freshness and qualified
 client observations to their dated records. Canonical agreement is not target
 acceptance. Current compiler freshness, CLI behavior, rendered clients and actual
 hosts require distinct evidence; documentation edits renew none of them. General
-assertions outside bounded-v2, application-version ranges, target acceptance,
+assertions outside bounded-v0.0.1, application-version ranges, target acceptance,
 other hosts, assistive technologies, translation quality, stakeholder/usability
 and scholarly proof remain unqualified followups. See the
 [integration workflow](../public/integrating.md),

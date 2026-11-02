@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property NuGetLockFilePath=obj/Configurator.DefinitionStoreBuilder/packages.lock.json
 #:property JsonSerializerIsReflectionEnabledByDefault=true
 #:property AssemblyName=Configurator.DefinitionStoreBuilder
 #:property RootNamespace=Configurator.Engineering
@@ -8,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Globalization;
+using Configurator.Core;
 using Configurator.Core.Definitions;
 using Configurator.Core.Definitions.Authoring;
 
@@ -32,7 +34,7 @@ internal static class DefinitionStoreBuilder
             if (arguments.Length >= 5 && arguments[0] == "--source" && arguments[2] == "--output"
                 && arguments[^1] is "--write" or "--check")
             {
-                string schema = "schemas/definition-store-curation-v1.schema.json";
+                string schema = "schemas/definition-store-curation.schema.json";
                 string? baseline = null;
                 bool required = false;
                 var options = new HashSet<string>(StringComparer.Ordinal);
@@ -144,7 +146,7 @@ internal static class DefinitionStoreBuilder
                 ["applicationId"] = definitions[0].ApplicationId, ["familyId"] = definitions[0].FamilyId.ToString("D"), ["revisions"] = revisions
             });
         }
-        byte[] index = Encoding.UTF8.GetBytes(new JsonObject { ["schemaVersion"] = 1, ["projects"] = projects }.ToJsonString(JsonOptions) + "\n");
+        byte[] index = Encoding.UTF8.GetBytes(new JsonObject { ["schemaVersion"] = ConfiguratorVersion.Current, ["projects"] = projects }.ToJsonString(JsonOptions) + "\n");
         if (index.Length > MaximumIndexBytes) throw new StoreException("store-index-limit");
         outputs.Add("index.json", index);
         if (baseline is not null) ValidateBaseline(source, Path.GetFullPath(baseline), outputs);
@@ -206,7 +208,7 @@ internal static class DefinitionStoreBuilder
             foreach (JsonProperty property in root.EnumerateObject())
                 if (!names.Add(property.Name) || !CurationMembers.Contains(property.Name, StringComparer.Ordinal))
                     throw new StoreException("store-metadata-invalid");
-            if (!names.Contains("schemaVersion") || root.GetProperty("schemaVersion").GetInt32() != 1)
+            if (!names.Contains("schemaVersion") || root.GetProperty("schemaVersion").GetString() != ConfiguratorVersion.Current)
                 throw new StoreException("store-metadata-invalid");
             if (names.Contains("slug") != names.Contains("slugReason")) throw new StoreException("store-metadata-invalid");
             if (names.Contains("slug"))
@@ -276,7 +278,7 @@ internal static class DefinitionStoreBuilder
         using JsonDocument current = JsonDocument.Parse(outputs["index.json"]);
         JsonElement root = inventory.RootElement;
         RequireMembers(root, ["schemaVersion", "projects"]);
-        if (root.GetProperty("schemaVersion").GetInt32() != 1) throw new StoreException("store-baseline-invalid");
+        if (root.GetProperty("schemaVersion").GetString() != ConfiguratorVersion.Current) throw new StoreException("store-baseline-invalid");
         JsonElement projects = root.GetProperty("projects");
         if (projects.GetArrayLength() > MaximumProjects) throw new StoreException("store-project-limit");
         var identities = new HashSet<Guid>();
@@ -436,12 +438,12 @@ internal static class DefinitionStoreBuilder
         reason["minLength"] = 16;
         return new JsonObject
         {
-            ["$schema"] = "https://json-schema.org/draft/2020-12/schema", ["title"] = "Definition store optional curation v1",
+            ["$schema"] = "https://json-schema.org/draft/2020-12/schema", ["title"] = "Definition store optional curation",
             ["type"] = "object", ["additionalProperties"] = false, ["required"] = Strings(["schemaVersion"]),
             ["dependentRequired"] = new JsonObject { ["slug"] = Strings(["slugReason"]), ["slugReason"] = Strings(["slug"]) },
             ["properties"] = new JsonObject
             {
-                ["schemaVersion"] = new JsonObject { ["type"] = "integer", ["const"] = 1 },
+                ["schemaVersion"] = new JsonObject { ["type"] = "string", ["const"] = ConfiguratorVersion.Current },
                 ["slug"] = Slug(64), ["slugReason"] = reason, ["tags"] = Array(Slug(32), 0, 16)
             }
         };
@@ -484,7 +486,8 @@ internal static class DefinitionStoreBuilder
                     throw new InvalidOperationException("Output differs.");
                 SetupDefinition definition = SetupDefinitionCodec.ParseJson(first["definitions/alpha/2.json"]);
                 using JsonDocument index = JsonDocument.Parse(first["index.json"]);
-                if (definition.Revision != 2 || definition.ApplicationVersions[0] != "1.0"
+                if (index.RootElement.GetProperty("schemaVersion").GetString() != "0.0.1"
+                    || definition.Revision != 2 || definition.ApplicationVersions[0] != "1.0"
                     || index.RootElement.GetProperty("projects")[0].GetProperty("revisions")[0].GetProperty("digest").GetString() != definition.Digest.Value)
                     throw new InvalidOperationException("Identity differs.");
             });
@@ -513,10 +516,12 @@ internal static class DefinitionStoreBuilder
             });
             Reject("unknown-metadata", "store-metadata-invalid", source => Metadata(source, data => data["script"] = "ignored-hook"));
             Reject("contributor-cannot-select-baseline", "store-metadata-invalid", source => Metadata(source, data => data["baseline"] = "releases/2.json"));
+            Reject("unsupported-curation-version", "store-metadata-invalid", source => Metadata(source, data => data["schemaVersion"] = "unsupported"));
+            Reject("non-string-curation-version", "store-metadata-invalid", source => Metadata(source, data => data["schemaVersion"] = 1));
             Reject("duplicate-metadata-member", "store-metadata-invalid", source =>
             {
                 string path = Path.Combine(source, "alpha/curation.json");
-                File.WriteAllText(path, File.ReadAllText(path).Replace("\"schemaVersion\": 1,", "\"schemaVersion\": 1,\"schemaVersion\": 1,", StringComparison.Ordinal));
+                File.WriteAllText(path, File.ReadAllText(path).Replace("\"schemaVersion\": \"0.0.1\",", "\"schemaVersion\": \"0.0.1\",\"schemaVersion\": \"0.0.1\",", StringComparison.Ordinal));
             });
             Reject("oversized-metadata", "store-metadata-limit", source => File.WriteAllText(Path.Combine(source, "alpha/curation.json"), new string(' ', 16 * 1024 + 1)));
             Reject("unjustified-slug-exception", "store-metadata-invalid", source => Metadata(source, data => data["slug"] = "alpha"));
@@ -754,7 +759,7 @@ internal static class DefinitionStoreBuilder
         Directory.CreateDirectory(Path.Combine(directory, "releases"));
         File.WriteAllText(Path.Combine(directory, "curation.json"), new JsonObject
         {
-            ["schemaVersion"] = 1, ["tags"] = new JsonArray("example")
+            ["schemaVersion"] = ConfiguratorVersion.Current, ["tags"] = new JsonArray("example")
         }.ToJsonString(JsonOptions));
         var authoring = new JsonObject
         {

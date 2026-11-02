@@ -100,6 +100,20 @@ When generating multi-file outputs (e.g. a `.env` file alongside a `config.yaml`
 
 ---
 
+### Original passwords and hash answers
+
+When `secret generate` creates a hash or digest from a generated password, the
+original password and answer workspace require distinct fresh protected
+destinations. The original-password sidecar is published first. If that write
+fails, no hash answer is published. If the answer write fails after the sidecar
+succeeds, preserve the sidecar and inspect the receipt's written prefix before
+retrying. The hash cannot recover the original password. Never automatically
+delete the successful sidecar or overwrite a conflicting destination. Its safe
+receipt ID is `generated-password-output`; the answer receipt ID is `answer-output`.
+This is ordered per-file publication, not a two-file transaction. Follow the
+[secret command workflow](cli.md#generate-or-derive-a-secret-locally); the
+[CLI contract](../internal/CLI_CONTRACT.md) owns exact options and receipt fields.
+
 ## Publication Status Outcomes
 
 CLI machine receipts and interactive status views categorize each artifact into one of the following immutable states:

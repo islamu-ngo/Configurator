@@ -30,6 +30,9 @@ internal sealed record SetupCliCommand(
     internal string? FromSchema { get; init; }
     internal bool AcceptBoundedSemantics { get; init; }
     internal string SchemaKind { get; init; } = "authoring";
+    internal string? Pointer { get; init; }
+    internal string? SecretInput { get; init; }
+    internal string? GeneratedPasswordOutput { get; init; }
 }
 
 internal sealed record SetupCliCommandResult(

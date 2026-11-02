@@ -53,7 +53,7 @@ catch (Exception exception) when (exception is IOException or UnauthorizedAccess
 /// </summary>
 internal static class CommandReference
 {
-    internal const string InputPath = "schemas/islamu-configurator-command-v4.schema.json";
+    internal const string InputPath = "schemas/configurator-cli.schema.json";
     internal const string OutputPath = "docs/public/cli-command-reference.md";
     internal const int MaximumInputBytes = 2 * 1024 * 1024;
     private static readonly UTF8Encoding Utf8 = new(false, true);
@@ -85,8 +85,8 @@ internal static class CommandReference
         RejectDuplicates(root);
         RequireKind(root, JsonValueKind.Object);
         Equal(Text(root, "$schema"), "https://json-schema.org/draft/2020-12/schema");
-        Equal(Text(root, "$id"), "https://schemas.islamu.org/configurator/command/v4/schema.json");
-        Equal(Text(Field(Field(root, "properties"), "schemaVersion"), "const"), "islamu-configurator-command/v4");
+        Equal(Text(root, "$id"), "urn:islamu:configurator:cli:v0.0.1");
+        Equal(Text(Field(Field(root, "properties"), "schemaVersion"), "const"), "islamu-configurator-command/v0.0.1");
         Equal(Text(root, "type"), "object");
         RequireKind(Field(root, "additionalProperties"), JsonValueKind.False);
         if (!Strings(Field(root, "required")).Contains("schemaVersion", StringComparer.Ordinal))
@@ -94,8 +94,8 @@ internal static class CommandReference
         JsonElement metadata = Field(root, "_metadata");
         Shape(metadata, MetadataFields);
         Equal(Text(metadata, "generatedBy"), "Configurator.CommandSchemaGenerator");
-        Equal(Text(metadata, "authoringDiscriminator"), "urn:islamu:configurator:authoring:v2");
-        if (Positive(metadata, "authoringContractVersion") != 2 || Positive(metadata, "runtimeSchemaVersion") != 2)
+        Equal(Text(metadata, "authoringDiscriminator"), "urn:islamu:configurator:authoring:v0.0.1");
+        if (Text(metadata, "authoringContractVersion") != "0.0.1" || Text(metadata, "runtimeSchemaVersion") != "0.0.1")
             throw new InvalidDataException("VERSION_UNSUPPORTED");
         string[] about = Strings(Field(metadata, "about"));
         string[] options = Strings(Field(metadata, "commandOptions"));
@@ -140,9 +140,9 @@ internal static class CommandReference
             > **Kind:** Generated reference
             > **Status:** Generated vocabulary; not a qualification or execution receipt
             > **Owner:** CLI
-            > **Source Anchors:** `schemas/islamu-configurator-command-v4.schema.json`, `eng/knowledge/RenderCommandReference.cs`
+            > **Source Anchors:** `schemas/configurator-cli.schema.json`, `eng/knowledge/RenderCommandReference.cs`
 
-            Generated from the [command schema](../../schemas/islamu-configurator-command-v4.schema.json).
+            Generated from the [command schema](../../schemas/configurator-cli.schema.json).
             Do not edit this projection. Run the owning command-schema freshness check first,
             then `dotnet run --file eng/knowledge/RenderCommandReference.cs -- --write`.
             Output is UTF-8 without BOM, with LF newlines and ordinal ordering.
@@ -168,7 +168,7 @@ internal static class CommandReference
         Row(text, "schemaVersion", Text(Field(Field(root, "properties"), "schemaVersion"), "const"));
         foreach (string key in new[] { "generatedBy", "authoringDiscriminator" }) Row(text, key, Text(metadata, key));
         foreach (string key in new[] { "authoringContractVersion", "runtimeSchemaVersion" })
-            Row(text, key, Positive(metadata, key).ToString(CultureInfo.InvariantCulture));
+            Row(text, key, Text(metadata, key));
         Row(text, "maximumArtifactSelections", artifacts.ToString(CultureInfo.InvariantCulture));
         Row(text, "maximumOutputBytes", output.ToString(CultureInfo.InvariantCulture));
         Row(text, "maximumDetailBytes", detail.ToString(CultureInfo.InvariantCulture));
@@ -287,12 +287,12 @@ internal static class CommandReference
         // Independent synthetic machine fields; no repository prose or private fixtures.
         const string fixture = """
             {"$schema":"https://json-schema.org/draft/2020-12/schema",
-             "$id":"https://schemas.islamu.org/configurator/command/v4/schema.json",
+             "$id":"urn:islamu:configurator:cli:v0.0.1",
              "type":"object","additionalProperties":false,"required":["schemaVersion"],
-             "properties":{"schemaVersion":{"const":"islamu-configurator-command/v4"}},
+             "properties":{"schemaVersion":{"const":"islamu-configurator-command/v0.0.1"}},
              "_metadata":{"about":["synthetic"],"generatedBy":"Configurator.CommandSchemaGenerator",
-             "authoringContractVersion":2,"authoringDiscriminator":"urn:islamu:configurator:authoring:v2",
-             "runtimeSchemaVersion":2,"maximumArtifactSelections":7,"maximumOutputBytes":101,
+             "authoringContractVersion":"0.0.1","authoringDiscriminator":"urn:islamu:configurator:authoring:v0.0.1",
+             "runtimeSchemaVersion":"0.0.1","maximumArtifactSelections":7,"maximumOutputBytes":101,
              "maximumDetailBytes":23,"commandOptions":["--zeta","--alpha"],"repeatableOptions":["--zeta"],
              "commands":[{"name":"zulu","options":["--zeta"],"operations":[{"name":"send","options":["--zeta"]}]},
              {"name":"alpha","options":["--zeta","--alpha"],"operations":[
@@ -315,7 +315,7 @@ internal static class CommandReference
             "| alpha | edit | --alpha |", "| alpha | show | --alpha&#44; --zeta |",
             "| zulu | send | --zeta |", "| --alpha | false |", "| --zeta | true |",
             "| maximumArtifactSelections | 7 |", "| maximumOutputBytes | 101 |",
-            "| maximumDetailBytes | 23 |", "| schemaVersion | islamu-configurator-command/v4 |"
+            "| maximumDetailBytes | 23 |", "| schemaVersion | islamu-configurator-command/v0.0.1 |"
         }) Expect(rendered.Split('\n').Count(line => line == row) == 1);
         Expect(rendered.IndexOf("| alpha | edit", StringComparison.Ordinal)
             < rendered.IndexOf("| zulu | send", StringComparison.Ordinal));
@@ -370,10 +370,10 @@ internal static class CommandReference
         }
         Invalid(node => node["$id"] = "synthetic-untrusted-input", "VERSION_UNSUPPORTED");
         Invalid(node => node["$schema"] = "unknown", "VERSION_UNSUPPORTED");
-        Invalid(node => node["properties"]!["schemaVersion"]!["const"] = "v5", "VERSION_UNSUPPORTED");
-        Invalid(node => node["_metadata"]!["authoringContractVersion"] = 3, "VERSION_UNSUPPORTED");
-        Invalid(node => node["_metadata"]!["runtimeSchemaVersion"] = 3, "VERSION_UNSUPPORTED");
-        Invalid(node => node["_metadata"]!["authoringDiscriminator"] = "v3", "VERSION_UNSUPPORTED");
+        Invalid(node => node["properties"]!["schemaVersion"]!["const"] = "unsupported", "VERSION_UNSUPPORTED");
+        Invalid(node => node["_metadata"]!["authoringContractVersion"] = "unsupported", "VERSION_UNSUPPORTED");
+        Invalid(node => node["_metadata"]!["runtimeSchemaVersion"] = "unsupported", "VERSION_UNSUPPORTED");
+        Invalid(node => node["_metadata"]!["authoringDiscriminator"] = "unsupported", "VERSION_UNSUPPORTED");
         Invalid(node => node["_metadata"]!["generatedBy"] = "unknown", "VERSION_UNSUPPORTED");
         Invalid(node => node["_metadata"]!.AsObject().Remove("commands"), "SHAPE_INVALID");
         Invalid(node => node["_metadata"]!["commands"] = new JsonArray(), "SHAPE_INVALID");

@@ -1,0 +1,49 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<PageTitle>Configurator cryptography qualification probe</PageTitle>
+<main>
+    <h1>Cryptography qualification probe</h1>
+    <p>This test-only application runs synthetic local inputs through the shared engine. It never displays generated material.</p>
+    <p>Runtime: @System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription. Architecture: @System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.</p>
+    <button type="button" @onclick="RunAsync" disabled="@_running">Run synthetic profiles</button>
+    <p role="status" aria-live="polite">@_status</p>
+    <p>Memory columns observe the managed heap before and after each operation. They are not peak memory, browser process memory, or a device-performance guarantee.</p>
+    <table>
+        <caption>Shared-engine browser execution results</caption>
+        <thead><tr><th scope="col">Profile</th><th scope="col">Result</th><th scope="col">Milliseconds</th><th scope="col">Heap before (bytes)</th><th scope="col">Heap after (bytes)</th></tr></thead>
+        <tbody>
+        @foreach (var result in _results)
+        {
+            <tr><th scope="row">@result.Profile</th><td>@result.Status</td><td>@result.ElapsedMilliseconds</td><td>@result.HeapBefore</td><td>@result.HeapAfter</td></tr>
+        }
+        </tbody>
+    </table>
+</main>
+
+@code {
+    private readonly List<CryptoProbeResult> _results = [];
+    private bool _running;
+    private string _status = "Ready. No profiles have run.";
+
+    private async Task RunAsync()
+    {
+        if (_running) return;
+        _running = true;
+        _results.Clear();
+        try
+        {
+            foreach (var profile in CryptoProbe.Profiles())
+            {
+                _status = $"Running {profile.Name}.";
+                StateHasChanged();
+                await Task.Yield();
+                _results.Add(CryptoProbe.Run(profile));
+            }
+            int passed = _results.Count(result => result.Status == "passed");
+            _status = _results.Count == CryptoProbe.ExpectedProfileCount
+                ? $"Complete: {passed}/{_results.Count} profiles passed. Expected {CryptoProbe.ExpectedProfileCount} profiles."
+                : "Failed: the profile inventory is incomplete.";
+        }
+        finally { _running = false; }
+    }
+}

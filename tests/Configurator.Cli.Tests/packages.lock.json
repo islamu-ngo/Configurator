@@ -98,14 +98,14 @@
       "configurator.artifacts": {
         "type": "Project",
         "dependencies": {
-          "Configurator.Core": "[1.0.0, )"
+          "Configurator.Core": "[0.0.1, )"
         }
       },
       "configurator.cli": {
         "type": "Project",
         "dependencies": {
-          "Configurator.Artifacts": "[1.0.0, )",
-          "Configurator.Core": "[1.0.0, )",
+          "Configurator.Artifacts": "[0.0.1, )",
+          "Configurator.Core": "[0.0.1, )",
           "Spectre.Console": "[0.57.2, )",
           "Spectre.Console.Cli": "[0.56.1, )"
         }
@@ -113,8 +113,15 @@
       "configurator.core": {
         "type": "Project",
         "dependencies": {
+          "BouncyCastle.Cryptography": "[2.7.0, )",
           "YamlDotNet": "[18.1.0, )"
         }
+      },
+      "BouncyCastle.Cryptography": {
+        "type": "CentralTransitive",
+        "requested": "[2.7.0, )",
+        "resolved": "2.7.0",
+        "contentHash": "U+12df8UEWHgBi04YVf/Lgi2dy3SItlIYvHjjEVa/BngCQIzDCDRBk50DDByCfDvSbe5pRNFr3b7UrVK2kMcLw=="
       },
       "Microsoft.Testing.Extensions.CodeCoverage": {
         "type": "CentralTransitive",

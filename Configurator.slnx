@@ -30,5 +30,6 @@
     <Project Path="eng/configurator/probes/communitytoolkit/Configurator.DependencyProbes.CommunityToolkit.csproj" />
     <Project Path="eng/configurator/probes/dependency-injection/Configurator.DependencyProbes.DependencyInjection.csproj" />
     <Project Path="eng/configurator/probes/yamldotnet/Configurator.DependencyProbes.YamlDotNet.csproj" />
+    <Project Path="eng/configurator/probes/cryptography/Configurator.DependencyProbes.Cryptography.csproj" />
   </Folder>
 </Solution>

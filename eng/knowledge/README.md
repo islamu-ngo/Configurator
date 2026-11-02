@@ -279,7 +279,7 @@ output require executed verification in addition to these synthetic cases.
 ## Generated command reference
 
 `RenderCommandReference.cs` reads only the fixed public
-`schemas/islamu-configurator-command-v4.schema.json` and projects its metadata to
+`schemas/configurator-cli.schema.json` and projects its metadata to
 `docs/public/cli-command-reference.md`. It accepts no answer files or arbitrary
 input/output operands. The generated page names its source identity, vocabulary,
 bounds and semantic limits; the maintained CLI guide and contract own meaning.

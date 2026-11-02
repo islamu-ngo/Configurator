@@ -74,7 +74,7 @@ selectors from your compiled definition; the shown digest/version come from the
 maintained neutral example:
 
 ```text
-https://<configurator-origin>/open#src=https%3A%2F%2Fpublisher.example%2Fsetup-definition.json&digest=1c60953fc09c4160ca38357a0b30e948aa0137ee117ea0df77e974352d428fdc&appVersion=1.0&entry=setup&locale=en
+https://<configurator-origin>/open#src=https%3A%2F%2Fpublisher.example%2Fsetup-definition.json&digest=1950bcbb679b4ca1fe9c1ec8a6c72d7a128a41db5c13d604046916f6dbec421c&appVersion=1.0&entry=setup&locale=en
 ```
 
 ### Parameter Reference for `/open`
@@ -183,10 +183,10 @@ Add this CORS configuration to your S3 bucket permissions:
 For definitions present in the active registry, use GUID links. Bundled
 definitions are available independently of the optional
 [Definition Store](definition-store.md). This **URL template** selects the
-maintained neutral v2 family on your own host:
+maintained neutral family on your own host:
 
 ```text
-https://<configurator-origin>/launch/9b6a7b3e-45bf-4485-8fa1-d7888938c09b?appVersion=1.0&entry=setup&locale=en
+https://<configurator-origin>/launch/4d8950ad-972c-4357-8605-7a7c89c05a17?appVersion=1.0&entry=setup&locale=en
 ```
 
 - **Path:** Must contain the canonical lowercase D-format family GUID.

@@ -55,10 +55,10 @@ this compiler before answers; remote Browser distribution remains canonical runt
 JSON. See [maintainer source ownership](../MAINTAINER_AUTHORING.md) and
 [runtime contract](../CORE_DEFINITION_CONTRACT.md).
 
-The CLI's [current machine contract](../CLI_CONTRACT.md) describes machine v4 as
-implemented, with package qualification pending. The definition-v2 qualification
+The CLI's [current machine contract](../CLI_CONTRACT.md) describes machine v5;
+qualification of the new secret commands is recorded separately. The definition-v2 qualification
 used machine v3; its evidence is retained rather than relabeled. Authoring/runtime
-use v2 and private answers use v1. Repeated bundle `--artifact` selection and
+use v3 and private answers use v1. Repeated bundle `--artifact` selection and
 count/digest summaries keep the full output ledger within a 65,536-byte UTF-8
 receipt. The CLI plans receipt capacity before publication and preserves written,
 not-attempted and unknown outcomes through later failures. One application emitter
@@ -216,7 +216,7 @@ hosting remains an operator action.
 ## Definition contract documentation
 
 The [current adopter reference](../../public/definition-reference.md) records
-qualified bounded-v2 required/optional properties, exact recursive names,
+current bounded-v3 required/optional properties, exact recursive names,
 explicit omission/reset/null and shared initialization, bounded inverses, and
 cross-client capability and presentation limits. Its technical owners remain the [Core contract](../CORE_DEFINITION_CONTRACT.md)
 and [authoring contract](../MAINTAINER_AUTHORING.md). The
@@ -229,13 +229,13 @@ architecture outside active task memory. [Operations](../OPERATIONS.md#definitio
 separates executed synthetic, actual-client and package checks from unproved
 target acceptance, stakeholder usability, translation review and other hosts.
 At that qualification milestone, definition authoring/runtime v2, machine v3 and
-private answer v1 were independent; that historical evidence is not machine v4
+private answer v1 were independent; that historical evidence is not machine v5
 package qualification.
 No Event transport, signer, live apply or compatibility interpreter was added.
 
 ## Configuration import assessment boundary
 
-Core, machine v4 and interactive clients implement the bounded assessment
+Core, the machine CLI and interactive clients implement the bounded assessment
 contract. The [execution record](../reports/ARTIFACT_IMPORT_COMPARISON_2026-10-30.md)
 binds candidates, executed checks, historical failures and remaining limits.
 The accepted design gives ordinary configuration exports a bounded inspection
@@ -245,10 +245,11 @@ represented values, unobserved scope and context-derived selectors stay distinct
 resource stops retain known blockers without compatibility claims. The private
 assessment owner exposes only detached value-free report facts.
 
-Machine v4 replaces v3 with independent completion, compatibility, coverage,
+Machine v4 introduced independent completion, compatibility, coverage,
 inventory and autofill facts, plus bounded finding continuation. A completed
 comparison does not evaluate preparation or target acceptance. Authoring/runtime
-v2 and private answers v1 are unchanged; no compatibility interpreter is added.
+were v2 and private answers v1 at that milestone. The current v5 CLI accompanies
+authoring/runtime v3 and retains private answers v1; no compatibility interpreter is added.
 The [machine contract](../CLI_CONTRACT.md) owns the wire and paging details.
 
 Source coordinates, schema explanations and current workspace correction tokens

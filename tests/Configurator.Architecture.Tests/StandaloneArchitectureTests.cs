@@ -66,7 +66,7 @@ public sealed class StandaloneArchitectureTests
             || name is "Avalonia.Headless" or "Avalonia.Fonts.Inter")).IsEmpty();
         if (owner == "Core")
             await Assert.That(references.Where(name => !name.StartsWith("System.", StringComparison.Ordinal)
-                && name is not ("System" or "netstandard" or "YamlDotNet"))).IsEmpty();
+                && name is not ("System" or "netstandard" or "YamlDotNet" or "BouncyCastle.Cryptography"))).IsEmpty();
         if (owner == "Browser")
         {
             await Assert.That(references.Any(name => name.StartsWith("Avalonia", StringComparison.Ordinal)
@@ -150,7 +150,7 @@ public sealed class StandaloneArchitectureTests
     public async Task NeutralDefinitionComposesWithoutEventAndRemainsRestricted()
     {
         SetupDefinition definition = SetupDefinitionCodec.ParseJson("""
-            {"schemaVersion":2,"profile":"bounded-v2","familyId":"9284f310-9901-411b-8024-c14444dce5db","revision":1,
+            {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"9284f310-9901-411b-8024-c14444dce5db","revision":1,
              "project":{"id":"neutral.service","name":"Neutral","publisher":"Example"},
              "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
              "requiredCapabilities":["projection.copy","projection.object","schema.enum","schema.object","schema.string"],
@@ -187,11 +187,11 @@ public sealed class StandaloneArchitectureTests
             .IsEqualTo(ReleaseTestPaths.Hash(System.Text.Encoding.UTF8.GetBytes(DefinitionAuthoringSchema.Generate())));
         await Assert.That(baseline.RootElement.GetProperty("commandSchemaSha256").GetString())
             .IsEqualTo(ReleaseTestPaths.Hash(SetupCliCommandSchemaMetadata.GenerateSchema()));
-        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/setup-definition-v2.schema.json")))
+        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/setup-definition.schema.json")))
             .IsEqualTo(DefinitionSchema.Generate());
-        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-authoring-v2.schema.json")))
+        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-authoring.schema.json")))
             .IsEqualTo(DefinitionAuthoringSchema.Generate());
-        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-answers-v1.schema.json")))
+        await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-answers.schema.json")))
             .IsEqualTo(DefinitionSchema.GenerateAnswers());
         await Assert.That(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, SetupCliCommandSchemaMetadata.RelativePath)))
             .IsEquivalentTo(SetupCliCommandSchemaMetadata.GenerateSchema());

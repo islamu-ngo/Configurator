@@ -1,13 +1,13 @@
 # Core definition contract
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Qualified pre-release bounded-v2; target acceptance and other hosts remain unqualified
+> **Status:** Current bounded-v0.0.1; candidate qualification and target acceptance are separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/`, `src/Configurator.Core/Definitions/Authoring/`
 
 The [public reference](../public/definition-reference.md) projects current
-admission. The [Definition Standard v2](../public/definition-standard.md) records
+admission. The [Definition Standard](../public/definition-standard.md) records
 the qualified bounded profile; neither follow-up design nor the historical
 [standard audit](reports/DEFINITION_STANDARD_AUDIT_2026-10-28.md) widens the
 implemented vocabulary.
@@ -17,8 +17,8 @@ implemented vocabulary.
 `SetupDefinitionCodec.ParseJson/ParseYaml(ReadOnlyMemory<byte>)` admits closed,
 bounded runtime definitions or throws `SetupDefinitionException` with a value-free
 `Code` and, when available, public `SchemaPath`/numeric `SourceSpan`.
-`SetupDefinitionSourceCodec` separately selects exact authoring-v2 source
-or schemaVersion-2 runtime with no fallback. Admission snapshots data and owns
+`SetupDefinitionSourceCodec` separately selects exact authoring-0.0.1 source
+or runtime-schema runtime with no fallback. Admission snapshots data and owns
 canonical bytes; digest is computed, never supplied within the definition.
 
 `SetupDefinition` exposes `FamilyId`, `Revision`, `Digest`, `CanonicalBytes`,
@@ -65,13 +65,13 @@ not serialized validation telemetry. Presentation owns disclosure, not validity.
 
 ## Definition JSON
 
-Runtime is a closed object with `schemaVersion: 2`, `profile: bounded-v2`,
+Runtime is a closed object with `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1`,
 `familyId`, `revision`, `project`, `applicationVersions`, `entryPoints`, `locales`,
 `configuration`, `artifacts`, and sorted `requiredCapabilities`. Optional roots
 are `presentation`, `localization`, `annotations`. It does not admit `$schema`,
 the old flat project metadata or a root `fields` array.
 
-Authoring has `$schema: urn:islamu:configurator:authoring:v2`, nested identity,
+Authoring has `$schema: urn:islamu:configurator:authoring:v0.0.1`, nested identity,
 project, configuration and filename-keyed outputs. The compiler supplies publisher
 when absent, default entry point, derived locales, artifacts and computed
 capabilities, then re-enters runtime admission. Public runtime parsing recomputes
@@ -79,10 +79,12 @@ the capability subset and rejects missing, altered or unsorted declarations.
 The closed registry is in `DefinitionProfile.Capabilities`; declaring a name
 never activates an unsupported feature.
 
-Definition revision, target version, private answer version and command version
-are independent. The [CLI contract](CLI_CONTRACT.md) owns the machine envelope;
-the authoring/runtime handshake is 2/2. Private answers remain independently
-versioned at v1.
+Product and public contract versions remain `0.0.1` during development even when
+formats change. The authoring/runtime handshake and private-answer discriminator
+are strings with that value; the [CLI contract](CLI_CONTRACT.md) owns the current
+machine envelope. Definition revisions and canonical digests still bind content,
+and target-application versions retain their own meaning. The fixed development
+baseline never permits replacing an admitted family/revision with changed bytes.
 
 ### Recursive configuration grammar
 
@@ -102,7 +104,7 @@ length counts Unicode scalars. Format is annotation unless assertFormat is true.
 writeOnly true raises secret sensitivity.
 
 Closed `x-configurator` admits sensitivity, initialValue, suggestedValue,
-notBlank, detail, units, guidance, credential, choices, uniqueBy, applicableWhen and assertFormat.
+notBlank, detail, units, guidance, secret, choices, uniqueBy, applicableWhen and assertFormat.
 Missing sensitivity is sensitive. `uniqueBy` follows a concrete item-relative
 pointer through required object properties to a non-null string. Effective
 container sensitivity includes inherited floors and protected descendants.
@@ -184,7 +186,7 @@ published.
 
 ## Effective values and known semantic limits
 
-The private envelope contains exactly `answerContractVersion: 1`, object `values`
+The private envelope contains exactly `answerContractVersion: "0.0.1"`, object `values`
 and distinct concrete `omitted` pointers. Snapshots reject supplied/suppressed
 conflicts, duplicate and overlapping omissions; definition validation checks
 omission paths against declared shapes. Values retain exact root names/nesting.
@@ -434,11 +436,15 @@ no query and optional fragment. Consumers render inert text and open deliberatel
 without automatic fetching, interpolation, opener/referrer or answer transfer.
 YAML comments never become runtime help.
 
-`DefinitionInputPurpose` describes credential kind/acquisition in effective secret
-string context. Kinds: password, opaque-token, symmetric-key, private-key,
-connection-string. Acquisition: existing, create, issuer; create only for password/
-symmetric-key, issuer not for symmetric-key. Intent grants no authentication or
-generation, and never lowers inherited sensitivity.
+`DefinitionSecretSpecification` describes the admitted secret kind/acquisition,
+constraints and optional generation recipe for a string. Kinds are password,
+opaque-token, symmetric-key, private-key, password-hash, digest and connection-string.
+Acquisition is local/existing/issuer. Only local acquisition admits generation;
+connection strings never generate. The typed policy establishes the secret floor
+through `DefinitionSensitivityPolicy`; reference merges reject downgrade attempts
+and conflicting policies. Old credential syntax rejects. An unavailable profile
+blocks readiness with `secret-profile-unavailable` rather than accepting unchecked
+values. Admission and local policy checks grant no issuer or target authority.
 
 Localization base admits defaultLocale, translations, ltr/rtl direction and
 overrides pointing to existing public string metadata ending in title, description,
@@ -452,7 +458,7 @@ must not alter typed answers or numeric output.
 `DefinitionProfile` is the exact-key syntax boundary; `DefinitionJson` remains the
 canonical byte/decimal authority. Ordinal object ordering, preserved arrays,
 compact UTF-8 without BOM and normalized exact decimals bind identity. Negative
-zero is zero. This custom bounded-v2 profile is not an RFC8785/JCS claim.
+zero is zero. This custom bounded-v0.0.1 profile is not an RFC8785/JCS claim.
 Integers are Int64; decimals admit at most 28 significant digits after redundant
 zero removal, scale at most 28 and explicit exponents -28 through 28. No rounding,
 overflow or underflow fallback admits an out-of-domain value.
@@ -477,12 +483,13 @@ Unicode-composition keys remain distinct.
 
 Native `Configurator.DefinitionSchemaGenerator` owns --write/--check schemas and
 --write-examples/--renew-example-families/--check-examples. Maintained source/runtime
-pairs are minimal-self-hosted, grafana-13.2.2 and islamu-event.
-Fresh v2 families/revision 1 are recorded from source in the
+pairs are minimal-self-hosted, grafana-13.2.2, islamu-event and secret-generation.
+Fresh definition families/revision 1 are recorded from source in the
 [integration guide](../public/integrate-your-tool.md#complete-minimal-configuratoryaml-example).
-Native verification records source/runtime agreement 3/3. This documentation unit did not
-rerun checks; target acceptance, package/host closure and complete interactive
-qualification are unproven by that result.
+Changing the development contract requires regenerated current runtimes and a fresh
+source/runtime agreement check. Historical results do not qualify changed payloads;
+target acceptance, package/host closure and complete interactive qualification
+are separate evidence boundaries.
 
 Synthetic answer/output fixtures are not production answers and are never Browser
 assets. Grafana format projections do not establish startup, provisioning or
@@ -513,10 +520,15 @@ erase outstanding target-owned obligations.
 policy retain their independent writer role. Event manifest/tenant/legal DTO and
 platform catalogue ownership does not move into Core. `SetupCompositionCompiler`
 is a bounded offline normalizer, not an Event DTO builder.
-`LocalSecretGenerator` consumes declared environment metadata, not Event keys;
-declared secret eligibility, entropy floor and disposal remain separate from
-credential-intent metadata. Host-supplied scale-profile evidence cannot transfer
-Event benchmark hashes or target-acceptance claims.
+`SecretGenerator` consumes the admitted `DefinitionSecretSpecification`, not
+Event keys or environment-specific credential hints. Shared validation,
+generation eligibility, entropy floors and result disposal belong to the
+[cryptography contract](SECRET_CRYPTOGRAPHY.md). Host-supplied scale-profile
+evidence cannot transfer Event benchmark hashes or target-acceptance claims.
+Generation requires an explicit caller action; admission and validation never
+generate a value. A 32-byte opaque token encodes to 43 unpadded Base64url
+characters: decoded byte policy and ordinary string length constraints both
+apply, in different units.
 
 Archived `SetupCompositionInvariantTests` inventory checks are not parser-attack
 proof. Production boundary tests and actual target acceptance must be recorded

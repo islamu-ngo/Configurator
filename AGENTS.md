@@ -1,7 +1,7 @@
 # AGENTS.md - Agent Contribution Contract
 
 > **This is the required entrypoint for every AI tool contributing to this repository.**
-> Last Updated: 2026-10-09
+> Last Updated: 2026-11-02
 
 ---
 
@@ -57,6 +57,13 @@ discard reusable source guidance merely because an example belongs to Event.
 > development. Breaking changes are first-class when they simplify the
 > architecture; do not add obsolete aliases, compatibility adapters or legacy
 > baggage without an actual contract requirement.
+
+Configurator product and public contract versions stay at `0.0.1` throughout
+this development baseline, including breaking changes. Keep only current public
+schemas under stable, unversioned filenames; superseded local copies belong in
+gitignored archives. Do not add compatibility aliases or retirement registries.
+Definition family/revision/digest identity checks, target application versions,
+standard algorithm formats and third-party dependency versions remain independent.
 
 1. **CLASSIFY:** Find the matching intent and resolve its `criticality` block:
    tier, intake mode, exploration protocol, testing strategy and review protocol.

@@ -125,7 +125,8 @@ internal static class SetupCliDefinitionHandlers
         return SetupCliResults.Success() with
         {
             Schema = new(kind, document.RootElement.GetProperty("$id").GetString()!, digest, DefinitionProfile.Id,
-                2, 2, 1, DefinitionProfile.Capabilities, document.RootElement.Clone()),
+                DefinitionProfile.RuntimeSchemaVersion, DefinitionProfile.RuntimeSchemaVersion,
+                SetupAnswerSnapshotCodec.ContractVersion, DefinitionProfile.Capabilities, document.RootElement.Clone()),
             DefinitionDigest = digest,
             Preparation = "ready"
         };

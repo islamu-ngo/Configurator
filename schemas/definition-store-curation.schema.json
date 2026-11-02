@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Definition store optional curation v1",
+  "title": "Definition store optional curation",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,8 +16,8 @@
   },
   "properties": {
     "schemaVersion": {
-      "type": "integer",
-      "const": 1
+      "type": "string",
+      "const": "0.0.1"
     },
     "slug": {
       "type": "string",

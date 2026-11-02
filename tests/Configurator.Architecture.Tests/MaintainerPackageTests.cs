@@ -33,7 +33,7 @@ public sealed class MaintainerPackageTests
             string workspace = Path.Combine(directory, "workspace");
             Directory.CreateDirectory(workspace);
             byte[] definition = """
-                {"schemaVersion":2,"profile":"bounded-v2","familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
+                {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
                  "revision":1,"project":{"id":"example.service","name":"Installed service","publisher":"example"},"applicationVersions":["1.0"],
                  "entryPoints":["setup"],"locales":["en"],
                  "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
@@ -46,7 +46,7 @@ public sealed class MaintainerPackageTests
             _ = SetupDefinitionCodec.ParseJson(definition);
             await File.WriteAllBytesAsync(Path.Combine(workspace, "definition.json"), definition);
             string answers = Path.Combine(workspace, "answers.json");
-            await File.WriteAllTextAsync(answers, """{"answerContractVersion":1,"values":{"service.name":"synthetic-installed-service"},"omitted":[]}""");
+            await File.WriteAllTextAsync(answers, """{"answerContractVersion":"0.0.1","values":{"service.name":"synthetic-installed-service"},"omitted":[]}""");
             string artifact = Path.Combine(workspace, "service.json");
             byte[] expected = """{"name":"synthetic-installed-service"}"""u8.ToArray();
 
@@ -70,7 +70,7 @@ public sealed class MaintainerPackageTests
             await Assert.That((await File.ReadAllBytesAsync(artifact)).SequenceEqual(expected)).IsTrue();
             await Assert.That(File.GetUnixFileMode(artifact)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
 
-            await File.WriteAllTextAsync(answers, """{"answerContractVersion":1,"values":{"service.name":"synthetic-replacement"},"omitted":[]}""");
+            await File.WriteAllTextAsync(answers, """{"answerContractVersion":"0.0.1","values":{"service.name":"synthetic-replacement"},"omitted":[]}""");
             var conflict = await ReleaseTestPaths.RunInDirectory(workspace, executable, create);
             await AssertInstalledReceipt(conflict, "create", 74, "conflict", """{"name":"synthetic-replacement"}"""u8.ToArray());
             await Assert.That((await File.ReadAllBytesAsync(artifact)).SequenceEqual(expected)).IsTrue();
@@ -93,7 +93,7 @@ public sealed class MaintainerPackageTests
         await Assert.That(result.Output.Count(character => character == '\n')).IsEqualTo(1);
         using JsonDocument receipt = JsonDocument.Parse(result.Output);
         JsonElement root = receipt.RootElement;
-        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
         await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo("artifact");
         await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo(operation);
         await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(exitCode);
@@ -116,10 +116,10 @@ public sealed class MaintainerPackageTests
     }
 
     [Test]
-    [Arguments("authoring", "configurator-authoring-v2.schema.json", "urn:islamu:configurator:authoring:v2")]
-    [Arguments("runtime", "setup-definition-v2.schema.json", "urn:islamu:configurator:setup-definition:v2")]
-    [Arguments("answers", "configurator-answers-v1.schema.json", "urn:islamu:configurator:answers:v1")]
-    [Arguments("command", "islamu-configurator-command-v4.schema.json", "https://schemas.islamu.org/configurator/command/v4/schema.json")]
+    [Arguments("authoring", "configurator-authoring.schema.json", "urn:islamu:configurator:authoring:v0.0.1")]
+    [Arguments("runtime", "setup-definition.schema.json", "urn:islamu:configurator:setup-definition:v0.0.1")]
+    [Arguments("answers", "configurator-answers.schema.json", "urn:islamu:configurator:answers:v0.0.1")]
+    [Arguments("command", "configurator-cli.schema.json", "urn:islamu:configurator:cli:v0.0.1")]
     public async Task PublishedCliSchemaDiscoveryMatchesDistributedContract(string kind, string fileName, string id)
     {
         string package = ReleaseTestPaths.NativeCliPackage;
@@ -133,7 +133,7 @@ public sealed class MaintainerPackageTests
         await Assert.That(result.Output.Count(character => character == '\n')).IsEqualTo(1);
         using JsonDocument receipt = JsonDocument.Parse(result.Output);
         JsonElement root = receipt.RootElement;
-        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+        await Assert.That(root.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
         await Assert.That(root.GetProperty("invocation").GetProperty("commandFamily").GetString()).IsEqualTo("definition");
         await Assert.That(root.GetProperty("invocation").GetProperty("operation").GetString()).IsEqualTo("schema");
         await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(0);
@@ -142,10 +142,10 @@ public sealed class MaintainerPackageTests
         JsonElement schema = root.GetProperty("schema");
         await Assert.That(schema.GetProperty("kind").GetString()).IsEqualTo(kind);
         await Assert.That(schema.GetProperty("id").GetString()).IsEqualTo(id);
-        await Assert.That(schema.GetProperty("profile").GetString()).IsEqualTo("bounded-v2");
-        await Assert.That(schema.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
-        await Assert.That(schema.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
-        await Assert.That(schema.GetProperty("answerContractVersion").GetInt32()).IsEqualTo(1);
+        await Assert.That(schema.GetProperty("profile").GetString()).IsEqualTo("bounded-v0.0.1");
+        await Assert.That(schema.GetProperty("authoringContractVersion").GetString()).IsEqualTo("0.0.1");
+        await Assert.That(schema.GetProperty("runtimeSchemaVersion").GetString()).IsEqualTo("0.0.1");
+        await Assert.That(schema.GetProperty("answerContractVersion").GetString()).IsEqualTo("0.0.1");
         byte[] distributedBytes = await File.ReadAllBytesAsync(Path.Combine(package, "schemas", fileName));
         using JsonDocument distributed = JsonDocument.Parse(distributedBytes);
         await Assert.That(distributed.RootElement.GetProperty("$id").GetString()).IsEqualTo(id);
@@ -153,7 +153,7 @@ public sealed class MaintainerPackageTests
         await Assert.That(schema.GetProperty("digest").GetString())
             .IsEqualTo(ReleaseTestPaths.Hash(DefinitionProfile.CanonicalizeJson(distributedBytes)));
         using JsonDocument runtime = JsonDocument.Parse(
-            await File.ReadAllBytesAsync(Path.Combine(package, "schemas/setup-definition-v2.schema.json")));
+            await File.ReadAllBytesAsync(Path.Combine(package, "schemas/setup-definition.schema.json")));
         await Assert.That(schema.GetProperty("capabilities").EnumerateArray().Select(item => item.GetString()))
             .IsEquivalentTo(runtime.RootElement.GetProperty("properties").GetProperty("requiredCapabilities")
                 .GetProperty("items").GetProperty("enum").EnumerateArray().Select(item => item.GetString()));
@@ -164,7 +164,7 @@ public sealed class MaintainerPackageTests
     {
         string package = ReleaseTestPaths.NativeCliPackage;
         string executable = Path.Combine(package, ReleaseTestPaths.CliExecutableName);
-        foreach (string relative in new[] { "schemas/configurator-authoring-v2.schema.json",
+        foreach (string relative in new[] { "schemas/configurator-authoring.schema.json",
             "skills/configurator-integrate/SKILL.md", "skills/configurator-integrate/resources/authoring.md",
             "skills/configurator-integrate/resources/schema-import.md", "skills/configurator-integrate/resources/store-contribution.md" })
         {
@@ -181,7 +181,7 @@ public sealed class MaintainerPackageTests
             string source = Path.Combine(directory, "configurator.json");
             string output = Path.Combine(directory, "release.json");
             await File.WriteAllTextAsync(source, """
-                {"$schema":"urn:islamu:configurator:authoring:v2",
+                {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
                  "identity":{"familyId":"d8b0a60f-27ee-4262-a2b3-3af0e12d5034","revision":1},
                  "project":{"id":"example.service","name":"Example Service"},
                  "applicationVersions":["1.0.0"],
@@ -196,9 +196,9 @@ public sealed class MaintainerPackageTests
             using (JsonDocument result = JsonDocument.Parse(check.Output))
             {
                 await Assert.That(result.RootElement.GetProperty("schemaVersion").GetString())
-                    .IsEqualTo("islamu-configurator-command/v4");
-                await Assert.That(result.RootElement.GetProperty("authoringContractVersion").GetInt32()).IsEqualTo(2);
-                await Assert.That(result.RootElement.GetProperty("runtimeSchemaVersion").GetInt32()).IsEqualTo(2);
+                    .IsEqualTo("islamu-configurator-command/v0.0.1");
+                await Assert.That(result.RootElement.GetProperty("authoringContractVersion").GetString()).IsEqualTo("0.0.1");
+                await Assert.That(result.RootElement.GetProperty("runtimeSchemaVersion").GetString()).IsEqualTo("0.0.1");
             }
             await Assert.That(ReleaseTestPaths.Hash(await File.ReadAllBytesAsync(source)))
                 .IsEqualTo(ReleaseTestPaths.Hash(original));
@@ -214,7 +214,7 @@ public sealed class MaintainerPackageTests
             using (JsonDocument receipt = JsonDocument.Parse(build.Output))
             {
                 await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString())
-                    .IsEqualTo("islamu-configurator-command/v4");
+                    .IsEqualTo("islamu-configurator-command/v0.0.1");
                 await Assert.That(receipt.RootElement.GetProperty("artifacts")[0].GetProperty("digest").GetString())
                     .IsEqualTo(ReleaseTestPaths.Hash(compiled));
             }

@@ -248,6 +248,8 @@ public sealed class SetupCliCancellationTests
 
     private sealed class ControlledWriter(string boundary) : ISetupCliWriter
     {
+        public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<ProtectedArtifactStatus?>(null);
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource DeliveryEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource ReleaseDelivery { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -315,6 +317,8 @@ public sealed class SetupCliCancellationTests
 
     private sealed class ErrorWriter(bool broken) : ISetupCliWriter
     {
+        public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<ProtectedArtifactStatus?>(ProtectedArtifactStatus.UnsupportedPlatform);
         internal int Attempts { get; private set; }
         internal byte[] Bytes { get; private set; } = [];
         public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)

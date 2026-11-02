@@ -75,7 +75,7 @@ public sealed class DefinitionStoreCatalog(BrowserDefinitionRegistry registry, I
             using JsonDocument document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 16 });
             JsonElement root = document.RootElement;
             Members(root, "schemaVersion", "projects");
-            if (root.GetProperty("schemaVersion").ValueKind != JsonValueKind.Number || !root.GetProperty("schemaVersion").TryGetInt32(out int version) || version != 1) throw InvalidIndex();
+            if (root.GetProperty("schemaVersion").ValueKind != JsonValueKind.String || root.GetProperty("schemaVersion").GetString() != ConfiguratorVersion.Current) throw InvalidIndex();
             JsonElement projects = Array(root, "projects", 1024);
             var result = new List<DefinitionStoreProject>();
             var projectIds = new HashSet<string>(StringComparer.Ordinal);

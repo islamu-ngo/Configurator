@@ -27,6 +27,9 @@ public sealed record DefinitionNode
         byte[] canonicalKeywords = DefinitionProfile.CanonicalizeJson(Encoding.UTF8.GetBytes(metadata.GetRawText()));
         using JsonDocument keywordDocument = JsonDocument.Parse(canonicalKeywords);
         Keywords = keywordDocument.RootElement.Clone();
+        Secret = Keywords.TryGetProperty("x-configurator", out JsonElement extension)
+            && extension.TryGetProperty("secret", out JsonElement secret)
+            ? DefinitionSecretAdmission.Read(secret, Keywords) : null;
         _keywordIdentity = Encoding.UTF8.GetString(canonicalKeywords);
         var propertySnapshot = new SortedDictionary<string, DefinitionNode>(StringComparer.Ordinal);
         foreach ((string name, DefinitionNode child) in properties ?? [])
@@ -117,6 +120,7 @@ public sealed record DefinitionNode
     public bool IsNullable { get; }
     /// <summary>Local public keywords only; child schemas belong to the typed recursive properties.</summary>
     public JsonElement Keywords { get; }
+    public DefinitionSecretSpecification? Secret { get; }
     public IReadOnlyDictionary<string, DefinitionNode> Properties { get; }
     public IReadOnlyList<string> Required { get; }
     public DefinitionNode? Items { get; }

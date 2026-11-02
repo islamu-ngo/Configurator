@@ -106,7 +106,7 @@ public sealed class DefinitionReviewStateTests
         form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(Encoding.UTF8.GetBytes(json)));
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":2,"profile":"bounded-v2","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32004","revision":1,
+    {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32004","revision":1,
      "project":{"id":"example","publisher":"example","name":"Review example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
      "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},

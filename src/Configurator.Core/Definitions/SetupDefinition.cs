@@ -117,8 +117,6 @@ public sealed class SetupFieldDefinition
         UniqueBy = ExtensionValue("uniqueBy") is { } path
             ? DefinitionPath.Parse(path.GetString()!).Segments : Array.Empty<string>();
         Guidance = ExtensionValue("guidance") is { } guidance ? new DefinitionFieldGuidance(guidance) : null;
-        InputPurpose = ExtensionValue("credential") is { } credential ? new DefinitionInputPurpose(
-            credential.GetProperty("kind").GetString()!, credential.GetProperty("acquisition").GetString()!) : null;
     }
     public DefinitionNode Node { get; }
     internal JsonElement Data => Node.Keywords;
@@ -131,7 +129,6 @@ public sealed class SetupFieldDefinition
     public string? Help => Text("description");
     public string? Format => Text("format");
     public DefinitionFieldGuidance? Guidance { get; }
-    public DefinitionInputPurpose? InputPurpose { get; }
     public bool Required { get; }
     public string? ItemType => Node.Items?.JsonType;
     public SetupFieldDefinition? Items { get; }
@@ -155,19 +152,7 @@ public sealed class SetupFieldDefinition
             ? value.Clone() : null;
 
     /// <summary>Returns the declared node sensitivity, before inherited and descendant floors.</summary>
-    public static SetupFieldSensitivity SensitivityOf(DefinitionNode node)
-    {
-        JsonElement keywords = node.Keywords;
-        if (keywords.TryGetProperty("writeOnly", out var writeOnly) && writeOnly.GetBoolean())
-            return SetupFieldSensitivity.Secret;
-        return keywords.TryGetProperty("x-configurator", out var metadata)
-            && metadata.TryGetProperty("sensitivity", out var sensitivity) ? sensitivity.GetString() switch
-            {
-                "public" => SetupFieldSensitivity.Public,
-                "secret" => SetupFieldSensitivity.Secret,
-                _ => SetupFieldSensitivity.Sensitive
-            } : SetupFieldSensitivity.Sensitive;
-    }
+    public static SetupFieldSensitivity SensitivityOf(DefinitionNode node) => DefinitionSensitivityPolicy.SensitivityOf(node);
 
     internal static SetupFieldSensitivity EffectiveSensitivity(DefinitionNode node,
         SetupFieldSensitivity inherited = SetupFieldSensitivity.Public)

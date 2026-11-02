@@ -58,7 +58,7 @@ Choosing a client for sensitive configuration? Start with the [safety and trust 
 - **🛡️ Local Preparation:** Preparation has no Event API, domain, wire or database dependency. The browser has no target authentication, telemetry or answer persistence; bounded public HTTPS definitions are admitted and pinned before answers.
 - **🧰 Independent Clients:** Choose the machine CLI, Terminal.Gui TUI, Avalonia Desktop or static Blazor WebAssembly browser without installing Event services.
 - **📚 Dual Documentation Tracks:** Public guides explain operator workflows; internal contracts explain architecture, privacy and verification.
-- **📜 Real Reference Target:** Event supplies a neutral source and retains its host validators. The maintained v2 source compiles into canonical runtime; five independent target payload families exercise generic projections. Its historical v1 release receipt is not a current v2 compiler or target-acceptance receipt. See [Event example](examples/islamu-event/README.md).
+- **📜 Real Reference Target:** Event supplies a neutral source and retains its host validators. The maintained source compiles into canonical runtime; five independent target payload families exercise generic projections. Its historical v1 release receipt is not a current compiler or target-acceptance receipt. See [Event example](examples/islamu-event/README.md).
 
 ---
 
@@ -79,8 +79,10 @@ See [Standalone Packaging](docs/public/packaging.md) for supported RIDs, executa
 
 Keep a public source and canonical runtime beside your application, including
 on local media; the Definition Store and GitHub are optional distribution
-channels, not runtime dependencies. Authoring v2, runtime v2 (`bounded-v2`),
-command envelope v4 and private answers v1 are separate contracts. Native
+channels, not runtime dependencies. Product and public contract versions stay
+at `0.0.1` during development, including breaking changes. Authoring, runtime
+(`bounded-v0.0.1`), command, answer and Store formats each have one current
+implementation; old schemas are local archives, not compatibility paths. Native
 tooling allocates family identity; changed canonical content needs a new
 revision, while a fork starts a new family at revision 1.
 
@@ -228,8 +230,8 @@ definition and an existing trusted output directory. Terminal/Desktop launch
 opens an interactive workspace; saving remains a deliberate later action.
 Doctor only reports writer availability, not whether a chosen mount can save.
 
-The maintained neutral v2 family can be opened on your own Browser host at
-`/launch/9b6a7b3e-45bf-4485-8fa1-d7888938c09b?appVersion=1.0&entry=setup&locale=en`.
+The maintained neutral family can be opened on your own Browser host at
+`/launch/4d8950ad-972c-4357-8605-7a7c89c05a17?appVersion=1.0&entry=setup&locale=en`.
 This is a relative route, not an official deployment. Configure a SPA navigation
 fallback for deep links, not missing framework assets. Native preparation
 requires no Aspire, database, Keycloak or Event server.

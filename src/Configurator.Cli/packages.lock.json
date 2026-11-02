@@ -28,14 +28,21 @@
       "configurator.artifacts": {
         "type": "Project",
         "dependencies": {
-          "Configurator.Core": "[1.0.0, )"
+          "Configurator.Core": "[0.0.1, )"
         }
       },
       "configurator.core": {
         "type": "Project",
         "dependencies": {
+          "BouncyCastle.Cryptography": "[2.7.0, )",
           "YamlDotNet": "[18.1.0, )"
         }
+      },
+      "BouncyCastle.Cryptography": {
+        "type": "CentralTransitive",
+        "requested": "[2.7.0, )",
+        "resolved": "2.7.0",
+        "contentHash": "U+12df8UEWHgBi04YVf/Lgi2dy3SItlIYvHjjEVa/BngCQIzDCDRBk50DDByCfDvSbe5pRNFr3b7UrVK2kMcLw=="
       },
       "YamlDotNet": {
         "type": "CentralTransitive",

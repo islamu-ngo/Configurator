@@ -9,7 +9,7 @@ namespace Configurator.Cli.Tests;
 internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
 {
     internal const string Definition = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
         "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
         "project":{"id":"example.service","name":"Example service","publisher":"example"},
         "applicationVersions":["1.0"],"entryPoints":["setup"],
@@ -32,7 +32,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
            "projection":{"op":"list","items":[{"op":"literal","value":"Draft"},{"op":"copy","reference":{"scope":"root","path":"/service.name"}}]}}
         }}
         """;
-    internal const string Answers = """{"answerContractVersion":1,"values":{"service.name":"private-answer-marker"},"omitted":[]}""";
+    internal const string Answers = """{"answerContractVersion":"0.0.1","values":{"service.name":"private-answer-marker"},"omitted":[]}""";
 
     public Dictionary<string, byte[]> Files { get; } = new(StringComparer.Ordinal)
     {
@@ -48,6 +48,13 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
     internal static ISetupCliAuthoringFiles RejectingAuthoringFiles { get; } = new RejectingFiles();
     internal ISetupCliAuthoringFiles AuthoringFiles { get; set; } = RejectingAuthoringFiles;
     internal int MaximumBytes { get; set; } = 4 * 1024 * 1024;
+    internal string? ArtifactFailurePath { get; set; }
+    internal Action<string>? ArtifactPublished { get; set; }
+    internal bool ArtifactDestinationsBlocked { get; set; }
+
+    public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+        ValueTask.FromResult<ProtectedArtifactStatus?>(ArtifactDestinationsBlocked ? ProtectedArtifactStatus.UnsupportedPlatform
+            : Files.ContainsKey(path) ? ProtectedArtifactStatus.TargetExists : null);
 
     internal async Task<SetupCliExitCode> RunAsync(params string[] arguments)
     {
@@ -80,6 +87,8 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
     {
         if (bytes.Length > maximumBytes) throw new IOException();
+        if (path == ArtifactFailurePath)
+            return new([new(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure))]);
         if (path == "-")
         {
             if (!SetupArtifactPolicy.TryProjectPublic(kind, bytes, out _)) throw new IOException();
@@ -87,6 +96,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             return new([new(null, DeliveredToStandardOutput: true)]);
         }
         if (!Files.TryAdd(path, bytes.ToArray())) return new([new(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.TargetExists))]);
+        ArtifactPublished?.Invoke(path);
         return new([new(ProtectedArtifactCommitResult.Installed(true))]);
     }
 
@@ -143,6 +153,8 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
 
     private sealed class ErrorWriter(CliFixture owner) : ISetupCliWriter
     {
+        public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<ProtectedArtifactStatus?>(ProtectedArtifactStatus.UnsupportedPlatform);
         public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
             owner.StandardError = bytes.ToArray();

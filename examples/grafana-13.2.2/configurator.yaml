@@ -1,7 +1,7 @@
-$schema: urn:islamu:configurator:authoring:v2
+$schema: urn:islamu:configurator:authoring:v0.0.1
 # Fresh v2 family allocated through the native identity editor.
 identity:
-  familyId: "ffc20a25-7ea5-4138-be3b-88f678cac36b"
+  familyId: "c9091324-8fc2-42ed-a659-95b708d4c0a4"
   revision: 1
 project:
   id: grafana.oss

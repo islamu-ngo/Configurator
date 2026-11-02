@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property NuGetLockFilePath=obj/Configurator.RatchetGenerator/packages.lock.json
 #:property AssemblyName=Configurator.RatchetGenerator
 #:property RootNamespace=Configurator.Engineering
 #:project ../../src/Configurator.Core/Configurator.Core.csproj
@@ -10,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
+using Configurator.Core;
 using Configurator.Cli;
 
 if (args is not ["--write"] and not ["--check"])
@@ -27,7 +29,7 @@ var outputs = new Dictionary<string, JsonObject>(StringComparer.Ordinal)
 {
     ["browser-release-capabilities.json"] = new()
     {
-        ["schemaVersion"] = 1,
+        ["schemaVersion"] = ConfiguratorVersion.Current,
         ["target"] = "browser",
         ["targetEnabled"] = true,
         ["capabilities"] = new JsonObject
@@ -44,7 +46,7 @@ var outputs = new Dictionary<string, JsonObject>(StringComparer.Ordinal)
     },
     ["frozen-contract-baseline.json"] = new()
     {
-        ["schemaVersion"] = 1,
+        ["schemaVersion"] = ConfiguratorVersion.Current,
         ["definitionSchemaSha256"] = Hash(Encoding.UTF8.GetBytes(DefinitionSchema.Generate())),
         ["authoringSchemaSha256"] = Hash(Encoding.UTF8.GetBytes(Configurator.Core.Definitions.Authoring.DefinitionAuthoringSchema.Generate())),
         ["commandSchemaSha256"] = Hash(SetupCliCommandSchemaMetadata.GenerateSchema()),
@@ -76,7 +78,7 @@ foreach (string surface in new[] { "cli", "terminal", "desktop" })
 }
 outputs["native-release-capabilities.json"] = new JsonObject
 {
-    ["schemaVersion"] = 1, ["surfaces"] = surfaces,
+    ["schemaVersion"] = ConfiguratorVersion.Current, ["surfaces"] = surfaces,
     ["protectedExportRequiresSupportedFilesystem"] = true,
     ["targetApply"] = false, ["signedPublicationEnabled"] = false
 };

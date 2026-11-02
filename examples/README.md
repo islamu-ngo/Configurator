@@ -1,6 +1,6 @@
 # Maintained definition examples
 
-These public sources demonstrate portable authoring v2 and canonical runtime v2.
+These public sources demonstrate portable authoring 0.0.1 and canonical runtime 0.0.1.
 They can be checked and compiled locally without a Store, GitHub access, target
 service, sibling Event checkout or remote credentials. Use
 [portable adoption](../docs/public/integrating.md) to allocate your own identity
@@ -14,12 +14,13 @@ Do not copy example family UUIDs into a new integration.
 | Minimal self-hosted | [configurator.yaml](minimal-self-hosted/configurator.yaml) | [setup-definition.json](minimal-self-hosted/setup-definition.json) | Exact dotted keys, root applicability, optional nested settings, journeys, public help, required secret and dotenv/JSON/YAML bindings |
 | Grafana OSS 13.2.2 | [configurator.yaml](grafana-13.2.2/configurator.yaml) | [setup-definition.json](grafana-13.2.2/setup-definition.json) | Independent synthetic environment/provisioning projections; see [scope and provenance](grafana-13.2.2/README.md) |
 | ISLAMU Event | [configurator.json](islamu-event/configurator.json) | [definition.json](islamu-event/definition.json) | Larger neutral configuration, ordered tenant rows and five target payload families; see [Event boundary](islamu-event/README.md) |
+| Local secret policy | [configurator.yaml](secret-generation/configurator.yaml) | [setup-definition.json](secret-generation/setup-definition.json) | Password constraints, encoded token byte sizes and optional digest derivation; see [safe synthetic workflow](secret-generation/README.md) |
 
-Sources use `$schema: urn:islamu:configurator:authoring:v2`; runtimes use
-`schemaVersion: 2`, `profile: bounded-v2` and computed sorted
+Sources use `$schema: urn:islamu:configurator:authoring:v0.0.1`; runtimes use
+`schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1` and computed sorted
 `requiredCapabilities`. Command receipts follow the
 [current machine contract](../docs/public/definition-reference.md#which-document-are-you-editing);
-synthetic private answer fixtures use `answerContractVersion: 1`.
+synthetic private answer fixtures use `answerContractVersion: "0.0.1"`.
 These version axes are independent.
 Answers/expected output fixtures are synthetic reproduction inputs, not Browser
 assets, public defaults or authority to inspect real private configuration.
@@ -37,8 +38,9 @@ dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator -- 
 
 The first command compiles sources into canonical runtime files. The second
 compares those bytes without writing and reports source/runtime agreement.
-These are reproduction instructions. All three source/runtime pairs passed the
-native byte-freshness check on 2026-10-28.
+These are reproduction instructions. The prior v2 source/runtime pairs passed
+the native byte-freshness check on 2026-10-28; that historical result does not
+qualify the 0.0.1 migration. Current verification is recorded with the workstream.
 
 Do not hand-edit runtime JSON or advance example identity to repair freshness.
 `--renew-example-families` deliberately forks all three through the native
@@ -67,7 +69,7 @@ This index identifies source coverage, not a claim that every fixture, adapter
 or physical package has passed. Admission and deterministic compilation do not
 establish target startup, provisioning, connectivity, authorization or apply.
 Grafana acceptance remains unproved by its projections. Event's historical v1
-release receipt is not a current v2 compiler pin, family/digest or host-acceptance
+release receipt is not a current 0.0.1 compiler pin, family/digest or host-acceptance
 receipt. Preserve it as history rather than relabeling it as new evidence.
 
 Qualify your chosen CLI, Terminal, Desktop or Browser workflow separately.

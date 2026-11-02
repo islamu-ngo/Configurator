@@ -64,18 +64,18 @@ public sealed class EventProviderContractTests
     }
 
     [Test]
-    [Arguments("INFISICAL_CLIENT_SECRET")]
-    [Arguments("DATABASE_RUNTIME_PASSWORD")]
-    [Arguments("VAPID_PRIVATE_KEY")]
-    [Arguments("EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING")]
-    [Arguments("CONTROL_PLANE_REGISTRATION_TOKEN")]
-    public async Task TargetCredentialsRequireSecretCustody(string name)
+    [Arguments("INFISICAL_CLIENT_SECRET", null)]
+    [Arguments("DATABASE_RUNTIME_PASSWORD", "password")]
+    [Arguments("VAPID_PRIVATE_KEY", null)]
+    [Arguments("EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING", "connection-string")]
+    [Arguments("CONTROL_PLANE_REGISTRATION_TOKEN", null)]
+    public async Task TargetCredentialsRequireSecretCustodyWithoutInventingUnknownFormats(string name, string? expectedKind)
     {
         foreach (SetupDefinition definition in new[] { Definition(), StoreDefinition() })
         {
             SetupFieldDefinition field = definition.Fields.Single(field => field.Id == "env." + name);
             await Assert.That(field.Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
-            await Assert.That(field.InputPurpose).IsNotNull();
+            await Assert.That(field.Node.Secret?.Kind).IsEqualTo(expectedKind);
         }
     }
 

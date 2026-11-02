@@ -13,7 +13,7 @@ bound to an input revision. Values use exact configuration property names, not
 presentation field IDs. For example, `service.name` is one literal root key;
 `/service.name` selects it, whereas `/service/name` selects nested properties.
 The snapshot isolates validation and file generation from ongoing UI edits.
-Its serialized private v1 envelope contains `answerContractVersion`, `values`
+Its serialized private 0.0.1 envelope contains `answerContractVersion`, `values`
 and `omitted`; answer files remain restricted.
 
 ### Answer Workspace
@@ -36,8 +36,8 @@ not a whole-bundle transaction; a later failure can leave a written prefix.
 Installation, immediate verification and cleanup are separate receipt facts.
 
 ### Definition (`SetupDefinition`)
-The core contract describing an application's configuration surface. Runtime v2
-(`bounded-v2`) declares a recursive configuration schema, applicability and
+The core contract describing an application's configuration surface. Runtime 0.0.1
+(`bounded-v0.0.1`) declares a recursive configuration schema, applicability and
 presence relationships, sensitivity, and output projections. Base types are
 string, boolean, integer, number, object and array; enum constrains typed scalar
 choices and nullable schemas also admit null. Definitions are data, not

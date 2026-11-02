@@ -1,1 +1,1 @@
-{"answerContractVersion":1,"values":{"metrics.enabled":true,"service.credential":"synthetic-placeholder","service.mode":"extended","service.name":"sample"},"omitted":[]}
+{"answerContractVersion":"0.0.1","values":{"metrics.enabled":true,"service.credential":"synthetic-placeholder","service.mode":"extended","service.name":"sample"},"omitted":[]}

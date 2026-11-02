@@ -15,7 +15,7 @@ public sealed class LaunchRouteTests
     public async Task NeutralLaunchOffersConditionalFieldsAndSecretDeferredDraft()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
-        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("9b6a7b3e-45bf-4485-8fa1-d7888938c09b"));
+        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("4d8950ad-972c-4357-8605-7a7c89c05a17"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
@@ -84,7 +84,7 @@ public sealed class LaunchRouteTests
     public async Task ExternalBundledDefinitionKeepsNativeDigestAndOffersFullLocalControls()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
-        var definition = registry.Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
+        var definition = registry.Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}&entry=environment");

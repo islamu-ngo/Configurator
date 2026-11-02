@@ -167,17 +167,6 @@ internal static class BrowserFixture
         return component.InvokeAsync(() => choice.Instance.ValueChanged.InvokeAsync(selection));
     }
 
-    internal static byte[] Template(string selections = """{"mode":"single"}""", SetupDefinition? definition = null)
-    {
-        definition ??= Definition;
-        return Encoding.UTF8.GetBytes(
-            $$"""
-            {"schemaVersion":"configurator-public-template/v1","familyId":"{{definition.FamilyId:D}}",
-             "revision":{{definition.Revision}},"definitionDigest":"{{definition.Digest.Value}}",
-             "selections":{{selections}}}
-            """);
-    }
-
     internal static JsonDocument Download(string href) =>
         JsonDocument.Parse(Convert.FromBase64String(href["data:application/json;base64,".Length..]));
 }

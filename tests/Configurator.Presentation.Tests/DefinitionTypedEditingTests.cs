@@ -7,10 +7,31 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionTypedEditingTests
 {
     [Test]
+    public async Task LiteralMapPathsKeepIndependentEditorFacts()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        string[] keys = ["", "/", "~", "~1", "0", "00", "a/b"];
+        await Assert.That(form.SetValue(["map"], JsonSerializer.SerializeToElement(
+            keys.ToDictionary(key => key, _ => 4)))).IsTrue();
+        await Assert.That(form.EditValue(["map", "/"], "-")).IsFalse();
+        foreach (string key in keys)
+        {
+            string[] path = ["map", key];
+            await Assert.That(form.GetEditorState(path)).IsNotNull();
+            await Assert.That(form.GetEditorState(path)!.RelativePath.Single()).IsEqualTo(key);
+            await Assert.That(form.Snapshot().Values["map"].GetProperty(key).GetInt32()).IsEqualTo(4);
+        }
+        await Assert.That(form.GetEditorState(["map", "a", "b"])).IsNull();
+        await Assert.That(form.EditValue(["map", "/"], "8")).IsTrue();
+        await Assert.That(form.Snapshot().Values["map"].GetProperty("/").GetInt32()).IsEqualTo(8);
+        await Assert.That(form.Snapshot().Values["map"].GetProperty("~1").GetInt32()).IsEqualTo(4);
+    }
+
+    [Test]
     public async Task SecretMapEntriesCannotBypassWorkspaceConsent()
     {
         SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson("""
-            {"$schema":"urn:islamu:configurator:authoring:v2",
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},
              "project":{"id":"private-map","name":"Private map"},"applicationVersions":["1"],
              "configuration":{"type":"object","additionalProperties":false,"properties":{
@@ -145,7 +166,7 @@ public sealed class DefinitionTypedEditingTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionSourceCodec.ParseJson("""
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151616","revision":1},
          "project":{"id":"typed-editing","name":"Typed editing"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{

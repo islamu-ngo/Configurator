@@ -264,7 +264,7 @@ public sealed class DefinitionImportComparisonTests
     {
         SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson("""
             {
-              "$schema":"urn:islamu:configurator:authoring:v2",
+              "$schema":"urn:islamu:configurator:authoring:v0.0.1",
               "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},
               "project":{"id":"root-map","name":"Root map"},
               "applicationVersions":["1"],
@@ -316,7 +316,7 @@ public sealed class DefinitionImportComparisonTests
 
     private static SetupDefinition Definition() => SetupDefinitionSourceCodec.ParseJson("""
         {
-          "$schema":"urn:islamu:configurator:authoring:v2",
+          "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},
           "project":{"id":"comparison","name":"Comparison"},
           "applicationVersions":["1"],

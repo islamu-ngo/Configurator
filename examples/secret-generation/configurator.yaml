@@ -1,0 +1,62 @@
+$schema: urn:islamu:configurator:authoring:v0.0.1
+identity:
+  familyId: "b2bed5a4-def5-4818-8cfa-1a5bd0ffc43c"
+  revision: 1
+project:
+  id: example.secrets
+  name: Synthetic secret policy example
+applicationVersions: ["1.0"]
+configuration:
+  type: object
+  additionalProperties: false
+  required: [password, token]
+  x-configurator:
+    sensitivity: public
+  properties:
+    password:
+      type: string
+      title: Local password
+      minLength: 24
+      maxLength: 64
+      x-configurator:
+        secret:
+          kind: password
+          acquisition: local
+          constraints:
+            characterSet: ascii-printable
+            allowWhitespace: false
+            minLowercase: 1
+            minUppercase: 1
+            minDigits: 1
+            minSymbols: 1
+          generation:
+            length: 32
+    token:
+      type: string
+      title: Local opaque token
+      x-configurator:
+        secret:
+          kind: opaque-token
+          acquisition: local
+          encoding: base64url
+          constraints:
+            minBytes: 32
+            maxBytes: 32
+          generation:
+            bytes: 32
+    digest:
+      type: string
+      title: Optional SHA-256 digest
+      x-configurator:
+        secret:
+          kind: digest
+          acquisition: local
+          algorithm: SHA256
+          encoding: hex
+          generation:
+            input: entered
+            inputEncoding: utf8
+outputs:
+  config.json:
+    id: config
+    format: json

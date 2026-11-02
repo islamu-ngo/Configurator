@@ -18,13 +18,14 @@ public sealed class SetupCliContractTests
         JsonObject schema = SetupCliMachineContractVerifier.ParseSchema(first);
         await Assert.That(SetupCliMachineContractVerifier.InspectSchema(schema)).IsEmpty();
         await Assert.That(schema["_metadata"]!["commands"]!.AsArray().Select(node => node!["name"]!.GetValue<string>()))
-            .IsEquivalentTo(["catalogue", "env", "artifact", "doctor", "definition"]);
+            .IsEquivalentTo(["catalogue", "env", "artifact", "doctor", "definition", "secret"]);
         await Assert.That(schema["_metadata"]!["commandOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--help", "--machine", "--text", "--dry-run", "--input", "--baseline",
                 "--output", "--key", "--definition", "--artifact", "--format", "--expected-revision",
                 "--revision-field", "--input-revision", "--answers", "--source", "--root", "--against",
                 "--id-map", "--project-id", "--name", "--application-version", "--fork-from", "--from-env-example",
-                "--from-schema", "--accept-bounded-semantics", "--kind", "--detail", "--offset", "--limit", "--expected-detail-digest"]);
+                "--from-schema", "--accept-bounded-semantics", "--kind", "--detail", "--offset", "--limit", "--expected-detail-digest",
+                "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin"]);
         await Assert.That(schema["_metadata"]!["repeatableOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--artifact"]);
         await Assert.That(schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()))
@@ -41,10 +42,10 @@ public sealed class SetupCliContractTests
     }
 
     [Test]
-    public async Task MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility()
+    public async Task MachineContractRejectsUnsupportedEnvelopesAndCompilerHandshake()
     {
-        foreach (string version in new[] { "islamu-configurator-command/v1", "islamu-configurator-command/v2",
-            "islamu-configurator-command/v3", "islamu-configurator-command/v5", "2", "" })
+        foreach (string version in new[] { "islamu-configurator-command/unsupported",
+            "islamu-configurator-command/v0.0.1 ", "ISLAMU-CONFIGURATOR-COMMAND/v0.0.1", "0.0.1", "" })
             await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineContractVerifier.Mutate(
                 root => root["schemaVersion"] = version))).Contains("machine-version");
         foreach (string operation in new[] { "check", "build", "lint" })
@@ -53,15 +54,31 @@ public sealed class SetupCliContractTests
             {
                 root["invocation"]!["commandFamily"] = "definition";
                 root["invocation"]!["operation"] = operation;
-                root["authoringContractVersion"] = 2;
-                root["runtimeSchemaVersion"] = 2;
+                root["authoringContractVersion"] = "0.0.1";
+                root["runtimeSchemaVersion"] = "0.0.1";
             });
             await Assert.That(SetupCliMachineContractVerifier.Validate(valid)).IsEmpty();
-            JsonObject old = JsonNode.Parse(valid)!.AsObject();
-            old["authoringContractVersion"] = 1;
-            await Assert.That(SetupCliMachineContractVerifier.Validate(System.Text.Encoding.UTF8.GetBytes(old.ToJsonString() + "\n")))
+            JsonObject unsupported = JsonNode.Parse(valid)!.AsObject();
+            unsupported["authoringContractVersion"] = "unsupported";
+            await Assert.That(SetupCliMachineContractVerifier.Validate(System.Text.Encoding.UTF8.GetBytes(unsupported.ToJsonString() + "\n")))
                 .Contains("machine-compiler-handshake");
         }
+    }
+
+    [Test]
+    public async Task SecretReceiptsExcludeAnswerDigests()
+    {
+        byte[] receipt = SetupCliMachineContractVerifier.Mutate(root =>
+        {
+            root["invocation"]!["commandFamily"] = "secret";
+            root["invocation"]!["operation"] = "generate";
+        });
+        await Assert.That(SetupCliMachineContractVerifier.Validate(receipt))
+            .Contains("machine-secret-artifact-digest");
+        JsonObject safe = JsonNode.Parse(receipt)!.AsObject();
+        safe["artifacts"]![0]!.AsObject().Remove("digest");
+        await Assert.That(SetupCliMachineContractVerifier.Validate(
+            System.Text.Encoding.UTF8.GetBytes(safe.ToJsonString() + "\n"))).IsEmpty();
     }
 
     [Test]
@@ -164,10 +181,10 @@ public sealed class SetupCliContractTests
             root => root.Remove("schema"),
             root => root["schema"] = null,
             root => root["schema"]!["kind"] = "capabilities",
-            root => root["schema"]!["id"] = "urn:islamu:configurator:answers:v1",
+            root => root["schema"]!["id"] = "urn:islamu:configurator:answers:v0.0.1",
             root => root["schema"]!["digest"] = new string('0', 64),
             root => root["schema"]!["digest"] = new string('A', 64),
-            root => root["schema"]!["profile"] = "bounded-v1",
+            root => root["schema"]!["profile"] = "bounded-unsupported",
             root => root["schema"]!["authoringContractVersion"] = 1,
             root => root["schema"]!["runtimeSchemaVersion"] = 1,
             root => root["schema"]!["answerContractVersion"] = 2,
@@ -203,7 +220,7 @@ public sealed class SetupCliContractTests
             schema => schema["$defs"]!["correction"]!["properties"]!["segments"]!["maxItems"] = 33,
             schema => schema["$defs"]!["correctionSegment"]!.AsObject().Remove("oneOf"),
             schema => schema["$defs"]!["correctionSegment"]!["properties"]!["index"]!["maximum"] = 4096,
-            schema => schema["$defs"]!["schema"]!["properties"]!["answerContractVersion"]!["const"] = 2,
+            schema => schema["$defs"]!["schema"]!["properties"]!["answerContractVersion"]!["const"] = "unsupported",
             schema => schema["$defs"]!["schema"]!["properties"]!["document"]!["$ref"] = "#/$defs/source",
             schema => schema["$defs"]!["schema"]!.AsObject().Remove("oneOf")
         ];
@@ -255,10 +272,10 @@ public sealed class SetupCliContractTests
             ["kind"] = kind,
             ["id"] = id,
             ["digest"] = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(document))),
-            ["profile"] = "bounded-v2",
-            ["authoringContractVersion"] = 2,
-            ["runtimeSchemaVersion"] = 2,
-            ["answerContractVersion"] = 1,
+            ["profile"] = "bounded-v0.0.1",
+            ["authoringContractVersion"] = "0.0.1",
+            ["runtimeSchemaVersion"] = "0.0.1",
+            ["answerContractVersion"] = "0.0.1",
             ["capabilities"] = new JsonArray("schema.object"),
             ["document"] = JsonNode.Parse(document)
         };
@@ -759,7 +776,7 @@ public sealed class SetupCliContractTests
         {
             ["scope"] = "root",
             ["commandPath"] = new JsonArray(),
-            ["commands"] = new JsonArray("catalogue", "artifact", "env", "definition", "doctor"),
+            ["commands"] = new JsonArray("catalogue", "artifact", "env", "definition", "secret", "doctor"),
             ["options"] = new JsonArray()
         };
     }
@@ -769,7 +786,7 @@ public sealed class SetupCliContractTests
     {
         (string[] Arguments, string Family, string Operation, string Scope, string[] Path, string[] Commands)[] cases =
         [
-            (["--help", "--machine"], "cli", "help", "root", [], ["catalogue", "artifact", "env", "definition", "doctor"]),
+            (["--help", "--machine"], "cli", "help", "root", [], ["catalogue", "artifact", "env", "definition", "secret", "doctor"]),
             (["artifact", "--help", "--machine"], "artifact", "help", "branch", ["artifact"],
                 ["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create", "preview"]),
             (["artifact", "bundle-create", "--help", "--machine"], "artifact", "bundle-create", "leaf", ["artifact", "bundle-create"], [])

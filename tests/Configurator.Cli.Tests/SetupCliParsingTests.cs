@@ -68,7 +68,7 @@ public sealed class SetupCliParsingTests
             "--artifact=config", "--input=--machine", "--text")).IsEqualTo(SetupCliExitCode.Success);
         await Assert.That(io.MaximumRead).IsGreaterThan(0);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput))
-            .DoesNotContain("islamu-configurator-command/v4");
+            .DoesNotContain("islamu-configurator-command/v0.0.1");
         await Assert.That(io.StandardError).IsEmpty();
     }
 
@@ -80,9 +80,9 @@ public sealed class SetupCliParsingTests
         await Assert.That(await io.RunAsync("doctor", "--", "--machine")).IsEqualTo(SetupCliExitCode.Usage);
         await Assert.That(io.MaximumRead).IsEqualTo(0);
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput))
-            .DoesNotContain("islamu-configurator-command/v4");
+            .DoesNotContain("islamu-configurator-command/v0.0.1");
         await Assert.That(Encoding.UTF8.GetString(io.StandardError))
-            .DoesNotContain("islamu-configurator-command/v4");
+            .DoesNotContain("islamu-configurator-command/v0.0.1");
     }
 
     [Test]

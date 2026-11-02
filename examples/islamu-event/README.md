@@ -2,31 +2,31 @@
 
 These public fixtures derive from first-party
 [ISLAMU Event](https://github.com/ISLAMU/Event) configuration metadata, not
-compiled target code or authority to apply configuration. The reauthored v2
-source uses family `c0d02619-0134-411b-b495-ef302f592669`,
+compiled target code or authority to apply configuration. The current
+source uses family `ea55cccf-dce5-4f88-8ea1-6dd211714edc`,
 allocated through Configurator's native identity editor. The admitted runtime
 owns its current revision and canonical digest. The prior Event family
 and its publication facts are historical, not authority for this new family.
 
-`configurator.json` is the reauthored neutral v2 source, preserving five output
+`configurator.json` is the maintained neutral source, preserving five output
 mappings. Configurator's compiler produces the sole canonical
 `definition.json`, admitted by Configurator Core's bounded parser. `answers/` and
 `expected/` carry environment, manifest, tenant package, operator-identity and
 legal-draft vectors. Configurator's actual CLI composes these answer workspaces,
 against independent expected bytes. Prior Event host-parser evidence does not
-certify this v2 reauthoring or its new family. The Event exporter has no
+certify this reauthoring or its new family. The Event exporter has no
 Configurator assembly dependency. `catalogue.json` is value-safe environment metadata and
 `.env.example` is the target's curated template. `release.json` retains the
 **historical v1 receipt**, including its old command,
 authoring and runtime contract versions, executable SHA-256, exact source and
 canonical definition digests, revision and host-acceptance limits. These public
 reproduction facts supply no signing, promotion or authentication authority.
-It is not a current compiler pin, digest, launch fragment or v2 acceptance
+It is not a current compiler pin, digest, launch fragment or current acceptance
 receipt. It remains unchanged rather than fabricating a new upstream release.
 
 The browser embeds `definition.json` directly through a resource link; there are
 no separately maintained native/public copies.
-Use `/launch/c0d02619-0134-411b-b495-ef302f592669` on a Configurator origin
+Use `/launch/ea55cccf-dce5-4f88-8ea1-6dd211714edc` on a Configurator origin
 built with this fixture. Obtain the current canonical digest by admitting
 `definition.json` rather than reusing a historical pin.
 The historical receipt's upstream URL does not serve this new family.
@@ -97,7 +97,7 @@ or answer values. Existing string-valued switches retain their declared types:
 no target-contract conversion was proved for this content update.
 
 The optional-store source has the same authored experience in its separate
-family `d532b75d-5b62-4276-a03b-2bec28155d3d`. Its prior release snapshots
+family `f79259e8-af23-49b0-8d8d-6e371cc96080`. Its prior release snapshots
 remain immutable; an old pinned definition is not silently upgraded.
 
 ## Revise and regenerate
@@ -124,7 +124,7 @@ hand-increment identity or change historical snapshots. The store command above
 uses the current revision-5 anchor; use the matching immutable anchor when
 revising a later release.
 
-Regenerate the local v2 runtime and append the store release through their
+Regenerate the local current runtime and append the store release through their
 native owners:
 
 ```bash
@@ -141,7 +141,7 @@ dotnet run eng/configurator/BuildDefinitionStore.cs -- \
 The example generator also visits the minimal and Grafana examples; their
 unchanged canonical bytes must remain unchanged. The store builder appends the
 new release and generates its catalog; it must not rewrite the prior release.
-The synthetic answer fixtures use the private version 1 answer envelope.
+The synthetic answer fixtures use the private 0.0.1 answer envelope.
 The deployment-only environment vector must explicitly exclude platform
 settings to keep its original output and readiness: platform inclusion now
 exposes the existing required `env.SETUP_SECRET`. Do not invent a setup secret,

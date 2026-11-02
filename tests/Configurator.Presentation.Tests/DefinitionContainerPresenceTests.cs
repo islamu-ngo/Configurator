@@ -77,7 +77,7 @@ public sealed class DefinitionContainerPresenceTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":2,"profile":"bounded-v2","familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28902","revision":1,
+    {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28902","revision":1,
      "project":{"id":"example","name":"Example","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
      "requiredCapabilities":["projection.copy","projection.object","schema.array","schema.bounds","schema.integer","schema.object","schema.string"],

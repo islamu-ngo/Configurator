@@ -19,7 +19,7 @@ public sealed record BrowserLaunchSelection(SetupDefinition Definition, string E
         "schema.array", "schema.boolean", "schema.bounds", "schema.const", "schema.enum", "schema.integer",
         "schema.notBlank", "schema.nullable", "schema.number", "schema.object", "schema.string",
         "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef", "schema.multipleOf",
-        "schema.uniqueItems", "schema.assertFormat", "values.initial", "values.suggested"
+        "schema.uniqueItems", "schema.assertFormat", "schema.secret", "values.initial", "values.suggested"
     }.ToFrozenSet(StringComparer.Ordinal);
     public static BrowserLaunchSelection Resolve(
         SetupDefinitionRegistry registry, string familyId, string query)

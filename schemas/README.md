@@ -7,17 +7,17 @@ This directory contains generated structural JSON Schemas for definition authori
 ## Schema Overview
 
 The [generated CLI command reference](../docs/public/cli-command-reference.md)
-projects public command metadata and declared bounds from the v4 receipt schema.
+projects public command metadata and declared bounds from the 0.0.1 receipt schema.
 The [CLI guide](../docs/public/cli.md) owns usage and meaning; schema freshness
 must pass before [reference freshness](../eng/knowledge/README.md#generated-command-reference).
 
 | Schema File | Purpose | Primary Consumer | Authoring Format |
 |---|---|---|---|
-| [`configurator-authoring-v2.schema.json`](configurator-authoring-v2.schema.json) | Describes current compact maintainer source (`configurator.yaml` or `configurator.json`). | Tool authors, IDE validation, compiler preflight. | YAML / JSON |
-| [`setup-definition-v2.schema.json`](setup-definition-v2.schema.json) | Describes canonical runtime schemaVersion 2/profile bounded-v2 definitions. | `Configurator.Core`, definition store, runtime clients. | Canonical JSON |
-| [`configurator-answers-v1.schema.json`](configurator-answers-v1.schema.json) | Describes the private answerContractVersion 1 envelope with values and explicit omitted pointers. | Local answer tooling; never a public definition/cache payload. | Private JSON |
-| [`islamu-configurator-command-v4.schema.json`](islamu-configurator-command-v4.schema.json) | Defines machine receipts, independent existing-file assessments and advancing bounded finding pages. | CI/CD pipelines, automated scripts, AI coding agents. | JSON |
-| [`definition-store-curation-v1.schema.json`](definition-store-curation-v1.schema.json) | Validates catalog metadata and project curation records (`curation.json`) for the Definition Store. | Store builders, catalog contributors. | JSON |
+| [`configurator-authoring.schema.json`](configurator-authoring.schema.json) | Describes current compact maintainer source (`configurator.yaml` or `configurator.json`). | Tool authors, IDE validation, compiler preflight. | YAML / JSON |
+| [`setup-definition.schema.json`](setup-definition.schema.json) | Describes canonical runtime schemaVersion "0.0.1"/profile bounded-v0.0.1 definitions. | `Configurator.Core`, definition store, runtime clients. | Canonical JSON |
+| [`configurator-answers.schema.json`](configurator-answers.schema.json) | Describes the private answerContractVersion "0.0.1" envelope with values and explicit omitted pointers. | Local answer tooling; never a public definition/cache payload. | Private JSON |
+| [`configurator-cli.schema.json`](configurator-cli.schema.json) | Defines machine receipts, explicit secret operations, independent existing-file assessments and advancing bounded finding pages. | CI/CD pipelines, automated scripts, AI coding agents. | JSON |
+| [`definition-store-curation.schema.json`](definition-store-curation.schema.json) | Validates catalog metadata and project curation records (`curation.json`) for the Definition Store. | Store builders, catalog contributors. | JSON |
 
 ---
 
@@ -30,7 +30,7 @@ To associate the structural schemas with your YAML and JSON files, add the follo
 ```json
 {
   "yaml.schemas": {
-    "./schemas/configurator-authoring-v2.schema.json": [
+    "./schemas/configurator-authoring.schema.json": [
       "**/configurator.yaml",
       "**/configurator.yml",
       "**/*-configurator.yaml"
@@ -41,20 +41,20 @@ To associate the structural schemas with your YAML and JSON files, add the follo
       "fileMatch": [
         "**/configurator.json"
       ],
-      "url": "./schemas/configurator-authoring-v2.schema.json"
+      "url": "./schemas/configurator-authoring.schema.json"
     },
     {
       "fileMatch": [
         "**/setup-definition.json",
         "**/*-definition.json"
       ],
-      "url": "./schemas/setup-definition-v2.schema.json"
+      "url": "./schemas/setup-definition.schema.json"
     },
     {
       "fileMatch": [
         "**/curation.json"
       ],
-      "url": "./schemas/definition-store-curation-v1.schema.json"
+      "url": "./schemas/definition-store-curation.schema.json"
     }
   ]
 }
@@ -71,9 +71,9 @@ Compact authoring requires the exact `$schema` discriminator below. Its URN iden
 
 **In YAML (`configurator.yaml`):**
 ```yaml
-$schema: urn:islamu:configurator:authoring:v2
+$schema: urn:islamu:configurator:authoring:v0.0.1
 identity:
-  familyId: 69cdb122-41d2-4fab-9b82-7929a889c726
+  familyId: 4d8950ad-972c-4357-8605-7a7c89c05a17
   revision: 1
 project:
   id: my-service
@@ -85,9 +85,9 @@ project:
 Compiled runtime definitions instead use `schemaVersion`. Do not add `$schema` to them: the runtime contract is closed, and combining `$schema` with `schemaVersion` rejects. Associate the runtime schema through editor settings. Runtime identity fragment, not a complete definition:
 ```json
 {
-  "schemaVersion": 2,
-  "profile": "bounded-v2",
-  "familyId": "69cdb122-41d2-4fab-9b82-7929a889c726",
+  "schemaVersion": "0.0.1",
+  "profile": "bounded-v0.0.1",
+  "familyId": "4d8950ad-972c-4357-8605-7a7c89c05a17",
   "revision": 1
 }
 ```
@@ -99,7 +99,7 @@ property names, closed objects (`additionalProperties: false`) and recursive
 array `items`; typed enums and nullable base types are admitted. References are
 explicit root/item scoped RFC6901 pointers, not dotted-key expressions.
 
-Private answers instead contain exactly `answerContractVersion: 1`, object
+Private answers instead contain exactly `answerContractVersion: "0.0.1"`, object
 `values` and distinct concrete `omitted` pointers. Values use exact data names,
 not bounded metadata IDs. Standard `default` never inserts answers;
 `x-configurator.initialValue` initializes eligible never-supplied locations and
@@ -107,10 +107,14 @@ not bounded metadata IDs. Standard `default` never inserts answers;
 reset removes override and suppression. No initialized child creates an absent
 container.
 
-Command results use envelope v4; successful authoring check/build reports
-authoringContractVersion 2/runtimeSchemaVersion 2. Answer v1 and store v1 are
-independent contracts, not compatibility fallbacks for definition v1.
-Command v3 is removed without an alias. Assessment inventory retains up to 4,096
+Product and public contract versions stay `0.0.1` throughout development, including
+breaking changes. Command results use `islamu-configurator-command/v0.0.1`;
+successful authoring check/build reports `authoringContractVersion: "0.0.1"`
+and `runtimeSchemaVersion: "0.0.1"`. Answer and Store discriminators use the
+same string version. Each contract has one current format and a stable unversioned
+schema filename. Obsolete local copies belong in ignored `schemas/archive/`;
+they are neither packaged nor accepted by a compatibility reader.
+Assessment inventory retains up to 4,096
 findings; only a complete inventory has an exact `total`. Detail pages expose
 `returnedCount`, `nextOffset` and `terminal`, so byte-shortened pages still
 advance. `artifact compare` reports preparation `not-evaluated` and target
@@ -171,19 +175,23 @@ dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator -- 
 dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator -- --check-examples
 ```
 
-`--write` generates the authoring-v2, runtime-v2 and answers-v1 schemas and removes
-retired authoring/runtime v1 files. `--check` checks those files and retirement
-without writing. With no arguments the generator prints the runtime schema.
+`--write` generates the current authoring, runtime and answer schemas at their
+unversioned paths. `--check` checks those files without writing. There is no
+per-version retirement routine. With no arguments the generator prints the runtime schema.
 These commands do not regenerate the independently owned command/store schemas.
 
-`--write-examples` compiles the three maintained sources into their canonical
+`--write-examples` compiles the four maintained sources into their canonical
 runtime files. `--renew-example-families` first forks each source through the
 native identity editor to a fresh family/revision 1, then writes source/runtime;
 it is an intentional example identity replacement, not routine freshness repair.
 `--check-examples` compares canonical bytes for minimal-self-hosted,
-grafana-13.2.2 and islamu-event without writing.
+grafana-13.2.2, islamu-event and secret-generation without writing.
 
-The [maintained example index](../examples/README.md) names the three pairs.
+Store snapshots are generated by their native owner. A changed canonical
+definition requires a new revision or a deliberate fresh-family fork; the fixed
+development version does not permit reusing a family/revision for different bytes.
+
+The [maintained example index](../examples/README.md) names the four pairs.
 `--check-examples` reports canonical source/runtime agreement only. Any current
 pass claim requires an executed record, not this catalog. Agreement is not
 target acceptance, final physical/package completion or I-VSD closure.
@@ -193,7 +201,7 @@ presence/const/enum guards with `then.required`, optional `else.required` and
 `dependentRequired`, not arbitrary conditional subschemas. Recursive typed maps,
 closed discriminated variants, bounded local refs, exact numeric assertions,
 unique items and opt-in format assertions share the same Core admission.
-Definition-only source maps and command v4 diagnostics are implemented;
+Definition-only source maps and separately owned command diagnostics are implemented;
 localization overrides address existing public text and do not change answers.
 Structural schemas can still describe shapes whose contextual semantics reject
 in Core. Consult the [reference](../docs/public/definition-reference.md),

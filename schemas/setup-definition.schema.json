@@ -1,0 +1,3897 @@
+{
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "definitionLicense": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "publisher"
+      ]
+    },
+    "applicationVersions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "entryPoints": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "configuration": {
+      "$ref": "#/$defs/node"
+    },
+    "presentation": {
+      "type": "object",
+      "properties": {
+        "defaultJourney": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "navigation": {
+          "type": "string",
+          "enum": [
+            "wizard",
+            "sections"
+          ]
+        },
+        "outputSelector": {
+          "type": "object",
+          "properties": {
+            "pointer": {
+              "type": "string",
+              "maxLength": 65536,
+              "pattern": "^/(?:[^/~]|~[01])*$"
+            },
+            "options": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "maxLength": 65536
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "artifactIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "title",
+                  "artifactIds"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "pointer",
+            "options"
+          ]
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "pointers": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "title",
+              "pointers"
+            ]
+          }
+        },
+        "journeys": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "sections": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 64,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "title",
+              "sections"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "sections",
+        "journeys",
+        "defaultJourney"
+      ]
+    },
+    "localization": {
+      "type": "object",
+      "properties": {
+        "defaultLocale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "translations": {
+          "type": "object",
+          "maxProperties": 128,
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "ltr",
+                  "rtl"
+                ]
+              },
+              "overrides": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": []
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "defaultLocale",
+        "translations"
+      ]
+    },
+    "annotations": {
+      "type": "object"
+    },
+    "schemaVersion": {
+      "const": "0.0.1"
+    },
+    "profile": {
+      "const": "bounded-v0.0.1"
+    },
+    "familyId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "locales": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "predicate.item",
+          "predicate.root",
+          "projection.copy",
+          "projection.index",
+          "projection.list",
+          "projection.literal",
+          "projection.object",
+          "projection.omit",
+          "projection.repeat",
+          "relationship.presence",
+          "schema.array",
+          "schema.boolean",
+          "schema.bounds",
+          "schema.const",
+          "schema.enum",
+          "schema.integer",
+          "schema.notBlank",
+          "schema.nullable",
+          "schema.number",
+          "schema.object",
+          "schema.secret",
+          "schema.string",
+          "schema.uniqueBy",
+          "schema.map",
+          "schema.variant",
+          "schema.localRef",
+          "schema.multipleOf",
+          "schema.uniqueItems",
+          "schema.assertFormat",
+          "values.initial",
+          "values.suggested"
+        ]
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "dotenv",
+              "json",
+              "yaml",
+              "markdown"
+            ]
+          },
+          "targetUpdateMode": {
+            "type": "string",
+            "enum": [
+              "unspecified",
+              "create",
+              "merge",
+              "replace",
+              "import",
+              "reconcile",
+              "generationOnly"
+            ]
+          },
+          "restartRequirement": {
+            "type": "string",
+            "enum": [
+              "unspecified",
+              "none",
+              "process",
+              "deployment"
+            ]
+          },
+          "projection": {
+            "$ref": "#/$defs/projection"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "fileName",
+          "format",
+          "targetUpdateMode",
+          "restartRequirement",
+          "projection"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "profile",
+    "familyId",
+    "revision",
+    "project",
+    "applicationVersions",
+    "entryPoints",
+    "locales",
+    "configuration",
+    "artifacts",
+    "requiredCapabilities"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:islamu:configurator:setup-definition:v0.0.1",
+  "title": "Configurator SetupDefinition 0.0.1",
+  "$defs": {
+    "node": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "string",
+                "boolean",
+                "integer",
+                "number",
+                "array",
+                "object"
+              ]
+            },
+            {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "boolean",
+                  "integer",
+                  "number",
+                  "array",
+                  "object",
+                  "null"
+                ]
+              },
+              "contains": {
+                "const": "null"
+              }
+            }
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "format": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "$defs": {
+          "type": "object",
+          "maxProperties": 1024,
+          "additionalProperties": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "$ref": {
+          "type": "string",
+          "maxLength": 65536,
+          "pattern": "^#/"
+        },
+        "oneOf": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "if": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "required": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1024,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              }
+            },
+            "properties": {
+              "type": "object",
+              "maxProperties": 1024,
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "const": {}
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "const"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "enum": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 256,
+                        "items": {}
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "enum"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "then": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1024,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "required"
+          ]
+        },
+        "else": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1024,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "required"
+          ]
+        },
+        "dependentRequired": {
+          "type": "object",
+          "maxProperties": 1024,
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1024,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            }
+          }
+        },
+        "required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "const": false
+            },
+            {
+              "$ref": "#/$defs/node"
+            }
+          ]
+        },
+        "items": {
+          "$ref": "#/$defs/node"
+        },
+        "multipleOf": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "uniqueItems": {
+          "type": "boolean"
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": [
+              "string",
+              "boolean",
+              "integer",
+              "number",
+              "null"
+            ]
+          }
+        },
+        "const": {
+          "type": [
+            "string",
+            "boolean",
+            "integer",
+            "number",
+            "null"
+          ]
+        },
+        "default": {},
+        "examples": {
+          "type": "array",
+          "maxItems": 256
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "writeOnly": {
+          "type": "boolean"
+        },
+        "deprecated": {
+          "type": "boolean"
+        },
+        "x-configurator": {
+          "type": "object",
+          "properties": {
+            "sensitivity": {
+              "type": "string",
+              "enum": [
+                "public",
+                "sensitive",
+                "secret"
+              ]
+            },
+            "initialValue": {},
+            "suggestedValue": {},
+            "notBlank": {
+              "type": "boolean"
+            },
+            "detail": {
+              "type": "string",
+              "enum": [
+                "basic",
+                "standard",
+                "advanced"
+              ]
+            },
+            "units": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "uniqueBy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 65536
+            },
+            "applicableWhen": {
+              "$ref": "#/$defs/predicate"
+            },
+            "assertFormat": {
+              "type": "boolean"
+            },
+            "secret": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "password"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "characterSet": {
+                          "type": "string",
+                          "enum": [
+                            "unicode",
+                            "ascii-printable"
+                          ]
+                        },
+                        "allowWhitespace": {
+                          "type": "boolean"
+                        },
+                        "allowedSymbols": {
+                          "type": "string",
+                          "maxLength": 94
+                        },
+                        "forbiddenCharacters": {
+                          "type": "string",
+                          "maxLength": 1024
+                        },
+                        "maxUtf8Bytes": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 65536
+                        },
+                        "minLowercase": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1024
+                        },
+                        "minUppercase": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1024
+                        },
+                        "minDigits": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1024
+                        },
+                        "minSymbols": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1024
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "length": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1024
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "opaque-token"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "minBytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 4096
+                        },
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "symmetric-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "HS256"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "minBytes": {
+                          "type": "integer",
+                          "minimum": 32,
+                          "maximum": 4096
+                        },
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": 32,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "symmetric-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "HS384"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "minBytes": {
+                          "type": "integer",
+                          "minimum": 48,
+                          "maximum": 4096
+                        },
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": 48,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "symmetric-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "HS512"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "minBytes": {
+                          "type": "integer",
+                          "minimum": 64,
+                          "maximum": 4096
+                        },
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": 64,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "symmetric-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "AES128"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "minBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 16
+                        },
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 16
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "symmetric-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "AES192"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "minBytes": {
+                          "type": "integer",
+                          "minimum": 24,
+                          "maximum": 24
+                        },
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": 24,
+                          "maximum": 24
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "symmetric-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "AES256"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "minBytes": {
+                          "type": "integer",
+                          "minimum": 32,
+                          "maximum": 32
+                        },
+                        "maxBytes": {
+                          "type": "integer",
+                          "minimum": 32,
+                          "maximum": 32
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "bytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 4096
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "private-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "RS256"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "pkcs8-pem",
+                        "jwk"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "keySize": {
+                          "enum": [
+                            2048,
+                            3072,
+                            4096
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "private-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "PS256"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "pkcs8-pem",
+                        "jwk"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "keySize": {
+                          "enum": [
+                            2048,
+                            3072,
+                            4096
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "private-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "ES256"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "pkcs8-pem",
+                        "jwk"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "curve": {
+                          "type": "string",
+                          "enum": [
+                            "P-256"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "private-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "ES384"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "pkcs8-pem",
+                        "jwk"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "curve": {
+                          "type": "string",
+                          "enum": [
+                            "P-384"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "private-key"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "ES512"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "pkcs8-pem",
+                        "jwk"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "curve": {
+                          "type": "string",
+                          "enum": [
+                            "P-521"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "password-hash"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "argon2id"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "saltBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 64
+                        },
+                        "derivedBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 64
+                        },
+                        "iterations": {
+                          "type": "integer",
+                          "minimum": 2,
+                          "maximum": 6
+                        },
+                        "memoryKiB": {
+                          "type": "integer",
+                          "minimum": 19456,
+                          "maximum": 65536
+                        },
+                        "parallelism": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 4
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "password-hash"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "pbkdf2-sha256"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "saltBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 64
+                        },
+                        "derivedBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 64
+                        },
+                        "iterations": {
+                          "type": "integer",
+                          "minimum": 600000,
+                          "maximum": 2000000
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "password-hash"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "pbkdf2-sha512"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "saltBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 64
+                        },
+                        "derivedBytes": {
+                          "type": "integer",
+                          "minimum": 16,
+                          "maximum": 64
+                        },
+                        "iterations": {
+                          "type": "integer",
+                          "minimum": 210000,
+                          "maximum": 2000000
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "password-hash"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "aspnet-identity-v3"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "password-hash"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "bcrypt"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {
+                        "cost": {
+                          "type": "integer",
+                          "minimum": 10,
+                          "maximum": 14
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "digest"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "SHA256"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8",
+                            "hex",
+                            "base64",
+                            "base64url"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "digest"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "SHA384"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8",
+                            "hex",
+                            "base64",
+                            "base64url"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "digest"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "SHA512"
+                      ]
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "base64",
+                        "base64url",
+                        "hex"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    },
+                    "generation": {
+                      "type": "object",
+                      "properties": {
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "entered",
+                            "generated"
+                          ]
+                        },
+                        "inputEncoding": {
+                          "type": "string",
+                          "enum": [
+                            "utf8",
+                            "hex",
+                            "base64",
+                            "base64url"
+                          ]
+                        },
+                        "password": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "password"
+                                  ]
+                                },
+                                "acquisition": {
+                                  "type": "string",
+                                  "enum": [
+                                    "local"
+                                  ]
+                                },
+                                "constraints": {
+                                  "type": "object",
+                                  "properties": {
+                                    "characterSet": {
+                                      "type": "string",
+                                      "enum": [
+                                        "unicode",
+                                        "ascii-printable"
+                                      ]
+                                    },
+                                    "allowWhitespace": {
+                                      "type": "boolean"
+                                    },
+                                    "allowedSymbols": {
+                                      "type": "string",
+                                      "maxLength": 94
+                                    },
+                                    "forbiddenCharacters": {
+                                      "type": "string",
+                                      "maxLength": 1024
+                                    },
+                                    "maxUtf8Bytes": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 65536
+                                    },
+                                    "minLowercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minUppercase": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minDigits": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    },
+                                    "minSymbols": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                },
+                                "generation": {
+                                  "type": "object",
+                                  "properties": {
+                                    "length": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 1024
+                                    }
+                                  },
+                                  "additionalProperties": false,
+                                  "required": []
+                                }
+                              },
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "acquisition",
+                                "generation"
+                              ],
+                              "if": {
+                                "required": [
+                                  "generation"
+                                ]
+                              },
+                              "then": {
+                                "properties": {
+                                  "acquisition": {
+                                    "type": "string",
+                                    "enum": [
+                                      "local"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false,
+                      "required": [
+                        "input"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition",
+                    "algorithm",
+                    "encoding"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "connection-string"
+                      ]
+                    },
+                    "acquisition": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "existing",
+                        "issuer"
+                      ]
+                    },
+                    "constraints": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false,
+                      "required": []
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "acquisition"
+                  ],
+                  "if": {
+                    "required": [
+                      "generation"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "acquisition": {
+                        "type": "string",
+                        "enum": [
+                          "local"
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "guidance": {
+              "type": "object",
+              "properties": {
+                "instructions": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096
+                },
+                "links": {
+                  "type": "array",
+                  "maxItems": 4,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "url": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2048
+                      }
+                    },
+                    "additionalProperties": false,
+                    "required": [
+                      "title",
+                      "url"
+                    ]
+                  }
+                },
+                "searchTerms": {
+                  "type": "array",
+                  "minItems": 0,
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": []
+            },
+            "choices": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "value": {},
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "explanation": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "value",
+                  "label"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": []
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "exclusiveMinimum": {
+          "type": "number"
+        },
+        "exclusiveMaximum": {
+          "type": "number"
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "minItems": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "minProperties": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "maxProperties": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        }
+      },
+      "additionalProperties": false,
+      "required": [],
+      "oneOf": [
+        {
+          "required": [
+            "type"
+          ],
+          "not": {
+            "required": [
+              "$ref"
+            ]
+          }
+        },
+        {
+          "required": [
+            "$ref"
+          ],
+          "not": {
+            "required": [
+              "type"
+            ]
+          }
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "const": "object"
+                  },
+                  {
+                    "type": "array",
+                    "contains": {
+                      "const": "object"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "additionalProperties"
+                ]
+              },
+              {
+                "required": [
+                  "oneOf"
+                ]
+              }
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "properties"
+                  ]
+                },
+                {
+                  "required": [
+                    "required"
+                  ]
+                },
+                {
+                  "required": [
+                    "additionalProperties"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "const": "array"
+                  },
+                  {
+                    "type": "array",
+                    "contains": {
+                      "const": "array"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "items"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "items"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "reference": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "root",
+            "item"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "maxLength": 65536,
+          "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "path"
+      ]
+    },
+    "projection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "literal"
+            },
+            "value": {},
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "copy"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "omit"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "index"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "object"
+            },
+            "members": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/projection"
+              }
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "members"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "list"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/projection"
+              }
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "items"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "repeat"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            },
+            "item": {
+              "$ref": "#/$defs/projection"
+            },
+            "when": {
+              "$ref": "#/$defs/predicate"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "item"
+          ]
+        }
+      ]
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "exists"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "equals"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            },
+            "value": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "notEquals"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            },
+            "value": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "in"
+            },
+            "reference": {
+              "$ref": "#/$defs/reference"
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "reference",
+            "values"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "all"
+            },
+            "operands": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "operands"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "any"
+            },
+            "operands": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "operands"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "not"
+            },
+            "operands": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "operands"
+          ]
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "properties": {
+        "configuration": {
+          "properties": {
+            "type": {
+              "const": "object"
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "additionalProperties"
+              ]
+            },
+            {
+              "required": [
+                "oneOf"
+              ]
+            },
+            {
+              "required": [
+                "$ref"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "description": "Bounded recursive structure. Admission checks exact numbers, Unicode, acyclic local references, discriminators, privacy, computed capabilities and resource limits; unsupported semantics reject."
+}

@@ -49,7 +49,7 @@ public sealed class SetupCliPreparedArtifactTests
                 "--input", "prepared", "--answers", "answers.json", "--machine", .. options])).IsEqualTo(SetupCliExitCode.Success);
             await Assert.That(SetupCliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
             using JsonDocument receipt = JsonDocument.Parse(io.StandardOutput);
-            await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+            await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
             await Assert.That(receipt.RootElement.TryGetProperty("assessment", out _)).IsFalse();
             await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-answer-marker");
         }

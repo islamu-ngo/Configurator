@@ -8,7 +8,7 @@ internal static class TerminalDefinitionFixture
 {
     internal const string Json = """
         {
-          "schemaVersion":2,"profile":"bounded-v2","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
+          "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
           "revision":1,"project":{"id":"neutral.service","name":"Neutral service","publisher":"example"},
           "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["ar","en"],
           "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl"}}},

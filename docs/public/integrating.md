@@ -1,5 +1,5 @@
 ---
-description: "Adopt portable bounded-v2 definitions beside your application, without a Store or GitHub dependency."
+description: "Adopt portable bounded-v0.0.1 definitions beside your application, without a Store or GitHub dependency."
 ---
 
 # Adopt Configurator beside your application
@@ -32,9 +32,9 @@ answers, and inspect machine receipts as four different documents. Their
 are independent; machine receipts contain operation facts rather than private
 artifact bytes.
 
-The current check/build handshake is authoring/runtime **2/2**. Family revision
+The current check/build handshake reports the string **0.0.1** for authoring and runtime. Family revision
 and exact target application version are separate again. Revision 2 does not
-mean a different runtime format. No v1 definition fallback or translation alias
+mean a different runtime format. No old-format definition fallback or translation alias
 is supplied. Never distribute private answer files as public source or assets.
 
 ## Start with a fresh native identity
@@ -115,6 +115,11 @@ or a projection, not both; JSON/YAML with neither copy the effective root.
 Markdown uses bounded string-list projections, not executable templates.
 `targetUpdateMode` and `restartRequirement` describe target expectations; both
 default to `unspecified`. They never authorize filesystem paths or applying data.
+
+For secret fields, derive policy and serialized format from public target
+documentation, then use the [secret-policy workflow](definition-cookbook.md#secret-policy-and-target-format).
+Do not infer a password hash, token issuer or key encoding from a field name.
+Secret metadata is public; actual generated values remain private local answers.
 
 ## Scaffold a public schema deliberately
 

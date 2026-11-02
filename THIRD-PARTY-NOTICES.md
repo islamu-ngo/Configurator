@@ -27,6 +27,13 @@ source. See the [decision, source register and history](docs/internal/TERMINAL_G
 
 ## Native and client framework closure
 
+Shared cryptographic operations use `BouncyCastle.Cryptography` `2.7.0` under
+MIT, copyright 2000–2026 The Legion of the Bouncy Castle Inc. Its original
+license is retained in the package notice tree and the hash-bound supplemental
+notice directory. It has no transitive package dependencies. See the
+[cryptography contract](docs/internal/SECRET_CRYPTOGRAPHY.md) for the source
+register, exact package identity and qualification limits.
+
 The transferred dependency review records Spectre.Console `0.57.2`,
 Spectre.Console.Cli `0.56.1`, Spectre.Console.Ansi `0.57.2`, and Avalonia
 `12.1.3` framework/Desktop/Fluent/Headless packages under MIT package terms.

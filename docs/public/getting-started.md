@@ -59,11 +59,11 @@ Before generating configuration files, take a quick look at the inputs:
 
 - **Definition:** [`examples/minimal-self-hosted/setup-definition.json`](../../examples/minimal-self-hosted/setup-definition.json) describes the service's settings, validation constraints, and file mappings.
 - **Answers:** [`examples/minimal-self-hosted/answers/complete.json`](../../examples/minimal-self-hosted/answers/complete.json)
-  is a complete synthetic private-answer v1 fixture (shown in formatted form):
+  is a complete synthetic private-answer 0.0.1 fixture (shown in formatted form):
 
 ```json
 {
-  "answerContractVersion": 1,
+  "answerContractVersion": "0.0.1",
   "values": {
     "metrics.enabled": true,
     "service.credential": "synthetic-placeholder",
@@ -101,13 +101,13 @@ dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuratio
 ```
 
 ### What to Look For:
-The v4 receipt reports local preparation, separately from host acceptance.
+The 0.0.1 receipt reports local preparation, separately from host acceptance.
 This is an **illustrative receipt excerpt**, not a complete captured envelope;
 digests and other mandatory fields are omitted:
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v4",
+  "schemaVersion": "islamu-configurator-command/v0.0.1",
   "status": "success",
   "exitCode": 0,
   "preparation": "ready",
@@ -218,5 +218,5 @@ Now that you've seen the core pipeline in action, explore the rest of Configurat
 | Exit `2` or `3` | Answer validation failure | Check diagnostic errors in the JSON result; ensure required answers are present and meet type bounds. |
 | Exit `4` | Bundle publication boundary refusal, including existing selected files or unsupported host | Inspect per-artifact facts; use a fresh trusted Linux destination. Read-only `bundle-check` and deliberate [Browser export](browser.md) have different custody boundaries. |
 | Exit `64` | Invalid command arguments | Check flag names; run command-specific `--help`. |
-| Exit `65` | Input syntax or definition admission failure | Check the v2 definition and private v1 answer envelope. |
+| Exit `65` | Input syntax or definition admission failure | Check the current definition and private 0.0.1 answer envelope. |
 | Exit `70` or `74` | Partial save interrupted or I/O failure | Some files may have already been written. Inspect `./prepared/` and follow [save recovery](native-output.md#recover-before-retrying). |

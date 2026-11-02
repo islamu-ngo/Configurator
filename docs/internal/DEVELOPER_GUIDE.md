@@ -29,7 +29,7 @@ Keep these objects distinct when describing or changing a flow:
 
 | Object | Role | Custody consequence |
 | --- | --- | --- |
-| Maintainer source | Compact authoring-v2 YAML/JSON describing fields and outputs | Public source is not an answer file |
+| Maintainer source | Compact authoring-0.0.1 YAML/JSON describing fields and outputs | Public source is not an answer file |
 | Admitted definition | Canonical runtime content pinned by family, revision and digest | Labels and family IDs do not authenticate a publisher |
 | Answer snapshot | Private values at one input revision, including explicit omissions | Never public cache or diagnostic content |
 | Prepared artifact | Answer-derived candidate bytes | Restricted even when its definition uses public fields |

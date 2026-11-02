@@ -1,5 +1,5 @@
 {
-  "$schema": "urn:islamu:configurator:authoring:v2",
+  "$schema": "urn:islamu:configurator:authoring:v0.0.1",
   "applicationVersions": [
     "1.0"
   ],
@@ -39,10 +39,6 @@
         "title": "Local service password",
         "type": "string",
         "x-configurator": {
-          "credential": {
-            "acquisition": "create",
-            "kind": "password"
-          },
           "detail": "basic",
           "guidance": {
             "instructions": "Create and retain the password in your own password manager. Configurator does not generate it or install it on the target.",
@@ -51,6 +47,10 @@
               "credential",
               "access"
             ]
+          },
+          "secret": {
+            "acquisition": "local",
+            "kind": "password"
           },
           "sensitivity": "secret"
         }
@@ -115,10 +115,6 @@
         "title": "Optional issuer token",
         "type": "string",
         "x-configurator": {
-          "credential": {
-            "acquisition": "issuer",
-            "kind": "opaque-token"
-          },
           "detail": "advanced",
           "guidance": {
             "instructions": "Obtain a scoped service token through your issuer\u0027s documented administrator workflow. Ask that administrator about permissions and expiry; do not substitute the local service password. No provider documentation link is supplied because this neutral example names no provider.",
@@ -186,7 +182,7 @@
     }
   },
   "identity": {
-    "familyId": "289f3d1c-21ed-4888-9de3-3897d2d3fc1d",
+    "familyId": "a2ef550d-e304-46c5-94e4-1705953f6b50",
     "revision": 1
   },
   "localization": {

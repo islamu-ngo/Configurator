@@ -1,18 +1,18 @@
 ---
-description: "Scope, portability, and conformance obligations for the bounded-v2 configuration profile."
+description: "Scope, portability, and conformance obligations for the bounded-v0.0.1 configuration profile."
 ---
 
-# Definition Standard v2
+# Definition Standard 0.0.1
 
 > **Audience:** Adopters | Integrators | Contributors
 > **Kind:** Explanation
-> **Status:** Current bounded-v2 profile; qualification is scoped separately
+> **Status:** Current bounded-v0.0.1 profile; qualification is scoped separately
 > **Owner:** Core
 > **Last Verified:** 2026-10-30
 > **Source Anchors:** `docs/internal/DEFINITION_CONFORMANCE_PROFILE.md`, `docs/internal/DEFINITION_PROFILE.md`, `docs/internal/CORE_DEFINITIONS.md`
 > **Review basis:** Documentation and source-owner reconciliation, not a new runtime qualification
 
-The bounded-v2 profile is Configurator's portable, data-only configuration
+The bounded-v0.0.1 profile is Configurator's portable, data-only configuration
 contract. It defines what a consumer must understand before collecting answers,
 how those answers become effective values, and what preparation can claim.
 It is not unrestricted JSON Schema, a deployment language or target approval.
@@ -36,7 +36,7 @@ The [version table](definition-reference.md#which-document-are-you-editing)
 is the authoritative public lookup for their independent discriminators.
 Definition family revision and exact target application version are independent
 again. Advancing one contract must not imply that the others advanced. Current
-definition admission has no v1 fallback, translator or compatibility alias.
+definition admission has no old-format fallback, translator or compatibility alias.
 
 ## What a conforming consumer must preserve
 

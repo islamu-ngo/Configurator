@@ -69,7 +69,6 @@ public sealed class ReleaseContractTests
         {
             Directory.CreateDirectory(schemas);
             Directory.CreateDirectory(Path.Combine(package, "contracts"));
-            File.WriteAllText(Path.Combine(schemas, "islamu-configurator-command-v1.schema.json"), "stale command v1");
             File.WriteAllText(Path.Combine(schemas, "retired.schema.json"), "retired schema");
             File.WriteAllText(Path.Combine(package, "keep.txt"), "unrelated package content");
             File.WriteAllText(Path.Combine(package, "contracts", "keep.json"), "{}");

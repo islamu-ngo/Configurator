@@ -1020,6 +1020,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
+        RetireSecretResult();
         RetireDocument();
         RetireImportComparison();
         _facts = null;
@@ -1053,6 +1054,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (_disposed) return;
             _disposed = true;
+            RetireSecretResult();
             RetireDocument();
             RetireImportComparison();
             _editing.Clear();

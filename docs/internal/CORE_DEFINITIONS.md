@@ -18,11 +18,11 @@ target certification or I-VSD closure.
 
 | Stage | Owning source | Mechanism and result |
 |---|---|---|
-| Select source or runtime | `SetupDefinitionSourceCodec` in `src/Configurator.Core/Definitions/` | Exact authoring-v2 discriminator or runtime schemaVersion 2; conflicting/unknown contracts reject without parser fallback |
+| Select source or runtime | `SetupDefinitionSourceCodec` in `src/Configurator.Core/Definitions/` | Exact authoring-0.0.1 discriminator or runtime schemaVersion "0.0.1"; conflicting/unknown contracts reject without parser fallback |
 | Compile public source | `Authoring/DefinitionAuthoringCodec.cs`, `Authoring/DefinitionAuthoringCompiler.cs` | Snapshot bounded exact-key JSON/YAML, expand declared output mappings, construct runtime and re-enter runtime admission |
-| Admit canonical runtime | `SetupDefinitionCodec.cs`, `DefinitionProfile.cs`, `DefinitionJson.cs` | Check `bounded-v2`, recursive contextual rules and computed sorted mandatory capabilities; own canonical bytes/digest |
+| Admit canonical runtime | `SetupDefinitionCodec.cs`, `DefinitionProfile.cs`, `DefinitionJson.cs` | Check `bounded-v0.0.1`, recursive contextual rules and computed sorted mandatory capabilities; own canonical bytes/digest |
 | Bind identity | `SetupDefinitionRegistry.cs` | Resolve exact declared application version and optional digest; reject conflicting admitted family/revision even after removal; never guess newest across ambiguous revisions |
-| Snapshot private input | `SetupAnswerSnapshotCodec.cs`, `SetupDefinition.cs` | Independent private answer v1, exact `values` tree and concrete `omitted` paths; caller mutation cannot alter the snapshot |
+| Snapshot private input | `SetupAnswerSnapshotCodec.cs`, `SetupDefinition.cs` | Independent private answer 0.0.1, exact `values` tree and concrete `omitted` paths; caller mutation cannot alter the snapshot |
 | Resolve and validate | `DefinitionValidator.cs` | One effective-value policy, typed predicates, relationships, constraints and safe revision-bound correction coordinates |
 | Compose outputs | `src/Configurator.Core/Artifacts/` | Complete/draft/bundle composition consumes admitted schema and snapshot; restricted disposable results bind definition/input revisions |
 | Edit and adopt | `src/Configurator.Presentation/Presentation/` | Existing immutable workspace ownership, typed editing and operation generations; stale results cannot acquire current output authority |
@@ -96,8 +96,8 @@ it cannot repurpose an existing admitted revision for different content.
 The [schema catalog](../../schemas/README.md) records native generator commands.
 `eng/configurator/Configurator.DefinitionSchemaGenerator/Program.cs` owns:
 
-- `--write` / `--check`: authoring-v2, runtime-v2, private-answers-v1 schemas
-  and retirement of authoring/runtime-v1 schema files.
+- `--write` / `--check`: current authoring, runtime and private-answer schemas
+  at stable unversioned paths; each declares the development version `0.0.1`.
 - `--write-examples` / `--check-examples`: compile or compare the three
   maintained source/runtime pairs by canonical bytes.
 - `--renew-example-families`: intentionally fork example sources to new
@@ -172,7 +172,7 @@ behavioral fixture anchors without duplicating full configurations or private
 fixtures. Source inspection establishes the mechanism, not an executed pass.
 Native source/runtime freshness, rendered adapters, physical packages, target
 acceptance and I-VSD disposition require their own scoped execution records.
-Historical Event receipts are provenance, not current v2 compiler or acceptance
+Historical Event receipts are provenance, not current 0.0.1 compiler or acceptance
 receipts. No completion claim transfers across those boundaries.
 
 ## Follow a complete operation

@@ -6,7 +6,7 @@ description: "Understand bounded definitions, exact names, answer presence, and 
 
 > **Audience:** Adopters | Integrators
 > **Kind:** Guide
-> **Status:** Current bounded-v2 explanation; platform and target qualification are separate
+> **Status:** Current bounded-v0.0.1 explanation; platform and target qualification are separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`
@@ -17,9 +17,9 @@ an admitted runtime definition before collecting private answers. Configurator
 prepares candidates offline. The target application independently decides whether
 those candidates are valid, authorized, and safe to apply.
 
-This page describes the implemented **bounded-v2** profile, not full JSON Schema.
+This page describes the implemented **bounded-v0.0.1** profile, not full JSON Schema.
 Unknown keywords and unsupported shapes reject rather than being silently
-ignored. There is no v1 definition reader, migration interpreter, legacy alias,
+ignored. There is no old-format definition reader, migration interpreter, legacy alias,
 executable plugin, network validator, or target administration capability.
 
 Use [Integrate Your Tool](integrate-your-tool.md) for the maintainer workflow,
@@ -36,9 +36,9 @@ Four separate documents have different custody and version rules:
 
 | Document | Discriminator and purpose |
 |---|---|
-| Public maintainer source | `$schema: urn:islamu:configurator:authoring:v2`; compact YAML/JSON with identity, schema, and filename-keyed outputs |
-| Public runtime definition | `schemaVersion: 2`, `profile: bounded-v2`, computed `requiredCapabilities`; canonical admitted JSON |
-| Private answer workspace | `answerContractVersion: 1`, `values`, `omitted`; exact configuration names and concrete omission pointers |
+| Public maintainer source | `$schema: urn:islamu:configurator:authoring:v0.0.1`; compact YAML/JSON with identity, schema, and filename-keyed outputs |
+| Public runtime definition | `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1`, computed `requiredCapabilities`; canonical admitted JSON |
+| Private answer workspace | `answerContractVersion: "0.0.1"`, `values`, `omitted`; exact configuration names and concrete omission pointers |
 | Prepared artifact | Declared dotenv, JSON, YAML, or Markdown candidate; restricted answer-derived content |
 
 Definition revision, application version, source contract, runtime contract,
@@ -54,7 +54,7 @@ explicit `null` is not a way to omit required metadata.
 
 | Property | Requirement and meaning |
 |---|---|
-| `$schema` | Required exact authoring v2 discriminator |
+| `$schema` | Required exact authoring 0.0.1 discriminator |
 | `identity.familyId` | Required nonempty UUID in hyphenated `D` form |
 | `identity.revision` | Required positive signed 64-bit integer |
 | `project.id`, `project.name` | Required nonblank public text, each at most 256 characters |
@@ -334,7 +334,7 @@ Its property name contains a literal dot. The complete
 [answer fixture](../../examples/minimal-self-hosted/answers/complete.json) is:
 
 ```json
-{"answerContractVersion":1,"values":{"metrics.enabled":true,"service.credential":"synthetic-placeholder","service.mode":"extended","service.name":"sample"},"omitted":[]}
+{"answerContractVersion":"0.0.1","values":{"metrics.enabled":true,"service.credential":"synthetic-placeholder","service.mode":"extended","service.name":"sample"},"omitted":[]}
 ```
 
 The explicit `extended` value wins over initialization. It activates the declared
@@ -420,16 +420,27 @@ without whitespace or query strings; fragments are allowed. `searchTerms`
 permits up to 16 distinct nonblank public terms of at most 64 characters.
 Rendering and search support depend on the client, not just schema admission.
 
-`credential` is valid only for a string in a secret context. It declares a task,
-not a generated value, script, password-manager guarantee, or issuer login.
+`secret` is a typed string policy whose presence raises sensitivity to secret.
+Its `kind` is `password`, `opaque-token`, `symmetric-key`, `private-key`,
+`password-hash`, `digest`, or `connection-string`; `acquisition` is `local`,
+`existing`, or `issuer`. Old `credential` metadata is rejected.
 
-| `kind` | Allowed `acquisition` |
-|---|---|
-| `password` | `existing`, `create`, `issuer` |
-| `opaque-token` | `existing`, `issuer` |
-| `symmetric-key` | `existing`, `create` |
-| `private-key` | `existing`, `issuer` |
-| `connection-string` | `existing`, `issuer` |
+Standard `minLength`/`maxLength` and the admitted `constraints` apply to entered,
+imported and generated values. Algorithm and encoding must match the selected
+kind. A `generation` recipe is permitted only for local acquisition; connection
+strings never have a random-generation recipe. Local acquisition without a recipe
+does not enable generation. Definition admission is separate from implementation
+availability: profiles without a complete validator block readiness with
+`secret-profile-unavailable` and cannot start operations.
+
+A reference cannot lower inherited sensitivity or replace an inherited secret
+policy with a conflicting one. Metadata is public policy, never secret values,
+issuer authentication, or proof that a target accepts the result.
+
+When the target's token encoding or key format is unknown, keep an ordinary
+string with `sensitivity: secret` and target-specific guidance. Do not guess an
+algorithm or encoding to gain generation controls. The maintained Event example
+uses this boundary for externally issued tokens and keys with unverified formats.
 
 ## Presentation and Guided Journeys
 
@@ -444,7 +455,7 @@ Section/journey IDs are bounded to 64 characters, titles to 128, descriptions to
 2,048. Duplicate pointers within one section reject. This is layout metadata:
 it neither makes a property required nor grants it target authority.
 There are no `fields`, `experiences`, `defaultExperience`, `initialDisclosure`,
-or per-journey validation aliases in the v2 source.
+or per-journey validation aliases in the 0.0.1 source.
 
 ### Localization
 
@@ -612,7 +623,7 @@ an edit; an old ordinal/revision is not a durable identifier for a new workspace
 
 | Code or family | Meaning and next action |
 |---|---|
-| `definition-version`, `source-discriminator` | Choose exactly authoring v2 or runtime v2; reauthor unsupported contracts |
+| `definition-version`, `source-discriminator` | Choose exactly authoring 0.0.1 or runtime 0.0.1; reauthor unsupported contracts |
 | `member-unsupported`, `type-unsupported`, `constraint-context` | Remove unsupported semantics or move a constraint to its owning type |
 | `schema-reference`, `schema-discriminator`, `activation-cycle` | Repair the bounded reference, branch, or dependency structure |
 | `public-value-protected`, `public-value-invalid` | Remove embedded protected/invalid values; collect answers privately |

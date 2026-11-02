@@ -15,7 +15,7 @@ public sealed class BrowserEventManifestWorkflowTests
     [Arguments(3)]
     public async Task CompleteEventManifestContainsExactlyTypedTenantRowsAndNoInactiveArtifacts(int count)
     {
-        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context();
         var module = context.JSInterop.SetupModule("./browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(true);

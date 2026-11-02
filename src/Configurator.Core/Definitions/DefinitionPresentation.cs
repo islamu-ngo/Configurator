@@ -123,8 +123,6 @@ public sealed record DefinitionFieldGuidance
 }
 
 public sealed record DefinitionGuidanceLink(string Title, string Url);
-/// <summary>Describes a secret editor's purpose and acquisition task without holding a credential.</summary>
-public sealed record DefinitionInputPurpose(string Kind, string Acquisition);
 
 /// <summary>Resolves admitted public text only; it never changes schema, values or output policy.</summary>
 public sealed class DefinitionLocalization

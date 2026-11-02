@@ -24,6 +24,7 @@ internal static class SetupCliCommandRegistry
         ArtifactCommands.Descriptor,
         EnvironmentCommands.Descriptor,
         DefinitionCommands.Descriptor,
+        SecretCommands.Descriptor,
         DoctorCommands.Descriptor
     ];
 

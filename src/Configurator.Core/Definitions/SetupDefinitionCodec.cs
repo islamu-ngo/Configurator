@@ -62,7 +62,8 @@ public static class SetupDefinitionCodec
     {
         Only(document, "schemaVersion", "profile", "familyId", "revision", "project", "applicationVersions",
             "entryPoints", "locales", "configuration", "artifacts", "requiredCapabilities", "presentation", "localization", "annotations");
-        if (document.GetProperty("schemaVersion").GetInt32() != DefinitionProfile.RuntimeSchemaVersion
+        if (document.GetProperty("schemaVersion").ValueKind != JsonValueKind.String
+            || document.GetProperty("schemaVersion").GetString() != DefinitionProfile.RuntimeSchemaVersion
             || document.GetProperty("profile").GetString() != DefinitionProfile.Id)
             throw new SetupDefinitionException("definition-version");
         if (!Guid.TryParseExact(document.GetProperty("familyId").GetString(), "D", out Guid family)
@@ -178,8 +179,22 @@ public static class SetupDefinitionCodec
                     {
                         JsonObject incoming = JsonNode.Parse(annotation.Value.GetRawText())!.AsObject();
                         JsonObject previous = merged["x-configurator"] as JsonObject ?? new();
-                        string oldSensitivity = previous["sensitivity"]?.GetValue<string>() ?? "sensitive";
-                        string newSensitivity = incoming["sensitivity"]?.GetValue<string>() ?? "sensitive";
+                        string oldSensitivity = previous.ContainsKey("secret") || merged["writeOnly"]?.GetValue<bool>() == true
+                            ? "secret" : previous["sensitivity"]?.GetValue<string>() ?? "sensitive";
+                        string newSensitivity = incoming["sensitivity"]?.GetValue<string>() ?? oldSensitivity;
+                        if (incoming.ContainsKey("sensitivity") && incoming["sensitivity"] is null)
+                            throw new SetupDefinitionException("sensitivity-invalid");
+                        if (incoming.ContainsKey("sensitivity") && newSensitivity is not ("public" or "sensitive" or "secret"))
+                            throw new SetupDefinitionException("sensitivity-invalid");
+                        if (incoming.ContainsKey("secret") && incoming["sensitivity"]?.GetValue<string>() == "public")
+                            throw new SetupDefinitionException("secret-policy-invalid");
+                        static int Rank(string value) => value switch { "public" => 0, "sensitive" => 1, "secret" => 2, _ => -1 };
+                        if (incoming.ContainsKey("sensitivity") && Rank(newSensitivity) < Rank(oldSensitivity))
+                            throw new SetupDefinitionException("sensitivity-downgrade");
+                        if (previous.ContainsKey("secret") && incoming.ContainsKey("secret")
+                            && !JsonNode.DeepEquals(previous["secret"], incoming["secret"]))
+                            throw new SetupDefinitionException("secret-policy-conflict");
+                        if (incoming.ContainsKey("secret")) newSensitivity = "secret";
                         foreach ((string name, JsonNode? value) in incoming)
                             if (name != "sensitivity") previous[name] = value?.DeepClone();
                         previous["sensitivity"] = oldSensitivity == "secret" || newSensitivity == "secret" ? "secret"
@@ -231,12 +246,20 @@ public static class SetupDefinitionCodec
         string sensitivity = "sensitive";
         if (hasExtension)
         {
-            Only(extension, "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "credential", "choices", "units",
+            Only(extension, "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "secret", "choices", "units",
                 "uniqueBy", "applicableWhen", "assertFormat");
             if (extension.TryGetProperty("sensitivity", out var declared))
             {
                 sensitivity = declared.GetString()!;
                 Choice(extension, "sensitivity", DefinitionVocabulary.Sensitivities);
+            }
+            if (extension.TryGetProperty("secret", out JsonElement secret))
+            {
+                if (nodeType != DefinitionNodeType.Text || sensitivity == "public")
+                    throw new SetupDefinitionException("secret-policy-invalid");
+                _ = DefinitionSecretAdmission.Read(secret, schema);
+                sensitivity = "secret";
+                capabilities.Add("schema.secret");
             }
         }
         bool publicContext = publicAncestors && sensitivity == "public" && !writeOnly;
@@ -493,17 +516,6 @@ public static class SetupDefinitionCodec
             if (extension.TryGetProperty("detail", out _)) Choice(extension, "detail", "basic", "standard", "advanced");
             if (extension.TryGetProperty("units", out var units)) Text(units, 128);
             if (extension.TryGetProperty("guidance", out var guidance)) ValidateGuidance(guidance);
-            if (extension.TryGetProperty("credential", out var credential))
-            {
-                Only(credential, "kind", "acquisition");
-                Choice(credential, "kind", "password", "opaque-token", "symmetric-key", "private-key", "connection-string");
-                Choice(credential, "acquisition", "existing", "create", "issuer");
-                string kind = credential.GetProperty("kind").GetString()!;
-                string acquisition = credential.GetProperty("acquisition").GetString()!;
-                if (nodeType != DefinitionNodeType.Text || !secretContext
-                    || acquisition == "create" && kind is not ("password" or "symmetric-key")
-                    || acquisition == "issuer" && kind == "symmetric-key") throw new SetupDefinitionException("credential-invalid");
-            }
             if (extension.TryGetProperty("choices", out var labels))
             {
                 if (!schema.TryGetProperty("enum", out var enumValues) || labels.GetArrayLength() != enumValues.GetArrayLength())

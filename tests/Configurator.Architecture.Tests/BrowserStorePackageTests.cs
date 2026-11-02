@@ -50,7 +50,7 @@ public sealed class BrowserStorePackageTests
         using JsonDocument assets = ReadWorkerAssets(directory);
         Dictionary<string, string> inventory = assets.RootElement.GetProperty("assets").EnumerateArray()
             .ToDictionary(asset => asset.GetProperty("url").GetString()!, asset => asset.GetProperty("hash").GetString()!, StringComparer.Ordinal);
-        await Assert.That(index.RootElement.GetProperty("schemaVersion").GetInt32()).IsEqualTo(1);
+        await Assert.That(index.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("0.0.1");
         await Assert.That(index.RootElement.GetProperty("projects").GetArrayLength()).IsGreaterThan(0);
         await AssertAssetHash("definition-store/index.json");
         var expectedFiles = new HashSet<string>(StringComparer.Ordinal) { "index.json" };

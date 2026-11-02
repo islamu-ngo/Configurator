@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Configurator.Core;
 
 namespace Configurator.Cli;
 
@@ -25,9 +26,10 @@ internal static class SetupCliMachineOutput
             if (!detail.Terminal && detail.ReturnedCount == 0) throw new IOException("detail-item-unencodable");
         }
         string category = SetupCliResults.Lower(result.Exit);
-        var envelope = new SetupCliMachineEnvelope("islamu-configurator-command/v4",
+        var envelope = new SetupCliMachineEnvelope(SetupCliCommandSchemaMetadata.EnvelopeVersion,
             new(family, operation, "machine"), category, category, (int)result.Exit, command.DryRun,
-            inline, result.Artifacts, result.Coverage with { DetailDigest = digest }, result.Readiness)
+            inline, family == "secret" ? result.Artifacts.Select(artifact => artifact with { Digest = null }) : result.Artifacts,
+            result.Coverage with { DetailDigest = digest }, result.Readiness)
         {
             Completion = result.Assessment is not null ? result.Completion
                 : result.Completion == "cancelled" ? "cancelled" : result.Exit == SetupCliExitCode.Success ? "completed" : "failed",
@@ -39,8 +41,8 @@ internal static class SetupCliMachineOutput
             Detail = detail,
             Assessment = result.Assessment,
             Help = result.Help,
-            AuthoringContractVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
-            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? 2 : null,
+            AuthoringContractVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? ConfiguratorVersion.Current : null,
+            RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == SetupCliExitCode.Success && result.Help is null ? ConfiguratorVersion.Current : null,
             Schema = family == "definition" && operation == "schema" && result.Exit == SetupCliExitCode.Success && result.Help is null
                 ? result.Schema : null
         };

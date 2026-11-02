@@ -1,7 +1,7 @@
 # Implemented Definition Conformance Profile
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Implemented bounded-v2 source reference; physical and target qualification remain separate
+> **Status:** Implemented bounded-v0.0.1 source reference; physical and target qualification remain separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionProfile.cs`, `src/Configurator.Core/Definitions/DefinitionNode.cs`, `src/Configurator.Core/Definitions/SetupDefinitionCodec.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Core/Definitions/DefinitionVocabulary.cs`, `src/Configurator.Core/Definitions/DefinitionSchema.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs`
@@ -50,7 +50,7 @@ the semantic contract. Editorial changes do not renew execution evidence.
    publication and browser export are distinct owners; neither changes target
    semantic acceptance or apply authority.
 
-There is one runtime evaluator, no v1 migration layer, no source v1 fallback,
+There is one runtime evaluator, no migration layer, no old-source fallback,
 no executable definition plugin, and no runtime schema fetch. Ordinary standard
 keyword spelling does not import an external schema implementation.
 
@@ -58,10 +58,10 @@ keyword spelling does not import an external schema implementation.
 
 | Contract | Current identity |
 |---|---|
-| Profile | `DefinitionProfile.Id = bounded-v2` |
-| Public authoring | `urn:islamu:configurator:authoring:v2` |
-| Runtime | `schemaVersion: 2`; generated schema ID `urn:islamu:configurator:setup-definition:v2` |
-| Private answers | `answerContractVersion: 1`; generated schema ID `urn:islamu:configurator:answers:v1` |
+| Profile | `DefinitionProfile.Id = bounded-v0.0.1` |
+| Public authoring | `urn:islamu:configurator:authoring:v0.0.1` |
+| Runtime | `schemaVersion: "0.0.1"`; generated schema ID `urn:islamu:configurator:setup-definition:v0.0.1` |
+| Private answers | `answerContractVersion: "0.0.1"`; generated schema ID `urn:islamu:configurator:answers:v0.0.1` |
 | CLI machine envelope | Independently owned by [CLI contract](CLI_CONTRACT.md); see the [current version table](../public/definition-reference.md#which-document-are-you-editing) |
 
 Runtime JSON has no `$schema`. Its required members are `schemaVersion`,
@@ -332,11 +332,20 @@ literal projections. Definitions must contain only public synthetic data.
 Every `DefinitionArtifact` is restricted regardless of declared answer sensitivity.
 
 The extension vocabulary is sensitivity, initialValue, suggestedValue, notBlank,
-detail, guidance, credential, choices, units, uniqueBy, applicableWhen,
+detail, guidance, secret, choices, units, uniqueBy, applicableWhen,
 assertFormat. Detail is basic/standard/advanced. Choice labels match every typed
-enum value exactly once. Credential metadata requires a string in secret
-context; create is only password/symmetric-key, issuer excludes symmetric-key,
-and existing is available to all admitted credential kinds.
+enum value exactly once. Typed secret metadata requires a string and establishes
+a secret sensitivity floor. Acquisition is local/existing/issuer; only local
+acquisition admits a generation recipe, and connection strings never generate.
+The kind-specific algorithm, encoding, constraints and generation vocabulary is
+closed. Unsatisfiable policies and resource limits reject before answer entry.
+Unavailable validators block readiness with `secret-profile-unavailable`;
+admitted syntax alone never enables an unimplemented operation.
+
+`DefinitionSensitivityPolicy` centralizes classification for every consumer.
+Reference expansion rejects sensitivity downgrades and conflicting secret blocks,
+and merges the maximum inherited sensitivity. Source maps index secret,
+constraints and generation metadata for revision-bound correction locations.
 
 `ValidateGuidance` admits inert instructions up to 4,096, allowing CR/LF/tab but
 no other controls or template markers `${`, `{{`, `}}`. It admits up to four
@@ -531,7 +540,7 @@ names inspected evidence; it is not a newly executed pass receipt.
 | ConcretePointersEscapeOnceAndKeepOrdinalIdentity; PathsRejectMalformedUnicodeEscapesAndResourceOverflow; ArrayIndicesAreCanonicalOnlyWhenExplicitlyRequested | Exact pointers, Unicode identity, bounds, array-token distinction |
 | ExactJsonAndYamlShareIndependentCanonicalBytes; ExactAdmissionRejectsDuplicateInvalidUnicodeAndNumbersWithoutValues | Canonical golden bytes, syntax parity, duplicate/number/Unicode refusal |
 | V2ResolvesInitializationOnlyInsidePresentContainers; V2OmissionSuppressesInitializationAndResetRestoresEligibility | Effective initialization, no implicit parent, suppression/reset |
-| PrivateAnswerEnvelopesRejectAmbiguityAndUnknownContracts; CutoverRejectsPriorAndUnknownSemanticSourceContracts | Separate answer v1, definition v2 cutover, no fallback |
+| PrivateAnswerEnvelopesRejectAmbiguityAndUnknownContracts; CutoverRejectsPriorAndUnknownSemanticSourceContracts | Separate answer and definition 0.0.1 formats, no fallback |
 | TypedMapsValidateRecursiveItemsWithoutPublishingPrivateEntryNames; NullableConstrainedItemsPreserveNullAndEnforceExactAssertions | Recursive maps, typed/null choices and exact assertions |
 | DiscriminatedProvidersSelectOneClosedBranchAndRetainNullablePresence; LocalReferencesExpandUnderOneConfigurationRootAndCyclesReject | Restricted branches and root-local references |
 | AssertedFormatsAreOptInAndNeverGrantNetworkOrCredentialAuthority | Annotation/assertion distinction |

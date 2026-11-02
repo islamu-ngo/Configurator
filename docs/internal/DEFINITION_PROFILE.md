@@ -1,7 +1,7 @@
-# Definition Profile v2
+# Definition Profile 0.0.1
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
+> **Status:** Current bounded-v0.0.1 contract; package and host qualification is recorded separately
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Presentation/Presentation/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`
@@ -19,7 +19,7 @@ JSON Schema standard.
 
 ## Bounded primitive foundation
 
-The v2 codecs route through shared shape and syntax primitives.
+The 0.0.1 codecs route through shared shape and syntax primitives.
 `DefinitionPath.Parse` and `FromSegments` snapshot
 at most 32 exact tokens within the 65536-character pointer budget; value equality
 uses the encoded ordinal pointer. `ToPointer` is deliberate access to location
@@ -145,8 +145,8 @@ Admission binds family/revision/content; registry removal does not erase known
 conflicts. Active sessions retain their admitted revision/digest. The runtime
 records the profile and sorted computed semantic capabilities. Unknown semantic
 fields or capabilities reject. Annotations and translations are digest material.
-Checked v2 examples receive native-allocated fresh families, not mutated v1
-revision content.
+Current 0.0.1 examples receive native-allocated fresh families rather than rebinding
+previously admitted v1/v2 revision content.
 
 ## Resolution and privacy invariants
 
@@ -183,7 +183,7 @@ caches, worker messages or network requests.
 ## Scenario and support matrix
 
 The table retains independent expected behavior and owner/gate traceability for
-the implemented bounded-v2 contract. It is not a per-row execution receipt or a
+the implemented bounded-v0.0.1 contract. It is not a per-row execution receipt or a
 test that scans prose. [Support and evidence](STATUS.md) routes to the actual
 execution records in [Operations](OPERATIONS.md). Desktop X11 exercises,
 Terminal process exercises and Browser publication are separate evidence.
@@ -195,7 +195,7 @@ the implemented selection contract.
 
 | Scenario | Independent expected behavior | Owner / gate |
 |---|---|---|
-| S01 | v1 and unknown semantic contracts reject without fallback | Core admission / cutover |
+| S01 | Unsupported semantic contracts reject without fallback | Core admission / cutover |
 | S02 | `A`, `a`, `_internal`, `/`, `~`, dots and Unicode remain distinct; exact duplicate rejects | Core paths / primitives |
 | S03 | Byte/node/depth/expansion/work overflow rejects atomically | Core budgets / primitives and recursive validation |
 | S04 | Present containers initialize missing eligible children; absent containers stay absent | Core resolution / cutover; shared editing |
@@ -219,7 +219,7 @@ the implemented selection contract.
 | S22 | Multiline/static-fragment help is inert; locale/RTL cannot change IDs/values/output | Presentation localization and actual clients |
 | S23 | Held operations cannot restore private data/output after edit/denial/disposal | Presentation generations and actual clients |
 | S24 | Scaffolding reports retained/converted/advisory/discarded/unsupported concepts by safe location | Core importer and CLI |
-| S25 | The current machine contract reports actual definition-v2 capabilities/schema/locations; lint stays quality advice | CLI and generated command schema |
+| S25 | The current machine contract reports actual definition-0.0.1 capabilities/schema/locations; lint stays quality advice | CLI and generated command schema |
 | S26 | Absent target update/restart metadata stays unspecified and grants no authority | Core output metadata |
 | S27 | Published assets/schemas/examples/store agree; public caches remain answer-free | Native generators and architecture/packages |
 | S28 | Support promotion follows executed qualification and examples; prose itself is not pinned | Documentation and native checker |

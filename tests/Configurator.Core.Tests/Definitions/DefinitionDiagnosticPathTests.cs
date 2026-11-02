@@ -26,7 +26,7 @@ public sealed class DefinitionDiagnosticPathTests
     {
         SetupDefinition definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseYaml(
             Encoding.UTF8.GetBytes("""
-            $schema: urn:islamu:configurator:authoring:v2
+            $schema: urn:islamu:configurator:authoring:v0.0.1
             identity: {familyId: 0d9f1857-93ad-4b7d-8be1-bd9e7223c587, revision: 1}
             project: {id: example, name: Locations}
             applicationVersions: ["1"]
@@ -236,7 +236,7 @@ public sealed class DefinitionDiagnosticPathTests
 
     private const string SourceMapSource = """
     {
-      "$schema": "urn:islamu:configurator:authoring:v2",
+      "$schema": "urn:islamu:configurator:authoring:v0.0.1",
       "identity": {"familyId":"0d9f1857-93ad-4b7d-8be1-bd9e7223c587","revision":1},
       "project": {"id":"example","name":"Locations"},
       "applicationVersions": ["1"],
@@ -252,7 +252,7 @@ public sealed class DefinitionDiagnosticPathTests
     """;
 
     private const string Source = """
-    {"$schema":"urn:islamu:configurator:authoring:v2",
+    {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
      "identity":{"familyId":"0d9f1857-93ad-4b7d-8be1-bd9e7223c587","revision":1},
      "project":{"id":"example","name":"Paths","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],

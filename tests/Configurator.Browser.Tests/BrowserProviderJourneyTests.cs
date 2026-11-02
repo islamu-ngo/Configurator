@@ -51,7 +51,7 @@ public sealed class BrowserProviderJourneyTests
     [Test]
     public async Task ProviderDropdownPreservesWireIdentitySwitchBackAndSecretRevocation()
     {
-        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);

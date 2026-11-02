@@ -21,7 +21,7 @@ public sealed class SetupCliMachineBoundaryTests
             "--expected-detail-digest", new string('0', 64))).IsEqualTo(expected);
         await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
         using JsonDocument receipt = JsonDocument.Parse(fixture.StandardOutput);
-        await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v4");
+        await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
         await Assert.That(receipt.RootElement.TryGetProperty("detail", out _)).IsFalse();
     }
 
@@ -30,7 +30,7 @@ public sealed class SetupCliMachineBoundaryTests
     {
         var fixture = new CliFixture();
         fixture.Files["definition.json"] = Encoding.UTF8.GetBytes("""
-            {"$schema":"urn:islamu:configurator:authoring:v2",
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"61d35828-9c74-41e3-8f92-57324a708e85","revision":1},
              "project":{"id":"example","name":"Corrections"},"applicationVersions":["1"],
              "configuration":{"type":"object","additionalProperties":false,"properties":{
@@ -39,7 +39,7 @@ public sealed class SetupCliMachineBoundaryTests
              "outputs":{"service.json":{"id":"config","format":"json"}}}
             """);
         fixture.Files["answers.json"] = Encoding.UTF8.GetBytes("""
-            {"answerContractVersion":1,"values":{"value":{"synthetic-private-key":[{"0":"synthetic-private-answer"}]}},"omitted":[]}
+            {"answerContractVersion":"0.0.1","values":{"value":{"synthetic-private-key":[{"0":"synthetic-private-answer"}]}},"omitted":[]}
             """);
         await Assert.That(await fixture.ArtifactAsync("validate")).IsEqualTo(SetupCliExitCode.Validation);
         using JsonDocument output = JsonDocument.Parse(fixture.StandardOutput);
@@ -257,7 +257,7 @@ public sealed class SetupCliMachineBoundaryTests
             await File.WriteAllTextAsync(source, definition.ToJsonString());
             await File.WriteAllTextAsync(input, new JsonObject
             {
-                ["answerContractVersion"] = 1,
+                ["answerContractVersion"] = "0.0.1",
                 ["values"] = answers,
                 ["omitted"] = new JsonArray()
             }.ToJsonString());
@@ -391,7 +391,7 @@ public sealed class SetupCliMachineBoundaryTests
             }
         };
         fixture.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
-        fixture.Files["answers.json"] = """{"answerContractVersion":1,"values":{},"omitted":[]}"""u8.ToArray();
+        fixture.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{},"omitted":[]}"""u8.ToArray();
         string[] arguments = ["artifact", operation, "--definition", "definition.json", "--artifact", "config",
             "--input", "answers.json", "--machine", "--detail", "diagnostics", "--limit", "16"];
         await Assert.That(await fixture.RunAsync(arguments)).IsEqualTo(expected);
@@ -403,7 +403,7 @@ public sealed class SetupCliMachineBoundaryTests
         string[] continuation = [.. arguments, "--offset", "16", "--expected-detail-digest", digest];
         await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(expected);
         await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
-        fixture.Files["answers.json"] = """{"answerContractVersion":1,"values":{"field0":"synthetic"},"omitted":[]}"""u8.ToArray();
+        fixture.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"field0":"synthetic"},"omitted":[]}"""u8.ToArray();
         await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(SetupCliExitCode.Data);
         using JsonDocument mismatch = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(mismatch.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString()).IsEqualTo("detail-digest-mismatch");
@@ -465,6 +465,8 @@ public sealed class SetupCliMachineBoundaryTests
 
     private sealed class PublicationWriter(CliFixture fixture, SetupCliPublicationResult? result) : ISetupCliWriter
     {
+        public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+            fixture.CheckArtifactDestinationAsync(path, cancellationToken);
         internal int Publications { get; private set; }
         public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) =>
             fixture.WriteAsync(path, bytes, maximumBytes, cancellationToken);
@@ -493,6 +495,8 @@ public sealed class SetupCliMachineBoundaryTests
 
     private sealed class FailingWriter(int prefix) : ISetupCliWriter
     {
+        public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<ProtectedArtifactStatus?>(ProtectedArtifactStatus.UnsupportedPlatform);
         internal int Attempts { get; private set; }
         public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {

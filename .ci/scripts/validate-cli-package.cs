@@ -22,7 +22,7 @@ internal static class CliPackageValidation
         try
         {
             string root = Directory.GetCurrentDirectory();
-            byte[] schemaBytes = await File.ReadAllBytesAsync(Path.Combine(root, "schemas/islamu-configurator-command-v4.schema.json"));
+            byte[] schemaBytes = await File.ReadAllBytesAsync(Path.Combine(root, "schemas/configurator-cli.schema.json"));
             using JsonDocument schema = JsonDocument.Parse(schemaBytes);
             if (arguments is ["--self-test"]) return SelfTest(schema.RootElement);
             Require(arguments is ["--package-directory", _, "--expected-rid", _]);
@@ -39,7 +39,7 @@ internal static class CliPackageValidation
             Require(package.GetProperty("executableName").GetString() == "islamu-configurator");
             Require(package.GetProperty("protectedExportHosts").EnumerateArray().Select(item => item.GetString()).SequenceEqual(["linux"]));
             string executable = Path.Combine(directory, OperatingSystem.IsWindows() ? "islamu-configurator.exe" : "islamu-configurator");
-            byte[] packagedSchema = await File.ReadAllBytesAsync(Path.Combine(directory, "schemas/islamu-configurator-command-v4.schema.json"));
+            byte[] packagedSchema = await File.ReadAllBytesAsync(Path.Combine(directory, "schemas/configurator-cli.schema.json"));
             Console.WriteLine($"CLI_PACKAGE_IDENTITY rid={rid} host={RuntimeInformation.RuntimeIdentifier} executableSha256={Hash(await File.ReadAllBytesAsync(executable))} contractSha256={Hash(contractBytes)} packagedSchemaSha256={Hash(packagedSchema)} validatorSchemaSha256={Hash(schemaBytes)}");
 
             int failures = 0;
@@ -61,9 +61,6 @@ internal static class CliPackageValidation
             await Cohort("schema-freshness", () =>
             {
                 Require(packagedSchema.AsSpan().SequenceEqual(schemaBytes));
-                Require(!File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v1.schema.json"))
-                    && !File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v2.schema.json"))
-                    && !File.Exists(Path.Combine(directory, "schemas/islamu-configurator-command-v3.schema.json")));
                 return Task.CompletedTask;
             });
             await Cohort("doctor", async () =>
@@ -95,7 +92,7 @@ internal static class CliPackageValidation
                 Require(help.GetProperty("scope").GetString() == "root");
                 Require(help.GetProperty("commandPath").GetArrayLength() == 0);
                 Require(help.GetProperty("commands").EnumerateArray().Select(item => item.GetString())
-                    .ToHashSet(StringComparer.Ordinal).SetEquals(["artifact", "catalogue", "definition", "doctor", "env"]));
+                    .ToHashSet(StringComparer.Ordinal).SetEquals(["artifact", "catalogue", "definition", "doctor", "env", "secret"]));
                 Require(document.RootElement.GetProperty("artifacts").GetArrayLength() == 0);
             });
 
@@ -104,7 +101,7 @@ internal static class CliPackageValidation
             try
             {
                 const string definition = """
-                    {"schemaVersion":2,"profile":"bounded-v2","familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
+                    {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"ac899fc7-d7f7-4ef3-9926-7f447387fe8c",
                      "revision":1,"project":{"id":"example.service","name":"Package service","publisher":"example"},"applicationVersions":["1.0"],
                      "entryPoints":["setup"],"locales":["en"],
                      "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],
@@ -114,7 +111,7 @@ internal static class CliPackageValidation
                         "targetUpdateMode":"create","restartRequirement":"process",
                         "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}}]}
                     """;
-                const string answers = """{"answerContractVersion":1,"values":{"service.name":"synthetic-package-service"},"omitted":[]}""";
+                const string answers = """{"answerContractVersion":"0.0.1","values":{"service.name":"synthetic-package-service"},"omitted":[]}""";
                 byte[] expected = """{"name":"synthetic-package-service"}"""u8.ToArray();
                 string source = Path.Combine(workspace, "definition.json");
                 string input = Path.Combine(workspace, "answers.json");
@@ -435,7 +432,7 @@ internal static class CliPackageValidation
     private static int SelfTest(JsonElement schema)
     {
         const string good = """
-            {"schemaVersion":"islamu-configurator-command/v4","invocation":{"commandFamily":"artifact","operation":"validate","mode":"machine"},"status":"success","exitCategory":"success","exitCode":0,"dryRun":false,"completion":"completed","preparation":"ready","targetAcceptance":"unassessed","cleanup":"not-required","delivery":"attempt","diagnosticsTotal":0,"diagnosticsOmitted":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","diagnostics":[],"artifacts":[{"id":"config","kind":"definition-artifact","mediaType":"application/json","digest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sensitivity":"restricted","pathIntent":"input","writeStatus":"none","installation":"not-applicable","verification":"not-applicable"}],"coverage":{"coveredCount":1,"missingCount":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"readiness":{"state":"ready","missingCount":0,"blockedCount":0}}
+            {"schemaVersion":"islamu-configurator-command/v0.0.1","invocation":{"commandFamily":"artifact","operation":"validate","mode":"machine"},"status":"success","exitCategory":"success","exitCode":0,"dryRun":false,"completion":"completed","preparation":"ready","targetAcceptance":"unassessed","cleanup":"not-required","delivery":"attempt","diagnosticsTotal":0,"diagnosticsOmitted":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","diagnostics":[],"artifacts":[{"id":"config","kind":"definition-artifact","mediaType":"application/json","digest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sensitivity":"restricted","pathIntent":"input","writeStatus":"none","installation":"not-applicable","verification":"not-applicable"}],"coverage":{"coveredCount":1,"missingCount":0,"detailDigest":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"readiness":{"state":"ready","missingCount":0,"blockedCount":0}}
             """;
         int rejected = 0;
         void Check(string text, bool valid, int exit = 0, byte[]? error = null)
@@ -457,9 +454,10 @@ internal static class CliPackageValidation
         {
             obj => obj["unknown"] = true,
             obj => obj.Remove("schemaVersion"),
-            obj => obj["schemaVersion"] = "islamu-configurator-command/v1",
-            obj => obj["schemaVersion"] = "islamu-configurator-command/v2",
-            obj => obj["schemaVersion"] = "islamu-configurator-command/v3",
+            obj => obj["schemaVersion"] = "islamu-configurator-command/unsupported",
+            obj => obj["schemaVersion"] = 1,
+            obj => obj["schemaVersion"] = "islamu-configurator-command/v0.0.1 ",
+            obj => obj["schemaVersion"] = "ISLAMU-CONFIGURATOR-COMMAND/v0.0.1",
             obj => obj["invocation"]!["mode"] = "text",
             obj => obj["invocation"]!["operation"] = "create",
             obj => obj["invocation"]!["unknown"] = true,

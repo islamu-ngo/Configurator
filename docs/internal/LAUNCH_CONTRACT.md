@@ -6,7 +6,7 @@
 > **Last Verified:** 2026-11-01
 > **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/Presentation/`
 
-## V2 typed workspace admission and callbacks
+## V3 typed workspace admission and callbacks
 
 `BrowserLaunchSelection` admits an explicit closed editing-capability set before
 answers and resolves the declared localization default, not the first locale in
@@ -19,6 +19,13 @@ does not overwrite Core initialization, and rerendering does not reapply entry
 selection over later edits or omissions. Definitions without a matching selector
 continue to use their entry as metadata, not a guessed answer path.
 The shared form checks the same capability set before allocating answer editors.
+The Browser capability set includes `schema.secret`. Admitted secret metadata
+establishes a sensitivity floor even without an explicit sensitivity string.
+Local generation uses the same per-workspace consent and edit eligibility as
+manual entry. `DefinitionSecretOperation` owns revision and editor-identity
+fencing; browser controls do not apply results directly. Revocation retires
+temporary derivation inputs, generated originals, reveal state and pending
+clipboard capabilities alongside ordinary secret answers.
 It owns subsequent locale changes as view state. Public display metadata and
 localized sections/journeys come from Presentation; Core remains the schema,
 effective-value, predicate and branch authority.
@@ -250,6 +257,16 @@ A callback held across intervening edits, row replacement, revocation,
 reconsent, form replacement or disposal cannot publish into a newer workspace
 state. Current callbacks still pass through `Form.CanEdit` and shared typed
 editing; autocomplete hints never confer consent.
+
+Explicit secret generation uses the same per-workspace consent. The shared
+`DefinitionFormModel.GenerateSecretAsync` captures the current editor identity,
+input revision and operation generation; it rechecks eligibility before applying
+Core-validated output. A shifted array row, variant change, revocation or disposed
+form cannot receive late output. Generated hash inputs remain a separate transient
+result, cleared on edit, dismissal, revocation and disposal. Copying an original
+password is deliberate external clipboard custody; clearing the form cannot erase
+that external copy. Neither generation nor format validation makes a network
+request or grants issuer/target acceptance.
 
 Consent denial and recursive secret clearing happen before the first cleanup
 await. The editor detaches and synchronously invalidates every old artifact's

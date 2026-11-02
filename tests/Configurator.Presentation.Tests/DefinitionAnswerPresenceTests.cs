@@ -214,7 +214,7 @@ public sealed class DefinitionAnswerPresenceTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":2,"profile":"bounded-v2","familyId":"c9fcf10e-526d-4007-bd03-825d039366ed","revision":1,
+    {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"c9fcf10e-526d-4007-bd03-825d039366ed","revision":1,
      "project":{"id":"example","name":"Example","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
      "requiredCapabilities":["projection.copy","projection.object","schema.array","schema.boolean","schema.enum","schema.integer","schema.object","schema.string","values.initial"],

@@ -21,7 +21,7 @@ internal static partial class SetupCliMachineContractVerifier
         ["$.diagnostics[].correction.segments[]"] = ["kind"],
         ["$.schema"] = ["kind", "id", "digest", "profile", "authoringContractVersion", "runtimeSchemaVersion",
             "answerContractVersion", "capabilities", "document"],
-        ["$.artifacts[]"] = ["id", "kind", "mediaType", "digest", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"],
+        ["$.artifacts[]"] = ["id", "kind", "mediaType", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"],
         ["$.coverage"] = ["coveredCount", "missingCount", "detailDigest"],
         ["$.readiness"] = ["state", "missingCount", "blockedCount"],
         ["$.assessment"] = ["definitionDigest", "artifactId", "compatibility", "coverage", "inventory", "autofill", "retainedCount"],
@@ -39,6 +39,7 @@ internal static partial class SetupCliMachineContractVerifier
         {
             "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema", "assessment"],
             "$.assessment" or "$.detail" => [.. item.Value, "total"],
+            "$.artifacts[]" => [.. item.Value, "digest"],
             "$.detail.findings[]" => [.. item.Value, "source", "schema"],
             "$.diagnostics[]" => [.. item.Value, "line", "column", "byteOffset", "source", "correction"],
             "$.diagnostics[].correction.segments[]" => [.. item.Value, "propertyName", "index"],
@@ -63,7 +64,7 @@ internal static partial class SetupCliMachineContractVerifier
     internal static IReadOnlyList<string> InspectSchema(JsonObject schema)
     {
         var errors = new List<string>();
-        if (schema["$id"]?.GetValue<string>() != "https://schemas.islamu.org/configurator/command/v4/schema.json")
+        if (schema["$id"]?.GetValue<string>() != "urn:islamu:configurator:cli:v0.0.1")
         {
             errors.Add("schema-id");
         }
@@ -100,7 +101,7 @@ internal static partial class SetupCliMachineContractVerifier
                 || !obj["properties"]!.AsObject().Select(property => property.Key).ToHashSet(StringComparer.Ordinal).SetEquals(Allowed[path]))
                 errors.Add("schema-object-contract:" + path);
         }
-        if (schema["properties"]!["schemaVersion"]!["const"]!.GetValue<string>() != "islamu-configurator-command/v4"
+        if (schema["properties"]!["schemaVersion"]!["const"]!.GetValue<string>() != "islamu-configurator-command/v0.0.1"
             || schema["properties"]!["diagnostics"]!["maxItems"]!.GetValue<int>() != 16
             || schema["$defs"]!["detail"]!["properties"]!["diagnostics"]!["maxItems"]!.GetValue<int>() != 32
             || schema["$defs"]!["detail"]!["properties"]!["coverage"]!["maxItems"]!.GetValue<int>() != 32
@@ -203,12 +204,20 @@ internal static partial class SetupCliMachineContractVerifier
             bool compilerHandshake = root["invocation"]?["commandFamily"]?.GetValue<string>() == "definition"
                 && root["invocation"]?["operation"]?.GetValue<string>() is "check" or "build" or "lint"
                 && root["exitCode"]?.GetValue<int>() == 0 && !root.ContainsKey("help");
-            if (compilerHandshake ? root["authoringContractVersion"]?.GetValue<int>() != 2 || root["runtimeSchemaVersion"]?.GetValue<int>() != 2
+            if (compilerHandshake ? root["authoringContractVersion"]?.GetValue<string>() != "0.0.1" || root["runtimeSchemaVersion"]?.GetValue<string>() != "0.0.1"
                 : root.ContainsKey("authoringContractVersion") || root.ContainsKey("runtimeSchemaVersion"))
                 errors.Add("machine-compiler-handshake");
             ValidateSchemaDiscovery(root, errors);
             ValidateDiagnostics(root["diagnostics"] as JsonArray, 16, errors);
             ValidateArtifacts(root["artifacts"] as JsonArray, errors);
+            if (root["invocation"]?["commandFamily"]?.GetValue<string>() == "secret"
+                && root["artifacts"] is JsonArray secretArtifacts
+                && secretArtifacts.OfType<JsonObject>().Any(artifact => artifact.ContainsKey("digest")))
+                errors.Add("machine-secret-artifact-digest");
+            if (root["invocation"]?["commandFamily"]?.GetValue<string>() != "secret"
+                && root["artifacts"] is JsonArray ordinaryArtifacts
+                && ordinaryArtifacts.OfType<JsonObject>().Any(artifact => !artifact.ContainsKey("digest")))
+                errors.Add("machine-artifact-digest-required");
             ValidateCoverage(root["coverage"] as JsonObject, "$.coverage", errors);
             ValidateReadiness(root["readiness"] as JsonObject, "$.readiness", errors);
             ValidateSummary(root, errors);
@@ -266,12 +275,12 @@ internal static partial class SetupCliMachineContractVerifier
                 """)))
             errors.Add("schema-correction-contract");
         if (schema["properties"]?["schema"]?["$ref"]?.GetValue<string>() != "#/$defs/schema"
-            || schema["properties"]?["authoringContractVersion"]?["const"]?.GetValue<int>() != 2
-            || schema["properties"]?["runtimeSchemaVersion"]?["const"]?.GetValue<int>() != 2
-            || discovery["profile"]?["const"]?.GetValue<string>() != "bounded-v2"
-            || discovery["authoringContractVersion"]?["const"]?.GetValue<int>() != 2
-            || discovery["runtimeSchemaVersion"]?["const"]?.GetValue<int>() != 2
-            || discovery["answerContractVersion"]?["const"]?.GetValue<int>() != 1
+            || schema["properties"]?["authoringContractVersion"]?["const"]?.GetValue<string>() != "0.0.1"
+            || schema["properties"]?["runtimeSchemaVersion"]?["const"]?.GetValue<string>() != "0.0.1"
+            || discovery["profile"]?["const"]?.GetValue<string>() != "bounded-v0.0.1"
+            || discovery["authoringContractVersion"]?["const"]?.GetValue<string>() != "0.0.1"
+            || discovery["runtimeSchemaVersion"]?["const"]?.GetValue<string>() != "0.0.1"
+            || discovery["answerContractVersion"]?["const"]?.GetValue<string>() != "0.0.1"
             || discovery["digest"]?["pattern"]?.GetValue<string>() != "^[0-9a-f]{64}$"
             || discovery["kind"]?["enum"] is not JsonArray schemaKinds
             || !schemaKinds.Select(item => item!.GetValue<string>()).ToHashSet(StringComparer.Ordinal).SetEquals(SetupCliContractSpecification.SchemaIds.Keys)
@@ -291,7 +300,7 @@ internal static partial class SetupCliMachineContractVerifier
                 || identity["properties"]?["id"]?["const"]?.GetValue<string>() != id)
             || identities.Select(identity => identity!["properties"]!["kind"]!["const"]!.GetValue<string>())
                 .Distinct(StringComparer.Ordinal).Count() != 4
-            || schema["allOf"] is not JsonArray { Count: 2 })
+            || schema["allOf"] is not JsonArray { Count: 3 })
             errors.Add("schema-discovery-operation");
     }
 
@@ -300,7 +309,7 @@ internal static partial class SetupCliMachineContractVerifier
         const string digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         var root = new JsonObject
         {
-            ["schemaVersion"] = "islamu-configurator-command/v4",
+            ["schemaVersion"] = "islamu-configurator-command/v0.0.1",
             ["invocation"] = new JsonObject { ["commandFamily"] = "artifact", ["operation"] = "validate", ["mode"] = "machine" },
             ["status"] = "success",
             ["exitCategory"] = "success",
@@ -516,7 +525,7 @@ internal static partial class SetupCliMachineContractVerifier
         {
             errors.Add("machine-exit-mismatch");
         }
-        if (root["schemaVersion"]?.GetValue<string>() != "islamu-configurator-command/v4")
+        if (root["schemaVersion"]?.GetValue<string>() != "islamu-configurator-command/v0.0.1")
         {
             errors.Add("machine-version");
         }
@@ -632,9 +641,9 @@ internal static partial class SetupCliMachineContractVerifier
         ValidateObject(schema, "$.schema", errors);
         string kind = schema["kind"]?.GetValue<string>() ?? "";
         if (!SetupCliContractSpecification.SchemaIds.TryGetValue(kind, out string? id)
-            || schema["id"]?.GetValue<string>() != id || schema["profile"]?.GetValue<string>() != "bounded-v2"
-            || schema["authoringContractVersion"]?.GetValue<int>() != 2 || schema["runtimeSchemaVersion"]?.GetValue<int>() != 2
-            || schema["answerContractVersion"]?.GetValue<int>() != 1
+            || schema["id"]?.GetValue<string>() != id || schema["profile"]?.GetValue<string>() != "bounded-v0.0.1"
+            || schema["authoringContractVersion"]?.GetValue<string>() != "0.0.1" || schema["runtimeSchemaVersion"]?.GetValue<string>() != "0.0.1"
+            || schema["answerContractVersion"]?.GetValue<string>() != "0.0.1"
             || !DigestPattern().IsMatch(schema["digest"]?.GetValue<string>() ?? ""))
             errors.Add("machine-schema-handshake");
         if (schema["capabilities"] is not JsonArray capabilities || capabilities.Count > 64
@@ -700,9 +709,9 @@ internal static partial class SetupCliMachineContractVerifier
             string verification = artifact["verification"]?.GetValue<string>() ?? string.Empty;
             string writeStatus = artifact["writeStatus"]?.GetValue<string>() ?? string.Empty;
             if (id.Length is < 1 or > 128 || !KeyPattern().IsMatch(id) || !ids.Add(id)
-                || !DigestPattern().IsMatch(artifact["digest"]?.GetValue<string>() ?? string.Empty)
+                || artifact.ContainsKey("digest") && !DigestPattern().IsMatch(artifact["digest"]?.GetValue<string>() ?? string.Empty)
                 || artifact["sensitivity"]?.GetValue<string>() is not ("public" or "restricted")
-                || artifact["kind"]?.GetValue<string>() is not ("catalogue" or "definition-artifact" or "answer-snapshot" or "doctor-report" or "authoring-source" or "compiled-definition" or "logical-id-map")
+                || artifact["kind"]?.GetValue<string>() is not ("catalogue" or "definition-artifact" or "answer-snapshot" or "generated-password" or "doctor-report" or "authoring-source" or "compiled-definition" or "logical-id-map")
                 || mediaType.Length is < 1 or > 128 || !MediaTypePattern().IsMatch(mediaType)
                 || artifact["pathIntent"]?.GetValue<string>() is not ("none" or "input" or "output" or "stdout")
                 || writeStatus is not ("none" or "planned" or "written" or "not-attempted" or "conflict" or "blocked" or "failed" or "unknown")

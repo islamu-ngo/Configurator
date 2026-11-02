@@ -59,6 +59,14 @@ definition filename hints grant no filesystem authority.
 
 ## Bundle preparation and publication
 
+CLI generated-input secret recipes publish two explicitly selected restricted
+files: original-password sidecar first, updated answer snapshot second. Receipt
+IDs are `generated-password-output` and `answer-output`; neither includes a
+secret digest or private path. Destination preflight uses disposable protected
+preparation and actual writes retain create-only conflict handling. A failed
+answer write preserves an installed sidecar and its established receipt facts.
+No cleanup or automatic regeneration removes that original credential.
+
 The public guarantee is per-file create-only installation, not a whole-bundle
 transaction. Preflight can reject before any publication; a later race or
 cancellation can leave an installed prefix. Dispose private preparation

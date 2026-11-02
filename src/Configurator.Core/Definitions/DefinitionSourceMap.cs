@@ -42,7 +42,7 @@ public sealed class DefinitionSourceMap
     }.ToFrozenSet(StringComparer.Ordinal);
     private static readonly FrozenSet<string> MetadataMembers = new[]
     {
-        "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "credential",
+        "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "secret",
         "choices", "units", "uniqueBy", "applicableWhen", "assertFormat"
     }.ToFrozenSet(StringComparer.Ordinal);
     private readonly FrozenDictionary<string, DefinitionSourceSpan> _spans;
@@ -132,7 +132,19 @@ public sealed class DefinitionSourceMap
                     for (int index = 0; index < variants.Entries.Count; index++)
                         Schema(memberPath + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), variants.Entries[index]);
                 else if (name == "x-configurator" && child is CompositionMap metadata)
+                {
                     FixedMembers(memberPath, metadata, MetadataMembers);
+                    if (metadata.Entries.TryGetValue("secret", out CompositionNode? secret) && secret is CompositionMap policy)
+                    {
+                        FixedMembers(memberPath + "/secret", policy, ["kind", "acquisition", "algorithm", "encoding", "constraints", "generation"]);
+                        foreach (string section in new[] { "constraints", "generation" })
+                            if (policy.Entries.TryGetValue(section, out CompositionNode? content) && content is CompositionMap members)
+                                FixedMembers(memberPath + "/secret/" + section, members, ["characterSet", "allowWhitespace", "maxUtf8Bytes",
+                                    "minLowercase", "minUppercase", "minDigits", "minSymbols", "allowedSymbols", "forbiddenCharacters",
+                                    "minBytes", "maxBytes", "keySize", "curve", "memoryKiB", "iterations", "parallelism", "saltBytes",
+                                    "derivedBytes", "cost", "length", "bytes", "input", "inputEncoding", "password"]);
+                    }
+                }
             }
         }
     }

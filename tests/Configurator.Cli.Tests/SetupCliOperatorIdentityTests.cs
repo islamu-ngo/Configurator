@@ -30,7 +30,7 @@ public sealed class SetupCliOperatorIdentityTests
             await Assert.That(await io.ArtifactAsync(operation, "request", "--dry-run")).IsEqualTo(SetupCliExitCode.Blocked);
         await Assert.That(await io.ArtifactAsync("import", "config", "--dry-run", "--expected-revision", "absent",
             "--revision-field", "expectedRevision")).IsEqualTo(SetupCliExitCode.Blocked);
-        io.Files["answers.json"] = """{"answerContractVersion":1,"values":{"service.name":"private-answer-marker","expectedRevision":"different"},"omitted":[]}"""u8.ToArray();
+        io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"service.name":"private-answer-marker","expectedRevision":"different"},"omitted":[]}"""u8.ToArray();
         await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run", "--expected-revision", "absent",
             "--revision-field", "expectedRevision")).IsEqualTo(SetupCliExitCode.Validation);
         io.Files["answers.json"] = Encoding.UTF8.GetBytes(CliFixture.Answers);

@@ -152,13 +152,13 @@ internal static class DefinitionDocumentEditing
     {
         var result = new List<DefinitionDocumentCoverage>();
         foreach ((string name, DefinitionNode node) in root.Properties)
-            Visit(node, DefinitionPath.FromSegments([name]), SetupFieldDefinition.SensitivityOf(root));
+            Visit(node, DefinitionPath.FromSegments([name]), DefinitionSensitivityPolicy.SensitivityOf(root));
         return Array.AsReadOnly(result.ToArray());
 
         void Visit(DefinitionNode node, DefinitionPath path, SetupFieldSensitivity inherited)
         {
             bool ownPublic = inherited == SetupFieldSensitivity.Public
-                && SetupFieldDefinition.SensitivityOf(node) == SetupFieldSensitivity.Public;
+                && DefinitionSensitivityPolicy.SensitivityOf(node) == SetupFieldSensitivity.Public;
             if (ownPublic && EntirelyPublic(node)) result.Add(new(path, true));
             else if (ownPublic && node.Type == DefinitionNodeType.Mapping && node.AdditionalProperties is null
                 && node.Variants.Count == 0)
@@ -167,7 +167,7 @@ internal static class DefinitionDocumentEditing
             else result.Add(new(path, false));
         }
         static bool EntirelyPublic(DefinitionNode node) =>
-            SetupFieldDefinition.SensitivityOf(node) == SetupFieldSensitivity.Public
+            DefinitionSensitivityPolicy.SensitivityOf(node) == SetupFieldSensitivity.Public
             && node.Properties.Values.Concat(node.Variants)
                 .Concat(node.Items is null ? [] : new[] { node.Items })
                 .Concat(node.AdditionalProperties is null ? [] : new[] { node.AdditionalProperties })

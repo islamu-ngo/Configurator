@@ -9,7 +9,7 @@ public sealed class DefinitionDiscoveryTests
     public async Task WarmDiscoveryUsesCurrentExperienceOrderWithoutChangingAnswerFacts()
     {
         using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-        {"schemaVersion":2,"profile":"bounded-v2","familyId":"7d7d448e-f6ba-4860-94dd-5df51cae9578","revision":1,
+        {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"7d7d448e-f6ba-4860-94dd-5df51cae9578","revision":1,
          "project":{"id":"example","publisher":"example","name":"Order"},"applicationVersions":["1"],
          "entryPoints":["setup"],"locales":["en"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},

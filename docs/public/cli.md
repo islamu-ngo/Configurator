@@ -9,12 +9,12 @@ The CLI is designed for headless servers, automation pipelines, and CI/CD workfl
 > [!NOTE]
 > **Getting Started:** If you are running Configurator for the first time with synthetic example files, see the [Prepare a configuration offline](getting-started.md) guide.
 
-For portable bounded-v2 adoption, start with the
+For portable bounded-v0.0.1 adoption, start with the
 [integration workflow](integrating.md), then the
 [definition reference](definition-reference.md) and
-[cookbook](definition-cookbook.md). Public authoring/runtime contracts are v2,
-private answers are v1, and machine receipts are v4; those versions are independent.
-Machine v3 and its schema are retired without an adapter or alias.
+[cookbook](definition-cookbook.md). Product and public contract versions remain
+`0.0.1` throughout development. Authoring/runtime, private answers and machine
+receipts each have one current format, with no compatibility adapter or alias.
 
 For exact command, operation and option vocabulary and declared bounds, use the
 [generated command reference](cli-command-reference.md). It projects the current
@@ -35,6 +35,49 @@ The target still owns semantic validation and permission to apply the files.
 See [packaging](packaging.md) for host boundaries and the
 [technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
 for the bounded definition mechanisms and limits.
+
+## Generate or derive a secret locally
+
+`secret generate` uses the selected field's admitted `x-configurator.secret`
+recipe. `--pointer` is a literal JSON Pointer into answer values, including
+escaped property names and numeric array positions; it is never a field ID.
+The contextual input may be incomplete. Only the selected answer changes, and
+the receipt still reports incomplete readiness for unrelated missing answers.
+An explicit generation request can supply an omitted leaf. An omitted parent
+object or array must first be supplied in the input workspace.
+
+```bash
+islamu-configurator secret generate \
+  --definition configurator.yaml --pointer /password \
+  --input answers.json --output new-answers.json --machine
+```
+
+For entered-input hash or digest recipes, use `secret derive` with exactly one
+`--secret-input-file` or `--secret-input-stdin`. Input is bounded strict UTF-8;
+no newline is removed. Never put private input in command arguments. Algorithms,
+encodings and work factors come from the definition and cannot be overridden.
+
+```bash
+islamu-configurator secret derive \
+  --definition configurator.yaml --pointer /passwordHash \
+  --input answers.json --output new-answers.json \
+  --secret-input-file private-input.txt --machine
+```
+
+When a hash or digest recipe generates its original password, `secret generate`
+also requires `--generated-password-output original-password.txt`. Both output
+destinations must be fresh, distinct and different from the inputs. The original
+password is written first as restricted UTF-8 without an appended newline; the
+updated answer workspace is written second. A second-write failure preserves
+the original-password file and reports its `generated-password-output` receipt
+as installed. Keep that file and inspect the receipt before choosing recovery;
+there is no automatic deletion, overwrite or retry and no two-file transaction.
+
+Secret command receipts omit artifact digests, values and private paths. They
+identify output artifacts by logical IDs only. Source input remains unchanged.
+Issuer-managed, existing-only, read-only, inactive and nongeneratable fields
+refuse local operations. Successful generation establishes local policy
+conformance, not acceptance or permission to apply configuration at the target.
 
 ---
 
@@ -85,7 +128,7 @@ reading, not an unwrapped answer object:
 
 ```json
 {
-  "answerContractVersion": 1,
+  "answerContractVersion": "0.0.1",
   "values": {
     "metrics.enabled": true,
     "service.credential": "synthetic-placeholder",
@@ -109,8 +152,8 @@ inserted. `x-configurator.initialValue` initializes eligible missing values;
 explicit omission suppresses it. Reset removes the override and omission,
 restoring initialization eligibility. Suggested values require deliberate
 adoption. Children cannot initialize an absent optional container into existence.
-The fixture's literal keys and private v1 envelope are independent of runtime v2
-and command v4.
+The fixture's literal keys and private 0.0.1 envelope are independent of runtime 0.0.1
+and command 0.0.1.
 
 ### Confidentiality & Secret Handling
 
@@ -195,7 +238,7 @@ islamu-configurator definition schema --kind command --text
 
 Schema kinds are exactly `authoring` (default), `runtime`, `answers`, and
 `command`. Machine discovery returns a `schema` object containing its kind, ID,
-canonical digest, `bounded-v2` profile, capabilities, document, and independent
+canonical digest, `bounded-v0.0.1` profile, capabilities, document, and independent
 authoring/runtime/answer versions 2/2/1. Text mode prints only the public schema
 document. Discovery takes no source, input, output or root authority.
 
@@ -301,7 +344,7 @@ The following is an **invocation template**, not runnable with the neutral
 fixture: `import-definition.json` must declare an import-semantic artifact and
 an active required string revision field copied unconditionally to a root
 output member. Supply the target's expected digest (or supported `absent`
-marker), a compatible private v1 answer file, and a fresh destination:
+marker), a compatible private 0.0.1 answer file, and a fresh destination:
 
 ```bash
 islamu-configurator artifact import \
@@ -415,18 +458,18 @@ or establish that target software will accept an artifact.
 
 ## Machine Contract (`--machine`)
 
-In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v4` schema. It provides deterministic, structured facts about operation results, file publication, validation diagnostics and existing-file assessment.
+In machine mode, the CLI emits a single JSON object adhering to the `islamu-configurator-command/v0.0.1` schema. It provides deterministic, structured facts about operation results, file publication, validation diagnostics and existing-file assessment.
 
 ### 1. Successful Artifact Creation
 
 The JSON examples in this section are **illustrative receipt shapes**, not
 captured command results. Digests are stand-ins and counts describe the example;
-do not use them as fixture expectations. The generated v4 schema, not a
+do not use them as fixture expectations. The generated 0.0.1 schema, not a
 documentation excerpt, defines the complete machine contract.
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v4",
+  "schemaVersion": "islamu-configurator-command/v0.0.1",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "create",
@@ -486,7 +529,7 @@ Prose `message` fields are not part of the diagnostic contract:
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v4",
+  "schemaVersion": "islamu-configurator-command/v0.0.1",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "validate",
@@ -539,7 +582,7 @@ digest, not the requested page size:
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v4",
+  "schemaVersion": "islamu-configurator-command/v0.0.1",
   "invocation": {
     "commandFamily": "artifact",
     "operation": "validate",

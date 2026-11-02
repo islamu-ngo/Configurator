@@ -2,7 +2,7 @@
   "type": "object",
   "properties": {
     "answerContractVersion": {
-      "const": 1
+      "const": "0.0.1"
     },
     "values": {
       "type": "object"
@@ -24,6 +24,6 @@
     "omitted"
   ],
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:islamu:configurator:answers:v1",
-  "title": "Configurator private answers v1"
+  "$id": "urn:islamu:configurator:answers:v0.0.1",
+  "title": "Configurator private answers 0.0.1"
 }

@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 2,
-  "profile": "bounded-v2",
+  "schemaVersion": "0.0.1",
+  "profile": "bounded-v0.0.1",
   "familyId": "d66d02af-6a66-4396-9717-452e8eb9541b",
   "revision": 1,
   "project": {

@@ -60,6 +60,22 @@ The sole `DefinitionValidator` resolves activity, requiredness, variants and
 constraints. Assessment disables initialization, not absence semantics. Normal
 workspace validation and initialization remain distinct from the imported file.
 
+### Secret policy during imported-value validation
+
+The shared validator applies the admitted `DefinitionSecretSpecification` to
+supplied imported values. Sensitivity comes from `DefinitionSensitivityPolicy`,
+including inherited secret floors; comparison projections must never reveal
+those values or private map keys. Secret-format failures use safe rule codes and
+expected policy metadata, not the rejected value or actual secret length.
+
+Import inspection never generates random material, contacts an issuer or runs a
+password KDF to inspect a serialized hash. Bounded syntax/cost checks precede
+expensive decoding, and local format validity is separate from target acceptance.
+An invalid supplied secret is not a missing secret eligible for draft deferral.
+Only fresh workspace validation after deliberate adoption supplies current
+correction authority. See [cryptographic validation](SECRET_CRYPTOGRAPHY.md) and
+the [operator import guide](../public/import-and-compare.md).
+
 ## Captured Editable Environment Scope
 
 `DefinitionImport.CaptureEditableScope` delegates to

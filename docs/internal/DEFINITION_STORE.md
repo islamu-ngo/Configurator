@@ -3,7 +3,7 @@
 > **Audience:** Maintainers and contributors
 > **Owner:** Core
 > **Contributing reviewers:** Native store tooling and Browser discovery
-> **Source Anchors:** `eng/configurator/BuildDefinitionStore.cs`, `store/`, `schemas/definition-store-curation-v1.schema.json`
+> **Source Anchors:** `eng/configurator/BuildDefinitionStore.cs`, `store/`, `schemas/definition-store-curation.schema.json`
 > **Status:** Optional static discovery; no publisher authentication or host authority
 > **Last Verified:** 2026-11-01
 
@@ -12,7 +12,7 @@
 `BuildDefinitionStore.cs` is a native file-based .NET tool referencing Core only.
 It parses one root-confined JSON or YAML source through
 `DefinitionAuthoringCodec` and `DefinitionAuthoringCompiler`, admits historical
-v2 JSON releases through `SetupDefinitionCodec`, verifies project application/family agreement and uses
+current JSON releases through `SetupDefinitionCodec`, verifies project application/family agreement and uses
 `SetupDefinitionRegistry` for global same-revision conflicts. It then derives a
 deterministic index and canonical public snapshots. Core does not depend on
 store curation, Browser or UI packages. Discovery does not evaluate definitions
@@ -39,7 +39,7 @@ even when an independently used local source does not need them. Slugs derive
 from the lowercase project ID by splitting dot/underscore/hyphen separators
 and joining with hyphens. Collisions reject rather than allocate hidden IDs.
 
-Optional store-owned curation has `schemaVersion: 1`, optional `tags`, and an
+Optional store-owned curation has `schemaVersion: "0.0.1"`, optional `tags`, and an
 optional paired `slug`/`slugReason` override. An exception matches the folder
 and requires a trimmed, control-free reason of 16–512 characters. Curation
 cannot provide project/license/history metadata. Its closed schema is generated
@@ -80,7 +80,7 @@ writes and leaves existing release bytes unchanged. The published snapshots
 are Core canonical bytes, with no appended newline. `--check` regenerates in
 memory and compares every expected byte, current-release presence and the
 complete output inventory. Unexpected output fails. Schema output
-defaults to `schemas/definition-store-curation-v1.schema.json`; `--schema <path>`
+defaults to `schemas/definition-store-curation.schema.json`; `--schema <path>`
 selects another schema destination. The schema is separate from published data.
 No timestamps, local paths, answers or publication receipts appear in output.
 
@@ -98,33 +98,30 @@ baseline cannot overlap input, output or schema destinations. Baseline metadata
 does not replace current source metadata. `--require-baseline` rejects omission;
 local packaging without it establishes admission/freshness, not trusted history.
 
-### Pre-release v2 generation boundary
+### Development baseline and content identity
 
-The approved standard cutover retires v1 active inputs without reassigning their
-canonical identities. Their exact historical content remains in Git.
-`Configurator.DefinitionSchemaGenerator --renew-store-families` derives the two
-checked store sources from the admitted v2 examples, carries public distribution
-metadata, and invokes `DefinitionAuthoringIdentityEditor.Fork` for fresh families.
-It validates the four named v1 snapshots before writes, admits all candidates,
-creates fresh revision 1 releases and then retires only the named v1 files.
-This is a one-time source-generation operation, not a runtime compatibility
-interpreter or a baseline bypass.
+Product and public contract versions remain `0.0.1` during development, including
+breaking changes. The builder supports only the current authoring, runtime,
+catalog and curation formats. Older local snapshots belong in ignored archives;
+there is no format-specific cutover command or runtime compatibility reader.
 
-The ordinary baseline validator is unchanged: it refuses missing, rewritten,
-rebound or unsupported history. An old v1 inventory is not a promoted v2 history
-authority. Publication trust activation and remote release remain outside this
-local cutover.
+Definition content identity remains independent. Use `definition init --fork-from`
+with a fresh output source for a deliberate new family, then `definition build`.
+Normal updates within a family require new immutable revisions. The baseline
+validator refuses missing, rewritten, rebound or unsupported history; the fixed
+development version never permits overwriting an admitted family/revision.
+Publication trust activation and remote release remain outside local generation.
 
 The native file app explicitly enables its JSON reflection runtime setting to
 match the existing Core/JIT serialization contract. SDK file-app defaults
 otherwise caused `authoring-invalid` before the first synthetic fixture could
 be admitted. Core serialization was not replaced to work around that host
-setting. The executed v2 self-test has 48 passing cases, including recursive
-protected-choice rejection and immutable-history guards. Actual store generation
-and freshness checks admit two v2 revisions; these are local conformance results,
-not publisher authentication, legal review or target acceptance.
+setting. The native self-test exercises recursive protected-choice rejection and
+immutable-history guards. Actual store generation and freshness checks establish
+local conformance, not publisher authentication, legal review or target acceptance;
+executed counts belong to the candidate's operations record.
 
-The index root has `schemaVersion: 1` and `projects`. Projects use ordinal
+The index root has `schemaVersion: "0.0.1"` and `projects`. Projects use ordinal
 `projectId` order; revisions use ascending numeric order. Each project has:
 
 ```text

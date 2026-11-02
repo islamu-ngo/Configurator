@@ -20,11 +20,11 @@ internal static class SetupTerminalText
         if (presentation.Instructions is { Length: > 0 } instructions) parts.Add(instructions);
         if (presentation.Units is { Length: > 0 } units) parts.Add(units);
         if (metadata.TryGetProperty("x-configurator", out JsonElement extension) &&
-            extension.TryGetProperty("credential", out JsonElement credential))
-            parts.Add(Get(credential.GetProperty("acquisition").GetString() switch
+            extension.TryGetProperty("secret", out JsonElement secret))
+            parts.Add(Get(secret.GetProperty("acquisition").GetString() switch
             {
                 "issuer" => "CredentialIssuer",
-                "create" => "CredentialCreate",
+                "local" => "CredentialCreate",
                 _ => "CredentialExisting"
             }));
         parts.AddRange(presentation.Choices.Where(choice => choice.Explanation is { Length: > 0 })

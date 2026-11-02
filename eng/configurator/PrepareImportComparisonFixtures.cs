@@ -49,7 +49,7 @@ return 0;
 
 JsonObject Source(JsonObject schema) => new()
 {
-    ["$schema"] = "urn:islamu:configurator:authoring:v2",
+    ["$schema"] = DefinitionProfile.AuthoringSchemaId,
     ["identity"] = new JsonObject { ["familyId"] = Guid.NewGuid().ToString(), ["revision"] = 1 },
     ["project"] = new JsonObject { ["id"] = "comparison-probe", ["name"] = "Synthetic comparison probe" },
     ["applicationVersions"] = new JsonArray("1"),

@@ -184,7 +184,7 @@ Single Responsibility and do not duplicate content:
 |---|---|---|---|
 | First run | [getting-started.md](../public/getting-started.md), [neutral example](../../examples/minimal-self-hosted/README.md) | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md), [CLI_CONTRACT.md](CLI_CONTRACT.md), [PROTECTED_ARTIFACTS.md](PROTECTED_ARTIFACTS.md) | Public: reproducible local steps; internal: admission, command and save contracts |
 | Definitions | [definitions.md](../public/definitions.md), [definition-reference.md](../public/definition-reference.md), [definition-cookbook.md](../public/definition-cookbook.md) | [DEFINITION_CONFORMANCE_PROFILE.md](DEFINITION_CONFORMANCE_PROFILE.md), [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md) | Public: authoring usage, bounded patterns, exact properties and capability limits; internal: implemented grammar, admission/evaluation mechanisms and source-observed limits |
-| Definition standard | [definition-standard.md](../public/definition-standard.md) | [DEFINITION_PROFILE.md](DEFINITION_PROFILE.md) | Public: implemented bounded-v2 grammar and qualified pre-release scope; internal: lowering, invariants, scenario obligations, qualification and responsibility mapping |
+| Definition standard | [definition-standard.md](../public/definition-standard.md) | [DEFINITION_PROFILE.md](DEFINITION_PROFILE.md) | Public: current bounded-v0.0.1 grammar and separate qualification scope; internal: lowering, invariants, scenario obligations, qualification and responsibility mapping |
 | Maintainer authoring | [integrating.md](../public/integrating.md), [integrate-your-tool.md](../public/integrate-your-tool.md) | [MAINTAINER_AUTHORING.md](MAINTAINER_AUTHORING.md) | Public: portable adoption workflow and detailed one-source check/build/revise/distribution guidance; internal: compilation, revision and public-source custody mechanisms |
 | CLI | [cli.md](../public/cli.md) | [CLI_CONTRACT.md](CLI_CONTRACT.md) | Public: commands and results; internal: machine contract and exit semantics |
 | Terminal | [terminal.md](../public/terminal.md) | [TERMINAL_CLIENT.md](TERMINAL_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: interaction; internal: shared state and terminal adapter |
@@ -219,10 +219,11 @@ Single Responsibility and do not duplicate content:
    in `docs/README.md` and the twin matrix here. Internal docs use natural
    Markdown metadata blocks.
 
-### Bounded-v2 qualification boundary
+### Bounded profile qualification boundary
 
-Current definition documentation describes implemented bounded-v2 with qualified
-pre-release Linux x64 and published Browser scope, not an unimplemented Draft.
+Current definition documentation describes bounded-v0.0.1. Retain the prior v2
+Linux x64 and published Browser qualification as historical evidence; it does
+not qualify the new secret policies, operations or changed published payloads.
 Keep the detailed vocabulary, source-observed limits and scenario obligations;
 do not replace them with a broad support label.
 

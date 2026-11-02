@@ -5,7 +5,7 @@
 > **Status:** Current source-grounded recipes; example edits and commands unexecuted
 > **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/SetupCliContractTests.cs`, `tests/Configurator.Browser.Tests/BrowserV2EditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
+> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/SetupCliContractTests.cs`, `tests/Configurator.Browser.Tests/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
 > **Review basis:** Named source, test bodies and project files inspected on 2026-10-30; no recipe execution, builds, tests or host exercises
 
 Choose the behavior you want to change, then follow its owner, example edit and
@@ -175,13 +175,13 @@ completed on 2026-10-30; this excerpt was not compiled and no selector was run.
 ## CLI contract
 
 **Task and owner.** Strengthen rejection of malformed machine-envelope version
-identifiers without adding aliases. CLI owns serialization and its closed v4
+identifiers without adding aliases. CLI owns serialization and its closed 0.0.1
 machine contract. Start with [CLI contract](CLI_CONTRACT.md), not human-help
 formatting or a private answer file.
 
 **Inspected source/test owners.**
 [`SetupCliMachineOutput.Serialize`](../../src/Configurator.Cli/SetupCliMachineOutput.cs)
-constructs a v4 envelope and newline-framed bytes.
+constructs a 0.0.1 envelope and newline-framed bytes.
 [`SetupCliCommandSchemaMetadata`](../../src/Configurator.Cli/SetupCliCommandSchemaMetadata.cs)
 generates the schema.
 [`SetupCliContractTests.MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility`](../../tests/Configurator.Cli.Tests/SetupCliContractTests.cs)
@@ -200,10 +200,9 @@ authoring/runtime handshake cases:
 
 ```csharp
 foreach (string version in new[] {
-    "islamu-configurator-command/v1", "islamu-configurator-command/v2",
-    "islamu-configurator-command/v3", "islamu-configurator-command/v5",
-    "2", "", "islamu-configurator-command/v4 ",
-    "ISLAMU-CONFIGURATOR-COMMAND/v4"
+    "islamu-configurator-command/unsupported",
+    "2", "", "islamu-configurator-command/v0.0.1 ",
+    "ISLAMU-CONFIGURATOR-COMMAND/v0.0.1"
 })
     await Assert.That(SetupCliMachineContractVerifier.Validate(
         SetupCliMachineContractVerifier.Mutate(
@@ -211,7 +210,7 @@ foreach (string version in new[] {
         .Contains("machine-version");
 ```
 
-This is a test-only contract clarification; do not change the v4 emitter or
+This is a test-only contract clarification; do not change the 0.0.1 emitter or
 generated schema to admit the negative cases. For a separately approved shape
 change, coordinate emitter/model, schema metadata, independent specification,
 actual CLI boundary assertions, public CLI guide and technical contract.
@@ -248,7 +247,7 @@ dotnet run --file eng/knowledge/RenderCommandReference.cs -- --write
 dotnet run --file eng/knowledge/RenderCommandReference.cs -- --check
 ```
 
-`--write` replaces generated schema bytes and removes retired v1-v3 schema paths;
+`--write` replaces the one current generated schema at its unversioned path;
 it is not part of the test-only example. `--check` is read-only with respect to
 the schema and expects `configurator-command-schema-current`, exit 0.
 The renderer projects that checked schema to the
@@ -280,7 +279,7 @@ captures form, path, input revision and action generation for callbacks.
 checks those facts in `IsCurrentAction` before `ChooseVariant` mutates state.
 [`DefinitionFormModel`](../../src/Configurator.Presentation/Presentation/DefinitionFormModel.cs)
 owns the shared form.
-[`BrowserV2EditingTests.RetiredVariantCallbackCannotEditAfterViewOnlyUnmountAndRemount`](../../tests/Configurator.Browser.Tests/BrowserV2EditingTests.cs)
+[`BrowserEditingTests.RetiredVariantCallbackCannotEditAfterViewOnlyUnmountAndRemount`](../../tests/Configurator.Browser.Tests/BrowserEditingTests.cs)
 already holds a stale callback across collapse/expand. Its local `Form()` fixture
 declares synthetic `first` and `second` variants.
 
@@ -314,7 +313,7 @@ export TMPDIR="$HOME/.cache/agent-tmp"
 dotnet build tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --verbosity quiet
 dotnet test --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj \
   --configuration Release --no-build \
-  --treenode-filter "/*/*/BrowserV2EditingTests/*" --minimum-expected-tests 1
+  --treenode-filter "/*/*/BrowserEditingTests/*" --minimum-expected-tests 1
 ```
 
 The inspected

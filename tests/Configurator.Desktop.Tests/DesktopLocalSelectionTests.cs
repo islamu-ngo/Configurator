@@ -222,7 +222,7 @@ public sealed class DesktopLocalSelectionTests
         using var directory = new TemporaryDirectory();
         string path = Path.Combine(directory.Path, "source.json");
         await File.WriteAllTextAsync(path, """
-            {"$schema":"urn:islamu:configurator:authoring:v2",
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
              "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
              "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
@@ -236,7 +236,7 @@ public sealed class DesktopLocalSelectionTests
         var digest = shell.Workspace.Form.Definition.Digest;
         string yamlPath = Path.Combine(directory.Path, "source.yaml");
         await File.WriteAllTextAsync(yamlPath, """
-            $schema: urn:islamu:configurator:authoring:v2
+            $schema: urn:islamu:configurator:authoring:v0.0.1
             identity:
               familyId: f93a6b9f-c210-47a9-b90b-434954040282
               revision: 1

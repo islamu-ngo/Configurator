@@ -12,10 +12,10 @@ on a protected Linux path. No target service is included or started.
 
 [`configurator.yaml`](configurator.yaml) is the compact maintainer source;
 [`setup-definition.json`](setup-definition.json) is its generated runtime
-definition. Both describe v2 revision **1** of fresh family
-`9b6a7b3e-45bf-4485-8fa1-d7888938c09b`, with canonical SHA-256 digest
-`1c60953fc09c4160ca38357a0b30e948aa0137ee117ea0df77e974352d428fdc`.
-The former v1 family and revisions remain in Git history. See the
+definition. Both use the current `0.0.1` development contract. Inspect the source
+for its family and revision, and the compiled runtime for its canonical digest;
+these content identities remain immutable even while the product version is fixed.
+Earlier families and revisions remain historical evidence. See the
 [integration guide](../../docs/public/integrate-your-tool.md).
 
 ## Explore the authored experiences
@@ -83,8 +83,8 @@ Target validation and application remain with the target software.
 
 The following commands ran against the former v1 family on 2026-10-20 using the
 then-existing CLI binary, without compiling any project or running product tests.
-They are historical evidence, not qualification of this v2 family. The current
-synthetic answer file is a version 1 private envelope:
+They are historical evidence, not qualification of this current family. The current
+synthetic answer file is a 0.0.1 private envelope:
 
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"

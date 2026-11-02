@@ -105,8 +105,8 @@ public sealed class DefinitionPresentationOperationTests
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(
         Encoding.UTF8.GetBytes("""
         {
-          "schemaVersion": 2,
-          "profile": "bounded-v2",
+          "schemaVersion": "0.0.1",
+          "profile": "bounded-v0.0.1",
           "familyId": "e201806e-18ec-40ee-8540-f5d1fa742ce1",
           "revision": 1,
           "project": {"id":"example.service","publisher":"example","name":"Example service"},

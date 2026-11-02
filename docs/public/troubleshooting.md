@@ -14,7 +14,7 @@ current packaged `islamu-configurator` on `PATH` and the checkout root as the
 working directory. Source invocation and build prerequisites are in the
 [CLI guide](cli.md#invocation-basics--confidentiality).
 Blocks containing `setup.json`, `answers.json` or `/path/to/...` are **templates**:
-substitute your admitted local definition, private v1 answers and local paths.
+substitute your admitted local definition, private 0.0.1 answers and local paths.
 JSON/status blocks are **illustrative excerpts**, not full captured receipts.
 Read-only checks can be rerun. Writes require trusted existing parent directories
 and fresh destination filenames; inspect any written prefix before retrying.
@@ -22,6 +22,23 @@ Use maintained [synthetic fixtures](getting-started.md) when reporting a problem
 never private answers, paths, credentials or generated configuration.
 
 ---
+
+## Secret validation and generation
+
+Use safe rule codes and expected policy metadata to correct a secret locally;
+do not include the value, private map key or actual secret length in support
+reports. Missing, omitted, null, inactive and consent-deferred fields are
+different states. A supplied malformed value remains invalid in a draft; clear
+or correct it deliberately instead of expecting draft mode to bypass validation.
+
+If generation is unavailable, inspect the admitted policy and current capability
+status rather than replacing it with an unrelated random string. Cancellation,
+an edit, row removal, variant change, workspace replacement or consent revocation
+can invalidate an in-flight result. Retry against the current field only after
+reviewing the workspace. A generated password hash's original-password sidecar
+has its own publication status; follow [partial-write recovery](native-output.md#original-passwords-and-hash-answers)
+before retrying. Successful local validation/generation never proves issuer or
+target acceptance.
 
 ## Existing-file import conflicts
 
@@ -87,7 +104,7 @@ need not publish files; compare success is not workspace preparation.
 
 ```json
 {
-  "schemaVersion": "islamu-configurator-command/v4",
+  "schemaVersion": "islamu-configurator-command/v0.0.1",
   "status": "success",
   "exitCode": 0,
   "completion": "completed",
@@ -174,7 +191,7 @@ composition failures use exit 2 rather than the single-artifact missing-only 3.
    islamu-configurator artifact validate --definition setup.json \
      --artifact config --input answers.json --detail coverage --machine
    ```
-2. Add entries under `values` in the private v1 envelope, preserving exact names
+2. Add entries under `values` in the private 0.0.1 envelope, preserving exact names
    and the `omitted` array. Standard `default` does not insert answers.
    `initialValue` applies only to eligible missing values; omission suppresses
    initialization, and reset restores eligibility. False, zero and empty values
@@ -682,16 +699,16 @@ Configurator enforces strict data admission through `SetupDefinitionCodec` and `
 - An import-semantic artifact conflicts with the explicit expected target
   revision. That target revision hash is distinct from definition revision.
 
-Private answer v1 has no top-level definition `revision`: it contains
+Private answer 0.0.1 has no top-level definition `revision`: it contains
 `answerContractVersion`, `values` and `omitted`. Local `--input-revision` fences
 corrections; it is not a target hash or an identity migration.
 
 **Step-by-Step Recovery:**
-1. Inspect the appropriate identity location. This is a **runtime v2 fragment**,
+1. Inspect the appropriate identity location. This is a **runtime 0.0.1 fragment**,
    using the maintained neutral family, not a full admissible document:
    ```json
    {
-     "familyId": "9b6a7b3e-45bf-4485-8fa1-d7888938c09b",
+     "familyId": "4d8950ad-972c-4357-8605-7a7c89c05a17",
      "revision": 1
    }
    ```
@@ -723,15 +740,15 @@ do not expect a prose `message` or one universal code for every identity defect.
 **Step-by-Step Recovery:**
 1. Open your definition source (`configurator.yaml` or `setup-definition.json`).
 2. Keep compact authoring identity nested under `identity`. This is an
-   **authoring v2 fragment** from the maintained neutral example, not a full
+   **authoring 0.0.1 fragment** from the maintained neutral example, not a full
    source and not a family to reuse for a new application:
    ```yaml
-   $schema: urn:islamu:configurator:authoring:v2
+   $schema: urn:islamu:configurator:authoring:v0.0.1
    identity:
-     familyId: "9b6a7b3e-45bf-4485-8fa1-d7888938c09b"
+     familyId: "4d8950ad-972c-4357-8605-7a7c89c05a17"
      revision: 1
    ```
-3. Expanded runtime instead uses `schemaVersion: 2`, `profile: bounded-v2` and
+3. Expanded runtime instead uses `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1` and
    root `familyId`/`revision`, with the other required runtime members.
    Allocate a new family with native `definition init` or `init --fork-from`;
    never invent or borrow a GUID to fix admission. Re-run
@@ -789,7 +806,7 @@ without adopting them; strict `prefill` refuses unaccounted content atomically.
            scope: root
            path: /CUSTOM_METRICS_TOKEN
    ```
-   This is a source fragment: preserve the definition's v2 discriminator,
+   This is a source fragment: preserve the definition's current discriminator,
    identity, project, application versions and other fields. Public schema names
    are not a reason to print actual unknown names from an imported file.
 4. Run `definition check --source configurator.yaml`, then compare again.

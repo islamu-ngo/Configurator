@@ -82,7 +82,7 @@ public sealed class DefinitionDirectEditingTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":2,"profile":"bounded-v2","familyId":"f87bc505-b134-46e6-ae10-60458baf32b6","revision":1,
+    {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"f87bc505-b134-46e6-ae10-60458baf32b6","revision":1,
      "project":{"id":"direct-edit","name":"Direct edit fixture","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
      "configuration":{"type":"object","additionalProperties":false,

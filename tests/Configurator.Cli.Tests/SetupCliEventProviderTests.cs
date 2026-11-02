@@ -36,7 +36,7 @@ public sealed class SetupCliEventProviderTests
     }
 
     private static byte[] Answers(string provider) => Encoding.UTF8.GetBytes($$"""
-        {"answerContractVersion":1,"values":{"operation":"environment",
+        {"answerContractVersion":"0.0.1","values":{"operation":"environment",
          "select.feature.platform-config":true,"env.AUTHENTICATION_PROVIDER":"{{provider}}",
          "env.SETUP_SECRET":"synthetic-setup-secret"},"omitted":[]}
         """);

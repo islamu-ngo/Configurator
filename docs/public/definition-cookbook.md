@@ -1,16 +1,16 @@
 ---
-description: "Practical bounded-v2 configuration patterns with exact answer states and explicit authority limits."
+description: "Practical bounded-v0.0.1 configuration patterns with exact answer states and explicit authority limits."
 ---
 
 # Definition cookbook
 
 > **Audience:** Adopters | Integrators
-> **Status:** Qualified bounded-v2 patterns; snippets are illustrative
+> **Status:** Current bounded-v0.0.1 patterns; snippets are illustrative and do not qualify a host
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs`, `docs/internal/DEFINITION_CONFORMANCE_PROFILE.md`
 
-Use these patterns inside a native-initialized authoring-v2 source. Each YAML
+Use these patterns inside a native-initialized authoring-0.0.1 source. Each YAML
 block is a **partial schema fragment**, not a complete source or a CLI input.
 Keep identity, project, application versions and outputs from your own source.
 For complete maintained documents, use the [example index](../../examples/README.md);
@@ -461,6 +461,38 @@ fetch credentials or grant issuer authority. See the maintained
 [minimal source](../../examples/minimal-self-hosted/configurator.yaml),
 [`DefinitionTypedEditingTests`](../../tests/Configurator.Presentation.Tests/DefinitionTypedEditingTests.cs)
 and [`DefinitionPresentation`](../../src/Configurator.Core/Definitions/DefinitionPresentation.cs).
+
+## Secret policy and target format
+
+Declare `x-configurator.secret` from the target application's public contract.
+Use the [definition reference](definition-reference.md) and generated authoring
+schema for its exact closed syntax. The policy establishes secret sensitivity
+even without a separate `sensitivity` declaration. Explicit public metadata or a
+local reference cannot lower that floor. Never place private defaults, examples,
+initial values or suggested values in the definition.
+
+Choose a password or opaque-token policy for locally generated random text;
+choose HMAC or AES key material only when the target specifies that use and
+encoding. Password length counts Unicode scalars, while decoded key size and
+UTF-8 input limits count bytes. Encoded character count is not key size. Standard
+string constraints and secret constraints both apply to entered/generated values.
+A 32-byte token occupies 43 characters in unpadded Base64url; author the decoded
+byte requirement and any string length constraint in their respective units.
+
+A password hash must match the target's exact algorithm, serialization and cost
+policy. SHA-2 digests are a separate recipe and must not substitute for password
+storage. Hash format checks do not prove knowledge of the original password.
+Likewise, a PEM or private JWK must match the target's RSA/EC parameters; local
+key consistency does not prove target acceptance. A connection string can be
+classified secret, but Configurator does not issue its credentials or connect to
+the target. See [cryptographic formats and limits](../internal/SECRET_CRYPTOGRAPHY.md).
+
+Generation remains a deliberate local action. Browser entry/generation requires
+workspace consent; native output uses protected create-only publication. A hash
+created from a generated password has a separate original-password result: save
+or copy it deliberately before clearing the workspace, because the hash cannot
+recover it. Copying transfers custody to the clipboard and its history. Workspace
+clearing cannot retract copies or promise complete erasure of immutable strings.
 
 ## Complete preparation, incomplete drafts and inverse import
 

@@ -537,7 +537,7 @@ public sealed class DesktopImportComparisonTests
     }
 
     private static SetupDefinition StructuredDefinition() => SetupDefinitionSourceCodec.ParseJson("""
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"380d5cdd-e1a1-4ddd-91c1-05f42486c0e8","revision":1},
          "project":{"id":"desktop-comparison","name":"Desktop comparison"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{

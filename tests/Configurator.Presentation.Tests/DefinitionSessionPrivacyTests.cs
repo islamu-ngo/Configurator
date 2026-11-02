@@ -9,6 +9,23 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionSessionPrivacyTests
 {
     [Test]
+    public async Task TypedSecretWithoutSensitivityRequiresConsentAndRevocationRemovesIt()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["configuration"]!["properties"]!["settings"]!["properties"]!["password"]!["x-configurator"] =
+            JsonNode.Parse("""{"secret":{"kind":"password","acquisition":"local"}}""");
+        source["requiredCapabilities"]!.AsArray().Insert(3, "schema.secret");
+        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionSessionPrivacy.BrowserNoSecrets);
+        string[] path = [form.Fields.Single().Definition.Id, "password"];
+        await Assert.That(form.CanEdit(path)).IsFalse();
+        form.SetSecretEntryEnabled(true);
+        await Assert.That(form.EditValue(path, "synthetic-secret")).IsTrue();
+        form.SetSecretEntryEnabled(false);
+        await Assert.That(form.ReadValue(path)).IsNull();
+    }
+
+    [Test]
     public async Task ProviderSwitchPreservesInactiveAnswersButExcludesExportsAndRevocationClearsThem()
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
@@ -192,7 +209,7 @@ public sealed class DefinitionSessionPrivacyTests
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
-      "schemaVersion":2,"profile":"bounded-v2","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
+      "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
       "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],
       "entryPoints":["setup"],"locales":["en"],
       "requiredCapabilities":["projection.copy","projection.object","schema.object","schema.string"],

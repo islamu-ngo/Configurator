@@ -8,11 +8,11 @@ against the pinned release. The `.invalid` addresses deliberately cannot be
 used as live service destinations. Replace them with operator-controlled values
 and have Grafana validate the result before using it.
 
-`configurator.yaml` owns the v2 runtime `setup-definition.json`. Native identity
-allocation created family `ffc20a25-7ea5-4138-be3b-88f678cac36b`, revision 1;
+`configurator.yaml` owns the current runtime `setup-definition.json`. Native identity
+allocation created family `c9091324-8fc2-42ed-a659-95b708d4c0a4`, revision 1;
 canonical runtime digest:
-`0920bb01a8304dba1b514ce625ecb9a20adc7e491f086f46d6cc324692c493d6`.
-`answers.json` is a synthetic version 1 private answer envelope. Hostname and URI
+`77ce8b06c89dfc01de902d30e61dd9510183c169276a7c983dba9616c0c1eee6`.
+`answers.json` is a synthetic 0.0.1 private answer envelope. Hostname and URI
 formats are descriptive annotations in the base profile, not target validation.
 
 The environment output contains `GF_SERVER_DOMAIN` and

@@ -133,6 +133,14 @@ internal static class SetupCliProgram
     {
         private readonly IProtectedArtifactWriter _protectedWriter = protectedWriter ?? new ProtectedArtifactWriter();
 
+        public async ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken)
+        {
+            // Exercise protected admission with inert bytes, then discard the unpublished preparation.
+            using ProtectedArtifactPreparation preparation = await _protectedWriter.PrepareAsync(
+                SetupArtifactKind.Configuration, path, new byte[] { 0 }, cancellationToken);
+            return preparation.RejectionStatus;
+        }
+
         public async ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

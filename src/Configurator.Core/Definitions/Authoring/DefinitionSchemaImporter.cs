@@ -7,7 +7,7 @@ namespace Configurator.Core.Definitions.Authoring;
 /// <summary>A value-free account of one public schema concept. Document zero is the supplied root.</summary>
 public sealed record DefinitionSchemaTransformation(string Classification, string Code, string Location, int DocumentOrdinal);
 
-/// <summary>Snapshots a v2 configuration schema and its explicit transformation ledger.</summary>
+/// <summary>Snapshots a configuration schema and its explicit transformation ledger.</summary>
 public sealed class DefinitionSchemaImportResult
 {
     internal DefinitionSchemaImportResult(JsonElement configuration, IEnumerable<DefinitionSchemaTransformation> transformations)

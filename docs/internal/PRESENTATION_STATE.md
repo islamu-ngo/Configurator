@@ -6,7 +6,7 @@
 > **Last Verified:** 2026-10-31
 > **Source Anchors:** `src/Configurator.Presentation/Presentation/`, `src/Configurator.Core/Definitions/`
 
-## Recursive v2 editing and localized display
+## Recursive editing and localized display
 
 The [technical conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) owns
 admitted semantics and source-observed limits; this contract owns workspace
@@ -68,6 +68,37 @@ Terminal process and published Browser exercises independently. Those records
 do not qualify other hosts, assistive technologies, translation quality,
 stakeholder/usability or scholarly proof, or target acceptance. See the
 [qualification map](DEFINITION_PROFILE.md) for scenario obligations.
+
+### Secret operations and field feedback
+
+`DefinitionFormModel.GenerateSecretAsync` owns one bounded generation or derivation
+operation per form. It copies transient input, captures the immutable definition,
+input revision, operation generation and stable editor identity, then invokes the
+Core `SecretGenerator`. Before applying the validated output it checks that the
+same editor remains active and editable under the current consent. Deleting a row,
+editing any input, changing a variant, revoking consent or disposing the form
+retires the pending result. A replaced workspace must dispose its old form.
+After consent is enabled again, explicit generation can supply a cleared or
+omitted leaf; it never restores its previous value. Omitted ancestors still
+block generation, so the operation cannot recreate an absent container.
+
+Accepted output uses the ordinary edit path, retiring prepared output through
+`InputChanged`, and records `DefinitionAnswerOrigin.Generated`. The immutable
+`SecretOperation` projection contains only status and editor identity. An original
+generated password is held separately in a disposable Core result;
+`CopyGeneratedPassword` deliberately transfers a string to the caller and
+`DismissSecretResult`, subsequent edits and disposal clear the owned result.
+Owned mutable input buffers are zeroed. Immutable strings, JSON copies and an
+external clipboard cannot receive a complete-erasure guarantee.
+
+`GetSecretValidation` projects admitted public requirements and current revision
+diagnostics using shared English/Arabic templates. Untouched fields do not show
+errors until explicit validation; edited values show feedback, and consent-deferred
+fields remain distinct from invalid input. Locale changes only rerender messages.
+Clients preserve editable invalid text and consume these facts rather than
+implementing their own secret policy evaluator. Copy, reveal and native clipboard
+support remain deliberate client actions. See the [public definition reference](../public/definition-reference.md)
+for author-facing policy vocabulary.
 
 ### Why a stale save can still have an installation receipt
 

@@ -50,11 +50,12 @@ directory details remain at `/store/{projectId}`.
 > [!NOTE]
 > The store is entirely optional. If you run a custom or private Configurator build without a bundled store, the **Open** tab remains fully operational for loading local files or deep-link URLs.
 
-The current store generation uses definition v2. Its two checked examples have
-fresh families at revision 1; pre-release v1 definitions remain historical Git
-evidence rather than selectable current revisions. Existing v1 family/revision
-identities were not repinned, and the browser does not migrate private answers.
-Within a v2 family, historical revisions remain immutable. Local compilation or
+The Store catalog, curation and definition contracts use the fixed development
+version `0.0.1`. Only the current format is supported; older local copies belong
+in ignored archives. Content identity remains independent: a changed definition
+needs a new immutable revision or a deliberate fresh-family fork. Existing
+family/revision identities are never repinned, and the browser does not migrate
+private answers. Local compilation or
 catalog inclusion does not authenticate a publisher or prove target acceptance.
 
 ---
@@ -77,11 +78,11 @@ store/example-service/
 
 ### 2. Curation Metadata (`curation.json`)
 
-To add search tags or specify a custom slug, include an optional `curation.json` adhering to the [curation schema](../../schemas/definition-store-curation-v1.schema.json):
+To add search tags or specify a custom slug, include an optional `curation.json` adhering to the [curation schema](../../schemas/definition-store-curation.schema.json):
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": "0.0.1",
   "tags": [
     "monitoring",
     "metrics",

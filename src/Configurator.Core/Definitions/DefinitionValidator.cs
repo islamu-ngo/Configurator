@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Composition;
+using Configurator.Core.Secrets;
 
 public sealed class SetupFieldState
 {
@@ -492,7 +493,13 @@ public static class DefinitionValidator
             if (active && present && !valid && !await LocalValueValidAsync(schema, resolvedElement, complete, work))
                 invalidLocations.Add(observedPath);
             if (active && present && !valid && diagnostics.Count == diagnosticsBefore)
-                await Emit(new("value-invalid", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
+            {
+                IReadOnlyList<string> secretFailures = schema.Secret is { } secret && resolvedElement.ValueKind == JsonValueKind.String
+                    ? SecretValueValidator.Validate(secret, resolvedElement.GetString()!) : [];
+                IReadOnlyList<string> codes = secretFailures.Count == 0 ? ["value-invalid"] : secretFailures;
+                foreach (string code in codes)
+                    await Emit(new(code, fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
+            }
             bool childObligation = false;
             foreach (DefinitionNodeState node in nodes.Skip(start))
             {
@@ -705,7 +712,8 @@ public static class DefinitionValidator
         return document.RootElement.Clone();
     }
 
-    internal static bool ValueValid(DefinitionNode schema, JsonElement value)
+    /// <summary>Checks a supplied value against an already admitted node, including local constraints and secret policy.</summary>
+    public static bool ValueValid(DefinitionNode schema, JsonElement value)
     {
         if (!DefinitionImportWork.CompleteSynchronously(LocalValueValidAsync(schema, value))) return false;
         if (value.ValueKind == JsonValueKind.Null) return true;
@@ -774,6 +782,7 @@ public static class DefinitionValidator
         if (value.ValueKind == JsonValueKind.String)
         {
             string text = value.GetString()!;
+            if (schema.Secret is { } secret && SecretValueValidator.Validate(secret, text).Count != 0) return false;
             int length = text.EnumerateRunes().Count();
             if (keywords.TryGetProperty("minLength", out JsonElement minimum) && length < minimum.GetInt32()
                 || keywords.TryGetProperty("maxLength", out JsonElement maximum) && length > maximum.GetInt32()

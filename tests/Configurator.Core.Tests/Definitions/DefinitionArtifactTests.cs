@@ -10,6 +10,29 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionArtifactTests
 {
     [Test]
+    public async Task ExportedSecretSchemasCloseEachProfileAndPreserveWorkCeilings()
+    {
+        foreach (string exported in new[] { DefinitionSchema.Generate(), DefinitionAuthoringSchema.Generate() })
+        {
+            JsonNode extension = JsonNode.Parse(exported)!["$defs"]!["node"]!["properties"]!["x-configurator"]!["properties"]!;
+            await Assert.That(extension["credential"] is null).IsTrue();
+            JsonNode[] profiles = extension["secret"]!["oneOf"]!.AsArray().Select(node => node!).ToArray();
+            JsonNode Profile(string kind) => profiles.Single(node => node["properties"]!["kind"]!["enum"]![0]!.GetValue<string>() == kind);
+            JsonNode password = Profile("password");
+            await Assert.That(password["additionalProperties"]!.GetValue<bool>()).IsFalse();
+            await Assert.That(password["properties"]!["generation"]!["properties"]!["length"]!["maximum"]!.GetValue<int>()).IsEqualTo(1024);
+            await Assert.That(password["properties"]!["algorithm"] is null).IsTrue();
+            await Assert.That(Profile("connection-string")["properties"]!["generation"] is null).IsTrue();
+            JsonNode argon = profiles.Single(node => node["properties"]!["algorithm"]?["enum"]?[0]?.GetValue<string>() == "argon2id");
+            JsonNode costs = argon["properties"]!["constraints"]!["properties"]!;
+            await Assert.That(costs["memoryKiB"]!["minimum"]!.GetValue<int>()).IsEqualTo(19456);
+            await Assert.That(costs["memoryKiB"]!["maximum"]!.GetValue<int>()).IsEqualTo(65536);
+            await Assert.That(costs["iterations"]!["maximum"]!.GetValue<int>()).IsEqualTo(6);
+            await Assert.That(argon["then"]!["properties"]!["acquisition"]!["enum"]![0]!.GetValue<string>()).IsEqualTo("local");
+        }
+    }
+
+    [Test]
     public async Task ExportedPredicateSchemasShareTheRootAndItemReferenceContract()
     {
         foreach (string exported in new[] { DefinitionSchema.Generate(), DefinitionAuthoringSchema.Generate() })

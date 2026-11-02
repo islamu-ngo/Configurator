@@ -561,7 +561,7 @@ public sealed class DefinitionExperienceProjectionTests
     }
 
     private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
-    {"schemaVersion":2,"profile":"bounded-v2","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32003","revision":1,
+    {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32003","revision":1,
      "project":{"id":"example","name":"Projection example","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
      "configuration":{"type":"object","additionalProperties":false,"required":["enabled"],

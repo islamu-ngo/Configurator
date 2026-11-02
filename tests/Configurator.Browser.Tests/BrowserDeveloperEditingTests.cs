@@ -19,14 +19,14 @@ public sealed class BrowserDeveloperEditingTests
     [Test]
     public async Task EventProviderPreviewRejectsUnknownChoiceAndAppliesCorrectedWireValue()
     {
-        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         await using var engine = Boundary(context);
         var component = Render(context, form);
         await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         const string source = """
-            {"answerContractVersion":1,"values":{"operation":"environment",
+            {"answerContractVersion":"0.0.1","values":{"operation":"environment",
              "select.feature.platform-config":true,"env.AUTHENTICATION_PROVIDER":"unsupported-synthetic-provider"},"omitted":[]}
             """;
         long revision = form.InputRevision;
@@ -44,7 +44,7 @@ public sealed class BrowserDeveloperEditingTests
         await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
     }
 
-    private const string Pending = """{ "answerContractVersion":1, "values":{"mode":"single","hostname":"pending.test"}, "omitted":[] }""";
+    private const string Pending = """{ "answerContractVersion":"0.0.1", "values":{"mode":"single","hostname":"pending.test"}, "omitted":[] }""";
 
     [Test]
     public async Task StayingWithPendingTextRestoresTheVisibleRepresentationChoice()
@@ -527,8 +527,8 @@ public sealed class BrowserDeveloperEditingTests
 
     [Test]
     [Arguments("{invalid synthetic-private-sentinel")]
-    [Arguments("""{"answerContractVersion":1,"values":{"credential":"synthetic-private-sentinel"},"omitted":[]}""")]
-    [Arguments("""{"answerContractVersion":1,"values":{"unknown":"synthetic-private-sentinel"},"omitted":[]}""")]
+    [Arguments("""{"answerContractVersion":"0.0.1","values":{"credential":"synthetic-private-sentinel"},"omitted":[]}""")]
+    [Arguments("""{"answerContractVersion":"0.0.1","values":{"unknown":"synthetic-private-sentinel"},"omitted":[]}""")]
     public async Task RejectedOrInvalidDocumentsRemainPrivateAndUnchangedByFormat(string source)
     {
         await using var context = BrowserFixture.Context();
@@ -554,7 +554,7 @@ public sealed class BrowserDeveloperEditingTests
         using var form = Form();
         await using var engine = Boundary(context);
         var component = Render(context, form);
-        await component.InvokeAsync(() => engine.ChangeAsync("""{"answerContractVersion":1,"values":{"mode":"cluster","replicas":false,"hostname":"format.test"},"omitted":[]}"""));
+        await component.InvokeAsync(() => engine.ChangeAsync("""{"answerContractVersion":"0.0.1","values":{"mode":"cluster","replicas":false,"hostname":"format.test"},"omitted":[]}"""));
         long revision = form.InputRevision;
         await Click(component, "developer-format");
         await Assert.That(form.InputRevision).IsEqualTo(revision);

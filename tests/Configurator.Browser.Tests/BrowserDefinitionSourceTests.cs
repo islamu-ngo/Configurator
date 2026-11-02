@@ -11,7 +11,7 @@ using Microsoft.JSInterop;
 public sealed class BrowserDefinitionSourceTests
 {
     internal const string AuthoringJson = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
          "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
          "configuration":{"type":"object","additionalProperties":false,"required":["HOST"],
@@ -23,7 +23,7 @@ public sealed class BrowserDefinitionSourceTests
         """;
     internal const string AuthoringYaml = """
         # synthetic-local-comment-not-retained
-        $schema: urn:islamu:configurator:authoring:v2
+        $schema: urn:islamu:configurator:authoring:v0.0.1
         identity:
           familyId: f93a6b9f-c210-47a9-b90b-434954040282
           revision: 1

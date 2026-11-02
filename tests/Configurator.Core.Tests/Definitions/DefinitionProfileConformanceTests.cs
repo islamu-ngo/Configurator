@@ -127,7 +127,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task NestedRootControllersAreResolvedBeforeRowApplicability()
     {
-        JsonNode source = JsonNode.Parse(SourceV2)!;
+        JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"]!["properties"] = JsonNode.Parse("""
             {"value":{"type":"array","items":{"type":"object","additionalProperties":false,
              "required":["endpoint"],"properties":{"endpoint":{"type":"string",
@@ -213,7 +213,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task LocalReferencesExpandUnderOneConfigurationRootAndCyclesReject()
     {
-        JsonNode source = JsonNode.Parse(SourceV2)!;
+        JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"] = JsonNode.Parse("""
             {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
              "$defs":{"text":{"type":"string","minLength":2,"x-configurator":{"sensitivity":"public"}}},
@@ -257,7 +257,7 @@ public sealed class DefinitionProfileConformanceTests
 
     private static SetupDefinition WithValueSchema(string schema)
     {
-        JsonNode source = JsonNode.Parse(SourceV2)!;
+        JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"]!["properties"] = new JsonObject { ["value"] = JsonNode.Parse(schema) };
         return SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
@@ -265,7 +265,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task ConfigurationRootMapsAndBoundsUseTheSameRecursiveOwner()
     {
-        JsonNode source = JsonNode.Parse(SourceV2)!;
+        JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"] = JsonNode.Parse("""
             {"type":"object","minProperties":1,"maxProperties":2,"x-configurator":{"sensitivity":"public"},
              "additionalProperties":{"type":"integer","minimum":0,"x-configurator":{"sensitivity":"public"}}}
@@ -286,7 +286,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task ConfigurationRootProvidersValidateAndComposeTheirSelectedProperties()
     {
-        JsonNode source = JsonNode.Parse(SourceV2)!;
+        JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"] = JsonNode.Parse("""
             {"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
               {"type":"object","additionalProperties":false,"required":["kind","amount"],
@@ -320,7 +320,7 @@ public sealed class DefinitionProfileConformanceTests
              "sensitivity":"secret","initialValue":"synthetic-private-initial"}},
              "x-configurator":{"sensitivity":"public"}}
             """)).Throws<SetupDefinitionException>();
-        JsonNode source = JsonNode.Parse(SourceV2)!;
+        JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"]!["$defs"] = JsonNode.Parse("""
             {"secret":{"type":"string","writeOnly":true,"x-configurator":{"sensitivity":"secret"}}}
             """);
@@ -340,7 +340,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task ReferenceAmplificationIsBoundedBeforeAnExpandedSchemaEscapesAdmission()
     {
-        JsonNode source = JsonNode.Parse(SourceV2)!;
+        JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"]!["$defs"] = new JsonObject
         {
             ["text"] = new JsonObject
@@ -397,9 +397,9 @@ public sealed class DefinitionProfileConformanceTests
         await Assert.That(JsonSerializer.Serialize(result.Diagnostics)).DoesNotContain("synthetic-private");
     }
 
-    private const string SourceV2 = """
+    private const string Source = """
         {
-          "$schema":"urn:islamu:configurator:authoring:v2",
+          "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"23808653-d359-4a11-8f28-0753b7825338","revision":1},
           "project":{"id":"synthetic.profile","name":"Synthetic profile"},
           "applicationVersions":["1.0"],
@@ -426,9 +426,9 @@ public sealed class DefinitionProfileConformanceTests
         """;
 
     [Test]
-    public async Task V2ResolvesInitializationOnlyInsidePresentContainers()
+    public async Task ResolvesInitializationOnlyInsidePresentContainers()
     {
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(SourceV2));
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(Source));
         foreach ((string values, string expected) in new[]
         {
             ("{}", """{"mode":"on"}"""),
@@ -438,7 +438,7 @@ public sealed class DefinitionProfileConformanceTests
         })
         {
             SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
-                """{"answerContractVersion":1,"values":""" + values + ""","omitted":[]}"""));
+                """{"answerContractVersion":"0.0.1","values":""" + values + ""","omitted":[]}"""));
             DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition,
                 definition.Artifacts[0].Id, snapshot);
             using DefinitionArtifact? artifact = result.Artifact;
@@ -448,9 +448,9 @@ public sealed class DefinitionProfileConformanceTests
     }
 
     [Test]
-    public async Task V2OmissionSuppressesInitializationAndResetRestoresEligibility()
+    public async Task OmissionSuppressesInitializationAndResetRestoresEligibility()
     {
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(SourceV2));
+        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(Source));
         foreach ((string omissions, string expected) in new[]
         {
             ("""["/mode"]""", "{}"),
@@ -458,7 +458,7 @@ public sealed class DefinitionProfileConformanceTests
         })
         {
             SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
-                """{"answerContractVersion":1,"values":{},"omitted":""" + omissions + "}"), inputRevision: 7);
+                """{"answerContractVersion":"0.0.1","values":{},"omitted":""" + omissions + "}"), inputRevision: 7);
             DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition,
                 definition.Artifacts[0].Id, snapshot);
             using DefinitionArtifact? artifact = result.Artifact;
@@ -474,35 +474,32 @@ public sealed class DefinitionProfileConformanceTests
         foreach (string envelope in new[]
         {
             """{"answerContractVersion":0,"values":{},"omitted":[]}""",
-            """{"answerContractVersion":1,"answers":{},"omitted":[]}""",
-            """{"answerContractVersion":1,"values":{"synthetic-private-key":1},"omitted":["/synthetic-private-key"]}""",
-            """{"answerContractVersion":1,"values":{},"omitted":["/a","/a/b"]}""",
-            """{"answerContractVersion":1,"values":{"A":1,"A":2},"omitted":[]}""",
-            """{"answerContractVersion":1,"values":null,"omitted":[]}"""
+            """{"answerContractVersion":"unsupported","values":{},"omitted":[]}""",
+            """{"answerContractVersion":"0.0.1","answers":{},"omitted":[]}""",
+            """{"answerContractVersion":"0.0.1","values":{"synthetic-private-key":1},"omitted":["/synthetic-private-key"]}""",
+            """{"answerContractVersion":"0.0.1","values":{},"omitted":["/a","/a/b"]}""",
+            """{"answerContractVersion":"0.0.1","values":{"A":1,"A":2},"omitted":[]}""",
+            """{"answerContractVersion":"0.0.1","values":null,"omitted":[]}"""
         })
             await Assert.That(() => SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(envelope)))
                 .Throws<SetupDefinitionException>();
     }
 
     [Test]
-    public async Task CutoverRejectsPriorAndUnknownSemanticSourceContracts()
+    public async Task AdmissionRejectsUnknownVersionsAndSemanticSourceContracts()
     {
-        const string priorRuntime = """
-            {"schemaVersion":1,"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1,
-             "applicationId":"example.service","applicationVersions":["1.0"],"publisher":"example",
-             "title":"Example service","entryPoints":["setup"],"locales":["en"],
-             "fields":[{"id":"service.name","type":"string","required":true,"sensitivity":"public",
-             "disclosure":"advanced","title":"Service name","minLength":1,"maxLength":80}],
-             "artifacts":[{"id":"config","format":"json","fileName":"service.json","applySemantics":"create",
-             "restart":"process","projection":{"op":"object","members":{"name":{"op":"copy","field":"service.name"}}}}]}
-            """;
-        await Assert.That(() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(priorRuntime)))
-            .Throws<SetupDefinitionException>();
+        JsonNode runtime = JsonNode.Parse(DefinitionFixture.Parse().CanonicalBytes.Span)!;
+        foreach (JsonNode? version in new JsonNode?[] { JsonValue.Create("unsupported"), JsonValue.Create(1), null })
+        {
+            runtime["schemaVersion"] = version;
+            await Assert.That(() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString())))
+                .Throws<SetupDefinitionException>();
+        }
         foreach (string source in new[]
         {
-            SourceV2.Replace("authoring:v2", "authoring:v1", StringComparison.Ordinal),
-            SourceV2.Replace("\"type\":\"string\"", "\"type\":\"string\",\"executable\":\"synthetic\"", StringComparison.Ordinal),
-            SourceV2.Replace("\"additionalProperties\":false", "\"additionalProperties\":true", StringComparison.Ordinal)
+            Source.Replace("authoring:v0.0.1", "authoring:unsupported", StringComparison.Ordinal),
+            Source.Replace("\"type\":\"string\"", "\"type\":\"string\",\"executable\":\"synthetic\"", StringComparison.Ordinal),
+            Source.Replace("\"additionalProperties\":false", "\"additionalProperties\":true", StringComparison.Ordinal)
         })
             await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source)))
                 .Throws<SetupDefinitionException>();

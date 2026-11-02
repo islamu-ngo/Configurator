@@ -17,6 +17,7 @@ decisions, strategy, proposals and historical evidence relate.
 | Automate local preparation | [CLI commands and results](public/cli.md) | [Machine contract](internal/CLI_CONTRACT.md) |
 | Fill a form | [Terminal](public/terminal.md), [Desktop](public/desktop.md), [Browser](public/browser.md) | [Support and evidence](internal/STATUS.md) |
 | Understand presence, null and defaults | [Definition mental model](public/definitions.md) | [Exact reference](public/definition-reference.md), [cookbook](public/definition-cookbook.md) |
+| Declare and generate local secrets | [Secret policy and target format](public/definition-cookbook.md#secret-policy-and-target-format) | [Cryptographic contract and qualification](internal/SECRET_CRYPTOGRAPHY.md), [safe native output](public/native-output.md) |
 | Add configuration support to an application | [Adoption tutorial](public/integrating.md) | [Maintainer lifecycle](public/integrate-your-tool.md), [maintained examples](../examples/README.md) |
 | Look up syntax, versions or limits | [Definition reference](public/definition-reference.md) | [Schema catalog](../schemas/README.md), [conformance profile](internal/DEFINITION_CONFORMANCE_PROFILE.md) |
 | Understand portability and conformance | [Definition standard](public/definition-standard.md) | [Qualification obligations](internal/DEFINITION_PROFILE.md) |

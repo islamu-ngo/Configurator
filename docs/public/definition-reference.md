@@ -1,33 +1,33 @@
 ---
-description: "Current bounded-v2 definition grammar, explicit answer states, output mappings, and qualification limits."
+description: "Current bounded-v0.0.1 definition grammar, explicit answer states, output mappings, and qualification limits."
 ---
 
 # Current Definition Contract Reference
 
 > **Audience:** Adopters | Integrators
-> **Status:** Implemented bounded-v2; qualified pre-release Linux x64 and Browser scope
+> **Status:** Implemented bounded-v0.0.1; candidate qualification is recorded separately
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `docs/internal/CORE_DEFINITION_CONTRACT.md`, `docs/internal/MAINTAINER_AUTHORING.md`
 
-Use this reference for the implemented bounded-v2 contract, the
+Use this reference for the implemented bounded-v0.0.1 contract, the
 [integration workflow](integrating.md) for adoption, the
 [maintainer guide](integrate-your-tool.md) for detailed authoring, and the
 [cookbook](definition-cookbook.md) for supported patterns.
-The [Definition Standard v2](definition-standard.md) describes this bounded
+The [Definition Standard](definition-standard.md) describes this bounded
 contract, not full JSON Schema or qualification of all scenarios and clients.
 The [technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
 records admission mechanisms and source-observed limits.
-There is no v1 fallback or implicit migration.
+There is no old-format fallback or implicit migration.
 
 ## Which document are you editing?
 
 | Document | Current contract |
 |---|---|
-| Public maintainer YAML/JSON | `$schema: urn:islamu:configurator:authoring:v2` |
-| Public canonical runtime JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities`; no `$schema` |
-| Private answer JSON | `answerContractVersion: 1`, `values` configuration tree, `omitted` concrete pointers |
-| CLI machine result | `islamu-configurator-command/v4`; authoring/runtime handshake reports `authoringContractVersion: 2` and `runtimeSchemaVersion: 2` |
+| Public maintainer YAML/JSON | `$schema: urn:islamu:configurator:authoring:v0.0.1` |
+| Public canonical runtime JSON | `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1`, computed sorted `requiredCapabilities`; no `$schema` |
+| Private answer JSON | `answerContractVersion: "0.0.1"`, `values` configuration tree, `omitted` concrete pointers |
+| CLI machine result | `islamu-configurator-command/v0.0.1`; authoring/runtime handshake reports `authoringContractVersion: "0.0.1"` and `runtimeSchemaVersion: "0.0.1"` |
 | Definition family/revision | Stable family UUID and positive revision bind canonical content; neither is a document-format version |
 | Target application version | Exact declared application-version string; not inferred from definition revision or command version |
 | Application JSON Schema | Separate bounded scaffolding input, not a Configurator runtime definition |
@@ -67,7 +67,7 @@ The configuration tree replaces the former `fields`/`itemType` vocabulary.
 `configuration.properties` holds exact root data names; object `properties` and
 array `items` recursively use the same admitted schema grammar.
 
-| Member | Implemented bounded-v2 rule |
+| Member | Implemented bounded-v0.0.1 rule |
 |---|---|
 | `type` | `string`, `boolean`, `integer`, `number`, `object`, `array`; nullable form is exactly one base type plus `"null"` |
 | `title`, `description` | Optional bounded inert metadata |
@@ -90,11 +90,20 @@ array `items` recursively use the same admitted schema grammar.
 
 The extension admits `sensitivity` (`public`, `sensitive`, `secret`), `initialValue`,
 `suggestedValue`, string `notBlank`, `detail` (`basic`, `standard`, `advanced`),
-`guidance`, `credential`, typed enum `choices`, `units`, array-object `uniqueBy`,
+`guidance`, `secret`, typed enum `choices`, `units`, array-object `uniqueBy`,
 property `applicableWhen`, and string-only `assertFormat`. Missing sensitivity is conservatively
 sensitive; missing detail projects as standard. `choices` pairs each enum value
 with a label and optional explanation. `uniqueBy` is a concrete item-relative
 pointer through required object properties to a non-null string.
+
+`secret` carries a closed kind/acquisition policy and optional kind-specific
+algorithm, encoding, constraints and generation recipe. Presence raises the
+sensitivity floor to secret; inherited policy cannot be weakened through `$ref`.
+Only local acquisition with an admitted recipe can offer generation. Existing
+and issuer values remain manual inputs. Connection strings never generate.
+Admission does not imply handler availability: an unavailable validator blocks
+readiness with `secret-profile-unavailable`. Hash validation inspects bounded
+serialized structure, not the original password or target acceptance.
 
 Unknown members, incompatible constraints and invalid public literal metadata
 reject. Required property presence does not itself require nonblank text;
@@ -134,7 +143,7 @@ Deliberate browser export is not native protected-save certification.
 
 ## Presence, defaults, and requiredness
 
-The private envelope has exactly `answerContractVersion: 1`, object `values`,
+The private envelope has exactly `answerContractVersion: "0.0.1"`, object `values`,
 and array `omitted`. Values use exact data names, not metadata IDs. Omission
 pointers are distinct concrete locations; supplied/suppressed conflicts and
 overlapping suppressions reject atomically.
@@ -225,17 +234,16 @@ plain-text multiline technical punctuation, not executable markup or templates.
 Links are credential-free, have no query, may include fragments, and are opened
 deliberately without answer interpolation or automatic fetching.
 
-Credential descriptors require an effective secret string context:
+Secret policies establish a secret string context and permit `local`, `existing`
+or `issuer` acquisition. Only a local policy with a generation recipe enables
+eligible operations. Connection strings have no generation recipe. Password,
+opaque-token, symmetric-key, private-key, password-hash and digest profiles
+admit their own bounded constraints; algorithm and encoding are explicit where
+applicable. Ordinary secret strings remain appropriate when the target format
+is unknown: inventing an encoding would reject otherwise valid issuer values.
+Local format checks never authenticate a credential or establish target acceptance.
 
-| Kind | Acquisition |
-|---|---|
-| `password` | `existing`, `create`, `issuer` |
-| `opaque-token` | `existing`, `issuer` |
-| `symmetric-key` | `existing`, `create` |
-| `private-key` | `existing`, `issuer` |
-| `connection-string` | `existing`, `issuer` |
-
-Descriptors do not generate or authenticate credentials. Localization currently
+Localization currently
 admits a `defaultLocale`, translations, direction and pointer-keyed overrides
 of existing public text. The recorded English/Arabic native and RTL Browser
 exercises qualify those observations only. Broader localization policy,
@@ -260,7 +268,7 @@ Optional layout can degrade only to reachable neutral presentation.
 |---|---|
 | Core | Admitted recursive grammar, values, predicates and projection semantics |
 | Shared editing | Nullable values, typed map/variant traversal, deliberate enum/suggestion/reset actions, safe revision-bound corrections and inert locale metadata |
-| CLI | Machine v4 discovery and diagnostics; historical standalone Linux x64 exercises have their own recorded command/package identity |
+| CLI | Machine 0.0.1 discovery, diagnostics and explicit secret operations; [current Linux x64 qualification](../internal/OPERATIONS.md#schema-driven-secrets-qualification-2026-11-02) has a recorded package identity |
 | Desktop | Recorded Linux x64 X11 native scenarios; see the scoped support index |
 | Terminal | Recorded published Terminal process exercises; Desktop X11 scenarios are not Terminal qualification |
 | Browser | Published AOT application: real desktop/mobile, RTL, offline and custody exercises |

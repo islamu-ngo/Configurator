@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6EA444FJCMNSE8HAYYMHTC5
+Title: "Schema-driven local secrets"
+Type: feat
+Scope: definitions
+Summary: "Replace advisory credential metadata with typed secret policies and local generation and derivation commands under the fixed 0.0.1 development contracts."
+Group: schema-driven-secrets
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+  Security:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: documented
+  Migration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+  Configuration:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/native-output.md
+    Disposition: documented

@@ -112,7 +112,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
     }
 
     private static SetupDefinition TypedDefinition() => SetupDefinitionSourceCodec.ParseJson("""
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":2},
          "project":{"id":"typed-terminal","name":"Typed Terminal"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
@@ -394,7 +394,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
         {
             string path = Path.Combine(directory, "source.json");
             await File.WriteAllTextAsync(path, """
-                {"$schema":"urn:islamu:configurator:authoring:v2",
+                {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
                  "identity":{"familyId":"f93a6b9f-c210-47a9-b90b-434954040282","revision":1},
                  "project":{"id":"local.service","name":"Local Service"},"applicationVersions":["1.0"],
                  "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
@@ -409,7 +409,7 @@ public sealed class SetupTerminalOfflineWorkflowTests
             await Assert.That(selected.Digest).IsEqualTo(definition.Digest);
             string yamlPath = Path.Combine(directory, "source.yaml");
             await File.WriteAllTextAsync(yamlPath, """
-                $schema: urn:islamu:configurator:authoring:v2
+                $schema: urn:islamu:configurator:authoring:v0.0.1
                 identity:
                   familyId: f93a6b9f-c210-47a9-b90b-434954040282
                   revision: 1

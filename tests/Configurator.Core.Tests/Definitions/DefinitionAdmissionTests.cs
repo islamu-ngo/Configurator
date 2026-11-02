@@ -28,7 +28,7 @@ public sealed class DefinitionAdmissionTests
         {
             DefinitionFixture.Json.Replace("\"revision\":1", "\"revision\":1,\"revision\":2", StringComparison.Ordinal),
             DefinitionFixture.Json.Replace("\"revision\":1", "\"revision\":1,\"Revision\":2", StringComparison.Ordinal),
-            DefinitionFixture.Json.Replace("authoring:v2", "authoring:v1", StringComparison.Ordinal),
+            DefinitionFixture.Json.Replace("authoring:v0.0.1", "authoring:unsupported", StringComparison.Ordinal),
             DefinitionFixture.Json.Replace("\"$schema\":", "\"exec\":\"shell\",\"$schema\":", StringComparison.Ordinal),
             DefinitionFixture.Json.Replace("\"op\":\"copy\"", "\"op\":\"fetch\"", StringComparison.Ordinal),
             DefinitionFixture.Json.Replace("\"service.json\":", "\"../service.json\":", StringComparison.Ordinal),
@@ -72,7 +72,7 @@ public sealed class DefinitionAdmissionTests
 internal static class DefinitionFixture
 {
     internal const string Json = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
          "project":{"id":"example.service","name":"Example service","publisher":"example"},
          "applicationVersions":["1.0"],"entryPoints":["setup"],

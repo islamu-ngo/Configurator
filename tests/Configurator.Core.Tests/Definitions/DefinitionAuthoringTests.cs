@@ -9,7 +9,7 @@ public sealed class DefinitionAuthoringTests
 {
     private static readonly string[] ExpectedFieldIds = ["SERVICE_PORT", "SERVICE_TOKEN"];
     internal const string Source = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":1},
          "project":{"id":"example.service","name":"Example Service"},"applicationVersions":["1.0"],
          "configuration":{"type":"object","additionalProperties":false,"required":["SERVICE_TOKEN"],

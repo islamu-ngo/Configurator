@@ -8,7 +8,7 @@ using Configurator.Core.Composition;
 /// <summary>Admits one private value tree and explicit omissions without retaining its source bytes.</summary>
 public static class SetupAnswerSnapshotCodec
 {
-    public const int ContractVersion = 1;
+    public const string ContractVersion = ConfiguratorVersion.Current;
 
     /// <summary>Returns caller-owned restricted bytes. Callers retain publication authority and cleanup ownership.</summary>
     public static byte[] Serialize(SetupAnswerSnapshot snapshot)
@@ -20,7 +20,7 @@ public static class SetupAnswerSnapshotCodec
             using (var writer = new Utf8JsonWriter(buffer))
             {
                 writer.WriteStartObject();
-                writer.WriteNumber("answerContractVersion", ContractVersion);
+                writer.WriteString("answerContractVersion", ContractVersion);
                 writer.WriteStartObject("values");
                 foreach ((string name, JsonElement value) in snapshot.Values.OrderBy(member => member.Key, StringComparer.Ordinal))
                 {
@@ -49,7 +49,8 @@ public static class SetupAnswerSnapshotCodec
             using JsonDocument document = JsonDocument.Parse(canonical);
             JsonElement root = document.RootElement;
             if (root.EnumerateObject().Any(member => member.Name is not ("answerContractVersion" or "values" or "omitted"))
-                || root.GetProperty("answerContractVersion").GetInt32() != ContractVersion)
+                || root.GetProperty("answerContractVersion").ValueKind != JsonValueKind.String
+                || root.GetProperty("answerContractVersion").GetString() != ContractVersion)
                 throw new SetupDefinitionException("answer-contract");
             JsonElement values = root.GetProperty("values");
             JsonElement omitted = root.GetProperty("omitted");

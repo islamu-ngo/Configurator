@@ -207,7 +207,7 @@ public sealed class DefinitionPreparedAdoptionTests
 
     private static SetupDefinition Definition(bool secret = false) => SetupDefinitionCodec.ParseJson(
         Encoding.UTF8.GetBytes("""
-            {"schemaVersion":2,"profile":"bounded-v2","familyId":"e201806e-18ec-40ee-8540-f5d1fa742ce1","revision":1,
+            {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"e201806e-18ec-40ee-8540-f5d1fa742ce1","revision":1,
              "project":{"id":"example.service","publisher":"example","name":"Example"},
              "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["en"],
              "configuration":{"type":"object","additionalProperties":false,"required":["name"],

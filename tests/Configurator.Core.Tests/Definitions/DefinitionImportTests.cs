@@ -405,7 +405,7 @@ public sealed class DefinitionImportTests
     private static SetupDefinition Definition() => DefinitionFixture.Parse(Source);
 
     private const string Source = """
-        {"$schema":"urn:islamu:configurator:authoring:v2",
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"2b51dfa0-024c-4d9b-a5ae-e38da01ec862","revision":1},
          "project":{"id":"example.service","name":"Example","publisher":"example"},
          "applicationVersions":["1"],"entryPoints":["setup"],
