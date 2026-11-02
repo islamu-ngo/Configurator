@@ -6,12 +6,16 @@ using Configurator.Core.Composition;
 /// <summary>A bounded, ordinal JSON Pointer. Diagnostic text deliberately omits its potentially private tokens.</summary>
 public sealed record DefinitionPath
 {
-    private readonly string _jsonPointer;
+    private readonly string? _jsonPointer;
+    private readonly int _hashCode;
 
-    private DefinitionPath(string jsonPointer, string[] segments)
+    private DefinitionPath(string? jsonPointer, string[] segments)
     {
         _jsonPointer = jsonPointer;
         Segments = Array.AsReadOnly(segments);
+        var hash = new HashCode();
+        foreach (string segment in segments) hash.Add(segment, StringComparer.Ordinal);
+        _hashCode = hash.ToHashCode();
     }
 
     public static DefinitionPath Parse(string jsonPointer)
@@ -46,18 +50,20 @@ public sealed record DefinitionPath
                 throw new DefinitionException("path-limit");
             ArgumentNullException.ThrowIfNull(segment);
             DefinitionProfile.ValidateScalar(segment);
-            string escaped = segment.Replace("~", "~0", StringComparison.Ordinal)
-                .Replace("/", "~1", StringComparison.Ordinal);
-            characters += escaped.Length + 1;
+            characters += segment.Length + 1;
+            foreach (char character in segment)
+                if (character is '~' or '/') characters++;
             if (characters > CompositionLimits.DefaultScalarCharacters)
                 throw new DefinitionException("path-limit");
-            snapshot.Add(escaped);
+            snapshot.Add(segment);
         }
-        return Parse(snapshot.Count == 0 ? "" : "/" + string.Join("/", snapshot));
+        return new(null, snapshot.ToArray());
     }
 
     public IReadOnlyList<string> Segments { get; }
-    public string ToPointer() => _jsonPointer;
+    public string ToPointer() => _jsonPointer ?? (Segments.Count == 0 ? "" : "/" +
+        string.Join("/", Segments.Select(segment => segment.Replace("~", "~0", StringComparison.Ordinal)
+            .Replace("/", "~1", StringComparison.Ordinal))));
 
     public bool TryGetArrayIndex(int segment, out int index)
     {
@@ -70,7 +76,7 @@ public sealed record DefinitionPath
     }
 
     public bool Equals(DefinitionPath? other) =>
-        other is not null && StringComparer.Ordinal.Equals(_jsonPointer, other._jsonPointer);
-    public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(_jsonPointer);
+        other is not null && Segments.SequenceEqual(other.Segments, StringComparer.Ordinal);
+    public override int GetHashCode() => _hashCode;
     public override string ToString() => nameof(DefinitionPath);
 }
