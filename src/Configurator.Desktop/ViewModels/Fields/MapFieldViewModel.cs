@@ -105,15 +105,7 @@ public sealed class MapFieldViewModel : FieldViewModel
     {
         if (!AddEntryCommand.CanExecute(null)) return;
         string key = NewKey;
-        JsonElement value = Schema.AdditionalProperties!.Type switch
-        {
-            DefinitionNodeType.Text => JsonSerializer.SerializeToElement(""),
-            DefinitionNodeType.Boolean => JsonSerializer.SerializeToElement(false),
-            DefinitionNodeType.WholeNumber or DefinitionNodeType.Number => JsonSerializer.SerializeToElement(0),
-            DefinitionNodeType.Sequence => JsonSerializer.SerializeToElement(Array.Empty<object>()),
-            _ => JsonSerializer.SerializeToElement(new Dictionary<string, object>())
-        };
-        if (Form.SetValue([.. FullPath(), key], value))
+        if (Form.AddMapEntry(FullPath(), key))
         {
             NewKey = "";
             _entries.Single(entry => entry.Id == key).RequestFocus();
