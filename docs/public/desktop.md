@@ -203,13 +203,17 @@ ambiguous/lossy mappings may not support comparison or autofill.
 ### Custom Desktop storage integrations
 
 Implementers of `IStorageDialogService` must now supply
-`ReadImportAsync(CancellationToken)` returning `Task<BoundedFileInput?>`.
+`ReadImportAsync(CancellationToken)` returning `Task<StorageSelection<BoundedFileInput>>`.
 Open the selected provider's stream rather than translating its URI into a
 native path. Bound acquisition to 4 MiB and finish provider stream/item cleanup
 before returning the caller-owned input; clear acquired input on failure or
 cancellation. The Desktop caller clears/disposes returned input after review.
 This mandatory method intentionally breaks older implementations; there is no
-default fallback. Definition and output selection still require local paths.
+default fallback. Definition and output selection still require local paths and
+return `StorageSelection<Uri>`. Report dismissed, unavailable and nonlocal
+selections through `StorageSelectionStatus`; only `Selected` transfers a value.
+Token cancellation throws `OperationCanceledException`. Do not encode outcomes
+in exception messages.
 
 ---
 

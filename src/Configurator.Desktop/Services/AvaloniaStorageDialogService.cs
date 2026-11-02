@@ -7,11 +7,11 @@ using Configurator.Desktop.ViewModels;
 
 public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider) : IStorageDialogService
 {
-    public async Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default)
+    public async Task<StorageSelection<BoundedFileInput>> ReadImportAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         IStorageProvider storageProvider = provider();
-        if (!storageProvider.CanOpen) throw new NotSupportedException("selection-unavailable");
+        if (!storageProvider.CanOpen) return new(StorageSelectionStatus.Unavailable);
         IReadOnlyList<IStorageFile> items = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Choose existing configuration",
@@ -40,7 +40,7 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
                 failure?.Throw();
             }
             cancellationToken.ThrowIfCancellationRequested();
-            return input;
+            return input is null ? new(StorageSelectionStatus.Cancelled) : new(StorageSelectionStatus.Selected, input);
         }
         catch
         {
@@ -49,7 +49,7 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
         }
     }
 
-    public async Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default)
+    public async Task<StorageSelection<Uri>> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         IStorageProvider storageProvider = provider();
@@ -57,7 +57,7 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
         switch (kind)
         {
             case DesktopPathSelectionKind.OutputDirectory:
-                if (!storageProvider.CanPickFolder) throw new NotSupportedException("selection-unavailable");
+                if (!storageProvider.CanPickFolder) return new(StorageSelectionStatus.Unavailable);
                 items = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
                     Title = "Choose existing protected output directory",
@@ -66,7 +66,7 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
                 break;
             case DesktopPathSelectionKind.Definition:
             case DesktopPathSelectionKind.Import:
-                if (!storageProvider.CanOpen) throw new NotSupportedException("selection-unavailable");
+                if (!storageProvider.CanOpen) return new(StorageSelectionStatus.Unavailable);
                 items = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = kind == DesktopPathSelectionKind.Definition
@@ -84,12 +84,11 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
         {
             // Avalonia pickers have no cancellation token. Never accept their late result.
             cancellationToken.ThrowIfCancellationRequested();
-            if (items.Count != 1) return null;
+            if (items.Count != 1) return new(StorageSelectionStatus.Cancelled);
             Uri location = items[0].Path;
             bool local = TryGetLocalPath(location, out _);
             cancellationToken.ThrowIfCancellationRequested();
-            if (!local) throw new InvalidOperationException("selection-nonlocal");
-            return location;
+            return local ? new(StorageSelectionStatus.Selected, location) : new(StorageSelectionStatus.Nonlocal);
         }
         finally { foreach (IStorageItem item in items) item.Dispose(); }
     }

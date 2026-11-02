@@ -59,17 +59,21 @@ internal static class DesktopTestContext
     private sealed class Dialogs(
         Func<DesktopPathSelectionKind, CancellationToken, Task<Uri?>> select) : IStorageDialogService
     {
-        public Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
-            select(kind, cancellationToken);
+        public async Task<StorageSelection<Uri>> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default)
+        {
+            Uri? value = await select(kind, cancellationToken);
+            return new(value is null ? StorageSelectionStatus.Cancelled : StorageSelectionStatus.Selected, value);
+        }
 
-        public async Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default)
+        public async Task<StorageSelection<BoundedFileInput>> ReadImportAsync(CancellationToken cancellationToken = default)
         {
             Uri? selected = await select(DesktopPathSelectionKind.Import, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            if (selected is null) return null;
+            if (selected is null) return new(StorageSelectionStatus.Cancelled);
             if (!AvaloniaStorageDialogService.TryGetLocalPath(selected, out string path))
-                throw new InvalidOperationException("selection-nonlocal");
-            return await BoundedFileInput.ReadAsync(path, ProtectedArtifactWriter.MaximumBytes, cancellationToken);
+                return new(StorageSelectionStatus.Nonlocal);
+            return new(StorageSelectionStatus.Selected,
+                await BoundedFileInput.ReadAsync(path, ProtectedArtifactWriter.MaximumBytes, cancellationToken));
         }
     }
 }

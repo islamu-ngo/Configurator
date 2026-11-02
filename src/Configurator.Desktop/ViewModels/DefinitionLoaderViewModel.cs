@@ -134,9 +134,15 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         long focusGeneration = operation.Generation;
         try
         {
-            Uri? selected = await _dialogs.SelectAsync(DesktopPathSelectionKind.Definition, operation.Token);
-            if (!operation.IsCurrent || selected is null) return false;
-            if (!AvaloniaStorageDialogService.TryGetLocalPath(selected, out string path))
+            StorageSelection<Uri> selected = await _dialogs.SelectAsync(DesktopPathSelectionKind.Definition, operation.Token);
+            if (!operation.IsCurrent || selected.Status == StorageSelectionStatus.Cancelled) return false;
+            if (selected.Status == StorageSelectionStatus.Unavailable)
+            {
+                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+                return false;
+            }
+            if (selected.Status != StorageSelectionStatus.Selected || selected.Value is null ||
+                !AvaloniaStorageDialogService.TryGetLocalPath(selected.Value, out string path))
             {
                 _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
                 return false;
@@ -154,7 +160,91 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
             _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
             return false;
         }
-        catch (InvalidOperationException exception) when (exception.Message == "selection-nonlocal")
+        catch (Exception exception) when (exception is NotSupportedException or IOException or
+            UnauthorizedAccessException or InvalidOperationException)
+        {
+            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+            return false;
+        }
+        finally
+        {
+            operation.Dispose();
+            if (!accepted && !_disposed && focusGeneration == _generation)
+                _messenger.Send(new FocusRequestedMessage("SelectDefinition"));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSelectPath))]
+    public async Task<bool> LoadDefinitionAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!CanSelectPath) return false;
+        ClearDefinition();
+        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "load", cancellationToken);
+        if (operation is null) return false;
+        string path = DefinitionPath;
+        try
+        {
+            string extension = Path.GetExtension(path).ToLowerInvariant();
+            if (extension is not (".json" or ".yaml" or ".yml"))
+            {
+                _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation));
+                return false;
+            }
+            using BoundedFileInput source = await BoundedFileInput.ReadAsync(() => _openRead(path),
+                ProtectedArtifactWriter.MaximumBytes, operation.Token);
+            if (!operation.IsCurrent) return false;
+            return Admit(source.Bytes, extension is ".yaml" or ".yml");
+        }
+        catch (InvalidDataException)
+        {
+            _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation));
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            _messenger.Send(new StatusChangedMessage("load-cancelled", operation.Generation));
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            _messenger.Send(new StatusChangedMessage("definition-unreadable", operation.Generation));
+            return false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSelectPath))]
+    public async Task<bool> SelectDefinitionAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "selection", cancellationToken);
+        if (operation is null) return false;
+        bool accepted = false;
+        long focusGeneration = operation.Generation;
+        try
+        {
+            StorageSelection<Uri> selected = await _dialogs.SelectAsync(DesktopPathSelectionKind.Definition, operation.Token);
+            if (!operation.IsCurrent || selected.Status == StorageSelectionStatus.Cancelled) return false;
+            if (selected.Status == StorageSelectionStatus.Unavailable)
+            {
+                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+                return false;
+            }
+            if (selected.Status != StorageSelectionStatus.Selected || selected.Value is null ||
+                !AvaloniaStorageDialogService.TryGetLocalPath(selected.Value, out string path))
+            {
+                _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
+                return false;
+            }
+            operation.Dispose();
+            DefinitionPath = path;
+            Task<bool> loading = LoadDefinitionAsync(cancellationToken);
+            focusGeneration = _generation;
+            accepted = await loading;
+            return accepted;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (ArgumentException)
         {
             _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
             return false;

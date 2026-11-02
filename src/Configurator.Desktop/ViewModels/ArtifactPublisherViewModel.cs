@@ -678,8 +678,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         BoundedFileInput? input = null;
         try
         {
-            input = await _dialogs.ReadImportAsync(operation.Token);
-            if (!operation.IsCurrent || input is null || generation != _reviewGeneration ||
+            StorageSelection<BoundedFileInput> selected = await _dialogs.ReadImportAsync(operation.Token);
+            input = selected.Value;
+            if (operation.IsCurrent && selected.Status is StorageSelectionStatus.Nonlocal or StorageSelectionStatus.Unavailable)
+            {
+                _messenger.Send(new StatusChangedMessage(selected.Status == StorageSelectionStatus.Nonlocal
+                    ? "selection-nonlocal" : "selection-unavailable", operation.Generation));
+                return false;
+            }
+            if (!operation.IsCurrent || selected.Status != StorageSelectionStatus.Selected || input is null || generation != _reviewGeneration ||
                 !ReferenceEquals(form, _form)) return false;
             return await ReviewInputAsync(form, artifact, _ => Task.FromResult(input.Bytes), compare, operation);
         }
@@ -691,8 +698,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }
         catch (Exception exception) when (exception is NotSupportedException or InvalidOperationException)
         {
-            _messenger.Send(new StatusChangedMessage(exception.Message == "selection-nonlocal"
-                ? "selection-nonlocal" : "selection-unavailable", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
             return false;
         }
         finally
@@ -711,9 +717,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         long focusGeneration = operation.Generation;
         try
         {
-            Uri? selected = await _dialogs.SelectAsync(kind, operation.Token);
-            if (!operation.IsCurrent || selected is null) return false;
-            if (!AvaloniaStorageDialogService.TryGetLocalPath(selected, out string path))
+            StorageSelection<Uri> selected = await _dialogs.SelectAsync(kind, operation.Token);
+            if (!operation.IsCurrent || selected.Status == StorageSelectionStatus.Cancelled) return false;
+            if (selected.Status == StorageSelectionStatus.Unavailable)
+            {
+                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+                return false;
+            }
+            if (selected.Status != StorageSelectionStatus.Selected || selected.Value is null ||
+                !AvaloniaStorageDialogService.TryGetLocalPath(selected.Value, out string path))
             {
                 _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
                 return false;
@@ -725,11 +737,6 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }
         catch (OperationCanceledException) { return false; }
         catch (ArgumentException)
-        {
-            _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
-            return false;
-        }
-        catch (InvalidOperationException exception) when (exception.Message == "selection-nonlocal")
         {
             _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
             return false;

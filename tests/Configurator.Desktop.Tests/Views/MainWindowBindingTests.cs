@@ -68,10 +68,10 @@ public sealed class MainWindowBindingTests
 
     private sealed class NoDialogs : IStorageDialogService
     {
-        public Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
-            Task.FromResult<Uri?>(null);
+        public Task<StorageSelection<Uri>> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new StorageSelection<Uri>(StorageSelectionStatus.Cancelled));
 
-        public Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<BoundedFileInput?>(null);
+        public Task<StorageSelection<BoundedFileInput>> ReadImportAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new StorageSelection<BoundedFileInput>(StorageSelectionStatus.Cancelled));
     }
 }

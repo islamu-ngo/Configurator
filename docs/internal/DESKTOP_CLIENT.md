@@ -52,7 +52,9 @@ operations:
   inputs. `Status` contains value-free diagnostic codes and IDs; `StatusHelp`
   provides correction/retry guidance without values, paths or raw exceptions.
 - `IStorageDialogService.ReadImportAsync(token)`: a mandatory provider-stream
-  acquisition contract returning one caller-owned `BoundedFileInput` or null.
+  acquisition contract returning `StorageSelection<BoundedFileInput>`. Only a
+  `Selected` outcome transfers a caller-owned input; dismissed and unavailable
+  pickers return explicit statuses without exception-message interpretation.
   It reads no provider `Path`, uses the existing 4 MiB bounded reader and
   settles the stream and selected item before return. Failure, cancellation and
   selected-item disposal failure clear acquired storage. The publisher retains
@@ -66,6 +68,10 @@ operations:
   output paths. This is an intentional breaking interface change, not an
   automatic adapter for old implementations.
 - `IStorageDialogService.SelectAsync(kind, token)`: a Desktop-only local path selection boundary.
+  Its `StorageSelection<Uri>` distinguishes selected, dismissed, nonlocal and
+  unavailable outcomes. Cancellation still uses the operation token and rejects
+  late provider results before transferring their value. Callers retain their
+  captured generation checks before changing paths or starting a load.
   `AvaloniaStorageDialogService` uses the window's `StorageProvider` for one local
   file or existing folder, checks capability and disposes storage items. It accepts only host-free local file
   URIs while its captured generation remains current. Cancellation, unavailable

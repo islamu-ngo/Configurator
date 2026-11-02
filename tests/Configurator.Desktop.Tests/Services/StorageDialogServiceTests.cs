@@ -8,6 +8,14 @@ using Configurator.Desktop.ViewModels;
 public sealed class StorageDialogServiceTests
 {
     [Test]
+    public async Task SelectionDiagnosticsContainOnlyOutcome()
+    {
+        var selected = new StorageSelection<Uri>(StorageSelectionStatus.Selected,
+            new Uri("file:///tmp/synthetic-private-location.json"));
+        await Assert.That(selected.ToString()).IsEqualTo(nameof(StorageSelectionStatus.Selected));
+    }
+
+    [Test]
     public async Task AmbiguousProviderSelectionReleasesEveryItemDespiteOneDisposalFailure()
     {
         bool secondDisposed = false;
@@ -26,7 +34,7 @@ public sealed class StorageDialogServiceTests
             _ => throw new NotSupportedException()
         });
         IOException? failure = null;
-        try { using var input = await new AvaloniaStorageDialogService(() => provider).ReadImportAsync(); }
+        try { using var input = (await new AvaloniaStorageDialogService(() => provider).ReadImportAsync()).Value; }
         catch (IOException exception) { failure = exception; }
         await Assert.That(failure).IsNotNull();
         await Assert.That(secondDisposed).IsTrue();
@@ -50,7 +58,7 @@ public sealed class StorageDialogServiceTests
             _ => throw new NotSupportedException()
         });
         IOException? failure = null;
-        try { using var input = await new AvaloniaStorageDialogService(() => provider).ReadImportAsync(); }
+        try { using var input = (await new AvaloniaStorageDialogService(() => provider).ReadImportAsync()).Value; }
         catch (IOException exception) { failure = exception; }
         await Assert.That(failure).IsNotNull();
         await Assert.That(streamClosedBeforeItem).IsTrue();
@@ -92,12 +100,9 @@ public sealed class StorageDialogServiceTests
         var item = new StorageItem(location);
         var provider = new StorageProvider { Items = [item] };
         var service = new AvaloniaStorageDialogService(() => provider.Proxy);
-        InvalidOperationException? rejected = null;
-        try { await service.SelectAsync(DesktopPathSelectionKind.Definition); }
-        catch (InvalidOperationException exception) { rejected = exception; }
-        await Assert.That(rejected).IsNotNull();
-        await Assert.That(rejected!.Message).IsEqualTo("selection-nonlocal");
-        await Assert.That(rejected.InnerException).IsNull();
+        StorageSelection<Uri> rejected = await service.SelectAsync(DesktopPathSelectionKind.Definition);
+        await Assert.That(rejected.Status).IsEqualTo(StorageSelectionStatus.Nonlocal);
+        await Assert.That(rejected.Value).IsNull();
         await Assert.That(item.Disposed).IsTrue();
     }
 
@@ -111,7 +116,9 @@ public sealed class StorageDialogServiceTests
         var item = new StorageItem(location);
         var provider = new StorageProvider { Items = [item] };
         var service = new AvaloniaStorageDialogService(() => provider.Proxy);
-        await Assert.That(await service.SelectAsync(kind)).IsEqualTo(location);
+        StorageSelection<Uri> selected = await service.SelectAsync(kind);
+        await Assert.That(selected.Status).IsEqualTo(StorageSelectionStatus.Selected);
+        await Assert.That(selected.Value).IsEqualTo(location);
         await Assert.That(AvaloniaStorageDialogService.TryGetLocalPath(location, out string path)).IsTrue();
         await Assert.That(path).IsEqualTo(Path.Combine(Path.GetTempPath(), "synthetic selection.json"));
         await Assert.That(item.Disposed).IsTrue();
@@ -145,7 +152,9 @@ public sealed class StorageDialogServiceTests
             .ToArray();
         var provider = new StorageProvider { Items = items };
         var service = new AvaloniaStorageDialogService(() => provider.Proxy);
-        await Assert.That(await service.SelectAsync(DesktopPathSelectionKind.Import)).IsNull();
+        StorageSelection<Uri> selected = await service.SelectAsync(DesktopPathSelectionKind.Import);
+        await Assert.That(selected.Status).IsEqualTo(StorageSelectionStatus.Cancelled);
+        await Assert.That(selected.Value).IsNull();
         await Assert.That(items.All(item => item.Disposed)).IsTrue();
     }
 
@@ -159,7 +168,7 @@ public sealed class StorageDialogServiceTests
         var provider = new StorageProvider { Completion = completion };
         var service = new AvaloniaStorageDialogService(() => provider.Proxy);
         using var cancellation = new CancellationTokenSource();
-        Task<Uri?> pending = service.SelectAsync(kind, cancellation.Token);
+        Task<StorageSelection<Uri>> pending = service.SelectAsync(kind, cancellation.Token);
         await provider.Opened.Task.WaitAsync(TimeSpan.FromSeconds(10));
         cancellation.Cancel();
         var item = new StorageItem(new Uri(Path.Combine(Path.GetTempPath(), "late.json")));
@@ -196,11 +205,9 @@ public sealed class StorageDialogServiceTests
     public async Task UnsupportedPickerFailsWithoutOpeningDialog(DesktopPathSelectionKind kind)
     {
         var provider = new StorageProvider { CanOpen = false, CanPickFolder = false };
-        NotSupportedException? rejected = null;
-        try { await new AvaloniaStorageDialogService(() => provider.Proxy).SelectAsync(kind); }
-        catch (NotSupportedException exception) { rejected = exception; }
-        await Assert.That(rejected).IsNotNull();
-        await Assert.That(rejected!.Message).IsEqualTo("selection-unavailable");
+        StorageSelection<Uri> rejected = await new AvaloniaStorageDialogService(() => provider.Proxy).SelectAsync(kind);
+        await Assert.That(rejected.Status).IsEqualTo(StorageSelectionStatus.Unavailable);
+        await Assert.That(rejected.Value).IsNull();
         await Assert.That(provider.Opened.Task.IsCompleted).IsFalse();
     }
 

@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6F7SY56REK6QDQ0D0623V9C
+Title: "make desktop picker outcomes explicit"
+Type: refactor
+Scope: output
+Summary: "make desktop picker outcomes explicit."
+Group: desktop-01-selection
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "IStorageDialogService.SelectAsync now returns StorageSelection<Uri> and ReadImportAsync returns StorageSelection<BoundedFileInput>. Adapt custom integrations to return a Selected outcome only when transferring a value; use the other statuses for refusal or dismissal."
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "make desktop picker outcomes explicit. Existing custody and output authority boundaries remain enforced."
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "IStorageDialogService.SelectAsync now returns StorageSelection<Uri> and ReadImportAsync returns StorageSelection<BoundedFileInput>. Adapt custom integrations to return a Selected outcome only when transferring a value; use the other statuses for refusal or dismissal."
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable

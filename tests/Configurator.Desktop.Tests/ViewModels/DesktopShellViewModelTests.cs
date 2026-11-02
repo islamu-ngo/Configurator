@@ -654,14 +654,14 @@ public sealed class DesktopShellViewModelTests
     }
 
     [Test]
-    [Arguments("argument")]
-    [Arguments("sentinel")]
-    public async Task NonlocalServiceRefusalUsesStableDiagnosticWithoutExceptionContent(string refusal)
+    [Arguments("argument", "selection-nonlocal")]
+    [Arguments("sentinel", "selection-unavailable")]
+    public async Task ServiceFailureUsesTypedCategoryWithoutInterpretingExceptionContent(string refusal, string expected)
     {
         using var shell = CreateShell(new Dialogs((_, _) => Task.FromException<Uri?>(refusal == "argument"
             ? new ArgumentException("synthetic-private") : new InvalidOperationException("selection-nonlocal"))));
         await Assert.That(await shell.Loader.SelectDefinitionAsync()).IsFalse();
-        await Assert.That(shell.Status).IsEqualTo("selection-nonlocal");
+        await Assert.That(shell.Status).IsEqualTo(expected);
         await Assert.That(shell.FocusTarget).IsEqualTo("SelectDefinition");
     }
 
@@ -835,17 +835,21 @@ public sealed class DesktopShellViewModelTests
     private sealed class Dialogs(Func<DesktopPathSelectionKind, CancellationToken, Task<Uri?>> select)
         : IStorageDialogService
     {
-        public Task<Uri?> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
-            select(kind, cancellationToken);
+        public async Task<StorageSelection<Uri>> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default)
+        {
+            Uri? value = await select(kind, cancellationToken);
+            return new(value is null ? StorageSelectionStatus.Cancelled : StorageSelectionStatus.Selected, value);
+        }
 
-        public async Task<BoundedFileInput?> ReadImportAsync(CancellationToken cancellationToken = default)
+        public async Task<StorageSelection<BoundedFileInput>> ReadImportAsync(CancellationToken cancellationToken = default)
         {
             Uri? selected = await select(DesktopPathSelectionKind.Import, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            if (selected is null) return null;
+            if (selected is null) return new(StorageSelectionStatus.Cancelled);
             if (!AvaloniaStorageDialogService.TryGetLocalPath(selected, out string path))
-                throw new InvalidOperationException("selection-nonlocal");
-            return await BoundedFileInput.ReadAsync(path, ProtectedArtifactWriter.MaximumBytes, cancellationToken);
+                return new(StorageSelectionStatus.Nonlocal);
+            return new(StorageSelectionStatus.Selected,
+                await BoundedFileInput.ReadAsync(path, ProtectedArtifactWriter.MaximumBytes, cancellationToken));
         }
     }
 }
