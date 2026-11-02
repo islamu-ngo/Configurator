@@ -8,7 +8,7 @@ public sealed class PublicDefinitionFiles : ISetupCliAuthoringFiles
     public ValueTask<string> DiscoverSourceAsync(string root, string? source, CancellationToken cancellationToken) =>
         new(Task.Run(() => DefinitionSourceFiles.Discover(root, source), cancellationToken));
 
-    public async ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
+    public async ValueTask<CliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         path = DefinitionSourceFiles.SafePath(path);
@@ -54,7 +54,7 @@ public sealed class PublicDefinitionFiles : ISetupCliAuthoringFiles
             if (!_staged) throw new InvalidOperationException("definition-not-staged");
             if (acceptIdentical && await files.ExistsAsync(path, cancellationToken).ConfigureAwait(false))
             {
-                using SetupCliInputBuffer existing = await files.ReadAsync(path, maximumBytes, cancellationToken).ConfigureAwait(false);
+                using CliInputBuffer existing = await files.ReadAsync(path, maximumBytes, cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (existing.Bytes.Span.SequenceEqual(bytes.Span)) return false;
             }

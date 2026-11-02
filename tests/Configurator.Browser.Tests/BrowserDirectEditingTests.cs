@@ -49,7 +49,7 @@ public sealed class BrowserDirectEditingTests
         await Assert.That(form.InputRevision).IsEqualTo(2);
     }
 
-    private static SetupDefinition Definition()
+    private static Definition Definition()
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         BrowserFixture.WithField(source, "nickname", """
@@ -61,6 +61,6 @@ public sealed class BrowserDirectEditingTests
         BrowserFixture.WithField(source, "flavor", """
             {"type":"string","title":"Flavor","enum":["","alpha","beta"],"x-configurator":{"sensitivity":"public","detail":"advanced"}}
             """, "schema.enum");
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

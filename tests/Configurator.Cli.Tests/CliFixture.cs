@@ -56,19 +56,19 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         ValueTask.FromResult<ProtectedArtifactStatus?>(ArtifactDestinationsBlocked ? ProtectedArtifactStatus.UnsupportedPlatform
             : Files.ContainsKey(path) ? ProtectedArtifactStatus.TargetExists : null);
 
-    internal async Task<SetupCliExitCode> RunAsync(params string[] arguments)
+    internal async Task<CliExitCode> RunAsync(params string[] arguments)
     {
         StandardOutput = [];
         StandardError = [];
-        return await new SetupCliApplication().RunAsync(new(arguments, SetupCliMode.Text,
+        return await new CliApplication().RunAsync(new(arguments, CliMode.Text,
             new(this, this, new ErrorWriter(this), AuthoringFiles, 65_536, MaximumBytes)));
     }
 
-    internal Task<SetupCliExitCode> ArtifactAsync(string operation, string artifact = "config", params string[] options) =>
+    internal Task<CliExitCode> ArtifactAsync(string operation, string artifact = "config", params string[] options) =>
         RunAsync(["artifact", operation, "--definition", "definition.json", "--artifact", artifact,
             "--input", "answers.json", "--machine", .. options]);
 
-    public async ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
+    public async ValueTask<CliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
     {
         MaximumRead = maximumBytes;
         if (!Files.TryGetValue(path, out byte[]? bytes)) throw new IOException();
@@ -83,7 +83,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         return ValueTask.CompletedTask;
     }
 
-    public async ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
+    public async ValueTask<CliPublicationResult> WriteArtifactAsync(string path, ArtifactKind kind,
         ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
     {
         if (bytes.Length > maximumBytes) throw new IOException();
@@ -91,7 +91,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             return new([new(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure))]);
         if (path == "-")
         {
-            if (!SetupArtifactPolicy.TryProjectPublic(kind, bytes, out _)) throw new IOException();
+            if (!ArtifactPolicy.TryProjectPublic(kind, bytes, out _)) throw new IOException();
             await WriteAsync(path, bytes, maximumBytes, cancellationToken);
             return new([new(null, DeliveredToStandardOutput: true)]);
         }
@@ -100,9 +100,9 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
         return new([new(ProtectedArtifactCommitResult.Installed(true))]);
     }
 
-    public ValueTask<SetupCliPublicationResult> WriteBundleAsync(
+    public ValueTask<CliPublicationResult> WriteBundleAsync(
         IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes,
-        Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken)
+        Action<string, CliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken)
     {
         var results = new ProtectedArtifactCommitResult?[artifacts.Count];
         if (BundleBlocked)
@@ -147,8 +147,8 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             results[index] = result;
             outcomeObserver(artifacts[index].ArtifactId, new(result));
         }
-        ValueTask<SetupCliPublicationResult> Result() => ValueTask.FromResult(
-            new SetupCliPublicationResult(results.Select(result => new SetupCliPublicationOutcome(result)).ToArray()));
+        ValueTask<CliPublicationResult> Result() => ValueTask.FromResult(
+            new CliPublicationResult(results.Select(result => new CliPublicationOutcome(result)).ToArray()));
     }
 
     private sealed class ErrorWriter(CliFixture owner) : ISetupCliWriter
@@ -160,12 +160,12 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
             owner.StandardError = bytes.ToArray();
             return ValueTask.CompletedTask;
         }
-        public ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
+        public ValueTask<CliPublicationResult> WriteArtifactAsync(string path, ArtifactKind kind,
             ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) =>
             throw new IOException();
-        public ValueTask<SetupCliPublicationResult> WriteBundleAsync(
+        public ValueTask<CliPublicationResult> WriteBundleAsync(
             IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes,
-            Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken) =>
+            Action<string, CliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken) =>
             throw new IOException();
     }
 
@@ -173,7 +173,7 @@ internal sealed class CliFixture : ISetupCliInput, ISetupCliWriter
     {
         public ValueTask<string> DiscoverSourceAsync(string root, string? source, CancellationToken cancellationToken) =>
             throw new UnauthorizedAccessException();
-        public ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken) =>
+        public ValueTask<CliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken) =>
             throw new UnauthorizedAccessException();
         public ValueTask<bool> ExistsAsync(string path, CancellationToken cancellationToken) =>
             throw new UnauthorizedAccessException();

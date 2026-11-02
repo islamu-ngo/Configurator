@@ -34,7 +34,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(new BrowserDefinitionRegistry([]), javascript, policy);
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(BrowserDefinitionSourceTests.AuthoringJson));
-        SetupDefinition definition = await source.ReadLocalAsync(input);
+        Definition definition = await source.ReadLocalAsync(input);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("#secret-consent").Change(true);
         using var older = new GatedReadStream("""{"HOST":"example.test","settings":{"secret":"synthetic-local-import-secret"}}"""u8.ToArray());

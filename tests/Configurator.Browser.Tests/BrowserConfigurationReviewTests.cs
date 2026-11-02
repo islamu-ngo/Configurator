@@ -78,7 +78,7 @@ public sealed class BrowserConfigurationReviewTests
         """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.literal", "schema.object", "schema.string");
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -113,7 +113,7 @@ public sealed class BrowserConfigurationReviewTests
         source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.copy", "projection.object",
             "schema.boolean", "schema.object", "schema.string", "values.initial");
         await using var context = BrowserFixture.Context();
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -239,7 +239,7 @@ public sealed class BrowserConfigurationReviewTests
              "second":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}
             """);
         source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object", "schema.object", "schema.string", "values.initial");
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await Assert.That(component.Find("[data-import-inspection]").GetAttribute("data-import-inspection")).IsEqualTo("false");
         await Assert.That(component.Find("#artifact-import").HasAttribute("disabled")).IsTrue();
@@ -249,7 +249,7 @@ public sealed class BrowserConfigurationReviewTests
         await Assert.That(input.Position).IsEqualTo(0);
     }
 
-    private static SetupDefinition Definition()
+    private static Definition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
         source["configuration"] = JsonNode.Parse("""
@@ -268,6 +268,6 @@ public sealed class BrowserConfigurationReviewTests
         """);
         source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object",
             "schema.object", "schema.string", "values.initial");
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

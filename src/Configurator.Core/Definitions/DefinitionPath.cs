@@ -19,16 +19,16 @@ public sealed record DefinitionPath
         ArgumentNullException.ThrowIfNull(jsonPointer);
         DefinitionProfile.ValidateScalar(jsonPointer);
         if (jsonPointer.Length == 0) return new("", []);
-        if (jsonPointer[0] != '/') throw new SetupDefinitionException("path-invalid");
+        if (jsonPointer[0] != '/') throw new DefinitionException("path-invalid");
         string[] segments = jsonPointer[1..].Split('/');
-        if (segments.Length > SetupCompositionLimits.DefaultNestingDepth)
-            throw new SetupDefinitionException("path-limit");
+        if (segments.Length > CompositionLimits.DefaultNestingDepth)
+            throw new DefinitionException("path-limit");
         for (int index = 0; index < segments.Length; index++)
         {
             string token = segments[index];
             for (int position = 0; position < token.Length; position++)
                 if (token[position] == '~' && (++position >= token.Length || token[position] is not ('0' or '1')))
-                    throw new SetupDefinitionException("path-invalid");
+                    throw new DefinitionException("path-invalid");
             segments[index] = token.Replace("~1", "/", StringComparison.Ordinal)
                 .Replace("~0", "~", StringComparison.Ordinal);
         }
@@ -42,15 +42,15 @@ public sealed record DefinitionPath
         int characters = 0;
         foreach (string segment in segments)
         {
-            if (snapshot.Count == SetupCompositionLimits.DefaultNestingDepth)
-                throw new SetupDefinitionException("path-limit");
+            if (snapshot.Count == CompositionLimits.DefaultNestingDepth)
+                throw new DefinitionException("path-limit");
             ArgumentNullException.ThrowIfNull(segment);
             DefinitionProfile.ValidateScalar(segment);
             string escaped = segment.Replace("~", "~0", StringComparison.Ordinal)
                 .Replace("/", "~1", StringComparison.Ordinal);
             characters += escaped.Length + 1;
-            if (characters > SetupCompositionLimits.DefaultScalarCharacters)
-                throw new SetupDefinitionException("path-limit");
+            if (characters > CompositionLimits.DefaultScalarCharacters)
+                throw new DefinitionException("path-limit");
             snapshot.Add(escaped);
         }
         return Parse(snapshot.Count == 0 ? "" : "/" + string.Join("/", snapshot));

@@ -7,7 +7,7 @@ This glossary explains key terms and concepts used across the ISLAMU Configurato
 ### Admitted Definition
 A configuration definition that has been validated and accepted by `Configurator.Core`. The admission process checks that all fields, types, conditions, and artifact mappings conform strictly to the supported vocabulary. Once admitted, the definition is immutable and pinned by a cryptographic digest.
 
-### Answer Snapshot (`SetupAnswerSnapshot`)
+### Answer Snapshot (`AnswerSnapshot`)
 An immutable, point-in-time configuration value tree plus explicit omissions,
 bound to an input revision. Values use exact configuration property names, not
 presentation field IDs. For example, `service.name` is one literal root key;
@@ -35,7 +35,7 @@ without overwriting an existing destination. Bundle publication is sequential,
 not a whole-bundle transaction; a later failure can leave a written prefix.
 Installation, immediate verification and cleanup are separate receipt facts.
 
-### Definition (`SetupDefinition`)
+### Definition (`Definition`)
 The core contract describing an application's configuration surface. Runtime 0.0.1
 (`bounded-v0.0.1`) declares a recursive configuration schema, applicability and
 presence relationships, sensitivity, and output projections. Base types are

@@ -13,15 +13,15 @@ public sealed class DefinitionSemanticTests
     [Arguments("file.kind")]
     public async Task OutputSelectionInitializationNeverOverridesSupplyOrExplicitOmission(string fieldName)
     {
-        SetupDefinition definition = DefinitionFixture.Parse(
+        Definition definition = DefinitionFixture.Parse(
             DefinitionPresentationAdmissionTests.OutputSelectorSource(fieldName).ToJsonString());
         DefinitionPath path = DefinitionPath.FromSegments([fieldName]);
-        var fresh = new SetupAnswerSnapshot(0, new Dictionary<string, JsonElement>());
-        var supplied = new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>
+        var fresh = new AnswerSnapshot(0, new Dictionary<string, JsonElement>());
+        var supplied = new AnswerSnapshot(1, new Dictionary<string, JsonElement>
         {
             [fieldName] = JsonSerializer.SerializeToElement("identity")
         });
-        var omitted = new SetupAnswerSnapshot(2, new Dictionary<string, JsonElement>(), [path]);
+        var omitted = new AnswerSnapshot(2, new Dictionary<string, JsonElement>(), [path]);
         await Assert.That(fresh.Values.Count).IsEqualTo(0);
         await Assert.That(DefinitionValidator.Validate(definition, fresh).TryGetEffectiveValue(path, out JsonElement initial)).IsTrue();
         await Assert.That(initial.GetString()).IsEqualTo("settings");
@@ -47,7 +47,7 @@ public sealed class DefinitionSemanticTests
              "properties":{"name":{"type":"string","x-configurator":{"sensitivity":"public"}}},
              "x-configurator":{"sensitivity":"public"}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         foreach ((string answers, bool ready) in new[]
         {
             ("{}", false), ("""{"service.name":{}}""", false),
@@ -72,7 +72,7 @@ public sealed class DefinitionSemanticTests
         var validation = DefinitionValidator.Validate(DefinitionFixture.Parse(root.ToJsonString()),
             DefinitionFixture.Answers("{}"));
         await Assert.That(validation.Fields[0].IsActive).IsTrue();
-        await Assert.That(validation.Fields[0].Definition.Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+        await Assert.That(validation.Fields[0].Definition.Sensitivity).IsEqualTo(FieldSensitivity.Secret);
     }
 
     [Test]
@@ -85,7 +85,7 @@ public sealed class DefinitionSemanticTests
         root["configuration"]!["required"]!.AsArray().Add("enabled");
         root["configuration"]!["properties"]!["service.name"]!["x-configurator"]!["applicableWhen"] =
             JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}""");
-        SetupDefinition definition = DefinitionFixture.Parse(root.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(root.ToJsonString());
         DefinitionValidationResult inactive = DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"enabled":false,"service.name":"ignored"}"""));
         await Assert.That(inactive.IsReady).IsTrue();
@@ -106,7 +106,7 @@ public sealed class DefinitionSemanticTests
     {
         foreach (string sensitivity in new[] { "secret", "public" })
         {
-            SetupDefinition definition = DefinitionFixture.Parse(DefinitionFixture.Json
+            Definition definition = DefinitionFixture.Parse(DefinitionFixture.Json
                 .Replace("\"required\":[\"service.name\"]", "\"required\":[]", StringComparison.Ordinal)
                 .Replace("\"sensitivity\":\"public\"", $"\"sensitivity\":\"{sensitivity}\"", StringComparison.Ordinal));
             var validation = DefinitionValidator.Validate(definition, DefinitionFixture.Answers("{}"));
@@ -121,7 +121,7 @@ public sealed class DefinitionSemanticTests
     {
         using JsonDocument source = JsonDocument.Parse("""{"service.name":"original"}""");
         var values = source.RootElement.EnumerateObject().ToDictionary(item => item.Name, item => item.Value);
-        var snapshot = new SetupAnswerSnapshot(42, values);
+        var snapshot = new AnswerSnapshot(42, values);
         values.Clear();
         source.Dispose();
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(DefinitionFixture.Parse(), "config", snapshot);
@@ -154,7 +154,7 @@ public sealed class DefinitionSemanticTests
     [Test]
     public async Task StructuredLegalMarkdownIsDataAndNativeMarkdownEscapesActiveSyntax()
     {
-        SetupDefinition definition = DefinitionFixture.Parse(DefinitionFixture.Json.Replace(
+        Definition definition = DefinitionFixture.Parse(DefinitionFixture.Json.Replace(
             "\"maxLength\":80", "\"maxLength\":1000", StringComparison.Ordinal));
         var answers = DefinitionFixture.Answers("""{"service.name":"# Terms\n<script>x</script> [link](javascript:x)"}""");
         var result = DefinitionArtifactComposer.Compose(definition, "config", answers);

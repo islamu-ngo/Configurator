@@ -16,7 +16,7 @@ public sealed class DefinitionReviewStateTests
         source["artifacts"]![0]!["projection"]!["members"]!["secret"] = JsonNode.Parse("""
         {"op":"copy","reference":{"scope":"root","path":"/secret"}}
         """);
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
         long revision = form.InputRevision;
         bool consumed = false;
@@ -50,7 +50,7 @@ public sealed class DefinitionReviewStateTests
         source["requiredCapabilities"] = JsonNode.Parse("""
         ["projection.literal","schema.object","schema.string","values.initial"]
         """);
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.ResetValue(["options"]);
         long revision = form.InputRevision;
         await Assert.That(form.AnswerOrigin(["options", "host"])).IsEqualTo(DefinitionAnswerOrigin.Defaulted);
@@ -105,7 +105,7 @@ public sealed class DefinitionReviewStateTests
     private static Task<DefinitionImportResult> Import(DefinitionFormModel form, string json) =>
         form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(Encoding.UTF8.GetBytes(json)));
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32004","revision":1,
      "project":{"id":"example","publisher":"example","name":"Review example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],

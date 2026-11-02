@@ -50,7 +50,7 @@ Operators are left trapped between brittle, manual text editing and monolithic p
 
 Configurator solves this dilemma through seven concrete, focused goals:
 
-1. **Portable, Declarative Definitions:** Applications publish a single, non-executable definition (`SetupDefinition`) describing questions, constraints, relevance rules, and artifact projections without runtime plugins or scripts.
+1. **Portable, Declarative Definitions:** Applications publish a single, non-executable definition (`Definition`) describing questions, constraints, relevance rules, and artifact projections without runtime plugins or scripts.
 2. **Shared Semantics Across Surfaces:** Core supplies admission, validation and
    projection semantics to Machine CLI, Terminal TUI, Avalonia Desktop and Blazor
    WebAssembly. Controls, ordering affordances and qualified scenarios are

@@ -102,7 +102,7 @@ configuration:
 
 `service.port` is one exact data key. Its reference is
 `{scope: root, path: /service.port}`, not `/service/port`.
-`SetupFieldDefinition.Name` preserves that key; bounded `Id` is metadata only.
+`FieldDefinition.Name` preserves that key; bounded `Id` is metadata only.
 The generated `f-` hash namespace is reserved, including for literal names
 already beginning `f-`. Do not use IDs as answer keys.
 

@@ -12,8 +12,8 @@ public sealed class DefinitionSecretValidationTests
         using JsonDocument policy = JsonDocument.Parse("""{"kind":"password","acquisition":"existing","constraints":{"minSymbols":1}}""");
         string source = DefinitionFixture.Json.Replace("\"sensitivity\":\"public\",\"detail\":\"advanced\"",
             "\"secret\":" + policy.RootElement.GetRawText(), StringComparison.Ordinal);
-        SetupDefinition definition = DefinitionFixture.Parse(source);
-        SetupAnswerSnapshot answers = DefinitionFixture.Answers("""{"service.name":"SyntheticPassword123"}""");
+        Definition definition = DefinitionFixture.Parse(source);
+        AnswerSnapshot answers = DefinitionFixture.Answers("""{"service.name":"SyntheticPassword123"}""");
         foreach (DefinitionValidationResult result in new[]
         {
             DefinitionValidator.Validate(definition, answers),
@@ -38,7 +38,7 @@ public sealed class DefinitionSecretValidationTests
         string source = DefinitionFixture.Json.Replace("\"sensitivity\":\"public\",\"detail\":\"advanced\"",
             "\"secret\":{\"kind\":\"password\",\"acquisition\":\"existing\",\"constraints\":{\"minSymbols\":1}}",
             StringComparison.Ordinal);
-        SetupDefinition definition = DefinitionFixture.Parse(source);
+        Definition definition = DefinitionFixture.Parse(source);
         DefinitionValidationResult missing = DefinitionValidator.ValidateDraft(definition, DefinitionFixture.Answers("{}"));
         DefinitionValidationResult suppliedNull = DefinitionValidator.ValidateDraft(definition,
             DefinitionFixture.Answers("""{"service.name":null}"""));

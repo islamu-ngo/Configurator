@@ -64,7 +64,7 @@ public sealed class BrowserConfigurationWorkflowTests
         source.AsObject().Remove("presentation");
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.literal", "schema.boolean", "schema.integer", "schema.object", "values.initial");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var confirmation = context.JSInterop.Setup<bool>("confirm", _ => true);
         confirmation.SetResult(false);
@@ -113,7 +113,7 @@ public sealed class BrowserConfigurationWorkflowTests
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         source["configuration"]!["properties"]!["optionalSetting"] = JsonNode.Parse(
             """{"type":"string","x-configurator":{"sensitivity":"public"}}""");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
@@ -226,7 +226,7 @@ public sealed class BrowserConfigurationWorkflowTests
             """{"type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}}""",
             "schema.integer");
         source["configuration"]!["required"]!.AsArray().Add("attempts");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");

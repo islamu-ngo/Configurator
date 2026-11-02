@@ -36,7 +36,7 @@ public sealed class DefinitionStoreCatalog(BrowserDefinitionRegistry registry, I
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    public async Task<SetupDefinition> OpenAsync(string projectId, long revision, CancellationToken cancellationToken = default)
+    public async Task<Definition> OpenAsync(string projectId, long revision, CancellationToken cancellationToken = default)
     {
         Guard(cancellationToken);
         long workspaceGeneration = policy.WorkspaceGeneration;
@@ -46,7 +46,7 @@ public sealed class DefinitionStoreCatalog(BrowserDefinitionRegistry registry, I
         byte[] bytes = await ReadAsync(selected.SnapshotPath, BrowserDefinitionSource.MaximumDocumentBytes, cancellationToken);
         try
         {
-            SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes);
+            Definition definition = DefinitionCodec.ParseJson(bytes);
             if (!MatchesDefinition(project, selected, definition))
                 throw new BrowserLaunchException("store-snapshot-mismatch");
             Guard(cancellationToken);
@@ -54,11 +54,11 @@ public sealed class DefinitionStoreCatalog(BrowserDefinitionRegistry registry, I
             registry.Admit(definition);
             return definition;
         }
-        catch (SetupDefinitionException exception) { throw new BrowserLaunchException(exception.Code); }
+        catch (DefinitionException exception) { throw new BrowserLaunchException(exception.Code); }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    internal static bool MatchesDefinition(DefinitionStoreProject project, DefinitionStoreRevision revision, SetupDefinition definition) =>
+    internal static bool MatchesDefinition(DefinitionStoreProject project, DefinitionStoreRevision revision, Definition definition) =>
         definition.FamilyId == project.FamilyId && definition.ApplicationId == project.ApplicationId
         && definition.Revision == revision.Revision && definition.Digest.Value == revision.Digest
         && definition.Publisher == revision.Publisher && definition.Title == revision.Title

@@ -163,7 +163,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
             if (!ready) FirstError?.RequestFocus();
             return ready;
         }
-        catch (SetupDefinitionException exception)
+        catch (DefinitionException exception)
         {
             NotifyFieldState();
             FirstError?.RequestFocus();

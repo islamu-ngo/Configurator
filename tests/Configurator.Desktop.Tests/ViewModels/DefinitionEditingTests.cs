@@ -10,7 +10,7 @@ public sealed class DefinitionEditingTests
     [Test]
     public async Task MixedMapKeepsDeclaredEditorsSeparateFromLiteralAdditionalEntries()
     {
-        using var form = new DefinitionFormModel(SetupDefinitionSourceCodec.ParseJson("""
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson("""
             {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"380d5cdd-e1a1-4ddd-91c1-05f42486c0e8","revision":1},
              "project":{"id":"mixed-map","name":"Mixed map"},"applicationVersions":["1"],
@@ -182,7 +182,7 @@ public sealed class DefinitionEditingTests
         await Assert.That(form.Snapshot().Values["choice"].GetInt32()).IsEqualTo(1);
     }
 
-    internal static SetupDefinition Definition() => SetupDefinitionSourceCodec.ParseJson("""
+    internal static Definition Definition() => DefinitionSourceCodec.ParseJson("""
         {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"380d5cdd-e1a1-4ddd-91c1-05f42486c0e8","revision":1},
          "project":{"id":"desktop-typed","name":"Desktop typed"},"applicationVersions":["1"],

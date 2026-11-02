@@ -108,7 +108,7 @@
     @if (_retained.Count > 0)
     {
         <h2>@T("RetainedDefinitions")</h2>
-        <ul>@foreach (SetupDefinition definition in _retained)
+        <ul>@foreach (Definition definition in _retained)
         {
             <li><button type="button" @onclick="() => SelectRetained(definition)"><bdi>@definition.Title</bdi> · @T("Revision") <bdi dir="ltr">@definition.Revision</bdi></button></li>
         }</ul>
@@ -132,7 +132,7 @@
     private BrowserDefinitionSource? _source;
     private BrowserLaunchSelection? _selection;
     private ConfigurationEditor? _editor;
-    private IReadOnlyList<SetupDefinition> _retained = [];
+    private IReadOnlyList<Definition> _retained = [];
     private string? _request;
     private long _generation;
     private long _fileKey;
@@ -217,9 +217,9 @@
             string extension = Path.GetExtension(args.File.Name).ToLowerInvariant();
             if (extension is not (".json" or ".yaml" or ".yml")) throw new BrowserLaunchException("source-format-invalid");
             using Stream stream = args.File.OpenReadStream(BrowserDefinitionSource.MaximumDocumentBytes);
-            SetupDefinition definition = await _source.ReadLocalAsync(stream, yaml: extension is ".yaml" or ".yml");
+            Definition definition = await _source.ReadLocalAsync(stream, yaml: extension is ".yaml" or ".yml");
             if (_disposed || generation != _generation) return;
-            _selection = BrowserLaunchSelection.Resolve(new SetupDefinitionRegistry([definition]),
+            _selection = BrowserLaunchSelection.Resolve(new DefinitionRegistry([definition]),
                 definition.FamilyId.ToString("D"), "");
             _statusCode = "source-admitted";
             _statusKey = "LocalAdmitted";
@@ -240,7 +240,7 @@
         _statusKey = "DefinitionRejected";
     }
 
-    private void SelectRetained(SetupDefinition definition)
+    private void SelectRetained(Definition definition)
     {
         _generation++;
         _source!.Invalidate();
@@ -250,10 +250,10 @@
         try
         {
             Registry.Admit(definition);
-            _selection = BrowserLaunchSelection.Resolve(new SetupDefinitionRegistry([definition]),
+            _selection = BrowserLaunchSelection.Resolve(new DefinitionRegistry([definition]),
                 definition.FamilyId.ToString("D"), "");
         }
-        catch (SetupDefinitionException exception) { Reject(exception.Code); }
+        catch (DefinitionException exception) { Reject(exception.Code); }
         catch (BrowserLaunchException exception) { Reject(exception.Code); }
         _publicSafeConfirmed = false;
     }

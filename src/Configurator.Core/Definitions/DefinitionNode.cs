@@ -19,11 +19,11 @@ public sealed record DefinitionNode
         DefinitionNode? additionalProperties = null, IEnumerable<DefinitionNode>? variants = null,
         JsonElement? keywords = null)
     {
-        if (!Enum.IsDefined(type)) throw new SetupDefinitionException("schema-type");
+        if (!Enum.IsDefined(type)) throw new DefinitionException("schema-type");
         Type = type;
         IsNullable = nullable;
         JsonElement metadata = keywords ?? EmptyKeywords;
-        if (metadata.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("schema-keywords");
+        if (metadata.ValueKind != JsonValueKind.Object) throw new DefinitionException("schema-keywords");
         byte[] canonicalKeywords = DefinitionProfile.CanonicalizeJson(Encoding.UTF8.GetBytes(metadata.GetRawText()));
         using JsonDocument keywordDocument = JsonDocument.Parse(canonicalKeywords);
         Keywords = keywordDocument.RootElement.Clone();
@@ -34,30 +34,30 @@ public sealed record DefinitionNode
         var propertySnapshot = new SortedDictionary<string, DefinitionNode>(StringComparer.Ordinal);
         foreach ((string name, DefinitionNode child) in properties ?? [])
         {
-            if (propertySnapshot.Count == SetupCompositionLimits.DefaultMappingEntries)
-                throw new SetupDefinitionException("schema-limit");
+            if (propertySnapshot.Count == CompositionLimits.DefaultMappingEntries)
+                throw new DefinitionException("schema-limit");
             ArgumentNullException.ThrowIfNull(name);
             ArgumentNullException.ThrowIfNull(child);
             DefinitionProfile.ValidateScalar(name);
-            if (!propertySnapshot.TryAdd(name, child)) throw new SetupDefinitionException("schema-duplicate");
+            if (!propertySnapshot.TryAdd(name, child)) throw new DefinitionException("schema-duplicate");
         }
         var requiredSnapshot = new SortedSet<string>(StringComparer.Ordinal);
         foreach (string name in required ?? [])
             if (!propertySnapshot.ContainsKey(name) || !requiredSnapshot.Add(name))
-                throw new SetupDefinitionException("schema-required");
+                throw new DefinitionException("schema-required");
         var variantSnapshot = new List<DefinitionNode>();
         foreach (DefinitionNode variant in variants ?? [])
         {
             ArgumentNullException.ThrowIfNull(variant);
-            if (variantSnapshot.Count == SetupCompositionLimits.DefaultSequenceEntries)
-                throw new SetupDefinitionException("schema-limit");
-            if (variant.Type != DefinitionNodeType.Mapping) throw new SetupDefinitionException("schema-variant");
+            if (variantSnapshot.Count == CompositionLimits.DefaultSequenceEntries)
+                throw new DefinitionException("schema-limit");
+            if (variant.Type != DefinitionNodeType.Mapping) throw new DefinitionException("schema-variant");
             variantSnapshot.Add(variant);
         }
         if (type == DefinitionNodeType.Sequence != (items is not null)
             || type != DefinitionNodeType.Mapping && (propertySnapshot.Count != 0 || requiredSnapshot.Count != 0
                 || additionalProperties is not null || variantSnapshot.Count != 0))
-            throw new SetupDefinitionException("schema-shape");
+            throw new DefinitionException("schema-shape");
         Properties = new ReadOnlyDictionary<string, DefinitionNode>(propertySnapshot);
         Required = Array.AsReadOnly(requiredSnapshot.ToArray());
         Items = items;
@@ -66,7 +66,7 @@ public sealed record DefinitionNode
         if (variantSnapshot.Count > 0)
         {
             if (variantSnapshot.Count is < 2 or > 16 || propertySnapshot.Count != 0 || additionalProperties is not null)
-                throw new SetupDefinitionException("schema-variant");
+                throw new DefinitionException("schema-variant");
             string[] candidates = variantSnapshot[0].Required.Where(name =>
             {
                 var constants = new HashSet<string>(StringComparer.Ordinal);
@@ -84,7 +84,7 @@ public sealed record DefinitionNode
                 }
                 return true;
             }).ToArray();
-            if (candidates.Length != 1) throw new SetupDefinitionException("schema-discriminator");
+            if (candidates.Length != 1) throw new DefinitionException("schema-discriminator");
             Discriminator = candidates[0];
         }
         ExpandedNodes = 1;
@@ -97,13 +97,13 @@ public sealed record DefinitionNode
             ExpandedNodes += child.ExpandedNodes;
             ScalarCharacters += child.ScalarCharacters;
             Depth = Math.Max(Depth, child.Depth + 1);
-            if (ExpandedNodes > SetupCompositionLimits.DefaultNormalizedNodes
-                || ScalarCharacters > SetupCompositionLimits.DefaultAggregateScalarCharacters
-                || Depth > SetupCompositionLimits.DefaultNestingDepth)
-                throw new SetupDefinitionException("schema-limit");
+            if (ExpandedNodes > CompositionLimits.DefaultNormalizedNodes
+                || ScalarCharacters > CompositionLimits.DefaultAggregateScalarCharacters
+                || Depth > CompositionLimits.DefaultNestingDepth)
+                throw new DefinitionException("schema-limit");
         }
-        if (ScalarCharacters > SetupCompositionLimits.DefaultAggregateScalarCharacters)
-            throw new SetupDefinitionException("schema-limit");
+        if (ScalarCharacters > CompositionLimits.DefaultAggregateScalarCharacters)
+            throw new DefinitionException("schema-limit");
     }
 
     public DefinitionNodeType Type { get; }

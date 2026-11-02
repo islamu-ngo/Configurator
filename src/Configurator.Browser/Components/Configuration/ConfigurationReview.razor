@@ -28,7 +28,7 @@
                 <details><summary>@Ui("ReviewDetails")</summary><ul>@foreach (string diagnosticCode in DiagnosticCodes.Distinct(StringComparer.Ordinal)) { <li>@diagnosticCode</li> }</ul></details>
             }
         }
-        @if (!SecretsEnabled && Validation?.Fields.Any(field => field.IsActive && field.HasError && field.Definition.Sensitivity == SetupFieldSensitivity.Secret) == true)
+        @if (!SecretsEnabled && Validation?.Fields.Any(field => field.IsActive && field.HasError && field.Definition.Sensitivity == FieldSensitivity.Secret) == true)
         {
             <p>@Ui("ReviewSecretsDisabled")</p>
             <div class="actions">
@@ -69,7 +69,7 @@
                         }
                     </div>
                     <p>@StateText(entry)</p>
-                    @if (entry.Sensitivity != SetupFieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
+                    @if (entry.Sensitivity != FieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
                     {
                         <p>@Ui("ReviewPrivateMasked")</p>
                     }
@@ -99,7 +99,7 @@
 }
 
 @code {
-    [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
+    [Parameter, EditorRequired] public Definition Definition { get; set; } = null!;
     [Parameter] public DefinitionFormModel? Form { get; set; }
     [Parameter] public bool ShowEffects { get; set; }
     [Parameter] public EventCallback<DefinitionDiagnostic> ChangeField { get; set; }
@@ -111,8 +111,8 @@
     [Parameter] public EventCallback EnableSecrets { get; set; }
     private const int PageSize = 50;
     private DefinitionFormModel? _observedForm;
-    private SetupDefinition? _observedDefinition;
-    private IReadOnlyDictionary<string, SetupFieldDefinition> _fieldsById = new Dictionary<string, SetupFieldDefinition>();
+    private Definition? _observedDefinition;
+    private IReadOnlyDictionary<string, FieldDefinition> _fieldsById = new Dictionary<string, FieldDefinition>();
     private string? _observedExperience;
     private bool _includeOmitted;
     private bool _includeInactive;
@@ -164,7 +164,7 @@
         _page = Math.Min(_page, PageCount - 1);
     }
     private string Ui(string key) => BrowserStrings.Get(key, Form?.Locale ?? "en");
-    private IEnumerable<SetupArtifactDefinition> SelectedArtifacts()
+    private IEnumerable<ArtifactDefinition> SelectedArtifacts()
     {
         if (Definition.Presentation?.OutputSelector is not { } selector || Form is null)
             return Definition.Artifacts;

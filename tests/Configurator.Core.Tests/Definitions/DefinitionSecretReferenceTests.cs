@@ -16,14 +16,14 @@ public sealed class DefinitionSecretReferenceTests
             ["sensitivity"] = sensitivity,
             ["secret"] = JsonNode.Parse("""{"kind":"password","acquisition":"existing"}""")
         });
-        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
     public async Task AnnotationOnlyReferencePreservesTheTargetsPublicClassification()
     {
-        SetupDefinition definition = DefinitionFixture.Parse(Source(new JsonObject { ["detail"] = "advanced" }).ToJsonString());
-        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(SetupFieldSensitivity.Public);
+        Definition definition = DefinitionFixture.Parse(Source(new JsonObject { ["detail"] = "advanced" }).ToJsonString());
+        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(FieldSensitivity.Public);
     }
 
     private static JsonObject Source(JsonObject metadata)

@@ -4,7 +4,7 @@
 > **Status:** Current bounded-v0.0.1 contract; package and host qualification is recorded separately
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/SetupDefinitionSourceCodec.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `schemas/configurator-authoring.schema.json`
+> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/DefinitionSourceCodec.cs`, `src/Configurator.Cli/CliDefinitionHandlers.cs`, `schemas/configurator-authoring.schema.json`
 
 ## Source and admission
 
@@ -21,12 +21,12 @@ admission mechanisms and limits.
 
 `DefinitionAuthoringCodec.ParseJson/ParseYaml` snapshots bounded exact-key source.
 `DefinitionAuthoringCompiler.Compile` builds the runtime envelope, expands output
-mappings, then calls `SetupDefinitionCodec.AdmitCompiled`. That owner computes
+mappings, then calls `DefinitionCodec.AdmitCompiled`. That owner computes
 `profile: bounded-v0.0.1` and sorted `requiredCapabilities`, and finishes through
 public runtime admission. Runtime parsing verifies the computed set rather than
 trusting authors. No second evaluator or general JSON Schema validator exists.
 
-`SetupDefinitionSourceCodec` selects source by the exact `$schema` discriminator
+`DefinitionSourceCodec` selects source by the exact `$schema` discriminator
 or runtime by `schemaVersion: "0.0.1"`. Conflicting/unknown discriminators reject;
 there is no parser fallback. Public source, runtime, private answer and command
 formats are separate but share the fixed development version `0.0.1`. Private answers use `answerContractVersion: "0.0.1"`;
@@ -80,7 +80,7 @@ for exact encodings, algorithm ceilings and qualification, and the
 [authoring cookbook](../public/definition-cookbook.md#secret-policy-and-target-format)
 for the public-policy workflow. The retired `credential` annotation is rejected.
 
-`SetupFieldDefinition.Name` preserves the exact root data key; `Id` is bounded
+`FieldDefinition.Name` preserves the exact root data key; `Id` is bounded
 metadata. Names fitting the identifier grammar retain their ID unless they start
 with reserved `f-`. Other names use `f-` plus full SHA-256 of `"field:"` and the
 escaped exact root pointer. Case and Unicode composition are not normalized.
@@ -221,10 +221,10 @@ network authentication, target apply or persistent browser answer custody.
 ## Native maintainer commands
 
 `DefinitionCommands` registers init/check/build/revise through the existing
-Spectre registry/preflight and current machine envelope. `SetupCliDefinitionHandlers`
+Spectre registry/preflight and current machine envelope. `CliDefinitionHandlers`
 owns scaffolding, compilation and revision comparison. Discovery/read/existence/
 staged publication, including schema references, use invocation-scoped
-`ISetupCliAuthoringFiles`; `SetupCliIo` requires it explicitly and Program supplies
+`ISetupCliAuthoringFiles`; `CliIo` requires it explicitly and Program supplies
 `PublicDefinitionFiles`. Non-authoring fixtures reject that authority.
 
 Initialization requires project ID/name and exact application version, or an

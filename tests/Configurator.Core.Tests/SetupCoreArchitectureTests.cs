@@ -268,7 +268,7 @@ internal static class SetupCoreAssemblyVerifier
 
             foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                if ((type == typeof(Configurator.Core.Definitions.SetupDefinitionException)
+                if ((type == typeof(Configurator.Core.Definitions.DefinitionException)
                         || type == typeof(Configurator.Core.Definitions.Authoring.DefinitionSchemaImportException))
                     && property.DeclaringType == typeof(Exception)) continue;
                 if (isPublicContract && IsMutableCollection(property.PropertyType))

@@ -19,7 +19,7 @@ public sealed class BrowserSecretBoundaryTests
               "name":{"type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}},
               "token":{"type":"string","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
             """);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         context.ComponentFactories.Add<ConfigurationField, BrowserCredentialEntryTests.EmittedInputField>();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
@@ -55,7 +55,7 @@ public sealed class BrowserSecretBoundaryTests
               "name":{"type":"string","title":"Name","x-configurator":{"sensitivity":"public","detail":"standard"}},
               "token":{"type":"string","title":"Token","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}
             """);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("[data-field='profile.name'] input").Input("ordinary-sibling");
@@ -161,7 +161,7 @@ public sealed class BrowserSecretBoundaryTests
               "count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public","detail":"standard"}},
               "mode":{"type":"string","title":"Mode","enum":["single","cluster"],"x-configurator":{"sensitivity":"public","detail":"standard"}}}}
             """, "schema.integer");
-        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        Definition admitted = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         await Assert.That(component.FindAll("[data-field='private'] input")).IsEmpty();

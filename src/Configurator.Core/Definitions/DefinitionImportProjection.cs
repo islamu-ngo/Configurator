@@ -20,9 +20,9 @@ internal sealed class DefinitionImportProjection
     private readonly Instruction _root;
     private readonly DefinitionPath? _selector;
     private readonly JsonElement _selectorValue;
-    internal SetupArtifactDefinition Artifact { get; }
+    internal ArtifactDefinition Artifact { get; }
 
-    private DefinitionImportProjection(SetupArtifactDefinition artifact, Instruction root,
+    private DefinitionImportProjection(ArtifactDefinition artifact, Instruction root,
         DefinitionPath? selector, JsonElement selectorValue)
     {
         Artifact = artifact;
@@ -32,10 +32,10 @@ internal sealed class DefinitionImportProjection
     }
 
     internal static async ValueTask<(DefinitionImportProjection? Projection, string Code)> CompileAsync(
-        SetupDefinition definition, string artifactId, DefinitionImportWork work)
+        Definition definition, string artifactId, DefinitionImportWork work)
     {
         string code = "import-unsupported";
-        SetupArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
+        ArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
         if (artifact is null || artifact.Format is not ("json" or "yaml" or "dotenv")) return (null, code);
         code = "inverse-unsupported";
         bool ambiguous = false;
@@ -66,7 +66,7 @@ internal sealed class DefinitionImportProjection
             if (artifact.Format == "yaml" && projection.GetProperty("op").GetString() is not ("object" or "copy")) return (null, code);
             return (new(artifact, root, selector, selectorValue), "inverse-supported");
         }
-        catch (SetupDefinitionException exception) when (exception.Code == "path-limit") { return (null, code); }
+        catch (DefinitionException exception) when (exception.Code == "path-limit") { return (null, code); }
 
         async ValueTask<Instruction?> Compile(JsonElement projection, DefinitionNode scope, bool item,
             AssignmentScope assigned, DefinitionPath target, bool root = false)
@@ -157,7 +157,7 @@ internal sealed class DefinitionImportProjection
         }
     }
 
-    internal async ValueTask<DefinitionImportEvidence> RecoverAsync(SetupDefinition definition, JsonElement input,
+    internal async ValueTask<DefinitionImportEvidence> RecoverAsync(Definition definition, JsonElement input,
         DefinitionImportWork work, Func<DefinitionImportFinding, ValueTask> finding)
     {
         var assignments = new Dictionary<DefinitionPath, JsonElement>();
@@ -175,11 +175,11 @@ internal sealed class DefinitionImportProjection
         else
         {
             JsonElement recovered = Build(assignments);
-            if (recovered.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("input-invalid");
+            if (recovered.ValueKind != JsonValueKind.Object) throw new DefinitionException("input-invalid");
             values = recovered.EnumerateObject().ToDictionary(member => member.Name, member => member.Value, StringComparer.Ordinal);
         }
-        SetupAnswerSnapshot snapshot = work.CooperativeYield is { } cooperativeYield
-            ? await SetupAnswerSnapshot.CreateAsync(0, values, null, cooperativeYield, work.CancellationToken)
+        AnswerSnapshot snapshot = work.CooperativeYield is { } cooperativeYield
+            ? await AnswerSnapshot.CreateAsync(0, values, null, cooperativeYield, work.CancellationToken)
             : new(0, values);
         return new(snapshot, assignments.Keys.ToArray(), observations);
 
@@ -339,10 +339,10 @@ internal sealed class DefinitionImportProjection
         return JsonSerializer.SerializeToElement(root);
     }
 
-    internal static DefinitionImportSchemaLocation? SchemaLocation(SetupDefinition definition, DefinitionPath path)
+    internal static DefinitionImportSchemaLocation? SchemaLocation(Definition definition, DefinitionPath path)
     {
         if (path.Segments.Count == 0) return null;
-        SetupFieldDefinition? field = definition.Fields.FirstOrDefault(candidate => candidate.Name == path.Segments[0]);
+        FieldDefinition? field = definition.Fields.FirstOrDefault(candidate => candidate.Name == path.Segments[0]);
         if (field is null) return null;
         DefinitionNode schema = field.Node;
         var relative = new List<string>();
@@ -360,7 +360,7 @@ internal sealed class DefinitionImportProjection
     {
         DefinitionNode node = root;
         required = true;
-        publicPath = SetupFieldDefinition.SensitivityOf(root) == SetupFieldSensitivity.Public;
+        publicPath = FieldDefinition.SensitivityOf(root) == FieldSensitivity.Public;
         foreach (string segment in path.Segments)
         {
             if (node.Type != DefinitionNodeType.Mapping) return null;
@@ -368,7 +368,7 @@ internal sealed class DefinitionImportProjection
             if (node.Properties.TryGetValue(segment, out DefinitionNode? child)) node = child;
             else if (node.AdditionalProperties is { } additional) node = additional;
             else return null;
-            publicPath &= SetupFieldDefinition.SensitivityOf(node) == SetupFieldSensitivity.Public;
+            publicPath &= FieldDefinition.SensitivityOf(node) == FieldSensitivity.Public;
             required &= !(node.Keywords.TryGetProperty("x-configurator", out var metadata) && metadata.TryGetProperty("applicableWhen", out _));
         }
         return node;

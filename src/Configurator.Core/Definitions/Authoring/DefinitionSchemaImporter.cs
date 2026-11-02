@@ -68,7 +68,7 @@ public static class DefinitionSchemaImporter
                     ["outputs"] = new JsonObject { ["config.json"] = new JsonObject { ["format"] = "json" } }
                 };
                 try { _ = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(JsonSerializer.SerializeToUtf8Bytes(source))); }
-                catch (SetupDefinitionException)
+                catch (DefinitionException)
                 {
                     importer.Report("unsupported", "schema-profile-unsupported", "", "");
                     throw new DefinitionSchemaImportException("schema-profile-unsupported");
@@ -90,7 +90,7 @@ public static class DefinitionSchemaImporter
         {
             throw new DefinitionSchemaImportException("schema-document-invalid");
         }
-        catch (SetupDefinitionException) { throw new DefinitionSchemaImportException("schema-document-invalid"); }
+        catch (DefinitionException) { throw new DefinitionSchemaImportException("schema-document-invalid"); }
     }
 
     private static JsonElement Parse(ReadOnlyMemory<byte> bytes, ref int nodes)
@@ -371,8 +371,8 @@ public static class DefinitionSchemaImporter
 
         private static void ValidateText(string text, int maximum)
         {
-            try { _ = SetupDefinitionCodec.Text(JsonSerializer.SerializeToElement(text), maximum); }
-            catch (SetupDefinitionException) { throw new DefinitionSchemaImportException("schema-annotation-bound"); }
+            try { _ = DefinitionCodec.Text(JsonSerializer.SerializeToElement(text), maximum); }
+            catch (DefinitionException) { throw new DefinitionSchemaImportException("schema-annotation-bound"); }
         }
 
         private JsonObject Condition(JsonElement schema, string document, string location, int depth)
@@ -443,10 +443,10 @@ public static class DefinitionSchemaImporter
             try
             {
                 byte[] canonical = DefinitionJson.Canonicalize(value,
-                    new Composition.CompositionBudget(Composition.SetupCompositionLimits.Default));
+                    new Composition.CompositionBudget(Composition.CompositionLimits.Default));
                 target[name] = JsonNode.Parse(canonical);
             }
-            catch (SetupDefinitionException) { throw new DefinitionSchemaImportException("schema-bound-unrepresentable"); }
+            catch (DefinitionException) { throw new DefinitionSchemaImportException("schema-bound-unrepresentable"); }
         }
     }
 }

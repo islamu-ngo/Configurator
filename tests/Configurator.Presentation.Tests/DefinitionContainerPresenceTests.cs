@@ -76,7 +76,7 @@ public sealed class DefinitionContainerPresenceTests
         await Assert.That(form.SupplyList(["private"])).IsFalse();
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28902","revision":1,
      "project":{"id":"example","name":"Example","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],

@@ -18,11 +18,11 @@ target certification or I-VSD closure.
 
 | Stage | Owning source | Mechanism and result |
 |---|---|---|
-| Select source or runtime | `SetupDefinitionSourceCodec` in `src/Configurator.Core/Definitions/` | Exact authoring-0.0.1 discriminator or runtime schemaVersion "0.0.1"; conflicting/unknown contracts reject without parser fallback |
+| Select source or runtime | `DefinitionSourceCodec` in `src/Configurator.Core/Definitions/` | Exact authoring-0.0.1 discriminator or runtime schemaVersion "0.0.1"; conflicting/unknown contracts reject without parser fallback |
 | Compile public source | `Authoring/DefinitionAuthoringCodec.cs`, `Authoring/DefinitionAuthoringCompiler.cs` | Snapshot bounded exact-key JSON/YAML, expand declared output mappings, construct runtime and re-enter runtime admission |
-| Admit canonical runtime | `SetupDefinitionCodec.cs`, `DefinitionProfile.cs`, `DefinitionJson.cs` | Check `bounded-v0.0.1`, recursive contextual rules and computed sorted mandatory capabilities; own canonical bytes/digest |
-| Bind identity | `SetupDefinitionRegistry.cs` | Resolve exact declared application version and optional digest; reject conflicting admitted family/revision even after removal; never guess newest across ambiguous revisions |
-| Snapshot private input | `SetupAnswerSnapshotCodec.cs`, `SetupDefinition.cs` | Independent private answer 0.0.1, exact `values` tree and concrete `omitted` paths; caller mutation cannot alter the snapshot |
+| Admit canonical runtime | `DefinitionCodec.cs`, `DefinitionProfile.cs`, `DefinitionJson.cs` | Check `bounded-v0.0.1`, recursive contextual rules and computed sorted mandatory capabilities; own canonical bytes/digest |
+| Bind identity | `DefinitionRegistry.cs` | Resolve exact declared application version and optional digest; reject conflicting admitted family/revision even after removal; never guess newest across ambiguous revisions |
+| Snapshot private input | `AnswerSnapshotCodec.cs`, `Definition.cs` | Independent private answer 0.0.1, exact `values` tree and concrete `omitted` paths; caller mutation cannot alter the snapshot |
 | Resolve and validate | `DefinitionValidator.cs` | One effective-value policy, typed predicates, relationships, constraints and safe revision-bound correction coordinates |
 | Compose outputs | `src/Configurator.Core/Artifacts/` | Complete/draft/bundle composition consumes admitted schema and snapshot; restricted disposable results bind definition/input revisions |
 | Edit and adopt | `src/Configurator.Presentation/Presentation/` | Existing immutable workspace ownership, typed editing and operation generations; stale results cannot acquire current output authority |
@@ -38,7 +38,7 @@ contains neither private answers nor an execution/remote-apply extension point.
 `DefinitionPath` preserves ordinal RFC6901 segments: empty pointer is root,
 `/` is an empty-name property, `~0` and `~1` decode once. Dots and asterisks
 are literal. Array tokens are canonical decimal indices, not persistent IDs.
-`SetupFieldDefinition.Name` remains the exact data key. `DefinitionProfile.FieldId`
+`FieldDefinition.Name` remains the exact data key. `DefinitionProfile.FieldId`
 derives bounded metadata IDs, reserving `f-`; metadata never replaces answer keys.
 
 Core distinguishes supplied null from missing, and omission from reset.
@@ -79,7 +79,7 @@ map identifies those fixtures; it does not claim an executed pass.
 ## Native identity and checked generation
 
 `src/Configurator.Cli/Commands/DefinitionCommands.cs` exposes init, check, lint,
-schema, build and revise. `SetupCliDefinitionHandlers` obtains bounded public
+schema, build and revise. `CliDefinitionHandlers` obtains bounded public
 source through the injected file adapter before compiling. Schema discovery
 returns built-in documents before authoring-file acquisition; it does not
 discover private answers. Check/lint do not publish artifacts.
@@ -187,7 +187,7 @@ Use [STATUS](STATUS.md) for dated qualification and the
    distinguishes the authoring discriminator from runtime JSON; it does not
    guess a legacy format.
 2. `DefinitionAuthoringCompiler` lowers compact source into the runtime shape.
-   `SetupDefinitionCodec` admits that result again, including references,
+   `DefinitionCodec` admits that result again, including references,
    sensitivity, capabilities and budgets.
 3. Canonical bytes and digest bind the family/revision. A registry conflict
    rejects rather than silently replacing a previously admitted definition.

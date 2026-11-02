@@ -32,7 +32,7 @@ Configurator separates the *description* of configuration from the *answers*, an
 ```mermaid
 flowchart LR
     subgraph Step1 ["1. Upstream Definition"]
-        DEF["SetupDefinition<br/>(Questions, Types, Rules)"]
+        DEF["Definition<br/>(Questions, Types, Rules)"]
     end
 
     subgraph Step2 ["2. Local Configuration"]

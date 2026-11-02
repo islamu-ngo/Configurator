@@ -18,15 +18,15 @@ public sealed class SetupPresentationModelTests
     [Arguments(false, true)]
     public async Task FaultSettlesPrivateOutputAndAllowsRetry(bool synchronous, bool unrequestedCancellation)
     {
-        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         Exception failure = unrequestedCancellation ? new OperationCanceledException() : new InvalidOperationException("synthetic-failure");
         int calls = 0;
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         using var workspace = CreateWorkspace(session, token => ++calls switch
         {
-            1 => Task.FromResult(new SetupPresentationOutcome(new object(), new byte[] { 17 })),
+            1 => Task.FromResult(new PresentationOutcome(new object(), new byte[] { 17 })),
             2 => synchronous ? throw failure : pending.Task,
-            _ => Task.FromResult(new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty))
+            _ => Task.FromResult(new PresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty))
         });
         await workspace.ExecuteAsync(Guid.NewGuid());
         ReadOnlyMemory<byte> oldOutput = workspace.Output;
@@ -47,10 +47,10 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task OldFaultCannotInvalidateNewGenerationAfterPrivateClear()
     {
-        var first = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var second = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         int calls = 0;
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         using var workspace = CreateWorkspace(session, _ => ++calls == 1 ? first.Task : second.Task);
         var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
@@ -63,7 +63,7 @@ public sealed class SetupPresentationModelTests
         await Assert.That(workspace.IsBusy).IsTrue();
         await Assert.That(workspace.Output.IsEmpty).IsTrue();
         var result = new object();
-        using var outcome = new SetupPresentationOutcome(result, ReadOnlyMemory<byte>.Empty);
+        using var outcome = new PresentationOutcome(result, ReadOnlyMemory<byte>.Empty);
         second.SetResult(outcome);
         await current.WaitAsync(SignalTimeout);
         await Assert.That(ReferenceEquals(workspace.Result, result)).IsTrue();
@@ -72,8 +72,8 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task PropertyNotificationsAllowCrossThreadReentryAndObserveCoherentState()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        using var workspace = CreateWorkspace(session, _ => Task.FromResult(new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty)));
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => Task.FromResult(new PresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty)));
         bool observed = false;
         workspace.PropertyChanged += (_, args) =>
         {
@@ -90,9 +90,9 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task CancellationRetainsSourceUntilLateWorkerCompletes()
     {
-        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         CancellationToken retained = default;
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         using var workspace = CreateWorkspace(session, token => { retained = token; return pending.Task; });
         var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
@@ -104,7 +104,7 @@ public sealed class SetupPresentationModelTests
         Exception? sourceFailure = null;
         try { _ = retained.WaitHandle; }
         catch (ObjectDisposedException exception) { sourceFailure = exception; }
-        using var late = new SetupPresentationOutcome(new object(), new byte[] { 83 });
+        using var late = new PresentationOutcome(new object(), new byte[] { 83 });
         ReadOnlyMemory<byte> output = late.Output;
         pending.SetResult(late);
         await discarded.Task.WaitAsync(SignalTimeout);
@@ -113,23 +113,23 @@ public sealed class SetupPresentationModelTests
         await Assert.That(output.Span[0]).IsEqualTo((byte)0);
     }
 
-    private static SetupPresentationWorkspace CreateWorkspace(SetupPresentationSession session,
-        Func<CancellationToken, Task<SetupPresentationOutcome>> execute)
+    private static PresentationWorkspace CreateWorkspace(PresentationSession session,
+        Func<CancellationToken, Task<PresentationOutcome>> execute)
     {
-        if (!SetupWorkspaceId.TryCreate("lifetime", out SetupWorkspaceId id)) throw new InvalidOperationException();
+        if (!WorkspaceId.TryCreate("lifetime", out WorkspaceId id)) throw new InvalidOperationException();
         return session.CreateWorkspace(id, new DelegateOperation(execute));
     }
 
     [Test]
     public async Task RequestOnlyCancellationRetiresAfterBlockedCallbackAndWorker()
     {
-        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         var callbackStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var releaseCallback = new ManualResetEventSlim();
         CancellationToken retained = default;
         CancellationTokenRegistration registration = default;
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         using var workspace = CreateWorkspace(session, token =>
         {
             retained = token;
@@ -147,7 +147,7 @@ public sealed class SetupPresentationModelTests
         {
             await callbackStarted.Task.WaitAsync(SignalTimeout);
             await Assert.That(cancellation.IsCompleted).IsFalse();
-            using var late = new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty);
+            using var late = new PresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty);
             pending.SetResult(late);
             _ = retained.WaitHandle;
         }
@@ -165,13 +165,13 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task ThrowingInvalidationSubscriberCannotPreventCancellationOrLateOutputCleanup()
     {
-        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         CancellationToken retained = default;
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         using var workspace = CreateWorkspace(session, token => { retained = token; return pending.Task; });
         workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
-        EventHandler<SetupOperationInvalidatedEventArgs> subscriber = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
+        EventHandler<OperationInvalidatedEventArgs> subscriber = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
         workspace.Invalidated += subscriber;
         Task execution = workspace.ExecuteAsync(Guid.NewGuid());
         Exception? observed = null;
@@ -181,16 +181,16 @@ public sealed class SetupPresentationModelTests
         await Assert.That(observed).IsNotNull();
         await Assert.That(retained.IsCancellationRequested).IsTrue();
         await execution.WaitAsync(SignalTimeout);
-        using var late = new SetupPresentationOutcome(new object(), new byte[] { 91 });
+        using var late = new PresentationOutcome(new object(), new byte[] { 91 });
         ReadOnlyMemory<byte> bytes = late.Output;
         pending.SetResult(late);
         await discarded.Task.WaitAsync(SignalTimeout);
         await Assert.That(bytes.Span[0]).IsEqualTo((byte)0);
     }
 
-    private sealed class DelegateOperation(Func<CancellationToken, Task<SetupPresentationOutcome>> execute) : ISetupPresentationOperation
+    private sealed class DelegateOperation(Func<CancellationToken, Task<PresentationOutcome>> execute) : IPresentationOperation
     {
-        public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken) => execute(cancellationToken);
+        public Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken) => execute(cancellationToken);
     }
 
     [Test]
@@ -198,9 +198,9 @@ public sealed class SetupPresentationModelTests
     {
         var workerFailure = new InvalidOperationException("synthetic-worker");
         var subscriberFailure = new InvalidOperationException("synthetic-subscriber");
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        using var workspace = CreateWorkspace(session, _ => Task.FromException<SetupPresentationOutcome>(workerFailure));
-        EventHandler<SetupOperationInvalidatedEventArgs> subscriber = (_, _) => throw subscriberFailure;
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => Task.FromException<PresentationOutcome>(workerFailure));
+        EventHandler<OperationInvalidatedEventArgs> subscriber = (_, _) => throw subscriberFailure;
         workspace.Invalidated += subscriber;
         AggregateException? observed = null;
         try { await workspace.ExecuteAsync(Guid.NewGuid()); }
@@ -216,8 +216,8 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task RequestOnlyCancellationQueuesObservableSettlementToCapturedOwner()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        var pending = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         CancellationTokenRegistration registration = default;
         using var workspace = CreateWorkspace(session, token =>
         {
@@ -267,11 +267,11 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task ReentrantActivationAfterDeactivationKeepsNewRecipientAndGeneration()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        using var workspace = CreateWorkspace(session, _ => Task.FromResult(new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty)));
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        using var workspace = CreateWorkspace(session, _ => Task.FromResult(new PresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty)));
         workspace.Activate();
         Task? replacement = null;
-        EventHandler<SetupOperationInvalidatedEventArgs> subscriber = (_, _) =>
+        EventHandler<OperationInvalidatedEventArgs> subscriber = (_, _) =>
         {
             workspace.Activate();
             replacement = workspace.ExecuteAsync(Guid.NewGuid());
@@ -292,16 +292,16 @@ public sealed class SetupPresentationModelTests
     {
         var firstResult = new object();
         var replacementResult = new object();
-        using var firstOutcome = new SetupPresentationOutcome(firstResult, new byte[] { 73 });
-        using var replacementOutcome = new SetupPresentationOutcome(replacementResult, new byte[] { 19 });
+        using var firstOutcome = new PresentationOutcome(firstResult, new byte[] { 73 });
+        using var replacementOutcome = new PresentationOutcome(replacementResult, new byte[] { 19 });
         ReadOnlyMemory<byte> firstBytes = firstOutcome.Output;
         int calls = 0;
         var messenger = new WeakReferenceMessenger();
-        using var session = new SetupPresentationSession(messenger);
+        using var session = new PresentationSession(messenger);
         using var workspace = CreateWorkspace(session, _ => Task.FromResult(++calls == 1 ? firstOutcome : replacementOutcome));
         var notificationFailure = new InvalidOperationException("synthetic-notification");
         if (failMessenger)
-            messenger.Register<SetupOperationSettledMessage>(this, (_, _) => throw notificationFailure);
+            messenger.Register<OperationSettledMessage>(this, (_, _) => throw notificationFailure);
         Task? replacement = null;
         workspace.PropertyChanged += (_, args) =>
         {
@@ -331,14 +331,14 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task ThrowingInvalidationSubscriberCannotSkipStateAndCommandNotifications()
     {
-        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        var pending = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         using var workspace = CreateWorkspace(session, _ => pending.Task);
         Task execution = workspace.ExecuteAsync(Guid.NewGuid());
         bool invalidationObserved = false;
         bool busyObserved = false;
         bool eligibilityObserved = false;
-        EventHandler<SetupOperationInvalidatedEventArgs> failing = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
+        EventHandler<OperationInvalidatedEventArgs> failing = (_, _) => throw new InvalidOperationException("synthetic-subscriber");
         workspace.Invalidated += failing;
         workspace.Invalidated += (_, _) => invalidationObserved = true;
         workspace.PropertyChanged += (_, args) =>
@@ -352,7 +352,7 @@ public sealed class SetupPresentationModelTests
         finally { workspace.Invalidated -= failing; }
         await execution.WaitAsync(SignalTimeout);
         Task retirement = workspace.WaitForPendingOperationsAsync();
-        using var late = new SetupPresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty);
+        using var late = new PresentationOutcome(new object(), ReadOnlyMemory<byte>.Empty);
         pending.SetResult(late);
         await retirement.WaitAsync(SignalTimeout);
         await Assert.That(observed).IsNotNull();
@@ -364,11 +364,11 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task AcceptedOutcomeFaultCannotDetachReentrantPendingReplacement()
     {
-        using var firstOutcome = new SetupPresentationOutcome(new object(), new byte[] { 29 });
+        using var firstOutcome = new PresentationOutcome(new object(), new byte[] { 29 });
         ReadOnlyMemory<byte> firstBytes = firstOutcome.Output;
-        var pending = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         int calls = 0;
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         using var workspace = CreateWorkspace(session, _ => ++calls == 1 ? Task.FromResult(firstOutcome) : pending.Task);
         Task? replacement = null;
         workspace.PropertyChanged += (_, args) =>
@@ -384,7 +384,7 @@ public sealed class SetupPresentationModelTests
         await Assert.That(workspace.IsBusy).IsTrue();
         await Assert.That(workspace.Result).IsNull();
         await Assert.That(firstBytes.Span[0]).IsEqualTo((byte)0);
-        using var replacementOutcome = new SetupPresentationOutcome(new object(), new byte[] { 31 });
+        using var replacementOutcome = new PresentationOutcome(new object(), new byte[] { 31 });
         pending.SetResult(replacementOutcome);
         await replacement!.WaitAsync(SignalTimeout);
         await Assert.That(ReferenceEquals(workspace.Result, replacementOutcome.CoreResult)).IsTrue();
@@ -394,7 +394,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task WorkspaceOwnsAndClearsAcceptedReplacedAndDiscardedOutput()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation(3);
         using var workspace = CreateWorkspace(session, "private-output", operation);
         byte[] caller = [11, 22, 33];
@@ -432,12 +432,12 @@ public sealed class SetupPresentationModelTests
     {
         var firstMessenger = new WeakReferenceMessenger();
         var secondMessenger = new WeakReferenceMessenger();
-        using var first = new SetupPresentationSession(firstMessenger);
-        using var second = new SetupPresentationSession(secondMessenger);
-        var firstMessages = new List<SetupOperationSettledMessage>();
-        var secondMessages = new List<SetupOperationSettledMessage>();
-        firstMessenger.Register<SetupOperationSettledMessage>(firstMessages, (_, message) => firstMessages.Add(message));
-        secondMessenger.Register<SetupOperationSettledMessage>(secondMessages, (_, message) => secondMessages.Add(message));
+        using var first = new PresentationSession(firstMessenger);
+        using var second = new PresentationSession(secondMessenger);
+        var firstMessages = new List<OperationSettledMessage>();
+        var secondMessages = new List<OperationSettledMessage>();
+        firstMessenger.Register<OperationSettledMessage>(firstMessages, (_, message) => firstMessages.Add(message));
+        secondMessenger.Register<OperationSettledMessage>(secondMessages, (_, message) => secondMessages.Add(message));
         var operation = new ControlledPresentationOperation();
         using var firstSender = CreateWorkspace(first, "first-sender", operation);
 
@@ -457,9 +457,9 @@ public sealed class SetupPresentationModelTests
     public async Task OnlyAcceptedCompletionPublishesTypedDelivery()
     {
         var messenger = new WeakReferenceMessenger();
-        using var session = new SetupPresentationSession(messenger);
-        var messages = new List<SetupOperationSettledMessage>();
-        messenger.Register<SetupOperationSettledMessage>(messages, (_, message) => messages.Add(message));
+        using var session = new PresentationSession(messenger);
+        var messages = new List<OperationSettledMessage>();
+        messenger.Register<OperationSettledMessage>(messages, (_, message) => messages.Add(message));
         var operation = new ControlledPresentationOperation(2);
         using var workspace = CreateWorkspace(session, "sender", operation);
         Guid operationId = Guid.CreateVersion7();
@@ -477,15 +477,15 @@ public sealed class SetupPresentationModelTests
         await current.WaitAsync(SignalTimeout);
         await Assert.That(messages.Count).IsEqualTo(1);
         await Assert.That(messages[0].OperationId).IsEqualTo(operationId);
-        await Assert.That(messages[0].Generation).IsEqualTo(new SetupOperationGeneration(2));
+        await Assert.That(messages[0].Generation).IsEqualTo(new OperationGeneration(2));
         await Assert.That(messages[0].WorkspaceId).IsEqualTo(workspace.WorkspaceId);
-        await Assert.That(messages[0].Status).IsEqualTo(SetupOperationStatus.Succeeded);
+        await Assert.That(messages[0].Status).IsEqualTo(OperationStatus.Succeeded);
     }
 
     [Test]
     public async Task CancellationWinsOnlyAfterValueFreeInvalidationAndLateCompletionIsDiscarded()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation();
         using var workspace = CreateWorkspace(session, "cancel-wins", operation);
         Task execution = workspace.ExecuteAsync(Guid.CreateVersion7());
@@ -517,7 +517,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task SettlementWinsBeforeLaterCancellationAndRetainsOwnedOutcome()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation();
         using var workspace = CreateWorkspace(session, "settlement-wins", operation);
         object result = CoreResult();
@@ -544,7 +544,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task ReplacementInvalidatesBeforeCancellingRetainedOperation()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation(2);
         using var workspace = CreateWorkspace(session, "replacement", operation);
         Task stale = workspace.ExecuteAsync(Guid.CreateVersion7());
@@ -568,7 +568,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task DeactivationInvalidatesBeforeCancellationAndDeniesLateOutput()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation();
         using var workspace = CreateWorkspace(session, "deactivation", operation);
         workspace.Activate();
@@ -592,7 +592,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task DisposalInvalidatesBeforeCancellationAndIsIdempotent()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation();
         using var workspace = CreateWorkspace(session, "disposal", operation);
         workspace.Activate();
@@ -617,11 +617,11 @@ public sealed class SetupPresentationModelTests
     public async Task DuplicateSettlementsRaceAtBarrierAndCommitPublishRefreshDiscardExactlyOnce()
     {
         var messenger = new WeakReferenceMessenger();
-        using var session = new SetupPresentationSession(messenger);
+        using var session = new PresentationSession(messenger);
         var operation = new ControlledPresentationOperation(2);
         using var workspace = CreateWorkspace(session, "settlement-race", operation);
-        var messages = new List<SetupOperationSettledMessage>();
-        messenger.Register<SetupOperationSettledMessage>(messages, (_, message) => messages.Add(message));
+        var messages = new List<OperationSettledMessage>();
+        messenger.Register<OperationSettledMessage>(messages, (_, message) => messages.Add(message));
         Guid operationId = Guid.CreateVersion7();
         Task staleExecution = workspace.ExecuteAsync(operationId);
         await operation.Invocations[0].Started.Task.WaitAsync(SignalTimeout);
@@ -682,7 +682,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task BoundedAllocatorReachesFinalGenerationThenTerminatesRetainedCompletion()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger(),
+        using var session = new PresentationSession(new WeakReferenceMessenger(),
             new ControlledGenerationAllocator(long.MaxValue - 1, long.MaxValue, null));
         var operation = new ControlledPresentationOperation(3);
         using var workspace = CreateWorkspace(session, "exhaustion", operation);
@@ -720,9 +720,9 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task CompletionMessagesAreImmutableTypedAndValueFree()
     {
-        Type message = typeof(SetupOperationSettledMessage);
-        Type generation = typeof(SetupOperationGeneration);
-        Type workspaceId = typeof(SetupWorkspaceId);
+        Type message = typeof(OperationSettledMessage);
+        Type generation = typeof(OperationGeneration);
+        Type workspaceId = typeof(WorkspaceId);
         PropertyInfo[] properties = message.GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
         await Assert.That(message.IsSealed).IsTrue();
@@ -757,7 +757,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task AsyncCommandsRefreshEligibilityExecuteAndCancelThroughPublicBehavior()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation();
         using var workspace = CreateWorkspace(session, "commands", operation);
         Guid operationId = Guid.CreateVersion7();
@@ -786,7 +786,7 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task CoreResultAndReadOnlyMemoryProjectWithOwnedBytes()
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         var operation = new ControlledPresentationOperation();
         using var workspace = CreateWorkspace(session, "core-projection", operation);
         object coreResult = CoreResult();
@@ -805,16 +805,16 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task GenerationTypeFlowsEndToEndWithoutPrimitiveIdentity()
     {
-        Type generation = typeof(SetupOperationGeneration);
-        Type workspace = typeof(SetupPresentationWorkspace);
-        Type message = typeof(SetupOperationSettledMessage);
-        Type allocator = typeof(ISetupOperationGenerationAllocator);
+        Type generation = typeof(OperationGeneration);
+        Type workspace = typeof(PresentationWorkspace);
+        Type message = typeof(OperationSettledMessage);
+        Type allocator = typeof(IOperationGenerationAllocator);
 
         await Assert.That(workspace.GetProperty("Generation")?.PropertyType).IsEqualTo(generation);
         await Assert.That(message.GetProperty("Generation")?.PropertyType).IsEqualTo(generation);
         MethodInfo allocate = allocator.GetMethod("TryAllocate")
             ?? throw new InvalidOperationException(
-                "missing-approved-owner:ISetupOperationGenerationAllocator.TryAllocate");
+                "missing-approved-owner:IOperationGenerationAllocator.TryAllocate");
         await Assert.That(allocate.GetParameters().Any(parameter =>
             parameter.ParameterType == generation
             || parameter.ParameterType == generation.MakeByRefType())).IsTrue();
@@ -825,15 +825,15 @@ public sealed class SetupPresentationModelTests
     [Test]
     public async Task WorkspaceIdentityIsNamedBoundedAndValidated()
     {
-        int maximum = SetupWorkspaceId.MaxLength;
+        int maximum = WorkspaceId.MaxLength;
 
         await Assert.That(maximum).IsGreaterThan(0);
         await Assert.That(maximum).IsLessThanOrEqualTo(256);
-        await Assert.That(SetupWorkspaceId.TryCreate("bounded-workspace", out SetupWorkspaceId accepted)).IsTrue();
+        await Assert.That(WorkspaceId.TryCreate("bounded-workspace", out WorkspaceId accepted)).IsTrue();
         await Assert.That(accepted.Value).IsEqualTo("bounded-workspace");
-        await Assert.That(SetupWorkspaceId.TryCreate(string.Empty, out _)).IsFalse();
-        await Assert.That(SetupWorkspaceId.TryCreate("   ", out _)).IsFalse();
-        await Assert.That(SetupWorkspaceId.TryCreate(new string('w', maximum + 1), out _)).IsFalse();
+        await Assert.That(WorkspaceId.TryCreate(string.Empty, out _)).IsFalse();
+        await Assert.That(WorkspaceId.TryCreate("   ", out _)).IsFalse();
+        await Assert.That(WorkspaceId.TryCreate(new string('w', maximum + 1), out _)).IsFalse();
     }
 
     [Test]
@@ -857,7 +857,7 @@ public sealed class SetupPresentationModelTests
     private static async Task AssertInvalidAllocationTerminates(
         long invalid)
     {
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger(),
+        using var session = new PresentationSession(new WeakReferenceMessenger(),
             new ControlledGenerationAllocator(41, invalid));
         var operation = new ControlledPresentationOperation(2);
         using var workspace = CreateWorkspace(session, $"invalid-{invalid}", operation);
@@ -875,7 +875,7 @@ public sealed class SetupPresentationModelTests
 
     private static (TaskCompletionSource<EventArgs> Signal, IDisposable Subscription)
         OrderedInvalidationSignal(
-            SetupPresentationWorkspace workspace,
+            PresentationWorkspace workspace,
             ControlledPresentationInvocation invocation)
     {
         var signal = new TaskCompletionSource<EventArgs>(
@@ -891,23 +891,23 @@ public sealed class SetupPresentationModelTests
         return (signal, subscription);
     }
 
-    private static SetupPresentationWorkspace CreateWorkspace(SetupPresentationSession session,
-        string id, ISetupPresentationOperation operation)
+    private static PresentationWorkspace CreateWorkspace(PresentationSession session,
+        string id, IPresentationOperation operation)
     {
-        if (!SetupWorkspaceId.TryCreate(id, out SetupWorkspaceId workspaceId))
+        if (!WorkspaceId.TryCreate(id, out WorkspaceId workspaceId))
             throw new InvalidOperationException("invalid-test-workspace");
         return session.CreateWorkspace(workspaceId, operation);
     }
 
-    private static CallbackSubscription SubscribeInvalidated(SetupPresentationWorkspace workspace,
-        Action<SetupOperationInvalidatedEventArgs> observer)
+    private static CallbackSubscription SubscribeInvalidated(PresentationWorkspace workspace,
+        Action<OperationInvalidatedEventArgs> observer)
     {
-        EventHandler<SetupOperationInvalidatedEventArgs> handler = (_, args) => observer(args);
+        EventHandler<OperationInvalidatedEventArgs> handler = (_, args) => observer(args);
         workspace.Invalidated += handler;
         return new CallbackSubscription(() => workspace.Invalidated -= handler);
     }
 
-    private static SetupDefinition PublicDefinition() => SetupDefinitionCodec.ParseJson("""
+    private static Definition PublicDefinition() => DefinitionCodec.ParseJson("""
         {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
          "project":{"id":"example","publisher":"example","name":"Example"},"applicationVersions":["1"],
          "entryPoints":["setup"],"locales":["en"],

@@ -428,9 +428,9 @@ public sealed class ProtectedArtifactBundleTests
               {"id":"two","format":"yaml","fileName":"two.yaml","targetUpdateMode":"create",
                "restartRequirement":"none","projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}}]}
             """;
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(json));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(json));
         using var document = System.Text.Json.JsonDocument.Parse("""{"service.name":"sample"}""");
-        var answers = new SetupAnswerSnapshot(inputRevision, document.RootElement.EnumerateObject()
+        var answers = new AnswerSnapshot(inputRevision, document.RootElement.EnumerateObject()
             .ToDictionary(item => item.Name, item => item.Value.Clone()));
         return definition.Artifacts.Take(2).Select(item => DefinitionArtifactComposer.Compose(definition, item.Id, answers).Artifact!).ToArray();
     }
@@ -451,7 +451,7 @@ public sealed class ProtectedArtifactBundleTests
         public CancellationTokenSource? CancelAfterFirstCommit { get; init; }
         public Action<int>? AfterPrepare { get; init; }
 
-        public Task<ProtectedArtifactPreparation> PrepareAsync(SetupArtifactKind kind, string targetPath,
+        public Task<ProtectedArtifactPreparation> PrepareAsync(ArtifactKind kind, string targetPath,
             ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
         {
             int index = Prepared++;
@@ -481,7 +481,7 @@ public sealed class ProtectedArtifactBundleTests
         private readonly ProtectedArtifactWriter _writer = new();
         public bool IsAvailable => _writer.IsAvailable;
 
-        public async Task<ProtectedArtifactPreparation> PrepareAsync(SetupArtifactKind kind, string targetPath,
+        public async Task<ProtectedArtifactPreparation> PrepareAsync(ArtifactKind kind, string targetPath,
             ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
         {
             ProtectedArtifactPreparation preparation = await _writer.PrepareAsync(kind, targetPath, bytes, cancellationToken);

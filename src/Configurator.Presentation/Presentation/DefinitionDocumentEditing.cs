@@ -55,7 +55,7 @@ public sealed partial class DefinitionFormModel
     internal byte[] ReadDocumentSource(DefinitionDocumentSession session, CancellationToken cancellationToken)
     {
         if (DocumentDraftConflict(session)) throw new InvalidOperationException("document-draft-conflict");
-        SetupAnswerSnapshot supplied = Snapshot();
+        AnswerSnapshot supplied = Snapshot();
         if (DefinitionDocumentEditing.HasInvalidRepresentedValues(Definition, session.Scope,
             DefinitionValidator.Validate(Definition, supplied, cancellationToken)))
             throw new InvalidOperationException("document-value-invalid");
@@ -78,7 +78,7 @@ public sealed partial class DefinitionFormModel
             if (DefinitionDocumentEditing.TryRead(supplied.Values, path, out JsonElement value))
                 DefinitionDocumentEditing.Set(values, path, value);
         }
-        return SetupAnswerSnapshotCodec.Serialize(new SetupAnswerSnapshot(InputRevision,
+        return AnswerSnapshotCodec.Serialize(new AnswerSnapshot(InputRevision,
             DefinitionDocumentEditing.Values(values), supplied.Omitted.Where(path =>
                 session.Scope.Any(scope => DefinitionDocumentEditing.Prefix(scope, path)))));
     }
@@ -155,31 +155,31 @@ internal static class DefinitionDocumentEditing
             Visit(node, DefinitionPath.FromSegments([name]), DefinitionSensitivityPolicy.SensitivityOf(root));
         return Array.AsReadOnly(result.ToArray());
 
-        void Visit(DefinitionNode node, DefinitionPath path, SetupFieldSensitivity inherited)
+        void Visit(DefinitionNode node, DefinitionPath path, FieldSensitivity inherited)
         {
-            bool ownPublic = inherited == SetupFieldSensitivity.Public
-                && DefinitionSensitivityPolicy.SensitivityOf(node) == SetupFieldSensitivity.Public;
+            bool ownPublic = inherited == FieldSensitivity.Public
+                && DefinitionSensitivityPolicy.SensitivityOf(node) == FieldSensitivity.Public;
             if (ownPublic && EntirelyPublic(node)) result.Add(new(path, true));
             else if (ownPublic && node.Type == DefinitionNodeType.Mapping && node.AdditionalProperties is null
                 && node.Variants.Count == 0)
                 foreach ((string name, DefinitionNode child) in node.Properties)
-                    Visit(child, DefinitionPath.FromSegments([.. path.Segments, name]), SetupFieldSensitivity.Public);
+                    Visit(child, DefinitionPath.FromSegments([.. path.Segments, name]), FieldSensitivity.Public);
             else result.Add(new(path, false));
         }
         static bool EntirelyPublic(DefinitionNode node) =>
-            DefinitionSensitivityPolicy.SensitivityOf(node) == SetupFieldSensitivity.Public
+            DefinitionSensitivityPolicy.SensitivityOf(node) == FieldSensitivity.Public
             && node.Properties.Values.Concat(node.Variants)
                 .Concat(node.Items is null ? [] : new[] { node.Items })
                 .Concat(node.AdditionalProperties is null ? [] : new[] { node.AdditionalProperties })
                 .All(EntirelyPublic);
     }
 
-    internal static DefinitionDocumentParseResult Parse(SetupDefinition definition, DefinitionDocumentSession session,
+    internal static DefinitionDocumentParseResult Parse(Definition definition, DefinitionDocumentSession session,
         long generation, DefinitionAcceptedEditingState state, ReadOnlyMemory<byte> source,
         DefinitionDocumentApplyMode mode, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        SetupAnswerSnapshot original = Snapshot(definition, state);
+        AnswerSnapshot original = Snapshot(definition, state);
         var values = new JsonObject(original.Values.Select(pair =>
             KeyValuePair.Create(pair.Key, JsonNode.Parse(pair.Value.GetRawText()))));
         var omitted = original.Omitted.ToHashSet();
@@ -187,7 +187,7 @@ internal static class DefinitionDocumentEditing
         var suppressions = new HashSet<DefinitionPath>();
         if (session.Representation == DefinitionDocumentRepresentation.Canonical)
         {
-            SetupAnswerSnapshot parsed = SetupAnswerSnapshotCodec.ParseJson(source);
+            AnswerSnapshot parsed = AnswerSnapshotCodec.ParseJson(source);
             foreach ((string name, JsonElement value) in parsed.Values)
                 if (!InScope(DefinitionPath.FromSegments([name]), value))
                     return DefinitionDocumentParseResult.Reject("document-out-of-scope");
@@ -269,7 +269,7 @@ internal static class DefinitionDocumentEditing
                 "field-" + definition.FamilyId.ToString("N") + "-" +
                     Convert.ToHexString(Encoding.UTF8.GetBytes(editorPath[0])), path.Segments.Skip(1).ToArray());
         }
-        SetupAnswerSnapshot replacement = new(original.InputRevision, Values(values), omitted);
+        AnswerSnapshot replacement = new(original.InputRevision, Values(values), omitted);
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, replacement, cancellationToken);
         // Core owns shape, constraints and requiredness. Missing required values remain Review work.
         // Ignore unrelated existing errors, but never accept invalid supplied content in this document.
@@ -316,7 +316,7 @@ internal static class DefinitionDocumentEditing
         }
     }
 
-    internal static bool HasInvalidRepresentedValues(SetupDefinition definition,
+    internal static bool HasInvalidRepresentedValues(Definition definition,
         IReadOnlyList<DefinitionPath> scope, DefinitionValidationResult validation) =>
         validation.Diagnostics.Any(diagnostic => diagnostic.Code != "value-required"
             && (diagnostic.FieldId.Length == 0 || scope.Any(path =>
@@ -372,7 +372,7 @@ internal static class DefinitionDocumentEditing
         return effective is { } value && JsonElement.DeepEquals(supplied, value);
     }
 
-    internal static SetupAnswerSnapshot Snapshot(SetupDefinition definition, DefinitionAcceptedEditingState state) =>
+    internal static AnswerSnapshot Snapshot(Definition definition, DefinitionAcceptedEditingState state) =>
         new(state.InputRevision, definition.Fields.Select((field, index) => (field, state.Inputs[index].Value))
             .Where(item => item.Value.HasValue).ToDictionary(item => item.field.Name, item => item.Value!.Value, StringComparer.Ordinal),
             state.Omitted.Select(path => DefinitionPath.FromSegments([

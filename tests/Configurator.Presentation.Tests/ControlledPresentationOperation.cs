@@ -1,6 +1,6 @@
 namespace Configurator.Presentation.Tests;
 
-internal sealed class ControlledPresentationOperation : ISetupPresentationOperation
+internal sealed class ControlledPresentationOperation : IPresentationOperation
 {
     private int _nextInvocation;
 
@@ -13,7 +13,7 @@ internal sealed class ControlledPresentationOperation : ISetupPresentationOperat
 
     internal IReadOnlyList<ControlledPresentationInvocation> Invocations { get; }
 
-    public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
+    public Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
     {
         int index = Interlocked.Increment(ref _nextInvocation) - 1;
         if ((uint)index >= (uint)Invocations.Count)
@@ -27,13 +27,13 @@ internal sealed class ControlledPresentationOperation : ISetupPresentationOperat
 
 internal sealed class ControlledPresentationInvocation
 {
-    private readonly TaskCompletionSource<SetupPresentationOutcome> _completion =
+    private readonly TaskCompletionSource<PresentationOutcome> _completion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     internal TaskCompletionSource Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    internal Task<SetupPresentationOutcome> Start(CancellationToken cancellationToken)
+    internal Task<PresentationOutcome> Start(CancellationToken cancellationToken)
     {
         cancellationToken.Register(() => Cancelled.TrySetResult());
         Started.TrySetResult();
@@ -42,7 +42,7 @@ internal sealed class ControlledPresentationInvocation
 
     internal ReadOnlyMemory<byte> Complete(object result, ReadOnlyMemory<byte> output)
     {
-        SetupPresentationOutcome? outcome = new(result, output);
+        PresentationOutcome? outcome = new(result, output);
         try
         {
             // Capture the owned region before completion releases callbacks that may clear it.
@@ -55,11 +55,11 @@ internal sealed class ControlledPresentationInvocation
     }
 }
 
-internal sealed class ControlledGenerationAllocator(params long?[] allocations) : ISetupOperationGenerationAllocator
+internal sealed class ControlledGenerationAllocator(params long?[] allocations) : IOperationGenerationAllocator
 {
     private readonly Queue<long?> _allocations = new(allocations);
 
-    public bool TryAllocate(out SetupOperationGeneration generation)
+    public bool TryAllocate(out OperationGeneration generation)
     {
         long? allocation = _allocations.Count == 0 ? null : _allocations.Dequeue();
         generation = allocation is { } value ? new(value) : default;

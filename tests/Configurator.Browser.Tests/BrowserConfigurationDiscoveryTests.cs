@@ -44,7 +44,7 @@ public sealed class BrowserConfigurationDiscoveryTests
         source["configuration"]!["required"] = new JsonArray();
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.object", "schema.string");
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = RenderWorkspace(context, definition);
         await OpenDiscovery(component);
@@ -168,7 +168,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     private static Task OpenDiscovery(IRenderedComponent<MainLayout> component) =>
         component.Find("#configuration-search").ClickAsync(new MouseEventArgs());
 
-    private static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context, SetupDefinition definition) =>
+    private static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context, Definition definition) =>
         context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
             builder.OpenComponent<ConfigurationEditor>(0);
@@ -176,7 +176,7 @@ public sealed class BrowserConfigurationDiscoveryTests
             builder.CloseComponent();
         }));
 
-    private static SetupDefinition Definition()
+    private static Definition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
         source["configuration"] = JsonNode.Parse("""
@@ -198,6 +198,6 @@ public sealed class BrowserConfigurationDiscoveryTests
         """);
         source["requiredCapabilities"] = new JsonArray("predicate.root", "projection.copy", "projection.object",
             "schema.boolean", "schema.integer", "schema.object", "schema.string", "values.initial");
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

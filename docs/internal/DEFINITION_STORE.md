@@ -12,8 +12,8 @@
 `BuildDefinitionStore.cs` is a native file-based .NET tool referencing Core only.
 It parses one root-confined JSON or YAML source through
 `DefinitionAuthoringCodec` and `DefinitionAuthoringCompiler`, admits historical
-current JSON releases through `SetupDefinitionCodec`, verifies project application/family agreement and uses
-`SetupDefinitionRegistry` for global same-revision conflicts. It then derives a
+current JSON releases through `DefinitionCodec`, verifies project application/family agreement and uses
+`DefinitionRegistry` for global same-revision conflicts. It then derives a
 deterministic index and canonical public snapshots. Core does not depend on
 store curation, Browser or UI packages. Discovery does not evaluate definitions
 or replace canonical admission.
@@ -64,7 +64,7 @@ not fetched by the builder. Core rejects protected public literals and
 initialization/suggestions covering protected descendants. The builder also
 rejects choices on effective secret nodes, traversing declared properties, list
 items, typed map values and every provider branch. It uses Core's
-`SetupFieldDefinition.SensitivityOf` for declared sensitivity and retains inherited
+`FieldDefinition.SensitivityOf` for declared sensitivity and retains inherited
 floors; sensitive enum vocabulary can remain public metadata.
 Human review must still inspect prose, public
 literals and purportedly public values: admission cannot classify every secret.

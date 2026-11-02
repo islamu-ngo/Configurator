@@ -10,7 +10,7 @@ public sealed class DefinitionDirectEditingTests
     [Test]
     public async Task DirectVisibilityExposesOrdinaryAdvancedFieldsWithoutSupplyingAnswers()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         using var authored = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserNoSecrets);
         using var direct = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserNoSecrets,
             editorVisibility: DefinitionEditorVisibilityPolicy.Direct);
@@ -35,7 +35,7 @@ public sealed class DefinitionDirectEditingTests
               {"id":"other","title":"Other","pointers":["/text","/token"]}],
              "journeys":[{"id":"simple","title":"Simple","sections":["basic"]}]}
             """);
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets, editorVisibility: DefinitionEditorVisibilityPolicy.Direct);
 
         await Assert.That(form.IsEditorVisible(["flag"])).IsTrue();
@@ -81,7 +81,7 @@ public sealed class DefinitionDirectEditingTests
         await Assert.That(form.Snapshot().Values["flag"].GetBoolean()).IsFalse();
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"f87bc505-b134-46e6-ae10-60458baf32b6","revision":1,
      "project":{"id":"direct-edit","name":"Direct edit fixture","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],

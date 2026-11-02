@@ -2,9 +2,9 @@ namespace Configurator.Cli.Commands;
 
 internal static class CatalogueCommands
 {
-    internal static SetupCliFamilyDescriptor Descriptor { get; } = SetupCliCommandRegistry.Family(
+    internal static CliFamilyDescriptor Descriptor { get; } = CliCommandRegistry.Family(
         "catalogue",
-        SetupCliCommandRegistry.Operation<CatalogueListSettings>("list"),
-        SetupCliCommandRegistry.Operation<CatalogueItemSettings>("show"),
-        SetupCliCommandRegistry.Operation<CatalogueItemSettings>("describe"));
+        CliCommandRegistry.Operation<CatalogueListSettings>("list"),
+        CliCommandRegistry.Operation<CatalogueItemSettings>("show"),
+        CliCommandRegistry.Operation<CatalogueItemSettings>("describe"));
 }

@@ -55,7 +55,7 @@ internal static class DefinitionStoreBuilder
             return 64;
         }
         catch (StoreException exception) { Console.Error.WriteLine(exception.Code); return 1; }
-        catch (SetupDefinitionException exception) { Console.Error.WriteLine(exception.Code); return 1; }
+        catch (DefinitionException exception) { Console.Error.WriteLine(exception.Code); return 1; }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException
             or KeyNotFoundException or InvalidOperationException or FormatException)
         {
@@ -78,15 +78,15 @@ internal static class DefinitionStoreBuilder
             throw new StoreException("store-layout-invalid");
 
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        var admitted = new List<(JsonObject Metadata, SetupDefinition[] Definitions)>();
+        var admitted = new List<(JsonObject Metadata, Definition[] Definitions)>();
         int entryCount = 0;
         foreach (string directory in directories)
         {
-            (JsonObject metadata, SetupDefinition current) = ReadProject(directory);
+            (JsonObject metadata, Definition current) = ReadProject(directory);
             string id = metadata["projectId"]!.GetValue<string>();
             if (!ids.Add(id)) throw new StoreException("store-project-duplicate");
             if (id != Path.GetFileName(directory)) throw new StoreException("store-folder-mismatch");
-            var definitions = new List<SetupDefinition>();
+            var definitions = new List<Definition>();
             string releases = Path.Combine(directory, "releases");
             RequireUnlinked(releases);
             string[] files = Directory.Exists(releases) ? Directory.EnumerateFileSystemEntries(releases)
@@ -100,13 +100,13 @@ internal static class DefinitionStoreBuilder
                     || !long.TryParse(name.AsSpan(0, name.Length - 5), NumberStyles.None, CultureInfo.InvariantCulture, out long revision)
                     || revision < 1 || name != revision.ToString(CultureInfo.InvariantCulture) + ".json")
                     throw new StoreException("store-path-invalid");
-                SetupDefinition definition = SetupDefinitionCodec.ParseJson(ReadBounded(path, MaximumDefinitionBytes, "document-limit"));
-                CheckPublicNode(definition.Configuration, SetupFieldSensitivity.Public);
+                Definition definition = DefinitionCodec.ParseJson(ReadBounded(path, MaximumDefinitionBytes, "document-limit"));
+                CheckPublicNode(definition.Configuration, FieldSensitivity.Public);
                 if (definition.Revision != revision || definition.FamilyId != current.FamilyId || definition.ApplicationId != current.ApplicationId)
                     throw new StoreException("store-identity-mismatch");
                 definitions.Add(definition);
             }
-            SetupDefinition? recorded = definitions.SingleOrDefault(definition => definition.Revision == current.Revision);
+            Definition? recorded = definitions.SingleOrDefault(definition => definition.Revision == current.Revision);
             if (recorded is null) definitions.Add(current);
             else if (recorded.Digest != current.Digest) throw new StoreException("revision-conflict");
             if (definitions.Count > MaximumProjectRevisions) throw new StoreException("store-revision-limit");
@@ -114,7 +114,7 @@ internal static class DefinitionStoreBuilder
             if (entryCount > MaximumEntries) throw new StoreException("store-entry-limit");
             admitted.Add((metadata, definitions.OrderBy(definition => definition.Revision).ToArray()));
         }
-        _ = new SetupDefinitionRegistry(admitted.SelectMany(project => project.Definitions));
+        _ = new DefinitionRegistry(admitted.SelectMany(project => project.Definitions));
         if (admitted.Any(project => project.Definitions.Select(definition => definition.Revision).Distinct().Count() != project.Definitions.Length))
             throw new StoreException("store-revision-duplicate");
         if (admitted.Select(project => project.Definitions[0].FamilyId).Distinct().Count() != admitted.Count)
@@ -122,10 +122,10 @@ internal static class DefinitionStoreBuilder
 
         var outputs = new SortedDictionary<string, byte[]>(StringComparer.Ordinal);
         var projects = new JsonArray();
-        foreach ((JsonObject metadata, SetupDefinition[] definitions) in admitted)
+        foreach ((JsonObject metadata, Definition[] definitions) in admitted)
         {
             var revisions = new JsonArray();
-            foreach (SetupDefinition definition in definitions)
+            foreach (Definition definition in definitions)
             {
                 string path = "definitions/" + metadata["projectId"]!.GetValue<string>() + "/" + definition.Revision.ToString(CultureInfo.InvariantCulture) + ".json";
                 outputs.Add(path, definition.CanonicalBytes.ToArray());
@@ -155,7 +155,7 @@ internal static class DefinitionStoreBuilder
 
     private static JsonArray Strings(IEnumerable<string> values) => new(values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray());
 
-    private static (JsonObject Metadata, SetupDefinition Definition) ReadProject(string directory)
+    private static (JsonObject Metadata, Definition Definition) ReadProject(string directory)
     {
         string[] children = Directory.EnumerateFileSystemEntries(directory).Take(5).ToArray();
         foreach (string child in children) RequireUnlinked(child);
@@ -190,8 +190,8 @@ internal static class DefinitionStoreBuilder
             ["license"] = ProjectText("definitionLicense", 128),
             ["tags"] = curation["tags"]?.DeepClone() ?? new JsonArray()
         };
-        SetupDefinition definition = DefinitionAuthoringCompiler.Compile(source);
-        CheckPublicNode(definition.Configuration, SetupFieldSensitivity.Public);
+        Definition definition = DefinitionAuthoringCompiler.Compile(source);
+        CheckPublicNode(definition.Configuration, FieldSensitivity.Public);
         return (metadata, definition);
     }
 
@@ -283,7 +283,7 @@ internal static class DefinitionStoreBuilder
         if (projects.GetArrayLength() > MaximumProjects) throw new StoreException("store-project-limit");
         var identities = new HashSet<Guid>();
         var slugs = new HashSet<string>(StringComparer.Ordinal);
-        var definitions = new List<SetupDefinition>();
+        var definitions = new List<Definition>();
         var expected = new HashSet<string>(StringComparer.Ordinal) { "index.json" };
         foreach (JsonElement project in projects.EnumerateArray())
         {
@@ -314,8 +314,8 @@ internal static class DefinitionStoreBuilder
                 expected.Add(relative);
                 RequireUnlinked(path);
                 byte[] bytes = ReadBounded(path, MaximumDefinitionBytes, "document-limit");
-                SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes);
-                CheckPublicNode(definition.Configuration, SetupFieldSensitivity.Public);
+                Definition definition = DefinitionCodec.ParseJson(bytes);
+                CheckPublicNode(definition.Configuration, FieldSensitivity.Public);
                 if (definition.FamilyId != family || definition.ApplicationId != application || definition.Revision != number
                     || definition.Digest.Value != revision.GetProperty("digest").GetString()
                     || !bytes.AsSpan().SequenceEqual(definition.CanonicalBytes.Span))
@@ -326,7 +326,7 @@ internal static class DefinitionStoreBuilder
             }
         }
         ValidateInventory(baseline, expected, "store-baseline-invalid");
-        _ = new SetupDefinitionRegistry(definitions);
+        _ = new DefinitionRegistry(definitions);
     }
 
     private static void RequireMembers(JsonElement value, string[] members)
@@ -362,10 +362,10 @@ internal static class DefinitionStoreBuilder
         }
     }
 
-    private static void CheckPublicNode(DefinitionNode node, SetupFieldSensitivity inherited)
+    private static void CheckPublicNode(DefinitionNode node, FieldSensitivity inherited)
     {
-        var sensitivity = (SetupFieldSensitivity)Math.Max((int)inherited, (int)SetupFieldDefinition.SensitivityOf(node));
-        if (sensitivity == SetupFieldSensitivity.Secret && node.Keywords.TryGetProperty("enum", out _))
+        var sensitivity = (FieldSensitivity)Math.Max((int)inherited, (int)FieldDefinition.SensitivityOf(node));
+        if (sensitivity == FieldSensitivity.Secret && node.Keywords.TryGetProperty("enum", out _))
             throw new StoreException("store-public-data-invalid");
         foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants))
             CheckPublicNode(child, sensitivity);
@@ -461,11 +461,11 @@ internal static class DefinitionStoreBuilder
             {
                 string source = Path.Combine(temporary, name);
                 try { Seed(source); assertion(source); passed++; Console.WriteLine("PASS " + name); }
-                catch (Exception exception) when (exception is StoreException or SetupDefinitionException or InvalidOperationException
+                catch (Exception exception) when (exception is StoreException or DefinitionException or InvalidOperationException
                     or IOException or UnauthorizedAccessException or JsonException or ArgumentException)
                 {
                     failed++;
-                    Console.WriteLine("FAIL " + name + (exception is SetupDefinitionException definition ? ":" + definition.Code
+                    Console.WriteLine("FAIL " + name + (exception is DefinitionException definition ? ":" + definition.Code
                         : exception is StoreException store ? ":" + store.Code : ""));
                 }
             }
@@ -474,7 +474,7 @@ internal static class DefinitionStoreBuilder
                 mutate(source);
                 try { _ = Build(source); }
                 catch (StoreException exception) when (exception.Code == code) { return; }
-                catch (SetupDefinitionException exception) when (exception.Code == code) { return; }
+                catch (DefinitionException exception) when (exception.Code == code) { return; }
                 throw new InvalidOperationException("Expected rejection.");
             });
             Check("deterministic-canonical-output", source =>
@@ -484,7 +484,7 @@ internal static class DefinitionStoreBuilder
                 if (first.Count != 2 || first.Keys.Except(second.Keys).Any()
                     || first.Any(pair => !pair.Value.AsSpan().SequenceEqual(second[pair.Key])))
                     throw new InvalidOperationException("Output differs.");
-                SetupDefinition definition = SetupDefinitionCodec.ParseJson(first["definitions/alpha/2.json"]);
+                Definition definition = DefinitionCodec.ParseJson(first["definitions/alpha/2.json"]);
                 using JsonDocument index = JsonDocument.Parse(first["index.json"]);
                 if (index.RootElement.GetProperty("schemaVersion").GetString() != "0.0.1"
                     || definition.Revision != 2 || definition.ApplicationVersions[0] != "1.0"
@@ -670,7 +670,7 @@ internal static class DefinitionStoreBuilder
             Check("same-source-and-store-canonical-bytes", source =>
             {
                 byte[] bytes = File.ReadAllBytes(Path.Combine(source, "alpha/configurator.json"));
-                SetupDefinition definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(bytes));
+                Definition definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(bytes));
                 if (!Build(source)["definitions/alpha/2.json"].AsSpan().SequenceEqual(definition.CanonicalBytes.Span))
                     throw new InvalidOperationException("Compiler bytes differ.");
             });
@@ -702,7 +702,7 @@ internal static class DefinitionStoreBuilder
                 mutate(source, baseline);
                 try { _ = Build(source, baseline); }
                 catch (StoreException exception) when (exception.Code == code) { return; }
-                catch (SetupDefinitionException exception) when (exception.Code == code) { return; }
+                catch (DefinitionException exception) when (exception.Code == code) { return; }
                 throw new InvalidOperationException("Expected history rejection.");
             });
             HistoryReject("history-rewrite", "store-history-rewritten", (source, _) =>

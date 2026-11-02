@@ -65,7 +65,7 @@ public static class ProtectedArtifactBundlePublisher
         if (string.IsNullOrWhiteSpace(directory)
             || selected.Select(item => item.ArtifactId).Distinct(StringComparer.Ordinal).Count() != selected.Length
             || selected.Select(item => item.FileName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != selected.Length
-            || selected.Any(item => item.Sensitivity != SetupArtifactSensitivity.Restricted
+            || selected.Any(item => item.Sensitivity != ArtifactSensitivity.Restricted
                 || item.DefinitionDigest != first.DefinitionDigest
                 || item.DefinitionRevision != first.DefinitionRevision
                 || item.InputRevision != first.InputRevision))
@@ -120,7 +120,7 @@ public static class ProtectedArtifactBundlePublisher
                     if (!MemoryMarshal.TryGetArray(payload, out ArraySegment<byte> segment) || segment.Array is null)
                         throw new InvalidOperationException("artifact-payload-not-array");
                     payloads.Add(segment.Array);
-                    preparation = await writer.PrepareAsync(SetupArtifactKind.Configuration,
+                    preparation = await writer.PrepareAsync(ArtifactKind.Configuration,
                         target, payload, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

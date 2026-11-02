@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 
-public sealed record DefinitionLoadedMessage(SetupDefinition Definition);
+public sealed record DefinitionLoadedMessage(Definition Definition);
 public sealed record DefinitionClearedMessage;
 public sealed record FormWorkspaceChangedMessage(DefinitionFormModel? Form);
 public sealed record FormInputsChangedMessage;

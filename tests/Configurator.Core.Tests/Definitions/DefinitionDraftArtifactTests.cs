@@ -30,8 +30,8 @@ public sealed class DefinitionDraftArtifactTests
               "item":{"op":"object","members":{"credential":{
                "op":"copy","reference":{"scope":"item","path":"/credential"}}}}}}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
-        SetupAnswerSnapshot answers = DefinitionFixture.Answers("""
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
+        AnswerSnapshot answers = DefinitionFixture.Answers("""
             {"rows":[{"provider":"local","credential":"synthetic-inactive-secret"},{"provider":"external"}]}
             """);
         using DefinitionDraftBundleResult draft = DefinitionDraftArtifactComposer.ComposeBundle(
@@ -91,7 +91,7 @@ public sealed class DefinitionDraftArtifactTests
             {"id":"omitted","format":"json","targetUpdateMode":"create","restartRequirement":"none",
              "projection":{"op":"omit"}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(document.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(document.ToJsonString());
         using var activity = new Activity(nameof(DraftBundleRetainsOrderedBytesCompletionsAndWithheldDiagnosticsInOnePass));
         activity.Start();
         using var measurement = new DefinitionBundleTests.PreparationMeasurement(activity);
@@ -122,15 +122,15 @@ public sealed class DefinitionDraftArtifactTests
             ("json", """{"name":""}"""), ("yaml", "\"name\": \"\"\n"), ("dotenv", "# Draft: fill deferred secret keys before use.\nNAME=\n")
         })
         {
-            SetupDefinition definition = SecretDefinition(format);
-            SetupAnswerSnapshot answers = DefinitionFixture.Answers("{}");
+            Definition definition = SecretDefinition(format);
+            AnswerSnapshot answers = DefinitionFixture.Answers("{}");
             await Assert.That(DefinitionArtifactComposer.Compose(definition, "config", answers).Succeeded).IsFalse();
             using DefinitionDraftArtifactResult result = DefinitionDraftArtifactComposer.Compose(definition, "config", answers);
             await Assert.That(result.Succeeded).IsTrue();
             await Assert.That(result.IsDraft).IsTrue();
             await Assert.That(Encoding.UTF8.GetString(result.Artifact!.Bytes.Span)).IsEqualTo(expected);
             await Assert.That(result.Completions.Single()).IsEqualTo(new DefinitionDraftCompletion("config", "/service.name", format == "dotenv" ? "/NAME" : "/name"));
-            await Assert.That(result.Artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+            await Assert.That(result.Artifact.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
         }
     }
 
@@ -290,7 +290,7 @@ public sealed class DefinitionDraftArtifactTests
             """{"type":"string","x-configurator":{"sensitivity":"public"}}""");
         document["configuration"]!["dependentRequired"] = JsonNode.Parse(
             """{"service.name":["other"],"other":["service.name"]}""");
-        SetupDefinition definition = DefinitionFixture.Parse(document.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(document.ToJsonString());
         await Assert.That(DefinitionValidator.Validate(definition, DefinitionFixture.Answers("{}")).IsReady).IsTrue();
         DefinitionValidationResult missing = DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"other":"provided"}"""));
@@ -344,7 +344,7 @@ public sealed class DefinitionDraftArtifactTests
     public async Task AggregateDraftFailureExposesNeitherPrefixNorCompletionMetadata()
     {
         JsonNode document = JsonNode.Parse(DefinitionFixture.Json)!;
-        document["configuration"]!["properties"]!["service.name"]!["maxLength"] = SetupCompositionLimits.DefaultScalarCharacters;
+        document["configuration"]!["properties"]!["service.name"]!["maxLength"] = CompositionLimits.DefaultScalarCharacters;
         document["configuration"]!["properties"]!["secret"] = JsonNode.Parse("""
             {"type":"string","title":"Secret","x-configurator":{"sensitivity":"secret","detail":"basic"}}
             """);
@@ -357,8 +357,8 @@ public sealed class DefinitionDraftArtifactTests
             artifact["id"] = "output" + index;
             document["outputs"]!["service" + index + ".json"] = artifact;
         }
-        SetupDefinition definition = DefinitionFixture.Parse(document.ToJsonString());
-        string answers = "{\"service.name\":\"" + new string('x', SetupCompositionLimits.DefaultScalarCharacters) + "\"}";
+        Definition definition = DefinitionFixture.Parse(document.ToJsonString());
+        string answers = "{\"service.name\":\"" + new string('x', CompositionLimits.DefaultScalarCharacters) + "\"}";
         using DefinitionDraftBundleResult result = DefinitionDraftArtifactComposer.ComposeBundle(definition,
             definition.Artifacts.Select(item => item.Id), DefinitionFixture.Answers(answers));
         await Assert.That(result.Artifacts.Count).IsEqualTo(0);
@@ -366,7 +366,7 @@ public sealed class DefinitionDraftArtifactTests
         await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("bundle-limit");
     }
 
-    private static SetupDefinition SecretDefinition(string format = "json") => DefinitionFixture.Parse(SecretSource(format));
+    private static Definition SecretDefinition(string format = "json") => DefinitionFixture.Parse(SecretSource(format));
 
     private static string SecretSource(string format = "json")
     {

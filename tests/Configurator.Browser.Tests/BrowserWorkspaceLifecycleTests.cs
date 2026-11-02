@@ -80,7 +80,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         source["configuration"]!["properties"]!["mode"]!["x-configurator"]!["initialValue"] = "single";
         source["configuration"]!["properties"]!["hostname"]!["x-configurator"]!["initialValue"] = "blocked-preparation.test";
         source["requiredCapabilities"]!.AsArray().Add("values.initial");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule { AppPrepared = appPrepared, AcceptWorkspace = accepted };
         await using var exportModule = new LifecycleModule();
@@ -100,7 +100,7 @@ public sealed class BrowserWorkspaceLifecycleTests
     public async Task WarmedDiscoveryAndReviewCannotRestoreRevokedOutputOrHeldImport()
     {
         await using var context = BrowserFixture.Context();
-        SetupDefinition definition = BrowserFixture.Definition;
+        Definition definition = BrowserFixture.Definition;
         var layout = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
             builder.OpenComponent<ConfigurationEditor>(0);
@@ -146,7 +146,7 @@ public sealed class BrowserWorkspaceLifecycleTests
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         source["configuration"]!["properties"]!["mode"]!["enum"]!.AsArray().Insert(0, JsonValue.Create(""));
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "");
@@ -197,7 +197,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         second["id"] = "second";
         second["fileName"] = "second.json";
         source["artifacts"]!.AsArray().Add(second);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         await using var policyModule = new LifecycleModule();
         await using var exportModule = new LifecycleModule();
@@ -438,7 +438,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         second["id"] = "second";
         second["fileName"] = "second.json";
         source["artifacts"]!.AsArray().Add(second);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });

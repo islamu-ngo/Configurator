@@ -33,7 +33,7 @@ public sealed class BrowserOutputSelectionTests
     [Arguments("file.kind")]
     public async Task ImplicitEntryPreservesCoreInitializationWithoutSupplyingAnAnswer(string fieldName)
     {
-        SetupDefinition definition = Definition(fieldName);
+        Definition definition = Definition(fieldName);
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([definition]));
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}");
         var component = context.Render<App>();
@@ -49,7 +49,7 @@ public sealed class BrowserOutputSelectionTests
     [Arguments("file.kind")]
     public async Task ExplicitEntrySuppliesItsBoundValueOnceAndNeverOverridesLaterEdits(string fieldName)
     {
-        SetupDefinition definition = Definition(fieldName);
+        Definition definition = Definition(fieldName);
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([definition]));
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}?entry=identity");
         var component = context.Render<App>();
@@ -73,7 +73,7 @@ public sealed class BrowserOutputSelectionTests
     public async Task EventStartsAtEnvironmentAndBasicsWithoutSelectingAnOutput()
     {
         BrowserDefinitionRegistry registry = BrowserDefinitionRegistry.LoadBundled();
-        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
+        Definition definition = registry.Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}");
         var component = context.Render<App>();
@@ -86,10 +86,10 @@ public sealed class BrowserOutputSelectionTests
         await Assert.That(component.FindAll("[data-field='env.API_ENDPOINT']").Count).IsEqualTo(1);
     }
 
-    private static SetupDefinition Definition(string fieldName)
+    private static Definition Definition(string fieldName)
     {
         string pointer = DefinitionPath.FromSegments([fieldName]).ToPointer();
-        return SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes("""
+        return DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes("""
             {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"d66d02af-6a66-4396-9717-452e8eb9541b","revision":1},
              "project":{"id":"example.output","name":"Output selection"},"applicationVersions":["1.0"],

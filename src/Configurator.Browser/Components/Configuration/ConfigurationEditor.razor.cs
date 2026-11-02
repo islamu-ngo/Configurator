@@ -20,12 +20,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     [Inject] private BrowserOfflinePolicy Offline { get; set; } = null!;
     [Inject] private IServiceProvider Services { get; set; } = null!;
     [Inject] private AppearanceThemeService Appearance { get; set; } = null!;
-    [Parameter, EditorRequired] public SetupDefinition Definition { get; set; } = null!;
+    [Parameter, EditorRequired] public Definition Definition { get; set; } = null!;
     [Parameter] public string? InitialLocale { get; set; }
     [Parameter] public string? InitialEntry { get; set; }
-    private SetupDefinition? _pinned;
+    private Definition? _pinned;
     private DefinitionFormModel? _form;
-    private readonly SetupPresentationSession _session = new(new WeakReferenceMessenger());
+    private readonly PresentationSession _session = new(new WeakReferenceMessenger());
     private readonly List<PreparedArtifact> _prepared = [];
     private readonly List<string> _diagnostics = [];
     private string _activeWorkflowStage = "configure";
@@ -132,7 +132,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
             BrowserLaunchSelection.EditingCapabilities, Definition.Presentation is null
                 ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
-        if (Definition.Presentation is not null) _form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
+        if (Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
         if (InitialLocale is not null && !_form.SelectLocale(InitialLocale))
             throw new InvalidOperationException("locale-unsupported");
         if (InitialEntry is not null) _form.SelectOutput(InitialEntry);
@@ -270,7 +270,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         RetireDeveloper();
         ChangeOutput(args);
     }
-    private SetupArtifactDefinition[] ImportArtifacts { get; set; } = [];
+    private ArtifactDefinition[] ImportArtifacts { get; set; } = [];
     private DefinitionImportCapability? ImportCapability => _importCapabilities.GetValueOrDefault(_importArtifact);
     private void IndexSections()
     {
@@ -328,7 +328,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private void CorrectField(DefinitionDiagnostic diagnostic)
     {
         string fieldId = diagnostic.FieldId;
-        SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId);
+        FieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId);
         if (field is null) return;
         IReadOnlyList<string> path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
         if (diagnostic.Location is { } location && !_form!.TryResolveCorrection(fieldId, location, out path)) return;
@@ -462,9 +462,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         switch (args.Value)
         {
             case "authored": _form!.SetDisclosureOverride(null); break;
-            case "essential": _form!.SetDisclosureOverride(SetupFieldDisclosure.Essential); break;
-            case "guided": _form!.SetDisclosureOverride(SetupFieldDisclosure.Guided); break;
-            case "advanced": _form!.SetDisclosureOverride(SetupFieldDisclosure.Advanced); break;
+            case "essential": _form!.SetDisclosureOverride(FieldDisclosure.Essential); break;
+            case "guided": _form!.SetDisclosureOverride(FieldDisclosure.Guided); break;
+            case "advanced": _form!.SetDisclosureOverride(FieldDisclosure.Advanced); break;
         }
     }
     private void ChangeLocale(ChangeEventArgs args)
@@ -615,9 +615,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         await InvalidateOutputAsync();
         if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
         _activeWorkflowStage = "prepare";
-        SetupAnswerSnapshot answers;
+        AnswerSnapshot answers;
         try { answers = form.Snapshot(); }
-        catch (SetupDefinitionException)
+        catch (DefinitionException)
         {
             SetStatus("AnswersBudgetExceededStatus");
             _statusCode = "answer-budget-exceeded";
@@ -674,7 +674,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             foreach (DefinitionArtifact artifact in artifacts)
             {
                 using DefinitionPreparedAdoption operation = DefinitionPresentationOperation.Adopt(artifact, draftBundle?.Completions);
-                SetupWorkspaceId.TryCreate(Guid.NewGuid().ToString("N"), out var workspaceId);
+                WorkspaceId.TryCreate(Guid.NewGuid().ToString("N"), out var workspaceId);
                 var workspace = _session.CreateWorkspace(workspaceId, operation);
                 bool retained = false;
                 try
@@ -836,7 +836,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
                 await AdoptComparisonAsync(result.Report!, cancellation.Token);
             }
         }
-        catch (Exception exception) when (exception is IOException or OperationCanceledException or InvalidOperationException or SetupDefinitionException)
+        catch (Exception exception) when (exception is IOException or OperationCanceledException or InvalidOperationException or DefinitionException)
         {
             if (generation == _generation && ReferenceEquals(form, _form))
             {
@@ -996,7 +996,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
                 editorVisibility: Definition.Presentation is null
                     ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
-            if (Definition.Presentation is not null) _form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
+            if (Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
             _compact = false;
             _consentOpen = false;
             _taskToolsOpen = false;
@@ -1045,7 +1045,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     }
     private sealed class PreparedArtifact : IAsyncDisposable
     {
-        public PreparedArtifact(DefinitionPreparationMetadata metadata, SetupPresentationWorkspace workspace, IJSRuntime javascript)
+        public PreparedArtifact(DefinitionPreparationMetadata metadata, PresentationWorkspace workspace, IJSRuntime javascript)
         {
             Metadata = metadata;
             Workspace = workspace;
@@ -1053,7 +1053,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             Export.SetOutput(workspace.Output);
         }
         public DefinitionPreparationMetadata Metadata { get; }
-        public SetupPresentationWorkspace Workspace { get; }
+        public PresentationWorkspace Workspace { get; }
         public BrowserArtifactExport Export { get; }
         public ConfigurationFiles? View;
         public bool Revealed { get; set; }

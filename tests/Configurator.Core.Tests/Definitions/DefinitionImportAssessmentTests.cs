@@ -12,7 +12,7 @@ public sealed class DefinitionImportAssessmentTests
     [Arguments(true)]
     public async Task ValidatorMaterializationSuspendsWithoutChangingLiteralsOrSemanticCharges(bool cancel)
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
               "ordinal":{"type":"integer"},"A":{"type":"string"},"a":{"type":"number"},
               "b":{"type":"array","items":{"type":["number","null"]}}}}}}
@@ -74,7 +74,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task SuspendedNormalizationPreservesExactKeysUnicodeNullAndDecimalValuesThroughAdoption()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
               "A":{"type":"string"},"a":{"type":"number"},
               "b":{"type":"array","items":{"type":["number","null"]}}}}}}
@@ -107,7 +107,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task CooperativeInspectionPreservesReportCountsAndOrderedFindings()
     {
-        SetupDefinition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
+        Definition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
             """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
         byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { items = Enumerable.Repeat("private-sentinel", 1200).ToArray() });
         using var synchronous = DefinitionImport.Inspect(definition, "config", input);
@@ -133,7 +133,7 @@ public sealed class DefinitionImportAssessmentTests
     [Arguments(2)]
     public async Task CooperativeInspectionCancellationAtSuspendedYieldPublishesNothing(int suspendAt)
     {
-        SetupDefinition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
+        Definition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
             """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
         byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { items = Enumerable.Range(0, 1200).ToArray() });
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -163,7 +163,7 @@ public sealed class DefinitionImportAssessmentTests
     [Arguments(true, 2)]
     public async Task SuspendedAutofillCapturesEvidenceAcrossDisposalAndHonorsCancellation(bool cancel, int suspendAt)
     {
-        SetupDefinition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
+        Definition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
             """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
         byte[] input = JsonSerializer.SerializeToUtf8Bytes(new { items = Enumerable.Range(0, 1200).ToArray() });
         using var assessment = DefinitionImport.Inspect(definition, "config", input);
@@ -199,7 +199,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task CompletedYieldKeepsTinyComparisonSynchronousAndPreservesLiteralWorkCounts()
     {
-        SetupDefinition definition = Definition("""{"x":{"type":"integer"}}""",
+        Definition definition = Definition("""{"x":{"type":"integer"}}""",
             """{"x":{"op":"copy","reference":{"scope":"root","path":"/x"}}}""");
         int yields = 0;
         ValueTask<DefinitionImportAssessment> operation = DefinitionImport.InspectAsync(definition, "config",
@@ -226,7 +226,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task PreCancelledCooperativeCallsNeverInvokeTheYieldCallback()
     {
-        SetupDefinition definition = Definition("""{"x":{"type":"integer"}}""",
+        Definition definition = Definition("""{"x":{"type":"integer"}}""",
             """{"x":{"op":"copy","reference":{"scope":"root","path":"/x"}}}""");
         byte[] input = """{"x":7}"""u8.ToArray();
         using var assessment = DefinitionImport.Inspect(definition, "config", input);
@@ -253,7 +253,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task MissingRepresentedRequiredValueDoesNotUseInitialization()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"name":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"new"}}}
             """, """{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}}}""", """["name"]""");
         using var assessment = Inspect(definition, "{}");
@@ -274,7 +274,7 @@ public sealed class DefinitionImportAssessmentTests
         string members = mapped
             ? """{"tls":{"op":"copy","reference":{"scope":"root","path":"/tls"}},"cert":{"op":"copy","reference":{"scope":"root","path":"/cert"}}}"""
             : """{"cert":{"op":"copy","reference":{"scope":"root","path":"/cert"}}}""";
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"tls":{"type":"boolean"},"cert":{"type":"string","x-configurator":{"sensitivity":"secret",
               "applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/tls"},"value":true}}}}
             """, members, """["cert"]""");
@@ -337,7 +337,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task PartialChildrenDoNotProveCardinalityOrUnrepresentedRequiredAbsence()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"options":{"type":"object","additionalProperties":false,"minProperties":2,"required":["hidden"],
               "properties":{"visible":{"type":"integer"},"hidden":{"type":"string"}}}}
             """, """{"x":{"op":"copy","reference":{"scope":"root","path":"/options/visible"}}}""");
@@ -392,7 +392,7 @@ public sealed class DefinitionImportAssessmentTests
                 {"op":"copy","reference":{"scope":"item","path":"/name"}},
                 {"op":"copy","reference":{"scope":"item","path":"/count"}}]}}}}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         using var assessment = Inspect(definition, """{"rows":[{"ordinal":0,"data":["a",0]},{"ordinal":1,"data":["",2]}]}""");
         DefinitionImportResult result = assessment.AssessAutofill(Empty());
         await Assert.That(result.Succeeded).IsTrue();
@@ -425,7 +425,7 @@ public sealed class DefinitionImportAssessmentTests
         using Stream source = typeof(DefinitionImportAssessmentTests).Assembly.GetManifestResourceStream("EventDefinition")!;
         using var bytes = new MemoryStream();
         await source.CopyToAsync(bytes);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes.ToArray());
+        Definition definition = DefinitionCodec.ParseJson(bytes.ToArray());
         DefinitionImportCapability capability = DefinitionImport.GetCapability(definition, "environment");
         Console.WriteLine($"COMPARISON_PROJECTION family={definition.FamilyId:D} digest={definition.Digest.Value} code={capability.Code}");
         await Assert.That(capability.StrictAutofillSupported).IsTrue().Because(capability.Code);
@@ -442,7 +442,7 @@ public sealed class DefinitionImportAssessmentTests
         using Stream definitionSource = typeof(DefinitionImportAssessmentTests).Assembly.GetManifestResourceStream("EventDefinition")!;
         using var definitionBytes = new MemoryStream();
         await definitionSource.CopyToAsync(definitionBytes);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(definitionBytes.ToArray());
+        Definition definition = DefinitionCodec.ParseJson(definitionBytes.ToArray());
         using Stream expectedSource = typeof(DefinitionImportAssessmentTests).Assembly
             .GetManifestResourceStream("EventExpected.configuration-manifest-1-tenants.json")!;
         using var expectedBytes = new MemoryStream();
@@ -490,7 +490,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task CompleteThreeThousandFindingInventoryIsNotDisplayTruncation()
     {
-        SetupDefinition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
+        Definition definition = Definition("""{"items":{"type":"array","items":{"type":"integer"}}}""",
             """{"items":{"op":"copy","reference":{"scope":"root","path":"/items"}}}""");
         string input = JsonSerializer.Serialize(new { items = Enumerable.Repeat("private-sentinel", 3000).ToArray() });
         using var assessment = Inspect(definition, input);
@@ -505,7 +505,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task RetentionStopKeepsKnownBlockersAndReportsOnlyALowerBound()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"a":{"type":"array","items":{"type":"integer"}},"b":{"type":"array","items":{"type":"integer"}}}
             """, """
             {"a":{"op":"copy","reference":{"scope":"root","path":"/a"}},"b":{"op":"copy","reference":{"scope":"root","path":"/b"}}}
@@ -540,7 +540,7 @@ public sealed class DefinitionImportAssessmentTests
             if (index == 0) row["p0"] = "private-invalid";
             rows.Add(row);
         }
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         byte[] input = System.Text.Encoding.UTF8.GetBytes(new JsonObject { ["rows"] = rows }.ToJsonString());
         long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -683,7 +683,7 @@ public sealed class DefinitionImportAssessmentTests
              "VALUE":{"op":"copy","reference":{"scope":"root","path":"/value"}}}
             """);
         source["outputs"]!["config.json"]!["format"] = "dotenv";
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         using var assessment = DefinitionImport.Inspect(definition, "config",
             "VERSION=2\nENABLED=true\nVALUE=sample\n"u8.ToArray());
 
@@ -706,7 +706,7 @@ public sealed class DefinitionImportAssessmentTests
         var choices = new JsonArray();
         for (int index = 0; index < 64; index++) choices.Add("choice-" + index);
         source["configuration"]!["properties"]!["items"]!["items"]!["enum"] = choices;
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         using var assessment = Inspect(definition,
             JsonSerializer.Serialize(new { items = Enumerable.Repeat("choice-63", 4096).ToArray() }));
 
@@ -719,7 +719,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task MissingOptionalContainerIsNotCreatedByProjectedInitializedDescendants()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"options":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
               "name":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"new"}}}}}
             """, """{"name":{"op":"copy","reference":{"scope":"root","path":"/options/name"}}}""");
@@ -744,7 +744,7 @@ public sealed class DefinitionImportAssessmentTests
         })
         {
             source["outputs"]!["config.json"]!["projection"] = JsonNode.Parse(projection);
-            SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+            Definition definition = DefinitionFixture.Parse(source.ToJsonString());
             await Assert.That(DefinitionImport.GetCapability(definition, "config").InspectionSupported).IsFalse();
             using var assessment = Inspect(definition, "{}");
             await Assert.That(assessment.Report.Compatibility).IsEqualTo(DefinitionImportCompatibility.Unsupported);
@@ -754,7 +754,7 @@ public sealed class DefinitionImportAssessmentTests
     [Test]
     public async Task NestedObservationDoesNotMakeAnUnrepresentedSiblingControllerFalse()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"options":{"type":"object","additionalProperties":false,"properties":{"tls":{"type":"boolean"},"name":{"type":"string"}}},
              "cert":{"type":"string","x-configurator":{"applicableWhen":{
                "op":"not","operands":[{"op":"equals","reference":{"scope":"root","path":"/options/tls"},"value":false}]}}}}
@@ -769,12 +769,12 @@ public sealed class DefinitionImportAssessmentTests
         await Assert.That(assessment.Report.Findings.Any(f => f.Kind == DefinitionImportFindingKind.MissingRequired)).IsFalse();
     }
 
-    private static DefinitionImportAssessment Inspect(SetupDefinition definition, string input) =>
+    private static DefinitionImportAssessment Inspect(Definition definition, string input) =>
         DefinitionImport.Inspect(definition, "config", Encoding.UTF8.GetBytes(input));
 
-    private static SetupAnswerSnapshot Empty() => new(0, new Dictionary<string, JsonElement>());
+    private static AnswerSnapshot Empty() => new(0, new Dictionary<string, JsonElement>());
 
-    private static SetupDefinition Definition(string properties, string members, string required = "[]")
+    private static Definition Definition(string properties, string members, string required = "[]")
     {
         JsonNode source = Source(properties, members);
         source["configuration"]!["required"] = JsonNode.Parse(required);

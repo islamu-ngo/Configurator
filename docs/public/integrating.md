@@ -8,7 +8,7 @@ description: "Adopt portable bounded-v0.0.1 definitions beside your application,
 > **Status:** Qualified pre-release workflow
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`, `docs/internal/CORE_DEFINITIONS.md`
+> **Source Anchors:** `src/Configurator.Cli/CliDefinitionHandlers.cs`, `docs/internal/CORE_DEFINITIONS.md`
 
 Maintain one public `configurator.yaml` or `configurator.json`, compile it to
 canonical runtime JSON, and keep private answers separate. You can distribute

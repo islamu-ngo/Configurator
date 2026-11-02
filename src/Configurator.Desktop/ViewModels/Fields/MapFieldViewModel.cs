@@ -32,7 +32,7 @@ public sealed class MapFieldViewModel : FieldViewModel
     public IReadOnlyList<FieldViewModel> Children { get; }
     internal override IEnumerable<FieldViewModel> Descendants => Children.Concat(Entries);
     public int MaximumEntries => Schema.Keywords.TryGetProperty("maxProperties", out JsonElement maximum)
-        ? maximum.GetInt32() : SetupCompositionLimits.DefaultMappingEntries;
+        ? maximum.GetInt32() : CompositionLimits.DefaultMappingEntries;
     public string NewKey
     {
         get => _newKey;
@@ -83,7 +83,7 @@ public sealed class MapFieldViewModel : FieldViewModel
     private bool ValidKey()
     {
         try { _ = DefinitionPath.FromSegments([.. FullPath(), NewKey]); return true; }
-        catch (SetupDefinitionException) { return false; }
+        catch (DefinitionException) { return false; }
     }
 
     private FieldViewModel CreateEntry(string name)

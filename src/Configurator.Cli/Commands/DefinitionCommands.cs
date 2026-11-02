@@ -4,17 +4,17 @@ namespace Configurator.Cli.Commands;
 
 internal static class DefinitionCommands
 {
-    internal static SetupCliFamilyDescriptor Descriptor { get; } = SetupCliCommandRegistry.Family(
+    internal static CliFamilyDescriptor Descriptor { get; } = CliCommandRegistry.Family(
         "definition",
-        SetupCliCommandRegistry.Operation<DefinitionInitSettings>("init"),
-        SetupCliCommandRegistry.Operation<DefinitionSourceSettings>("check"),
-        SetupCliCommandRegistry.Operation<DefinitionSourceSettings>("lint"),
-        SetupCliCommandRegistry.Operation<DefinitionSchemaSettings>("schema"),
-        SetupCliCommandRegistry.Operation<DefinitionBuildSettings>("build"),
-        SetupCliCommandRegistry.Operation<DefinitionCandidateSettings>("revise"));
+        CliCommandRegistry.Operation<DefinitionInitSettings>("init"),
+        CliCommandRegistry.Operation<DefinitionSourceSettings>("check"),
+        CliCommandRegistry.Operation<DefinitionSourceSettings>("lint"),
+        CliCommandRegistry.Operation<DefinitionSchemaSettings>("schema"),
+        CliCommandRegistry.Operation<DefinitionBuildSettings>("build"),
+        CliCommandRegistry.Operation<DefinitionCandidateSettings>("revise"));
 }
 
-internal sealed class DefinitionSchemaSettings : SetupCliCommandSettings
+internal sealed class DefinitionSchemaSettings : CliCommandSettings
 {
     [CommandOption("--kind <KIND>")]
     public string Kind { get; set; } = "authoring";
@@ -22,11 +22,11 @@ internal sealed class DefinitionSchemaSettings : SetupCliCommandSettings
     protected override string? ValidateValues() => base.ValidateValues()
         ?? (Kind is not ("authoring" or "runtime" or "answers" or "command") ? "definition-schema-kind" : null);
 
-    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+    public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with { SchemaKind = Kind };
 }
 
-internal class DefinitionSourceSettings : SetupCliCommandSettings
+internal class DefinitionSourceSettings : CliCommandSettings
 {
     [CommandOption("--source <PATH>")]
     public string? Source { get; set; }
@@ -46,7 +46,7 @@ internal class DefinitionSourceSettings : SetupCliCommandSettings
     protected override string? ValidateValues() => base.ValidateValues()
         ?? ValidateDetail(Detail, Offset, Limit, ExpectedDetailDigest);
 
-    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+    public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with
         {
             Source = Source,
@@ -68,11 +68,11 @@ internal sealed class DefinitionBuildSettings : DefinitionSourceSettings
 
     protected override string? ValidateValues() => base.ValidateValues() ?? ValidateOutput(Output);
 
-    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+    public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with { Output = Output, IdMap = IdMap };
 }
 
-internal sealed class DefinitionInitSettings : SetupCliCommandSettings
+internal sealed class DefinitionInitSettings : CliCommandSettings
 {
     [CommandOption("--root <DIRECTORY>")]
     public string? Root { get; set; }
@@ -112,7 +112,7 @@ internal sealed class DefinitionInitSettings : SetupCliCommandSettings
     private static bool IsYaml(string path) =>
         path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase);
 
-    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+    public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with
         {
             Root = Root,

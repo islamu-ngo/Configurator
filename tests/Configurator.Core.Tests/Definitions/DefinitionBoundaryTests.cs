@@ -10,9 +10,9 @@ public sealed class DefinitionBoundaryTests
     [Test]
     public async Task SourceByteCeilingAcceptsExactlyFourMebibytesAndRejectsOneMore()
     {
-        string padded = DefinitionFixture.Json.PadRight(SetupCompositionLimits.DefaultAggregateSourceBytes, ' ');
+        string padded = DefinitionFixture.Json.PadRight(CompositionLimits.DefaultAggregateSourceBytes, ' ');
         await Assert.That(DefinitionFixture.Parse(padded).FamilyId).IsEqualTo(DefinitionFixture.Parse().FamilyId);
-        await Assert.That(() => DefinitionFixture.Parse(padded + " ")).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(padded + " ")).Throws<DefinitionException>();
     }
 
     [Test]
@@ -32,7 +32,7 @@ public sealed class DefinitionBoundaryTests
             JsonNode invalid = JsonNode.Parse(DefinitionFixture.Json)!;
             foreach ((string name, JsonNode? value) in JsonNode.Parse("{" + change + "}")!.AsObject())
                 invalid["configuration"]!["properties"]!["service.name"]![name] = value?.DeepClone();
-            await Assert.That(() => DefinitionFixture.Parse(invalid.ToJsonString())).Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionFixture.Parse(invalid.ToJsonString())).Throws<DefinitionException>();
         }
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
         JsonNode field = root["configuration"]!["properties"]!["service.name"]!;
@@ -42,7 +42,7 @@ public sealed class DefinitionBoundaryTests
             {"type":"string","title":"Second","x-configurator":{"sensitivity":"public",
               "applicableWhen":{"op":"exists","reference":{"scope":"root","path":"/service.name"}}}}
             """);
-        await Assert.That(() => DefinitionFixture.Parse(root.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(root.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
@@ -51,38 +51,38 @@ public sealed class DefinitionBoundaryTests
         foreach (string number in new[] { "1e999", "0.00000000000000000000000000001", "12345678901234567890123456789.5" })
             await Assert.That(() => DefinitionFixture.Parse(DefinitionFixture.Json.Replace(
                 "\"maxLength\":80", "\"maxLength\":80,\"default\":" + number, StringComparison.Ordinal)))
-                .Throws<SetupDefinitionException>();
+                .Throws<DefinitionException>();
     }
 
     [Test]
     public async Task NeutralCompilerRetainsCollisionGrammarAndCancellationGuards()
     {
-        var compiler = new SetupCompositionCompiler();
-        foreach ((string json, SetupCompositionFailureCode code) in new[]
+        var compiler = new CompositionCompiler();
+        foreach ((string json, CompositionFailureCode code) in new[]
         {
-            ("{\"a\":1,\"a\":2}", SetupCompositionFailureCode.DuplicateKey),
-            ("{\"a\":1,\"A\":2}", SetupCompositionFailureCode.KeyCollision),
-            ("{\"é\":1,\"e\\u0301\":2}", SetupCompositionFailureCode.KeyCollision),
-            ("[]", SetupCompositionFailureCode.InvalidDocument)
+            ("{\"a\":1,\"a\":2}", CompositionFailureCode.DuplicateKey),
+            ("{\"a\":1,\"A\":2}", CompositionFailureCode.KeyCollision),
+            ("{\"é\":1,\"e\\u0301\":2}", CompositionFailureCode.KeyCollision),
+            ("[]", CompositionFailureCode.InvalidDocument)
         })
         {
-            var result = await compiler.CompileAsync(new SetupCompositionJsonSource(Encoding.UTF8.GetBytes(json)));
+            var result = await compiler.CompileAsync(new CompositionJsonSource(Encoding.UTF8.GetBytes(json)));
             await Assert.That(result.Failure.Code).IsEqualTo(code);
             await Assert.That(result.SerializedBytes.IsEmpty).IsTrue();
         }
         foreach (string yaml in new[] { "a: &ref value\nb: *ref", "a: !tag value", "a: 1\n---\nb: 2", "a: 1,2" })
-            await Assert.That((await compiler.CompileAsync(new SetupCompositionYamlSource(Encoding.UTF8.GetBytes(yaml)))).Succeeded)
+            await Assert.That((await compiler.CompileAsync(new CompositionYamlSource(Encoding.UTF8.GetBytes(yaml)))).Succeeded)
                 .IsFalse();
         using var cancellation = new CancellationTokenSource();
-        var cancelled = await compiler.CompileAsync(new SetupCompositionJsonSource("{\"a\":1}"u8.ToArray()),
+        var cancelled = await compiler.CompileAsync(new CompositionJsonSource("{\"a\":1}"u8.ToArray()),
             new CancelAtCommit(cancellation), cancellation.Token);
-        await Assert.That(cancelled.Failure.Code).IsEqualTo(SetupCompositionFailureCode.Cancelled);
+        await Assert.That(cancelled.Failure.Code).IsEqualTo(CompositionFailureCode.Cancelled);
         await Assert.That(cancelled.SerializedBytes.IsEmpty).IsTrue();
-        var valid = await compiler.CompileAsync(new SetupCompositionJsonSource("{\"b\":2,\"a\":1}"u8.ToArray()));
+        var valid = await compiler.CompileAsync(new CompositionJsonSource("{\"b\":2,\"a\":1}"u8.ToArray()));
         await Assert.That(Encoding.UTF8.GetString(valid.SerializedBytes.Span)).IsEqualTo("{\"a\":1,\"b\":2}");
     }
 
-    private sealed class CancelAtCommit(CancellationTokenSource cancellation) : ISetupCompositionPublicationCommitBarrier
+    private sealed class CancelAtCommit(CancellationTokenSource cancellation) : ICompositionPublicationCommitBarrier
     {
         public ValueTask AwaitPublicationCommitAsync(CancellationToken cancellationToken)
         {

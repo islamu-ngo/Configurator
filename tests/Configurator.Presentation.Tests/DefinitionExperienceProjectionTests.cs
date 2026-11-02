@@ -39,11 +39,11 @@ public sealed class DefinitionExperienceProjectionTests
           {"id":"complete","title":"All settings","sections":["connection"]}]}
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
         form.EditValue(["enabled"], "false");
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        SetupWorkspaceId.TryCreate("detail-prepared", out SetupWorkspaceId workspaceId);
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        WorkspaceId.TryCreate("detail-prepared", out WorkspaceId workspaceId);
         using var workspace = session.CreateWorkspace(workspaceId,
             new DefinitionPresentationOperation(form.Definition, "config", form.Snapshot()));
         form.InputChanged += (_, _) => workspace.Deactivate();
@@ -53,21 +53,21 @@ public sealed class DefinitionExperienceProjectionTests
             .IsEqualTo("Experience description");
         await Assert.That(form.Sections.Single().Description).IsEqualTo("Connection description");
 
-        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        form.SetDisclosureOverride(FieldDisclosure.Advanced);
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         await Assert.That(form.IsEditorExpanded(["token"])).IsTrue();
         form.SelectExperience("complete");
         form.SelectExperience("guided");
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         form.SetAllSectionsExpanded(true);
-        form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
+        form.SetDisclosureOverride(FieldDisclosure.Essential);
         await Assert.That(form.IsEditorVisible(["enabled"])).IsTrue();
         await Assert.That(form.IsEditorVisible(["token"])).IsFalse();
         await Assert.That(form.IsEditorExpanded(["token"])).IsFalse();
         form.SelectExperience("complete");
         await Assert.That(form.IsEditorVisible(["token"])).IsFalse();
         form.SetDisclosureOverride(null);
-        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        form.SetDisclosureOverride(FieldDisclosure.Advanced);
         // v2 journeys no longer select advanced detail; retain this legacy expectation for disposition.
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         await Assert.That(form.IsEditorExpanded(["token"])).IsTrue();
@@ -99,7 +99,7 @@ public sealed class DefinitionExperienceProjectionTests
         ["predicate.root","projection.literal","schema.boolean","schema.object","schema.string","values.initial"]
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["required"], "false");
         form.EditValue(["parent", "literal.name"], "ordinary");
         form.EditValue(["inactive"], "retained");
@@ -131,7 +131,7 @@ public sealed class DefinitionExperienceProjectionTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object"]""");
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         await Assert.That(form.EditValue(["options", "limit"], "-")).IsFalse();
         if (renderInvalid)
             await Assert.That(form.IsEditorVisible(["options", "limit"])).IsTrue();
@@ -170,8 +170,8 @@ public sealed class DefinitionExperienceProjectionTests
     {
         using var form = new DefinitionFormModel(Definition());
         form.EditValue(["enabled"], "false");
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        SetupWorkspaceId.TryCreate("prepared", out SetupWorkspaceId workspaceId);
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        WorkspaceId.TryCreate("prepared", out WorkspaceId workspaceId);
         using var workspace = session.CreateWorkspace(workspaceId,
             new DefinitionPresentationOperation(form.Definition, "config", form.Snapshot()));
         form.InputChanged += (_, _) => workspace.Deactivate();
@@ -212,7 +212,7 @@ public sealed class DefinitionExperienceProjectionTests
         source["requiredCapabilities"] = JsonNode.Parse("""
         ["predicate.root","projection.literal","schema.boolean","schema.integer","schema.object","values.initial"]
         """);
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         long revision = form.InputRevision;
         var port = form.Projection.Entries.Single(entry => entry.FieldId == "port");
         await Assert.That(port.IsActive).IsFalse();
@@ -235,7 +235,7 @@ public sealed class DefinitionExperienceProjectionTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object"]""");
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.EditValue(["private_number"], "synthetic-malformed-number");
 
@@ -260,7 +260,7 @@ public sealed class DefinitionExperienceProjectionTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object","schema.string"]""");
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         long revision = form.InputRevision;
         await Assert.That(form.SetEditorExpanded(["options"], true)).IsTrue();
         await Assert.That(form.IsEditorVisible(["options", "limit"])).IsTrue();
@@ -292,7 +292,7 @@ public sealed class DefinitionExperienceProjectionTests
         ["projection.literal","schema.array","schema.bounds","schema.object","schema.string"]
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
 
         await Assert.That(form.Projection.Progress.Required).IsEqualTo(1);
@@ -314,7 +314,7 @@ public sealed class DefinitionExperienceProjectionTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.boolean","schema.object","schema.string"]""");
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
 
         await Assert.That(form.IsEditorVisible(["options"])).IsTrue();
         await Assert.That(form.IsEditorVisible(["options", "enabled"])).IsTrue();
@@ -332,7 +332,7 @@ public sealed class DefinitionExperienceProjectionTests
          "journeys":[{"id":"configure","title":"Configure","sections":["network"]}]}
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.SetDiscovery("network");
 
         await Assert.That(form.Experiences.Count).IsEqualTo(1);
@@ -374,7 +374,7 @@ public sealed class DefinitionExperienceProjectionTests
         ["projection.literal","schema.array","schema.boolean","schema.bounds","schema.object"]
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         await Assert.That(form.Projection.Progress.Required).IsEqualTo(1);
         await Assert.That(form.Projection.Progress.Ready).IsEqualTo(0);
         form.AddListItem(["rows"]);
@@ -395,7 +395,7 @@ public sealed class DefinitionExperienceProjectionTests
         {"op":"object","members":{"ENABLE_INTEGRATION":{"op":"copy","reference":{"scope":"root","path":"/enabled"}}}}
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["enabled"], "false");
         form.SetDiscovery("ENABLE_INTEGRATION");
         await Assert.That(form.Projection.Matches.Single().Entry.FieldId).IsEqualTo("enabled");
@@ -424,7 +424,7 @@ public sealed class DefinitionExperienceProjectionTests
           {"id":"complete","title":"All settings","sections":["connection"]}]}
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["enabled"], "false");
         long revision = form.InputRevision;
         int viewChanges = 0;
@@ -440,7 +440,7 @@ public sealed class DefinitionExperienceProjectionTests
         await Assert.That(form.Projection.Matches.Single().Entry.FieldId).IsEqualTo("token");
         // Selection is tested through the shared API once admitted, not through a client preset.
         await Assert.That(form.SelectExperience("complete")).IsTrue();
-        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        form.SetDisclosureOverride(FieldDisclosure.Advanced);
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
         await Assert.That(form.SelectExperience("unknown")).IsFalse();
         await Assert.That(form.SelectExperience("guided")).IsTrue();
@@ -476,7 +476,7 @@ public sealed class DefinitionExperienceProjectionTests
         ["predicate.root","projection.copy","projection.object","schema.boolean","schema.integer","schema.object"]
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["enabled"], "true");
         form.EditValue(["token"], "invalid-number");
         await Assert.That(form.HasInputErrors).IsTrue();
@@ -517,7 +517,7 @@ public sealed class DefinitionExperienceProjectionTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = JsonNode.Parse("""["projection.literal","schema.integer","schema.object","schema.string"]""");
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.SetValue(["settings"], JsonSerializer.SerializeToElement(new { name = "configured" }));
 
         await Assert.That(form.Projection.Progress.Required).IsEqualTo(2);
@@ -551,7 +551,7 @@ public sealed class DefinitionExperienceProjectionTests
         ["projection.copy","projection.object","schema.integer","schema.object","schema.string"]
         """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.EditValue(["enabled"], "invalid-number");
 
         await Assert.That(form.Projection.Progress.Required).IsEqualTo(0);
@@ -560,7 +560,7 @@ public sealed class DefinitionExperienceProjectionTests
         await Assert.That(form.HasInputErrors).IsTrue();
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"32d3b55d-7285-4b0f-8bac-77c9c9f32003","revision":1,
      "project":{"id":"example","name":"Projection example","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],

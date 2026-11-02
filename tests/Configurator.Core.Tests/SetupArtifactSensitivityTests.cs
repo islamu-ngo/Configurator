@@ -15,14 +15,14 @@ public sealed class SetupArtifactSensitivityTests
         await Assert.That(rendered.Succeeded).IsTrue();
         await Assert.That(Encoding.UTF8.GetString(rendered.Bytes.Span)).Contains(value);
 
-        foreach (SetupArtifactKind kind in new[]
+        foreach (ArtifactKind kind in new[]
         {
-            SetupArtifactKind.Environment, SetupArtifactKind.Configuration,
-            SetupArtifactKind.OperatorIdentity, SetupArtifactKind.Unknown, (SetupArtifactKind)int.MaxValue
+            ArtifactKind.Environment, ArtifactKind.Configuration,
+            ArtifactKind.OperatorIdentity, ArtifactKind.Unknown, (ArtifactKind)int.MaxValue
         })
         {
-            await Assert.That(SetupArtifactPolicy.Classify(kind)).IsEqualTo(SetupArtifactSensitivity.Restricted);
-            await Assert.That(SetupArtifactPolicy.TryProjectPublic(kind, rendered.Bytes, out var projection)).IsFalse();
+            await Assert.That(ArtifactPolicy.Classify(kind)).IsEqualTo(ArtifactSensitivity.Restricted);
+            await Assert.That(ArtifactPolicy.TryProjectPublic(kind, rendered.Bytes, out var projection)).IsFalse();
             await Assert.That(projection.IsEmpty).IsTrue();
         }
     }
@@ -31,9 +31,9 @@ public sealed class SetupArtifactSensitivityTests
     public async Task OnlyClosedPublicKindsCanProjectBytes()
     {
         byte[] bytes = "public-template"u8.ToArray();
-        foreach (SetupArtifactKind kind in new[] { SetupArtifactKind.PublicCatalogue, SetupArtifactKind.PublicTemplate })
+        foreach (ArtifactKind kind in new[] { ArtifactKind.PublicCatalogue, ArtifactKind.PublicTemplate })
         {
-            await Assert.That(SetupArtifactPolicy.TryProjectPublic(kind, bytes, out var projection)).IsTrue();
+            await Assert.That(ArtifactPolicy.TryProjectPublic(kind, bytes, out var projection)).IsTrue();
             await Assert.That(projection.ToArray()).IsEquivalentTo(bytes);
         }
     }

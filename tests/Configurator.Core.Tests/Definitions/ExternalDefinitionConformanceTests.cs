@@ -12,7 +12,7 @@ public sealed class ExternalDefinitionConformanceTests
     [Arguments("legal-drafts.spec.instance.legalDocuments.TermsOfService")]
     public async Task LegalDocumentsHaveBoundedRowsWithItemLocalRequirements(string documentKey)
     {
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
+        Definition definition = DefinitionCodec.ParseJson(Resource("EventDefinition"));
         await Assert.That(definition.Configuration.Properties.ContainsKey(documentKey)).IsTrue();
         DefinitionNode document = definition.Configuration.Properties[documentKey];
         await Assert.That(document.Type).IsEqualTo(DefinitionNodeType.Mapping);
@@ -30,17 +30,17 @@ public sealed class ExternalDefinitionConformanceTests
     [Test]
     public async Task LegalLanguageRowsRequireTheirOwnContentAndRemovedRowsLeaveOutput()
     {
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
+        Definition definition = DefinitionCodec.ParseJson(Resource("EventDefinition"));
         JsonNode answers = JsonNode.Parse(Resource("EventAnswers.legal-drafts.json"))!;
         JsonArray languages = answers["values"]!["legal-drafts.spec.instance.legalDocuments.TermsOfService"]!["localizations"]!.AsArray();
         languages[1]!.AsObject().Remove("title");
         DefinitionArtifactResult incomplete = DefinitionArtifactComposer.Compose(definition, "legal-drafts",
-            SetupAnswerSnapshotCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(answers.ToJsonString()), 8));
+            AnswerSnapshotCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(answers.ToJsonString()), 8));
         await Assert.That(incomplete.Succeeded).IsFalse();
 
         languages.RemoveAt(1);
         DefinitionArtifactResult complete = DefinitionArtifactComposer.Compose(definition, "legal-drafts",
-            SetupAnswerSnapshotCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(answers.ToJsonString()), 9));
+            AnswerSnapshotCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(answers.ToJsonString()), 9));
         await Assert.That(complete.Succeeded).IsTrue();
         using (complete.Artifact)
         using (JsonDocument output = JsonDocument.Parse(complete.Artifact!.Bytes))
@@ -64,14 +64,14 @@ public sealed class ExternalDefinitionConformanceTests
     public async Task ExternalTargetProjectsRestrictedBytesMatchingIndependentHostVectors(
         string artifactId, string answerName, string expectedName)
     {
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
-        SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(
+        Definition definition = DefinitionCodec.ParseJson(Resource("EventDefinition"));
+        AnswerSnapshot snapshot = AnswerSnapshotCodec.ParseJson(
             Resource("EventAnswers." + answerName + ".json"), 7);
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifactId, snapshot);
 
         await Assert.That(result.Succeeded).IsTrue();
         await Assert.That(result.Artifact!.DefinitionDigest).IsEqualTo(definition.Digest);
-        await Assert.That(result.Artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+        await Assert.That(result.Artifact.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
         await Assert.That(result.Artifact.Bytes.Span.SequenceEqual(Resource("EventExpected." + expectedName))).IsTrue();
         string? directory = System.Environment.GetEnvironmentVariable("CONFIGURATOR_EVENT_ARTIFACT_DIRECTORY");
         if (!string.IsNullOrEmpty(directory))
@@ -85,9 +85,9 @@ public sealed class ExternalDefinitionConformanceTests
     [Test]
     public async Task RepeatedCanonicalDeliveryResolvesToOneImmutableDefinition()
     {
-        SetupDefinition native = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
-        SetupDefinition redelivered = SetupDefinitionCodec.ParseJson(native.CanonicalBytes);
-        var registry = new SetupDefinitionRegistry([native, redelivered]);
+        Definition native = DefinitionCodec.ParseJson(Resource("EventDefinition"));
+        Definition redelivered = DefinitionCodec.ParseJson(native.CanonicalBytes);
+        var registry = new DefinitionRegistry([native, redelivered]);
 
         await Assert.That(native.Digest).IsEqualTo(redelivered.Digest);
         await Assert.That(registry.Definitions.Count).IsEqualTo(1);

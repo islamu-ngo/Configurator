@@ -11,16 +11,16 @@ using Configurator.Core.Definitions;
 /// workspace. Published metadata never retains the composed artifact bytes.
 /// </summary>
 public sealed class DefinitionPresentationOperation(
-    SetupDefinition definition,
+    Definition definition,
     string artifactId,
-    SetupAnswerSnapshot answers,
-    bool prepareDraft = false) : ISetupPresentationOperation
+    AnswerSnapshot answers,
+    bool prepareDraft = false) : IPresentationOperation
 {
     /// <summary>Copies an admitted artifact; the caller owns this operation even when execution never starts.</summary>
     public static DefinitionPreparedAdoption Adopt(DefinitionArtifact artifact,
         IEnumerable<DefinitionDraftCompletion>? completions = null) => new(artifact, completions);
 
-    public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
+    public Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         using DefinitionDraftArtifactResult? draft = prepareDraft
@@ -45,7 +45,7 @@ public sealed class DefinitionPresentationOperation(
         ReadOnlyMemory<byte> source = artifact is null
             ? ReadOnlyMemory<byte>.Empty
             : artifact.Bytes;
-        try { return Task.FromResult(new SetupPresentationOutcome(metadata, source)); }
+        try { return Task.FromResult(new PresentationOutcome(metadata, source)); }
         finally
         {
             if (MemoryMarshal.TryGetArray(source, out ArraySegment<byte> segment))
@@ -55,9 +55,9 @@ public sealed class DefinitionPresentationOperation(
 }
 
 /// <summary>Owns staged output until execution transfers it to a generation-fenced workspace.</summary>
-public sealed class DefinitionPreparedAdoption : ISetupPresentationOperation, IDisposable
+public sealed class DefinitionPreparedAdoption : IPresentationOperation, IDisposable
 {
-    private SetupPresentationOutcome? _prepared;
+    private PresentationOutcome? _prepared;
 
     internal DefinitionPreparedAdoption(DefinitionArtifact artifact,
         IEnumerable<DefinitionDraftCompletion>? completions = null)
@@ -88,14 +88,14 @@ public sealed class DefinitionPreparedAdoption : ISetupPresentationOperation, ID
         GC.SuppressFinalize(this);
     }
 
-    public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
+    public Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
             Dispose();
             cancellationToken.ThrowIfCancellationRequested();
         }
-        SetupPresentationOutcome? outcome = Interlocked.Exchange(ref _prepared, null);
+        PresentationOutcome? outcome = Interlocked.Exchange(ref _prepared, null);
         ObjectDisposedException.ThrowIf(outcome is null, this);
         return Task.FromResult(outcome);
     }

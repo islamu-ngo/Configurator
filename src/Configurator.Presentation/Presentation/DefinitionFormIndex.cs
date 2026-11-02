@@ -38,11 +38,11 @@ internal sealed class DefinitionFormIndex
             Disclosure = extension.ValueKind == JsonValueKind.Object &&
                 extension.TryGetProperty("detail", out JsonElement detail) ? detail.GetString() switch
                 {
-                    "basic" => SetupFieldDisclosure.Essential,
-                    "advanced" => SetupFieldDisclosure.Advanced,
-                    _ => SetupFieldDisclosure.Guided
-                } : SetupFieldDisclosure.Guided;
-            HasEssentialDecision = Disclosure == SetupFieldDisclosure.Essential ||
+                    "basic" => FieldDisclosure.Essential,
+                    "advanced" => FieldDisclosure.Advanced,
+                    _ => FieldDisclosure.Guided
+                } : FieldDisclosure.Guided;
+            HasEssentialDecision = Disclosure == FieldDisclosure.Essential ||
                 Properties.Values.Any(child => child.HasEssentialDecision) || Item?.HasEssentialDecision == true;
             Controllers = Array.AsReadOnly(extension.ValueKind == JsonValueKind.Object &&
                 extension.TryGetProperty("applicableWhen", out JsonElement condition)
@@ -63,7 +63,7 @@ internal sealed class DefinitionFormIndex
         internal Node? Additional { get; }
         internal IReadOnlyList<Node> Variants { get; }
         internal bool HasEssentialDecision { get; }
-        internal SetupFieldDisclosure Disclosure { get; }
+        internal FieldDisclosure Disclosure { get; }
         internal IReadOnlyList<string> Controllers { get; }
 
         private static IEnumerable<string> References(JsonElement condition)
@@ -80,7 +80,7 @@ internal sealed class DefinitionFormIndex
         }
     }
 
-    internal DefinitionFormIndex(SetupDefinition definition, IReadOnlyList<DefinitionFormSection> sections,
+    internal DefinitionFormIndex(Definition definition, IReadOnlyList<DefinitionFormSection> sections,
         IReadOnlyList<DefinitionFormExperience> experiences)
     {
         Roots = definition.Fields.ToDictionary(field => field.Id, field => new Node(field.Node,
@@ -106,7 +106,7 @@ internal sealed class DefinitionFormIndex
                 .OrderBy(section => order.GetValueOrDefault(section.Id, int.MaxValue)).ToArray());
         }, StringComparer.Ordinal);
         var bindings = new Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)>(StringComparer.Ordinal);
-        foreach (SetupArtifactDefinition artifact in definition.Artifacts)
+        foreach (ArtifactDefinition artifact in definition.Artifacts)
             CollectBindings(artifact.Projection, artifact.Id, [], bindings, FieldIds);
         Bindings = bindings.ToDictionary(pair => pair.Key, pair => (
             Artifacts: (IReadOnlyList<string>)Array.AsReadOnly(pair.Value.Artifacts.ToArray()),

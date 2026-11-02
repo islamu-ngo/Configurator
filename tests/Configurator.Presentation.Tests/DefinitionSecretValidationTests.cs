@@ -17,7 +17,7 @@ public sealed class DefinitionSecretValidationTests
           {"op":"equals","reference":{"scope":"root","path":"/provider"},"value":"active"}
           """);
         source["requiredCapabilities"]!.AsArray().Insert(0, "predicate.root");
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         string[] path = [form.Fields.Single(field => field.Definition.Name == "password").Definition.Id];
         string[] provider = [form.Fields.Single(field => field.Definition.Name == "provider").Definition.Id];
         form.EditValue(provider, "active");

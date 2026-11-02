@@ -47,7 +47,7 @@ public sealed class DefinitionBundleTests
     [Test]
     public async Task DeclaredFormatsUseOneSnapshotAndDefinitionOrder()
     {
-        SetupDefinition definition = Definition(3);
+        Definition definition = Definition(3);
         using DefinitionBundleResult result = DefinitionBundleComposer.Compose(definition,
             ["yaml2", "config", "dotenv1"], DefinitionFixture.Answers());
 
@@ -69,7 +69,7 @@ public sealed class DefinitionBundleTests
             await Assert.That(artifact.InputRevision).IsEqualTo(7L);
             await Assert.That(artifact.DefinitionDigest).IsEqualTo(definition.Digest);
             await Assert.That(artifact.Digest.Value).IsEqualTo(digests[index]);
-            await Assert.That(artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+            await Assert.That(artifact.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
             await Assert.That(artifact.ToString().Contains("sample", StringComparison.Ordinal)).IsFalse();
         }
     }
@@ -94,7 +94,7 @@ public sealed class DefinitionBundleTests
         using var activity = new Activity(nameof(CancellationAfterFirstComposedOutputAbandonsTheWholeBundle));
         activity.Start();
         using var measurement = new PreparationMeasurement(activity, _ => cancellation.Cancel());
-        SetupDefinition definition = Definition(3);
+        Definition definition = Definition(3);
 
         await Assert.That(() =>
         {
@@ -140,8 +140,8 @@ public sealed class DefinitionBundleTests
     [Test]
     public async Task AggregateBytesAreBoundedAcrossIndividuallyValidArtifacts()
     {
-        SetupDefinition definition = Definition(64);
-        string value = new('x', SetupCompositionLimits.DefaultScalarCharacters);
+        Definition definition = Definition(64);
+        string value = new('x', CompositionLimits.DefaultScalarCharacters);
         string answer = JsonSerializer.Serialize(new Dictionary<string, string> { ["service.name"] = value });
         DefinitionBundleResult result = DefinitionBundleComposer.Compose(definition,
             definition.Artifacts.Select(item => item.Id), DefinitionFixture.Answers(answer));
@@ -169,8 +169,8 @@ public sealed class DefinitionBundleTests
         second["id"] = "second";
         second["projection"]!["when"]!["value"] = "second";
         root["outputs"]!["service2.json"] = second;
-        SetupDefinition definition = DefinitionFixture.Parse(root.ToJsonString());
-        SetupAnswerSnapshot answers = DefinitionFixture.Answers("""{"service.name":"first"}""");
+        Definition definition = DefinitionFixture.Parse(root.ToJsonString());
+        AnswerSnapshot answers = DefinitionFixture.Answers("""{"service.name":"first"}""");
 
         using DefinitionBundleResult explicitSelection = DefinitionBundleComposer.Compose(definition, ["config", "second"], answers);
         await Assert.That(explicitSelection.Succeeded).IsFalse();
@@ -198,19 +198,19 @@ public sealed class DefinitionBundleTests
             {"id":"bad","format":"dotenv","targetUpdateMode":"create","restartRequirement":"none",
              "projection":{"op":"literal","value":[]}}
             """);
-        await Assert.That(() => DefinitionFixture.Parse(root.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(root.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
     public async Task ActiveBundleRetainsTheAggregateOutputLimit()
     {
         using DefinitionBundleResult result = DefinitionBundleComposer.ComposeActive(Definition(64),
-            DefinitionFixture.Answers("{\"service.name\":\"" + new string('x', SetupCompositionLimits.DefaultScalarCharacters) + "\"}"));
+            DefinitionFixture.Answers("{\"service.name\":\"" + new string('x', CompositionLimits.DefaultScalarCharacters) + "\"}"));
         await Assert.That(result.Artifacts).IsEmpty();
         await Assert.That(result.Diagnostics.Single().Code).IsEqualTo("bundle-limit");
     }
 
-    private static SetupDefinition Definition(int count)
+    private static Definition Definition(int count)
     {
         JsonNode root = JsonNode.Parse(DefinitionFixture.Json)!;
         JsonObject outputs = root["outputs"]!.AsObject();
@@ -225,7 +225,7 @@ public sealed class DefinitionBundleTests
                 artifact["projection"]!["members"]!.AsObject().Remove("name");
             outputs["service" + index + "." + ((index % 3) switch { 1 => "env", 2 => "yaml", _ => "json" })] = artifact;
         }
-        if (count == 64) root["configuration"]!["properties"]!["service.name"]!["maxLength"] = SetupCompositionLimits.DefaultScalarCharacters;
+        if (count == 64) root["configuration"]!["properties"]!["service.name"]!["maxLength"] = CompositionLimits.DefaultScalarCharacters;
         return DefinitionFixture.Parse(root.ToJsonString());
     }
 

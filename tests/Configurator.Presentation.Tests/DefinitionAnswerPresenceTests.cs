@@ -213,7 +213,7 @@ public sealed class DefinitionAnswerPresenceTests
         await Assert.That(form.Snapshot().Values[field].GetRawText()).IsEqualTo(expected);
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"c9fcf10e-526d-4007-bd03-825d039366ed","revision":1,
      "project":{"id":"example","name":"Example","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],

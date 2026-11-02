@@ -52,7 +52,7 @@ public sealed class DefinitionSecretOperationTests
         field["x-configurator"]!["assertFormat"] = true;
         field["x-configurator"]!["secret"]!["constraints"]!["allowedSymbols"] = "";
         source["requiredCapabilities"]!.AsArray().Insert(2, "schema.assertFormat");
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         string[] path = [form.Fields.Single().Definition.Id];
         form.EditValue(path, "synthetic@example.invalid");
         DefinitionSecretOperationResult result = await form.GenerateSecretAsync(path);
@@ -66,7 +66,7 @@ public sealed class DefinitionSecretOperationTests
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["configuration"]!["readOnly"] = true;
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         string[] path = [form.Fields.Single().Definition.Id];
         await Assert.That(form.CanGenerateSecret(path)).IsFalse();
         await Assert.That((await form.GenerateSecretAsync(path)).Code).IsEqualTo("secret-operation-unavailable");
@@ -108,7 +108,7 @@ public sealed class DefinitionSecretOperationTests
               "generation":{"length":24}}}}}}
           """);
         source["requiredCapabilities"]!.AsArray().RemoveAt(2);
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         string[] path = [form.Fields.Single().Definition.Id];
         DefinitionSecretOperationResult result = await form.GenerateSecretAsync(path);
         await Assert.That(result.Succeeded).IsTrue();
@@ -138,7 +138,7 @@ public sealed class DefinitionSecretOperationTests
             ["maxItems"] = 4
         };
         source["requiredCapabilities"]!.AsArray().Insert(2, "schema.array");
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         string[] root = [form.Fields.Single().Definition.Id];
         form.SetValue(root, JsonSerializer.SerializeToElement(OriginalRows));
         string[] path = [root[0], "0"];
@@ -192,7 +192,7 @@ public sealed class DefinitionSecretOperationTests
             : new JsonObject { ["type"] = "object", ["additionalProperties"] = secret };
         source["requiredCapabilities"]!.AsArray().Insert(variant ? 6 : 3, variant ? "schema.variant" : "schema.map");
         if (variant) source["requiredCapabilities"]!.AsArray().Insert(3, "schema.const");
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         string[] root = [form.Fields.Single().Definition.Id];
         form.SetValue(root, JsonSerializer.SerializeToElement(variant
             ? new Dictionary<string, string> { ["kind"] = "first", ["value"] = "synthetic-old-password" }
@@ -279,7 +279,7 @@ public sealed class DefinitionSecretOperationTests
         await Assert.That(result.ToString()).DoesNotContain(form.ReadValue(path)!.Value.GetString()!);
     }
 
-    internal static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    internal static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
       "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
       "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],

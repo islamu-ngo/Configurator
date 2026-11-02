@@ -11,7 +11,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task ItemApplicabilityUsesOnlyItsRowAndInvalidControllersRemainUnknown()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"array","items":{"type":"object","additionalProperties":false,
              "properties":{
               "kind":{"type":["string","null"],"enum":["local","remote",null]},
@@ -37,7 +37,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task RowRelationshipsAllowMutualRequirementsAndConditionalElse()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"array","items":{"type":"object","additionalProperties":false,
              "properties":{"kind":{"type":"string"},"username":{"type":"string"},"password":{"type":"string"}},
              "dependentRequired":{"username":["password"],"password":["username"]},
@@ -64,17 +64,17 @@ public sealed class DefinitionProfileConformanceTests
               "op":"exists","reference":{"scope":"item","path":"/second"}}}},
              "second":{"type":"string","x-configurator":{"applicableWhen":{
               "op":"exists","reference":{"scope":"item","path":"/first"}}}}}}}
-            """)).Throws<SetupDefinitionException>();
+            """)).Throws<DefinitionException>();
     }
 
     [Test]
     public async Task CorrectionsDistinguishPrivateMapEntriesRowsAndNumericDeclaredNames()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"object","additionalProperties":{"type":"array","items":{
              "type":"object","additionalProperties":false,"properties":{"0":{"type":"integer"}}}}}
             """);
-        SetupAnswerSnapshot answers = DefinitionFixture.Answers("""
+        AnswerSnapshot answers = DefinitionFixture.Answers("""
             {"value":{"synthetic-private-key":[{"0":"synthetic-private-answer"}]}}
             """);
         DefinitionDiagnostic diagnostic = DefinitionValidator.Validate(definition, answers).Diagnostics.Single();
@@ -90,7 +90,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task MissingAndNullItemControllersHaveDifferentPresenceAndDeferredControllersAreUnknown()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"array","items":{"type":"object","additionalProperties":false,"properties":{
              "controller":{"type":["string","null"],"x-configurator":{"sensitivity":"secret"}},
              "dependent":{"type":"string","x-configurator":{"applicableWhen":{
@@ -111,7 +111,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task DefiniteMissingWorkInOneRowSurvivesInvalidControlInAnother()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"array","items":{"type":"object","additionalProperties":false,"required":["dependent"],
              "properties":{"controller":{"type":"boolean"},"dependent":{"type":"string",
              "x-configurator":{"applicableWhen":{"op":"equals",
@@ -135,7 +135,7 @@ public sealed class DefinitionProfileConformanceTests
              "reference":{"scope":"root","path":"/zcontroller"},"value":true}}}}}},
              "zcontroller":{"type":"boolean"}}
             """);
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         DefinitionValidationResult result = DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"value":[{}],"zcontroller":true}"""));
         await Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == "value-required" &&
@@ -147,7 +147,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task TypedMapsValidateRecursiveItemsWithoutPublishingPrivateEntryNames()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"object","additionalProperties":{"type":"array","items":{
               "type":"string","enum":["one","two"],"x-configurator":{"sensitivity":"public"}},
               "x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public"}}
@@ -168,7 +168,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task NullableConstrainedItemsPreserveNullAndEnforceExactAssertions()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"array","uniqueItems":true,"items":{"type":["number","null"],
               "exclusiveMinimum":0,"exclusiveMaximum":3,"multipleOf":0.5,
               "x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public"}}
@@ -183,7 +183,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task DiscriminatedProvidersSelectOneClosedBranchAndRetainNullablePresence()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":["object","null"],"x-configurator":{"sensitivity":"public"},"oneOf":[
               {"type":"object","additionalProperties":false,"required":["kind","endpoint"],
                "x-configurator":{"sensitivity":"public"},"properties":{
@@ -220,20 +220,20 @@ public sealed class DefinitionProfileConformanceTests
              "properties":{"value":{"type":"array","items":{"$ref":"#/$defs/text"},
                "x-configurator":{"sensitivity":"public"}}}}
             """);
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await Assert.That(DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"value":["ok"]}""")).IsReady).IsTrue();
         await Assert.That(DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"value":["x"]}""")).IsReady).IsFalse();
         source["configuration"]!["$defs"]!["text"] = JsonNode.Parse("""{"$ref":"#/$defs/text"}""");
-        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
-            .Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<DefinitionException>();
     }
 
     [Test]
     public async Task AssertedFormatsAreOptInAndNeverGrantNetworkOrCredentialAuthority()
     {
-        SetupDefinition descriptive = WithValueSchema("""
+        Definition descriptive = WithValueSchema("""
             {"type":"string","format":"hostname","x-configurator":{"sensitivity":"public"}}
             """);
         await Assert.That(DefinitionValidator.Validate(descriptive,
@@ -246,7 +246,7 @@ public sealed class DefinitionProfileConformanceTests
             ("http-url", "https://example.invalid/docs#section", "https://user:password@example.invalid/")
         })
         {
-            SetupDefinition asserted = WithValueSchema("{\"type\":\"string\",\"format\":\"" + format +
+            Definition asserted = WithValueSchema("{\"type\":\"string\",\"format\":\"" + format +
                 "\",\"x-configurator\":{\"sensitivity\":\"public\",\"assertFormat\":true}}");
             await Assert.That(DefinitionValidator.Validate(asserted,
                 DefinitionFixture.Answers("{\"value\":" + JsonSerializer.Serialize(valid) + "}")).IsReady).IsTrue();
@@ -255,11 +255,11 @@ public sealed class DefinitionProfileConformanceTests
         }
     }
 
-    private static SetupDefinition WithValueSchema(string schema)
+    private static Definition WithValueSchema(string schema)
     {
         JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"]!["properties"] = new JsonObject { ["value"] = JsonNode.Parse(schema) };
-        return SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 
     [Test]
@@ -270,7 +270,7 @@ public sealed class DefinitionProfileConformanceTests
             {"type":"object","minProperties":1,"maxProperties":2,"x-configurator":{"sensitivity":"public"},
              "additionalProperties":{"type":"integer","minimum":0,"x-configurator":{"sensitivity":"public"}}}
             """);
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         using DefinitionArtifact? artifact = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id,
             DefinitionFixture.Answers("""{"A":1,"a":2}""")).Artifact;
         await Assert.That(artifact is not null).IsTrue();
@@ -298,7 +298,7 @@ public sealed class DefinitionProfileConformanceTests
                 "kind":{"type":"string","const":"name","x-configurator":{"sensitivity":"public"}},
                 "name":{"type":"string","minLength":1,"x-configurator":{"sensitivity":"public"}}}}]}
             """);
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         foreach (string answers in new[] { """{"amount":2,"kind":"count"}""", """{"kind":"name","name":"sample"}""" })
         {
             using DefinitionArtifact? artifact = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id,
@@ -319,7 +319,7 @@ public sealed class DefinitionProfileConformanceTests
             {"type":"object","additionalProperties":{"type":"string","x-configurator":{
              "sensitivity":"secret","initialValue":"synthetic-private-initial"}},
              "x-configurator":{"sensitivity":"public"}}
-            """)).Throws<SetupDefinitionException>();
+            """)).Throws<DefinitionException>();
         JsonNode source = JsonNode.Parse(Source)!;
         source["configuration"]!["$defs"] = JsonNode.Parse("""
             {"secret":{"type":"string","writeOnly":true,"x-configurator":{"sensitivity":"secret"}}}
@@ -328,13 +328,13 @@ public sealed class DefinitionProfileConformanceTests
             {"value":{"$ref":"#/$defs/secret","writeOnly":false,"x-configurator":{
              "sensitivity":"public","suggestedValue":"synthetic-private-suggestion"}}}
             """);
-        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
-            .Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<DefinitionException>();
         source["configuration"]!["$defs"] = JsonNode.Parse(
             """{"unused":{"type":"string","executable":"synthetic-executable"}}""");
         source["configuration"]!["properties"] = new JsonObject();
-        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
-            .Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<DefinitionException>();
     }
 
     [Test]
@@ -355,14 +355,14 @@ public sealed class DefinitionProfileConformanceTests
             properties["field" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)] =
                 new JsonObject { ["$ref"] = "#/$defs/text" };
         source["configuration"]!["properties"] = properties;
-        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
-            .Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())))
+            .Throws<DefinitionException>();
     }
 
     [Test]
     public async Task DeferredMapSecretsNeverExposePrivateKeysThroughCompletionMetadata()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{
               "type":"object","additionalProperties":false,"required":["label","credential"],
               "x-configurator":{"sensitivity":"public"},"properties":{
@@ -382,14 +382,14 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task DynamicEntryPointerOverflowRejectsWithBoundedValueFreeDiagnostics()
     {
-        SetupDefinition definition = WithValueSchema("""
+        Definition definition = WithValueSchema("""
             {"type":"object","additionalProperties":{"type":"string","x-configurator":{"sensitivity":"public"}},
              "x-configurator":{"sensitivity":"public"}}
             """);
         string key = "synthetic-private-key" + new string('~', 32_768);
         using JsonDocument answers = JsonDocument.Parse(JsonSerializer.Serialize(
             new Dictionary<string, Dictionary<string, string>> { ["value"] = new() { [key] = "synthetic-private-value" } }));
-        var snapshot = new SetupAnswerSnapshot(1, answers.RootElement.EnumerateObject()
+        var snapshot = new AnswerSnapshot(1, answers.RootElement.EnumerateObject()
             .ToDictionary(property => property.Name, property => property.Value, StringComparer.Ordinal));
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, definition.Artifacts[0].Id, snapshot);
         await Assert.That(result.Artifact).IsNull();
@@ -428,7 +428,7 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task ResolvesInitializationOnlyInsidePresentContainers()
     {
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(Source));
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(Source));
         foreach ((string values, string expected) in new[]
         {
             ("{}", """{"mode":"on"}"""),
@@ -437,7 +437,7 @@ public sealed class DefinitionProfileConformanceTests
                 """{"A":false,"a":0,"mode":"on","nullable":null,"text":""}""")
         })
         {
-            SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
+            AnswerSnapshot snapshot = AnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
                 """{"answerContractVersion":"0.0.1","values":""" + values + ""","omitted":[]}"""));
             DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition,
                 definition.Artifacts[0].Id, snapshot);
@@ -450,14 +450,14 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task OmissionSuppressesInitializationAndResetRestoresEligibility()
     {
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(Source));
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(Source));
         foreach ((string omissions, string expected) in new[]
         {
             ("""["/mode"]""", "{}"),
             ("[]", """{"mode":"on"}""")
         })
         {
-            SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
+            AnswerSnapshot snapshot = AnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(
                 """{"answerContractVersion":"0.0.1","values":{},"omitted":""" + omissions + "}"), inputRevision: 7);
             DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition,
                 definition.Artifacts[0].Id, snapshot);
@@ -481,8 +481,8 @@ public sealed class DefinitionProfileConformanceTests
             """{"answerContractVersion":"0.0.1","values":{"A":1,"A":2},"omitted":[]}""",
             """{"answerContractVersion":"0.0.1","values":null,"omitted":[]}"""
         })
-            await Assert.That(() => SetupAnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(envelope)))
-                .Throws<SetupDefinitionException>();
+            await Assert.That(() => AnswerSnapshotCodec.ParseJson(Encoding.UTF8.GetBytes(envelope)))
+                .Throws<DefinitionException>();
     }
 
     [Test]
@@ -492,8 +492,8 @@ public sealed class DefinitionProfileConformanceTests
         foreach (JsonNode? version in new JsonNode?[] { JsonValue.Create("unsupported"), JsonValue.Create(1), null })
         {
             runtime["schemaVersion"] = version;
-            await Assert.That(() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString())))
-                .Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString())))
+                .Throws<DefinitionException>();
         }
         foreach (string source in new[]
         {
@@ -501,8 +501,8 @@ public sealed class DefinitionProfileConformanceTests
             Source.Replace("\"type\":\"string\"", "\"type\":\"string\",\"executable\":\"synthetic\"", StringComparison.Ordinal),
             Source.Replace("\"additionalProperties\":false", "\"additionalProperties\":true", StringComparison.Ordinal)
         })
-            await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source)))
-                .Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source)))
+                .Throws<DefinitionException>();
     }
 
     [Test]
@@ -527,9 +527,9 @@ public sealed class DefinitionProfileConformanceTests
     {
         foreach (string pointer in new[] { "not/a/pointer", "/~", "/~2", "/\ud800", "/\udc00",
             new string('/', 33), "/" + new string('x', 65_536) })
-            await Assert.That(() => DefinitionPath.Parse(pointer)).Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionPath.Parse(pointer)).Throws<DefinitionException>();
         await Assert.That(() => DefinitionPath.FromSegments(Enumerable.Repeat("x", 33)))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
         await Assert.That(DefinitionPath.Parse(new string('/', 32)).Segments.Count).IsEqualTo(32);
     }
 
@@ -580,16 +580,16 @@ public sealed class DefinitionProfileConformanceTests
                 DefinitionProfile.CanonicalizeJson(Encoding.UTF8.GetBytes(json));
                 throw new InvalidOperationException("Expected admission refusal.");
             }
-            catch (SetupDefinitionException exception)
+            catch (DefinitionException exception)
             {
                 await Assert.That(exception.Message.Contains("synthetic", StringComparison.Ordinal)).IsFalse();
             }
         }
         await Assert.That(() => DefinitionProfile.CanonicalizeJson(new byte[] { 123, 34, 120, 34, 58, 34, 0xFF, 34, 125 }))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
         foreach (string yaml in new[] { "\"x\": 1\n\"x\": 2", "\"x\": \"\\uD800\"", "x: &a value\ny: *a", "x: !run value", "x: 1e29" })
             await Assert.That(() => DefinitionProfile.CanonicalizeYaml(Encoding.UTF8.GetBytes(yaml)))
-                .Throws<SetupDefinitionException>();
+                .Throws<DefinitionException>();
     }
 
     [Test]
@@ -606,11 +606,11 @@ public sealed class DefinitionProfileConformanceTests
             "{\"x\":[" + string.Join(",", Enumerable.Repeat("[" + string.Join(",", Enumerable.Repeat("0", 4096)) + "]", 16)) + "]}"
         })
             await Assert.That(() => DefinitionProfile.CanonicalizeJson(Encoding.UTF8.GetBytes(json)))
-                .Throws<SetupDefinitionException>();
+                .Throws<DefinitionException>();
         await Assert.That(() => DefinitionProfile.CanonicalizeJson(new byte[4_194_305]))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
         await Assert.That(() => DefinitionProfile.CanonicalizeYaml(new byte[4_194_305]))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
     }
 
     [Test]
@@ -640,18 +640,18 @@ public sealed class DefinitionProfileConformanceTests
     [Test]
     public async Task RecursiveNodesRejectInvalidShapesAndBoundExpandedTrees()
     {
-        await Assert.That(() => new DefinitionNode(DefinitionNodeType.Sequence)).Throws<SetupDefinitionException>();
+        await Assert.That(() => new DefinitionNode(DefinitionNodeType.Sequence)).Throws<DefinitionException>();
         await Assert.That(() => new DefinitionNode(DefinitionNodeType.Text, items: new DefinitionNode(DefinitionNodeType.Boolean)))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
         await Assert.That(() => new DefinitionNode(DefinitionNodeType.Mapping, required: ["missing"]))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
         await Assert.That(() => new DefinitionNode(DefinitionNodeType.Mapping,
             properties: new Dictionary<string, DefinitionNode> { ["\ud800"] = new(DefinitionNodeType.Text) }))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
         DefinitionNode node = new(DefinitionNodeType.Text);
         for (int depth = 1; depth < 32; depth++) node = new DefinitionNode(DefinitionNodeType.Sequence, items: node);
         DefinitionNode deepest = node;
-        await Assert.That(() => new DefinitionNode(DefinitionNodeType.Sequence, items: deepest)).Throws<SetupDefinitionException>();
+        await Assert.That(() => new DefinitionNode(DefinitionNodeType.Sequence, items: deepest)).Throws<DefinitionException>();
         DefinitionNode repeated = new(DefinitionNodeType.Text);
         for (int depth = 0; depth < 4; depth++)
             repeated = new DefinitionNode(DefinitionNodeType.Mapping,
@@ -659,6 +659,6 @@ public sealed class DefinitionProfileConformanceTests
         DefinitionNode expanded = repeated;
         await Assert.That(() => new DefinitionNode(DefinitionNodeType.Mapping,
             properties: Enumerable.Range(0, 10).Select(index => KeyValuePair.Create(index.ToString(System.Globalization.CultureInfo.InvariantCulture), expanded))))
-            .Throws<SetupDefinitionException>();
+            .Throws<DefinitionException>();
     }
 }

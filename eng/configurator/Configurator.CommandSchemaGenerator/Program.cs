@@ -8,7 +8,7 @@ if (args.Length != 1 || args[0] is not ("--write" or "--check" or "--stdout"))
 
 try
 {
-    byte[] expected = SetupCliCommandSchemaMetadata.GenerateSchema();
+    byte[] expected = CliCommandSchemaMetadata.GenerateSchema();
     if (args[0] == "--stdout")
     {
         using Stream output = Console.OpenStandardOutput();
@@ -18,7 +18,7 @@ try
     DirectoryInfo? current = new(Directory.GetCurrentDirectory());
     while (current is not null && !File.Exists(Path.Combine(current.FullName, "Configurator.slnx"))) current = current.Parent;
     if (current is null) throw new InvalidDataException("repository-root-not-found");
-    string path = Path.Combine(current.FullName, SetupCliCommandSchemaMetadata.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+    string path = Path.Combine(current.FullName, CliCommandSchemaMetadata.RelativePath.Replace('/', Path.DirectorySeparatorChar));
     if (args[0] == "--check")
     {
         if (!File.Exists(path) || !File.ReadAllBytes(path).AsSpan().SequenceEqual(expected))

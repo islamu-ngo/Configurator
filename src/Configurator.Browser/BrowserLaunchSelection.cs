@@ -10,7 +10,7 @@ public sealed class BrowserLaunchException(string code) : Exception(code)
 }
 
 /// <summary>Captures the exact admitted document, not a mutable registry lookup.</summary>
-public sealed record BrowserLaunchSelection(SetupDefinition Definition, string Entry, string Locale, bool EntryExplicit)
+public sealed record BrowserLaunchSelection(Definition Definition, string Entry, string Locale, bool EntryExplicit)
 {
     internal static IReadOnlySet<string> EditingCapabilities { get; } = new[]
     {
@@ -22,7 +22,7 @@ public sealed record BrowserLaunchSelection(SetupDefinition Definition, string E
         "schema.uniqueItems", "schema.assertFormat", "schema.secret", "values.initial", "values.suggested"
     }.ToFrozenSet(StringComparer.Ordinal);
     public static BrowserLaunchSelection Resolve(
-        SetupDefinitionRegistry registry, string familyId, string query)
+        DefinitionRegistry registry, string familyId, string query)
     {
         if (!Guid.TryParseExact(familyId, "D", out Guid family)
             || family == Guid.Empty || family.ToString("D") != familyId)
@@ -62,12 +62,12 @@ public sealed record BrowserLaunchSelection(SetupDefinition Definition, string E
                 throw new BrowserLaunchException("digest-invalid");
             digest = parsed;
         }
-        SetupDefinition definition;
+        Definition definition;
         try
         {
             definition = registry.Resolve(family, selectors.GetValueOrDefault("appVersion"), digest);
         }
-        catch (SetupDefinitionException exception)
+        catch (DefinitionException exception)
         {
             throw new BrowserLaunchException(exception.Code);
         }

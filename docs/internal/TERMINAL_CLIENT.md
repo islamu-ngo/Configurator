@@ -16,7 +16,7 @@ DTOs, built-in catalogue, HTTP client or implicit application selection remain.
 
 ### Schema-driven secret actions
 
-`SetupTerminalWindow.Secrets` delegates generation and derivation to
+`TerminalWindow.Secrets` delegates generation and derivation to
 `DefinitionFormModel.GenerateSecretAsync`, capturing the selected leaf path.
 Presentation owns eligibility, revision/editor identity fencing, cancellation
 and application; the terminal never implements a cryptographic profile. Field
@@ -25,7 +25,7 @@ clients. Ordinary editing remains possible when a value violates a policy.
 
 Generate/Regenerate, Show/Hide and Copy secret are separate keyboard buttons.
 Visibility changes suppress editor change notifications and do not change the
-answer. `SetupSecretTextField` continues blocking normal copy/cut/context/undo
+answer. `SecretTextField` continues blocking normal copy/cut/context/undo
 commands even while revealed. Copy invokes the current application's native
 `IClipboard` only after its capability check; failure preserves the value and
 does not attempt an OSC52 escape-sequence fallback.
@@ -50,19 +50,19 @@ interfaces supply native capability and transfer status. Interface research:
 
 ### Session and editing
 
-`SetupTerminalProgram` rejects redirected stdin, stdout or stderr before loading
+`TerminalProgram` rejects redirected stdin, stdout or stderr before loading
 a definition (`interactive-terminal-required`, exit 4). This is an interactive
 surface; scripts and redirected streams use the CLI instead. `--help` is handled
 before the interactive-stream gate.
 
-`SetupTerminalDefinitionSelection` reads bounded local files, admits JSON/YAML
-through `SetupDefinitionCodec`, or explicitly resolves a family and optional
-application version through `SetupDefinitionRegistry`. Definition bytes are
+`TerminalDefinitionSelection` reads bounded local files, admits JSON/YAML
+through `DefinitionCodec`, or explicitly resolves a family and optional
+application version through `DefinitionRegistry`. Definition bytes are
 cleared after admission. Registry ambiguity is Core's decision, not a newest-
 revision heuristic in the terminal.
 
-`SetupTerminalApplication` owns one `DefinitionFormModel` and one presentation
-workspace. `SetupTerminalFieldEditor` exposes object/list/map/variant slots,
+`TerminalApplication` owns one `DefinitionFormModel` and one presentation
+workspace. `TerminalFieldEditor` exposes object/list/map/variant slots,
 expands selected object properties and typed map values into scalar leaves, and
 edits scalar lists one item at a time. Each mutation uses a literal shared form
 path through `EditValue`, `SelectChoice`, `SetValue` or the shared container
@@ -97,7 +97,7 @@ an existing empty string item remains a value. Item navigation cannot enter an
 append position at the list limit, including a zero-capacity list. Bound feedback
 does not prevent field navigation or editing existing items.
 
-`SetupTerminalWindow` uses native focusable controls with keyboard buttons,
+`TerminalWindow` uses native focusable controls with keyboard buttons,
 bounded layout and English/Arabic resource parity. Small terminals hide editing
 controls rather than overlapping them. The current editor is committed before
 ordinary validation, preparation or editor navigation; type errors prevent that
@@ -114,7 +114,7 @@ Private editors hold bullets only in `TextField.Text`; clearable character
 buffers hold the input. Clipboard/context/history commands are blocked.
 
 Optional-editor and experience changes dispatch back to the window owner before
-refreshing the selected editor. `SetupTerminalFieldEditor.Read` first asks
+refreshing the selected editor. `TerminalFieldEditor.Read` first asks
 `DefinitionFormModel.ReadDraftText` for the exact scalar or selected list-item
 path, then falls back to committed content. The shared custody fence controls
 draft access; the window restores protected text only into its existing masked
@@ -125,7 +125,7 @@ and reading an untouched or nonexistent append position does not supply an item.
 The locale action calls `SelectLocale` for admitted public metadata only.
 `GetEditorPresentation` and `GetVariantTitle` supply translated titles and choice
 labels with base fallback; shipped action resources remain culture-selected.
-`SetupTerminalText.FormatHelp` assembles descriptions, instructions, units,
+`TerminalText.FormatHelp` assembles descriptions, instructions, units,
 choice explanations, credential acquisition guidance and static links.
 `HelpPages` bounds the visible two-line page, preserves multiline navigation,
 and replaces control characters without interpreting terminal escapes or markup.
@@ -154,7 +154,7 @@ generation. Declared filenames stay inside the selected working directory; the
 definition's filename is never treated as an arbitrary path authority.
 
 The import field accepts a local file for the artifact at the cursor, whether or
-not that artifact is selected for output. `SetupTerminalImportOperation` starts
+not that artifact is selected for output. `TerminalImportOperation` starts
 one observed read and returns from the action callback immediately. Compare is
 the default action; Fill fields is a separate deliberate action. Synchronous
 file open/stat runs at the owned background boundary; the bounded file body uses
@@ -207,7 +207,7 @@ domains. [Operations](OPERATIONS.md) routes the actual published-process
 observations and separately scoped native Core resource measurements. Neither
 headless assertions nor those measurements qualify every host or assistive tool.
 
-Saving executes through `SetupPresentationWorkspace.ExecuteAsync`, which
+Saving executes through `PresentationWorkspace.ExecuteAsync`, which
 owns operation generations and cancellation. The bundle publisher prepares all
 destinations through `IProtectedArtifactWriter` before committing any file; each
 commit is create-only and protected. Existing targets and unsupported platforms
@@ -218,9 +218,9 @@ before retrying; no automatic deletion or overwrite occurs. No private output
 is placed in the workspace's public output.
 
 Publication has a physical lifetime independent of workspace readiness.
-`SetupTerminalArtifactOperation` rejects overlapping publication and retains one
+`TerminalArtifactOperation` rejects overlapping publication and retains one
 current receipt plus the newest 16 settled attempts, each bounded to 64 declared
-outcomes. `SetupTerminalPublicationReceipt` copies its collection and contains
+outcomes. `TerminalPublicationReceipt` copies its collection and contains
 only attempt/artifact identifiers, immutable `ProtectedArtifactCommitResult`
 facts and safe completion flags. Installation, immediate verification and cleanup
 remain separate; `TargetChanged` with `InstallationEstablished` is not a failed

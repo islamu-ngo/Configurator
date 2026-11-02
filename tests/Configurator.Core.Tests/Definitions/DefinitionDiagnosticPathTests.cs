@@ -10,11 +10,11 @@ public sealed class DefinitionDiagnosticPathTests
     [Test]
     public async Task AuthoringCompilePreservesOriginalJsonSchemaSpansWithoutChangingDigest()
     {
-        SetupDefinition definition = DefinitionFixture.Parse(SourceMapSource);
+        Definition definition = DefinitionFixture.Parse(SourceMapSource);
         await Assert.That(definition.SourceMap.TryGetSpan("/configuration/type", out DefinitionSourceSpan span)).IsTrue();
         await Assert.That(span).IsEqualTo(new DefinitionSourceSpan(0, 7, 13, 7, 21));
         using JsonDocument parsed = JsonDocument.Parse(SourceMapSource);
-        SetupDefinition compact = DefinitionFixture.Parse(JsonSerializer.Serialize(parsed.RootElement));
+        Definition compact = DefinitionFixture.Parse(JsonSerializer.Serialize(parsed.RootElement));
         await Assert.That(compact.Digest).IsEqualTo(definition.Digest);
         await Assert.That(compact.CanonicalBytes.ToArray().SequenceEqual(definition.CanonicalBytes.ToArray())).IsTrue();
         await Assert.That(compact.SourceMap.TryGetSpan("/configuration/type", out DefinitionSourceSpan compactSpan)).IsTrue();
@@ -24,7 +24,7 @@ public sealed class DefinitionDiagnosticPathTests
     [Test]
     public async Task AuthoringCompilePreservesYamlSchemaSpansFromOriginalEvents()
     {
-        SetupDefinition definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseYaml(
+        Definition definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseYaml(
             Encoding.UTF8.GetBytes("""
             $schema: urn:islamu:configurator:authoring:v0.0.1
             identity: {familyId: 0d9f1857-93ad-4b7d-8be1-bd9e7223c587, revision: 1}
@@ -48,9 +48,9 @@ public sealed class DefinitionDiagnosticPathTests
     {
         string source = SourceMapSource.Replace("\"type\": \"integer\"",
             "\"type\": \"integer\", \"synthetic-private-key\": \"synthetic-private-value\"", StringComparison.Ordinal);
-        SetupDefinitionException? failure = null;
+        DefinitionException? failure = null;
         try { _ = DefinitionFixture.Parse(source); }
-        catch (SetupDefinitionException exception) { failure = exception; }
+        catch (DefinitionException exception) { failure = exception; }
         await Assert.That(failure).IsNotNull();
         await Assert.That(failure!.SchemaPath).IsEqualTo("/configuration/properties/0");
         await Assert.That(failure.SourceSpan.HasValue).IsTrue();
@@ -64,9 +64,9 @@ public sealed class DefinitionDiagnosticPathTests
     {
         string source = SourceMapSource.Replace("\"type\": \"integer\"",
             "\"$ref\": \"#/synthetic-private-reference\"", StringComparison.Ordinal);
-        SetupDefinitionException? failure = null;
+        DefinitionException? failure = null;
         try { _ = DefinitionFixture.Parse(source); }
-        catch (SetupDefinitionException exception) { failure = exception; }
+        catch (DefinitionException exception) { failure = exception; }
         await Assert.That(failure).IsNotNull();
         await Assert.That(failure!.SchemaPath).IsEqualTo("/configuration/properties/0");
         await Assert.That(failure.SourceSpan.HasValue).IsTrue();
@@ -82,12 +82,12 @@ public sealed class DefinitionDiagnosticPathTests
             "\"type\": \"object\", \"additionalProperties\":{\"type\":\"string\",\"x-configurator\":{\"sensitivity\":\"public\"}}, \"x-configurator\":{\"sensitivity\":\"public\"}, \"default\": {\"synthetic-private-key\":\"synthetic-private-value\"}",
             StringComparison.Ordinal);
         DefinitionAuthoringDocument document = DefinitionAuthoringCodec.ParseJson(Encoding.UTF8.GetBytes(source));
-        SetupDefinitionException? failure = null;
+        DefinitionException? failure = null;
         try { _ = DefinitionAuthoringCompiler.Compile(document); }
-        catch (SetupDefinitionException exception) { failure = exception; }
+        catch (DefinitionException exception) { failure = exception; }
         // The descriptive default is public and schema-valid; its value tree is not source-map structure.
         await Assert.That(failure).IsNull();
-        SetupDefinition definition = DefinitionAuthoringCompiler.Compile(document);
+        Definition definition = DefinitionAuthoringCompiler.Compile(document);
         await Assert.That(definition.SourceMap.TryGetSpan("/configuration/properties/0/default", out _)).IsTrue();
         await Assert.That(JsonSerializer.Serialize(definition.SourceMap)).DoesNotContain("synthetic-private");
     }
@@ -98,9 +98,9 @@ public sealed class DefinitionDiagnosticPathTests
         string privateName = "synthetic-private-key" + new string('x', 65_515);
         string source = SourceMapSource.Replace("\"0\"", JsonSerializer.Serialize(privateName), StringComparison.Ordinal)
             .Replace("\"integer\"", "\"unsupported\"", StringComparison.Ordinal);
-        SetupDefinitionException? failure = null;
+        DefinitionException? failure = null;
         try { _ = DefinitionFixture.Parse(source); }
-        catch (SetupDefinitionException exception) { failure = exception; }
+        catch (DefinitionException exception) { failure = exception; }
 
         await Assert.That(failure).IsNotNull();
         await Assert.That(failure!.SchemaPath).IsEqualTo("/configuration/properties");
@@ -150,7 +150,7 @@ public sealed class DefinitionDiagnosticPathTests
             DefinitionFixture.Answers("""{"rows":[],"options":{"dotted.name":1}}"""));
 
         await Assert.That(result.Nodes.Single(node => node.FieldId == "options" && node.RelativePath.Count == 0).Sensitivity)
-            .IsEqualTo(SetupFieldSensitivity.Secret);
+            .IsEqualTo(FieldSensitivity.Secret);
     }
 
     [Test]
@@ -232,7 +232,7 @@ public sealed class DefinitionDiagnosticPathTests
         await Assert.That(diagnostic.RelativePath.SequenceEqual(["1", "name"])).IsTrue();
     }
 
-    private static SetupDefinition Definition() => DefinitionFixture.Parse(Source);
+    private static Definition Definition() => DefinitionFixture.Parse(Source);
 
     private const string SourceMapSource = """
     {

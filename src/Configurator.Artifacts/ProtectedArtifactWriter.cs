@@ -120,7 +120,7 @@ public interface IProtectedArtifactWriter
     bool IsAvailable { get; }
 
     Task<ProtectedArtifactPreparation> PrepareAsync(
-        SetupArtifactKind kind,
+        ArtifactKind kind,
         string targetPath,
         ReadOnlyMemory<byte> bytes,
         CancellationToken cancellationToken = default);
@@ -138,17 +138,17 @@ public sealed class ProtectedArtifactWriter : IProtectedArtifactWriter
 
     public bool IsAvailable => OperatingSystem.IsLinux();
 
-    public static void WritePublic(Stream destination, SetupArtifactKind kind, ReadOnlyMemory<byte> bytes)
+    public static void WritePublic(Stream destination, ArtifactKind kind, ReadOnlyMemory<byte> bytes)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        if (bytes.Length > MaximumBytes || !SetupArtifactPolicy.TryProjectPublic(kind, bytes, out var projection))
+        if (bytes.Length > MaximumBytes || !ArtifactPolicy.TryProjectPublic(kind, bytes, out var projection))
             throw new IOException("protected-output-required");
         destination.Write(projection.Span);
         destination.Flush();
     }
 
     public async Task<ProtectedArtifactPreparation> PrepareAsync(
-        SetupArtifactKind kind,
+        ArtifactKind kind,
         string targetPath,
         ReadOnlyMemory<byte> bytes,
         CancellationToken cancellationToken = default)

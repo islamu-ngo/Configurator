@@ -35,7 +35,7 @@ public sealed class BrowserReleaseContractTests
         await Assert.That(registry.Current.Definitions.Count > 0).IsTrue();
         foreach (var definition in registry.Current.Definitions)
         {
-            var readmitted = Configurator.Core.Definitions.SetupDefinitionCodec.ParseJson(definition.CanonicalBytes);
+            var readmitted = Configurator.Core.Definitions.DefinitionCodec.ParseJson(definition.CanonicalBytes);
             await Assert.That(readmitted.Digest).IsEqualTo(definition.Digest);
             await Assert.That(readmitted.FamilyId).IsEqualTo(definition.FamilyId);
             await Assert.That(readmitted.Revision).IsEqualTo(definition.Revision);

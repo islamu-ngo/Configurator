@@ -19,7 +19,7 @@ public sealed class DefinitionObjectListTests
            "credential":{"type":"string","x-configurator":{"sensitivity":"secret","detail":"basic","notBlank":true},"title":"Credential","minLength":1}}}}
         """;
 
-    internal static SetupDefinition Definition(string? field = null)
+    internal static Definition Definition(string? field = null)
     {
         return DefinitionFixture.Parse(Source(field));
     }
@@ -34,8 +34,8 @@ public sealed class DefinitionObjectListTests
     [Test]
     public async Task ObjectRowsValidateUniquenessStructureBoundsAndRecursiveSensitivity()
     {
-        SetupDefinition definition = Definition();
-        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+        Definition definition = Definition();
+        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(FieldSensitivity.Secret);
         await Assert.That(DefinitionValidator.Validate(definition, DefinitionFixture.Answers(
             """{"service.name":[{"metadata":{"name":"one"},"credential":"synthetic"},{"metadata":{"name":"One"},"credential":"synthetic"}]}""")).IsReady).IsTrue();
         foreach (string rows in new[]
@@ -73,7 +73,7 @@ public sealed class DefinitionObjectListTests
                 .Replace(",\"notBlank\":true", "", StringComparison.Ordinal).Replace(",\"minLength\":1", "", StringComparison.Ordinal),
             sequenceIntermediate.ToJsonString(),
             """{"type":"array","items":{"type":"string"},"x-configurator":{"sensitivity":"public","detail":"basic","uniqueBy":"/name"},"title":"Rows"}"""
-        }) await Assert.That(() => Definition(field)).Throws<SetupDefinitionException>();
+        }) await Assert.That(() => Definition(field)).Throws<DefinitionException>();
     }
 
     [Test]
@@ -115,9 +115,9 @@ public sealed class DefinitionObjectListTests
     {
         JsonElement nodes = JsonSerializer.SerializeToElement(Enumerable.Range(0, 4000).ToArray());
         var nodeAnswers = Enumerable.Range(0, 17).ToDictionary(index => "field" + index, _ => nodes, StringComparer.Ordinal);
-        await Assert.That(() => new SetupAnswerSnapshot(1, nodeAnswers)).Throws<SetupDefinitionException>();
+        await Assert.That(() => new AnswerSnapshot(1, nodeAnswers)).Throws<DefinitionException>();
         JsonElement scalar = JsonSerializer.SerializeToElement(new string('x', 65_536));
         var scalarAnswers = Enumerable.Range(0, 17).ToDictionary(index => "field" + index, _ => scalar, StringComparer.Ordinal);
-        await Assert.That(() => new SetupAnswerSnapshot(1, scalarAnswers)).Throws<SetupDefinitionException>();
+        await Assert.That(() => new AnswerSnapshot(1, scalarAnswers)).Throws<DefinitionException>();
     }
 }

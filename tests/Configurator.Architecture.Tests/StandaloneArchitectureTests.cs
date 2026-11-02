@@ -76,11 +76,11 @@ public sealed class StandaloneArchitectureTests
 
     [Test]
     [Arguments("Core", typeof(ProtectedArtifactWriter), "Configurator.Artifacts")]
-    [Arguments("Artifacts", typeof(SetupPresentationWorkspace), "Configurator.Presentation")]
+    [Arguments("Artifacts", typeof(PresentationWorkspace), "Configurator.Presentation")]
     [Arguments("Presentation", typeof(ProtectedArtifactWriter), "Configurator.Artifacts")]
-    [Arguments("Cli", typeof(SetupPresentationWorkspace), "Configurator.Presentation")]
-    [Arguments("Terminal", typeof(SetupCliCommandSchemaMetadata), "Configurator.Cli")]
-    [Arguments("Desktop", typeof(SetupCliCommandSchemaMetadata), "Configurator.Cli")]
+    [Arguments("Cli", typeof(PresentationWorkspace), "Configurator.Presentation")]
+    [Arguments("Terminal", typeof(CliCommandSchemaMetadata), "Configurator.Cli")]
+    [Arguments("Desktop", typeof(CliCommandSchemaMetadata), "Configurator.Cli")]
     [Arguments("Browser", typeof(ProtectedArtifactWriter), "Configurator.Artifacts")]
     [Arguments("Browser.Host", typeof(ProtectedArtifactWriter), "Configurator.Artifacts")]
     public async Task CompiledDependencyGuardRejectsForbiddenLocalEdges(
@@ -88,9 +88,9 @@ public sealed class StandaloneArchitectureTests
     {
         Type[] allowedTypes = AllowedFirstPartyDependencies(owner).Select(name => name switch
         {
-            "Configurator.Core" => typeof(SetupDefinition),
+            "Configurator.Core" => typeof(Definition),
             "Configurator.Artifacts" => typeof(ProtectedArtifactWriter),
-            "Configurator.Presentation" => typeof(SetupPresentationWorkspace),
+            "Configurator.Presentation" => typeof(PresentationWorkspace),
             _ => throw new InvalidOperationException($"No compiled canary type for {name}.")
         }).ToArray();
         using var allowedImage = CompileDependencyCanary(owner, allowedTypes);
@@ -149,7 +149,7 @@ public sealed class StandaloneArchitectureTests
     [Test]
     public async Task NeutralDefinitionComposesWithoutEventAndRemainsRestricted()
     {
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson("""
+        Definition definition = DefinitionCodec.ParseJson("""
             {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"9284f310-9901-411b-8024-c14444dce5db","revision":1,
              "project":{"id":"neutral.service","name":"Neutral","publisher":"Example"},
              "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],
@@ -162,16 +162,16 @@ public sealed class StandaloneArchitectureTests
                 "targetUpdateMode":"create","restartRequirement":"process",
                 "projection":{"op":"object","members":{"mode":{"op":"copy","reference":{"scope":"root","path":"/mode"}}}}}]}
             """u8.ToArray());
-        var answers = new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>
+        var answers = new AnswerSnapshot(1, new Dictionary<string, JsonElement>
         {
             ["mode"] = JsonSerializer.SerializeToElement("local")
         });
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "config", answers);
         await Assert.That(result.Succeeded).IsTrue();
         await Assert.That(result.Artifact!.Bytes.Span.SequenceEqual("""{"mode":"local"}"""u8)).IsTrue();
-        await Assert.That(result.Artifact!.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+        await Assert.That(result.Artifact!.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
         using var publicStream = new MemoryStream();
-        await Assert.That(() => ProtectedArtifactWriter.WritePublic(publicStream, SetupArtifactKind.Configuration, result.Artifact.Bytes))
+        await Assert.That(() => ProtectedArtifactWriter.WritePublic(publicStream, ArtifactKind.Configuration, result.Artifact.Bytes))
             .Throws<IOException>();
         await Assert.That(publicStream.Length).IsEqualTo(0);
         await Assert.That(new ProtectedArtifactWriter().IsAvailable).IsEqualTo(OperatingSystem.IsLinux());
@@ -186,15 +186,15 @@ public sealed class StandaloneArchitectureTests
         await Assert.That(baseline.RootElement.GetProperty("authoringSchemaSha256").GetString())
             .IsEqualTo(ReleaseTestPaths.Hash(System.Text.Encoding.UTF8.GetBytes(DefinitionAuthoringSchema.Generate())));
         await Assert.That(baseline.RootElement.GetProperty("commandSchemaSha256").GetString())
-            .IsEqualTo(ReleaseTestPaths.Hash(SetupCliCommandSchemaMetadata.GenerateSchema()));
+            .IsEqualTo(ReleaseTestPaths.Hash(CliCommandSchemaMetadata.GenerateSchema()));
         await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/setup-definition.schema.json")))
             .IsEqualTo(DefinitionSchema.Generate());
         await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-authoring.schema.json")))
             .IsEqualTo(DefinitionAuthoringSchema.Generate());
         await Assert.That(File.ReadAllText(Path.Combine(ReleaseTestPaths.Root, "schemas/configurator-answers.schema.json")))
             .IsEqualTo(DefinitionSchema.GenerateAnswers());
-        await Assert.That(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, SetupCliCommandSchemaMetadata.RelativePath)))
-            .IsEquivalentTo(SetupCliCommandSchemaMetadata.GenerateSchema());
+        await Assert.That(File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root, CliCommandSchemaMetadata.RelativePath)))
+            .IsEquivalentTo(CliCommandSchemaMetadata.GenerateSchema());
         await Assert.That(baseline.RootElement.GetProperty("signedPublicationEnabled").GetBoolean()).IsFalse();
     }
 }

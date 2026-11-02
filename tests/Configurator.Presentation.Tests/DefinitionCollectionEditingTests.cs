@@ -31,7 +31,7 @@ public sealed class DefinitionCollectionEditingTests
 
         form.SetDiscovery("settings");
         form.SetEditorExpanded(["rows", "0"], true);
-        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        form.SetDisclosureOverride(FieldDisclosure.Advanced);
 
         await Assert.That(views).IsEqualTo(3);
         await Assert.That(inputs).IsEqualTo(0);
@@ -91,7 +91,7 @@ public sealed class DefinitionCollectionEditingTests
         properties["literal.name"] = name;
         metadata["required"] = new JsonArray("literal.name");
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.AddListItem(["rows"]);
         form.AddListItem(["rows"]);
         form.EditValue(["rows", "1", "metadata", "literal.name"], "ordinary");
@@ -139,7 +139,7 @@ public sealed class DefinitionCollectionEditingTests
         metadata["required"] = new JsonArray();
         metadata["properties"]!["name"]!["x-configurator"]!["detail"] = "advanced";
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.AddListItem(["rows"]);
         form.AddListItem(["rows"]);
         await Assert.That(form.IsEditorVisible(["rows", "1", "metadata", "name"])).IsFalse();
@@ -161,7 +161,7 @@ public sealed class DefinitionCollectionEditingTests
             "projection.copy", "projection.object", "schema.array", "schema.boolean", "schema.bounds",
             "schema.integer", "schema.object", "schema.string", "values.initial");
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.AddListItem(["rows"]);
         form.EditValue(["rows", "0", "password"], "synthetic-secret-draft");
@@ -198,9 +198,9 @@ public sealed class DefinitionCollectionEditingTests
         string identity = form.GetEditorIdentity(["rows", "1", "settings", "enabled"]);
         form.EditValue(["rows", "1", "settings", "enabled"], "not-a-boolean");
         form.SetAllSectionsExpanded(true);
-        form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
+        form.SetDisclosureOverride(FieldDisclosure.Essential);
         await Assert.That(form.IsEditorVisible(["rows", "1", "settings", "enabled"])).IsTrue();
-        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        form.SetDisclosureOverride(FieldDisclosure.Advanced);
         form.SetDiscovery("settings");
         form.RemoveListItem(["rows"], 0);
 
@@ -258,7 +258,7 @@ public sealed class DefinitionCollectionEditingTests
         await Assert.That(rows[0].TryGetProperty("password", out _)).IsFalse();
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"03b3abf0-08e0-4e56-b94a-b78d25d28901","revision":1,
      "project":{"id":"example","name":"Example","publisher":"example"},
      "applicationVersions":["1"],"entryPoints":["setup"],"locales":["en"],

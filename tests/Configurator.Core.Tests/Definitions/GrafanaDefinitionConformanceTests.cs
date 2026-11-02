@@ -10,8 +10,8 @@ public sealed class GrafanaDefinitionConformanceTests
     [Arguments("datasource", "GrafanaExpected.Datasource", "0f097bbcc96b617a693d6237fcbc0a09a1463ffc16d6ad0b2452071535721a8b")]
     public async Task SyntheticAnswersProducePinnedRestrictedBytes(string artifactId, string expectedResource, string digest)
     {
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("GrafanaDefinition"));
-        SetupAnswerSnapshot snapshot = SetupAnswerSnapshotCodec.ParseJson(Resource("GrafanaAnswers"), 1);
+        Definition definition = DefinitionCodec.ParseJson(Resource("GrafanaDefinition"));
+        AnswerSnapshot snapshot = AnswerSnapshotCodec.ParseJson(Resource("GrafanaAnswers"), 1);
 
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, artifactId, snapshot);
 
@@ -19,7 +19,7 @@ public sealed class GrafanaDefinitionConformanceTests
         await Assert.That(result.Artifact!.Bytes.Span.SequenceEqual(Resource(expectedResource))).IsTrue();
         await Assert.That(result.Artifact.Digest.Value).IsEqualTo(digest);
         await Assert.That(result.Artifact.DefinitionDigest).IsEqualTo(definition.Digest);
-        await Assert.That(result.Artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+        await Assert.That(result.Artifact.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
     }
 
     private static byte[] Resource(string name)

@@ -36,7 +36,7 @@ This document records the major design alternatives evaluated during system desi
 |---|---|---|---|
 | **Direct JSON Schema Form Generation** | **Rejected** | Generic JSON Schema renderers lack essential configuration domain semantics: multi-artifact projections, sensitivity floors, secret-masking hints, experience modes (Essential/Standard/All), and exact application version bounds. | [universal-configurator.md](universal-configurator.md)<br/>[ADR: Maintainer Authoring](adr/ADR-maintainer-authoring-and-canonical-distribution.md) |
 | **JSON Schema for Structural Validation** | **Partially Used** | JSON Schema is used as a meta-schema to validate handwritten maintainer definitions and machine CLI envelopes, but not as the direct runtime UI driver. | [eng/configurator/](../../eng/configurator/)<br/>[schemas/](../../schemas/) |
-| **Custom Declarative Definition Vocabulary** | **Adopted** | A purpose-built, flat envelope (`SetupDefinition`) specifically models configuration concerns: questions, conditions, collections, and deterministic native file projections. | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md)<br/>[ADR: Definition Boundary](adr/ADR-definition-runtime-boundary.md) |
+| **Custom Declarative Definition Vocabulary** | **Adopted** | A purpose-built, flat envelope (`Definition`) specifically models configuration concerns: questions, conditions, collections, and deterministic native file projections. | [CORE_DEFINITION_CONTRACT.md](CORE_DEFINITION_CONTRACT.md)<br/>[ADR: Definition Boundary](adr/ADR-definition-runtime-boundary.md) |
 
 ---
 

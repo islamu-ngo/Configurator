@@ -80,7 +80,7 @@ public sealed class BrowserDefinitionStoreTests
         registry.Replace([]);
         JsonNode changed = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         changed["project"]!["name"] = "Conflicting revision";
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(changed.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(changed.ToJsonString()));
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
         var module = context.JSInterop.SetupModule("./browser-store.js");
@@ -106,7 +106,7 @@ public sealed class BrowserDefinitionStoreTests
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index().ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
         await catalog.LoadAsync();
-        SetupDefinition admitted = await catalog.OpenAsync("demo", 1);
+        Definition admitted = await catalog.OpenAsync("demo", 1);
         await Assert.That(admitted.Digest).IsEqualTo(BrowserFixture.Definition.Digest);
         await policy.BeginWorkspaceAsync();
         await Assert.That(async () => { await catalog.LoadAsync(); }).Throws<BrowserLaunchException>();
@@ -127,7 +127,7 @@ public sealed class BrowserDefinitionStoreTests
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index().ToJsonString()));
         var pending = module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes);
         await catalog.LoadAsync();
-        Task<SetupDefinition> selection = catalog.OpenAsync("demo", 1);
+        Task<Definition> selection = catalog.OpenAsync("demo", 1);
         await Assert.That(pending.Invocations).Count().IsEqualTo(1);
         await policy.BeginWorkspaceAsync();
         await policy.EndWorkspaceAsync();
@@ -167,19 +167,19 @@ public sealed class BrowserDefinitionStoreTests
         node["project"]!["publisher"] = " Authored publisher ";
         node["project"]!["id"] = " Authored application ";
         node["applicationVersions"] = new JsonArray(" Compatibility label ");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
         var module = context.JSInterop.SetupModule("./browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index(definition).ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(definition.CanonicalBytes.ToArray());
         await catalog.LoadAsync();
-        SetupDefinition admitted = await catalog.OpenAsync("demo", 1);
+        Definition admitted = await catalog.OpenAsync("demo", 1);
         await Assert.That(admitted.Title).IsEqualTo(" Authored title ");
         await Assert.That(admitted.Digest).IsEqualTo(definition.Digest);
     }
 
-    internal static JsonNode Index(SetupDefinition? definition = null)
+    internal static JsonNode Index(Definition? definition = null)
     {
         definition ??= BrowserFixture.Definition;
         return JsonNode.Parse($$"""

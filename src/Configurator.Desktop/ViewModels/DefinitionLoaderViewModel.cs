@@ -14,7 +14,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     private readonly IMessenger _messenger;
     private readonly IStorageDialogService _dialogs;
     private readonly Func<string, Stream> _openRead;
-    private SetupDefinition? _definition;
+    private Definition? _definition;
     private long _generation;
     private bool _disposed;
 
@@ -69,8 +69,8 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     {
         try
         {
-            SetupDefinition definition = yaml ? SetupDefinitionSourceCodec.ParseYaml(source)
-                : SetupDefinitionSourceCodec.ParseJson(source);
+            Definition definition = yaml ? DefinitionSourceCodec.ParseYaml(source)
+                : DefinitionSourceCodec.ParseJson(source);
             _definition = definition;
             _messenger.Send(new DefinitionLoadedMessage(definition));
             _messenger.Send(new StatusChangedMessage("definition-loaded", _generation));
@@ -78,7 +78,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
             _messenger.Send(new FormFocusRequestedMessage());
             return true;
         }
-        catch (SetupDefinitionException exception)
+        catch (DefinitionException exception)
         {
             _messenger.Send(new StatusChangedMessage($"definition-invalid:{exception.Code}", _generation));
             return false;

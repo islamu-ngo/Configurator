@@ -42,7 +42,7 @@ public sealed class DefinitionEditorPresentation
 
 public sealed record DefinitionFormExperience
 {
-    internal DefinitionFormExperience(string id, string title, SetupFieldDisclosure initialDisclosure,
+    internal DefinitionFormExperience(string id, string title, FieldDisclosure initialDisclosure,
         string navigation, IEnumerable<string> sections, string? description)
     {
         Id = id;
@@ -56,7 +56,7 @@ public sealed record DefinitionFormExperience
     public string Id { get; }
     public string Title { get; }
     public string? Description { get; }
-    public SetupFieldDisclosure InitialDisclosure { get; }
+    public FieldDisclosure InitialDisclosure { get; }
     public string Navigation { get; }
     public IReadOnlyList<string> Sections { get; }
 }
@@ -69,7 +69,7 @@ public sealed record DefinitionFormProgress(int Ready, int Required, int Missing
 public sealed record DefinitionFormSection
 {
     internal DefinitionFormSection(string id, string title, string? description, IEnumerable<string> fields,
-        SetupFieldDisclosure disclosure = SetupFieldDisclosure.Guided)
+        FieldDisclosure disclosure = FieldDisclosure.Guided)
     {
         Id = id;
         Title = title;
@@ -82,7 +82,7 @@ public sealed record DefinitionFormSection
     public string Title { get; }
     public string? Description { get; }
     public IReadOnlyList<string> Fields { get; }
-    public SetupFieldDisclosure Disclosure { get; }
+    public FieldDisclosure Disclosure { get; }
 }
 
 /// <summary>Value-free workspace projection shared by native and browser clients.</summary>

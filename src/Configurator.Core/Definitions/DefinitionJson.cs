@@ -29,20 +29,20 @@ internal static class DefinitionJson
         Func<CancellationToken, ValueTask>? cooperativeYield, CompositionBudget? budget,
         CompositionKeyPolicy keyPolicy, int initialDepth, CancellationToken cancellationToken)
     {
-        budget ??= new CompositionBudget(SetupCompositionLimits.Default);
+        budget ??= new CompositionBudget(CompositionLimits.Default);
         int normalizedNodes = 0;
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
             await WriteAsync(writer, value, initialDepth);
-        if (buffer.WrittenCount > SetupCompositionLimits.DefaultAggregateSourceBytes)
-            throw new SetupDefinitionException("document-limit");
+        if (buffer.WrittenCount > CompositionLimits.DefaultAggregateSourceBytes)
+            throw new DefinitionException("document-limit");
         return buffer.WrittenSpan.ToArray();
 
         async ValueTask WriteAsync(Utf8JsonWriter writer, JsonElement value, int depth)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try { budget.Node(depth); }
-            catch (SetupCompositionException) { throw new SetupDefinitionException("document-limit"); }
+            catch (CompositionException) { throw new DefinitionException("document-limit"); }
             if (++normalizedNodes % 1024 == 0 && cooperativeYield is not null)
             {
                 await cooperativeYield(cancellationToken);
@@ -52,8 +52,8 @@ internal static class DefinitionJson
             {
                 case JsonValueKind.Object:
                     JsonProperty[] properties = value.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal).ToArray();
-                    if (properties.Length > SetupCompositionLimits.DefaultMappingEntries)
-                        throw new SetupDefinitionException("document-limit");
+                    if (properties.Length > CompositionLimits.DefaultMappingEntries)
+                        throw new DefinitionException("document-limit");
                     var keys = new HashSet<string>(keyPolicy == CompositionKeyPolicy.Exact
                         ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
                     writer.WriteStartObject();
@@ -61,7 +61,7 @@ internal static class DefinitionJson
                     {
                         if (!keys.Add(keyPolicy == CompositionKeyPolicy.Exact
                             ? property.Name : property.Name.Normalize(NormalizationForm.FormC)))
-                            throw new SetupDefinitionException("duplicate-member");
+                            throw new DefinitionException("duplicate-member");
                         Scalar(property.Name, budget);
                         writer.WritePropertyName(property.Name);
                         await WriteAsync(writer, property.Value, depth + 1);
@@ -69,8 +69,8 @@ internal static class DefinitionJson
                     writer.WriteEndObject();
                     break;
                 case JsonValueKind.Array:
-                    if (value.GetArrayLength() > SetupCompositionLimits.DefaultSequenceEntries)
-                        throw new SetupDefinitionException("document-limit");
+                    if (value.GetArrayLength() > CompositionLimits.DefaultSequenceEntries)
+                        throw new DefinitionException("document-limit");
                     writer.WriteStartArray();
                     foreach (JsonElement item in value.EnumerateArray()) await WriteAsync(writer, item, depth + 1);
                     writer.WriteEndArray();
@@ -86,7 +86,7 @@ internal static class DefinitionJson
                 case JsonValueKind.True: writer.WriteBooleanValue(true); break;
                 case JsonValueKind.False: writer.WriteBooleanValue(false); break;
                 case JsonValueKind.Null: writer.WriteNullValue(); break;
-                default: throw new SetupDefinitionException("value-invalid");
+                default: throw new DefinitionException("value-invalid");
             }
         }
     }
@@ -100,13 +100,13 @@ internal static class DefinitionJson
             (!int.TryParse(parts[1], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int exponent)
              || exponent is < -28 or > 28)
             || !decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number))
-            throw new SetupDefinitionException("number-range");
+            throw new DefinitionException("number-range");
         // Refuse precision loss at the decimal scale boundary, including underflow.
         int decimalPoint = parts[0].IndexOf('.', StringComparison.Ordinal);
         int scale = decimalPoint < 0 ? 0 : parts[0].TrimEnd('0').Length - decimalPoint - 1;
         int power = parts.Length > 1 ? int.Parse(parts[1], CultureInfo.InvariantCulture) : 0;
         if (scale - power > 28 && digits.Length > 0)
-            throw new SetupDefinitionException("number-range");
+            throw new DefinitionException("number-range");
         return number == 0 ? "0" : number.ToString(keyPolicy == CompositionKeyPolicy.Exact
             ? "0.############################" : "G29", CultureInfo.InvariantCulture);
     }
@@ -118,9 +118,9 @@ internal static class DefinitionJson
             _ = new UTF8Encoding(false, true).GetByteCount(text);
             budget.Scalar(text);
         }
-        catch (Exception exception) when (exception is EncoderFallbackException or SetupCompositionException)
+        catch (Exception exception) when (exception is EncoderFallbackException or CompositionException)
         {
-            throw new SetupDefinitionException("scalar-invalid");
+            throw new DefinitionException("scalar-invalid");
         }
     }
 }

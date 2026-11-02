@@ -9,7 +9,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task ActiveConditionalCopyCapturesLiteralDottedPointerWithoutBroadeningWholeInverse()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         var scope = DefinitionImport.CaptureEditableScope(definition, "environment",
             DefinitionFixture.Answers("""{"enabled":true,"service.name":"synthetic"}""", 9));
         await Assert.That(scope.InputRevision).IsEqualTo(9);
@@ -26,15 +26,15 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task RevalidationRejectsRevisionIdentityAndChangedActivationWithoutRebasing()
     {
-        SetupDefinition definition = Definition();
-        SetupAnswerSnapshot original = DefinitionFixture.Answers("""{"enabled":true,"service.name":"synthetic"}""", 9);
+        Definition definition = Definition();
+        AnswerSnapshot original = DefinitionFixture.Answers("""{"enabled":true,"service.name":"synthetic"}""", 9);
         var scope = DefinitionImport.CaptureEditableScope(definition, "environment", original);
         await Assert.That(scope.IsCurrent(definition, original)).IsTrue();
         await Assert.That(scope.IsCurrent(definition,
             DefinitionFixture.Answers("""{"enabled":true,"service.name":"synthetic"}""", 10))).IsFalse();
         await Assert.That(scope.IsCurrent(definition,
             DefinitionFixture.Answers("""{"enabled":false,"service.name":"synthetic"}""", 9))).IsFalse();
-        SetupDefinition changed = Build("""{"service.name":{"type":"string"}}""",
+        Definition changed = Build("""{"service.name":{"type":"string"}}""",
             """{"OTHER":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}""");
         await Assert.That(scope.IsCurrent(changed, original)).IsFalse();
         await Assert.That(scope.Mappings.Single().Key).IsEqualTo("NAME");
@@ -57,7 +57,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task ProtectedAndAmbiguousAssignmentsRemainExplicitWithoutSerializingAnswers()
     {
-        SetupDefinition definition = Build("""
+        Definition definition = Build("""
             {"plain":{"type":"string","x-configurator":{"sensitivity":"public"}},
              "private":{"type":"string","x-configurator":{"sensitivity":"secret"}}}
             """, """
@@ -85,7 +85,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task SourceApplicabilityUsesOwningValidatorAndFreezesNestedController()
     {
-        SetupDefinition definition = Build("""
+        Definition definition = Build("""
             {"switches":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
               "properties":{"enabled":{"type":"boolean","x-configurator":{"sensitivity":"public"}}}},
              "options":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
@@ -110,7 +110,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task LiteralDotsSlashesAndTildesRemainDistinctFromNestedPaths()
     {
-        SetupDefinition definition = Build("""
+        Definition definition = Build("""
             {"a.b":{"type":"string","x-configurator":{"sensitivity":"public"}},
              "a":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
               "properties":{"b":{"type":"string","x-configurator":{"sensitivity":"public"}}}},
@@ -130,7 +130,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task ExactScalarInverseConversionPreservesFalseZeroAndEmptyWithoutGuessing()
     {
-        SetupDefinition definition = Build("""
+        Definition definition = Build("""
             {"text":{"type":"string","maxLength":5,"x-configurator":{"sensitivity":"public"}},
              "boolean":{"type":"boolean","x-configurator":{"sensitivity":"public"}},
              "integer":{"type":"integer","x-configurator":{"sensitivity":"public"}},
@@ -158,7 +158,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task CancellationRejectsCaptureAndRevalidation()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         var answers = DefinitionFixture.Answers("""{"enabled":true}""");
         var scope = DefinitionImport.CaptureEditableScope(definition, "environment", answers);
         using var cancellation = new CancellationTokenSource();
@@ -171,7 +171,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task CaseCollisionsAndArrayIndexedSourcesDoNotBecomeEditable()
     {
-        SetupDefinition definition = Build("""
+        Definition definition = Build("""
             {"first":{"type":"string","x-configurator":{"sensitivity":"public"}},
              "second":{"type":"string","x-configurator":{"sensitivity":"public"}},
              "items":{"type":"array","x-configurator":{"sensitivity":"public"},
@@ -198,7 +198,7 @@ public sealed class DefinitionEditableProjectionTests
         using Stream source = typeof(DefinitionEditableProjectionTests).Assembly.GetManifestResourceStream("EventDefinition")!;
         using var buffer = new MemoryStream();
         source.CopyTo(buffer);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(buffer.ToArray());
+        Definition definition = DefinitionCodec.ParseJson(buffer.ToArray());
         var scope = DefinitionImport.CaptureEditableScope(definition, "environment",
             DefinitionFixture.Answers("""{"operation":"environment","select.feature.deployment-config":true}"""));
         await Assert.That(scope.IsSupported).IsTrue();
@@ -212,7 +212,7 @@ public sealed class DefinitionEditableProjectionTests
     [Test]
     public async Task TransitiveActivationControllersStayOutsideCapturedMappings()
     {
-        SetupDefinition definition = Build("""
+        Definition definition = Build("""
             {"enabled":{"type":"boolean","x-configurator":{"sensitivity":"public"}},
              "mode":{"type":"boolean","x-configurator":{"sensitivity":"public","applicableWhen":{
                "op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}},
@@ -231,7 +231,7 @@ public sealed class DefinitionEditableProjectionTests
             .IsEqualTo(DefinitionEditableCoverageKind.Controller);
     }
 
-    internal static SetupDefinition Build(string properties, string members)
+    internal static Definition Build(string properties, string members)
     {
         JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
         source["configuration"]!["properties"] = JsonNode.Parse(properties);
@@ -243,7 +243,7 @@ public sealed class DefinitionEditableProjectionTests
         return DefinitionFixture.Parse(source.ToJsonString());
     }
 
-    internal static SetupDefinition Definition()
+    internal static Definition Definition()
     {
         JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
         source["configuration"]!["properties"] = JsonNode.Parse("""

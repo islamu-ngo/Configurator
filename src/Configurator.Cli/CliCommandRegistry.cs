@@ -1,0 +1,133 @@
+using System.Reflection;
+using Configurator.Cli.Commands;
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+namespace Configurator.Cli;
+
+internal sealed record CliOptionDescriptor(string Name, bool RequiresValue, bool Repeatable);
+
+internal sealed record CliOperationDescriptor(
+    string Name,
+    Type SettingsType,
+    IReadOnlyList<CliOptionDescriptor> Options,
+    Action<IConfigurator<CliCommandSettings>, string, CliCommandRuntime> RegisterBranch,
+    Action<IConfigurator, string, CliCommandRuntime> RegisterRoot);
+
+internal sealed record CliFamilyDescriptor(string Name, IReadOnlyList<CliOperationDescriptor> Operations);
+
+internal static class CliCommandRegistry
+{
+    internal static IReadOnlyList<CliFamilyDescriptor> Families { get; } =
+    [
+        CatalogueCommands.Descriptor,
+        ArtifactCommands.Descriptor,
+        EnvironmentCommands.Descriptor,
+        DefinitionCommands.Descriptor,
+        SecretCommands.Descriptor,
+        DoctorCommands.Descriptor
+    ];
+
+    internal static CommandApp Create(CliCommandRuntime runtime, IAnsiConsole console,
+        CliHelpProvider? helpProvider = null)
+    {
+        var app = new CommandApp(new CliTypeRegistrar(console));
+        app.Configure(configuration =>
+        {
+            configuration.SetApplicationName(CliExecutableMarker.ExecutableName);
+            configuration.ConfigureConsole(console);
+            configuration.PropagateExceptions();
+            configuration.UseStrictParsing();
+            configuration.CaseSensitivity(CaseSensitivity.All);
+            configuration.CancellationExitCode((int)CliExitCode.Cancelled);
+            if (helpProvider is not null) configuration.SetHelpProvider(helpProvider);
+            foreach (CliFamilyDescriptor family in Families)
+            {
+                if (family.Name == "doctor")
+                {
+                    family.Operations[0].RegisterRoot(configuration, family.Name, runtime);
+                    continue;
+                }
+
+                configuration.AddBranch<CliCommandSettings>(family.Name, branch =>
+                {
+                    foreach (CliOperationDescriptor operation in family.Operations)
+                        operation.RegisterBranch(branch, family.Name, runtime);
+                });
+            }
+            configuration.AddExample("doctor", "--machine");
+        });
+        return app;
+    }
+
+    internal static CliFamilyDescriptor Family(string name, params CliOperationDescriptor[] operations) =>
+        new(name, Array.AsReadOnly(operations));
+
+    internal static CliOperationDescriptor Operation<TSettings>(string name)
+        where TSettings : CliCommandSettings =>
+        new(
+            name,
+            typeof(TSettings),
+            DescribeOptions(typeof(TSettings)),
+            (branch, family, runtime) => branch.AddAsyncDelegate<TSettings>(
+                name,
+                (context, settings, token) => runtime.ExecuteAsync(family, name, settings, context.Remaining, token)),
+            (root, family, runtime) => root.AddAsyncDelegate<TSettings>(
+                name,
+                (context, settings, token) => runtime.ExecuteAsync(family, name, settings, context.Remaining, token)));
+
+    internal static bool TryResolve(string family, string operation, out CliOperationDescriptor? descriptor)
+    {
+        descriptor = Families.FirstOrDefault(item => item.Name == family)?.Operations
+            .FirstOrDefault(item => item.Name == operation);
+        return descriptor is not null;
+    }
+
+    private static CliOptionDescriptor[] DescribeOptions(Type settingsType) =>
+        settingsType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(property => (Property: property, Attribute: property.GetCustomAttribute<CommandOptionAttribute>()))
+            .Where(item => item.Attribute is not null)
+            .SelectMany(item => item.Attribute!.LongNames.Select(name => new CliOptionDescriptor(
+                "--" + name,
+                item.Attribute.ValueName is not null,
+                item.Property.PropertyType == typeof(string[]))))
+            .OrderBy(item => item.Name, StringComparer.Ordinal)
+            .ToArray();
+
+    private sealed class CliTypeRegistrar(IAnsiConsole console) : ITypeRegistrar
+    {
+        private readonly Dictionary<Type, Func<object>> _registrations = new()
+        {
+            [typeof(IAnsiConsole)] = () => console
+        };
+
+        public ITypeResolver Build() => new Resolver(_registrations);
+        public void Register(Type service, Type implementation) =>
+            _registrations[service] = () => Activator.CreateInstance(implementation)
+                ?? throw new InvalidOperationException("cli-service-unavailable");
+        public void RegisterInstance(Type service, object implementation) =>
+            _registrations[service] = () => implementation;
+        public void RegisterLazy(Type service, Func<object> factory) =>
+            _registrations[service] = factory;
+
+        private sealed class Resolver(IReadOnlyDictionary<Type, Func<object>> registrations) : ITypeResolver, IDisposable
+        {
+            public object? Resolve(Type? type)
+            {
+                if (type is null) return null;
+                if (registrations.TryGetValue(type, out Func<object>? factory)) return factory();
+                if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                {
+                    Type elementType = type.GetGenericArguments()[0];
+                    bool registered = registrations.TryGetValue(elementType, out Func<object>? element);
+                    Array values = Array.CreateInstance(elementType, registered ? 1 : 0);
+                    if (registered) values.SetValue(element!(), 0);
+                    return values;
+                }
+                return Activator.CreateInstance(type);
+            }
+
+            public void Dispose() { }
+        }
+    }
+}

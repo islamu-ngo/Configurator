@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6F40W7QX486ZSECRKR69XRD
+Title: "Replace obsolete setup contract names"
+Type: refactor
+Scope: architecture
+Summary: "Rebuild repository integrations against the current Configurator contract names."
+Group: contract-names
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/ARCHITECTURE.md
+    Disposition: documented
+    Detail: Recompile repository consumers after replacing Setup-prefixed Core, Presentation, CLI and Terminal type names with their current names. Public wire tokens remain unchanged.
+  Security:
+    Reference: docs/internal/QUICK_REFERENCE.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/ARCHITECTURE.md
+    Disposition: documented
+    Detail: Update source references atomically with the renamed declarations and resources; no compatibility aliases are retained.
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/OPERATIONS.md
+    Disposition: not-applicable

@@ -61,7 +61,7 @@ public sealed partial class DefinitionFormModel
             lock (_gate)
                 if (!ImportIsCurrent(generation, revision, cancellationToken))
                     return new(false, "import-stale");
-            SetupAnswerSnapshot snapshot;
+            AnswerSnapshot snapshot;
             HashSet<string> defaults;
             lock (_gate)
             {
@@ -147,7 +147,7 @@ public sealed partial class DefinitionFormModel
     {
         ArgumentNullException.ThrowIfNull(cooperativeYield);
         DefinitionImportAssessment assessment;
-        SetupAnswerSnapshot snapshot;
+        AnswerSnapshot snapshot;
         HashSet<string> defaults;
         long revision;
         long generation;
@@ -205,7 +205,7 @@ public sealed partial class DefinitionFormModel
             if (_disposed || _importComparison is null ||
                 !_importComparison.Report.Findings.Any(current => ReferenceEquals(current, finding)) ||
                 finding.Schema is not { } location) return null;
-            SetupFieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == location.FieldId);
+            FieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == location.FieldId);
             if (field is null) return null;
             DefinitionNode schema = field.Node;
             var path = new List<string> { field.Id };
@@ -243,7 +243,7 @@ public sealed partial class DefinitionFormModel
             !Omitted.Any(path => path.Segments[0] == field.Definition.Id))
             .Select(field => field.Definition.Id).ToHashSet(StringComparer.Ordinal);
 
-    private bool HasImportStorage(SetupAnswerSnapshot answers)
+    private bool HasImportStorage(AnswerSnapshot answers)
     {
         var names = Fields.Select(field => field.Definition.Name).ToHashSet(StringComparer.Ordinal);
         return answers.Values.Keys.All(names.Contains);

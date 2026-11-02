@@ -20,7 +20,7 @@ public sealed class BrowserTypedPrivacyTests
             {"type":"string","title":"Empty choice","enum":["","other"],"x-configurator":{"sensitivity":"public","detail":"standard"}}
             """)));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
-        await component.InvokeAsync(() => form.SetDisclosureOverride(SetupFieldDisclosure.Guided));
+        await component.InvokeAsync(() => form.SetDisclosureOverride(FieldDisclosure.Guided));
         Task ClearAsync(string field) => component.InvokeAsync(() =>
         {
             var editor = component.FindComponents<ConfigurationField>().Single(item => string.Join('.', item.Instance.Path) == field);
@@ -115,7 +115,7 @@ public sealed class BrowserTypedPrivacyTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(new BrowserDefinitionRegistry([]), javascript, policy);
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(BrowserDefinitionSourceTests.AuthoringJson));
-        SetupDefinition definition = await source.ReadLocalAsync(input);
+        Definition definition = await source.ReadLocalAsync(input);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("[data-field='HOST'] input").Input("example.test");
         await Assert.That(component.FindAll("[data-field='settings.secret'] input")).IsEmpty();
@@ -192,7 +192,7 @@ public sealed class BrowserTypedPrivacyTests
         var members = document["artifacts"]![0]!["projection"]!["members"]!.AsObject();
         members.Remove("credential");
         members["settings"] = JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/settings"}}""");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
@@ -214,10 +214,10 @@ public sealed class BrowserTypedPrivacyTests
         await Assert.That(component.Markup).DoesNotContain("synthetic-compound-secret");
     }
 
-    private static SetupDefinition WithField(string name, string schema, params string[] capabilities)
+    private static Definition WithField(string name, string schema, params string[] capabilities)
     {
         JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         BrowserFixture.WithField(document, name, schema, capabilities);
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
     }
 }

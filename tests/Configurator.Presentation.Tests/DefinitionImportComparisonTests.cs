@@ -36,7 +36,7 @@ public sealed class DefinitionImportComparisonTests
         using var form = new DefinitionFormModel(Definition());
         form.SetValue(["count"], JsonSerializer.SerializeToElement(7));
         form.EditValue(["count"], "synthetic-invalid-draft");
-        SetupAnswerSnapshot original = form.Snapshot();
+        AnswerSnapshot original = form.Snapshot();
         DefinitionImportResult result = await form.ImportAsync("config",
             _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"count":7}"""u8.ToArray()));
 
@@ -57,7 +57,7 @@ public sealed class DefinitionImportComparisonTests
         dirty.SetValue(["name"], JsonSerializer.SerializeToElement("synthetic-workspace-private"));
         dirty.SetValue(["count"], JsonSerializer.SerializeToElement(7));
         dirty.EditValue(["count"], "synthetic-invalid-draft");
-        SetupAnswerSnapshot original = dirty.Snapshot();
+        AnswerSnapshot original = dirty.Snapshot();
         DefinitionAnswerOrigin origin = dirty.AnswerOrigin(["count"]);
         DefinitionImportComparisonResult first = await empty.CompareAsync("config", ReadValid);
         DefinitionImportComparisonResult second = await dirty.CompareAsync("config", ReadValid);
@@ -220,7 +220,7 @@ public sealed class DefinitionImportComparisonTests
         }));
         form.SetValue(["map"], JsonSerializer.SerializeToElement(
             new Dictionary<string, int> { ["synthetic-current-key"] = 8 }));
-        SetupAnswerSnapshot original = form.Snapshot();
+        AnswerSnapshot original = form.Snapshot();
         int inputChanges = 0;
         form.InputChanged += (_, _) => inputChanges++;
         DefinitionImportComparisonResult result = await form.CompareAsync("config", _ =>
@@ -262,7 +262,7 @@ public sealed class DefinitionImportComparisonTests
     [Test]
     public async Task AutofillCannotSilentlyDiscardRootEntriesWithoutOwnedEditorStorage()
     {
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson("""
+        Definition definition = DefinitionSourceCodec.ParseJson("""
             {
               "$schema":"urn:islamu:configurator:authoring:v0.0.1",
               "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},
@@ -291,8 +291,8 @@ public sealed class DefinitionImportComparisonTests
     {
         using var form = new DefinitionFormModel(Definition());
         form.SetValue(["count"], JsonSerializer.SerializeToElement(7));
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        if (!SetupWorkspaceId.TryCreate("comparison", out SetupWorkspaceId id))
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        if (!WorkspaceId.TryCreate("comparison", out WorkspaceId id))
             throw new InvalidOperationException("workspace-id");
         using var workspace = session.CreateWorkspace(id,
             new DefinitionPresentationOperation(form.Definition, "config", form.Snapshot()));
@@ -304,7 +304,7 @@ public sealed class DefinitionImportComparisonTests
         };
         await workspace.ExecuteAsync(Guid.NewGuid());
         object? prepared = workspace.Result;
-        SetupOperationGeneration generation = workspace.Generation;
+        OperationGeneration generation = workspace.Generation;
         await Assert.That(workspace.Output.Span.SequenceEqual("""{"count":7}"""u8)).IsTrue();
         DefinitionImportComparisonResult result = await form.CompareAsync("config", ReadValid);
 
@@ -314,7 +314,7 @@ public sealed class DefinitionImportComparisonTests
         await Assert.That(workspace.Output.Span.SequenceEqual("""{"count":7}"""u8)).IsTrue();
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionSourceCodec.ParseJson("""
+    private static Definition Definition() => DefinitionSourceCodec.ParseJson("""
         {
           "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},

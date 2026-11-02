@@ -8,7 +8,7 @@ public sealed class DefinitionEditableProjection
 {
     private readonly IReadOnlyDictionary<string, DefinitionNode> _schemas;
 
-    private DefinitionEditableProjection(SetupDefinition definition, string artifactId, long inputRevision,
+    private DefinitionEditableProjection(Definition definition, string artifactId, long inputRevision,
         IEnumerable<DefinitionEditableCoverage> coverage, IReadOnlyDictionary<string, DefinitionNode> schemas,
         IEnumerable<DefinitionPath> controllers)
     {
@@ -35,7 +35,7 @@ public sealed class DefinitionEditableProjection
     public bool IsSupported => Mappings.Count != 0;
 
     /// <summary>Checks identity, revision and recomputed coverage. The workspace owner must also fence its own lifetime and consent.</summary>
-    public bool IsCurrent(SetupDefinition definition, SetupAnswerSnapshot answers,
+    public bool IsCurrent(Definition definition, AnswerSnapshot answers,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -62,8 +62,8 @@ public sealed class DefinitionEditableProjection
     public override string ToString() =>
         $"{nameof(DefinitionEditableProjection)}:Revision={InputRevision}:Mappings={Mappings.Count}:Coverage={Coverage.Count}";
 
-    internal static DefinitionEditableProjection Capture(SetupDefinition definition, string artifactId,
-        SetupAnswerSnapshot answers, CancellationToken cancellationToken)
+    internal static DefinitionEditableProjection Capture(Definition definition, string artifactId,
+        AnswerSnapshot answers, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactId);
@@ -72,7 +72,7 @@ public sealed class DefinitionEditableProjection
         var coverage = new List<DefinitionEditableCoverage>();
         var schemas = new Dictionary<string, DefinitionNode>(StringComparer.Ordinal);
         var controllers = new HashSet<DefinitionPath>();
-        SetupArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
+        ArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
         if (artifact is null || artifact.Format != "dotenv" ||
             artifact.Projection.GetProperty("op").GetString() != "object") return Result();
 
@@ -120,7 +120,7 @@ public sealed class DefinitionEditableProjection
                     // Node facts come from the sole validator, including inherited activation and sensitivity.
                     if (kind == DefinitionEditableCoverageKind.Editable)
                     {
-                        SetupFieldDefinition field = definition.Fields.Single(item => item.Name == path.Segments[0]);
+                        FieldDefinition field = definition.Fields.Single(item => item.Name == path.Segments[0]);
                         DefinitionNodeState? state = validation.Nodes.FirstOrDefault(item => item.FieldId == field.Id
                             && item.RelativePath.SequenceEqual(path.Segments.Skip(1), StringComparer.Ordinal));
                         if (state is null || !state.IsActive)

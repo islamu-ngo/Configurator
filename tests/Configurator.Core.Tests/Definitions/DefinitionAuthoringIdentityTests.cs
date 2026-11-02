@@ -41,11 +41,11 @@ public sealed class DefinitionAuthoringIdentityTests
     [Test]
     public async Task BothFormatsCompileToOneIdentityAndIndependentOutputBytes()
     {
-        SetupDefinition yaml = SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(Yaml));
-        SetupDefinition json = DefinitionAuthoringTests.Compile();
+        Definition yaml = DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(Yaml));
+        Definition json = DefinitionAuthoringTests.Compile();
         await Assert.That(yaml.Digest).IsEqualTo(json.Digest);
         using JsonDocument values = JsonDocument.Parse("""{"SERVICE_PORT":8080,"SERVICE_TOKEN":"synthetic-token"}""");
-        var answers = new SetupAnswerSnapshot(1, values.RootElement.EnumerateObject().ToDictionary(value => value.Name, value => value.Value));
+        var answers = new AnswerSnapshot(1, values.RootElement.EnumerateObject().ToDictionary(value => value.Name, value => value.Value));
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(json, "out-.env", answers);
         await Assert.That(result.Succeeded).IsTrue();
         await Assert.That(Encoding.UTF8.GetString(result.Artifact!.Bytes.Span)).IsEqualTo("SERVICE_PORT=8080\nSERVICE_TOKEN=synthetic-token\n");
@@ -55,9 +55,9 @@ public sealed class DefinitionAuthoringIdentityTests
     [Test]
     public async Task UnrelatedInsertionsDoNotChangeFieldOrOutputIdentity()
     {
-        SetupDefinition original = DefinitionAuthoringTests.Compile();
+        Definition original = DefinitionAuthoringTests.Compile();
         string inserted = DefinitionAuthoringTests.Source.Replace("\"properties\":{", "\"properties\":{\"ANOTHER\":{\"type\":\"boolean\"},", StringComparison.Ordinal);
-        SetupDefinition changed = DefinitionAuthoringTests.Compile(inserted);
+        Definition changed = DefinitionAuthoringTests.Compile(inserted);
         await Assert.That(changed.Fields.Single(field => field.Id == "SERVICE_PORT").Id).IsEqualTo(original.Fields[0].Id);
         await Assert.That(changed.Artifacts.Single().Id).IsEqualTo("out-.env");
         await Assert.That(DefinitionProfile.FieldId("service.port")).IsEqualTo("service.port");
@@ -83,7 +83,7 @@ public sealed class DefinitionAuthoringIdentityTests
     {
         var family = Guid.Parse("12345678-1234-4123-8123-123456789012");
         byte[] fork = DefinitionAuthoringIdentityEditor.Fork(Encoding.UTF8.GetBytes(Yaml), true, family);
-        await Assert.That(SetupDefinitionSourceCodec.ParseYaml(fork).FamilyId).IsEqualTo(family);
+        await Assert.That(DefinitionSourceCodec.ParseYaml(fork).FamilyId).IsEqualTo(family);
         await Assert.That(Encoding.UTF8.GetString(fork).Contains("# Keep this maintainer comment.", StringComparison.Ordinal)).IsTrue();
     }
 
@@ -96,7 +96,7 @@ public sealed class DefinitionAuthoringIdentityTests
             DefinitionAuthoringTests.Source.Replace("\"identity\":", "\"schemaVersion\":1,\"identity\":", StringComparison.Ordinal),
             DefinitionAuthoringTests.Source.Replace("\"properties\":{", "\"properties\":{\"SERVICE_PORT\":{\"type\":\"boolean\"},", StringComparison.Ordinal)
         })
-            await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source))).Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source))).Throws<DefinitionException>();
     }
 
     [Test]
@@ -120,8 +120,8 @@ public sealed class DefinitionAuthoringIdentityTests
                         Second line
                     - {op: literal, value: "0.5"}
             """;
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(source));
-        DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "out-notes.md", new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>()));
+        Definition definition = DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(source));
+        DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "out-notes.md", new AnswerSnapshot(1, new Dictionary<string, JsonElement>()));
         await Assert.That(result.Succeeded).IsTrue();
         await Assert.That(Encoding.UTF8.GetString(result.Artifact!.Bytes.Span)).IsEqualTo("First line\nSecond line\n0\\.5");
         result.Artifact.Dispose();

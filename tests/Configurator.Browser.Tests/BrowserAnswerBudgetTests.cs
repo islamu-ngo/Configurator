@@ -27,7 +27,7 @@ public sealed class BrowserAnswerBudgetTests
             """);
         BrowserFixture.SetCapabilities(definition, "projection.copy", "projection.literal", "projection.object",
             "schema.object", "schema.string", "values.initial");
-        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        Definition admitted = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         using var activity = new Activity(nameof(PreparingAdoptsEachAdmittedOutputWithoutRecomposingIt));
@@ -55,7 +55,7 @@ public sealed class BrowserAnswerBudgetTests
         definition["configuration"]!["properties"] = fields;
         definition["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/text0"}}""");
         BrowserFixture.SetCapabilities(definition, "projection.copy", "schema.object", "schema.string");
-        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        Definition admitted = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         string oversizedPart = "synthetic-budget-canary" + new string('x', 65536 - "synthetic-budget-canary".Length);
@@ -93,7 +93,7 @@ public sealed class BrowserAnswerBudgetTests
             });
         definition["artifacts"] = artifacts;
         BrowserFixture.SetCapabilities(definition, "projection.copy", "schema.object", "schema.string");
-        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        Definition admitted = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         await component.Find("[data-field='payload'] input").InputAsync(new ChangeEventArgs { Value = new string('x', 65536) });

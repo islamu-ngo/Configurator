@@ -14,14 +14,14 @@ implemented vocabulary.
 
 ## Public API
 
-`SetupDefinitionCodec.ParseJson/ParseYaml(ReadOnlyMemory<byte>)` admits closed,
-bounded runtime definitions or throws `SetupDefinitionException` with a value-free
+`DefinitionCodec.ParseJson/ParseYaml(ReadOnlyMemory<byte>)` admits closed,
+bounded runtime definitions or throws `DefinitionException` with a value-free
 `Code` and, when available, public `SchemaPath`/numeric `SourceSpan`.
-`SetupDefinitionSourceCodec` separately selects exact authoring-0.0.1 source
+`DefinitionSourceCodec` separately selects exact authoring-0.0.1 source
 or runtime-schema runtime with no fallback. Admission snapshots data and owns
 canonical bytes; digest is computed, never supplied within the definition.
 
-`SetupDefinition` exposes `FamilyId`, `Revision`, `Digest`, `CanonicalBytes`,
+`Definition` exposes `FamilyId`, `Revision`, `Digest`, `CanonicalBytes`,
 `Configuration`, `RequiredCapabilities`, `Title`, `Publisher`, `ApplicationId`,
 `ApplicationVersions`, `EntryPoints`, `Locales`, `Fields`, `Artifacts` and optional
 `Presentation` and immutable `SourceMap`. `Configuration` is the immutable recursive `DefinitionNode` tree.
@@ -34,7 +34,7 @@ detailed source contract. Public adopters start with the
 [supported-shape cookbook](../public/definition-cookbook.md). Successful
 preparation remains distinct from target semantic acceptance and authorization.
 
-`SetupFieldDefinition.Name` preserves the exact root data key. `Id` is bounded
+`FieldDefinition.Name` preserves the exact root data key. `Id` is bounded
 metadata: a representable name retains its ID except reserved prefix `f-`;
 all other names use `f-` plus full SHA-256 of `"field:"` and the escaped exact
 root pointer. Literal `f-` names also hash. Names are not normalized or
@@ -42,7 +42,7 @@ case-folded. Private answer lookup uses Name, never Id. `Default` exposes
 descriptive metadata, while `InitialValue` and `SuggestedValue` are distinct.
 Typed `Choices`, recursive `Items` and `Properties` derive from the admitted node.
 
-`SetupDefinitionRegistry.Resolve(familyId, appVersion, digest)` uses exact
+`DefinitionRegistry.Resolve(familyId, appVersion, digest)` uses exact
 declared application versions and canonical identity. With explicit version it
 selects the highest compatible revision; unknown family, incompatible version
 or digest mismatch rejects. Omitting version and digest requires one registered
@@ -50,9 +50,9 @@ revision, never guessed newest selection. Conflicting content under an admitted
 family/revision rejects even after registry removal. Publisher/family labels
 do not authenticate or curate a source. Active sessions remain pinned.
 
-`SetupAnswerSnapshot(inputRevision, values, omitted)` clones an exact-name
+`AnswerSnapshot(inputRevision, values, omitted)` clones an exact-name
 configuration tree and snapshots concrete `DefinitionPath` omissions.
-`SetupAnswerSnapshotCodec` admits/serializes the private version-1 envelope.
+`AnswerSnapshotCodec` admits/serializes the private version-1 envelope.
 Its bytes are restricted and are not public definition/cache material.
 
 `DefinitionValidator.Validate` returns immutable `DefinitionValidationResult`:
@@ -310,7 +310,7 @@ without changing semantic charges. It writes private UTF-8 directly, clears its
 owned byte buffer on every exit, and reuses the resulting immutable element only
 within the current node's checks instead of serializing that node repeatedly.
 Scalar materialization retains its bounded synchronous path.
-`SetupAnswerSnapshot.CreateAsync` shares admission and immutable ownership
+`AnswerSnapshot.CreateAsync` shares admission and immutable ownership
 with its public constructor. Whole root-member copies enter that snapshot
 directly instead of being serialized through an intermediate JSON tree.
 After recovery completes, its private observation dictionary transfers directly
@@ -410,7 +410,7 @@ Browser Developer editing or atomic Apply delivery.
 
 ## Presentation, guidance and credentials
 
-`SetupDefinition.Presentation` snapshots admitted sections/journeys and their
+`Definition.Presentation` snapshots admitted sections/journeys and their
 ordered pointers/section IDs. Wire uses `defaultJourney`, sections, journeys and
 optional wizard/sections navigation. Section/journey IDs are bounded lowercase
 kebab-case; titles 128, descriptions 2048; counts 64/16. No field-group selectors,
@@ -518,7 +518,7 @@ erase outstanding target-owned obligations.
 
 `DotenvEntry`, `DotenvDocument`, `DotenvCodec`, `ArtifactDigest` and setup artifact
 policy retain their independent writer role. Event manifest/tenant/legal DTO and
-platform catalogue ownership does not move into Core. `SetupCompositionCompiler`
+platform catalogue ownership does not move into Core. `CompositionCompiler`
 is a bounded offline normalizer, not an Event DTO builder.
 `SecretGenerator` consumes the admitted `DefinitionSecretSpecification`, not
 Event keys or environment-specific credential hints. Shared validation,

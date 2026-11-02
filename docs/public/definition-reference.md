@@ -111,7 +111,7 @@ use `minLength` or `x-configurator.notBlank` deliberately.
 
 ### Exact names and references
 
-`SetupFieldDefinition.Name` is the exact root data key. Its bounded metadata
+`FieldDefinition.Name` is the exact root data key. Its bounded metadata
 `Id` is not an answer key or target path. Representable names retain their ID
 except the reserved `f-` namespace; other names, including names starting `f-`,
 receive `f-` plus a full SHA-256 over the domain-separated escaped root pointer.

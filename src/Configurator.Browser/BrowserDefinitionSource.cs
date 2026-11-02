@@ -25,7 +25,7 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
         {
             if (!policy.CanFetchDefinition)
             {
-                SetupDefinition? retained = !policy.IsWorkspaceActive && request.Digest is { } digest
+                Definition? retained = !policy.IsWorkspaceActive && request.Digest is { } digest
                     ? await policy.ReadRetainedDefinitionAsync(digest) : null;
                 CheckCurrent(generation, cancellation.Token);
                 if (retained is null) throw new BrowserLaunchException("source-offline-or-active");
@@ -39,13 +39,13 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
             bytes = await _module.InvokeAsync<byte[]>("fetchDefinition", cancellation.Token, request.Source.AbsoluteUri, MaximumDocumentBytes);
             CheckCurrent(generation, cancellation.Token);
             if (bytes is null || bytes.Length is 0 or > MaximumDocumentBytes) throw new BrowserLaunchException("source-size-invalid");
-            SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes);
+            Definition definition = DefinitionCodec.ParseJson(bytes);
             BrowserLaunchSelection selection = Select(definition, request);
             CheckCurrent(generation, cancellation.Token);
             registry.Admit(definition);
             return selection;
         }
-        catch (SetupDefinitionException exception) { throw new BrowserLaunchException(exception.Code); }
+        catch (DefinitionException exception) { throw new BrowserLaunchException(exception.Code); }
         catch (OperationCanceledException) { throw new BrowserLaunchException("source-cancelled"); }
         catch (JSException) { throw new BrowserLaunchException("source-unavailable"); }
         finally
@@ -55,7 +55,7 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
         }
     }
 
-    public async Task<SetupDefinition> ReadLocalAsync(Stream input, bool yaml = false, CancellationToken cancellationToken = default)
+    public async Task<Definition> ReadLocalAsync(Stream input, bool yaml = false, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         if (policy.IsWorkspaceActive) throw new BrowserLaunchException("source-active");
@@ -72,13 +72,13 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
                 length += read;
             }
             if (length is 0 or > MaximumDocumentBytes) throw new BrowserLaunchException("source-size-invalid");
-            SetupDefinition definition = yaml ? SetupDefinitionSourceCodec.ParseYaml(bytes.AsMemory(0, length))
-                : SetupDefinitionSourceCodec.ParseJson(bytes.AsMemory(0, length));
+            Definition definition = yaml ? DefinitionSourceCodec.ParseYaml(bytes.AsMemory(0, length))
+                : DefinitionSourceCodec.ParseJson(bytes.AsMemory(0, length));
             CheckCurrent(generation, cancellation.Token);
             registry.Admit(definition);
             return definition;
         }
-        catch (SetupDefinitionException exception) { throw new BrowserLaunchException(exception.Code); }
+        catch (DefinitionException exception) { throw new BrowserLaunchException(exception.Code); }
         catch (OperationCanceledException) { throw new BrowserLaunchException("source-cancelled"); }
         catch (IOException) { throw new BrowserLaunchException("source-unavailable"); }
         finally { CryptographicOperations.ZeroMemory(bytes); Finish(cancellation); }
@@ -90,8 +90,8 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
         return string.Concat(values.Where(item => item.Item2 is not null).Select(item => "&" + item.Item1 + "=" + Uri.EscapeDataString(item.Item2!)));
     }
 
-    private static BrowserLaunchSelection Select(SetupDefinition definition, BrowserDefinitionPointer request) =>
-        BrowserLaunchSelection.Resolve(new SetupDefinitionRegistry([definition]), definition.FamilyId.ToString("D"), Selectors(request).TrimStart('&'));
+    private static BrowserLaunchSelection Select(Definition definition, BrowserDefinitionPointer request) =>
+        BrowserLaunchSelection.Resolve(new DefinitionRegistry([definition]), definition.FamilyId.ToString("D"), Selectors(request).TrimStart('&'));
 
     private long Begin(CancellationToken token, out CancellationTokenSource cancellation)
     {

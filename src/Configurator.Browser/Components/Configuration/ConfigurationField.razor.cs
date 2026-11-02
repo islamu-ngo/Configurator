@@ -190,9 +190,9 @@ public partial class ConfigurationField
         || Path.Count == 1 && DeclaresSecret(Form.Definition.Configuration);
     private bool IsMultilineSecret => Schema.Secret is { Kind: "private-key", Encoding: "pkcs8-pem" };
     private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
-    private bool IsMasked => IsSecret || InheritedSensitive || DefinitionSensitivityPolicy.SensitivityOf(Schema) != SetupFieldSensitivity.Public
-        || Path.Count == 1 && DefinitionSensitivityPolicy.SensitivityOf(Form.Definition.Configuration) != SetupFieldSensitivity.Public;
-    private int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var value) ? value.GetInt32() : SetupCompositionLimits.DefaultSequenceEntries;
+    private bool IsMasked => IsSecret || InheritedSensitive || DefinitionSensitivityPolicy.SensitivityOf(Schema) != FieldSensitivity.Public
+        || Path.Count == 1 && DefinitionSensitivityPolicy.SensitivityOf(Form.Definition.Configuration) != FieldSensitivity.Public;
+    private int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var value) ? value.GetInt32() : CompositionLimits.DefaultSequenceEntries;
     private int Count => Value is { ValueKind: JsonValueKind.Array } value ? value.GetArrayLength() : 0;
     private string Text => !Form.CanEdit(Path) ? string.Empty : Path.Count == 1
         ? _rootInput!.Text

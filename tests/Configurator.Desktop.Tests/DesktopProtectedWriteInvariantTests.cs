@@ -98,10 +98,10 @@ public sealed class DesktopProtectedWriteInvariantTests
         try
         {
             var writer = new ProtectedArtifactWriter();
-            using var preparation = await writer.PrepareAsync(SetupArtifactKind.Unknown, target, bytes);
+            using var preparation = await writer.PrepareAsync(ArtifactKind.Unknown, target, bytes);
             await Assert.That((await preparation.CommitAsync()).Succeeded).IsTrue();
             using var overwrite = await writer.PrepareAsync(
-                SetupArtifactKind.Unknown, target, RandomNumberGenerator.GetBytes(64));
+                ArtifactKind.Unknown, target, RandomNumberGenerator.GetBytes(64));
             ProtectedArtifactCommitResult conflict = await overwrite.CommitAsync();
             await Assert.That(conflict.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
             await Assert.That(conflict.InstallationEstablished).IsFalse();

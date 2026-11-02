@@ -1,0 +1,513 @@
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Configurator.Artifacts;
+using Configurator.Core;
+
+namespace Configurator.Cli.Tests;
+
+public sealed class CliMachineBoundaryTests
+{
+    [Test]
+    [Arguments(3000, CliExitCode.Data)]
+    [Arguments(4096, CliExitCode.Data)]
+    [Arguments(4097, CliExitCode.Usage)]
+    public async Task FullInventoryOffsetsReachContinuationValidationRatherThanOldGrammarLimit(int offset, CliExitCode expected)
+    {
+        var fixture = new CliFixture();
+        await Assert.That(await fixture.ArtifactAsync("validate", "config", "--detail", "coverage",
+            "--offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--expected-detail-digest", new string('0', 64))).IsEqualTo(expected);
+        await Assert.That(CliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
+        using JsonDocument receipt = JsonDocument.Parse(fixture.StandardOutput);
+        await Assert.That(receipt.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
+        await Assert.That(receipt.RootElement.TryGetProperty("detail", out _)).IsFalse();
+    }
+
+    [Test]
+    public async Task CoreCorrectionsPreserveTypedSafeCoordinatesWithoutPrivateMapKeys()
+    {
+        var fixture = new CliFixture();
+        fixture.Files["definition.json"] = Encoding.UTF8.GetBytes("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"61d35828-9c74-41e3-8f92-57324a708e85","revision":1},
+             "project":{"id":"example","name":"Corrections"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"properties":{
+              "value":{"type":"object","additionalProperties":{"type":"array","items":{
+               "type":"object","additionalProperties":false,"properties":{"0":{"type":"integer"}}}}}}},
+             "outputs":{"service.json":{"id":"config","format":"json"}}}
+            """);
+        fixture.Files["answers.json"] = Encoding.UTF8.GetBytes("""
+            {"answerContractVersion":"0.0.1","values":{"value":{"synthetic-private-key":[{"0":"synthetic-private-answer"}]}},"omitted":[]}
+            """);
+        await Assert.That(await fixture.ArtifactAsync("validate")).IsEqualTo(CliExitCode.Validation);
+        using JsonDocument output = JsonDocument.Parse(fixture.StandardOutput);
+        JsonElement diagnostic = output.RootElement.GetProperty("diagnostics")[0];
+        await Assert.That(diagnostic.GetProperty("code").GetString()).IsEqualTo("value-invalid");
+        JsonElement correction = diagnostic.GetProperty("correction");
+        await Assert.That(correction.GetProperty("inputRevision").GetInt64()).IsEqualTo(0);
+        await Assert.That(correction.GetProperty("fieldId").GetString()).IsEqualTo("value");
+        JsonElement segments = correction.GetProperty("segments");
+        await Assert.That(segments[0].GetProperty("kind").GetString()).IsEqualTo("mapEntry");
+        await Assert.That(segments[0].GetProperty("index").GetInt32()).IsEqualTo(0);
+        await Assert.That(segments[1].GetProperty("kind").GetString()).IsEqualTo("arrayRow");
+        await Assert.That(segments[2].GetProperty("kind").GetString()).IsEqualTo("property");
+        await Assert.That(segments[2].GetProperty("propertyName").GetString()).IsEqualTo("0");
+        await Assert.That(Encoding.UTF8.GetString(fixture.StandardOutput)).DoesNotContain("synthetic-private");
+    }
+
+    [Test]
+    [Arguments("missing", false, true)]
+    [Arguments("replaced", false, true)]
+    [Arguments("exception", false, true)]
+    [Arguments("cancelled", false, true)]
+    [Arguments("cancelled", true, true)]
+    [Arguments("exception", false, false)]
+    [Arguments("cancelled", false, false)]
+    public async Task PostInstallationFailureRetainsUnverifiedPrefixThroughCancellationAndReceiptFailure(string failure, bool failDelivery, bool bundle)
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-installed-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string target = Path.Combine(directory, "service.json");
+            using var work = new CancellationTokenSource();
+            bool observedInstallation = false;
+            var native = new ProtectedArtifactWriter(() =>
+            {
+                observedInstallation = File.Exists(target);
+                if (failure == "missing") File.Delete(target);
+                else if (failure == "replaced")
+                {
+                    File.Delete(target);
+                    File.WriteAllText(target, "synthetic-replacement");
+                }
+                else if (failure == "cancelled")
+                {
+                    work.Cancel();
+                    work.Token.ThrowIfCancellationRequested();
+                }
+                else throw new InvalidOperationException("synthetic-post-install-fault:" + target);
+            });
+            var fixture = new CliFixture();
+            using var output = new ReceiptStream(failDelivery);
+            using var error = new MemoryStream();
+            var writer = new CliProgram.SystemWriter(output, native);
+            string[] arguments = bundle
+                ? ["artifact", "bundle-create", "--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
+                    "--input", "answers.json", "--output", directory, "--machine"]
+                : ["artifact", "create", "--definition", "definition.json", "--artifact", "config",
+                    "--input", "answers.json", "--output", target, "--machine"];
+            CliExitCode exit = await new CliApplication().RunAsync(new(
+                arguments, CliMode.Machine,
+                new(fixture, writer, new CliProgram.SystemWriter(error), CliFixture.RejectingAuthoringFiles, 65_536, 4 * 1024 * 1024)), work.Token)
+                .WaitAsync(TimeSpan.FromSeconds(10));
+
+            await Assert.That(observedInstallation).IsEqualTo(OperatingSystem.IsLinux());
+            // Scalar write failures are I/O errors; bundles classify rejected preflight as blocked.
+            await Assert.That(exit).IsEqualTo(OperatingSystem.IsLinux() || failDelivery || !bundle
+                ? CliExitCode.Io : CliExitCode.Blocked);
+            await Assert.That(output.Attempts).IsEqualTo(1);
+            await Assert.That(File.Exists(Path.Combine(directory, "service.yaml"))).IsFalse();
+            byte[] receipt = output.ToArray();
+            await Assert.That(CliMachineContractVerifier.Validate(receipt)).IsEmpty();
+            string text = Encoding.UTF8.GetString(receipt);
+            await Assert.That(text).DoesNotContain(directory);
+            await Assert.That(text).DoesNotContain("private-answer-marker");
+            await Assert.That(text).DoesNotContain("synthetic-post-install-fault");
+            using JsonDocument document = JsonDocument.Parse(receipt);
+            JsonElement first = document.RootElement.GetProperty("artifacts")[0];
+            await Assert.That(first.GetProperty("writeStatus").GetString())
+                .IsEqualTo(OperatingSystem.IsLinux() ? "written" : "blocked");
+            await Assert.That(first.GetProperty("installation").GetString())
+                .IsEqualTo(OperatingSystem.IsLinux() ? "established" : "not-established");
+            await Assert.That(first.GetProperty("verification").GetString())
+                .IsEqualTo(OperatingSystem.IsLinux() ? "failed" : "not-attempted");
+            if (bundle)
+            {
+                JsonElement second = document.RootElement.GetProperty("artifacts")[1];
+                await Assert.That(second.GetProperty("installation").GetString())
+                    .IsEqualTo(OperatingSystem.IsLinux() ? "not-attempted" : "not-established");
+                await Assert.That(second.GetProperty("verification").GetString()).IsEqualTo("not-attempted");
+            }
+            await Assert.That(document.RootElement.GetProperty("cleanup").GetString()).IsEqualTo("completed");
+            await Assert.That(Encoding.UTF8.GetString(error.ToArray()))
+                .IsEqualTo(failDelivery ? "configurator: result delivery failed\n" : "");
+            if (!OperatingSystem.IsLinux())
+            {
+                await Assert.That(File.Exists(target)).IsFalse();
+            }
+            else if (failure == "replaced")
+            {
+                CliPublicationResult retry = await writer.WriteArtifactAsync(target, ArtifactKind.Configuration,
+                    "{}"u8.ToArray(), 65_536, CancellationToken.None);
+                await Assert.That(retry.Outcomes[0].Result?.InstallationEstablished).IsEqualTo(false);
+                await Assert.That(retry.Outcomes[0].Result?.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
+                await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("synthetic-replacement");
+            }
+            else if (failure != "missing")
+            {
+                await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("{\"enabled\":true,\"name\":\"private-answer-marker\"}");
+                await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task UnexpectedBundleCommitFaultRetainsRealNativeWrittenPrefix(bool cleanupFails)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            Console.WriteLine($"COHORT native-written-prefix cleanupFails={cleanupFails} unexecuted requires-linux-protected-writer; unsupported refusal executes in PostInstallationFailureRetainsUnverifiedPrefixThroughCancellationAndReceiptFailure");
+            return;
+        }
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-prefix-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var fixture = new CliFixture();
+            using var output = new MemoryStream();
+            using var error = new MemoryStream();
+            var writer = new CliProgram.SystemWriter(output, new FaultingSecondCommitWriter(cleanupFails));
+            CliExitCode exit = await new CliApplication().RunAsync(new(
+                ["artifact", "bundle-create", "--definition", "definition.json", "--artifact", "config", "--artifact", "yaml",
+                    "--input", "answers.json", "--output", directory, "--machine"], CliMode.Machine,
+                new(fixture, writer, new CliProgram.SystemWriter(error), CliFixture.RejectingAuthoringFiles, 65_536, 4 * 1024 * 1024)))
+                .WaitAsync(TimeSpan.FromSeconds(10));
+
+            string target = Path.Combine(directory, "service.json");
+            await Assert.That(await File.ReadAllTextAsync(target)).IsEqualTo("{\"enabled\":true,\"name\":\"private-answer-marker\"}");
+            await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            await Assert.That(File.Exists(Path.Combine(directory, "service.yaml"))).IsFalse();
+            await Assert.That(exit).IsEqualTo(CliExitCode.Internal);
+            await Assert.That(error.Length).IsEqualTo(0);
+            byte[] receipt = output.ToArray();
+            await Assert.That(receipt.Length).IsLessThanOrEqualTo(65_536);
+            await Assert.That(CliMachineContractVerifier.Validate(receipt)).IsEmpty();
+            string text = Encoding.UTF8.GetString(receipt);
+            await Assert.That(text.Count(character => character == '\n')).IsEqualTo(1);
+            await Assert.That(text.EndsWith('\n')).IsTrue();
+            await Assert.That(text.Contains(directory, StringComparison.Ordinal)).IsFalse();
+            await Assert.That(text.Contains("synthetic-unexpected-commit-fault", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(text.Contains("synthetic-cleanup-fault", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(text.Contains("private-answer-marker", StringComparison.Ordinal)).IsFalse();
+            using JsonDocument result = JsonDocument.Parse(receipt);
+            JsonElement root = result.RootElement;
+            await Assert.That(root.GetProperty("exitCode").GetInt32()).IsEqualTo(70);
+            await Assert.That(root.GetProperty("completion").GetString()).IsEqualTo("failed");
+            await Assert.That(root.GetProperty("cleanup").GetString()).IsEqualTo("unknown");
+            JsonElement artifacts = root.GetProperty("artifacts");
+            await Assert.That(artifacts.GetArrayLength()).IsEqualTo(2);
+            await Assert.That(artifacts[0].GetProperty("id").GetString()).IsEqualTo("config");
+            await Assert.That(artifacts[0].GetProperty("writeStatus").GetString()).IsEqualTo("written");
+            await Assert.That(artifacts[1].GetProperty("id").GetString()).IsEqualTo("yaml");
+            await Assert.That(artifacts[1].GetProperty("writeStatus").GetString()).IsEqualTo("unknown");
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Test]
+    public async Task MaximumCoverageCannotHideAnEstablishedNativeWrite()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "configurator-receipt-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            JsonObject definition = JsonNode.Parse(CliFixture.Definition)!.AsObject();
+            var fields = new JsonObject();
+            var required = new JsonArray();
+            JsonObject answers = new();
+            for (int index = 0; index < 1024; index++)
+            {
+                string id = "f" + index.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + new string('x', 123);
+                fields[id] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+                    ["title"] = "Field"
+                };
+                required.Add(id);
+                answers[id] = "synthetic";
+            }
+            definition["configuration"]!["properties"] = fields;
+            definition["configuration"]!["required"] = required;
+            var artifacts = new JsonObject();
+            var ids = new List<string>();
+            for (int index = 0; index < 64; index++)
+            {
+                string id = "a" + index.ToString("D3", System.Globalization.CultureInfo.InvariantCulture) + new string('x', 124);
+                ids.Add(id);
+                artifacts[index.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".json"] = new JsonObject
+                {
+                    ["id"] = id,
+                    ["format"] = "json",
+                    ["targetUpdateMode"] = "create",
+                    ["restartRequirement"] = "none",
+                    ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject { ["ok"] = true } }
+                };
+            }
+            definition["outputs"] = artifacts;
+            string source = Path.Combine(directory, "definition.json");
+            string input = Path.Combine(directory, "answers.json");
+            string target = Path.Combine(directory, "0.json");
+            await File.WriteAllTextAsync(source, definition.ToJsonString());
+            await File.WriteAllTextAsync(input, new JsonObject
+            {
+                ["answerContractVersion"] = "0.0.1",
+                ["values"] = answers,
+                ["omitted"] = new JsonArray()
+            }.ToJsonString());
+            var info = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "Configurator.Cli.exe" : "Configurator.Cli"))
+            { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+            foreach (string argument in new[] { "artifact", "bundle-create", "--definition", source,
+                "--input", input, "--output", directory, "--machine" }) info.ArgumentList.Add(argument);
+            foreach (string id in ids) { info.ArgumentList.Add("--artifact"); info.ArgumentList.Add(id); }
+            using Process process = Process.Start(info)!;
+            Task<string> output = process.StandardOutput.ReadToEndAsync();
+            Task<string> error = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            try { await process.WaitForExitAsync(timeout.Token); }
+            finally
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await process.WaitForExitAsync(cleanupTimeout.Token);
+                }
+            }
+            if (OperatingSystem.IsLinux())
+            {
+                await Assert.That(File.Exists(target)).IsTrue();
+                using JsonDocument payload = JsonDocument.Parse(await File.ReadAllBytesAsync(target, timeout.Token));
+                await Assert.That(payload.RootElement.GetProperty("ok").GetBoolean()).IsTrue();
+                await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            else foreach (string file in Enumerable.Range(0, 64).Select(index => Path.Combine(directory, index + ".json")))
+                await Assert.That(File.Exists(file)).IsFalse();
+            string receipt = await output;
+            await Assert.That(await error).IsEmpty();
+            await Assert.That(Encoding.UTF8.GetByteCount(receipt)).IsLessThanOrEqualTo(65_536);
+            using JsonDocument result = JsonDocument.Parse(receipt);
+            await Assert.That(result.RootElement.GetProperty("artifacts").GetArrayLength()).IsEqualTo(64);
+            foreach (JsonElement artifact in result.RootElement.GetProperty("artifacts").EnumerateArray())
+                await Assert.That(artifact.GetProperty("writeStatus").GetString()).IsEqualTo(OperatingSystem.IsLinux() ? "written" : "blocked");
+            await Assert.That(result.RootElement.GetProperty("coverage").GetProperty("coveredCount").GetInt32()).IsEqualTo(64);
+            await Assert.That(process.ExitCode).IsEqualTo(OperatingSystem.IsLinux() ? 0 : 4);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Test]
+    [Arguments(0)]
+    [Arguments(32)]
+    public async Task FailedDeliveryIsAttemptedOnlyOnce(int prefix)
+    {
+        var writer = new FailingWriter(prefix);
+        var error = new FailingWriter(0);
+        CliExitCode exit = await new CliApplication().RunAsync(new(["doctor", "--machine"], CliMode.Machine,
+            new(new CliFixture(), writer, error, CliFixture.RejectingAuthoringFiles, 65_536, 4 * 1024 * 1024)));
+        await Assert.That(exit).IsEqualTo(CliExitCode.Io);
+        await Assert.That(writer.Attempts).IsEqualTo(1);
+        await Assert.That(error.Attempts).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task InsufficientReceiptCapacityRejectsBeforePublication()
+    {
+        var fixture = new CliFixture();
+        var writer = new PublicationWriter(fixture, new([new(ProtectedArtifactCommitResult.Installed(true))]));
+        CliExitCode exit = await RunArtifactAsync(fixture, writer, 512);
+        await Assert.That(exit).IsEqualTo(CliExitCode.Io);
+        await Assert.That(writer.Publications).IsEqualTo(0);
+        await Assert.That(fixture.Files.ContainsKey("prepared.json")).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task CleanupFailureDoesNotEraseWrittenOutcome(bool unknownStatus)
+    {
+        var fixture = new CliFixture();
+        ProtectedArtifactCommitResult? commit = unknownStatus ? null : ProtectedArtifactCommitResult.Installed(true, cleanupFailed: true);
+        var writer = new PublicationWriter(fixture, new([new(commit, Unknown: unknownStatus)]));
+        await Assert.That(await RunArtifactAsync(fixture, writer)).IsEqualTo(CliExitCode.Io);
+        using JsonDocument result = JsonDocument.Parse(fixture.StandardOutput);
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString())
+            .IsEqualTo(unknownStatus ? "unknown" : "written");
+        await Assert.That(result.RootElement.GetProperty("cleanup").GetString()).IsEqualTo(unknownStatus ? "completed" : "failed");
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("installation").GetString())
+            .IsEqualTo(unknownStatus ? "unknown" : "established");
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("verification").GetString())
+            .IsEqualTo(unknownStatus ? "unknown" : "succeeded");
+    }
+
+    [Test]
+    public async Task ExceptionAfterPublicationCannotClaimNotAttempted()
+    {
+        var fixture = new CliFixture();
+        var writer = new PublicationWriter(fixture, null);
+        await Assert.That(await RunArtifactAsync(fixture, writer)).IsEqualTo(CliExitCode.Io);
+        await Assert.That(fixture.Files.ContainsKey("prepared.json")).IsTrue();
+        using JsonDocument result = JsonDocument.Parse(fixture.StandardOutput);
+        await Assert.That(result.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString()).IsEqualTo("unknown");
+    }
+
+    [Test]
+    [Arguments("validate", CliExitCode.Incomplete)]
+    [Arguments("bundle-check", CliExitCode.Validation)]
+    public async Task DiagnosticPagesAccountExactlyAndRejectChangedViews(string operation, CliExitCode expected)
+    {
+        var fixture = new CliFixture();
+        JsonObject definition = JsonNode.Parse(CliFixture.Definition)!.AsObject();
+        var fields = new JsonObject();
+        var required = new JsonArray();
+        for (int index = 0; index < 40; index++)
+        {
+            string name = "field" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            fields[name] = new JsonObject
+            {
+                ["type"] = "string",
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+                ["title"] = "Field"
+            };
+            required.Add(name);
+        }
+        definition["configuration"]!["properties"] = fields;
+        definition["configuration"]!["required"] = required;
+        definition["outputs"] = new JsonObject
+        {
+            ["output.json"] = new JsonObject
+            {
+                ["id"] = "config",
+                ["format"] = "json",
+                ["targetUpdateMode"] = "create",
+                ["restartRequirement"] = "none",
+                ["projection"] = new JsonObject { ["op"] = "literal", ["value"] = new JsonObject() }
+            }
+        };
+        fixture.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
+        fixture.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{},"omitted":[]}"""u8.ToArray();
+        string[] arguments = ["artifact", operation, "--definition", "definition.json", "--artifact", "config",
+            "--input", "answers.json", "--machine", "--detail", "diagnostics", "--limit", "16"];
+        await Assert.That(await fixture.RunAsync(arguments)).IsEqualTo(expected);
+        using JsonDocument first = JsonDocument.Parse(fixture.StandardOutput);
+        await Assert.That(first.RootElement.GetProperty("diagnosticsTotal").GetInt32()).IsEqualTo(40);
+        await Assert.That(first.RootElement.GetProperty("diagnosticsOmitted").GetInt32()).IsEqualTo(24);
+        await Assert.That(first.RootElement.GetProperty("detail").GetProperty("diagnostics").GetArrayLength()).IsEqualTo(16);
+        string digest = first.RootElement.GetProperty("detailDigest").GetString()!;
+        string[] continuation = [.. arguments, "--offset", "16", "--expected-detail-digest", digest];
+        await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(expected);
+        await Assert.That(CliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
+        fixture.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"field0":"synthetic"},"omitted":[]}"""u8.ToArray();
+        await Assert.That(await fixture.RunAsync(continuation)).IsEqualTo(CliExitCode.Data);
+        using JsonDocument mismatch = JsonDocument.Parse(fixture.StandardOutput);
+        await Assert.That(mismatch.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString()).IsEqualTo("detail-digest-mismatch");
+    }
+
+    [Test]
+    public async Task EscapedPublicDiagnosticsRespectSharedByteBudgetAndMakePageProgress()
+    {
+        var command = new CliCommand("artifact", "validate", true, false, false, null, null, null, null, null, null)
+        { Detail = "diagnostics" };
+        CliCommandResult result = CliResults.Failure(CliExitCode.Validation, "public-failure") with
+        {
+            Diagnostics = Enumerable.Range(0, 1024).Select(_ =>
+                new CliMachineDiagnostic("public-failure", "/" + new string('\uFFFF', 255), "error")).ToArray()
+        };
+        byte[] bytes = CliMachineOutput.Serialize(command, result, 65_536);
+        await Assert.That(bytes.Length <= 65_536).IsTrue();
+        await Assert.That(CliMachineContractVerifier.Validate(bytes)).IsEmpty();
+        using JsonDocument document = JsonDocument.Parse(bytes);
+        JsonElement root = document.RootElement;
+        int inline = root.GetProperty("diagnostics").GetArrayLength();
+        int page = root.GetProperty("detail").GetProperty("diagnostics").GetArrayLength();
+        await Assert.That(page > 0).IsTrue();
+        await Assert.That(inline + root.GetProperty("diagnosticsOmitted").GetInt32()).IsEqualTo(1024);
+        int optionalBytes = Encoding.UTF8.GetByteCount(root.GetProperty("detail").GetRawText())
+            + root.GetProperty("diagnostics").EnumerateArray().Sum(item => Encoding.UTF8.GetByteCount(item.GetRawText()));
+        await Assert.That(optionalBytes <= 8192).IsTrue();
+        string digest = root.GetProperty("detailDigest").GetString()!;
+        byte[] next = CliMachineOutput.Serialize(command with { Offset = page, ExpectedDetailDigest = digest }, result, 65_536);
+        using JsonDocument continuation = JsonDocument.Parse(next);
+        await Assert.That(continuation.RootElement.GetProperty("detail").GetProperty("offset").GetInt32()).IsEqualTo(page);
+        await Assert.That(continuation.RootElement.GetProperty("detail").GetProperty("diagnostics").GetArrayLength() > 0).IsTrue();
+    }
+
+    private static Task<CliExitCode> RunArtifactAsync(CliFixture fixture, PublicationWriter writer, int budget = 65_536) =>
+        new CliApplication().RunAsync(new(["artifact", "create", "--definition", "definition.json", "--artifact", "config",
+            "--input", "answers.json", "--output", "prepared.json", "--machine"], CliMode.Machine,
+            new(fixture, writer, writer, CliFixture.RejectingAuthoringFiles, budget, 4 * 1024 * 1024)));
+
+    private sealed class FaultingSecondCommitWriter(bool cleanupFails) : IProtectedArtifactWriter
+    {
+        private readonly ProtectedArtifactWriter _writer = new();
+        private int _prepared;
+        public bool IsAvailable => _writer.IsAvailable;
+
+        public async Task<ProtectedArtifactPreparation> PrepareAsync(ArtifactKind kind, string targetPath,
+            ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
+        {
+            ProtectedArtifactPreparation preparation = await _writer.PrepareAsync(kind, targetPath, bytes, cancellationToken);
+            if (_prepared++ == 0) return preparation;
+            return new ProtectedArtifactPreparation((_, _) => throw new InvalidOperationException("synthetic-unexpected-commit-fault:" + targetPath),
+                () =>
+                {
+                    preparation.Dispose();
+                    if (cleanupFails) throw new InvalidOperationException("synthetic-cleanup-fault:" + targetPath);
+                }, preparation.RejectionStatus);
+        }
+    }
+
+    private sealed class PublicationWriter(CliFixture fixture, CliPublicationResult? result) : ISetupCliWriter
+    {
+        public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+            fixture.CheckArtifactDestinationAsync(path, cancellationToken);
+        internal int Publications { get; private set; }
+        public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) =>
+            fixture.WriteAsync(path, bytes, maximumBytes, cancellationToken);
+        public async ValueTask<CliPublicationResult> WriteArtifactAsync(string path, Configurator.Core.ArtifactKind kind,
+            ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
+        {
+            Publications++;
+            await fixture.WriteArtifactAsync(path, kind, bytes, maximumBytes, cancellationToken);
+            return result ?? throw new IOException("synthetic-post-publication-failure");
+        }
+        public ValueTask<CliPublicationResult> WriteBundleAsync(IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts,
+            string directory, int maximumBytes, Action<string, CliPublicationOutcome> outcomeObserver,
+            CancellationToken cancellationToken) => throw new InvalidOperationException();
+    }
+
+    private sealed class ReceiptStream(bool failDelivery) : MemoryStream
+    {
+        internal int Attempts { get; private set; }
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            await base.WriteAsync(buffer, cancellationToken);
+            if (failDelivery) throw new IOException("synthetic-receipt-failure");
+        }
+    }
+
+    private sealed class FailingWriter(int prefix) : ISetupCliWriter
+    {
+        public ValueTask<ProtectedArtifactStatus?> CheckArtifactDestinationAsync(string path, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<ProtectedArtifactStatus?>(ProtectedArtifactStatus.UnsupportedPlatform);
+        internal int Attempts { get; private set; }
+        public ValueTask WriteAsync(string path, ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
+        {
+            Attempts++;
+            _ = bytes.Span[..Math.Min(prefix, bytes.Length)];
+            throw new IOException("synthetic-delivery-failure");
+        }
+        public ValueTask<CliPublicationResult> WriteArtifactAsync(string path, Configurator.Core.ArtifactKind kind,
+            ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken) => throw new IOException();
+        public ValueTask<CliPublicationResult> WriteBundleAsync(
+            IReadOnlyList<Configurator.Core.Artifacts.DefinitionArtifact> artifacts, string directory, int maximumBytes,
+            Action<string, CliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken) => throw new IOException();
+    }
+}

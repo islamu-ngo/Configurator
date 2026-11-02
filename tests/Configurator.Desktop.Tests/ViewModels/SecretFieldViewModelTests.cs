@@ -195,6 +195,6 @@ public sealed class SecretFieldViewModelTests
             [{"id":"config","format":"json","fileName":"config.json","targetUpdateMode":"create","restartRequirement":"process",
               "projection":{"op":"literal","value":{}}}]
             """);
-        return new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        return new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
     }
 }

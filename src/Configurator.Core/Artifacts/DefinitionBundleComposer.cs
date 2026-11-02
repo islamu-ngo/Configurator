@@ -24,20 +24,20 @@ public sealed class DefinitionBundleResult : IDisposable
 
 public static class DefinitionBundleComposer
 {
-    public static DefinitionBundleResult Compose(SetupDefinition definition, IEnumerable<string> artifactIds,
-        SetupAnswerSnapshot answers, CancellationToken cancellationToken = default)
+    public static DefinitionBundleResult Compose(Definition definition, IEnumerable<string> artifactIds,
+        AnswerSnapshot answers, CancellationToken cancellationToken = default)
         => ComposeCore(definition, artifactIds, answers, skipOmitted: false, cancellationToken);
 
     /// <summary>Composes declared active artifacts. Omitted artifacts are skipped; validation and output limits remain strict.</summary>
-    public static DefinitionBundleResult ComposeActive(SetupDefinition definition, SetupAnswerSnapshot answers,
+    public static DefinitionBundleResult ComposeActive(Definition definition, AnswerSnapshot answers,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
         return ComposeCore(definition, definition.Artifacts.Select(item => item.Id), answers, skipOmitted: true, cancellationToken);
     }
 
-    private static DefinitionBundleResult ComposeCore(SetupDefinition definition, IEnumerable<string> artifactIds,
-        SetupAnswerSnapshot answers, bool skipOmitted, CancellationToken cancellationToken)
+    private static DefinitionBundleResult ComposeCore(Definition definition, IEnumerable<string> artifactIds,
+        AnswerSnapshot answers, bool skipOmitted, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactIds);
@@ -63,7 +63,7 @@ public static class DefinitionBundleComposer
         bool complete = false;
         try
         {
-            foreach (SetupArtifactDefinition artifact in definition.Artifacts)
+            foreach (ArtifactDefinition artifact in definition.Artifacts)
             {
                 if (!selected.Contains(artifact.Id)) continue;
                 DefinitionArtifactResult result = composition.Compose(artifact.Id, []);
@@ -75,7 +75,7 @@ public static class DefinitionBundleComposer
                 DefinitionArtifact output = result.Artifact!;
                 composed.Add(output);
                 totalBytes += output.ByteLength;
-                if (totalBytes > SetupCompositionLimits.DefaultAggregateSourceBytes)
+                if (totalBytes > CompositionLimits.DefaultAggregateSourceBytes)
                     return new([], [new("bundle-limit", "")]);
             }
             cancellationToken.ThrowIfCancellationRequested();

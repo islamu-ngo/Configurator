@@ -134,7 +134,7 @@ public sealed class BrowserCredentialEntryTests
         await Assert.That(component.Markup).DoesNotContain("synthetic-manager-value");
     }
 
-    private static SetupDefinition Definition()
+    private static Definition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
         source["configuration"]!["required"] = new JsonArray("created", "existing");
@@ -149,6 +149,6 @@ public sealed class BrowserCredentialEntryTests
         source.Remove("presentation");
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         BrowserFixture.SetCapabilities(source, "projection.literal", "schema.object", "schema.string", "schema.secret");
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

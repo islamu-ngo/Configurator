@@ -28,7 +28,7 @@ public sealed class ArtifactComparisonTests
         byte[] original = Encoding.UTF8.GetBytes(input);
         fixture.Files["existing.json"] = original;
         int files = fixture.Files.Count;
-        SetupCliExitCode result = await fixture.RunAsync("artifact", "compare", "--definition", "definition.json",
+        CliExitCode result = await fixture.RunAsync("artifact", "compare", "--definition", "definition.json",
             "--artifact", "config", "--input", "existing.json", "--machine");
         await Assert.That((int)result).IsEqualTo(exit);
         using JsonDocument document = JsonDocument.Parse(fixture.StandardOutput);
@@ -58,8 +58,8 @@ public sealed class ArtifactComparisonTests
     public async Task ThreeThousandIndependentCoverageEntriesHaveAdvancingTerminalPages()
     {
         string[] expected = Enumerable.Range(0, 3000).Select(index => "field" + index.ToString("D4", CultureInfo.InvariantCulture)).ToArray();
-        var result = SetupCliResults.Success(coverage: new(expected, []));
-        var command = new SetupCliCommand("artifact", "validate", true, false, false, null, "config", null, null, null, null)
+        var result = CliResults.Success(coverage: new(expected, []));
+        var command = new CliCommand("artifact", "validate", true, false, false, null, "config", null, null, null, null)
         { Detail = "coverage", Limit = 32 };
         var seen = new List<string>();
         int offset = 0;
@@ -67,7 +67,7 @@ public sealed class ArtifactComparisonTests
         do
         {
             command = command with { Offset = offset, ExpectedDetailDigest = digest };
-            using JsonDocument document = JsonDocument.Parse(SetupCliMachineOutput.Serialize(command, result, 65_536));
+            using JsonDocument document = JsonDocument.Parse(CliMachineOutput.Serialize(command, result, 65_536));
             JsonElement detail = document.RootElement.GetProperty("detail");
             int returned = detail.GetProperty("returnedCount").GetInt32();
             seen.AddRange(detail.GetProperty("coverage").EnumerateArray().Select(item => item.GetProperty("id").GetString()!));
@@ -90,10 +90,10 @@ public sealed class ArtifactComparisonTests
     public async Task EveryRetainedFindingIsAddressableOnceDespiteEscapingAndShortenedPages(int retained, bool complete)
     {
         // Independent ordinal inventory; no parser or production projection constructs expectations.
-        SetupCliMachineFinding[] findings = Enumerable.Range(0, retained).Select(index =>
-            new SetupCliMachineFinding("unrecognized-input", "input-unrecognized", new([index]),
+        CliMachineFinding[] findings = Enumerable.Range(0, retained).Select(index =>
+            new CliMachineFinding("unrecognized-input", "input-unrecognized", new([index]),
                 index < 32 ? new("name", [new string('"', 256)]) : null)).ToArray();
-        SetupCliCommandResult result = FindingResult(findings, complete);
+        CliCommandResult result = FindingResult(findings, complete);
         var command = FindingCommand();
         var seen = new List<int>();
         int offset = 0;
@@ -102,10 +102,10 @@ public sealed class ArtifactComparisonTests
         while (true)
         {
             command = command with { Offset = offset, ExpectedDetailDigest = digest };
-            await Assert.That(SetupCliMachineOutput.ValidateDetail(command, result).Exit).IsEqualTo(SetupCliExitCode.Validation);
-            byte[] bytes = SetupCliMachineOutput.Serialize(command, result, 65_536);
+            await Assert.That(CliMachineOutput.ValidateDetail(command, result).Exit).IsEqualTo(CliExitCode.Validation);
+            byte[] bytes = CliMachineOutput.Serialize(command, result, 65_536);
             await Assert.That(bytes.Length).IsLessThanOrEqualTo(65_536);
-            await Assert.That(SetupCliMachineContractVerifier.Validate(bytes)).IsEmpty();
+            await Assert.That(CliMachineContractVerifier.Validate(bytes)).IsEmpty();
             using JsonDocument document = JsonDocument.Parse(bytes);
             JsonElement page = document.RootElement.GetProperty("detail");
             await Assert.That(Encoding.UTF8.GetByteCount(page.GetRawText())).IsLessThanOrEqualTo(8192);
@@ -127,8 +127,8 @@ public sealed class ArtifactComparisonTests
         await Assert.That(shortened).IsTrue();
         await Assert.That(seen.SequenceEqual(Enumerable.Range(0, retained))).IsTrue();
         command = command with { Offset = retained, ExpectedDetailDigest = digest };
-        await Assert.That(SetupCliMachineOutput.ValidateDetail(command, result).Exit).IsEqualTo(SetupCliExitCode.Validation);
-        using JsonDocument terminal = JsonDocument.Parse(SetupCliMachineOutput.Serialize(command, result, 65_536));
+        await Assert.That(CliMachineOutput.ValidateDetail(command, result).Exit).IsEqualTo(CliExitCode.Validation);
+        using JsonDocument terminal = JsonDocument.Parse(CliMachineOutput.Serialize(command, result, 65_536));
         await Assert.That(terminal.RootElement.GetProperty("detail").GetProperty("returnedCount").GetInt32()).IsEqualTo(0);
         await Assert.That(terminal.RootElement.GetProperty("detail").GetProperty("terminal").GetBoolean()).IsTrue();
     }
@@ -138,27 +138,27 @@ public sealed class ArtifactComparisonTests
     {
         var result = FindingResult([new("unrecognized-input", "input-unrecognized", new([0]), null)], true);
         var command = FindingCommand();
-        using JsonDocument initial = JsonDocument.Parse(SetupCliMachineOutput.Serialize(command, result, 65_536));
+        using JsonDocument initial = JsonDocument.Parse(CliMachineOutput.Serialize(command, result, 65_536));
         string digest = initial.RootElement.GetProperty("detailDigest").GetString()!;
-        foreach (SetupCliCommand invalid in new[]
+        foreach (CliCommand invalid in new[]
         {
             command with { Offset = 1 },
             command with { ExpectedDetailDigest = new string('f', 64) },
             command with { Offset = 2, ExpectedDetailDigest = digest }
         })
         {
-            SetupCliCommandResult refused = SetupCliMachineOutput.ValidateDetail(invalid, result);
-            await Assert.That(refused.Exit).IsEqualTo(SetupCliExitCode.Data);
-            byte[] bytes = SetupCliMachineOutput.Serialize(invalid, refused, 65_536);
-            await Assert.That(SetupCliMachineContractVerifier.Validate(bytes)).IsEmpty();
+            CliCommandResult refused = CliMachineOutput.ValidateDetail(invalid, result);
+            await Assert.That(refused.Exit).IsEqualTo(CliExitCode.Data);
+            byte[] bytes = CliMachineOutput.Serialize(invalid, refused, 65_536);
+            await Assert.That(CliMachineContractVerifier.Validate(bytes)).IsEmpty();
             using JsonDocument document = JsonDocument.Parse(bytes);
             await Assert.That(document.RootElement.TryGetProperty("detail", out _)).IsFalse();
         }
         var oversized = FindingResult([new("unrecognized-input", new string('a', 10_000), null, null)], true);
-        SetupCliCommandResult failure = SetupCliMachineOutput.ValidateDetail(command, oversized);
-        await Assert.That(failure.Exit).IsEqualTo(SetupCliExitCode.Data);
+        CliCommandResult failure = CliMachineOutput.ValidateDetail(command, oversized);
+        await Assert.That(failure.Exit).IsEqualTo(CliExitCode.Data);
         await Assert.That(failure.Diagnostics.Single().Code).IsEqualTo("detail-item-unencodable");
-        await Assert.That(SetupCliMachineContractVerifier.Validate(SetupCliMachineOutput.Serialize(command, failure, 65_536))).IsEmpty();
+        await Assert.That(CliMachineContractVerifier.Validate(CliMachineOutput.Serialize(command, failure, 65_536))).IsEmpty();
     }
 
     [Test]
@@ -166,13 +166,13 @@ public sealed class ArtifactComparisonTests
     {
         int[] ordinals = [7];
         string[] path = ["declared"];
-        SetupCliMachineFinding[] findings = [new("invalid-supplied-value", "value-invalid", new(ordinals), new("name", path))];
-        SetupCliCommandResult result = FindingResult(findings, true);
-        byte[] before = SetupCliMachineOutput.Serialize(FindingCommand(), result, 65_536);
+        CliMachineFinding[] findings = [new("invalid-supplied-value", "value-invalid", new(ordinals), new("name", path))];
+        CliCommandResult result = FindingResult(findings, true);
+        byte[] before = CliMachineOutput.Serialize(FindingCommand(), result, 65_536);
         ordinals[0] = 8;
         path[0] = "changed";
         findings[0] = new("unassessed", "mapping-unresolved", null, null);
-        await Assert.That(SetupCliMachineOutput.Serialize(FindingCommand(), result, 65_536).SequenceEqual(before)).IsTrue();
+        await Assert.That(CliMachineOutput.Serialize(FindingCommand(), result, 65_536).SequenceEqual(before)).IsTrue();
         using JsonDocument document = JsonDocument.Parse(before);
         JsonElement finding = document.RootElement.GetProperty("detail").GetProperty("findings")[0];
         await Assert.That(finding.GetProperty("source").GetProperty("ordinals")[0].GetInt32()).IsEqualTo(7);
@@ -187,15 +187,15 @@ public sealed class ArtifactComparisonTests
         fixture.Files["existing.json"] = """{"name":"synthetic-private-one"}"""u8.ToArray();
         string[] command = ["artifact", "compare", "--definition", "definition.json", "--artifact", "config",
             "--input", "existing.json", "--machine", "--detail", "findings"];
-        await Assert.That(await fixture.RunAsync(command)).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(await fixture.RunAsync(command)).IsEqualTo(CliExitCode.Success);
         using JsonDocument first = JsonDocument.Parse(fixture.StandardOutput);
         string digest = first.RootElement.GetProperty("detailDigest").GetString()!;
         fixture.Files["existing.json"] = """{ "name": "synthetic-private-two" }"""u8.ToArray();
-        await Assert.That(await fixture.RunAsync([.. command, "--expected-detail-digest", digest])).IsEqualTo(SetupCliExitCode.Success);
+        await Assert.That(await fixture.RunAsync([.. command, "--expected-detail-digest", digest])).IsEqualTo(CliExitCode.Success);
         using JsonDocument second = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(second.RootElement.GetProperty("detailDigest").GetString()).IsEqualTo(digest);
         fixture.Files["existing.json"] = """{"name":false}"""u8.ToArray();
-        await Assert.That(await fixture.RunAsync([.. command, "--expected-detail-digest", digest])).IsEqualTo(SetupCliExitCode.Data);
+        await Assert.That(await fixture.RunAsync([.. command, "--expected-detail-digest", digest])).IsEqualTo(CliExitCode.Data);
     }
 
     [Test]
@@ -205,15 +205,15 @@ public sealed class ArtifactComparisonTests
         fixture.Files["definition.json"] = Encoding.UTF8.GetBytes(Definition);
         fixture.Files["existing.json"] = """{"name":false}"""u8.ToArray();
         string[] common = ["--definition", "definition.json", "--artifact", "config", "--input", "existing.json", "--machine"];
-        await Assert.That(await fixture.RunAsync(["artifact", "compare", .. common])).IsEqualTo(SetupCliExitCode.Validation);
+        await Assert.That(await fixture.RunAsync(["artifact", "compare", .. common])).IsEqualTo(CliExitCode.Validation);
         using JsonDocument report = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(report.RootElement.GetProperty("completion").GetString()).IsEqualTo("completed");
         await Assert.That(report.RootElement.GetProperty("assessment").GetProperty("autofill").GetString()).IsEqualTo("ineligible");
-        await Assert.That(await fixture.RunAsync(["artifact", "prefill", .. common, "--output", "recovered.json"])).IsEqualTo(SetupCliExitCode.Data);
+        await Assert.That(await fixture.RunAsync(["artifact", "prefill", .. common, "--output", "recovered.json"])).IsEqualTo(CliExitCode.Data);
         await Assert.That(fixture.Files.ContainsKey("recovered.json")).IsFalse();
         fixture.Files["repaired.json"] = """{"name":"synthetic-repaired"}"""u8.ToArray();
         await Assert.That(await fixture.RunAsync("artifact", "prefill", "--definition", "definition.json", "--artifact", "config",
-            "--input", "repaired.json", "--output", "recovered.json", "--machine")).IsEqualTo(SetupCliExitCode.Success);
+            "--input", "repaired.json", "--output", "recovered.json", "--machine")).IsEqualTo(CliExitCode.Success);
         await Assert.That(Encoding.UTF8.GetString(fixture.Files["existing.json"])).IsEqualTo("""{"name":false}""");
     }
 
@@ -235,7 +235,7 @@ public sealed class ArtifactComparisonTests
         fixture.Files["existing.json"] = Encoding.UTF8.GetBytes(input);
         await Assert.That((int)await fixture.RunAsync("artifact", "compare", "--definition", "definition.json",
             "--artifact", "config", "--input", "existing.json", "--machine", "--detail", "findings")).IsEqualTo(exit);
-        await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
+        await Assert.That(CliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
         using JsonDocument document = JsonDocument.Parse(fixture.StandardOutput);
         JsonElement assessment = document.RootElement.GetProperty("assessment");
         await Assert.That(assessment.GetProperty("compatibility").GetString()).IsEqualTo(compatibility);
@@ -250,8 +250,8 @@ public sealed class ArtifactComparisonTests
         var fixture = new CliFixture();
         fixture.Files["existing.md"] = "synthetic-private"u8.ToArray();
         await Assert.That(await fixture.RunAsync("artifact", "compare", "--definition", "definition.json",
-            "--artifact", "markdown", "--input", "existing.md", "--machine")).IsEqualTo(SetupCliExitCode.Blocked);
-        await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
+            "--artifact", "markdown", "--input", "existing.md", "--machine")).IsEqualTo(CliExitCode.Blocked);
+        await Assert.That(CliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
         using JsonDocument document = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(document.RootElement.GetProperty("assessment").GetProperty("compatibility").GetString()).IsEqualTo("unsupported");
         await Assert.That(document.RootElement.GetProperty("completion").GetString()).IsEqualTo("failed");
@@ -264,19 +264,19 @@ public sealed class ArtifactComparisonTests
         fixture.Files["definition.json"] = "{bad}"u8.ToArray();
         fixture.Files["existing.json"] = "{}"u8.ToArray();
         await Assert.That(await fixture.RunAsync("artifact", "compare", "--definition", "definition.json", "--artifact", "config",
-            "--input", "existing.json", "--machine", "--detail", "findings")).IsEqualTo(SetupCliExitCode.Data);
-        await Assert.That(SetupCliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
+            "--input", "existing.json", "--machine", "--detail", "findings")).IsEqualTo(CliExitCode.Data);
+        await Assert.That(CliMachineContractVerifier.Validate(fixture.StandardOutput)).IsEmpty();
         using JsonDocument document = JsonDocument.Parse(fixture.StandardOutput);
         await Assert.That(document.RootElement.TryGetProperty("assessment", out _)).IsFalse();
         await Assert.That(document.RootElement.GetProperty("completion").GetString()).IsEqualTo("failed");
     }
 
-    private static SetupCliCommand FindingCommand() =>
+    private static CliCommand FindingCommand() =>
         new("artifact", "compare", true, false, false, null, "config", null, null, null, null)
         { Detail = "findings", Limit = 32 };
 
-    private static SetupCliCommandResult FindingResult(SetupCliMachineFinding[] findings, bool complete) =>
-        new(SetupCliExitCode.Validation, [], [], SetupCliResults.EmptyCoverage(), new("unassessed", [], []))
+    private static CliCommandResult FindingResult(CliMachineFinding[] findings, bool complete) =>
+        new(CliExitCode.Validation, [], [], CliResults.EmptyCoverage(), new("unassessed", [], []))
         {
             Completion = "completed",
             Preparation = "not-evaluated",

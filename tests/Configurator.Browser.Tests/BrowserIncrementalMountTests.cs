@@ -308,7 +308,7 @@ public sealed class BrowserIncrementalMountTests
 
     private static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context)
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         return context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
             builder.OpenComponent<ConfigurationEditor>(0);
@@ -317,7 +317,7 @@ public sealed class BrowserIncrementalMountTests
         }));
     }
 
-    private static SetupDefinition Definition(bool advancedTail = false, bool secret = false, string prefix = "setting",
+    private static Definition Definition(bool advancedTail = false, bool secret = false, string prefix = "setting",
         long revision = 1, bool sectioned = false)
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
@@ -352,12 +352,12 @@ public sealed class BrowserIncrementalMountTests
                 """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.object", "schema.string");
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 
     public sealed class EditorHost : ComponentBase
     {
-        [Parameter] public SetupDefinition Definition { get; set; } = null!;
+        [Parameter] public Definition Definition { get; set; } = null!;
         [Parameter] public bool Show { get; set; }
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {

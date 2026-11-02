@@ -46,7 +46,7 @@ composition and directory reading retain their collision-safe policy; generic
 composition still rejects case/NFC collisions. There is no compatibility
 interpreter, second canonicalizer, answer tree, or new package.
 
-`SetupFieldDefinition.Name` is the exact root configuration key; `Id` is bounded
+`FieldDefinition.Name` is the exact root configuration key; `Id` is bounded
 public metadata identity. `DefinitionProfile.FieldId` retains an ordinary ASCII
 identifier except for the reserved `f-` prefix. Other names use `f-` plus the
 lowercase SHA-256 of UTF-8 `field:` followed by the single-token RFC 6901 pointer.
@@ -102,7 +102,7 @@ or unexercised client qualification follows from these Core capabilities.
 
 ```text
 bounded source decoding -> authoring lowering -> runtime admission
-  -> immutable SetupDefinition (recursive nodes, paths, computed capabilities)
+  -> immutable Definition (recursive nodes, paths, computed capabilities)
   -> pinned workspace + one immutable answer snapshot
   -> one Core effective-value resolver and validator
   -> existing bounded composers -> owned restricted artifacts
@@ -120,7 +120,7 @@ is introduced.
 `DefinitionProfile` owns vocabulary, limits and required capabilities.
 `DefinitionSourceMap` carries bounded public document ordinals, schema pointers,
 and numeric source spans through the existing parser/lowering path; it is not a
-parallel parser. `SetupAnswerSnapshotCodec` admits the private answer envelope.
+parallel parser. `AnswerSnapshotCodec` admits the private answer envelope.
 
 Collection inputs are snapshotted. Records describe immutable contracts; mutable
 workspace state and owned buffers remain classes. Metadata indexes reference

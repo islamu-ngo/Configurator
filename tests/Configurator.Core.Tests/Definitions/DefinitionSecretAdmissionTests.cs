@@ -19,7 +19,7 @@ public sealed class DefinitionSecretAdmissionTests
         JsonObject secret = JsonNode.Parse("""{"kind":"password","acquisition":"existing"}""")!.AsObject();
         secret[member] = JsonNode.Parse(token);
         source["configuration"]!["properties"]!["service.name"]!["x-configurator"] = new JsonObject { ["secret"] = secret };
-        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
@@ -27,8 +27,8 @@ public sealed class DefinitionSecretAdmissionTests
     {
         string json = DefinitionFixture.Json.Replace("\"sensitivity\":\"public\",\"detail\":\"advanced\"",
             "\"secret\":{\"kind\":\"password\",\"acquisition\":\"existing\"}", StringComparison.Ordinal);
-        SetupDefinition definition = DefinitionFixture.Parse(json);
-        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+        Definition definition = DefinitionFixture.Parse(json);
+        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(FieldSensitivity.Secret);
     }
 
     [Test]
@@ -36,7 +36,7 @@ public sealed class DefinitionSecretAdmissionTests
     {
         string json = DefinitionFixture.Json.Replace("\"detail\":\"advanced\"",
             "\"secret\":{\"kind\":\"password\",\"acquisition\":\"existing\"}", StringComparison.Ordinal);
-        await Assert.That(() => DefinitionFixture.Parse(json)).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(json)).Throws<DefinitionException>();
     }
 
     [Test]
@@ -51,7 +51,7 @@ public sealed class DefinitionSecretAdmissionTests
         var metadata = new JsonObject { ["sensitivity"] = sensitivity };
         if (conflict) metadata["secret"] = JsonNode.Parse("""{"kind":"password","acquisition":"issuer"}""");
         configuration["properties"]!["service.name"] = new JsonObject { ["$ref"] = "#/$defs/password", ["x-configurator"] = metadata };
-        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
@@ -61,7 +61,7 @@ public sealed class DefinitionSecretAdmissionTests
         JsonObject configuration = source["configuration"]!.AsObject();
         configuration["$defs"] = JsonNode.Parse("""{"password":{"type":"string","x-configurator":{"secret":{"kind":"password","acquisition":"existing"}}}}""");
         configuration["properties"]!["service.name"] = new JsonObject { ["$ref"] = "#/$defs/password" };
-        await Assert.That(DefinitionFixture.Parse(source.ToJsonString()).Fields.Single().Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+        await Assert.That(DefinitionFixture.Parse(source.ToJsonString()).Fields.Single().Sensitivity).IsEqualTo(FieldSensitivity.Secret);
     }
 
     [Test]
@@ -71,8 +71,8 @@ public sealed class DefinitionSecretAdmissionTests
     {
         JsonObject source = JsonNode.Parse(DefinitionFixture.Json)!.AsObject();
         source["configuration"]!["properties"]!["service.name"] = JsonNode.Parse(schema);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
-        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
+        await Assert.That(definition.Fields.Single().Sensitivity).IsEqualTo(FieldSensitivity.Secret);
         await Assert.That(DefinitionSensitivityPolicy.ContainsSecret(definition.Configuration)).IsTrue();
     }
 
@@ -90,7 +90,7 @@ public sealed class DefinitionSecretAdmissionTests
         JsonObject field = source["configuration"]!["properties"]!["service.name"]!.AsObject();
         field["maxLength"] = maximum;
         field["x-configurator"] = new JsonObject { ["secret"] = JsonNode.Parse(secret) };
-        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
@@ -99,7 +99,7 @@ public sealed class DefinitionSecretAdmissionTests
         JsonObject source = JsonNode.Parse(DefinitionFixture.Json)!.AsObject();
         JsonObject field = source["configuration"]!["properties"]!["service.name"]!.AsObject();
         field["x-configurator"] = JsonNode.Parse("""{"secret":{"kind":"digest","acquisition":"local","algorithm":"SHA256","encoding":"hex","generation":{"input":"generated","password":{"kind":"password","acquisition":"local","generation":{"length":32}}}}}""");
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         await Assert.That(definition.Fields.Single().Node.Secret!.Generation!.Password!.Generation!.Length).IsEqualTo(32);
     }
 }

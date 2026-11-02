@@ -81,7 +81,7 @@
                     ItemsSource="{Binding Publisher.Artifacts}"
                     SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="definitions:SetupArtifactDefinition">
+              <DataTemplate x:DataType="definitions:ArtifactDefinition">
                 <TextBlock Text="{Binding Id}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>

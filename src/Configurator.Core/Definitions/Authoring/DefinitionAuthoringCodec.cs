@@ -19,13 +19,13 @@ public static class DefinitionAuthoringCodec
             using JsonDocument snapshot = JsonDocument.Parse(canonical);
             if (!snapshot.RootElement.TryGetProperty("$schema", out JsonElement schema)
                 || schema.ValueKind != JsonValueKind.String || schema.GetString() != SchemaId)
-                throw new SetupDefinitionException("authoring-schema");
+                throw new DefinitionException("authoring-schema");
             return new DefinitionAuthoringDocument(snapshot.RootElement, canonical, sourceMap);
         }
-        catch (SetupDefinitionException) { throw; }
+        catch (DefinitionException) { throw; }
         catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException)
         {
-            throw new SetupDefinitionException("authoring-invalid");
+            throw new DefinitionException("authoring-invalid");
         }
     }
 }

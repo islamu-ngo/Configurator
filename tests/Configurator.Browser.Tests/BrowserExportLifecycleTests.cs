@@ -56,7 +56,7 @@ public sealed class BrowserExportLifecycleTests
             await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("retained.test");
             JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
             source["revision"] = 2;
-            SetupDefinition newer = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+            Definition newer = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
             component.Render(parameters => parameters.Add(item => item.Definition, newer));
             await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
             component.Find("[data-field='hostname'] input").Input("replacement.test");
@@ -98,7 +98,7 @@ public sealed class BrowserExportLifecycleTests
               ]
             }
             """);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, definition));
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
@@ -134,7 +134,7 @@ public sealed class BrowserExportLifecycleTests
             await BrowserFixture.SelectPanelAsync(component, "prepare");
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
             source["revision"] = 2;
-            SetupDefinition newer = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+            Definition newer = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
             component.Render(parameters => parameters.Add(item => item.Definition, newer));
             await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
             replacement = component.FindComponents<ConfigurationField>()[0].Instance.Form;

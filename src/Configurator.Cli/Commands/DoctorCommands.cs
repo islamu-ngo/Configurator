@@ -2,7 +2,7 @@ namespace Configurator.Cli.Commands;
 
 internal static class DoctorCommands
 {
-    internal static SetupCliFamilyDescriptor Descriptor { get; } = SetupCliCommandRegistry.Family(
+    internal static CliFamilyDescriptor Descriptor { get; } = CliCommandRegistry.Family(
         "doctor",
-        SetupCliCommandRegistry.Operation<DoctorSettings>("doctor"));
+        CliCommandRegistry.Operation<DoctorSettings>("doctor"));
 }

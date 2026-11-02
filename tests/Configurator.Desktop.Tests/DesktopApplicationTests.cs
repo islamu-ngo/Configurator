@@ -215,7 +215,7 @@ public sealed class DesktopApplicationTests
             Point right = filename.TranslatePoint(default, window)!.Value;
             return (artifact.Bounds.Width, filename.Bounds.Width,
                 separate: left.X + artifact.Bounds.Width <= right.X,
-                selected: artifact.SelectedItem is SetupArtifactDefinition,
+                selected: artifact.SelectedItem is ArtifactDefinition,
                 experienceSelected: ReferenceEquals(window.GetControl<ComboBox>("Experience").SelectedItem,
                     ((DesktopShellViewModel)window.DataContext!).Workspace.SelectedExperience));
         });

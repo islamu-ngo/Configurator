@@ -477,7 +477,7 @@ public partial class ConfigurationDeveloper : ComponentBase
             {
                 byte[] source = await ReadEditorAsync(generation, session, version, bridge, cancellation);
                 try { formatted = FormatSource(source, session.Representation); }
-                catch (Exception exception) when (exception is SetupDefinitionException or JsonException or InvalidOperationException)
+                catch (Exception exception) when (exception is DefinitionException or JsonException or InvalidOperationException)
                 { /* The owning session returns the value-free diagnostic; invalid text remains untouched. */ }
                 return source;
             }, _mode, cancellationToken: token);
@@ -520,7 +520,7 @@ public partial class ConfigurationDeveloper : ComponentBase
             DotenvRenderResult rendered = DotenvCodec.Render(parsed.Document!, true, DotenvPurpose.EditableValues);
             return rendered.Succeeded ? rendered.Bytes.ToArray() : null;
         }
-        byte[] canonical = SetupAnswerSnapshotCodec.Serialize(SetupAnswerSnapshotCodec.ParseJson(source));
+        byte[] canonical = AnswerSnapshotCodec.Serialize(AnswerSnapshotCodec.ParseJson(source));
         var buffer = new ArrayBufferWriter<byte>();
         try
         {

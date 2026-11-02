@@ -208,7 +208,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Projects one settled root and its literal diagnostics without replacing surviving editors.</summary>
-    internal void Refresh(SetupFieldState state, IReadOnlyList<DefinitionDiagnostic> diagnostics)
+    internal void Refresh(FieldState state, IReadOnlyList<DefinitionDiagnostic> diagnostics)
     {
         if (IsDisposed || _input is null) return;
         // A malformed root denies stale collection projection, but its own raw correction text remains available.
@@ -305,7 +305,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             extension.TryGetProperty(name, out value);
     }
     private static bool HasNonPublicSchema(DefinitionNode schema) =>
-        DefinitionSensitivityPolicy.SensitivityOf(schema) != SetupFieldSensitivity.Public ||
+        DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public ||
         schema.Properties.Values.Any(HasNonPublicSchema) ||
         schema.Items is { } item && HasNonPublicSchema(item) ||
         schema.AdditionalProperties is { } additional && HasNonPublicSchema(additional) ||

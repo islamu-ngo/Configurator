@@ -47,7 +47,7 @@ public sealed class DefinitionPreparedAdoptionTests
         using DefinitionArtifact artifact = Prepare();
         using DefinitionPreparedAdoption operation = DefinitionPresentationOperation.Adopt(artifact);
         artifact.Dispose();
-        using SetupPresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
         ReadOnlyMemory<byte> transferred = outcome.Output;
         operation.Dispose();
 
@@ -65,13 +65,13 @@ public sealed class DefinitionPreparedAdoptionTests
     {
         using DefinitionArtifact artifact = Prepare();
         using DefinitionPreparedAdoption adoption = DefinitionPresentationOperation.Adopt(artifact);
-        using SetupPresentationOutcome outcome = await adoption.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome outcome = await adoption.ExecuteAsync(CancellationToken.None);
         ReadOnlyMemory<byte> capturedBeforeRelease = outcome.Output;
-        var release = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        SetupWorkspaceId.TryCreate("prepared-late", out var id);
-        using SetupPresentationWorkspace workspace = session.CreateWorkspace(id, new HeldOperation(release.Task));
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        WorkspaceId.TryCreate("prepared-late", out var id);
+        using PresentationWorkspace workspace = session.CreateWorkspace(id, new HeldOperation(release.Task));
         workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
         workspace.Activate();
         Task execution = workspace.ExecuteAsync(Guid.NewGuid());
@@ -95,15 +95,15 @@ public sealed class DefinitionPreparedAdoptionTests
         using DefinitionArtifact artifact = Prepare();
         using DefinitionPreparedAdoption first = DefinitionPresentationOperation.Adopt(artifact);
         using DefinitionPreparedAdoption second = DefinitionPresentationOperation.Adopt(artifact);
-        using SetupPresentationOutcome old = await first.ExecuteAsync(CancellationToken.None);
-        using SetupPresentationOutcome current = await second.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome old = await first.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome current = await second.ExecuteAsync(CancellationToken.None);
         ReadOnlyMemory<byte> oldBytes = old.Output;
         ReadOnlyMemory<byte> currentBytes = current.Output;
-        var release = new TaskCompletionSource<SetupPresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<PresentationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         var discarded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        SetupWorkspaceId.TryCreate("prepared-replacement", out var id);
-        using SetupPresentationWorkspace workspace = session.CreateWorkspace(id, new ReplacingOperation(release.Task, current));
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        WorkspaceId.TryCreate("prepared-replacement", out var id);
+        using PresentationWorkspace workspace = session.CreateWorkspace(id, new ReplacingOperation(release.Task, current));
         workspace.CompletionDiscarded += (_, _) => discarded.TrySetResult();
         Task previousExecution = workspace.ExecuteAsync(Guid.NewGuid());
         await workspace.ExecuteAsync(Guid.NewGuid()).WaitAsync(SignalTimeout);
@@ -128,7 +128,7 @@ public sealed class DefinitionPreparedAdoptionTests
         using DefinitionArtifact artifact = Prepare();
         using DefinitionPreparedAdoption adoption = DefinitionPresentationOperation.Adopt(artifact);
         artifact.Dispose();
-        using SetupPresentationOutcome outcome = await adoption.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome outcome = await adoption.ExecuteAsync(CancellationToken.None);
         var metadata = (DefinitionPreparationMetadata)outcome.CoreResult;
 
         await Assert.That(outcome.Output.Span.SequenceEqual("""{"name":"sample"}"""u8)).IsTrue();
@@ -147,14 +147,14 @@ public sealed class DefinitionPreparedAdoptionTests
         using DefinitionPreparedAdoption second = DefinitionPresentationOperation.Adopt(artifact);
         ReadOnlyMemory<byte> firstBytes = PendingBytes(first);
         ReadOnlyMemory<byte> secondBytes = PendingBytes(second);
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
+        using var session = new PresentationSession(new WeakReferenceMessenger());
         session.Dispose();
-        SetupWorkspaceId.TryCreate("rejected-adoption", out var id);
+        WorkspaceId.TryCreate("rejected-adoption", out var id);
         try
         {
             await Assert.That(() =>
             {
-                using SetupPresentationWorkspace workspace = session.CreateWorkspace(id, first);
+                using PresentationWorkspace workspace = session.CreateWorkspace(id, first);
             }).Throws<ObjectDisposedException>();
         }
         finally
@@ -169,9 +169,9 @@ public sealed class DefinitionPreparedAdoptionTests
     [Test]
     public async Task DraftAdoptionSnapshotsOnlyItsOwnCompletionLocations()
     {
-        SetupDefinition definition = Definition(secret: true);
+        Definition definition = Definition(secret: true);
         using DefinitionDraftArtifactResult result = DefinitionDraftArtifactComposer.Compose(definition, "config",
-            new SetupAnswerSnapshot(9, new Dictionary<string, JsonElement>()));
+            new AnswerSnapshot(9, new Dictionary<string, JsonElement>()));
         var completions = new List<DefinitionDraftCompletion>(result.Completions)
         {
             new("another", "unrelated", "/unrelated")
@@ -179,7 +179,7 @@ public sealed class DefinitionPreparedAdoptionTests
         using DefinitionPreparedAdoption adoption = DefinitionPresentationOperation.Adopt(result.Artifact!, completions);
         completions.Clear();
         result.Dispose();
-        using SetupPresentationOutcome outcome = await adoption.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome outcome = await adoption.ExecuteAsync(CancellationToken.None);
         var metadata = (DefinitionPreparationMetadata)outcome.CoreResult;
 
         await Assert.That(metadata.Succeeded).IsTrue();
@@ -192,20 +192,20 @@ public sealed class DefinitionPreparedAdoptionTests
     }
 
     private static ReadOnlyMemory<byte> PendingBytes(DefinitionPreparedAdoption operation) =>
-        ((SetupPresentationOutcome)typeof(DefinitionPreparedAdoption)
+        ((PresentationOutcome)typeof(DefinitionPreparedAdoption)
             .GetField("_prepared", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(operation)!).Output;
 
     private static DefinitionArtifact Prepare()
     {
-        SetupDefinition definition = Definition();
-        var answers = new SetupAnswerSnapshot(7, new Dictionary<string, JsonElement>
+        Definition definition = Definition();
+        var answers = new AnswerSnapshot(7, new Dictionary<string, JsonElement>
         {
             ["name"] = JsonSerializer.SerializeToElement("sample")
         });
         return DefinitionArtifactComposer.Compose(definition, "config", answers).Artifact!;
     }
 
-    private static SetupDefinition Definition(bool secret = false) => SetupDefinitionCodec.ParseJson(
+    private static Definition Definition(bool secret = false) => DefinitionCodec.ParseJson(
         Encoding.UTF8.GetBytes("""
             {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"e201806e-18ec-40ee-8540-f5d1fa742ce1","revision":1,
              "project":{"id":"example.service","publisher":"example","name":"Example"},
@@ -220,16 +220,16 @@ public sealed class DefinitionPreparedAdoptionTests
             """.Replace("\"sensitivity\":\"secret\"", secret ? "\"sensitivity\":\"secret\"" : "\"sensitivity\":\"public\"",
                 StringComparison.Ordinal)));
 
-    private sealed class HeldOperation(Task<SetupPresentationOutcome> pending) : ISetupPresentationOperation
+    private sealed class HeldOperation(Task<PresentationOutcome> pending) : IPresentationOperation
     {
-        public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken) => pending;
+        public Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken) => pending;
     }
 
-    private sealed class ReplacingOperation(Task<SetupPresentationOutcome> first, SetupPresentationOutcome replacement)
-        : ISetupPresentationOperation
+    private sealed class ReplacingOperation(Task<PresentationOutcome> first, PresentationOutcome replacement)
+        : IPresentationOperation
     {
         private bool _started;
-        public Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
+        public Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
         {
             if (_started) return Task.FromResult(replacement);
             _started = true;

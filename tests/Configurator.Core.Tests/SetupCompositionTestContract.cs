@@ -5,7 +5,7 @@ using System.Reflection;
 internal static class SetupCompositionTestContract
 {
     internal const string CompilerTypeName =
-        "Configurator.Core.Composition.SetupCompositionCompiler";
+        "Configurator.Core.Composition.CompositionCompiler";
 
     internal static readonly CompositionLimit[] Limits =
     [

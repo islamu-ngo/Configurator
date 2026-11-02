@@ -272,7 +272,7 @@ islamu-configurator artifact create --definition setup.json \
 **Common Scenarios:**
 - The document violates admitted grammar/budgets. Acquisition exceeding the
   4 MiB file bound can instead fail before parsing with I/O exit 74.
-- JSON contains trailing commas or unquoted keys (strictly forbidden by `SetupDefinitionCodec`).
+- JSON contains trailing commas or unquoted keys (strictly forbidden by `DefinitionCodec`).
 - Duplicate keys exist within the same JSON object.
 
 **Step-by-Step Recovery:**
@@ -689,7 +689,7 @@ The steps below change browser/site state and are not safe answer backup steps.
 
 ## Definition Import & Schema Mismatch Errors
 
-Configurator enforces strict data admission through `SetupDefinitionCodec` and `DefinitionImport`. It does not guess missing data or silently drop unmapped keys.
+Configurator enforces strict data admission through `DefinitionCodec` and `DefinitionImport`. It does not guess missing data or silently drop unmapped keys.
 
 ### 1. Revision Mismatch (`revision-conflict`)
 

@@ -15,7 +15,7 @@ public sealed class LaunchRouteTests
     public async Task NeutralLaunchOffersConditionalFieldsAndSecretDeferredDraft()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
-        SetupDefinition definition = registry.Current.Resolve(Guid.Parse("4d8950ad-972c-4357-8605-7a7c89c05a17"));
+        Definition definition = registry.Current.Resolve(Guid.Parse("4d8950ad-972c-4357-8605-7a7c89c05a17"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
@@ -42,8 +42,8 @@ public sealed class LaunchRouteTests
         using Stream nativeInput = typeof(LaunchRouteTests).Assembly.GetManifestResourceStream("NativeNeutralDefinition")!;
         using var nativeBytes = new MemoryStream();
         nativeInput.CopyTo(nativeBytes);
-        SetupDefinition native = SetupDefinitionCodec.ParseJson(nativeBytes.ToArray());
-        SetupDefinition browser = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(native.FamilyId);
+        Definition native = DefinitionCodec.ParseJson(nativeBytes.ToArray());
+        Definition browser = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(native.FamilyId);
         await Assert.That(browser.Revision).IsEqualTo(native.Revision);
         await Assert.That(browser.Digest).IsEqualTo(native.Digest);
         await Assert.That(browser.CanonicalBytes.Span.SequenceEqual(native.CanonicalBytes.Span)).IsTrue();
@@ -150,7 +150,7 @@ public sealed class LaunchRouteTests
         foreach (string query in queries)
         {
             BrowserLaunchException? failure = null;
-            try { _ = BrowserLaunchSelection.Resolve(new SetupDefinitionRegistry([BrowserFixture.Definition]), BrowserFixture.Family, query); }
+            try { _ = BrowserLaunchSelection.Resolve(new DefinitionRegistry([BrowserFixture.Definition]), BrowserFixture.Family, query); }
             catch (BrowserLaunchException exception) { failure = exception; }
             await Assert.That(failure?.Code).IsEqualTo("query-invalid");
         }
@@ -162,7 +162,7 @@ public sealed class LaunchRouteTests
         var first = BrowserFixture.Definition;
         var second = BrowserFixture.Revision(2);
         var incompatible = BrowserFixture.Revision(3, "2.0");
-        var registry = new SetupDefinitionRegistry([first, second, incompatible]);
+        var registry = new DefinitionRegistry([first, second, incompatible]);
         var newest = BrowserLaunchSelection.Resolve(registry, BrowserFixture.Family, "?appVersion=1.0&entry=setup&locale=en");
         var pinned = BrowserLaunchSelection.Resolve(registry, BrowserFixture.Family, $"?appVersion=1.0&digest={first.Digest.Value}");
         await Assert.That(newest.Definition.Revision).IsEqualTo(2L);
@@ -183,7 +183,7 @@ public sealed class LaunchRouteTests
     [Test]
     public async Task ActiveWorkspacePinsRevisionAndDigestAcrossRegistryReplacementAndRerender()
     {
-        SetupDefinition first = BrowserFixture.Definition;
+        Definition first = BrowserFixture.Definition;
         var registry = new BrowserDefinitionRegistry([first]);
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
@@ -224,9 +224,9 @@ public sealed class LaunchRouteTests
     [Arguments(true)]
     public async Task RegistryCannotReplaceSameFamilyRevisionWithDifferentContent(bool removeBeforeConflict)
     {
-        SetupDefinition first = BrowserFixture.Definition;
+        Definition first = BrowserFixture.Definition;
         var registry = new BrowserDefinitionRegistry([first]);
-        SetupDefinition current = first;
+        Definition current = first;
         if (removeBeforeConflict)
         {
             current = BrowserFixture.Revision(2);
@@ -234,10 +234,10 @@ public sealed class LaunchRouteTests
         }
         byte[] changedBytes = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(first.CanonicalBytes.Span)
             .Replace("Example service", "Changed service", StringComparison.Ordinal));
-        SetupDefinition changed = SetupDefinitionCodec.ParseJson(changedBytes);
-        SetupDefinitionException? failure = null;
+        Definition changed = DefinitionCodec.ParseJson(changedBytes);
+        DefinitionException? failure = null;
         try { registry.Replace([changed]); }
-        catch (SetupDefinitionException exception) { failure = exception; }
+        catch (DefinitionException exception) { failure = exception; }
         await Assert.That(failure?.Code).IsEqualTo("revision-conflict");
         await Assert.That(registry.Current.Resolve(first.FamilyId).Digest).IsEqualTo(current.Digest);
     }

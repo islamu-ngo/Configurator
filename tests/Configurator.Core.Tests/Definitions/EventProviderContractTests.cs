@@ -55,9 +55,9 @@ public sealed class EventProviderContractTests
     [Arguments("TICKETING__RECOVERY__MANIFESTSIGNINGKEYREFERENCE", "ticketing.recovery_manifest_hmac_key")]
     public async Task CanonicalChoicesMatchReviewedTargetContract(string name, string expected)
     {
-        foreach (SetupDefinition definition in new[] { Definition(), StoreDefinition() })
+        foreach (Definition definition in new[] { Definition(), StoreDefinition() })
         {
-            SetupFieldDefinition field = definition.Fields.Single(field => field.Id == "env." + name);
+            FieldDefinition field = definition.Fields.Single(field => field.Id == "env." + name);
             await Assert.That(string.Join(',', field.Choices.Select(value => value.GetString()))).IsEqualTo(expected);
             await Assert.That(field.Choices.All(value => value.ValueKind == JsonValueKind.String)).IsTrue();
         }
@@ -71,10 +71,10 @@ public sealed class EventProviderContractTests
     [Arguments("CONTROL_PLANE_REGISTRATION_TOKEN", null)]
     public async Task TargetCredentialsRequireSecretCustodyWithoutInventingUnknownFormats(string name, string? expectedKind)
     {
-        foreach (SetupDefinition definition in new[] { Definition(), StoreDefinition() })
+        foreach (Definition definition in new[] { Definition(), StoreDefinition() })
         {
-            SetupFieldDefinition field = definition.Fields.Single(field => field.Id == "env." + name);
-            await Assert.That(field.Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+            FieldDefinition field = definition.Fields.Single(field => field.Id == "env." + name);
+            await Assert.That(field.Sensitivity).IsEqualTo(FieldSensitivity.Secret);
             await Assert.That(field.Node.Secret?.Kind).IsEqualTo(expectedKind);
         }
     }
@@ -82,17 +82,17 @@ public sealed class EventProviderContractTests
     [Test]
     public async Task AuthenticationSelectionControlsConnectionRequirementsWithoutLocalDeployment()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         foreach (string provider in new[] { "local", "keycloak", "atproto" })
         {
-            var answers = new SetupAnswerSnapshot(0, new Dictionary<string, JsonElement>
+            var answers = new AnswerSnapshot(0, new Dictionary<string, JsonElement>
             {
                 ["env.AUTHENTICATION_PROVIDER"] = JsonSerializer.SerializeToElement(provider)
             });
             DefinitionValidationResult result = DefinitionValidator.Validate(definition, answers);
             foreach (string name in new[] { "KEYCLOAK_ENDPOINT", "KEYCLOAK_REALM", "KEYCLOAK_CLIENT_ID", "KEYCLOAK_BLAZOR_CLIENT_SECRET" })
             {
-                SetupFieldState field = result.Fields.Single(field => field.Id == "env." + name);
+                FieldState field = result.Fields.Single(field => field.Id == "env." + name);
                 await Assert.That(field.IsActive).IsEqualTo(provider == "keycloak");
                 await Assert.That(field.IsRequired).IsEqualTo(provider == "keycloak");
             }
@@ -105,7 +105,7 @@ public sealed class EventProviderContractTests
     [Test]
     public async Task SqliteUsesDatabaseNameWithoutServerCredentials()
     {
-        var answers = new SetupAnswerSnapshot(0, new Dictionary<string, JsonElement>
+        var answers = new AnswerSnapshot(0, new Dictionary<string, JsonElement>
         {
             ["select.feature.database-config"] = JsonSerializer.SerializeToElement(true),
             ["env.DATABASE_PROVIDER"] = JsonSerializer.SerializeToElement("Sqlite"),
@@ -124,10 +124,10 @@ public sealed class EventProviderContractTests
     [Test]
     public async Task BootstrapModeControlsAdministratorFieldsAndNamePair()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         foreach (string mode in new[] { "Interactive", "ConfiguredAdministrator" })
         {
-            var answers = new SetupAnswerSnapshot(0, new Dictionary<string, JsonElement>
+            var answers = new AnswerSnapshot(0, new Dictionary<string, JsonElement>
             {
                 ["select.feature.identity-config"] = JsonSerializer.SerializeToElement(true),
                 ["env.INSTANCE_BOOTSTRAP_MODE"] = JsonSerializer.SerializeToElement(mode),
@@ -142,18 +142,18 @@ public sealed class EventProviderContractTests
     [Test]
     public async Task RetiredCredentialAliasRejectsInsteadOfProducingIneffectiveOutput()
     {
-        var answers = new SetupAnswerSnapshot(0, new Dictionary<string, JsonElement>
+        var answers = new AnswerSnapshot(0, new Dictionary<string, JsonElement>
         {
             ["env.AI_API_KEY"] = JsonSerializer.SerializeToElement("synthetic-retired-credential")
         });
-        foreach (SetupDefinition definition in new[] { Definition(), StoreDefinition() })
+        foreach (Definition definition in new[] { Definition(), StoreDefinition() })
             await Assert.That(DefinitionValidator.Validate(definition, answers).Diagnostics.Any(item => item.Code == "field-unknown")).IsTrue();
     }
 
     [Test]
     public async Task UnknownAuthenticationChoiceFailsSharedValidation()
     {
-        var answers = new SetupAnswerSnapshot(0, new Dictionary<string, JsonElement>
+        var answers = new AnswerSnapshot(0, new Dictionary<string, JsonElement>
         {
             ["env.AUTHENTICATION_PROVIDER"] = JsonSerializer.SerializeToElement("unsupported-provider")
         });
@@ -161,15 +161,15 @@ public sealed class EventProviderContractTests
         await Assert.That(result.Diagnostics.Any(item => item.FieldId == "env.AUTHENTICATION_PROVIDER" && item.Code == "value-invalid")).IsTrue();
     }
 
-    private static SetupDefinition Definition()
+    private static Definition Definition()
     {
         using Stream stream = typeof(EventProviderContractTests).Assembly.GetManifestResourceStream("EventDefinition")!;
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);
-        return SetupDefinitionCodec.ParseJson(buffer.ToArray());
+        return DefinitionCodec.ParseJson(buffer.ToArray());
     }
 
-    private static SetupDefinition StoreDefinition()
+    private static Definition StoreDefinition()
     {
         using Stream stream = typeof(EventProviderContractTests).Assembly.GetManifestResourceStream("EventStoreSource")!;
         using var buffer = new MemoryStream();

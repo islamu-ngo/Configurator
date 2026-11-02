@@ -280,7 +280,7 @@ public sealed class DesktopShellViewModelTests
         {
             held = bytes;
             using ProtectedArtifactPreparation staged = await new ProtectedArtifactWriter()
-                .PrepareAsync(SetupArtifactKind.Unknown, path, bytes, token);
+                .PrepareAsync(ArtifactKind.Unknown, path, bytes, token);
             started.SetResult();
             await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
             return await staged.CommitAsync(token);
@@ -759,7 +759,7 @@ public sealed class DesktopShellViewModelTests
     {
         public bool IsAvailable => OperatingSystem.IsLinux();
         public ReadOnlyMemory<byte> Bytes { get; private set; }
-        public async Task<ProtectedArtifactPreparation> PrepareAsync(SetupArtifactKind kind, string targetPath,
+        public async Task<ProtectedArtifactPreparation> PrepareAsync(ArtifactKind kind, string targetPath,
             ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default)
         {
             Bytes = bytes;

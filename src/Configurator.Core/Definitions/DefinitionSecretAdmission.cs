@@ -224,6 +224,6 @@ internal static class DefinitionSecretAdmission
 
     private static void Require(bool condition)
     {
-        if (!condition) throw new SetupDefinitionException("secret-policy-invalid");
+        if (!condition) throw new DefinitionException("secret-policy-invalid");
     }
 }

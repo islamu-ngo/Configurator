@@ -174,7 +174,7 @@
         _openError = null;
         try
         {
-            SetupDefinition definition = await Catalog.OpenAsync(choice.Sources[0].ProjectId, choice.Revision, _lifetime.Token);
+            Definition definition = await Catalog.OpenAsync(choice.Sources[0].ProjectId, choice.Revision, _lifetime.Token);
             if (!_disposed) Navigation.NavigateTo($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
         }
         catch (BrowserLaunchException exception)
@@ -212,7 +212,7 @@
     }
 
     private sealed record CatalogueDefinition(Guid Family, long Revision, string Digest, string Title,
-        SetupDefinition? Local, DefinitionStoreRevision? Directory, IReadOnlyList<DefinitionStoreProject> Sources)
+        Definition? Local, DefinitionStoreRevision? Directory, IReadOnlyList<DefinitionStoreProject> Sources)
     {
         public string ApplicationId => Local?.ApplicationId ?? Sources[0].ApplicationId;
     }

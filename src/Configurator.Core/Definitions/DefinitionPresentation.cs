@@ -29,11 +29,11 @@ public sealed record DefinitionPresentation
         data.TryGetProperty(name, out var values)
             ? values.EnumerateArray().Select(value => value.GetString()!).ToArray() : []);
 
-    internal static SetupFieldDisclosure DisclosureValue(string? value) => value switch
+    internal static FieldDisclosure DisclosureValue(string? value) => value switch
     {
-        "basic" => SetupFieldDisclosure.Essential,
-        "advanced" => SetupFieldDisclosure.Advanced,
-        _ => SetupFieldDisclosure.Guided
+        "basic" => FieldDisclosure.Essential,
+        "advanced" => FieldDisclosure.Advanced,
+        _ => FieldDisclosure.Guided
     };
 }
 
@@ -72,7 +72,7 @@ public sealed record DefinitionSection
         Id = data.GetProperty("id").GetString()!;
         Title = data.GetProperty("title").GetString()!;
         Description = DefinitionPresentation.Text(data, "description");
-        Disclosure = SetupFieldDisclosure.Guided;
+        Disclosure = FieldDisclosure.Guided;
         Pointers = DefinitionPresentation.Strings(data, "pointers");
         Fields = Array.AsReadOnly(Pointers.Select(path => DefinitionPath.Parse(path).Segments)
             .Where(segments => segments.Count > 0).Select(segments => DefinitionProfile.FieldId(segments[0])).Distinct(StringComparer.Ordinal).ToArray());
@@ -81,7 +81,7 @@ public sealed record DefinitionSection
     public string Id { get; }
     public string Title { get; }
     public string? Description { get; }
-    public SetupFieldDisclosure Disclosure { get; }
+    public FieldDisclosure Disclosure { get; }
     public IReadOnlyList<string> Fields { get; }
     public IReadOnlyList<string> Pointers { get; }
 }
@@ -93,7 +93,7 @@ public sealed record DefinitionExperience
         Id = data.GetProperty("id").GetString()!;
         Title = data.GetProperty("title").GetString()!;
         Description = DefinitionPresentation.Text(data, "description");
-        InitialDisclosure = SetupFieldDisclosure.Guided;
+        InitialDisclosure = FieldDisclosure.Guided;
         Navigation = navigation;
         Sections = DefinitionPresentation.Strings(data, "sections");
     }
@@ -101,7 +101,7 @@ public sealed record DefinitionExperience
     public string Id { get; }
     public string Title { get; }
     public string? Description { get; }
-    public SetupFieldDisclosure InitialDisclosure { get; }
+    public FieldDisclosure InitialDisclosure { get; }
     public string Navigation { get; }
     public IReadOnlyList<string> Sections { get; }
 }
@@ -129,7 +129,7 @@ public sealed class DefinitionLocalization
 {
     private readonly JsonElement _translations;
 
-    public DefinitionLocalization(SetupDefinition definition)
+    public DefinitionLocalization(Definition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
         Locales = definition.Locales;

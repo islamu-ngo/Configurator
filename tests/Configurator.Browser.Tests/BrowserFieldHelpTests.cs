@@ -17,7 +17,7 @@ public sealed class BrowserFieldHelpTests
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         JsonArray required = source["configuration"]!["required"]!.AsArray();
         required.Remove(required.Single(field => field!.GetValue<string>() == "hostname"));
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = RenderWorkspace(context, definition);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         for (int edit = 0; edit < 2; edit++)
@@ -65,7 +65,7 @@ public sealed class BrowserFieldHelpTests
                 "links":[{"title":"Public guide","url":"https://docs.example.test/configure"}]}}}
             """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","reference":{"scope":"root","path":"/credential"}}}}""");
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = RenderWorkspace(context, definition);
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-help-private-answer" });
@@ -108,7 +108,7 @@ public sealed class BrowserFieldHelpTests
         await Assert.That(component.FindAll("[role='dialog']")).IsEmpty();
     }
 
-    private static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context, SetupDefinition definition) =>
+    private static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context, Definition definition) =>
         context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
             builder.OpenComponent<ConfigurationEditor>(0);

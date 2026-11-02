@@ -39,7 +39,7 @@ public sealed partial class DefinitionFormModel
             DefinitionFormSection section = Sections.Single(item => item.Fields.Contains(path[0]));
             bool all = _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded)
                 ? sectionExpanded : OptionalEditorsExpanded;
-            return all || EffectiveDisclosure == SetupFieldDisclosure.Advanced;
+            return all || EffectiveDisclosure == FieldDisclosure.Advanced;
         }
     }
 

@@ -18,23 +18,23 @@ internal static class BrowserFixture
 {
     internal const string Family = "d66d02af-6a66-4396-9717-452e8eb9541b";
 
-    internal static SetupDefinition Definition
+    internal static Definition Definition
     {
         get
         {
             using Stream input = typeof(BrowserFixture).Assembly.GetManifestResourceStream("InteractiveDefinition")!;
             using var bytes = new MemoryStream();
             input.CopyTo(bytes);
-            return SetupDefinitionCodec.ParseJson(bytes.ToArray());
+            return DefinitionCodec.ParseJson(bytes.ToArray());
         }
     }
 
-    internal static SetupDefinition Revision(long revision, string appVersion = "1.0")
+    internal static Definition Revision(long revision, string appVersion = "1.0")
     {
         JsonNode node = JsonNode.Parse(Definition.CanonicalBytes.Span)!;
         node["revision"] = revision;
         node["applicationVersions"] = new JsonArray(appVersion);
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
     }
 
     internal static void WithField(JsonNode definition, string name, string schema, params string[] capabilities)

@@ -29,7 +29,7 @@ operations:
   the 4 MiB source ceiling, admit JSON or YAML, and clear obsolete state. The read
   accepts at most one extra byte to detect a file growing past the ceiling.
 - `Loader.LoadDefinition(ReadOnlyMemory<byte>, bool yaml = false)`: admit a supplied
-  local document through `SetupDefinitionCodec`; useful for host integration and
+  local document through `DefinitionCodec`; useful for host integration and
   tests without a filesystem read.
 - `Workspace.Form`, `Workspace.Fields`, `Workspace.SelectedExperience`,
   `Loader.DefinitionPin` and `Publisher` artifact properties: typed editing and
@@ -143,7 +143,7 @@ and disposing removed projections. `NewKey` is a literal segment validated by
 `DefinitionPath.FromSegments`; no dot splitting, case-folding or numeric-key
 reinterpretation occurs. Add is disabled for duplicate keys, invalid paths and
 the `maxProperties` ceiling, falling back to
-`SetupCompositionLimits.DefaultMappingEntries` when no bound is declared.
+`CompositionLimits.DefaultMappingEntries` when no bound is declared.
 The shared mutation boundary still enforces answer budgets; Core validation
 owns `minProperties`, value constraints and readiness. Add supplies a typed
 starter value and requests focus on its editor; remove omits that literal entry
@@ -231,7 +231,7 @@ publication authority.
 ## Preparation and protected publication
 
 For preparation, the shell captures `Form.Snapshot()` and the pinned definition,
-then creates a private `SetupPresentationWorkspace` with
+then creates a private `PresentationWorkspace` with
 `DefinitionPresentationOperation`. Presentation fences completion by operation
 generation; the shell additionally rejects obsolete adapter completions.
 `DefinitionPreparationMetadata` is the only preparation exposed publicly.
@@ -240,7 +240,7 @@ Artifact bytes stay in the private workspace.
 Save takes a private byte copy and immediately consumes and clears the
 workspace output. The shell validates the simple file name and passes the
 explicit directory plus name to `ProtectedArtifactWriter.PrepareAsync` with
-`SetupArtifactKind.Unknown`: this is deliberately the generic restricted kind,
+`ArtifactKind.Unknown`: this is deliberately the generic restricted kind,
 not a target-specific ID-to-kind mapping. Every declared artifact format uses
 the same boundary. `CommitAsync` enforces native create-only publication and
 Linux owner-only permissions; no definition value grants filesystem authority.

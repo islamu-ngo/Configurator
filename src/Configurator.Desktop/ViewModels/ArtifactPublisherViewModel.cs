@@ -33,9 +33,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> _save;
     private readonly Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken,
         Task<ProtectedArtifactBundleResult>> _publishBundle;
-    private readonly SetupPresentationSession _session;
+    private readonly PresentationSession _session;
     private DefinitionFormModel? _form;
-    private SetupPresentationWorkspace? _preparationWorkspace;
+    private PresentationWorkspace? _preparationWorkspace;
     private string[]? _preparedBundleSelection;
     private long _preparedBundleInputRevision;
     private readonly HashSet<string> _selectedArtifactIds = new(StringComparer.Ordinal);
@@ -85,7 +85,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         : this(messenger, dialogs, async (path, bytes, token) =>
         {
             using ProtectedArtifactPreparation preparation = await writer.PrepareAsync(
-                SetupArtifactKind.Unknown, path, bytes, token);
+                ArtifactKind.Unknown, path, bytes, token);
             try { return await preparation.CommitAsync(token); }
             catch (Exception) when (preparation.EstablishedResult is not null)
             {
@@ -115,7 +115,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(), artifacts, directory, observe, token));
         _outputDirectory = outputDirectory;
         ProtectedSaveAvailable = protectedOutputAvailable;
-        _session = new SetupPresentationSession(messenger);
+        _session = new PresentationSession(messenger);
         PrepareBundleCommand = new RelayCommand(() => PrepareBundle(), () => CanPrepare);
         FillImportFieldsCommand = new AsyncRelayCommand(
             async token => { await FillImportFieldsAsync(token); }, () => CanFillImportFields);
@@ -139,9 +139,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             });
     }
 
-    public IReadOnlyList<SetupArtifactDefinition> Artifacts => _form?.Definition.Artifacts ?? [];
+    public IReadOnlyList<ArtifactDefinition> Artifacts => _form?.Definition.Artifacts ?? [];
     public IReadOnlyList<ArtifactSelectionViewModel> ArtifactSelections => _artifactSelections;
-    public SetupArtifactDefinition? SelectedArtifact
+    public ArtifactDefinition? SelectedArtifact
     {
         get => Artifacts.FirstOrDefault(item => item.Id == ArtifactId);
         set => ArtifactId = value?.Id;
@@ -337,9 +337,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (!Validate() || _form is null || ArtifactId is null) return false;
         using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "prepare");
         if (operation is null) return false;
-        if (!SetupWorkspaceId.TryCreate("desktop-definition", out var id))
+        if (!WorkspaceId.TryCreate("desktop-definition", out var id))
             throw new InvalidOperationException("desktop-workspace-invalid");
-        SetupPresentationWorkspace workspace = _session.CreateWorkspace(id,
+        PresentationWorkspace workspace = _session.CreateWorkspace(id,
             new DefinitionPresentationOperation(_form.Definition, ArtifactId, _form.Snapshot()));
         _preparationWorkspace = workspace;
         workspace.Activate();

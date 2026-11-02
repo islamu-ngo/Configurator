@@ -9,7 +9,7 @@ using Configurator.Core.Composition;
 /// <summary>Lowers source output mappings and delegates recursive semantics to the sole runtime admission owner.</summary>
 public static class DefinitionAuthoringCompiler
 {
-    public static SetupDefinition Compile(DefinitionAuthoringDocument document)
+    public static Definition Compile(DefinitionAuthoringDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
         try
@@ -18,7 +18,7 @@ public static class DefinitionAuthoringCompiler
             Only(root, "$schema", "identity", "project", "applicationVersions", "entryPoints", "configuration",
                 "outputs", "presentation", "localization", "annotations");
             if (root["$schema"]!.GetValue<string>() != DefinitionAuthoringCodec.SchemaId)
-                throw new SetupDefinitionException("authoring-schema");
+                throw new DefinitionException("authoring-schema");
             JsonObject identity = root["identity"]!.AsObject();
             Only(identity, "familyId", "revision");
             JsonObject project = root["project"]!.DeepClone().AsObject();
@@ -44,30 +44,30 @@ public static class DefinitionAuthoringCompiler
             foreach (string name in new[] { "presentation", "localization", "annotations" })
                 if (root.ContainsKey(name)) runtime[name] = root[name]!.DeepClone();
             runtime["artifacts"] = ExpandOutputs(root["outputs"]!.AsObject());
-            SetupDefinition admitted = SetupDefinitionCodec.AdmitCompiled(runtime);
-            return new SetupDefinition(admitted.Document, admitted.CanonicalBytes.ToArray(),
+            Definition admitted = DefinitionCodec.AdmitCompiled(runtime);
+            return new Definition(admitted.Document, admitted.CanonicalBytes.ToArray(),
                 admitted.Configuration, document.SourceMap);
         }
-        catch (SetupDefinitionException exception)
+        catch (DefinitionException exception)
         {
             throw exception.WithLocation(document.SourceMap, exception.SchemaPath ?? "");
         }
-        catch (SetupCompositionException)
+        catch (CompositionException)
         {
-            throw new SetupDefinitionException("document-limit").WithLocation(document.SourceMap, "");
+            throw new DefinitionException("document-limit").WithLocation(document.SourceMap, "");
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException
             or ArgumentException or NullReferenceException or FormatException or OverflowException)
         {
-            throw new SetupDefinitionException("authoring-invalid").WithLocation(document.SourceMap, "");
+            throw new DefinitionException("authoring-invalid").WithLocation(document.SourceMap, "");
         }
     }
 
     private static JsonArray ExpandOutputs(JsonObject outputs)
     {
-        if (outputs.Count is < 1 or > 64) throw new SetupDefinitionException("artifact-limit");
+        if (outputs.Count is < 1 or > 64) throw new DefinitionException("artifact-limit");
         var artifacts = new JsonArray();
-        var budget = new CompositionBudget(SetupCompositionLimits.Default);
+        var budget = new CompositionBudget(CompositionLimits.Default);
         foreach ((string fileName, JsonNode? value) in outputs.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             JsonObject output = value!.AsObject();
@@ -76,13 +76,13 @@ public static class DefinitionAuthoringCompiler
             JsonNode projection;
             if (output.ContainsKey("projection"))
             {
-                if (output.ContainsKey("bindings")) throw new SetupDefinitionException("authoring-mapping");
+                if (output.ContainsKey("bindings")) throw new DefinitionException("authoring-mapping");
                 projection = output["projection"]!.DeepClone();
             }
             else if (output.ContainsKey("bindings"))
             {
                 JsonObject bindings = output["bindings"]!.AsObject();
-                if (bindings.Count is < 1 or > 1024 || format == "markdown") throw new SetupDefinitionException("authoring-mapping");
+                if (bindings.Count is < 1 or > 1024 || format == "markdown") throw new DefinitionException("authoring-mapping");
                 var paths = new List<IReadOnlyList<string>>();
                 JsonObject members = new();
                 JsonObject objectProjection = new() { ["op"] = "object", ["members"] = members };
@@ -92,16 +92,16 @@ public static class DefinitionAuthoringCompiler
                     JsonObject copy = new() { ["op"] = "copy", ["reference"] = reference!.DeepClone() };
                     if (format == "dotenv")
                     {
-                        if (!IsDotenvKey(target)) throw new SetupDefinitionException("authoring-mapping");
+                        if (!IsDotenvKey(target)) throw new DefinitionException("authoring-mapping");
                         members.Add(target, copy);
                         continue;
                     }
-                    if (format is not ("json" or "yaml")) throw new SetupDefinitionException("authoring-mapping");
+                    if (format is not ("json" or "yaml")) throw new DefinitionException("authoring-mapping");
                     IReadOnlyList<string> segments = DefinitionPath.Parse(target).Segments;
                     foreach (IReadOnlyList<string> previous in paths)
                         if (previous.Take(Math.Min(previous.Count, segments.Count))
                             .SequenceEqual(segments.Take(Math.Min(previous.Count, segments.Count)), StringComparer.Ordinal))
-                            throw new SetupDefinitionException("authoring-target-overlap");
+                            throw new DefinitionException("authoring-target-overlap");
                     paths.Add(segments);
                     if (segments.Count == 0) rootProjection = copy;
                     else
@@ -120,7 +120,7 @@ public static class DefinitionAuthoringCompiler
             }
             else
             {
-                if (format is not ("json" or "yaml")) throw new SetupDefinitionException("authoring-mapping");
+                if (format is not ("json" or "yaml")) throw new DefinitionException("authoring-mapping");
                 projection = new JsonObject
                 {
                     ["op"] = "copy",
@@ -165,6 +165,6 @@ public static class DefinitionAuthoringCompiler
     private static void Only(JsonObject node, params string[] allowed)
     {
         if (node.Any(pair => !allowed.Contains(pair.Key, StringComparer.Ordinal)))
-            throw new SetupDefinitionException("authoring-member");
+            throw new DefinitionException("authoring-member");
     }
 }

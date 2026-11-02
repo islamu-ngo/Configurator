@@ -47,38 +47,38 @@ public static class DefinitionProfile
 
     internal static void ValidateScalar(string text)
     {
-        if (text.Length > SetupCompositionLimits.DefaultScalarCharacters)
-            throw new SetupDefinitionException("scalar-limit");
+        if (text.Length > CompositionLimits.DefaultScalarCharacters)
+            throw new DefinitionException("scalar-limit");
         try { _ = StrictUtf8.GetByteCount(text); }
-        catch (EncoderFallbackException) { throw new SetupDefinitionException("scalar-invalid"); }
+        catch (EncoderFallbackException) { throw new DefinitionException("scalar-invalid"); }
     }
 
     private static byte[] Canonicalize(ReadOnlyMemory<byte> bytes, bool yaml, out DefinitionSourceMap sourceMap)
     {
-        if (bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
-            throw new SetupDefinitionException("document-limit");
+        if (bytes.Length > CompositionLimits.DefaultAggregateSourceBytes)
+            throw new DefinitionException("document-limit");
         try
         {
             _ = StrictUtf8.GetCharCount(bytes.Span);
             CompositionMap tree = yaml
-                ? SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default, CancellationToken.None,
+                ? CompositionYamlParser.Parse(bytes, CompositionLimits.Default, CancellationToken.None,
                     keyPolicy: CompositionKeyPolicy.Exact)
-                : SetupCompositionNormalizer.ParseJson(bytes, SetupCompositionLimits.Default, CancellationToken.None,
+                : CompositionNormalizer.ParseJson(bytes, CompositionLimits.Default, CancellationToken.None,
                     keyPolicy: CompositionKeyPolicy.Exact);
-            using JsonDocument document = JsonDocument.Parse(SetupCompositionNormalizer.WriteJson(tree, CancellationToken.None));
+            using JsonDocument document = JsonDocument.Parse(CompositionNormalizer.WriteJson(tree, CancellationToken.None));
             byte[] canonical = DefinitionJson.Canonicalize(document.RootElement, keyPolicy: CompositionKeyPolicy.Exact);
             sourceMap = DefinitionSourceMap.FromSyntax(tree);
             return canonical;
         }
-        catch (SetupDefinitionException) { throw; }
-        catch (SetupCompositionException exception)
+        catch (DefinitionException) { throw; }
+        catch (CompositionException exception)
         {
-            throw new SetupDefinitionException(exception.Code == SetupCompositionFailureCode.LimitExceeded
+            throw new DefinitionException(exception.Code == CompositionFailureCode.LimitExceeded
                 ? "document-limit" : "document-invalid");
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException)
         {
-            throw new SetupDefinitionException("document-invalid");
+            throw new DefinitionException("document-invalid");
         }
     }
 }

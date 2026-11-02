@@ -11,7 +11,7 @@ if (args.Length == 0)
 }
 if (args is ["--write-examples"] or ["--renew-example-families"] or ["--check-examples"])
 {
-    var prepared = new List<(string Source, string Runtime, byte[] Bytes, SetupDefinition Definition)>();
+    var prepared = new List<(string Source, string Runtime, byte[] Bytes, Definition Definition)>();
     foreach ((string source, string runtime) in new[]
     {
         ("examples/minimal-self-hosted/configurator.yaml", "examples/minimal-self-hosted/setup-definition.json"),
@@ -26,7 +26,7 @@ if (args is ["--write-examples"] or ["--renew-example-families"] or ["--check-ex
         {
             bytes = DefinitionAuthoringIdentityEditor.Fork(bytes, yaml, Guid.NewGuid());
         }
-        SetupDefinition definition = yaml ? SetupDefinitionSourceCodec.ParseYaml(bytes) : SetupDefinitionSourceCodec.ParseJson(bytes);
+        Definition definition = yaml ? DefinitionSourceCodec.ParseYaml(bytes) : DefinitionSourceCodec.ParseJson(bytes);
         prepared.Add((source, runtime, bytes, definition));
     }
     foreach (var example in prepared)

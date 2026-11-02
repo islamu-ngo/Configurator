@@ -8,7 +8,7 @@ public sealed class DefinitionDiscoveryTests
     [Test]
     public async Task WarmDiscoveryUsesCurrentExperienceOrderWithoutChangingAnswerFacts()
     {
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
         {"schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"7d7d448e-f6ba-4860-94dd-5df51cae9578","revision":1,
          "project":{"id":"example","publisher":"example","name":"Order"},"applicationVersions":["1"],
          "entryPoints":["setup"],"locales":["en"],
@@ -65,7 +65,7 @@ public sealed class DefinitionDiscoveryTests
         DefinitionDiscoveryEntry[] entries =
         [
             Entry("first", title: "Mail", section: "one"),
-            Entry("second", title: "Mail", section: "two", sensitivity: SetupFieldSensitivity.Secret),
+            Entry("second", title: "Mail", section: "two", sensitivity: FieldSensitivity.Secret),
             Entry("third", title: "Mail", section: "three"),
             Entry("fourth", title: "Mail", section: "one", required: false),
             Entry("fifth", title: "Storage", section: "one")
@@ -97,7 +97,7 @@ public sealed class DefinitionDiscoveryTests
             Entry("requirement", required: false),
             Entry("applicability", active: false),
             Entry("state", ready: false, attention: true),
-            Entry("sensitivity", sensitivity: SetupFieldSensitivity.Secret),
+            Entry("sensitivity", sensitivity: FieldSensitivity.Secret),
             Entry("artifact", artifacts: ["manifest"]),
             Entry("query-excluded", title: "Unrelated", section: "other")
         ];
@@ -164,7 +164,7 @@ public sealed class DefinitionDiscoveryTests
             Entry("imported", provided: true, origin: DefinitionAnswerOrigin.Imported),
             Entry("omitted", ready: false, attention: true),
             Entry("deferred", ready: false, attention: true, deferred: true,
-                sensitivity: SetupFieldSensitivity.Secret)
+                sensitivity: FieldSensitivity.Secret)
         ];
 
         await Assert.That(DefinitionDiscovery.Search(entries,
@@ -183,7 +183,7 @@ public sealed class DefinitionDiscoveryTests
             .IsEqualTo("deferred");
         await Assert.That(DefinitionDiscovery.Search(entries,
             Select(DefinitionDiscoveryFacet.Sensitivity, "secret")).TotalCount).IsEqualTo(1);
-        await Assert.That(DefinitionDiscovery.Search([Entry("sensitive", sensitivity: SetupFieldSensitivity.Sensitive)],
+        await Assert.That(DefinitionDiscovery.Search([Entry("sensitive", sensitivity: FieldSensitivity.Sensitive)],
             Select(DefinitionDiscoveryFacet.Sensitivity, "sensitive")).TotalCount).IsEqualTo(1);
     }
 
@@ -331,7 +331,7 @@ public sealed class DefinitionDiscoveryTests
     private static DefinitionDiscoveryEntry Entry(string id, string title = "Common", string section = "main",
         bool active = true, bool required = true, bool provided = false, bool ready = true,
         bool attention = false, bool deferred = false, DefinitionAnswerOrigin origin = DefinitionAnswerOrigin.Omitted,
-        SetupFieldSensitivity sensitivity = SetupFieldSensitivity.Public, string[]? path = null,
+        FieldSensitivity sensitivity = FieldSensitivity.Public, string[]? path = null,
         string[]? terms = null, string? help = null, string? instructions = null,
         string[]? artifacts = null, string[]? keys = null, int order = 0) =>
         new(id, path ?? [], title, section, section, "string", sensitivity, active, required, provided, ready,

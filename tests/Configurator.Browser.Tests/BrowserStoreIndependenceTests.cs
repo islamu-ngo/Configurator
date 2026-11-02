@@ -26,7 +26,7 @@ public sealed class BrowserStoreIndependenceTests
             await Assert.That(component.Find(".catalogue__directory-status[role=status]")).IsNotNull();
             await using var source = new BrowserDefinitionSource(registry, context.JSInterop.JSRuntime, policy);
             using var input = new MemoryStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
-            SetupDefinition admitted = await source.ReadLocalAsync(input);
+            Definition admitted = await source.ReadLocalAsync(input);
             await Assert.That(admitted.Digest).IsEqualTo(BrowserFixture.Definition.Digest);
         }
     }

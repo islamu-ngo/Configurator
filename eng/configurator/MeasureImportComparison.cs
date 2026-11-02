@@ -33,7 +33,7 @@ internal static class Qualification
 {
     private const long NativeCeiling = 128L * 1024 * 1024;
     private const string FixtureDirectory = ".omo/evidence/20261030-artifact-import-comparison/browser-fixtures";
-    private static readonly SetupAnswerSnapshot Empty = new(0, new Dictionary<string, JsonElement>());
+    private static readonly AnswerSnapshot Empty = new(0, new Dictionary<string, JsonElement>());
 
     internal static int Run()
     {
@@ -42,7 +42,7 @@ internal static class Qualification
         Identity("tool", "eng/configurator/MeasureImportComparison.cs");
         Console.WriteLine($"CORE_IDENTITY mvid={typeof(DefinitionImport).Assembly.ManifestModule.ModuleVersionId:D}");
         foreach (string name in new[] { "DefinitionImport", "DefinitionImportAssessment", "DefinitionImportProjection",
-            "DefinitionValidator", "DefinitionJson", "SetupDefinition" })
+            "DefinitionValidator", "DefinitionJson", "Definition" })
             Identity("core-source-" + name, "src/Configurator.Core/Definitions/" + name + ".cs");
         Console.WriteLine("METHOD timing=first_then_five_warmups_then_all_forty samples=unforcedGc checkpoint=completed_callback_without_scheduler memory=separate_forcedGc_checkpoint_probe allocation=process_total_precise live=GcGetTotalMemoryFalse upper=previous_fullGc_heap_plus_interval_allocations ceilingBytes=134217728");
         Console.WriteLine("LIMITATIONS native_Core_only_not_Browser_not_AOT_not_client_UI; managed_heap_only_not_native_RSS; sampled_heap_is_not_exact_owned_live; conservative_upper_includes_runtime_and_admitted_definition; subtraction_estimate_is_not_the_ceiling_certificate; traversal_counters_are_inspection_only; weak_probes_cover_assessment_input_buffer_and_autofill_result_not_every_internal_object; no_untouched_baseline_invented; forcedGc_probe_latency_is_not_product_latency; no_physical_managed_string_erasure_claim");
@@ -62,7 +62,7 @@ internal static class Qualification
     {
         Identity(cohort + "-definition", definitionPath);
         Identity(cohort + "-input", inputPath);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(File.ReadAllBytes(definitionPath));
+        Definition definition = DefinitionCodec.ParseJson(File.ReadAllBytes(definitionPath));
         Console.WriteLine($"DEFINITION cohort={cohort} family={definition.FamilyId:D} revision={definition.Revision} digest={definition.Digest} artifact={artifactId}");
         var warm = new double[40];
         bool countersValid = true;
@@ -148,15 +148,15 @@ internal static class Qualification
         Console.WriteLine($"DISPOSE cohort={cohort} phase={phase} cycle={cycle} retainedOwnersOrBuffers={alive} completedFullGcHeapBytes={heap} aboveNoProposalMaximumBytes={Math.Max(0, heap - high)}");
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static Cycle CompleteCycle(SetupDefinition definition, string artifactId, string inputPath, bool forceGc) =>
+    private static Cycle CompleteCycle(Definition definition, string artifactId, string inputPath, bool forceGc) =>
         CycleAsync(definition, artifactId, inputPath, forceGc).GetAwaiter().GetResult();
 
     // Keep completed Task/Cycle temporaries out of the caller's live heap probe.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static WeakReference[] CompleteAndRetireOwners(SetupDefinition definition, string artifactId, string inputPath) =>
+    private static WeakReference[] CompleteAndRetireOwners(Definition definition, string artifactId, string inputPath) =>
         CompleteCycle(definition, artifactId, inputPath, false).Owners;
 
-    private static async Task<Cycle> CycleAsync(SetupDefinition definition, string artifactId, string inputPath, bool forceGc)
+    private static async Task<Cycle> CycleAsync(Definition definition, string artifactId, string inputPath, bool forceGc)
     {
         var meter = new Meter(forceGc);
         long started = Stopwatch.GetTimestamp();

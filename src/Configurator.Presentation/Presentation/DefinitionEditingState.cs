@@ -8,9 +8,9 @@ internal sealed class DefinitionEditingState
 {
     private DefinitionAcceptedEditingState _accepted;
 
-    internal DefinitionEditingState(IReadOnlyList<SetupFieldDefinition> definitions,
+    internal DefinitionEditingState(IReadOnlyList<FieldDefinition> definitions,
         DefinitionSessionPrivacy privacy,
-        Func<SetupFieldDefinition, Func<DefinitionFieldState>, DefinitionFieldInput> createField)
+        Func<FieldDefinition, Func<DefinitionFieldState>, DefinitionFieldInput> createField)
     {
         _accepted = new(definitions.Count);
         Fields = Array.AsReadOnly(definitions.Select((definition, index) =>

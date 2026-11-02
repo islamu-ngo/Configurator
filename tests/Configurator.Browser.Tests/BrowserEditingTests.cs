@@ -147,7 +147,7 @@ public sealed class BrowserEditingTests
         await Assert.That(field.FindAll("[data-field='provider.other']").Count).IsEqualTo(0);
     }
 
-    private static DefinitionFormModel Form() => new(SetupDefinitionSourceCodec.ParseJson("""
+    private static DefinitionFormModel Form() => new(DefinitionSourceCodec.ParseJson("""
         {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"104f9cb6-a3bd-498f-a0c0-10d57a7d4732","revision":1},
          "project":{"id":"browser-typed","name":"Browser typed"},"applicationVersions":["1"],

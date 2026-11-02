@@ -21,13 +21,13 @@ public sealed class DefinitionAuthoringTests
            "SERVICE_TOKEN":{"scope":"root","path":"/SERVICE_TOKEN"}}}}}
         """;
 
-    internal static SetupDefinition Compile(string source = Source) =>
+    internal static Definition Compile(string source = Source) =>
         DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(Encoding.UTF8.GetBytes(source)));
 
     [Test]
     public async Task CompactSourceGeneratesAdmittedMetadataAndLiteralOutputKeys()
     {
-        SetupDefinition definition = Compile();
+        Definition definition = Compile();
         await Assert.That(definition.ApplicationId).IsEqualTo("example.service");
         await Assert.That(definition.Fields.Select(field => field.Id).ToArray()).IsEquivalentTo(ExpectedFieldIds);
         await Assert.That(definition.Artifacts.Single().FileName).IsEqualTo(".env");
@@ -47,7 +47,7 @@ public sealed class DefinitionAuthoringTests
             Source.Replace("\"path\":\"/SERVICE_PORT\"", "\"path\":\"/missing\"", StringComparison.Ordinal),
             Source.Replace("\"format\":\"dotenv\"", "\"format\":\"dotenv\",\"projection\":{\"op\":\"literal\",\"value\":1}", StringComparison.Ordinal)
         })
-            await Assert.That(() => Compile(source)).Throws<SetupDefinitionException>();
+            await Assert.That(() => Compile(source)).Throws<DefinitionException>();
     }
 
     [Test]
@@ -57,15 +57,15 @@ public sealed class DefinitionAuthoringTests
             "\"type\":\"object\",\"additionalProperties\":false,\"x-configurator\":{\"sensitivity\":\"public\"},\"default\":{\"token\":\"synthetic-private-marker\"},\"properties\":{\"token\":{\"type\":\"string\",\"x-configurator\":{\"sensitivity\":\"secret\"}}}", StringComparison.Ordinal);
         JsonObject nestedSource = JsonNode.Parse(nested)!.AsObject();
         nestedSource["outputs"] = JsonNode.Parse("""{"service.json":{"format":"json"}}""");
-        await Assert.That(() => Compile(nestedSource.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => Compile(nestedSource.ToJsonString())).Throws<DefinitionException>();
         string protectedParent = Source.Replace("\"type\":\"integer\",\"x-configurator\":{\"sensitivity\":\"public\",\"initialValue\":8080}",
             "\"type\":\"object\",\"additionalProperties\":false,\"x-configurator\":{\"sensitivity\":\"secret\"},\"properties\":{\"token\":{\"type\":\"string\",\"default\":\"synthetic-private-marker\",\"x-configurator\":{\"sensitivity\":\"public\"}}}", StringComparison.Ordinal)
             .Replace("\"format\":\"dotenv\"", "\"format\":\"json\"", StringComparison.Ordinal);
         JsonObject protectedSource = JsonNode.Parse(protectedParent)!.AsObject();
         protectedSource["outputs"] = JsonNode.Parse("""{"service.json":{"format":"json"}}""");
-        await Assert.That(() => Compile(protectedSource.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => Compile(protectedSource.ToJsonString())).Throws<DefinitionException>();
         string cycle = Source.Replace("\"initialValue\":8080", "\"initialValue\":8080,\"applicableWhen\":{\"op\":\"exists\",\"reference\":{\"scope\":\"root\",\"path\":\"/SERVICE_PORT\"}}", StringComparison.Ordinal);
-        await Assert.That(() => Compile(cycle)).Throws<SetupDefinitionException>();
+        await Assert.That(() => Compile(cycle)).Throws<DefinitionException>();
     }
 
     [Test]
@@ -82,7 +82,7 @@ public sealed class DefinitionAuthoringTests
             _ = Compile(source.ToJsonString());
             throw new InvalidOperationException("Expected bounded source rejection.");
         }
-        catch (SetupDefinitionException exception)
+        catch (DefinitionException exception)
         {
             await Assert.That(exception.Code).IsEqualTo("document-limit");
         }

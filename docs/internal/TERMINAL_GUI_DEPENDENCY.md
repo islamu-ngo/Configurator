@@ -138,7 +138,7 @@ rather than inventing source identities or calling the metadata legal proof.
 
 The terminal client still references Presentation, Core and Artifacts. The
 package replacement does not move definition, answer custody or protected-save
-policy into the UI toolkit. `SetupSecretTextField` continues to hold bullets in
+policy into the UI toolkit. `SecretTextField` continues to hold bullets in
 the widget, keep the actual input in a separate clearable buffer, block
 clipboard/context/history commands and clear editor state on the existing
 lifecycle boundaries.

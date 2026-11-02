@@ -25,7 +25,7 @@ public sealed class BrowserCollectionWorkflowTests
             """, "schema.integer");
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
         await component.Find("[data-field='settings.name'] input").InputAsync(new ChangeEventArgs { Value = "kept" });
@@ -62,7 +62,7 @@ public sealed class BrowserCollectionWorkflowTests
             """, "schema.array");
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()))));
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "example.test" });
         await component.Find("[data-field='tags'] [data-action='add-item']").ClickAsync(new MouseEventArgs());
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -90,7 +90,7 @@ public sealed class BrowserCollectionWorkflowTests
                {"id":"rows","title":"Rows","pointers":["/tenants"]}],
              "journeys":[{"id":"setup","title":"Setup","sections":["general","rows"]}]}
             """);
-        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        Definition admitted = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -144,7 +144,7 @@ public sealed class BrowserCollectionWorkflowTests
               "name":{"type":"string","title":"Tenant name","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
               "credential":{"type":"string","title":"Tenant secret","x-configurator":{"sensitivity":"secret","detail":"standard"}}}}}
             """, "schema.array", "schema.bounds", "schema.uniqueBy");
-        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        Definition admitted = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         for (int index = 0; index < 3; index++)
@@ -183,7 +183,7 @@ public sealed class BrowserCollectionWorkflowTests
             {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive","detail":"standard"},
              "properties":{"enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"public","detail":"standard"}}}}
             """);
-        SetupDefinition admitted = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+        Definition admitted = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "cluster");

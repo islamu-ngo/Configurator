@@ -24,7 +24,7 @@ public sealed class DefinitionDocumentEditingTests
         await Assert.That(applied.Succeeded).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(before + 1);
         await Assert.That(events).IsEqualTo(1);
-        SetupAnswerSnapshot answers = form.Snapshot();
+        AnswerSnapshot answers = form.Snapshot();
         await Assert.That(answers.Values["flag"].GetBoolean()).IsFalse();
         await Assert.That(answers.Values["nullable"].ValueKind).IsEqualTo(JsonValueKind.Null);
         await Assert.That(answers.Values["text"].GetString()).IsEqualTo("");
@@ -47,7 +47,7 @@ public sealed class DefinitionDocumentEditingTests
         form.SetValue(["mixedRows"], JsonSerializer.SerializeToElement(new[] { new { open = "row", hidden = "synthetic-row" } }));
         using var session = form.OpenDocument();
         byte[] source = session.ReadSource();
-        SetupAnswerSnapshot projected = SetupAnswerSnapshotCodec.ParseJson(source);
+        AnswerSnapshot projected = AnswerSnapshotCodec.ParseJson(source);
         await Assert.That(projected.Values.ContainsKey("secret")).IsFalse();
         await Assert.That(projected.Values.ContainsKey("mixedRows")).IsFalse();
         await Assert.That(projected.Values.ContainsKey("reset")).IsFalse();
@@ -547,7 +547,7 @@ public sealed class DefinitionDocumentEditingTests
     private static byte[] Envelope(string values, string omitted = "[]") =>
         Encoding.UTF8.GetBytes($$"""{"answerContractVersion":"0.0.1","values":{{values}},"omitted":{{omitted}}}""");
 
-    private static SetupDefinition Definition() => SetupDefinitionSourceCodec.ParseJson("""
+    private static Definition Definition() => DefinitionSourceCodec.ParseJson("""
         {
           "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},

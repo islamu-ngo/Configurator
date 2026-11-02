@@ -19,7 +19,7 @@ public sealed class BrowserOfflineWorkflowTests
             .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await policy.InitializeAsync();
-        SetupDefinition? retained = await policy.ReadRetainedDefinitionAsync(BrowserFixture.Definition.Digest.Value);
+        Definition? retained = await policy.ReadRetainedDefinitionAsync(BrowserFixture.Definition.Digest.Value);
         await Assert.That(retained).IsNotNull();
         await Assert.That(retained!.Digest).IsEqualTo(BrowserFixture.Definition.Digest);
         using var form = new DefinitionFormModel(retained, DefinitionSessionPrivacy.BrowserNoSecrets);
@@ -35,6 +35,6 @@ public sealed class BrowserOfflineWorkflowTests
         await Assert.That(component.FindAll("h1")).Count().IsEqualTo(1);
         await Assert.That(component.Find("a[href^='launch/']").GetAttribute("href"))
             .IsEqualTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
-        await Assert.That(BrowserFixture.Definition.Fields.Any(field => field.Sensitivity == SetupFieldSensitivity.Secret)).IsTrue();
+        await Assert.That(BrowserFixture.Definition.Fields.Any(field => field.Sensitivity == FieldSensitivity.Secret)).IsTrue();
     }
 }

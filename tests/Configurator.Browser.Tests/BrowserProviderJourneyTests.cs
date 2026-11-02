@@ -26,7 +26,7 @@ public sealed class BrowserProviderJourneyTests
         });
         BrowserFixture.WithField(source, "requireAdditional", """{"type":"boolean","x-configurator":{"sensitivity":"public","detail":"basic"}}""", "relationship.presence");
         source["configuration"]!["dependentRequired"] = JsonNode.Parse("""{"requireAdditional":["requirement"]}""");
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(definition);
         form.EditValue(["requireAdditional"], "true");
@@ -54,7 +54,7 @@ public sealed class BrowserProviderJourneyTests
         var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        form.SetDisclosureOverride(FieldDisclosure.Advanced);
         form.EditValue(["select.feature.platform-config"], "true");
         form.EditValue(["env.SETUP_SECRET"], "synthetic-setup-secret");
         var component = context.Render<ConfigurationField>(parameters => parameters

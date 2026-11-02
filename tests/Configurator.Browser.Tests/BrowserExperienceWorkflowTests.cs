@@ -132,16 +132,16 @@ public sealed class BrowserExperienceWorkflowTests
     {
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(Definition());
-        form.SetDisclosureOverride(SetupFieldDisclosure.Advanced);
+        form.SetDisclosureOverride(FieldDisclosure.Advanced);
         var component = context.Render<BrowserCredentialEntryTests.EmittedInputField>(parameters => parameters
             .Add(item => item.Form, form).Add(item => item.Path, ["extra"])
             .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "extra").Node));
         object callback = component.Instance.CaptureInput();
         long revision = form.InputRevision;
-        await component.InvokeAsync(() => form.SetDisclosureOverride(SetupFieldDisclosure.Essential));
+        await component.InvokeAsync(() => form.SetDisclosureOverride(FieldDisclosure.Essential));
         component.Render();
         await Assert.That(component.FindAll("input")).IsEmpty();
-        await component.InvokeAsync(() => form.SetDisclosureOverride(SetupFieldDisclosure.Advanced));
+        await component.InvokeAsync(() => form.SetDisclosureOverride(FieldDisclosure.Advanced));
         component.Render();
         await Assert.That(component.FindAll("input").Count).IsEqualTo(1);
         await component.InvokeAsync(() => callback switch
@@ -294,7 +294,7 @@ public sealed class BrowserExperienceWorkflowTests
         await Assert.That(link.GetAttribute("referrerpolicy")).IsEqualTo("no-referrer");
     }
 
-    private static SetupDefinition Definition()
+    private static Definition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
         source["configuration"] = JsonNode.Parse("""
@@ -325,6 +325,6 @@ public sealed class BrowserExperienceWorkflowTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"literal","value":{}}""");
         source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.boolean", "schema.integer",
             "schema.object", "schema.string");
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 }

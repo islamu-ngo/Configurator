@@ -2,14 +2,14 @@ namespace Configurator.Presentation;
 
 using System.Security.Cryptography;
 
-public enum SetupOperationStatus
+public enum OperationStatus
 {
     Succeeded,
     Cancelled,
     Rejected
 }
 
-public enum SetupOperationInvalidationReason
+public enum OperationInvalidationReason
 {
     Replaced,
     Cancelled,
@@ -19,17 +19,17 @@ public enum SetupOperationInvalidationReason
     Faulted
 }
 
-public interface ISetupPresentationOperation
+public interface IPresentationOperation
 {
-    Task<SetupPresentationOutcome> ExecuteAsync(CancellationToken cancellationToken);
+    Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Owns a private copy of operation output; disposal clears that copy.</summary>
-public sealed class SetupPresentationOutcome : IDisposable
+public sealed class PresentationOutcome : IDisposable
 {
     private byte[] _output;
 
-    public SetupPresentationOutcome(object coreResult, ReadOnlyMemory<byte> output)
+    public PresentationOutcome(object coreResult, ReadOnlyMemory<byte> output)
     {
         ArgumentNullException.ThrowIfNull(coreResult);
         CoreResult = coreResult;
@@ -42,17 +42,17 @@ public sealed class SetupPresentationOutcome : IDisposable
 
     public void Dispose() => CryptographicOperations.ZeroMemory(Interlocked.Exchange(ref _output, []));
 
-    public override string ToString() => nameof(SetupPresentationOutcome);
+    public override string ToString() => nameof(PresentationOutcome);
 }
 
-public sealed class SetupOperationSettledMessage
+public sealed class OperationSettledMessage
 {
-    public SetupOperationSettledMessage(
+    public OperationSettledMessage(
         Guid sessionId,
-        SetupWorkspaceId workspaceId,
+        WorkspaceId workspaceId,
         Guid operationId,
-        SetupOperationGeneration generation,
-        SetupOperationStatus status)
+        OperationGeneration generation,
+        OperationStatus status)
     {
         SessionId = sessionId;
         WorkspaceId = workspaceId;
@@ -61,49 +61,49 @@ public sealed class SetupOperationSettledMessage
         Status = status;
     }
 
-    public SetupOperationGeneration Generation { get; }
+    public OperationGeneration Generation { get; }
 
     public Guid OperationId { get; }
 
     public Guid SessionId { get; }
 
-    public SetupOperationStatus Status { get; }
+    public OperationStatus Status { get; }
 
-    public SetupWorkspaceId WorkspaceId { get; }
+    public WorkspaceId WorkspaceId { get; }
 
-    public override string ToString() => nameof(SetupOperationSettledMessage);
+    public override string ToString() => nameof(OperationSettledMessage);
 }
 
-public sealed class SetupOperationInvalidatedEventArgs : EventArgs
+public sealed class OperationInvalidatedEventArgs : EventArgs
 {
-    public SetupOperationInvalidatedEventArgs(
-        SetupOperationGeneration generation,
-        SetupOperationInvalidationReason reason)
+    public OperationInvalidatedEventArgs(
+        OperationGeneration generation,
+        OperationInvalidationReason reason)
     {
         Generation = generation;
         Reason = reason;
     }
 
-    public SetupOperationGeneration Generation { get; }
+    public OperationGeneration Generation { get; }
 
-    public SetupOperationInvalidationReason Reason { get; }
+    public OperationInvalidationReason Reason { get; }
 
-    public override string ToString() => nameof(SetupOperationInvalidatedEventArgs);
+    public override string ToString() => nameof(OperationInvalidatedEventArgs);
 }
 
-public sealed class SetupCompletionDiscardedEventArgs : EventArgs
+public sealed class CompletionDiscardedEventArgs : EventArgs
 {
-    public SetupCompletionDiscardedEventArgs(
+    public CompletionDiscardedEventArgs(
         Guid operationId,
-        SetupOperationGeneration generation)
+        OperationGeneration generation)
     {
         OperationId = operationId;
         Generation = generation;
     }
 
-    public SetupOperationGeneration Generation { get; }
+    public OperationGeneration Generation { get; }
 
     public Guid OperationId { get; }
 
-    public override string ToString() => nameof(SetupCompletionDiscardedEventArgs);
+    public override string ToString() => nameof(CompletionDiscardedEventArgs);
 }

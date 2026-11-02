@@ -38,7 +38,7 @@ public sealed class BrowserConfigurationNavigationTests
             """);
         document["presentation"]!["sections"]![0]!["pointers"]!.AsArray().Add("/tuning");
         document["configuration"]!["properties"]!["tuning"]!["x-configurator"]!["detail"] = detail;
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -52,7 +52,7 @@ public sealed class BrowserConfigurationNavigationTests
     [Test]
     public async Task SectionSwitchingPreservesConsentAnswersAndPinnedIdentity()
     {
-        SetupDefinition definition = GroupedDefinition();
+        Definition definition = GroupedDefinition();
         await using var context = BrowserFixture.Context();
         var component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
@@ -114,7 +114,7 @@ public sealed class BrowserConfigurationNavigationTests
         BrowserFixture.WithField(document, "optional_note", """
             {"type":"string","title":"Optional note","x-configurator":{"sensitivity":"public","detail":"advanced"}}
             """);
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
         {
@@ -166,11 +166,11 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.Find("[data-navigation]").GetAttribute("data-navigation")).IsEqualTo("wizard");
         await Assert.That(navigation.FindAll("[data-section]")[0].GetAttribute("data-section")).IsEqualTo("credentials");
         component.Find("#configuration-detail").Change("advanced");
-        await Assert.That(form.DisclosureOverride).IsEqualTo(SetupFieldDisclosure.Advanced);
+        await Assert.That(form.DisclosureOverride).IsEqualTo(FieldDisclosure.Advanced);
         component.Find("#configuration-detail").Change("essential");
-        await Assert.That(form.DisclosureOverride).IsEqualTo(SetupFieldDisclosure.Essential);
+        await Assert.That(form.DisclosureOverride).IsEqualTo(FieldDisclosure.Essential);
         component.Find("#configuration-experience").Change("quick-start");
-        await Assert.That(form.DisclosureOverride).IsEqualTo(SetupFieldDisclosure.Essential);
+        await Assert.That(form.DisclosureOverride).IsEqualTo(FieldDisclosure.Essential);
 
         await Assert.That(component.Find("[data-navigation]").GetAttribute("data-navigation")).IsEqualTo("wizard");
         await BrowserFixture.SelectPanelAsync(component, "prepare");
@@ -195,7 +195,7 @@ public sealed class BrowserConfigurationNavigationTests
             """));
         foreach (JsonNode? experience in document["presentation"]!["journeys"]!.AsArray())
             experience!["sections"]!.AsArray().Add("tuning");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var navigation = BrowserFixture.SectionNavigation(context, component);
@@ -227,7 +227,7 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
     }
 
-    private static SetupDefinition GroupedDefinition()
+    private static Definition GroupedDefinition()
     {
         JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         document["presentation"] = JsonNode.Parse("""
@@ -240,6 +240,6 @@ public sealed class BrowserConfigurationNavigationTests
               {"id":"inspect-settings","title":"Inspect configuration",
                "sections":["credentials","connection"]}]}
             """);
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
     }
 }

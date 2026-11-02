@@ -4,7 +4,7 @@
 > **Status:** Implemented bounded-v0.0.1 source reference; physical and target qualification remain separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionProfile.cs`, `src/Configurator.Core/Definitions/DefinitionNode.cs`, `src/Configurator.Core/Definitions/SetupDefinitionCodec.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Core/Definitions/DefinitionVocabulary.cs`, `src/Configurator.Core/Definitions/DefinitionSchema.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs`
+> **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionProfile.cs`, `src/Configurator.Core/Definitions/DefinitionNode.cs`, `src/Configurator.Core/Definitions/DefinitionCodec.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Core/Definitions/DefinitionVocabulary.cs`, `src/Configurator.Core/Definitions/DefinitionSchema.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs`
 
 ## Purpose and evidence boundary
 
@@ -27,7 +27,7 @@ the semantic contract. Editorial changes do not renew execution evidence.
 
 ## Admission and control flow
 
-1. `SetupDefinitionSourceCodec` selects an explicit content contract after the
+1. `DefinitionSourceCodec` selects an explicit content contract after the
    caller selects JSON or YAML syntax. Exact authoring `$schema` selects
    `DefinitionAuthoringCodec` and `DefinitionAuthoringCompiler`; otherwise
    `schemaVersion` selects runtime admission. Mixed discriminators reject.
@@ -35,13 +35,13 @@ the semantic contract. Editorial changes do not renew execution evidence.
    `CompositionKeyPolicy.Exact`. `DefinitionJson` is the shared canonical
    byte/decimal owner. Syntax parsing does not itself admit a usable definition.
 3. The source compiler lowers source-only envelope/output conveniences, then
-   calls `SetupDefinitionCodec.AdmitCompiled`. That method computes profile and
+   calls `DefinitionCodec.AdmitCompiled`. That method computes profile and
    capabilities, then re-enters public runtime `ParseJson`.
-4. `SetupDefinitionCodec.Admit` checks the closed envelope and recursively
+4. `DefinitionCodec.Admit` checks the closed envelope and recursively
    constructs `DefinitionNode` through `ReadNode`. It validates references,
    constraints, privacy, applicability, output projection, presentation, and
-   localization before returning `SetupDefinition`.
-5. `DefinitionValidator` resolves one immutable `SetupAnswerSnapshot` into
+   localization before returning `Definition`.
+5. `DefinitionValidator` resolves one immutable `AnswerSnapshot` into
    effective values, diagnostics, field/node states, and uncertainty/deferred
    locations. `DefinitionArtifactComposer.ValidatedComposition` owns validation
    for exactly one definition, snapshot, and complete/draft mode. Callers cannot
@@ -73,8 +73,8 @@ object. `familyId` is a nonempty `Guid` in exact `D` form; `revision` is a
 positive `Int64`. Application versions are distinct exact ordinal strings,
 not semantic-version ranges.
 
-`SetupDefinition` snapshots canonical bytes and computes `ArtifactDigest` over
-them. `CanonicalBytes` returns a copy. `SetupDefinitionRegistry` rejects
+`Definition` snapshots canonical bytes and computes `ArtifactDigest` over
+them. `CanonicalBytes` returns a copy. `DefinitionRegistry` rejects
 different digests for one family/revision within its inputs, deduplicates equal
 digests, requires exact application-version membership, and applies requested
 digest selection. No version/digest plus multiple compatible candidates is
@@ -126,7 +126,7 @@ The integer answer domain is exactly [-9,223,372,036,854,775,808,
 (`src/Configurator.Core/Definitions/DefinitionValidator.cs:514`,
 `src/Configurator.Core/Definitions/DefinitionValidator.cs:557`).
 Predicate expected-value compatibility uses the same signed range at
-`src/Configurator.Core/Definitions/SetupDefinitionCodec.cs:625`.
+`src/Configurator.Core/Definitions/DefinitionCodec.cs:625`.
 The shared scalar editor uses `long.TryParse` with invariant
 `NumberStyles.Integer`, not Int32
 (`src/Configurator.Presentation/Presentation/DefinitionScalarEditing.cs:23`).
@@ -136,7 +136,7 @@ Strict UTF-8 decoding and scalar re-encoding reject invalid byte sequences and
 unpaired surrogates. No Unicode normalization occurs. String assertions count
 `EnumerateRunes()`, whereas resource/metadata lengths use .NET string length.
 
-`SetupCompositionLimits.Default` supplies these relevant limits:
+`CompositionLimits.Default` supplies these relevant limits:
 
 | Domain | Bound |
 |---|---:|
@@ -201,9 +201,9 @@ recursive `items` schema and do not admit tuple schemas.
 
 Fixed properties, fixed-member requiredness, and a typed additional-property
 schema may coexist. `ReadNodeCore` admits them independently
-(`src/Configurator.Core/Definitions/SetupDefinitionCodec.cs:264`,
-`src/Configurator.Core/Definitions/SetupDefinitionCodec.cs:270`,
-`src/Configurator.Core/Definitions/SetupDefinitionCodec.cs:277`);
+(`src/Configurator.Core/Definitions/DefinitionCodec.cs:264`,
+`src/Configurator.Core/Definitions/DefinitionCodec.cs:270`,
+`src/Configurator.Core/Definitions/DefinitionCodec.cs:277`);
 `ValueValid` validates fixed properties separately and applies the map schema
 only to undeclared names
 (`src/Configurator.Core/Definitions/DefinitionValidator.cs:522`).
@@ -275,7 +275,7 @@ omitted. False/zero/empty string/nullable null are supplied values, not absence.
 The resolver starts at root fields. Nested resolution proceeds only inside
 present containers, so required children/child initial values never materialize
 an absent optional parent. Omission masks the selected subtree.
-`SetupAnswerSnapshot` and its codec reject overlapping omission paths and
+`AnswerSnapshot` and its codec reject overlapping omission paths and
 supplied/omitted ambiguity; reset removes the explicit value and suppression
 marker, restoring initialization eligibility. No codec silently migrates old
 answer layouts.
@@ -317,7 +317,7 @@ independent errors.
 
 ## Sensitivity and public metadata
 
-`SetupFieldDefinition.SensitivityOf` maps writeOnly to secret; otherwise
+`FieldDefinition.SensitivityOf` maps writeOnly to secret; otherwise
 explicit public/secret or default sensitive. `EffectiveSensitivity` computes the
 maximum across ancestry and descendants, including maps/items/variants.
 `ReadNodeCore` carries `publicAncestors` and `secretAncestors`, while `Protected`
@@ -452,14 +452,14 @@ Defaults/examples are discarded; format/readOnly/deprecated remain advisory;
 writeOnly ancestry remains secret through nested shapes and references.
 No imported default becomes initialValue.
 
-`SetupCliDefinitionHandlers.EnvironmentKeys` extracts valid environment names,
+`CliDefinitionHandlers.EnvironmentKeys` extracts valid environment names,
 creates string nodes, classifies name-based secret candidates versus sensitive
 leaves, and drops assignment values. It does not infer requiredness, defaults,
 typed constraints, semantic validity or issuer authority.
 
 ## Diagnostics and capability handshake
 
-`SetupDefinitionException` contains a stable code plus optional public SchemaPath
+`DefinitionException` contains a stable code plus optional public SchemaPath
 and SourceSpan. `ReadNode` preserves the nearest known schema location;
 source-map lookup can fall back to an ancestor. Generic parser/shape failures may
 lack a precise span. Messages must remain codes, never raw private input.
@@ -509,12 +509,12 @@ These are not silently corrected by documentation:
    can still fail snapshot relationship validation. Authoring references must not
    equate public-value admission with all effective-value semantics
    (`src/Configurator.Core/Definitions/DefinitionValidator.cs:514`).
-3. **Static reference domain:** SetupDefinitionCodec.Reference does not traverse
+3. **Static reference domain:** DefinitionCodec.Reference does not traverse
    additional-property schemas or variants. Whole-container validation/copy has a
    broader supported shape domain than per-child presentation/predicate/copy
    references. Do not infer dynamic-key or branch-member references from support
    for typed maps/variants
-   (`src/Configurator.Core/Definitions/SetupDefinitionCodec.cs:678`).
+   (`src/Configurator.Core/Definitions/DefinitionCodec.cs:678`).
 4. **Editor schema is not identical semantic admission:** DefinitionSchema's
    structural schema checks wrapper alternatives and helper forms, but the codec
    owns actual cross-keyword/context/privacy/budget behavior. Passing a generic

@@ -9,7 +9,7 @@ internal sealed class DefinitionViewState(string selectedExperienceId)
     internal string Locale { get; set; } = "";
     internal DefinitionEditorVisibilityPolicy EditorVisibility { get; init; }
     internal bool OptionalEditorsExpanded { get; set; }
-    internal SetupFieldDisclosure? DisclosureOverride { get; set; }
+    internal FieldDisclosure? DisclosureOverride { get; set; }
     internal DefinitionDiscoverySelection DiscoverySelection { get; set; } = new();
     internal HashSet<string> PromotedPaths { get; } = new(StringComparer.Ordinal);
     internal Dictionary<string, bool> SectionExpansion { get; } = new(StringComparer.Ordinal);

@@ -43,7 +43,7 @@ public sealed class MaintainerPackageTests
                     "targetUpdateMode":"create","restartRequirement":"process",
                     "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/service.name"}}}}}]}
                 """u8.ToArray();
-            _ = SetupDefinitionCodec.ParseJson(definition);
+            _ = DefinitionCodec.ParseJson(definition);
             await File.WriteAllBytesAsync(Path.Combine(workspace, "definition.json"), definition);
             string answers = Path.Combine(workspace, "answers.json");
             await File.WriteAllTextAsync(answers, """{"answerContractVersion":"0.0.1","values":{"service.name":"synthetic-installed-service"},"omitted":[]}""");
@@ -206,7 +206,7 @@ public sealed class MaintainerPackageTests
             var build = await ReleaseTestPaths.Run(executable, "definition", "build", "--source", source, "--output", output, "--machine");
             await Assert.That(build.ExitCode).IsEqualTo(0).Because(build.Output);
             byte[] compiled = await File.ReadAllBytesAsync(output);
-            SetupDefinition admitted = SetupDefinitionCodec.ParseJson(compiled);
+            Definition admitted = DefinitionCodec.ParseJson(compiled);
             await Assert.That(admitted.ApplicationId).IsEqualTo("example.service");
             await Assert.That(admitted.Fields.Single().Id).IsEqualTo("SERVICE_PORT");
             await Assert.That(admitted.ApplicationVersions).IsEquivalentTo(["1.0.0"]);

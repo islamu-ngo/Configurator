@@ -14,7 +14,7 @@ public static class DefinitionSchema
     {
         JsonObject schema = Closed(new JsonObject
         {
-            ["answerContractVersion"] = new JsonObject { ["const"] = SetupAnswerSnapshotCodec.ContractVersion },
+            ["answerContractVersion"] = new JsonObject { ["const"] = AnswerSnapshotCodec.ContractVersion },
             ["values"] = new JsonObject { ["type"] = "object" },
             ["omitted"] = new JsonObject
             {
@@ -105,7 +105,7 @@ public static class DefinitionSchema
             schema = Closed(properties, "schemaVersion", "profile", "familyId", "revision", "project", "applicationVersions",
                 "entryPoints", "locales", "configuration", "artifacts", "requiredCapabilities");
             Header(schema, "urn:islamu:configurator:setup-definition:v" + ConfiguratorVersion.Current,
-                "Configurator SetupDefinition " + ConfiguratorVersion.Current);
+                "Configurator Definition " + ConfiguratorVersion.Current);
         }
         schema["$defs"] = new JsonObject
         {

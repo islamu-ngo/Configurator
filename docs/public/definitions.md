@@ -9,7 +9,7 @@ description: "Understand bounded definitions, exact names, answer presence, and 
 > **Status:** Current bounded-v0.0.1 explanation; platform and target qualification are separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs`, `src/Configurator.Cli/SetupCliDefinitionHandlers.cs`
+> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs`, `src/Configurator.Cli/CliDefinitionHandlers.cs`
 
 A definition describes configuration data, local validation, presentation, and
 output mappings. Maintain one public YAML or JSON authoring source; compile it to

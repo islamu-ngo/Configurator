@@ -21,7 +21,7 @@ public sealed class BrowserMaskedChoiceTests
              "x-configurator":{"sensitivity":"{{{sensitivity}}}","detail":"basic"}}
             """);
         source["configuration"]!["required"]!.AsArray().Add("protectedChoice");
-        var definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.EditValue(["protectedChoice"], "beta");

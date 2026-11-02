@@ -601,7 +601,7 @@ public sealed class BrowserDeveloperEditingTests
             {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
             """);
         using var form = new DefinitionFormModel(
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString())),
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(definition.ToJsonString())),
             DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.SelectLocale("en");
         await using var engine = Boundary(context);
@@ -779,7 +779,7 @@ public sealed class BrowserDeveloperEditingTests
     private static Task Click(IRenderedComponent<ConfigurationDeveloper> component, string action) =>
         component.Find($"[data-action='{action}']").ClickAsync(new MouseEventArgs());
 
-    private static SetupDefinition EnvironmentDefinition()
+    private static Definition EnvironmentDefinition()
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         BrowserFixture.WithField(source, "plain", """{"type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}}""");
@@ -794,7 +794,7 @@ public sealed class BrowserDeveloperEditingTests
              "PLAIN":{"op":"copy","reference":{"scope":"root","path":"/plain"}},
              "SECRET":{"op":"copy","reference":{"scope":"root","path":"/credential"}}}
             """);
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 
     // Only the external engine boundary is replaced. Parsing, candidates, consent,

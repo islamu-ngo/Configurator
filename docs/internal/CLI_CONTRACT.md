@@ -4,7 +4,7 @@
 > **Status:** Machine 0.0.1 implemented; package qualification pending
 > **Owner:** CLI
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `src/Configurator.Cli/SetupCliApplication.cs`, `src/Configurator.Cli/SetupCliMachineOutput.cs`, `schemas/configurator-cli.schema.json`
+> **Source Anchors:** `src/Configurator.Cli/CliApplication.cs`, `src/Configurator.Cli/CliMachineOutput.cs`, `schemas/configurator-cli.schema.json`
 
 The CLI references only Configurator.Core, Configurator.Artifacts and the admitted
 Spectre packages. The public [command usage](../public/cli.md) documents all
@@ -20,7 +20,7 @@ both using the [native reference commands](../../eng/knowledge/README.md#generat
 
 `SecretCommands` registers `secret generate` and `secret derive` with explicit
 definition, literal pointer, contextual answers and a fresh output destination.
-`SetupCliSecretHandlers` uses Core admission, contextual node validation,
+`CliSecretHandlers` uses Core admission, contextual node validation,
 `SecretGenerator` and `SecretValueValidator`. CLI retains its Core/Artifacts-only
 dependency direction; interactive operation generations remain in Presentation.
 No independent algorithm policy or ambient input discovery belongs to this adapter.
@@ -31,27 +31,27 @@ omitted ancestors remain ineligible, matching the interactive workspace contract
 preparation before expensive generation. This rejects detectable destination and
 platform failures without publishing a file. Actual publication repeats the
 create-only boundary so the check grants no authority across races.
-Entered secret input uses `SetupCliInputBuffer`, strict UTF-8 and a 64 KiB ceiling.
+Entered secret input uses `CliInputBuffer`, strict UTF-8 and a 64 KiB ceiling.
 Temporary decoded characters, serialized answers and plaintext sidecar bytes are
 zeroed in `finally`; immutable JSON/string copies cannot promise total erasure.
 
 Generated-input hashes/digests require a distinct original-password destination.
 The handler reserves both logical artifact receipts before writing, records the
 sidecar outcome before attempting answer publication, and retains that outcome
-through exceptions, cancellation and delivery failures using `SetupCliOutcomeLedger`.
+through exceptions, cancellation and delivery failures using `CliOutcomeLedger`.
 The input workspace is never modified. A failed second write does not remove
 the only original password. Secret-family artifacts have no serialized `digest`;
 the machine serializer and 0.0.1 schema enforce this boundary independently of the handler.
 Readiness describes the resulting workspace, including unrelated missing values.
 
-`SetupCliCommandRegistry` declares the public command tree and typed settings;
+`CliCommandRegistry` declares the public command tree and typed settings;
 strict Spectre binding is the sole grammar authority. It admits `--option=value`
 and `--option value`, ordinary `-` values and the `--` option terminator, with
 strict command/option case and repeated bundle `--artifact`. The terminator does
 not admit undeclared positional operands. Framework-owned `cli`/`export` routes
 are not public commands.
 
-`SetupCliArgumentPreflight` is not a second parser. Its checks are limited to
+`CliArgumentPreflight` is not a second parser. Its checks are limited to
 bounded arguments, control characters, mode selection/conflicts, public-route
 admission and duplicate-singleton gaps. After Spectre binds settings, typed
 `ValidateInput` checks operation requirements, explicit file/stdin intent and
@@ -60,8 +60,8 @@ fixed value-safe codes rather than leaking framework diagnostics. No secret-word
 substring filter rejects filenames or admitted IDs, and no ambient environment
 enumeration supplies inputs or rejects an invocation.
 
-`SetupCliInvocation(arguments, mode, io)` has no environment constructor argument;
-`SetupCliEnvironmentPresence` is removed without a compatibility adapter. Answers
+`CliInvocation(arguments, mode, io)` has no environment constructor argument;
+`CliEnvironmentPresence` is removed without a compatibility adapter. Answers
 come only from explicitly selected bounded files or redirected stdin. Removing
 ambient/substring filtering does not relax definition admission, path/control
 checks or protected output, and actual private values still do not belong in
@@ -73,7 +73,7 @@ per argument. Artifact IDs remain bounded to 128 admitted ASCII characters.
 ### Help and human rendering
 
 Root, branch and leaf help use Spectre's command model without requiring operational
-inputs or reading files/stdin. `SetupCliHelpProvider` produces a typed help view
+inputs or reading files/stdin. `CliHelpProvider` produces a typed help view
 for machine mode: `scope` (`root`, `branch`, `leaf`), `commandPath`, public child
 `commands` and `options` (`name`, `requiresValue`, `repeatable`). Machine root help
 uses `cli`/`help`, branch help uses the selected family/`help`, and leaf help retains
@@ -88,7 +88,7 @@ machine mode never scrapes human help or emits its formatting.
 
 ### Bounded operation execution
 
-`SetupCliIo` requires separate `ISetupCliAuthoringFiles` authority in addition
+`CliIo` requires separate `ISetupCliAuthoringFiles` authority in addition
 to private artifact I/O and safe output writers. Program explicitly constructs
 `PublicDefinitionFiles`; embedders must supply the capability and non-authoring
 fixtures reject access. All definition discovery, bounded reads, existence checks
@@ -99,9 +99,9 @@ revise` output is a separate create-only candidate; source bytes are never
 replaced. This grants neither captured-handle/root authority nor target apply
 permission.
 
-`SetupCliIoOperations` reads bounded bytes, admits a local definition using
-`SetupDefinitionCodec`, rejects duplicate answer properties and snapshots JSON
-answers with `SetupAnswerSnapshot`. `SetupCliArtifactHandlers` uses
+`CliIoOperations` reads bounded bytes, admits a local definition using
+`DefinitionCodec`, rejects duplicate answer properties and snapshots JSON
+answers with `AnswerSnapshot`. `CliArtifactHandlers` uses
 `DefinitionValidator`, `DefinitionArtifactComposer` and the bounded
 `DefinitionImport` inverse; no compiled target DTO, catalogue or transport occurs.
 For ordinary artifact operations, input represents answers. `artifact
@@ -179,16 +179,16 @@ restricted before any writer invocation; stdout rejects even on dry run.
 Linux create-only owner-only protection and platform rejection remain writer-owned.
 No insecure fallback or network apply exists.
 
-`SetupCliOutcomeLedger` retains established publication facts independently of
-the command exit. `SetupCliResultPlan` seals and sizes the mandatory result
+`CliOutcomeLedger` retains established publication facts independently of
+the command exit. `CliResultPlan` seals and sizes the mandatory result
 before effects, reserving bounded outcome slots and optional-detail space.
 An impossible response budget rejects before publication, rather than publishing
 and then discovering that the receipt cannot fit. The normal maximum is 65,536
 UTF-8 bytes including its trailing LF, not a character count; `MaximumOutputBytes`
 names that boundary. Definition maxima are not reduced to make results fit.
 
-The single `SetupCliMachineEnvelope`, serialized with source-generated
-`SetupCliJsonContext`, separates root `completion`, nullable/unassessed
+The single `CliMachineEnvelope`, serialized with source-generated
+`CliJsonContext`, separates root `completion`, nullable/unassessed
 `preparation`, `targetAcceptance: "unassessed"`, `cleanup` and `delivery: "attempt"`.
 Local preparation does not grant target acceptance, and receipt delivery cannot
 self-attest acknowledgment inside those same bytes. Root coverage has exact
@@ -201,7 +201,7 @@ indeterminate `unknown` outcomes survive later failures; unknown is never inferr
 to mean not-written. Conflicts, blocked destinations and failed commits retain
 their specific statuses. Cleanup failure is independent of publication success.
 
-`SetupCliPublicationOutcome.Result` carries the immutable
+`CliPublicationOutcome.Result` carries the immutable
 `ProtectedArtifactCommitResult` directly, never a status-only compatibility map.
 Native installation is recorded immediately after the successful Linux link,
 before inspection or a fault hook. `SystemWriter` preserves `EstablishedResult`
@@ -234,7 +234,7 @@ alias or inference from `Written`. Capacity reservation includes the largest
 fact strings before publication, and the independent specification/verifier
 checks both vocabulary and impossible combinations, including stdout claims.
 
-`SetupCliApplication` is the sole renderer/emitter. Runtime delegates return/store
+`CliApplication` is the sole renderer/emitter. Runtime delegates return/store
 typed results; Program does not reopen stdout or emit fallback JSON. Delivery
 starts before the first write. Healthy machine delivery produces exactly one
 UTF-8 JSON line without BOM/ANSI; failed delivery returns 74 with fixed best-effort
@@ -247,15 +247,15 @@ evidence; consumers must inspect established outputs before replaying a failed w
 The cooperative lifetime contract replaces the embedded synchronous entrypoints;
 callers migrate directly, without compatibility wrappers:
 
-- `SetupCliApplication.RunAsync(invocation, cancellationToken = default)` returns
-  `Task<SetupCliExitCode>`.
+- `CliApplication.RunAsync(invocation, cancellationToken = default)` returns
+  `Task<CliExitCode>`.
 - `ISetupCliInput.ReadAsync(path, maximumBytes, cancellationToken)` returns
-  `ValueTask<SetupCliInputBuffer>`. The disposable buffer owns its `byte[]` and
+  `ValueTask<CliInputBuffer>`. The disposable buffer owns its `byte[]` and
   clears it on disposal; the consumer must dispose it even when parsing fails.
 - `ISetupCliWriter.WriteAsync(..., cancellationToken)` returns `ValueTask`;
   `WriteArtifactAsync(..., cancellationToken)` and
   `WriteBundleAsync(..., cancellationToken)` return
-  `ValueTask<SetupCliPublicationResult>`, preserving completion, publication and
+  `ValueTask<CliPublicationResult>`, preserving completion, publication and
    cleanup facts rather than discarding them in an exception path.
 
 Embedded bundle writers also accept an outcome observer and report established
@@ -284,7 +284,7 @@ parsing, outcome observation or cleanup fails. Cancellation is checked between
 bounded CPU stages and before commit; it does not promise immediate interruption
 of parsing or erasure of immutable JSON/string allocations.
 
-`SetupCliApplication` makes its sole final-delivery attempt under a distinct,
+`CliApplication` makes its sole final-delivery attempt under a distinct,
 bounded delivery token, not the cancelled work token. Delivery failure returns
 74 even when operation or cleanup also failed. Otherwise cancellation returns
 130 unless an earlier operation/cleanup failure already determines completion;
@@ -350,10 +350,10 @@ It never hashes private answers or persists them. Same-view private-value change
 need not change it; this digest is not authentication or a private file digest.
 
 Machine 0.0.1 diagnostics carry mutually exclusive optional `source` and
-`correction` objects. `SetupCliDefinitionHandlers` preserves compiler codes and
+`correction` objects. `CliDefinitionHandlers` preserves compiler codes and
 public source-map coordinates; importer keyword codes are lowercased to the
-machine code vocabulary. `SetupCliResults.Diagnostic` converts Core correction
-tokens without recovering private map keys. `SetupCliMachineOutput` sanitizes
+machine code vocabulary. `CliResults.Diagnostic` converts Core correction
+tokens without recovering private map keys. `CliMachineOutput` sanitizes
 and bounds both before hashing their serialized structure into the detail
 digest. Pointers retain a safe ancestor within 256 characters; corrections retain
 at most 32 typed segments and 256 aggregate declared-name characters. The input
@@ -374,7 +374,7 @@ file authority is consulted. Its payload declares profile/capabilities and
 independent versions 2/2/1; text mode emits the public document only. Neither
 operation grants revision, publication or target-acceptance authority.
 
-`SetupCliCommandSchemaMetadata.GenerateSchema()` generates the closed
+`CliCommandSchemaMetadata.GenerateSchema()` generates the closed
 `islamu-configurator-command/v0.0.1` envelope plus registry operation/option metadata.
 The generator's `--write` and `--check` locate `Configurator.slnx`; `--stdout`
 returns schema bytes without needing a repository checkout.

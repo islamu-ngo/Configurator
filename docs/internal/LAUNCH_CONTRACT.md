@@ -123,9 +123,9 @@ rejects late loads. No remote source fetch is allowed during live answers or
 offline operation.
 
 Local JSON/YAML upload selects syntax from the file extension and delegates to
-`SetupDefinitionSourceCodec` before opening an answer workspace. Closed content
+`DefinitionSourceCodec` before opening an answer workspace. Closed content
 discriminators select compact authoring compilation or expanded runtime
-admission; remote retrieval continues to use `SetupDefinitionCodec.ParseJson`
+admission; remote retrieval continues to use `DefinitionCodec.ParseJson`
 and rejects authoring sources. Local admission shares the 4 MiB byte budget,
 owns and clears its input buffer, replaces the file control and restores focus.
 No source comments are retained in canonical definitions, and local compilation

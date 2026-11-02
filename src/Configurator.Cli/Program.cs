@@ -7,9 +7,9 @@ using Configurator.Core;
 using Configurator.Core.Artifacts;
 using Microsoft.Win32.SafeHandles;
 
-return await SetupCliProgram.RunAsync(args);
+return await CliProgram.RunAsync(args);
 
-internal static class SetupCliProgram
+internal static class CliProgram
 {
     internal static async Task<int> RunAsync(string[] args)
     {
@@ -35,7 +35,7 @@ internal static class SetupCliProgram
                     context.Cancel = true;
                     cancellation.Cancel();
                 });
-            SetupCliMode mode = SetupCliArgumentPreflight.Mode(args);
+            CliMode mode = CliArgumentPreflight.Mode(args);
             // Non-owning handles can hang async pipe disposal after cancellation.
             using SafePipeHandle? inputHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)0, ownsHandle: true);
             using SafePipeHandle? outputHandle = OperatingSystem.IsWindows() ? null : new((IntPtr)1, ownsHandle: true);
@@ -46,29 +46,29 @@ internal static class SetupCliProgram
             using Stream standardError = OpenStandardStream(2, errorHandle, errorFileHandle);
             var writer = new SystemWriter(standardOutput);
             var error = new SystemWriter(standardError);
-            var io = new SetupCliIo(new SystemInput(inputHandle), writer, error, new PublicDefinitionFiles(), 65_536, 4 * 1024 * 1024);
-            SetupCliInvocation invocation;
+            var io = new CliIo(new SystemInput(inputHandle), writer, error, new PublicDefinitionFiles(), 65_536, 4 * 1024 * 1024);
+            CliInvocation invocation;
             try
             {
                 invocation = new(args, mode, io);
             }
             catch (ArgumentException)
             {
-                invocation = new(["doctor", mode == SetupCliMode.Machine ? "--machine" : "--text", "--invalid-arguments"], mode, io);
+                invocation = new(["doctor", mode == CliMode.Machine ? "--machine" : "--text", "--invalid-arguments"], mode, io);
             }
-            return (int)await new SetupCliApplication().RunAsync(invocation, cancellation.Token);
+            return (int)await new CliApplication().RunAsync(invocation, cancellation.Token);
         }
         catch (ArgumentException)
         {
-            return (int)SetupCliExitCode.Usage;
+            return (int)CliExitCode.Usage;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return (int)SetupCliExitCode.Io;
+            return (int)CliExitCode.Io;
         }
         catch (Exception)
         {
-            return (int)SetupCliExitCode.Internal;
+            return (int)CliExitCode.Internal;
         }
         finally { if (OperatingSystem.IsWindows()) Console.CancelKeyPress -= cancel; }
     }
@@ -99,7 +99,7 @@ internal static class SetupCliProgram
 
     private sealed class SystemInput(SafePipeHandle? standardInput) : ISetupCliInput
     {
-        public async ValueTask<SetupCliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
+        public async ValueTask<CliInputBuffer> ReadAsync(string path, int maximumBytes, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (maximumBytes is < 1 or > 4 * 1024 * 1024) throw new IOException("input-bound");
@@ -116,7 +116,7 @@ internal static class SetupCliProgram
                 {
                     int read = await stream.ReadAsync(bytes.AsMemory(total, Math.Min(8192, bytes.Length - total)), cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (read == 0) return new SetupCliInputBuffer(bytes, total);
+                    if (read == 0) return new CliInputBuffer(bytes, total);
                     total += read;
                     if (total > maximumBytes) throw new IOException("input-bound");
                 }
@@ -137,7 +137,7 @@ internal static class SetupCliProgram
         {
             // Exercise protected admission with inert bytes, then discard the unpublished preparation.
             using ProtectedArtifactPreparation preparation = await _protectedWriter.PrepareAsync(
-                SetupArtifactKind.Configuration, path, new byte[] { 0 }, cancellationToken);
+                ArtifactKind.Configuration, path, new byte[] { 0 }, cancellationToken);
             return preparation.RejectionStatus;
         }
 
@@ -154,13 +154,13 @@ internal static class SetupCliProgram
             throw new IOException("protected-output-required");
         }
 
-        public async ValueTask<SetupCliPublicationResult> WriteArtifactAsync(string path, SetupArtifactKind kind,
+        public async ValueTask<CliPublicationResult> WriteArtifactAsync(string path, ArtifactKind kind,
             ReadOnlyMemory<byte> bytes, int maximumBytes, CancellationToken cancellationToken)
         {
             if (bytes.Length > maximumBytes) throw new IOException("output-bound");
             if (path == "-")
             {
-                if (!SetupArtifactPolicy.TryProjectPublic(kind, bytes, out ReadOnlyMemory<byte> projection))
+                if (!ArtifactPolicy.TryProjectPublic(kind, bytes, out ReadOnlyMemory<byte> projection))
                     throw new IOException("protected-output-required");
                 await WriteAsync(path, projection, maximumBytes, cancellationToken);
                 return new([new(null, DeliveredToStandardOutput: true)]);
@@ -191,9 +191,9 @@ internal static class SetupCliProgram
                 cancelled || cancellationToken.IsCancellationRequested);
         }
 
-        public async ValueTask<SetupCliPublicationResult> WriteBundleAsync(
+        public async ValueTask<CliPublicationResult> WriteBundleAsync(
             IReadOnlyList<DefinitionArtifact> artifacts, string directory, int maximumBytes,
-            Action<string, SetupCliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken)
+            Action<string, CliPublicationOutcome> outcomeObserver, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(outcomeObserver);
             if (artifacts.Any(item => item.ByteLength > maximumBytes))
@@ -201,7 +201,7 @@ internal static class SetupCliProgram
             ProtectedArtifactBundleResult result = await ProtectedArtifactBundlePublisher.PublishAsync(
                 _protectedWriter, artifacts, directory,
                 outcome => outcomeObserver(outcome.ArtifactId, new(outcome.Result)), cancellationToken);
-            return new(result.Outcomes.Select(item => new SetupCliPublicationOutcome(item.Result)).ToArray(),
+            return new(result.Outcomes.Select(item => new CliPublicationOutcome(item.Result)).ToArray(),
                 result.CleanupFailed, result.CompletionCode == ProtectedArtifactBundleCompletionCode.Cancelled);
         }
     }

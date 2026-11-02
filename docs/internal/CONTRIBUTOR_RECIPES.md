@@ -5,7 +5,7 @@
 > **Status:** Current source-grounded recipes; example edits and commands unexecuted
 > **Owner:** Contributor Experience
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/SetupCliContractTests.cs`, `tests/Configurator.Browser.Tests/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
+> **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/CliContractTests.cs`, `tests/Configurator.Browser.Tests/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
 > **Review basis:** Named source, test bodies and project files inspected on 2026-10-30; no recipe execution, builds, tests or host exercises
 
 Choose the behavior you want to change, then follow its owner, example edit and
@@ -140,7 +140,7 @@ public async Task StringBoundsCountUnicodeScalars(string answers, bool ready)
 {
     JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
     source["configuration"]!["properties"]!["service.name"]!["maxLength"] = 1;
-    SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+    Definition definition = DefinitionFixture.Parse(source.ToJsonString());
     DefinitionValidationResult result = DefinitionValidator.Validate(
         definition, DefinitionFixture.Answers(answers));
     await Assert.That(result.IsReady).IsEqualTo(ready);
@@ -180,16 +180,16 @@ machine contract. Start with [CLI contract](CLI_CONTRACT.md), not human-help
 formatting or a private answer file.
 
 **Inspected source/test owners.**
-[`SetupCliMachineOutput.Serialize`](../../src/Configurator.Cli/SetupCliMachineOutput.cs)
+[`CliMachineOutput.Serialize`](../../src/Configurator.Cli/CliMachineOutput.cs)
 constructs a 0.0.1 envelope and newline-framed bytes.
-[`SetupCliCommandSchemaMetadata`](../../src/Configurator.Cli/SetupCliCommandSchemaMetadata.cs)
+[`CliCommandSchemaMetadata`](../../src/Configurator.Cli/CliCommandSchemaMetadata.cs)
 generates the schema.
-[`SetupCliContractTests.MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility`](../../tests/Configurator.Cli.Tests/SetupCliContractTests.cs)
+[`CliContractTests.MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility`](../../tests/Configurator.Cli.Tests/CliContractTests.cs)
 mutates a synthetic envelope and checks `machine-version`.
-[`SetupCliMachineContractVerifier`](../../tests/Configurator.Cli.Tests/SetupCliMachineContractVerifier.cs)
-and [`SetupCliContractSpecification`](../../tests/Configurator.Cli.Tests/SetupCliContractSpecification.cs)
+[`CliMachineContractVerifier`](../../tests/Configurator.Cli.Tests/CliMachineContractVerifier.cs)
+and [`CliContractSpecification`](../../tests/Configurator.Cli.Tests/CliContractSpecification.cs)
 provide independent closed-field and vocabulary expectations.
-[`SetupCliMachineBoundaryTests`](../../tests/Configurator.Cli.Tests/SetupCliMachineBoundaryTests.cs)
+[`CliMachineBoundaryTests`](../../tests/Configurator.Cli.Tests/CliMachineBoundaryTests.cs)
 also verifies actual CLI output through `CliFixture`, rather than only generated
 schema metadata.
 
@@ -204,8 +204,8 @@ foreach (string version in new[] {
     "2", "", "islamu-configurator-command/v0.0.1 ",
     "ISLAMU-CONFIGURATOR-COMMAND/v0.0.1"
 })
-    await Assert.That(SetupCliMachineContractVerifier.Validate(
-        SetupCliMachineContractVerifier.Mutate(
+    await Assert.That(CliMachineContractVerifier.Validate(
+        CliMachineContractVerifier.Mutate(
             root => root["schemaVersion"] = version)))
         .Contains("machine-version");
 ```
@@ -229,10 +229,10 @@ export TMPDIR="$HOME/.cache/agent-tmp"
 dotnet build tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj --configuration Release --verbosity quiet
 dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj \
   --configuration Release --no-build \
-  --treenode-filter "/*/*/SetupCliContractTests/*" --minimum-expected-tests 1
+  --treenode-filter "/*/*/CliContractTests/*" --minimum-expected-tests 1
 dotnet test --project tests/Configurator.Cli.Tests/Configurator.Cli.Tests.csproj \
   --configuration Release --no-build \
-  --treenode-filter "/*/*/SetupCliMachineBoundaryTests/FullInventoryOffsetsReachContinuationValidationRatherThanOldGrammarLimit" \
+  --treenode-filter "/*/*/CliMachineBoundaryTests/FullInventoryOffsetsReachContinuationValidationRatherThanOldGrammarLimit" \
   --minimum-expected-tests 1
 ```
 

@@ -165,7 +165,7 @@ public sealed class DefinitionDocumentSession : IDisposable
         }
         if (source.Length > (Representation == DefinitionDocumentRepresentation.Environment
             ? Configurator.Core.Environment.DotenvCodec.MaximumFileUtf8Bytes
-            : Configurator.Core.Composition.SetupCompositionLimits.DefaultAggregateSourceBytes))
+            : Configurator.Core.Composition.CompositionLimits.DefaultAggregateSourceBytes))
             return DefinitionDocumentParseResult.Reject("document-limit");
         // Snapshot caller memory before admission; a published candidate never refers to it.
         byte[] owned = source.ToArray();
@@ -251,7 +251,7 @@ public sealed class DefinitionDocumentSession : IDisposable
             }
         }
         catch (OperationCanceledException) { return DefinitionDocumentParseResult.Reject("document-cancelled"); }
-        catch (SetupDefinitionException exception) { return DefinitionDocumentParseResult.Reject(exception.Code); }
+        catch (DefinitionException exception) { return DefinitionDocumentParseResult.Reject(exception.Code); }
         catch (InvalidOperationException) { return DefinitionDocumentParseResult.Reject("document-conflict"); }
         finally { captured?.Retire(); }
     }

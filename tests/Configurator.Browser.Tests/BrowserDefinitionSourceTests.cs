@@ -62,14 +62,14 @@ public sealed class BrowserDefinitionSourceTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(AuthoringJson));
-        SetupDefinition definition = await source.ReadLocalAsync(input);
+        Definition definition = await source.ReadLocalAsync(input);
         await Assert.That(definition.FamilyId).IsEqualTo(Guid.Parse("f93a6b9f-c210-47a9-b90b-434954040282"));
         await Assert.That(definition.Revision).IsEqualTo(1);
         await Assert.That(definition.ApplicationVersions).IsEquivalentTo(["1.0"]);
         await Assert.That(definition.EntryPoints[0]).IsEqualTo("setup");
         await Assert.That(definition.Locales[0]).IsEqualTo("en");
         using var yaml = new MemoryStream(Encoding.UTF8.GetBytes(AuthoringYaml));
-        SetupDefinition paired = await source.ReadLocalAsync(yaml, yaml: true);
+        Definition paired = await source.ReadLocalAsync(yaml, yaml: true);
         await Assert.That(paired.Digest).IsEqualTo(definition.Digest);
         await Assert.That(paired.CanonicalBytes.Span.SequenceEqual(definition.CanonicalBytes.Span)).IsTrue();
         await Assert.That(context.JSInterop.Invocations).IsEmpty();
@@ -146,7 +146,7 @@ public sealed class BrowserDefinitionSourceTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
         using var input = new MemoryStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
-        SetupDefinition admitted = await source.ReadLocalAsync(input);
+        Definition admitted = await source.ReadLocalAsync(input);
         await Assert.That(admitted.Digest).IsEqualTo(BrowserFixture.Definition.Digest);
         JsonNode conflict = JsonNode.Parse(admitted.CanonicalBytes.Span)!;
         conflict["project"]!["name"] = "Different content at the same revision";
@@ -216,7 +216,7 @@ public sealed class BrowserDefinitionSourceTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
         using var input = new GatedDefinitionStream(Encoding.UTF8.GetBytes(AuthoringJson));
-        Task<SetupDefinition> read = source.ReadLocalAsync(input);
+        Task<Definition> read = source.ReadLocalAsync(input);
         await input.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         source.Invalidate();
         input.Release.SetResult();
@@ -237,7 +237,7 @@ public sealed class BrowserDefinitionSourceTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
         using var input = new GatedDefinitionStream(BrowserFixture.Definition.CanonicalBytes.ToArray());
-        Task<SetupDefinition> pending = source.ReadLocalAsync(input);
+        Task<Definition> pending = source.ReadLocalAsync(input);
         await input.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try { await Assert.That(await policy.BeginWorkspaceAsync()).IsTrue(); }
         finally { input.Release.TrySetResult(); }

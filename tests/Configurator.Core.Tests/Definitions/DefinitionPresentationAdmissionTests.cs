@@ -87,13 +87,13 @@ public sealed class DefinitionPresentationAdmissionTests
             format: json
         """;
 
-    private static SetupDefinition Compile(JsonObject source) =>
+    private static Definition Compile(JsonObject source) =>
         DefinitionAuthoringTests.Compile(source.ToJsonString());
 
     private static JsonObject Authoring() => JsonNode.Parse(Source)!.AsObject();
     private static JsonObject Runtime() => JsonNode.Parse(Compile(Authoring()).CanonicalBytes.Span)!.AsObject();
-    private static SetupDefinition Parse(JsonObject runtime) =>
-        SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString()));
+    private static Definition Parse(JsonObject runtime) =>
+        DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(runtime.ToJsonString()));
     private static JsonObject Token(JsonObject document) =>
         document["configuration"]!["properties"]!["TOKEN"]!.AsObject();
     private static JsonObject Metadata(JsonObject document) => Token(document)["x-configurator"]!.AsObject();
@@ -160,7 +160,7 @@ public sealed class DefinitionPresentationAdmissionTests
     [Arguments("file.kind")]
     public async Task OutputSelectorAdmitsLiteralPointersAndAuthoredOptionOrder(string fieldName)
     {
-        SetupDefinition definition = Compile(OutputSelectorSource(fieldName));
+        Definition definition = Compile(OutputSelectorSource(fieldName));
         JsonObject runtime = JsonNode.Parse(definition.CanonicalBytes.Span)!.AsObject();
         JsonNode selector = runtime["presentation"]!["outputSelector"]!;
         await Assert.That(selector["pointer"]!.GetValue<string>())
@@ -220,15 +220,15 @@ public sealed class DefinitionPresentationAdmissionTests
             source["configuration"]!["properties"]!["enabled"] = JsonNode.Parse(
                 """{"type":"boolean","x-configurator":{"sensitivity":"public"}}""");
             mutate(source);
-            await Assert.That(() => Compile(source)).Throws<SetupDefinitionException>();
+            await Assert.That(() => Compile(source)).Throws<DefinitionException>();
         }
     }
 
     [Test]
     public async Task EquivalentYamlJsonCompilesPointersAndJourneysInAuthoredOrder()
     {
-        SetupDefinition json = Compile(Authoring());
-        SetupDefinition yaml = DefinitionAuthoringCompiler.Compile(
+        Definition json = Compile(Authoring());
+        Definition yaml = DefinitionAuthoringCompiler.Compile(
             DefinitionAuthoringCodec.ParseYaml(Encoding.UTF8.GetBytes(Yaml)));
         await Assert.That(json.Digest).IsEqualTo(yaml.Digest);
         JsonNode runtime = JsonNode.Parse(json.CanonicalBytes.Span)!;
@@ -236,14 +236,14 @@ public sealed class DefinitionPresentationAdmissionTests
         await Assert.That(runtime["presentation"]!["sections"]![1]!["pointers"]![0]!.GetValue<string>()).IsEqualTo("/Service port");
         await Assert.That(runtime["presentation"]!["journeys"]![0]!["sections"]!.ToJsonString())
             .IsEqualTo("""["network","access"]""");
-        await Assert.That(SetupDefinitionCodec.ParseYaml(json.CanonicalBytes).Digest).IsEqualTo(json.Digest);
+        await Assert.That(DefinitionCodec.ParseYaml(json.CanonicalBytes).Digest).IsEqualTo(json.Digest);
         await Assert.That(json.Fields.Single(field => field.Id == "TOKEN").Help).IsEqualTo("Credential for the service.");
     }
 
     [Test]
     public async Task OptionalMachineOnlyMetadataAbsenceRemainsNeutral()
     {
-        SetupDefinition definition = DefinitionAuthoringTests.Compile();
+        Definition definition = DefinitionAuthoringTests.Compile();
         JsonObject runtime = JsonNode.Parse(definition.CanonicalBytes.Span)!.AsObject();
         await Assert.That(runtime.ContainsKey("presentation")).IsFalse();
         JsonNode metadata = runtime["configuration"]!["properties"]!["SERVICE_TOKEN"]!["x-configurator"]!;
@@ -256,7 +256,7 @@ public sealed class DefinitionPresentationAdmissionTests
     public async Task PublicSnapshotsPreserveAuthoredSemanticsAndNeutralDefaults()
     {
         JsonObject source = Authoring();
-        SetupDefinition definition = Compile(source);
+        Definition definition = Compile(source);
         DefinitionPresentation presentation = definition.Presentation!;
         source["presentation"]!["sections"]![0]!["pointers"]!.AsArray().Clear();
         byte[] bytes = definition.CanonicalBytes.ToArray();
@@ -269,8 +269,8 @@ public sealed class DefinitionPresentationAdmissionTests
         await Assert.That(() => ((IList<string>)presentation.Sections[0].Fields).Clear()).Throws<NotSupportedException>();
         await Assert.That(() => ((IList<DefinitionSection>)presentation.Sections).Clear()).Throws<NotSupportedException>();
         await Assert.That(() => ((IList<DefinitionExperience>)presentation.Experiences).Clear()).Throws<NotSupportedException>();
-        SetupFieldDefinition field = definition.Fields.Single(field => field.Id == "TOKEN");
-        await Assert.That(field.Disclosure).IsEqualTo(SetupFieldDisclosure.Essential);
+        FieldDefinition field = definition.Fields.Single(field => field.Id == "TOKEN");
+        await Assert.That(field.Disclosure).IsEqualTo(FieldDisclosure.Essential);
         await Assert.That(field.Node.Secret!.Kind).IsEqualTo("opaque-token");
         await Assert.That(field.Node.Secret.Acquisition).IsEqualTo("issuer");
         await Assert.That(field.Guidance!.Links[0].Url).IsEqualTo("https://example.org/docs/credentials");
@@ -279,9 +279,9 @@ public sealed class DefinitionPresentationAdmissionTests
         source = Authoring();
         source["presentation"]!.AsObject().Remove("navigation");
         Metadata(source).Remove("detail");
-        SetupDefinition defaults = Compile(source);
+        Definition defaults = Compile(source);
         await Assert.That(defaults.Presentation!.Experiences[0].Navigation).IsEqualTo("sections");
-        await Assert.That(defaults.Fields.Single(value => value.Id == "TOKEN").Disclosure).IsEqualTo(SetupFieldDisclosure.Guided);
+        await Assert.That(defaults.Fields.Single(value => value.Id == "TOKEN").Disclosure).IsEqualTo(FieldDisclosure.Guided);
     }
 
     [Test]
@@ -414,7 +414,7 @@ public sealed class DefinitionPresentationAdmissionTests
             ["sections"] = sections,
             ["journeys"] = journeys
         };
-        SetupDefinition admitted = Compile(runtime);
+        Definition admitted = Compile(runtime);
         await Assert.That(admitted.Presentation!.Sections.Count).IsEqualTo(64);
         await Assert.That(admitted.Presentation.Experiences.Count).IsEqualTo(16);
         journeys.Add(new JsonObject
@@ -549,7 +549,7 @@ public sealed class DefinitionPresentationAdmissionTests
         await Reject(() => Compile(contradictory));
         JsonObject sensitive = Authoring();
         Metadata(sensitive)["sensitivity"] = "sensitive";
-        await Assert.That(Compile(sensitive).Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+        await Assert.That(Compile(sensitive).Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(FieldSensitivity.Secret);
         foreach (string type in new[] { "integer", "boolean", "object", "array" })
         {
             JsonObject source = Authoring();
@@ -579,8 +579,8 @@ public sealed class DefinitionPresentationAdmissionTests
                     ["x-configurator"] = new JsonObject { ["sensitivity"] = "secret" }
                 }
                 : container;
-            SetupDefinition definition = Compile(source);
-            await Assert.That(definition.Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(SetupFieldSensitivity.Secret);
+            Definition definition = Compile(source);
+            await Assert.That(definition.Fields.Single(field => field.Id == "TOKEN").Sensitivity).IsEqualTo(FieldSensitivity.Secret);
             JsonNode child = array ? Token(source)["items"]!["properties"]!["child"]! : Token(source)["properties"]!["child"]!;
             child["x-configurator"]!["sensitivity"] = "public";
             await Reject(() => Compile(source));
@@ -612,7 +612,7 @@ public sealed class DefinitionPresentationAdmissionTests
     [Test]
     public async Task AnyAdmittedMetadataChangeBindsDigestAndConflictsAtTheSameRevision()
     {
-        SetupDefinition original = Compile(Authoring());
+        Definition original = Compile(Authoring());
         foreach (Action<JsonObject> mutate in new Action<JsonObject>[]
         {
             source => source["presentation"]!["journeys"]![0]!["title"] = "A different title",
@@ -622,12 +622,12 @@ public sealed class DefinitionPresentationAdmissionTests
         {
             JsonObject source = Authoring();
             mutate(source);
-            SetupDefinition changed = Compile(source);
+            Definition changed = Compile(source);
             await Assert.That(changed.Digest == original.Digest).IsFalse();
-            await Reject(() => _ = new SetupDefinitionRegistry([original, changed]));
+            await Reject(() => _ = new DefinitionRegistry([original, changed]));
             source["identity"]!["revision"] = 2;
-            SetupDefinition next = Compile(source);
-            var registry = new SetupDefinitionRegistry([original, next]);
+            Definition next = Compile(source);
+            var registry = new DefinitionRegistry([original, next]);
             await Assert.That(registry.Resolve(original.FamilyId, "1.0", original.Digest).Digest).IsEqualTo(original.Digest);
         }
     }
@@ -638,7 +638,7 @@ public sealed class DefinitionPresentationAdmissionTests
         {
             action();
         }
-        catch (SetupDefinitionException exception)
+        catch (DefinitionException exception)
         {
             await Assert.That(exception.Code.Length <= 64).IsTrue();
             await Assert.That(exception.ToString().Contains("synthetic-private-marker", StringComparison.Ordinal)).IsFalse();

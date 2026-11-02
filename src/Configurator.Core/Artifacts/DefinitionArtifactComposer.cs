@@ -15,8 +15,8 @@ public sealed class DefinitionArtifact : IDisposable
     private readonly byte[] _bytes;
     private readonly object _sync = new();
     private bool _disposed;
-    internal DefinitionArtifact(SetupDefinition definition, SetupArtifactDefinition artifact,
-        SetupAnswerSnapshot answers, byte[] bytes)
+    internal DefinitionArtifact(Definition definition, ArtifactDefinition artifact,
+        AnswerSnapshot answers, byte[] bytes)
     {
         _bytes = (byte[])bytes.Clone();
         Digest = ArtifactDigest.Compute(bytes);
@@ -67,7 +67,7 @@ public sealed class DefinitionArtifact : IDisposable
     public string MediaType { get; }
     public string ApplySemantics { get; }
     public string Restart { get; }
-    public SetupArtifactSensitivity Sensitivity => SetupArtifactSensitivity.Restricted;
+    public ArtifactSensitivity Sensitivity => ArtifactSensitivity.Restricted;
     public override string ToString() => $"{nameof(DefinitionArtifact)}:Restricted:Revision={InputRevision}";
 }
 
@@ -89,25 +89,25 @@ public static class DefinitionArtifactComposer
     internal static readonly DiagnosticListener PreparationDiagnostics = new("Configurator.Core.Preparation");
 
     public static DefinitionArtifactResult Compose(
-        SetupDefinition definition, string artifactId, SetupAnswerSnapshot answers,
+        Definition definition, string artifactId, AnswerSnapshot answers,
         CancellationToken cancellationToken = default)
         => ComposeCore(definition, artifactId, answers, false, [], cancellationToken);
 
-    internal static DefinitionArtifactResult ComposeCore(SetupDefinition definition, string artifactId,
-        SetupAnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions,
+    internal static DefinitionArtifactResult ComposeCore(Definition definition, string artifactId,
+        AnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions,
         CancellationToken cancellationToken = default)
         => new ValidatedComposition(definition, answers, draft, cancellationToken).Compose(artifactId, completions);
 
     /// <summary>Owns validation for exactly one definition, answer snapshot and mode; callers cannot supply validation.</summary>
     internal sealed class ValidatedComposition
     {
-        private readonly SetupDefinition _definition;
-        private readonly SetupAnswerSnapshot _answers;
+        private readonly Definition _definition;
+        private readonly AnswerSnapshot _answers;
         private readonly bool _draft;
         private readonly CancellationToken _cancellationToken;
         private readonly DefinitionValidationResult _validation;
 
-        internal ValidatedComposition(SetupDefinition definition, SetupAnswerSnapshot answers, bool draft,
+        internal ValidatedComposition(Definition definition, AnswerSnapshot answers, bool draft,
             CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(definition);
@@ -124,19 +124,19 @@ public static class DefinitionArtifactComposer
             => ComposeValidated(_definition, artifactId, _answers, _draft, completions, _validation, _cancellationToken);
     }
 
-    private static DefinitionArtifactResult ComposeValidated(SetupDefinition definition, string artifactId,
-        SetupAnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions,
+    private static DefinitionArtifactResult ComposeValidated(Definition definition, string artifactId,
+        AnswerSnapshot answers, bool draft, List<DefinitionDraftCompletion> completions,
         DefinitionValidationResult validation, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(artifactId);
         cancellationToken.ThrowIfCancellationRequested();
-        SetupArtifactDefinition? artifact = definition.Artifacts.SingleOrDefault(item => item.Id == artifactId);
+        ArtifactDefinition? artifact = definition.Artifacts.SingleOrDefault(item => item.Id == artifactId);
         if (artifact is null) return new(null, [new("artifact-unknown", "")]);
         if (!validation.IsReady) return new(null, validation.Diagnostics);
         string unresolvedField = "";
         try
         {
-            var budget = new CompositionBudget(SetupCompositionLimits.Default);
+            var budget = new CompositionBudget(CompositionLimits.Default);
             int operations = 0;
             var unknown = validation.DeferredFields.Concat(validation.UnresolvedFields).ToHashSet(StringComparer.Ordinal);
             var activeRoots = validation.Fields.Where(field => field.IsActive).Select(field => field.Definition.Name)
@@ -155,7 +155,7 @@ public static class DefinitionArtifactComposer
                     "yaml" => WriteYaml(document.RootElement),
                     "dotenv" => WriteDotenv(document.RootElement, draft),
                     "markdown" => WriteMarkdown(document.RootElement),
-                    _ => throw new SetupDefinitionException("format-invalid")
+                    _ => throw new DefinitionException("format-invalid")
                 };
                 if (draft && completions.Count > 0 && artifact.Format == "dotenv")
                 {
@@ -163,8 +163,8 @@ public static class DefinitionArtifactComposer
                     bytes = Encoding.UTF8.GetBytes("# Draft: fill deferred secret keys before use.\n" + Encoding.UTF8.GetString(original));
                     CryptographicOperations.ZeroMemory(original);
                 }
-                if (bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
-                    throw new SetupDefinitionException("artifact-limit");
+                if (bytes.Length > CompositionLimits.DefaultAggregateSourceBytes)
+                    throw new DefinitionException("artifact-limit");
                 cancellationToken.ThrowIfCancellationRequested();
                 if (PreparationDiagnostics.IsEnabled("ArtifactComposed"))
                     PreparationDiagnostics.Write("ArtifactComposed", artifact.Id);
@@ -181,8 +181,8 @@ public static class DefinitionArtifactComposer
                 DefinitionNode? itemSchema, string itemPath, string outputPath, int depth)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (++operations > SetupCompositionLimits.DefaultParserEvents)
-                    throw new SetupDefinitionException("projection-limit");
+                if (++operations > CompositionLimits.DefaultParserEvents)
+                    throw new DefinitionException("projection-limit");
                 if (projection.TryGetProperty("when", out var condition))
                 {
                     bool? matches = DefinitionValidator.EvaluateCondition(condition, validation.Values, draft ? unknown : null, item,
@@ -197,7 +197,7 @@ public static class DefinitionArtifactComposer
                             unresolved = location.Segments.Count > 0 ? location.Segments[0] : null;
                         }
                         unresolvedField = unresolved is null ? "" : validation.Fields.FirstOrDefault(field => field.Definition.Name == unresolved)?.Id ?? "";
-                        throw new SetupDefinitionException("draft-dependency-unresolved");
+                        throw new DefinitionException("draft-dependency-unresolved");
                     }
                     if (matches == false) return (false, null);
                 }
@@ -249,7 +249,7 @@ public static class DefinitionArtifactComposer
                             var selected = Select(reference, itemSchema, itemPath);
                             CheckUnknown(selected.Path);
                             if (!DefinitionValidator.TryResolveReference(reference, validation.Values, item, out JsonElement source)) return (false, null);
-                            if (source.ValueKind != JsonValueKind.Array) throw new SetupDefinitionException("repeat-source");
+                            if (source.ValueKind != JsonValueKind.Array) throw new DefinitionException("repeat-source");
                             budget.Node(depth);
                             var repeated = new JsonArray();
                             int position = 0;
@@ -263,7 +263,7 @@ public static class DefinitionArtifactComposer
                             }
                             return (true, repeated);
                         }
-                    default: throw new SetupDefinitionException("projection-operation");
+                    default: throw new DefinitionException("projection-operation");
                 }
             }
 
@@ -278,14 +278,14 @@ public static class DefinitionArtifactComposer
                     DefinitionNode ancestor = definition.Configuration;
                     foreach (string segment in DefinitionPath.Parse(itemPath).Segments)
                     {
-                        secret |= SetupFieldDefinition.SensitivityOf(ancestor) == SetupFieldSensitivity.Secret;
+                        secret |= FieldDefinition.SensitivityOf(ancestor) == FieldSensitivity.Secret;
                         ancestor = ancestor.Type == DefinitionNodeType.Mapping ? ancestor.Properties[segment] : ancestor.Items!;
                     }
                 }
                 DefinitionPath path = DefinitionPath.Parse(reference.GetProperty("path").GetString()!);
                 foreach (string segment in path.Segments)
                 {
-                    secret |= SetupFieldDefinition.SensitivityOf(schema) == SetupFieldSensitivity.Secret;
+                    secret |= FieldDefinition.SensitivityOf(schema) == FieldSensitivity.Secret;
                     schema = schema.Type == DefinitionNodeType.Mapping ? schema.Properties[segment] : schema.Items!;
                 }
                 return (schema, (relative ? itemPath : "") + path.ToPointer(), secret);
@@ -299,7 +299,7 @@ public static class DefinitionArtifactComposer
                     : validation.UnresolvedFields.Contains(path.Segments[0]) ? path.Segments[0] : null;
                 if (unresolved is null) return;
                 unresolvedField = validation.Fields.FirstOrDefault(field => field.Definition.Name == unresolved)?.Id ?? "";
-                throw new SetupDefinitionException("draft-dependency-unresolved");
+                throw new DefinitionException("draft-dependency-unresolved");
             }
 
             (bool, JsonNode?) Copy(JsonElement value, int depth)
@@ -316,13 +316,13 @@ public static class DefinitionArtifactComposer
                 DefinitionPath location = DefinitionPath.Parse(fieldPath);
                 if (location.Segments.Count > 0 && !activeRoots.Contains(location.Segments[0]))
                     return (false, null);
-                bool secret = secretAncestor || SetupFieldDefinition.SensitivityOf(schema) == SetupFieldSensitivity.Secret;
+                bool secret = secretAncestor || FieldDefinition.SensitivityOf(schema) == FieldSensitivity.Secret;
                 completionFieldPath ??= fieldPath;
                 completionOutputPath ??= outputPath;
                 if (value is { ValueKind: not JsonValueKind.Null } variantValue && schema.Variants.Count > 0)
                 {
                     DefinitionNode branch = DefinitionValidator.SelectVariant(schema, variantValue)
-                        ?? throw new SetupDefinitionException("value-variant");
+                        ?? throw new DefinitionException("value-variant");
                     return CopyField(branch, value, fieldPath, outputPath, depth, secret,
                         completionFieldPath, completionOutputPath);
                 }
@@ -401,20 +401,20 @@ public static class DefinitionArtifactComposer
                 }
             }
         }
-        catch (SetupDefinitionException exception) { return new(null, [new(exception.Code, unresolvedField)]); }
-        catch (SetupCompositionException) { return new(null, [new("artifact-limit", "")]); }
+        catch (DefinitionException exception) { return new(null, [new(exception.Code, unresolvedField)]); }
+        catch (CompositionException) { return new(null, [new("artifact-limit", "")]); }
     }
 
     private static string Pointer(string name) => name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 
     private static byte[] WriteDotenv(JsonElement value, bool draft = false)
     {
-        if (value.ValueKind != JsonValueKind.Object) throw new SetupDefinitionException("dotenv-shape");
+        if (value.ValueKind != JsonValueKind.Object) throw new DefinitionException("dotenv-shape");
         var entries = new List<DotenvEntry>();
         foreach (JsonProperty property in value.EnumerateObject())
         {
             if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null)
-                throw new SetupDefinitionException("dotenv-shape");
+                throw new DefinitionException("dotenv-shape");
             string text = property.Value.ValueKind == JsonValueKind.String
                 ? property.Value.GetString()! : property.Value.GetRawText();
             bool placeholder = draft && text.Length == 0;
@@ -422,7 +422,7 @@ public static class DefinitionArtifactComposer
                 placeholder ? DotenvEntryKind.EmptyPlaceholder : DotenvEntryKind.LocalHumanValue, true, DotenvProvenance.UserInput));
         }
         DotenvRenderResult rendered = DotenvCodec.Render(new DotenvDocument(entries), true);
-        if (!rendered.Succeeded) throw new SetupDefinitionException("dotenv-value");
+        if (!rendered.Succeeded) throw new DefinitionException("dotenv-value");
         return rendered.Bytes.ToArray();
     }
 
@@ -467,7 +467,7 @@ public static class DefinitionArtifactComposer
     {
         if (value.ValueKind != JsonValueKind.Array
             || value.EnumerateArray().Any(item => item.ValueKind != JsonValueKind.String))
-            throw new SetupDefinitionException("markdown-shape");
+            throw new DefinitionException("markdown-shape");
         var output = new StringBuilder();
         foreach (JsonElement item in value.EnumerateArray())
         {

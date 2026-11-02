@@ -144,7 +144,7 @@
         _error = null;
         try
         {
-            SetupDefinition definition = await Catalog.OpenAsync(ProjectId, selected.Revision, lifetime.Token);
+            Definition definition = await Catalog.OpenAsync(ProjectId, selected.Revision, lifetime.Token);
             if (!_disposed && ReferenceEquals(_lifetime, lifetime) && Selected == selected)
                 Navigation.NavigateTo($"launch/{definition.FamilyId:D}?digest={definition.Digest.Value}");
         }

@@ -63,7 +63,7 @@ public sealed class DefinitionArtifactTests
                 {"notes.md":{"id":"notes","format":"markdown","projection":{"op":"omit"}}}
                 """);
             source["outputs"]!["notes.md"]!["projection"] = JsonNode.Parse(projection);
-            await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<DefinitionException>();
         }
     }
 
@@ -83,7 +83,7 @@ public sealed class DefinitionArtifactTests
              "item":{"op":"copy","reference":{"scope":"item","path":"/name"},
               "when":{"op":"equals","reference":{"scope":"item","path":"/enabled"},"value":true}}}}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "rows",
             DefinitionFixture.Answers("""{"rows":[{"enabled":true,"name":"one"},{"enabled":false,"name":"two"}]}"""));
         using DefinitionArtifact? artifact = result.Artifact;
@@ -103,7 +103,7 @@ public sealed class DefinitionArtifactTests
             {"op":"repeat","reference":{"scope":"root","path":"/rows"},
              "item":{"op":"copy","reference":{"scope":"item","path":""}}}
             """);
-        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(source.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
@@ -114,15 +114,15 @@ public sealed class DefinitionArtifactTests
             "examples", "minimal-self-hosted", "setup-definition.json"))) root = root.Parent;
         string sample = Path.Combine(root?.FullName ?? throw new InvalidOperationException("Neutral sample missing."),
             "examples", "minimal-self-hosted");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(File.ReadAllBytes(
+        Definition definition = DefinitionCodec.ParseJson(File.ReadAllBytes(
             Path.Combine(sample, "setup-definition.json")));
-        SetupAnswerSnapshot answers = SetupAnswerSnapshotCodec.ParseJson(File.ReadAllBytes(
+        AnswerSnapshot answers = AnswerSnapshotCodec.ParseJson(File.ReadAllBytes(
             Path.Combine(sample, "answers", "complete.json")));
 
         await Assert.That(DefinitionValidator.Validate(definition,
             DefinitionFixture.Answers("""{"service.name":""}""")).IsReady).IsFalse();
         await Assert.That(DefinitionValidator.Validate(definition, answers).IsReady).IsTrue();
-        SetupAnswerSnapshot publicOnly = DefinitionFixture.Answers(
+        AnswerSnapshot publicOnly = DefinitionFixture.Answers(
             """{"service.mode":"extended","metrics.enabled":true}""");
         DefinitionValidationResult partial = DefinitionValidator.Validate(definition, publicOnly);
         await Assert.That(partial.IsReady).IsFalse();
@@ -140,26 +140,26 @@ public sealed class DefinitionArtifactTests
             byte[] expected = File.ReadAllBytes(Path.Combine(sample, "expected", expectedFile));
             await Assert.That(result.Artifact!.Bytes.Span.SequenceEqual(expected)).IsTrue();
             await Assert.That(result.Artifact.DefinitionDigest).IsEqualTo(definition.Digest);
-            await Assert.That(result.Artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+            await Assert.That(result.Artifact.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
         }
     }
 
     [Test]
     public async Task NeutralProjectionProducesPinnedJsonBytesAndInputRevision()
     {
-        SetupDefinition definition = DefinitionFixture.Parse();
+        Definition definition = DefinitionFixture.Parse();
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "config", DefinitionFixture.Answers());
         await Assert.That(result.Succeeded).IsTrue();
         await Assert.That(Encoding.UTF8.GetString(result.Artifact!.Bytes.Span)).IsEqualTo("""{"name":"sample"}""");
         await Assert.That(result.Artifact.InputRevision).IsEqualTo(7L);
         await Assert.That(result.Artifact.DefinitionDigest).IsEqualTo(definition.Digest);
-        await Assert.That(result.Artifact.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
+        await Assert.That(result.Artifact.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
     }
 
     [Test]
     public async Task MissingRequiredFieldsRemainVisibleAndCannotRender()
     {
-        SetupDefinition definition = DefinitionFixture.Parse();
+        Definition definition = DefinitionFixture.Parse();
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, DefinitionFixture.Answers("{}"));
         await Assert.That(validation.IsReady).IsFalse();
         await Assert.That(validation.Fields.Single().HasError).IsTrue();
@@ -177,7 +177,7 @@ public sealed class DefinitionArtifactTests
             ("dotenv", "NAME=\"line # text\"\n")
         })
         {
-            SetupDefinition definition = DefinitionFixture.Parse(DefinitionFixture.Json
+            Definition definition = DefinitionFixture.Parse(DefinitionFixture.Json
                 .Replace("\"format\":\"json\"", $"\"format\":\"{format}\"", StringComparison.Ordinal)
                 .Replace("\"name\":{\"op\"", "\"NAME\":{\"op\"", StringComparison.Ordinal));
             DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "config",

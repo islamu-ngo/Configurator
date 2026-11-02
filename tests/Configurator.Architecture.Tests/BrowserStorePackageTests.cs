@@ -69,7 +69,7 @@ public sealed class BrowserStorePackageTests
                 string path = "definition-store/" + relative;
                 await Assert.That(expectedFiles.Add(relative)).IsTrue();
                 byte[] snapshot = File.ReadAllBytes(Path.Combine(directory, path));
-                SetupDefinition definition = SetupDefinitionCodec.ParseJson(snapshot);
+                Definition definition = DefinitionCodec.ParseJson(snapshot);
                 await Assert.That(snapshot.AsSpan().SequenceEqual(definition.CanonicalBytes.Span)).IsTrue();
                 await Assert.That(definition.FamilyId.ToString("D")).IsEqualTo(project.GetProperty("familyId").GetString());
                 await Assert.That(definition.ApplicationId).IsEqualTo(project.GetProperty("applicationId").GetString());

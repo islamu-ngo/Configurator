@@ -28,10 +28,10 @@ public sealed class ProtectedArtifactWriterTests
     public async Task RestrictedAndUnknownBytesNeverReachPublicStreams()
     {
         byte[] bytes = RandomNumberGenerator.GetBytes(64);
-        foreach (SetupArtifactKind kind in new[]
+        foreach (ArtifactKind kind in new[]
         {
-            SetupArtifactKind.Environment, SetupArtifactKind.Configuration,
-            SetupArtifactKind.OperatorIdentity, SetupArtifactKind.Unknown, (SetupArtifactKind)999
+            ArtifactKind.Environment, ArtifactKind.Configuration,
+            ArtifactKind.OperatorIdentity, ArtifactKind.Unknown, (ArtifactKind)999
         })
         {
             using var output = new MemoryStream();
@@ -39,7 +39,7 @@ public sealed class ProtectedArtifactWriterTests
             await Assert.That(output.Length).IsEqualTo(0);
         }
         using var publicOutput = new MemoryStream();
-        ProtectedArtifactWriter.WritePublic(publicOutput, SetupArtifactKind.PublicCatalogue, bytes);
+        ProtectedArtifactWriter.WritePublic(publicOutput, ArtifactKind.PublicCatalogue, bytes);
         await Assert.That(publicOutput.ToArray()).IsEquivalentTo(bytes);
     }
 
@@ -51,7 +51,7 @@ public sealed class ProtectedArtifactWriterTests
         if (writer.IsAvailable) return;
         using var directory = new TestDirectory();
         using var preparation = await writer.PrepareAsync(
-            SetupArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
         await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
     }
@@ -63,7 +63,7 @@ public sealed class ProtectedArtifactWriterTests
         using var directory = new TestDirectory();
         string target = Path.Combine(directory.Path, OutputFileName);
         byte[] bytes = RandomNumberGenerator.GetBytes(64);
-        using var preparation = await new ProtectedArtifactWriter().PrepareAsync(SetupArtifactKind.Environment, target, bytes);
+        using var preparation = await new ProtectedArtifactWriter().PrepareAsync(ArtifactKind.Environment, target, bytes);
         await Assert.That((await preparation.CommitAsync()).Succeeded).IsTrue();
         await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(bytes);
         await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(OwnerOnly);
@@ -86,7 +86,7 @@ public sealed class ProtectedArtifactWriterTests
             File.Move(target, retained);
             if (replaceTarget) File.WriteAllBytes(target, [1, 2, 3]);
         });
-        using var preparation = await writer.PrepareAsync(SetupArtifactKind.Configuration, target, bytes);
+        using var preparation = await writer.PrepareAsync(ArtifactKind.Configuration, target, bytes);
         ProtectedArtifactCommitResult result = await preparation.CommitAsync();
         await Assert.That(await File.ReadAllBytesAsync(retained)).IsEquivalentTo(bytes);
         await Assert.That(File.GetUnixFileMode(retained)).IsEqualTo(OwnerOnly);
@@ -105,7 +105,7 @@ public sealed class ProtectedArtifactWriterTests
         string target = Path.Combine(directory.Path, OutputFileName);
         byte[] bytes = RandomNumberGenerator.GetBytes(64);
         var writer = new ProtectedArtifactWriter(() => throw new InvalidOperationException("synthetic-inspection-fault"));
-        using var preparation = await writer.PrepareAsync(SetupArtifactKind.Configuration, target, bytes);
+        using var preparation = await writer.PrepareAsync(ArtifactKind.Configuration, target, bytes);
         await Assert.That(async () => await preparation.CommitAsync()).Throws<InvalidOperationException>();
         await Assert.That(preparation.EstablishedResult!.InstallationEstablished).IsTrue();
         await Assert.That(preparation.EstablishedResult!.VerificationSucceeded).IsFalse();
@@ -136,7 +136,7 @@ public sealed class ProtectedArtifactWriterTests
         byte[] original = RandomNumberGenerator.GetBytes(64);
         await File.WriteAllBytesAsync(target, original);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-            SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
         ProtectedArtifactCommitResult result = await preparation.CommitAsync();
         await Assert.That(result.Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
         await Assert.That(result.InstallationEstablished).IsFalse();
@@ -153,8 +153,8 @@ public sealed class ProtectedArtifactWriterTests
         byte[] first = RandomNumberGenerator.GetBytes(64);
         byte[] second = RandomNumberGenerator.GetBytes(64);
         var writer = new ProtectedArtifactWriter();
-        using var one = await writer.PrepareAsync(SetupArtifactKind.Environment, target, first);
-        using var two = await writer.PrepareAsync(SetupArtifactKind.Environment, target, second);
+        using var one = await writer.PrepareAsync(ArtifactKind.Environment, target, first);
+        using var two = await writer.PrepareAsync(ArtifactKind.Environment, target, second);
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Task<ProtectedArtifactCommitResult> Commit(ProtectedArtifactPreparation prepared) => Task.Run(async () =>
         {
@@ -178,7 +178,7 @@ public sealed class ProtectedArtifactWriterTests
         using var directory = new TestDirectory();
         string target = Path.Combine(directory.Path, OutputFileName);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-            SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
         byte[] competing = RandomNumberGenerator.GetBytes(64);
         await File.WriteAllBytesAsync(target, competing);
         await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
@@ -194,16 +194,16 @@ public sealed class ProtectedArtifactWriterTests
         var writer = new ProtectedArtifactWriter();
         using var cancellation = new CancellationTokenSource();
         using var preparation = await writer.PrepareAsync(
-            SetupArtifactKind.Environment, Path.Combine(directory.Path, "cancelled"), RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, Path.Combine(directory.Path, "cancelled"), RandomNumberGenerator.GetBytes(64));
         await cancellation.CancelAsync();
         await Assert.That(async () => await preparation.CommitAsync(cancellation.Token)).Throws<OperationCanceledException>();
         {
             using var uncommitted = await writer.PrepareAsync(
-                SetupArtifactKind.Environment, Path.Combine(directory.Path, "disposed"), RandomNumberGenerator.GetBytes(64));
+                ArtifactKind.Environment, Path.Combine(directory.Path, "disposed"), RandomNumberGenerator.GetBytes(64));
             _ = uncommitted;
         }
         await Assert.That(async () => await writer.PrepareAsync(
-            SetupArtifactKind.Environment, Path.Combine(directory.Path, "pre-cancelled"),
+            ArtifactKind.Environment, Path.Combine(directory.Path, "pre-cancelled"),
             RandomNumberGenerator.GetBytes(64), cancellation.Token)).Throws<OperationCanceledException>();
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
     }
@@ -222,7 +222,7 @@ public sealed class ProtectedArtifactWriterTests
         foreach (string target in new[] { link, child, Path.Combine(parentLink, OutputFileName), "-", "/dev/null" })
         {
             using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-                SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
+                ArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
             await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         }
         await Assert.That(Directory.GetFileSystemEntries(child)).IsEmpty();
@@ -236,7 +236,7 @@ public sealed class ProtectedArtifactWriterTests
         using var directory = new TestDirectory();
         File.SetUnixFileMode(directory.Path, OwnerOnly | UnixFileMode.UserExecute | UnixFileMode.OtherWrite);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-            SetupArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
         await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
     }
@@ -247,7 +247,7 @@ public sealed class ProtectedArtifactWriterTests
         if (!OperatingSystem.IsLinux()) return;
         using var directory = new TestDirectory();
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-            SetupArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
         File.SetUnixFileMode(directory.Path, OwnerOnly | UnixFileMode.UserExecute | UnixFileMode.OtherWrite);
         await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsafeTarget);
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
@@ -262,7 +262,7 @@ public sealed class ProtectedArtifactWriterTests
         string moved = Path.Combine(directory.Path, "moved");
         Directory.CreateDirectory(parent);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-            SetupArtifactKind.Environment, Path.Combine(parent, OutputFileName), RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, Path.Combine(parent, OutputFileName), RandomNumberGenerator.GetBytes(64));
         Directory.Move(parent, moved);
         Directory.CreateDirectory(parent);
         await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
@@ -276,7 +276,7 @@ public sealed class ProtectedArtifactWriterTests
         if (!OperatingSystem.IsLinux()) return;
         using var directory = new TestDirectory();
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-            SetupArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, Path.Combine(directory.Path, OutputFileName), RandomNumberGenerator.GetBytes(64));
         await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
     }
 
@@ -289,12 +289,12 @@ public sealed class ProtectedArtifactWriterTests
         string target = Path.Combine(directory.Path, OutputFileName);
         foreach (byte[] bytes in new[] { Array.Empty<byte>(), RandomNumberGenerator.GetBytes(ProtectedArtifactWriter.MaximumBytes + 1) })
         {
-            using var rejected = await writer.PrepareAsync(SetupArtifactKind.Environment, target, bytes);
+            using var rejected = await writer.PrepareAsync(ArtifactKind.Environment, target, bytes);
             await Assert.That((await rejected.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
             await Assert.That(Directory.GetFileSystemEntries(directory.Path)).IsEmpty();
         }
         byte[] unknown = RandomNumberGenerator.GetBytes(32);
-        using var preparation = await writer.PrepareAsync((SetupArtifactKind)999, target, unknown);
+        using var preparation = await writer.PrepareAsync((ArtifactKind)999, target, unknown);
         await Assert.That((await preparation.CommitAsync()).Succeeded).IsTrue();
         await Assert.That(await File.ReadAllBytesAsync(target)).IsEquivalentTo(unknown);
         await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(OwnerOnly);
@@ -310,7 +310,7 @@ public sealed class ProtectedArtifactWriterTests
         byte[] bytes = RandomNumberGenerator.GetBytes(32);
         await File.WriteAllBytesAsync(original, bytes);
         using var preparation = await new ProtectedArtifactWriter().PrepareAsync(
-            SetupArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
+            ArtifactKind.Environment, target, RandomNumberGenerator.GetBytes(64));
         File.CreateSymbolicLink(target, original);
         await Assert.That((await preparation.CommitAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetChanged);
         await Assert.That(await File.ReadAllBytesAsync(original)).IsEquivalentTo(bytes);

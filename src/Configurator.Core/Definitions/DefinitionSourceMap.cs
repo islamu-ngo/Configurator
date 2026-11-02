@@ -93,9 +93,9 @@ public sealed class DefinitionSourceMap
 
         bool Add(string path, CompositionNode node)
         {
-            if (path.Length > SetupCompositionLimits.DefaultScalarCharacters
-                || spans.Count >= SetupCompositionLimits.DefaultNormalizedNodes
-                || path.Length > SetupCompositionLimits.DefaultAggregateScalarCharacters - characters)
+            if (path.Length > CompositionLimits.DefaultScalarCharacters
+                || spans.Count >= CompositionLimits.DefaultNormalizedNodes
+                || path.Length > CompositionLimits.DefaultAggregateScalarCharacters - characters)
                 return false;
             if (node.SourceSpan is { } span && spans.TryAdd(path, span)) characters += path.Length;
             return true;
@@ -182,7 +182,7 @@ public sealed record DefinitionLocationSegment
     {
         ArgumentOutOfRangeException.ThrowIfNegative(index);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, kind == DefinitionLocationSegmentKind.MapEntry
-            ? SetupCompositionLimits.DefaultMappingEntries : SetupCompositionLimits.DefaultSequenceEntries);
+            ? CompositionLimits.DefaultMappingEntries : CompositionLimits.DefaultSequenceEntries);
         return new(kind, null, index);
     }
 
@@ -196,7 +196,7 @@ public sealed class DefinitionCorrectionLocation : IEquatable<DefinitionCorrecti
     {
         ArgumentOutOfRangeException.ThrowIfNegative(inputRevision);
         ArgumentNullException.ThrowIfNull(segments);
-        if (segments.Count > SetupCompositionLimits.DefaultNestingDepth)
+        if (segments.Count > CompositionLimits.DefaultNestingDepth)
             throw new ArgumentOutOfRangeException(nameof(segments));
         if (segments.Any(segment => segment is null))
             throw new ArgumentException("Location segments must be present.", nameof(segments));

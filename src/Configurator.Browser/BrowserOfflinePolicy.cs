@@ -83,7 +83,7 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
         expectedGeneration == _generation ? EndWorkspaceAsync() : ValueTask.CompletedTask;
 
     /// <summary>Retains only an admitted definition after explicit confirmation that its text and literals are public.</summary>
-    public async ValueTask<bool> PrepareOfflineAsync(SetupDefinition definition, bool publicSafeConfirmed)
+    public async ValueTask<bool> PrepareOfflineAsync(Definition definition, bool publicSafeConfirmed)
     {
         ArgumentNullException.ThrowIfNull(definition);
         if (_disposed || IsWorkspaceActive || !publicSafeConfirmed) return false;
@@ -97,7 +97,7 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
         catch (JSException) { return false; }
     }
 
-    public async ValueTask<SetupDefinition?> ReadRetainedDefinitionAsync(string digest)
+    public async ValueTask<Definition?> ReadRetainedDefinitionAsync(string digest)
     {
         if (_disposed || IsWorkspaceActive || !ArtifactDigest.TryParse(digest, out ArtifactDigest expected)) return null;
         long generation = _generation;
@@ -107,20 +107,20 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
         {
             byte[]? bytes = await _module.InvokeAsync<byte[]?>("readDefinition", expected.Value);
             if (_disposed || generation != _generation || IsWorkspaceActive || bytes is null) return null;
-            SetupDefinition definition = SetupDefinitionCodec.ParseJson(bytes);
+            Definition definition = DefinitionCodec.ParseJson(bytes);
             return definition.Digest == expected ? definition : null;
         }
         catch (JSException) { return null; }
-        catch (SetupDefinitionException) { return null; }
+        catch (DefinitionException) { return null; }
     }
 
-    public async ValueTask<IReadOnlyList<SetupDefinition>> ReadRetainedDefinitionsAsync()
+    public async ValueTask<IReadOnlyList<Definition>> ReadRetainedDefinitionsAsync()
     {
         if (_disposed || IsWorkspaceActive) return [];
         long generation = _generation;
         await InitializeAsync();
         if (_module is null) return [];
-        var definitions = new List<SetupDefinition>();
+        var definitions = new List<Definition>();
         try
         {
             string[]? digests = await _module.InvokeAsync<string[]?>("retainedDigests");

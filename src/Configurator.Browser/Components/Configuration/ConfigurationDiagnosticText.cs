@@ -5,7 +5,7 @@ using Configurator.Core.Definitions;
 
 internal static class ConfigurationDiagnosticText
 {
-    internal static string Title(SetupFieldDefinition field) => Title(field.Title, field.Id);
+    internal static string Title(FieldDefinition field) => Title(field.Title, field.Id);
     internal static string Title(string title, string? id)
     {
         if (title != id) return title;

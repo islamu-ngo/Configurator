@@ -2,8 +2,8 @@ namespace Configurator.Cli.Commands;
 
 internal static class EnvironmentCommands
 {
-    internal static SetupCliFamilyDescriptor Descriptor { get; } = SetupCliCommandRegistry.Family(
+    internal static CliFamilyDescriptor Descriptor { get; } = CliCommandRegistry.Family(
         "env",
-        SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("render"),
-        SetupCliCommandRegistry.Operation<ArtifactInputSettings>("validate"));
+        CliCommandRegistry.Operation<ArtifactOutputSettings>("render"),
+        CliCommandRegistry.Operation<ArtifactInputSettings>("validate"));
 }

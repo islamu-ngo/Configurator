@@ -26,7 +26,7 @@ public sealed class DefinitionPrivateClearTests
             "projection.copy", "projection.object", "schema.array", "schema.object", "schema.string");
         source["artifacts"]![0]!["projection"]!["members"]!["rows"] =
             JsonNode.Parse("""{"op":"copy","reference":{"scope":"root","path":"/rows"}}""");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.EditValue(["title"], "initial-public");
         form.EditValue(["password"], "synthetic-private-root");
@@ -37,8 +37,8 @@ public sealed class DefinitionPrivateClearTests
         form.SetDiscovery("password");
         _ = form.Projection;
         string identity = form.GetEditorIdentity(["rows", "0", "name"]);
-        using var session = new SetupPresentationSession(new WeakReferenceMessenger());
-        SetupWorkspaceId.TryCreate("old-output", out SetupWorkspaceId oldId);
+        using var session = new PresentationSession(new WeakReferenceMessenger());
+        WorkspaceId.TryCreate("old-output", out WorkspaceId oldId);
         using var workspace = session.CreateWorkspace(oldId,
             new DefinitionPresentationOperation(definition, "config", form.Snapshot()));
         await workspace.ExecuteAsync(Guid.NewGuid());
@@ -77,7 +77,7 @@ public sealed class DefinitionPrivateClearTests
         if (replaceForm) form.Dispose();
         DefinitionFormModel current = replaceForm ? replacement : form;
         if (replaceForm) current.EditValue(["title"], "replacement-public");
-        SetupWorkspaceId.TryCreate("current-output", out SetupWorkspaceId currentId);
+        WorkspaceId.TryCreate("current-output", out WorkspaceId currentId);
         using var currentWorkspace = session.CreateWorkspace(currentId,
             new DefinitionPresentationOperation(definition, "config", current.Snapshot()));
         await currentWorkspace.ExecuteAsync(Guid.NewGuid());
@@ -119,7 +119,7 @@ public sealed class DefinitionPrivateClearTests
         int revisions = 0;
         form.InputChanged += (_, _) => revisions++;
         bool changed = form.ClearPrivateState();
-        SetupAnswerSnapshot snapshot = form.Snapshot();
+        AnswerSnapshot snapshot = form.Snapshot();
         await Assert.That(changed).IsTrue();
         await Assert.That(snapshot.InputRevision).IsEqualTo(before + 1);
         await Assert.That(revisions).IsEqualTo(1);
@@ -220,7 +220,7 @@ public sealed class DefinitionPrivateClearTests
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
       "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
       "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],

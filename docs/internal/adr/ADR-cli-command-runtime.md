@@ -22,7 +22,7 @@ inputs or accidentally advertising framework-only commands.
 ## Decision
 
 Replace command v1 with v2; keep authoring/runtime v1. A command-owned
-`SetupCliResultPlan` and `SetupCliOutcomeLedger` size the mandatory receipt before
+`CliResultPlan` and `CliOutcomeLedger` size the mandatory receipt before
 effects and retain every selected output's full ID, established digest, sensitivity,
 path intent and write outcome. Later publication or cleanup failure cannot erase
 known writes or relabel an unknown commit as not-written. Reuse the native protected
@@ -43,7 +43,7 @@ selection: 256 tokens, 32,768 aggregate UTF-8 bytes including separators, and
 4,096 characters per argument, while artifact IDs remain at most 128 characters.
 No Core admission maximum is lowered to make receipts fit.
 
-`SetupCliApplication` owns the only render/delivery attempt. Delegates return/store
+`CliApplication` owns the only render/delivery attempt. Delegates return/store
 typed results; Program never reopens stdout for fallback. Mark delivery started
 before writing, and treat broken delivery as exit 74 with fixed best-effort stderr
 diagnostics, not as rollback. `delivery: attempt` records intent; the receipt
@@ -64,11 +64,11 @@ as its expected-result oracle.
 ### Cooperative process lifetime
 
 Replace the embedded synchronous execution/I/O surface with
-`Task<SetupCliExitCode> RunAsync(invocation, cancellationToken = default)`,
-`ValueTask<SetupCliInputBuffer> ReadAsync(path, maximumBytes, cancellationToken)`
+`Task<CliExitCode> RunAsync(invocation, cancellationToken = default)`,
+`ValueTask<CliInputBuffer> ReadAsync(path, maximumBytes, cancellationToken)`
 and token-aware `WriteAsync`, `WriteArtifactAsync` and `WriteBundleAsync` methods.
 The plain write returns `ValueTask`; publication methods return
-`ValueTask<SetupCliPublicationResult>` so established outcomes and cleanup stay
+`ValueTask<CliPublicationResult>` so established outcomes and cleanup stay
 observable. The disposable input buffer owns and clears its byte array. Consumers
 dispose it on success and failure; readers clear owned scratch buffers as well.
 Bound streaming reads without relying on seekability or reported length. This
@@ -92,7 +92,7 @@ rollback, automatic replay or target acceptance.
 
 ### Explicit input and one grammar
 
-Remove ambient environment enumeration, `SetupCliEnvironmentPresence` and the
+Remove ambient environment enumeration, `CliEnvironmentPresence` and the
 embedded invocation's environment parameter. Admit answers only through explicitly
 selected bounded file/stdin input. Remove secret-word filename/ID bans without
 removing bounded ID grammar, control/path checks, definition validation or restricted

@@ -21,7 +21,7 @@ public sealed class BrowserImportComparisonTests
         source["artifacts"]!.AsArray().Add(second);
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
-            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()))));
+            DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()))));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("");
         using var stream = new MemoryStream("{}"u8.ToArray());
@@ -37,7 +37,7 @@ public sealed class BrowserImportComparisonTests
     {
         JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
         source["configuration"]!["properties"]!["credential"]!["x-configurator"]!["sensitivity"] = "public";
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
@@ -167,7 +167,7 @@ public sealed class BrowserImportComparisonTests
         source["artifacts"]![0]!["projection"]!["members"]!["version"] = JsonNode.Parse("""{"op":"literal","value":2}""");
         BrowserFixture.SetCapabilities(source, source["requiredCapabilities"]!.AsArray()
             .Select(item => item!.GetValue<string>()).Append("projection.literal").ToArray());
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -192,7 +192,7 @@ public sealed class BrowserImportComparisonTests
     [Test]
     public async Task RepeatedAndMapFindingsExplainOnlySchemaWhileRetainingDirtyWorkspaceIdentity()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
               "rows":{"type":"array","title":"Rows","x-configurator":{"sensitivity":"public","detail":"basic"},
                 "items":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
@@ -241,7 +241,7 @@ public sealed class BrowserImportComparisonTests
     [Test]
     public async Task ThreeThousandFindingsRemainReachableThroughBoundedRenderingPages()
     {
-        SetupDefinition definition = Definition("""
+        Definition definition = Definition("""
             {"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
               "items":{"type":"array","title":"Items","x-configurator":{"sensitivity":"public","detail":"basic"},
                 "items":{"type":"string","maxLength":1,"x-configurator":{"sensitivity":"public"}}}}}
@@ -314,14 +314,14 @@ public sealed class BrowserImportComparisonTests
         await Assert.That(component.FindComponent<ConfigurationImportReview>().Instance.Form.ImportComparison).IsNull();
     }
 
-    private static SetupDefinition Definition(string configuration, string projection, params string[] capabilities)
+    private static Definition Definition(string configuration, string projection, params string[] capabilities)
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();
         source["configuration"] = JsonNode.Parse(configuration);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse(projection);
         source.Remove("presentation");
         BrowserFixture.SetCapabilities(source, capabilities);
-        return SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
     }
 
     private sealed class CapturingStream(byte[] bytes) : MemoryStream(bytes)

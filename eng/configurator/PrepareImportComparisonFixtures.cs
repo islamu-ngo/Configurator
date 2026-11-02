@@ -82,7 +82,7 @@ JsonObject Source(JsonObject schema) => new()
 void WriteDefinition(string name, JsonObject source)
 {
     byte[] bytes = Encoding.UTF8.GetBytes(source.ToJsonString());
-    SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson(bytes);
+    Definition definition = DefinitionSourceCodec.ParseJson(bytes);
     Write(name + "-source.json", bytes);
     Write(name + "-definition.json", definition.CanonicalBytes.ToArray());
 }

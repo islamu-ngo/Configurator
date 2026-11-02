@@ -15,7 +15,7 @@ public sealed class DefinitionSourceFileTests
         var authority = new PublicDefinitionFiles();
         try
         {
-            using SetupCliInputBuffer input = await authority.ReadAsync(path, 4 * 1024 * 1024, CancellationToken.None);
+            using CliInputBuffer input = await authority.ReadAsync(path, 4 * 1024 * 1024, CancellationToken.None);
             throw new InvalidOperationException("out-of-bound-source-admitted");
         }
         catch (DefinitionFileException exception)
@@ -36,7 +36,7 @@ public sealed class DefinitionSourceFileTests
         expected[^1] = 9;
         await File.WriteAllBytesAsync(path, expected);
         var authority = new PublicDefinitionFiles();
-        using SetupCliInputBuffer actual = await authority.ReadAsync(path, 4 * 1024 * 1024, CancellationToken.None);
+        using CliInputBuffer actual = await authority.ReadAsync(path, 4 * 1024 * 1024, CancellationToken.None);
         ReadOnlyMemory<byte> borrowed = actual.Bytes;
         await Assert.That(borrowed.Span.SequenceEqual(expected)).IsTrue();
         actual.Dispose();
@@ -146,7 +146,7 @@ public sealed class DefinitionSourceFileTests
         var authority = new PublicDefinitionFiles();
         await Assert.That(async () =>
         {
-            using SetupCliInputBuffer input = await authority.ReadAsync(files.Path("configurator.yaml"), 4 * 1024 * 1024, work.Token);
+            using CliInputBuffer input = await authority.ReadAsync(files.Path("configurator.yaml"), 4 * 1024 * 1024, work.Token);
         }).Throws<DefinitionFileException>();
         Directory.CreateDirectory(files.Path("real"));
         Directory.CreateSymbolicLink(files.Path("linked"), files.Path("real"));
@@ -171,7 +171,7 @@ public sealed class DefinitionSourceFileTests
             await work.CancelAsync();
             await Assert.That(async () =>
             {
-                using SetupCliInputBuffer input = await authority.ReadAsync(files.Path("missing.yaml"), 4 * 1024 * 1024, work.Token);
+                using CliInputBuffer input = await authority.ReadAsync(files.Path("missing.yaml"), 4 * 1024 * 1024, work.Token);
             })
                 .Throws<OperationCanceledException>();
             using ISetupCliPublicFilePreparation cancelled = authority.PrepareCreate(files.Path("new/source.yaml"), "new"u8.ToArray(), 4 * 1024 * 1024, false);

@@ -1552,7 +1552,7 @@ capture paths are local ignored evidence, not shipped answer storage.
 
 | Check | Exact command or selection | Result |
 | --- | --- | --- |
-| Untouched receipt baseline | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/*SetupTerminalPublicationReceiptTests/*" --minimum-expected-tests 1` | 9 passed, 0 failed/skipped; 768 ms |
+| Untouched receipt baseline | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --treenode-filter "/*/*/*TerminalPublicationReceiptTests/*" --minimum-expected-tests 1` | 9 passed, 0 failed/skipped; 768 ms |
 | Untouched Desktop baseline | `dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1` | 185 passed, 0 failed/skipped; executable 2.897 s |
 | Shared fact owner build | `dotnet build src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release --verbosity quiet` | Exit 0; 2 s wall |
 | Terminal preservation | `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet -- --minimum-expected-tests 1` | 83 passed, 0 failed/skipped; 2.933 s |

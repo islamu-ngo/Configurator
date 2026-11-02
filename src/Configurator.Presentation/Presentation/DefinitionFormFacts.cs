@@ -77,7 +77,7 @@ internal sealed class DefinitionFormFacts
         RelevantPaths = CreateRelevantPaths(capturedEntries, index);
 
         bool IsDeferredLeaf(DefinitionNodeState node) =>
-            node.IsObligation && node.IsMissing && node.Sensitivity == SetupFieldSensitivity.Secret &&
+            node.IsObligation && node.IsMissing && node.Sensitivity == FieldSensitivity.Secret &&
             form.TryMetadataNode([node.FieldId, .. node.RelativePath], out DefinitionFormIndex.Node metadata,
                 out _, validation) &&
             metadata.Schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);

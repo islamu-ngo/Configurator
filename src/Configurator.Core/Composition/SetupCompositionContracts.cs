@@ -2,19 +2,19 @@ namespace Configurator.Core.Composition;
 
 using System.Text.Json;
 
-public enum SetupCompositionSourceKind
+public enum CompositionSourceKind
 {
     Json,
     Yaml,
     Directory
 }
 
-public enum SetupCompositionArtifactKind
+public enum CompositionArtifactKind
 {
     Document
 }
 
-public enum SetupCompositionFailureCode
+public enum CompositionFailureCode
 {
     None = 0,
     InvalidSource,
@@ -36,37 +36,37 @@ public enum SetupCompositionFailureCode
     Cancelled
 }
 
-public abstract record SetupCompositionSource
+public abstract record CompositionSource
 {
-    private protected SetupCompositionSource(SetupCompositionSourceKind kind) => Kind = kind;
+    private protected CompositionSource(CompositionSourceKind kind) => Kind = kind;
 
-    public SetupCompositionSourceKind Kind { get; }
+    public CompositionSourceKind Kind { get; }
 }
 
-public sealed record SetupCompositionJsonSource : SetupCompositionSource
+public sealed record CompositionJsonSource : CompositionSource
 {
     private readonly byte[] _bytes;
 
-    public SetupCompositionJsonSource(ReadOnlyMemory<byte> bytes)
-        : base(SetupCompositionSourceKind.Json) => _bytes = bytes.ToArray();
+    public CompositionJsonSource(ReadOnlyMemory<byte> bytes)
+        : base(CompositionSourceKind.Json) => _bytes = bytes.ToArray();
 
     public ReadOnlyMemory<byte> Bytes => new((byte[])_bytes.Clone());
 }
 
-public sealed record SetupCompositionYamlSource : SetupCompositionSource
+public sealed record CompositionYamlSource : CompositionSource
 {
     private readonly byte[] _bytes;
 
-    public SetupCompositionYamlSource(ReadOnlyMemory<byte> bytes)
-        : base(SetupCompositionSourceKind.Yaml) => _bytes = bytes.ToArray();
+    public CompositionYamlSource(ReadOnlyMemory<byte> bytes)
+        : base(CompositionSourceKind.Yaml) => _bytes = bytes.ToArray();
 
     public ReadOnlyMemory<byte> Bytes => new((byte[])_bytes.Clone());
 }
 
-public sealed record SetupCompositionDirectorySource : SetupCompositionSource
+public sealed record CompositionDirectorySource : CompositionSource
 {
-    public SetupCompositionDirectorySource(string rootDirectory)
-        : base(SetupCompositionSourceKind.Directory)
+    public CompositionDirectorySource(string rootDirectory)
+        : base(CompositionSourceKind.Directory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         RootDirectory = rootDirectory;
@@ -74,32 +74,32 @@ public sealed record SetupCompositionDirectorySource : SetupCompositionSource
 
     internal string RootDirectory { get; }
 
-    public override string ToString() => $"{nameof(SetupCompositionDirectorySource)}:{Kind}";
+    public override string ToString() => $"{nameof(CompositionDirectorySource)}:{Kind}";
 }
 
-public readonly record struct SetupCompositionFailure
+public readonly record struct CompositionFailure
 {
-    public SetupCompositionFailure(SetupCompositionFailureCode code)
+    public CompositionFailure(CompositionFailureCode code)
     {
-        if (code == SetupCompositionFailureCode.None)
+        if (code == CompositionFailureCode.None)
             throw new ArgumentOutOfRangeException(nameof(code));
         Code = code;
     }
 
-    public SetupCompositionFailureCode Code { get; }
+    public CompositionFailureCode Code { get; }
 
     public override string ToString() => Code.ToString();
 }
 
-public sealed class SetupCompositionResult
+public sealed class CompositionResult
 {
     private readonly byte[]? _serializedBytes;
 
-    private SetupCompositionResult(
+    private CompositionResult(
         JsonElement? artifact,
         byte[]? serializedBytes,
         ArtifactDigest digest,
-        SetupCompositionFailure failure)
+        CompositionFailure failure)
     {
         Artifact = artifact?.Clone();
         _serializedBytes = serializedBytes is null ? null : (byte[])serializedBytes.Clone();
@@ -107,38 +107,38 @@ public sealed class SetupCompositionResult
         Failure = failure;
     }
 
-    public bool Succeeded => Artifact is not null && Failure.Code == SetupCompositionFailureCode.None;
-    public SetupCompositionArtifactKind ArtifactKind => SetupCompositionArtifactKind.Document;
+    public bool Succeeded => Artifact is not null && Failure.Code == CompositionFailureCode.None;
+    public CompositionArtifactKind ArtifactKind => CompositionArtifactKind.Document;
     public JsonElement? Artifact { get; }
     public ReadOnlyMemory<byte> SerializedBytes =>
         _serializedBytes is null ? ReadOnlyMemory<byte>.Empty : new((byte[])_serializedBytes.Clone());
     public ArtifactDigest Digest { get; }
-    public SetupCompositionFailure Failure { get; }
+    public CompositionFailure Failure { get; }
 
-    internal static SetupCompositionResult Success(byte[] bytes)
+    internal static CompositionResult Success(byte[] bytes)
     {
         using JsonDocument document = JsonDocument.Parse(bytes);
         return new(document.RootElement, bytes, ArtifactDigest.Compute(bytes), default);
     }
 
-    internal static SetupCompositionResult Failed(SetupCompositionFailureCode code) =>
-        new(null, null, default, new SetupCompositionFailure(code));
+    internal static CompositionResult Failed(CompositionFailureCode code) =>
+        new(null, null, default, new CompositionFailure(code));
 
     public override string ToString() =>
-        $"{nameof(SetupCompositionResult)}:Succeeded={Succeeded}:ArtifactKind={ArtifactKind}:Failure={Failure.Code}";
+        $"{nameof(CompositionResult)}:Succeeded={Succeeded}:ArtifactKind={ArtifactKind}:Failure={Failure.Code}";
 }
 
-public interface ISetupCompositionPublicationCommitBarrier
+public interface ICompositionPublicationCommitBarrier
 {
     ValueTask AwaitPublicationCommitAsync(CancellationToken cancellationToken);
 }
 
-public sealed class SetupCompositionImmediatePublicationCommitBarrier
-    : ISetupCompositionPublicationCommitBarrier
+public sealed class CompositionImmediatePublicationCommitBarrier
+    : ICompositionPublicationCommitBarrier
 {
-    public static SetupCompositionImmediatePublicationCommitBarrier Instance { get; } = new();
+    public static CompositionImmediatePublicationCommitBarrier Instance { get; } = new();
 
-    private SetupCompositionImmediatePublicationCommitBarrier() { }
+    private CompositionImmediatePublicationCommitBarrier() { }
 
     public ValueTask AwaitPublicationCommitAsync(CancellationToken cancellationToken)
     {

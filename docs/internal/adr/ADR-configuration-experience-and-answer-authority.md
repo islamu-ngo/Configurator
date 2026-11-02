@@ -12,7 +12,7 @@ useful secret explanations and a review of actual configuration effects.
 Experience selection, filtering and help must not become answer mutations,
 secret consent or target administration authority.
 
-The current source seams are `SetupFieldDefinition`, `DefinitionValidator`,
+The current source seams are `FieldDefinition`, `DefinitionValidator`,
 `DefinitionFormModel` and Browser `ConfigurationEditor`/`ConfigurationField`;
 Desktop/Terminal directly consume the display contract. These are the offline
 Configurator owners, not Event backend layers.

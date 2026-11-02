@@ -15,7 +15,7 @@ public sealed class DefinitionSessionPrivacyTests
         source["configuration"]!["properties"]!["settings"]!["properties"]!["password"]!["x-configurator"] =
             JsonNode.Parse("""{"secret":{"kind":"password","acquisition":"local"}}""");
         source["requiredCapabilities"]!.AsArray().Insert(3, "schema.secret");
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
         string[] path = [form.Fields.Single().Definition.Id, "password"];
         await Assert.That(form.CanEdit(path)).IsFalse();
@@ -36,7 +36,7 @@ public sealed class DefinitionSessionPrivacyTests
             {"op":"equals","reference":{"scope":"root","path":"/provider"},"value":"external"}
             """);
         source["requiredCapabilities"]!.AsArray().Insert(0, "predicate.root");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         DefinitionFieldInput provider = form.Fields.Single(field => field.Definition.Name == "provider");
         provider.Text = "external";
@@ -101,7 +101,7 @@ public sealed class DefinitionSessionPrivacyTests
         """);
         source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object", "schema.integer", "schema.object");
         source["artifacts"]![0]!["projection"]!["members"]!["settings"]!["reference"]!["path"] = "/f0";
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         form.SetAllSectionsExpanded(true);
         form.Fields.Single().Text = "not-an-integer";
         form.SetAllSectionsExpanded(false);
@@ -127,7 +127,7 @@ public sealed class DefinitionSessionPrivacyTests
             }
             """))));
         source["artifacts"]![0]!["projection"]!["members"]!["settings"]!["reference"]!["path"] = "/f0";
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())),
             DefinitionSessionPrivacy.BrowserNoSecrets);
         // Sixteen values plus their configuration-tree keys fit the aggregate bound; seventeen do not.
         foreach (DefinitionFieldInput field in form.Fields) field.Text = new string('a', 65_520);
@@ -149,10 +149,10 @@ public sealed class DefinitionSessionPrivacyTests
     {
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
         form.Fields.Single().Text = """{"name":"safe"}""";
-        using SetupPresentationOutcome strict = await new DefinitionPresentationOperation(Definition(), "config", form.Snapshot())
+        using PresentationOutcome strict = await new DefinitionPresentationOperation(Definition(), "config", form.Snapshot())
             .ExecuteAsync(CancellationToken.None);
         await Assert.That(((DefinitionPreparationMetadata)strict.CoreResult).Succeeded).IsFalse();
-        using SetupPresentationOutcome draft = await new DefinitionPresentationOperation(Definition(), "config", form.Snapshot(), prepareDraft: true)
+        using PresentationOutcome draft = await new DefinitionPresentationOperation(Definition(), "config", form.Snapshot(), prepareDraft: true)
             .ExecuteAsync(CancellationToken.None);
         var metadata = (DefinitionPreparationMetadata)draft.CoreResult;
         await Assert.That(metadata.Succeeded).IsTrue();
@@ -166,7 +166,7 @@ public sealed class DefinitionSessionPrivacyTests
     {
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.Fields.Single().Text = """{"name":"safe","password":"synthetic-vault-marker-729"}""";
-        using SetupPresentationOutcome outcome = await new DefinitionPresentationOperation(Definition(), "config", form.Snapshot())
+        using PresentationOutcome outcome = await new DefinitionPresentationOperation(Definition(), "config", form.Snapshot())
             .ExecuteAsync(CancellationToken.None);
         await Assert.That(JsonSerializer.Serialize(outcome.CoreResult)).DoesNotContain("synthetic-vault-marker-729");
     }
@@ -207,7 +207,7 @@ public sealed class DefinitionSessionPrivacyTests
         await Assert.That(browser.InputRevision).IsEqualTo(0);
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
       "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"eba722b7-f132-444b-8c44-21cece008ca7","revision":1,
       "project":{"id":"example","name":"Example","publisher":"example"},"applicationVersions":["1"],

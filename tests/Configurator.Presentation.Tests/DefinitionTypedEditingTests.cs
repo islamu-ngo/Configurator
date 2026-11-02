@@ -30,7 +30,7 @@ public sealed class DefinitionTypedEditingTests
     [Test]
     public async Task SecretMapEntriesCannotBypassWorkspaceConsent()
     {
-        SetupDefinition definition = SetupDefinitionSourceCodec.ParseJson("""
+        Definition definition = DefinitionSourceCodec.ParseJson("""
             {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},
              "project":{"id":"private-map","name":"Private map"},"applicationVersions":["1"],
@@ -165,7 +165,7 @@ public sealed class DefinitionTypedEditingTests
         await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/absent"), out _)).IsFalse();
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionSourceCodec.ParseJson("""
+    private static Definition Definition() => DefinitionSourceCodec.ParseJson("""
         {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
          "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151616","revision":1},
          "project":{"id":"typed-editing","name":"Typed editing"},"applicationVersions":["1"],

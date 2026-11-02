@@ -17,7 +17,7 @@ public sealed class DefinitionImportTests
             [new string('x', 65_536)] = JsonNode.Parse(
                 """{"op":"copy","reference":{"scope":"root","path":"/service.name"}}""")
         };
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         await Assert.That(DefinitionImport.CanImport(definition, "config")).IsFalse();
         DefinitionImportResult result = DefinitionImport.Assess(definition, "config", "{}"u8.ToArray(), Empty());
         await Assert.That(result.Succeeded).IsFalse();
@@ -34,7 +34,7 @@ public sealed class DefinitionImportTests
             ("yaml", "\"out\":\n  \"literal/name\": \"host\"\n  \"tilde~name\": 7\n")
         })
         {
-            SetupDefinition definition = NestedDefinition(format);
+            Definition definition = NestedDefinition(format);
             DefinitionImportResult result = DefinitionImport.Assess(definition, "nested",
                 Encoding.UTF8.GetBytes(bytes), Empty());
             await Assert.That(result.Succeeded).IsTrue();
@@ -54,8 +54,8 @@ public sealed class DefinitionImportTests
     [Test]
     public async Task NestedImportMergesSiblingsAndProtectsConflictsAndExplicitOmissions()
     {
-        SetupDefinition definition = NestedDefinition("json");
-        var current = new SetupAnswerSnapshot(8, new Dictionary<string, JsonElement>
+        Definition definition = NestedDefinition("json");
+        var current = new AnswerSnapshot(8, new Dictionary<string, JsonElement>
         {
             ["options"] = JsonSerializer.SerializeToElement(new Dictionary<string, object>
             {
@@ -76,7 +76,7 @@ public sealed class DefinitionImportTests
         await Assert.That(replaced.Answers.Values["options"].GetProperty("~port").GetInt32()).IsEqualTo(9);
         foreach (string pointer in new[] { "/options", "/options/db~1host" })
         {
-            var omitted = new SetupAnswerSnapshot(8, new Dictionary<string, JsonElement>(),
+            var omitted = new AnswerSnapshot(8, new Dictionary<string, JsonElement>(),
                 [DefinitionPath.Parse(pointer)]);
             DefinitionImportResult result = DefinitionImport.Assess(definition, "nested", bytes, omitted,
                 new HashSet<string>(StringComparer.Ordinal) { "options" });
@@ -89,7 +89,7 @@ public sealed class DefinitionImportTests
     [Test]
     public async Task UnknownNestedInputRejectsAtomicallyWithoutPrivateDiagnostics()
     {
-        SetupDefinition definition = NestedDefinition("json");
+        Definition definition = NestedDefinition("json");
         foreach (string input in new[]
         {
             """{"out":{"literal/name":"host","synthetic-private-key":"synthetic-private-value"}}""",
@@ -115,7 +115,7 @@ public sealed class DefinitionImportTests
         source["outputs"] = JsonNode.Parse("""
             {"root.json":{"id":"root","format":"json","projection":{"op":"copy","reference":{"scope":"root","path":""}}}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         const string bytes = """{"synthetic-private/key":7}""";
         DefinitionImportResult result = DefinitionImport.Assess(definition, "root",
             Encoding.UTF8.GetBytes(bytes), Empty());
@@ -129,7 +129,7 @@ public sealed class DefinitionImportTests
         await Assert.That(invalid.Succeeded).IsFalse();
         await Assert.That(invalid.Answers).IsNull();
         await Assert.That(invalid.Diagnostic).IsNull();
-        var current = new SetupAnswerSnapshot(2, new Dictionary<string, JsonElement>
+        var current = new AnswerSnapshot(2, new Dictionary<string, JsonElement>
         {
             ["synthetic-private/key"] = JsonSerializer.SerializeToElement(8)
         });
@@ -142,7 +142,7 @@ public sealed class DefinitionImportTests
     [Test]
     public async Task NestedDotenvCopiesRestoreDeclaredScalarTypes()
     {
-        SetupDefinition definition = NestedDefinition("dotenv");
+        Definition definition = NestedDefinition("dotenv");
         DefinitionImportResult result = DefinitionImport.Assess(definition, "nested",
             "HOST=host\nPORT=7\n"u8.ToArray(), Empty());
         await Assert.That(result.Succeeded).IsTrue();
@@ -165,7 +165,7 @@ public sealed class DefinitionImportTests
         {
             JsonNode source = NestedSource("json");
             source["outputs"]!["nested.json"]!["projection"]!["members"] = JsonNode.Parse(members);
-            SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+            Definition definition = DefinitionFixture.Parse(source.ToJsonString());
             await Assert.That(DefinitionImport.CanImport(definition, "nested")).IsFalse();
             await Assert.That(DefinitionImport.Assess(definition, "nested",
                 """{"a":"host"}"""u8.ToArray(), Empty()).Answers).IsNull();
@@ -180,10 +180,10 @@ public sealed class DefinitionImportTests
             JsonNode.Parse("""
                 {"sensitivity":"public","applicableWhen":{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}
                 """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         foreach (bool enabled in new[] { false, true })
         {
-            var current = new SetupAnswerSnapshot(3, new Dictionary<string, JsonElement>
+            var current = new AnswerSnapshot(3, new Dictionary<string, JsonElement>
             {
                 ["enabled"] = JsonSerializer.SerializeToElement(enabled)
             });
@@ -201,8 +201,8 @@ public sealed class DefinitionImportTests
         source["outputs"]!["nested.json"]!["projection"] = JsonNode.Parse("""
             {"op":"object","members":{"out":{"op":"copy","reference":{"scope":"root","path":"/options"}}}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
-        var omitted = new SetupAnswerSnapshot(4, new Dictionary<string, JsonElement>(),
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
+        var omitted = new AnswerSnapshot(4, new Dictionary<string, JsonElement>(),
             [DefinitionPath.Parse("/options/db~1host")]);
         DefinitionImportResult conflict = DefinitionImport.Assess(definition, "nested",
             """{"out":{"db/host":"host"}}"""u8.ToArray(), omitted,
@@ -232,7 +232,7 @@ public sealed class DefinitionImportTests
              "array":{"op":"copy","reference":{"scope":"root","path":"/tags"}},
              "literal":{"op":"copy","reference":{"scope":"root","path":"/options/0"}}}}
             """);
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         DefinitionImportResult result = DefinitionImport.Assess(definition, "nested",
             """{"array":["one","two"],"literal":"zero"}"""u8.ToArray(), Empty());
         await Assert.That(result.Succeeded).IsTrue();
@@ -242,13 +242,13 @@ public sealed class DefinitionImportTests
             {"op":"repeat","reference":{"scope":"root","path":"/tags"},
              "item":{"op":"copy","reference":{"scope":"item","path":""}}}
             """);
-        SetupDefinition repeated = DefinitionFixture.Parse(source.ToJsonString());
+        Definition repeated = DefinitionFixture.Parse(source.ToJsonString());
         await Assert.That(DefinitionImport.CanImport(repeated, "nested")).IsTrue();
         await Assert.That(DefinitionImport.Assess(repeated, "nested",
             """{"array":["one"]}"""u8.ToArray(), Empty()).Answers!.Values["tags"].GetRawText()).IsEqualTo("""["one"]""");
     }
 
-    private static SetupDefinition NestedDefinition(string format) => DefinitionFixture.Parse(NestedSource(format).ToJsonString());
+    private static Definition NestedDefinition(string format) => DefinitionFixture.Parse(NestedSource(format).ToJsonString());
 
     private static JsonNode NestedSource(string format)
     {
@@ -280,7 +280,7 @@ public sealed class DefinitionImportTests
         """);
         source["outputs"]!["config.json"]!["projection"]!["members"]!["options"] = JsonNode.Parse(
             """{"op":"copy","reference":{"scope":"root","path":"/options"}}""");
-        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        Definition definition = DefinitionFixture.Parse(source.ToJsonString());
         DefinitionImportResult result = DefinitionImport.Assess(definition, "config",
             """{"enabled":true,"options":{"db.host":"synthetic-private-import"}}"""u8.ToArray(), Empty());
         await Assert.That(result.Succeeded).IsFalse();
@@ -296,7 +296,7 @@ public sealed class DefinitionImportTests
     [Test]
     public async Task DirectCopyPrefillsWithoutRevealingValuesInResultText()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         DefinitionImportResult result = DefinitionImport.Assess(definition, "config",
             """{"name":"private-import-marker","enabled":true}"""u8.ToArray(), Empty());
 
@@ -314,7 +314,7 @@ public sealed class DefinitionImportTests
     [Test]
     public async Task AmbiguousInvalidAndUnsupportedInputLeavesAnswersUnchanged()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         foreach (byte[] bytes in new[]
         {
             """{"name":"one","name":"two"}"""u8.ToArray(),
@@ -344,7 +344,7 @@ public sealed class DefinitionImportTests
     [Test]
     public async Task DotenvAndYamlUseDeclaredFieldTypes()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         DefinitionImportResult dotenv = DefinitionImport.Assess(definition, "environment",
             "ENABLED=true\nNAME=private-import-marker\nCOUNT=7\nRATE=1.5\n"u8.ToArray(), Empty());
         await Assert.That(dotenv.Succeeded).IsTrue();
@@ -365,18 +365,18 @@ public sealed class DefinitionImportTests
                "TAGS":{"op":"copy","reference":{"scope":"root","path":"/tags"}},
                "ENABLED":{"op":"copy","reference":{"scope":"root","path":"/enabled"}}}}}
             """);
-        await Assert.That(() => DefinitionFixture.Parse(unsupported.ToJsonString())).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionFixture.Parse(unsupported.ToJsonString())).Throws<DefinitionException>();
     }
 
     [Test]
     public async Task InactiveAndConflictingFieldsRejectTheWholeImport()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         DefinitionImportResult inactive = DefinitionImport.Assess(definition, "config",
             """{"name":"private-import-marker","enabled":false}"""u8.ToArray(), Empty());
         await Assert.That(inactive.Succeeded).IsFalse();
 
-        var existing = new SetupAnswerSnapshot(4, new Dictionary<string, JsonElement>
+        var existing = new AnswerSnapshot(4, new Dictionary<string, JsonElement>
         {
             ["service.name"] = JsonSerializer.SerializeToElement("different")
         });
@@ -389,7 +389,7 @@ public sealed class DefinitionImportTests
         DefinitionImportResult unknown = DefinitionImport.Assess(definition, "config",
             """{"private-import-marker":"private-import-marker"}"""u8.ToArray(), Empty());
         await Assert.That(unknown.Diagnostic).IsNull();
-        var unknownCurrent = new SetupAnswerSnapshot(4, new Dictionary<string, JsonElement>
+        var unknownCurrent = new AnswerSnapshot(4, new Dictionary<string, JsonElement>
         {
             ["private-import-marker"] = JsonSerializer.SerializeToElement("private-import-marker")
         });
@@ -400,9 +400,9 @@ public sealed class DefinitionImportTests
         await Assert.That(global.Diagnostic).IsNull();
     }
 
-    private static SetupAnswerSnapshot Empty() => new(0, new Dictionary<string, JsonElement>());
+    private static AnswerSnapshot Empty() => new(0, new Dictionary<string, JsonElement>());
 
-    private static SetupDefinition Definition() => DefinitionFixture.Parse(Source);
+    private static Definition Definition() => DefinitionFixture.Parse(Source);
 
     private const string Source = """
         {"$schema":"urn:islamu:configurator:authoring:v0.0.1",

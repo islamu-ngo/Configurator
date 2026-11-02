@@ -5,12 +5,12 @@ namespace Configurator.Cli.Commands;
 
 internal static class SecretCommands
 {
-    internal static SetupCliFamilyDescriptor Descriptor { get; } = SetupCliCommandRegistry.Family("secret",
-        SetupCliCommandRegistry.Operation<SecretGenerateSettings>("generate"),
-        SetupCliCommandRegistry.Operation<SecretDeriveSettings>("derive"));
+    internal static CliFamilyDescriptor Descriptor { get; } = CliCommandRegistry.Family("secret",
+        CliCommandRegistry.Operation<SecretGenerateSettings>("generate"),
+        CliCommandRegistry.Operation<SecretDeriveSettings>("derive"));
 }
 
-internal class SecretSettings : SetupCliCommandSettings
+internal class SecretSettings : CliCommandSettings
 {
     [CommandOption("--definition <PATH>")]
     public string? Definition { get; set; }
@@ -34,11 +34,11 @@ internal class SecretSettings : SetupCliCommandSettings
         if (Definition == "-") return "definition-local-file-required";
         if (Output == "-") return "restricted-stdout";
         try { _ = DefinitionPath.Parse(Pointer!); }
-        catch (SetupDefinitionException) { return "pointer-invalid"; }
+        catch (DefinitionException) { return "pointer-invalid"; }
         return null;
     }
 
-    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+    public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with
         { Definition = Definition, Pointer = Pointer, Input = Input, Output = Output };
 }
@@ -51,7 +51,7 @@ internal sealed class SecretGenerateSettings : SecretSettings
     protected override string? ValidateValues() => base.ValidateValues()
         ?? (GeneratedPasswordOutput is "" or "-" ? "generated-password-output-invalid" : null);
 
-    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+    public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with { GeneratedPasswordOutput = GeneratedPasswordOutput };
 }
 
@@ -68,6 +68,6 @@ internal sealed class SecretDeriveSettings : SecretSettings
         ?? (SecretInputFile is "" or "-" ? "secret-input-file-invalid" : null)
         ?? (Input == "-" && SecretInputStdin ? "stdin-conflict" : null);
 
-    public override SetupCliCommand Bind(string family, string operation, SetupCliMode invocationMode) =>
+    public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
         base.Bind(family, operation, invocationMode) with { SecretInput = SecretInputStdin ? "-" : SecretInputFile };
 }

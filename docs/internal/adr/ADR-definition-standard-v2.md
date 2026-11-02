@@ -44,7 +44,7 @@ No production dependency or second evaluator is introduced.
 
 ### D02 - One immutable recursive admitted model
 
-`SetupDefinition` remains the aggregate. `DefinitionNode`, `DefinitionPath` and
+`Definition` remains the aggregate. `DefinitionNode`, `DefinitionPath` and
 `DefinitionProfile` represent recursive shape, exact location and supported
 vocabulary/capabilities. Properties, items, typed additional properties and
 variant branches share that grammar. Immutable inputs are snapshotted; mutable
@@ -88,7 +88,7 @@ does not defer any selected v2 assertion or recursive shape.
 ### D05 - Explicit answer state and recursive initialization
 
 Private answer contract v1 has `answerContractVersion`, `values` and `omitted`.
-`SetupAnswerSnapshot` owns one immutable tree, omission metadata and revision.
+`AnswerSnapshot` owns one immutable tree, omission metadata and revision.
 One Core routine resolves complete/draft validation and composition: supplied
 value, explicit omission suppression, then eligible `initialValue`. A location
 cannot be both supplied and suppressed. Reset removes override/suppression.

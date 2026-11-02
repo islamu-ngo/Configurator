@@ -14,9 +14,9 @@ public sealed class YamlDefinitionParityTests
             // Literal projections let numeric identity be tested without an integer revision constraint.
             string json = DefinitionFixture.Json.Replace("\"op\":\"copy\",\"reference\":{\"scope\":\"root\",\"path\":\"/service.name\"}",
                 "\"op\":\"literal\",\"value\":" + number, StringComparison.Ordinal);
-            SetupDefinition expected = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(json));
+            Definition expected = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(json));
             string yaml = json.Replace("\"value\":" + number, "value: " + number, StringComparison.Ordinal);
-            await Assert.That(SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml)).Digest).IsEqualTo(expected.Digest);
+            await Assert.That(DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml)).Digest).IsEqualTo(expected.Digest);
         }
     }
 
@@ -26,12 +26,12 @@ public sealed class YamlDefinitionParityTests
         foreach (string key in new[] { "true", "false", "null", "0", "0.5", "5e-1" })
         {
             string yaml = DefinitionFixture.Json.Replace("\"name\":", key + ":", StringComparison.Ordinal);
-            await Assert.That(() => SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml)))
-                .Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml)))
+                .Throws<DefinitionException>();
         }
         string empty = DefinitionFixture.Json.Replace("\"path\":\"/service.name\"", "\"path\":", StringComparison.Ordinal);
-        await Assert.That(() => SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(empty)))
-            .Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(empty)))
+            .Throws<DefinitionException>();
     }
 
     [Test]
@@ -43,8 +43,8 @@ public sealed class YamlDefinitionParityTests
         members.Remove("name");
         members["null"] = value;
         string json = source.ToJsonString();
-        await Assert.That(SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(json)).Digest)
-            .IsEqualTo(SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(json)).Digest);
+        await Assert.That(DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(json)).Digest)
+            .IsEqualTo(DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(json)).Digest);
     }
 
     [Test]
@@ -54,11 +54,11 @@ public sealed class YamlDefinitionParityTests
         {
             string yaml = DefinitionFixture.Json.Replace("\"op\":\"copy\",\"reference\":{\"scope\":\"root\",\"path\":\"/service.name\"}",
                 "\"op\":\"literal\", value: " + scalar, StringComparison.Ordinal);
-            await Assert.That(() => SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml)))
-                .Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml)))
+                .Throws<DefinitionException>();
         }
         foreach (string yaml in new[] { "a: &anchor value\nb: *anchor", "a: !custom value", "%YAML 1.2\n---\na: value", "<<: value", "'<<': value", "---\na: one\n---\nb: two", "a: one\na: two", "a: one\nA: two" })
-            await Assert.That(() => SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml))).Throws<SetupDefinitionException>();
+            await Assert.That(() => DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(yaml))).Throws<DefinitionException>();
     }
 
     [Test]
@@ -69,8 +69,8 @@ public sealed class YamlDefinitionParityTests
             "\u00e9":{"type":"string"},"e\u0301":{"type":"string"},
             """;
         string source = DefinitionFixture.Json.Replace("\"properties\":{", "\"properties\":{" + properties, StringComparison.Ordinal);
-        SetupDefinition json = SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source));
-        SetupDefinition yaml = SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(source));
+        Definition json = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(source));
+        Definition yaml = DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(source));
         await Assert.That(json.Digest).IsEqualTo(yaml.Digest);
         await Assert.That(json.Configuration.Properties.Count).IsEqualTo(5);
         await Assert.That(json.Configuration.Properties.ContainsKey("A")).IsTrue();
@@ -78,7 +78,7 @@ public sealed class YamlDefinitionParityTests
         await Assert.That(json.Configuration.Properties.ContainsKey("\u00e9")).IsTrue();
         await Assert.That(json.Configuration.Properties.ContainsKey("e\u0301")).IsTrue();
         string duplicate = source.Replace("\"a\":{\"type\":\"string\"}", "\"A\":{\"type\":\"string\"}", StringComparison.Ordinal);
-        await Assert.That(() => SetupDefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(duplicate))).Throws<SetupDefinitionException>();
-        await Assert.That(() => SetupDefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(duplicate))).Throws<SetupDefinitionException>();
+        await Assert.That(() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes(duplicate))).Throws<DefinitionException>();
+        await Assert.That(() => DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(duplicate))).Throws<DefinitionException>();
     }
 }

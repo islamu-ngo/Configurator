@@ -1,0 +1,56 @@
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
+namespace Configurator.Cli.Tests;
+
+public sealed class CliOperatorIdentityTests
+{
+    [Test]
+    public async Task ImportPreservesExplicitRevisionThroughDeclaredProjection()
+    {
+        var io = new CliFixture();
+        string revision = new('a', 64);
+        await Assert.That(await io.ArtifactAsync("import", "request", "--output", "request.json",
+            "--expected-revision", revision, "--revision-field", "expectedRevision")).IsEqualTo(CliExitCode.Success);
+        using JsonDocument request = JsonDocument.Parse(io.Files["request.json"]);
+        await Assert.That(request.RootElement.GetProperty("expectedRevision").GetString()).IsEqualTo(revision);
+        await Assert.That(request.RootElement.GetProperty("name").GetString()).IsEqualTo("private-answer-marker");
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain(revision);
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("private-answer-marker");
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+    }
+
+    [Test]
+    public async Task MissingConflictingUnsupportedAndInactiveRevisionFailClosed()
+    {
+        var io = new CliFixture();
+        await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run")).IsEqualTo(CliExitCode.Usage);
+        foreach (string operation in new[] { "create", "format", "export", "preview" })
+            await Assert.That(await io.ArtifactAsync(operation, "request", "--dry-run")).IsEqualTo(CliExitCode.Blocked);
+        await Assert.That(await io.ArtifactAsync("import", "config", "--dry-run", "--expected-revision", "absent",
+            "--revision-field", "expectedRevision")).IsEqualTo(CliExitCode.Blocked);
+        io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"service.name":"private-answer-marker","expectedRevision":"different"},"omitted":[]}"""u8.ToArray();
+        await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run", "--expected-revision", "absent",
+            "--revision-field", "expectedRevision")).IsEqualTo(CliExitCode.Validation);
+        io.Files["answers.json"] = Encoding.UTF8.GetBytes(CliFixture.Answers);
+        JsonNode definition = JsonNode.Parse(CliFixture.Definition)!;
+        definition["configuration"]!["properties"]!["expectedRevision"]!["x-configurator"]!["applicableWhen"] =
+            JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":false}""");
+        io.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
+        await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run", "--expected-revision", "absent",
+            "--revision-field", "expectedRevision")).IsEqualTo(CliExitCode.Blocked);
+        await Assert.That(io.Files.Keys).IsEquivalentTo(["definition.json", "answers.json", "baseline.json"]);
+    }
+
+    [Test]
+    public async Task ImportDryRunValidatesWithoutWritingAndInvalidRevisionIsUsage()
+    {
+        var io = new CliFixture();
+        await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run", "--expected-revision", "absent",
+            "--revision-field", "expectedRevision")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(io.Files.Keys).IsEquivalentTo(["definition.json", "answers.json", "baseline.json"]);
+        await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run", "--expected-revision", "BAD",
+            "--revision-field", "expectedRevision")).IsEqualTo(CliExitCode.Usage);
+    }
+}

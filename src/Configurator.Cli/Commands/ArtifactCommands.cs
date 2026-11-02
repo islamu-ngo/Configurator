@@ -2,20 +2,20 @@ namespace Configurator.Cli.Commands;
 
 internal static class ArtifactCommands
 {
-    internal static SetupCliFamilyDescriptor Descriptor { get; } = SetupCliCommandRegistry.Family(
+    internal static CliFamilyDescriptor Descriptor { get; } = CliCommandRegistry.Family(
         "artifact",
-        SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("create"),
-        SetupCliCommandRegistry.Operation<ArtifactInputSettings>("open"),
-        SetupCliCommandRegistry.Operation<ArtifactInputSettings>("validate"),
-        SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("format"),
-        SetupCliCommandRegistry.Operation<ArtifactDiffSettings>("diff"),
-        SetupCliCommandRegistry.Operation<ArtifactInputSettings>("coverage"),
-        SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("export"),
-        SetupCliCommandRegistry.Operation<ArtifactImportSettings>("import"),
-        SetupCliCommandRegistry.Operation<ArtifactInputSettings>("check-existing"),
-        SetupCliCommandRegistry.Operation<ArtifactCompareSettings>("compare"),
-        SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("prefill"),
-        SetupCliCommandRegistry.Operation<BundleInputSettings>("bundle-check"),
-        SetupCliCommandRegistry.Operation<BundleOutputSettings>("bundle-create"),
-        SetupCliCommandRegistry.Operation<ArtifactOutputSettings>("preview"));
+        CliCommandRegistry.Operation<ArtifactOutputSettings>("create"),
+        CliCommandRegistry.Operation<ArtifactInputSettings>("open"),
+        CliCommandRegistry.Operation<ArtifactInputSettings>("validate"),
+        CliCommandRegistry.Operation<ArtifactOutputSettings>("format"),
+        CliCommandRegistry.Operation<ArtifactDiffSettings>("diff"),
+        CliCommandRegistry.Operation<ArtifactInputSettings>("coverage"),
+        CliCommandRegistry.Operation<ArtifactOutputSettings>("export"),
+        CliCommandRegistry.Operation<ArtifactImportSettings>("import"),
+        CliCommandRegistry.Operation<ArtifactInputSettings>("check-existing"),
+        CliCommandRegistry.Operation<ArtifactCompareSettings>("compare"),
+        CliCommandRegistry.Operation<ArtifactOutputSettings>("prefill"),
+        CliCommandRegistry.Operation<BundleInputSettings>("bundle-check"),
+        CliCommandRegistry.Operation<BundleOutputSettings>("bundle-create"),
+        CliCommandRegistry.Operation<ArtifactOutputSettings>("preview"));
 }

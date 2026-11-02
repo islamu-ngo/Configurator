@@ -50,7 +50,7 @@ public sealed class DefinitionPresentationOperationTests
     [Test]
     public async Task CapturedAnswersRemainStableAfterCallerChangesItsDictionary()
     {
-        SetupDefinition definition = Definition();
+        Definition definition = Definition();
         using JsonDocument initial = JsonDocument.Parse("\"local-service\"");
         using JsonDocument changed = JsonDocument.Parse("\"changed-service\"");
         var values = new Dictionary<string, JsonElement>
@@ -58,10 +58,10 @@ public sealed class DefinitionPresentationOperationTests
             ["service.name"] = initial.RootElement
         };
         var operation = new DefinitionPresentationOperation(
-            definition, "config", new SetupAnswerSnapshot(7, values));
+            definition, "config", new AnswerSnapshot(7, values));
         values["service.name"] = changed.RootElement;
 
-        using SetupPresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
         var metadata = (DefinitionPreparationMetadata)outcome.CoreResult;
 
         await Assert.That(metadata.Succeeded).IsTrue();
@@ -78,9 +78,9 @@ public sealed class DefinitionPresentationOperationTests
     {
         var operation = new DefinitionPresentationOperation(
             Definition(), "config",
-            new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>()));
+            new AnswerSnapshot(1, new Dictionary<string, JsonElement>()));
 
-        using SetupPresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
+        using PresentationOutcome outcome = await operation.ExecuteAsync(CancellationToken.None);
         var metadata = (DefinitionPreparationMetadata)outcome.CoreResult;
 
         await Assert.That(metadata.Succeeded).IsFalse();
@@ -96,13 +96,13 @@ public sealed class DefinitionPresentationOperationTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var operation = new DefinitionPresentationOperation(Definition(), "config",
-            new SetupAnswerSnapshot(1, new Dictionary<string, JsonElement>()), prepareDraft: draft);
+            new AnswerSnapshot(1, new Dictionary<string, JsonElement>()), prepareDraft: draft);
 
         await Assert.That(async () => { await operation.ExecuteAsync(cancellation.Token); })
             .Throws<OperationCanceledException>();
     }
 
-    private static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(
+    private static Definition Definition() => DefinitionCodec.ParseJson(
         Encoding.UTF8.GetBytes("""
         {
           "schemaVersion": "0.0.1",

@@ -54,7 +54,7 @@ internal static class TerminalDefinitionFixture
         }
         """;
 
-    internal static SetupDefinition Definition() => SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(Json));
+    internal static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(Json));
     internal static DefinitionFormModel Form(string token = "privateValue")
     {
         var form = new DefinitionFormModel(Definition());

@@ -102,7 +102,7 @@ public sealed class DesktopLocalSelectionTests
                 using var shell = DesktopTestContext.Root(async (path, bytes, cancellation) =>
                 {
                     using var output = await new ProtectedArtifactWriter().PrepareAsync(
-                        SetupArtifactKind.Unknown, path, bytes, cancellation);
+                        ArtifactKind.Unknown, path, bytes, cancellation);
                     staged.SetResult();
                     await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
                     return await output.CommitAsync(cancellation);

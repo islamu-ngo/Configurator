@@ -10,7 +10,7 @@ public sealed class DefinitionDiscoveryEntry
 {
     private readonly string? _schemaPath;
     public DefinitionDiscoveryEntry(string fieldId, IEnumerable<string> relativePath, string title,
-        string sectionId, string sectionTitle, string type, SetupFieldSensitivity sensitivity,
+        string sectionId, string sectionTitle, string type, FieldSensitivity sensitivity,
         bool isActive, bool isRequired, bool isProvided, bool isReady, bool needsAttention,
         bool isSecretDeferred, DefinitionAnswerOrigin origin, IEnumerable<string>? searchTerms = null,
         string? help = null, string? instructions = null, IEnumerable<string>? outputArtifactIds = null,
@@ -46,7 +46,7 @@ public sealed class DefinitionDiscoveryEntry
     public string SectionId { get; }
     public string SectionTitle { get; }
     public string Type { get; }
-    public SetupFieldSensitivity Sensitivity { get; }
+    public FieldSensitivity Sensitivity { get; }
     public bool IsActive { get; }
     public bool IsRequired { get; }
     public bool IsProvided { get; }
@@ -243,9 +243,9 @@ public static class DefinitionDiscovery
             case DefinitionDiscoveryFacet.Sensitivity:
                 yield return entry.Sensitivity switch
                 {
-                    SetupFieldSensitivity.Public => "public",
-                    SetupFieldSensitivity.Sensitive => "sensitive",
-                    SetupFieldSensitivity.Secret => "secret",
+                    FieldSensitivity.Public => "public",
+                    FieldSensitivity.Sensitive => "sensitive",
+                    FieldSensitivity.Secret => "secret",
                     _ => throw new ArgumentOutOfRangeException(nameof(facet))
                 };
                 break;

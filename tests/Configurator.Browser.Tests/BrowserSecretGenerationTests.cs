@@ -19,7 +19,7 @@ public sealed class BrowserSecretGenerationTests
             {"type":"string","title":"Private key","x-configurator":{"secret":{
               "kind":"private-key","acquisition":"existing","algorithm":"ES256","encoding":"pkcs8-pem"}}}
             """, "schema.secret");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -85,7 +85,7 @@ public sealed class BrowserSecretGenerationTests
             {"type":"string","title":"Encryption key","x-configurator":{"secret":{
               "kind":"symmetric-key","acquisition":"local","algorithm":"AES256","encoding":"hex","generation":{"bytes":32}}}}
             """, "schema.secret");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters
             .Add(item => item.Definition, definition).Add(item => item.InitialLocale, "ar"));
@@ -118,7 +118,7 @@ public sealed class BrowserSecretGenerationTests
             """, "schema.secret");
         source["configuration"]!["properties"]!["otherHash"] = source["configuration"]!["properties"]!["credential"]!.DeepClone();
         source["configuration"]!["required"]!.AsArray().Add("otherHash");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -152,7 +152,7 @@ public sealed class BrowserSecretGenerationTests
             {"type":"string","title":"Password","minLength":16,
              "x-configurator":{"secret":{"kind":"password","acquisition":"existing","constraints":{"allowWhitespace":false}}}}
             """, "schema.bounds", "schema.secret");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -171,7 +171,7 @@ public sealed class BrowserSecretGenerationTests
             {"type":"string","title":"Password","minLength":16,"maxLength":64,
              "x-configurator":{"secret":{"kind":"password","acquisition":"local","generation":{"length":32}}}}
             """, "schema.bounds", "schema.secret");
-        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await Assert.That(component.FindAll("[data-secret-action='generate']")).IsEmpty();

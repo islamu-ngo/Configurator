@@ -65,7 +65,7 @@ public static class DefinitionAuthoringIdentityEditor
                 return (checked((int)reader.TokenStartIndex), checked((int)reader.BytesConsumed));
             }
         }
-        throw new SetupDefinitionException("authoring-identity-span");
+        throw new DefinitionException("authoring-identity-span");
     }
 
     private static (int Start, int End, ScalarStyle Style) YamlSpan(string source, string member)
@@ -102,6 +102,6 @@ public static class DefinitionAuthoringIdentityEditor
                     break;
             }
         }
-        throw new SetupDefinitionException("authoring-identity-span");
+        throw new DefinitionException("authoring-identity-span");
     }
 }

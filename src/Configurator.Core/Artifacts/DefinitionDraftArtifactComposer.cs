@@ -44,16 +44,16 @@ public sealed class DefinitionDraftBundleResult : IDisposable
 /// <summary>Prepares explicitly incomplete output while complete composition remains strict.</summary>
 public static class DefinitionDraftArtifactComposer
 {
-    public static DefinitionDraftArtifactResult Compose(SetupDefinition definition, string artifactId,
-        SetupAnswerSnapshot answers, CancellationToken cancellationToken = default)
+    public static DefinitionDraftArtifactResult Compose(Definition definition, string artifactId,
+        AnswerSnapshot answers, CancellationToken cancellationToken = default)
     {
         var completions = new List<DefinitionDraftCompletion>();
         DefinitionArtifactResult result = DefinitionArtifactComposer.ComposeCore(definition, artifactId, answers, true, completions, cancellationToken);
         return new(result.Artifact, result.Diagnostics, result.Succeeded ? completions : []);
     }
 
-    public static DefinitionDraftBundleResult ComposeBundle(SetupDefinition definition,
-        IEnumerable<string> artifactIds, SetupAnswerSnapshot answers, CancellationToken cancellationToken = default)
+    public static DefinitionDraftBundleResult ComposeBundle(Definition definition,
+        IEnumerable<string> artifactIds, AnswerSnapshot answers, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactIds);
@@ -78,7 +78,7 @@ public static class DefinitionDraftArtifactComposer
         bool transferred = false;
         try
         {
-            foreach (SetupArtifactDefinition artifact in definition.Artifacts)
+            foreach (ArtifactDefinition artifact in definition.Artifacts)
             {
                 if (!selected.Contains(artifact.Id)) continue;
                 var locations = new List<DefinitionDraftCompletion>();
@@ -94,7 +94,7 @@ public static class DefinitionDraftArtifactComposer
                 }
                 artifacts.Add(result.Artifact!);
                 bytes += result.Artifact!.ByteLength;
-                if (bytes > SetupCompositionLimits.DefaultAggregateSourceBytes)
+                if (bytes > CompositionLimits.DefaultAggregateSourceBytes)
                     return new([], [new("bundle-limit", "")], []);
                 completions.AddRange(locations);
             }

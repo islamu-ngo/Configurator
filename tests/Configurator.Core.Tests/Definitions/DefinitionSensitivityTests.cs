@@ -10,8 +10,8 @@ public sealed class DefinitionSensitivityTests
     {
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(
             DefinitionFixture.Parse(), "config", DefinitionFixture.Answers());
-        await Assert.That(result.Artifact!.Sensitivity).IsEqualTo(SetupArtifactSensitivity.Restricted);
-        await Assert.That(SetupArtifactPolicy.TryProjectPublic(SetupArtifactKind.Configuration,
+        await Assert.That(result.Artifact!.Sensitivity).IsEqualTo(ArtifactSensitivity.Restricted);
+        await Assert.That(ArtifactPolicy.TryProjectPublic(ArtifactKind.Configuration,
             result.Artifact.Bytes, out var bytes)).IsFalse();
         await Assert.That(bytes.IsEmpty).IsTrue();
     }
@@ -20,7 +20,7 @@ public sealed class DefinitionSensitivityTests
     public async Task DiagnosticsAndStringRepresentationsNeverEchoAnswers()
     {
         const string marker = "private-answer-marker";
-        SetupDefinition definition = DefinitionFixture.Parse(DefinitionFixture.Json.Replace(
+        Definition definition = DefinitionFixture.Parse(DefinitionFixture.Json.Replace(
             "\"maxLength\":80", "\"maxLength\":2", StringComparison.Ordinal));
         var answers = DefinitionFixture.Answers($$"""{"service.name":"{{marker}}"}""");
         DefinitionArtifactResult result = DefinitionArtifactComposer.Compose(definition, "config", answers);

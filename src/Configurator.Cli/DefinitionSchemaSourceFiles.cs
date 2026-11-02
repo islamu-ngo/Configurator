@@ -14,9 +14,9 @@ internal static class DefinitionSchemaSourceFiles
         if (path == "-") throw new DefinitionFileException("definition-local-file-required");
         path = Path.GetFullPath(path);
         string root = Path.GetDirectoryName(path)!;
-        using SetupCliInputBuffer sourceInput = await files.ReadAsync(path, maximumBytes, cancellationToken).ConfigureAwait(false);
+        using CliInputBuffer sourceInput = await files.ReadAsync(path, maximumBytes, cancellationToken).ConfigureAwait(false);
         ReadOnlyMemory<byte> source = sourceInput.Bytes;
-        var inputs = new List<SetupCliInputBuffer>();
+        var inputs = new List<CliInputBuffer>();
         try
         {
             var references = new Dictionary<string, ReadOnlyMemory<byte>>(StringComparer.Ordinal);
@@ -43,7 +43,7 @@ internal static class DefinitionSchemaSourceFiles
                     string relative = Path.GetRelativePath(root, candidate);
                     if (Path.IsPathRooted(relative) || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || relative == "..")
                         throw new DefinitionFileException("schema-reference-unsupported");
-                    SetupCliInputBuffer input = await files.ReadAsync(candidate, maximumBytes, cancellationToken).ConfigureAwait(false);
+                    CliInputBuffer input = await files.ReadAsync(candidate, maximumBytes, cancellationToken).ConfigureAwait(false);
                     inputs.Add(input);
                     ReadOnlyMemory<byte> bytes = input.Bytes;
                     if (bytes.Length > maximumBytes - total) throw new DefinitionFileException("schema-reference-bound");
@@ -59,7 +59,7 @@ internal static class DefinitionSchemaSourceFiles
         }
         finally
         {
-            foreach (SetupCliInputBuffer input in inputs) input.Dispose();
+            foreach (CliInputBuffer input in inputs) input.Dispose();
         }
     }
 

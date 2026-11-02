@@ -118,7 +118,7 @@ contracts own close and receipt presentation. This scenario explains the
 mechanism; it is not a newly executed qualification record.
 
 Native clients and Browser use the same admitted definition and answer snapshots.
-Local compact YAML/JSON sources pass through `SetupDefinitionSourceCodec` before
+Local compact YAML/JSON sources pass through `DefinitionSourceCodec` before
 the client constructs `DefinitionFormModel`. Syntax is explicit and canonical
 identity is shared with expanded runtime input. Source bytes and comments do
 not become answer snapshots or prepared output; existing load generations fence
@@ -228,7 +228,7 @@ and the counter-only `Receive` implementation are also removed. Observe current
 workspace status and operation messages, and derive accessible host feedback from
 those real states. Rebuild managed consumers; no compatibility aliases are kept.
 
-Behavior tests now use typed `ISetupPresentationOperation` fixtures, generation
+Behavior tests now use typed `IPresentationOperation` fixtures, generation
 allocators and message recipients. Their operation output is captured before a
 held completion is released, so a later fixture edit cannot change the result
 already owned by an invocation. Reflection remains for compiled API-shape checks
@@ -536,7 +536,7 @@ action resources and the separate surface-qualification boundary.
 The existing session/workspace model allocates generations, invalidates old
 work on edit, deactivation, cancellation and disposal, and rejects late results.
 Published `DefinitionPreparationMetadata` contains identifiers, digests and
-value-safe diagnostic codes but no artifact bytes. `SetupPresentationOutcome`
+value-safe diagnostic codes but no artifact bytes. `PresentationOutcome`
 copies operation bytes into owned memory. The workspace clears that memory on
 replacement, deactivation, termination and disposal; late rejected outcomes
 are cleared before discard notification. Cancellation after a settled result

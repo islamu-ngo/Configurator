@@ -36,7 +36,7 @@ public sealed class FieldViewModelTests
                 "settings":{"op":"copy","reference":{"scope":"root","path":"/settings.part"}},
                 "other":{"op":"copy","reference":{"scope":"root","path":"/other.part"}}}}}]
             """);
-        using var form = new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         var settings = (ObjectFieldViewModel)fields.Single(field => field.Id == "settings.part");
@@ -687,7 +687,7 @@ public sealed class FieldViewModelTests
                   "projection":{"op":"literal","value":{}}}]
                 """);
         }
-        return new DefinitionFormModel(SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
+        return new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
     }
 
     private static void Dispose(IEnumerable<FieldViewModel> fields)

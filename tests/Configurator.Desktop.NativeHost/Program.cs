@@ -112,7 +112,7 @@ internal static class Program
                 {
                     Console.Error.WriteLine($"native-qualification:failed:{_currentCheck}:{exception.Code}");
                 }
-                catch (SetupDefinitionException exception)
+                catch (DefinitionException exception)
                 {
                     Console.Error.WriteLine($"native-qualification:failed:{_currentCheck}:{exception.Code}");
                 }
@@ -152,7 +152,7 @@ internal static class Program
             await LoadAsync(window, shell, invalid, false);
             string definitionPath = Path.Combine(directory, "native-definition.json");
             byte[] definition = NativeDefinition();
-            _ = SetupDefinitionCodec.ParseJson(definition);
+            _ = DefinitionCodec.ParseJson(definition);
             await File.WriteAllBytesAsync(definitionPath, definition);
             await LoadAsync(window, shell, definitionPath, true);
             Require(shell.Loader.DefinitionPin.Contains(workspace.Form!.Definition.Digest.Value, StringComparison.Ordinal), "pin-missing");
@@ -365,7 +365,7 @@ internal static class Program
         }
     }
 
-    private static byte[] NativeDefinition() => SetupDefinitionSourceCodec.ParseJson("""
+    private static byte[] NativeDefinition() => DefinitionSourceCodec.ParseJson("""
         {
           "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"8508c82b-2f4a-42b5-af54-0e48c8c89a6e","revision":1},
@@ -407,7 +407,7 @@ internal static class Program
         }
         """u8.ToArray()).CanonicalBytes.ToArray();
 
-    private static byte[] EditingDefinition() => SetupDefinitionSourceCodec.ParseJson("""
+    private static byte[] EditingDefinition() => DefinitionSourceCodec.ParseJson("""
         {
           "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"8508c82b-2f4a-42b5-af54-0e48c8c89a6e","revision":2},
@@ -984,7 +984,7 @@ internal static class Program
 
     private static async Task SecretControlsAsync(MainWindow window, DesktopShellViewModel shell)
     {
-        byte[] definition = SetupDefinitionSourceCodec.ParseJson("""
+        byte[] definition = DefinitionSourceCodec.ParseJson("""
             {
               "$schema":"urn:islamu:configurator:authoring:v0.0.1",
               "identity":{"familyId":"63895608-e6ed-43a5-884c-62bdd1f00913","revision":1},

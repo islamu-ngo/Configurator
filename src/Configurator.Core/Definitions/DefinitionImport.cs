@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
 using Configurator.Core.Environment;
 
-public sealed record DefinitionImportResult(bool Succeeded, SetupAnswerSnapshot? Answers, string Code)
+public sealed record DefinitionImportResult(bool Succeeded, AnswerSnapshot? Answers, string Code)
 {
     public IReadOnlyList<string> ProvidedFields { get; init; } = [];
     public DefinitionDiagnostic? Diagnostic { get; init; }
@@ -18,11 +18,11 @@ public sealed record DefinitionImportResult(bool Succeeded, SetupAnswerSnapshot?
 
 public static class DefinitionImport
 {
-    public static DefinitionEditableProjection CaptureEditableScope(SetupDefinition definition, string artifactId,
-        SetupAnswerSnapshot answers, CancellationToken cancellationToken = default) =>
+    public static DefinitionEditableProjection CaptureEditableScope(Definition definition, string artifactId,
+        AnswerSnapshot answers, CancellationToken cancellationToken = default) =>
         DefinitionEditableProjection.Capture(definition, artifactId, answers, cancellationToken);
 
-    public static DefinitionImportCapability GetCapability(SetupDefinition definition, string artifactId)
+    public static DefinitionImportCapability GetCapability(Definition definition, string artifactId)
     {
         ArgumentNullException.ThrowIfNull(definition);
         try
@@ -34,16 +34,16 @@ public static class DefinitionImport
         catch (DefinitionImportLimitException) { return new(false, "inverse-limit"); }
     }
 
-    public static bool CanImport(SetupDefinition definition, string artifactId) =>
+    public static bool CanImport(Definition definition, string artifactId) =>
         GetCapability(definition, artifactId).StrictAutofillSupported;
 
     /// <summary>Inspects one ordinary artifact without initialization or workspace mutation.</summary>
-    public static DefinitionImportAssessment Inspect(SetupDefinition definition, string artifactId,
+    public static DefinitionImportAssessment Inspect(Definition definition, string artifactId,
         ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
         DefinitionImportWork.CompleteSynchronously(InspectCoreAsync(definition, artifactId, bytes, null, cancellationToken));
 
     /// <summary>Yields before inspection and in bounded traversal, normalization and materialization slices; completed callbacks keep execution synchronous.</summary>
-    public static ValueTask<DefinitionImportAssessment> InspectAsync(SetupDefinition definition, string artifactId,
+    public static ValueTask<DefinitionImportAssessment> InspectAsync(Definition definition, string artifactId,
         ReadOnlyMemory<byte> bytes, Func<CancellationToken, ValueTask> cooperativeYield,
         CancellationToken cancellationToken = default)
     {
@@ -51,7 +51,7 @@ public static class DefinitionImport
         return InspectCoreAsync(definition, artifactId, bytes, cooperativeYield, cancellationToken);
     }
 
-    private static async ValueTask<DefinitionImportAssessment> InspectCoreAsync(SetupDefinition definition, string artifactId,
+    private static async ValueTask<DefinitionImportAssessment> InspectCoreAsync(Definition definition, string artifactId,
         ReadOnlyMemory<byte> bytes, Func<CancellationToken, ValueTask>? cooperativeYield, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -84,7 +84,7 @@ public static class DefinitionImport
             foreach (string name in validation.UnresolvedFields)
             {
                 await work.VisitAsync();
-                SetupFieldDefinition? field = definition.Fields.FirstOrDefault(item => item.Name == name);
+                FieldDefinition? field = definition.Fields.FirstOrDefault(item => item.Name == name);
                 if (field is null || findings.Any(item => item.Kind == DefinitionImportFindingKind.Unassessed && item.Schema?.FieldId == field.Id)) continue;
                 coverage = false;
                 await Add(new(DefinitionImportFindingKind.Unassessed, "condition-unobserved",
@@ -111,7 +111,7 @@ public static class DefinitionImport
             coverage = false;
             refusal = "assessment-limit";
         }
-        catch (Exception exception) when (exception is SetupCompositionException or JsonException or SetupDefinitionException
+        catch (Exception exception) when (exception is CompositionException or JsonException or DefinitionException
             or OverflowException or InvalidOperationException or DecoderFallbackException)
         {
             return Terminal("input-invalid", DefinitionImportCompatibility.InvalidInput);
@@ -135,7 +135,7 @@ public static class DefinitionImport
         async ValueTask Add(DefinitionImportFinding finding)
         {
             await work.VisitAsync();
-            if (findings.Count == SetupCompositionLimits.DefaultSequenceEntries) throw new DefinitionImportLimitException();
+            if (findings.Count == CompositionLimits.DefaultSequenceEntries) throw new DefinitionImportLimitException();
             findings.Add(finding);
         }
         async ValueTask RecordDiagnostic(DefinitionImportEvidence observed, DefinitionDiagnostic diagnostic)
@@ -150,7 +150,7 @@ public static class DefinitionImport
             };
             if (kind == DefinitionImportFindingKind.Unassessed) coverage = false;
             if (diagnostic.Code == "validation-limit") inventory = false;
-            fieldsById.TryGetValue(diagnostic.FieldId, out SetupFieldDefinition? field);
+            fieldsById.TryGetValue(diagnostic.FieldId, out FieldDefinition? field);
             var safe = new List<string>();
             foreach (DefinitionLocationSegment segment in diagnostic.Location?.Segments ?? [])
             {
@@ -169,15 +169,15 @@ public static class DefinitionImport
                 false, [], work.Units, work.InverseNodes, work.ValidationNodes), refusal: code);
     }
 
-    public static DefinitionImportResult Assess(SetupDefinition definition, string artifactId,
-        ReadOnlyMemory<byte> bytes, SetupAnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults = null)
+    public static DefinitionImportResult Assess(Definition definition, string artifactId,
+        ReadOnlyMemory<byte> bytes, AnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults = null)
     {
         using DefinitionImportAssessment assessment = Inspect(definition, artifactId, bytes);
         return assessment.AssessAutofill(current, replaceableDefaults);
     }
 
-    internal static async ValueTask<DefinitionImportResult> MergeAsync(SetupDefinition definition, DefinitionImportEvidence evidence,
-        SetupAnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults, CancellationToken cancellationToken,
+    internal static async ValueTask<DefinitionImportResult> MergeAsync(Definition definition, DefinitionImportEvidence evidence,
+        AnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults, CancellationToken cancellationToken,
         DefinitionImportWork? work = null, Func<CancellationToken, ValueTask>? cooperativeYield = null)
     {
         bool ownsWork = work is null;
@@ -202,7 +202,7 @@ public static class DefinitionImport
                 await work.VisitAsync();
                 string field = path.Segments[0];
                 imported.Add(field);
-                SetupFieldDefinition? descriptor = definition.Fields.FirstOrDefault(item => item.Name == field);
+                FieldDefinition? descriptor = definition.Fields.FirstOrDefault(item => item.Name == field);
                 DefinitionDiagnostic? conflict = descriptor is null ? null : new("answer-conflict", descriptor.Id);
                 foreach (DefinitionPath omitted in current.Omitted)
                 {
@@ -244,8 +244,8 @@ public static class DefinitionImport
                 container[leaf] = JsonNode.Parse(answer.GetRawText());
                 values[field] = JsonSerializer.SerializeToElement(root);
             }
-            SetupAnswerSnapshot candidate = work.CooperativeYield is { } yield
-                ? await SetupAnswerSnapshot.CreateAsync(checked(current.InputRevision + 1), values, current.Omitted,
+            AnswerSnapshot candidate = work.CooperativeYield is { } yield
+                ? await AnswerSnapshot.CreateAsync(checked(current.InputRevision + 1), values, current.Omitted,
                     yield, cancellationToken)
                 : new(checked(current.InputRevision + 1), values, current.Omitted);
             DefinitionValidationResult validation = await DefinitionValidator.ValidateImportAsync(definition, candidate, work, cancellationToken);
@@ -257,7 +257,7 @@ public static class DefinitionImport
             {
                 if (!validation.TryGetEffectiveValue(path, out JsonElement effective) || !await RetainsMembersAsync(value, effective, work))
                 {
-                    SetupFieldDefinition? descriptor = definition.Fields.FirstOrDefault(field => field.Name == path.Segments[0]);
+                    FieldDefinition? descriptor = definition.Fields.FirstOrDefault(field => field.Name == path.Segments[0]);
                     return Failed("import-field-invalid", descriptor is null ? null : new("import-field-invalid", descriptor.Id));
                 }
             }
@@ -272,7 +272,7 @@ public static class DefinitionImport
         {
             return Failed("assessment-limit");
         }
-        catch (Exception exception) when (exception is SetupCompositionException or JsonException or SetupDefinitionException
+        catch (Exception exception) when (exception is CompositionException or JsonException or DefinitionException
             or OverflowException or InvalidOperationException)
         {
             return Failed("input-invalid");
@@ -343,30 +343,30 @@ public static class DefinitionImport
     private static async ValueTask<JsonElement> ParseAsync(string format, ReadOnlyMemory<byte> bytes,
         DefinitionImportWork work, CancellationToken cancellationToken)
     {
-        if (bytes.IsEmpty || bytes.Length > SetupCompositionLimits.DefaultAggregateSourceBytes)
-            throw new SetupDefinitionException("input-invalid");
+        if (bytes.IsEmpty || bytes.Length > CompositionLimits.DefaultAggregateSourceBytes)
+            throw new DefinitionException("input-invalid");
         cancellationToken.ThrowIfCancellationRequested();
         if (format == "dotenv")
         {
             DotenvParseResult parsed = DotenvCodec.Parse(bytes, DotenvPurpose.TemplatePlaceholders, cancellationToken);
-            if (!parsed.Succeeded) throw new SetupDefinitionException("input-invalid");
+            if (!parsed.Succeeded) throw new DefinitionException("input-invalid");
             var entries = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (DotenvEntry entry in parsed.Document!.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (entry.Value is null || !entries.TryAdd(entry.Key, JsonSerializer.SerializeToElement(entry.Value)))
-                    throw new SetupDefinitionException("input-invalid");
+                    throw new DefinitionException("input-invalid");
             }
             return JsonSerializer.SerializeToElement(entries);
         }
         byte[] normalized;
         if (format == "yaml")
-            normalized = SetupCompositionNormalizer.WriteJson(SetupCompositionYamlParser.Parse(bytes, SetupCompositionLimits.Default,
+            normalized = CompositionNormalizer.WriteJson(CompositionYamlParser.Parse(bytes, CompositionLimits.Default,
                 cancellationToken, keyPolicy: CompositionKeyPolicy.Exact), cancellationToken);
         else
         {
             _ = new UTF8Encoding(false, true).GetCharCount(bytes.Span);
-            using JsonDocument parsed = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = SetupCompositionLimits.DefaultNestingDepth });
+            using JsonDocument parsed = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = CompositionLimits.DefaultNestingDepth });
             normalized = work.CooperativeYield is { } cooperativeYield
                 ? await DefinitionJson.CanonicalizeAsync(parsed.RootElement, cooperativeYield,
                     keyPolicy: CompositionKeyPolicy.Exact, cancellationToken: cancellationToken)

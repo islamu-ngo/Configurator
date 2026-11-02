@@ -86,12 +86,12 @@ public sealed record DefinitionImportReport
 /// <summary>Owns private evidence; only the detached report participates in ordinary serialization.</summary>
 public sealed class DefinitionImportAssessment : IDisposable
 {
-    private SetupDefinition? _definition;
+    private Definition? _definition;
     private DefinitionImportEvidence? _evidence;
     private readonly string? _refusal;
     private bool _disposed;
 
-    internal DefinitionImportAssessment(DefinitionImportReport report, SetupDefinition? definition = null,
+    internal DefinitionImportAssessment(DefinitionImportReport report, Definition? definition = null,
         DefinitionImportEvidence? evidence = null, string? refusal = null)
     {
         Report = report;
@@ -100,12 +100,12 @@ public sealed class DefinitionImportAssessment : IDisposable
         _refusal = refusal;
     }
     public DefinitionImportReport Report { get; }
-    public DefinitionImportResult AssessAutofill(SetupAnswerSnapshot current,
+    public DefinitionImportResult AssessAutofill(AnswerSnapshot current,
         IReadOnlySet<string>? replaceableDefaults = null, CancellationToken cancellationToken = default) =>
         DefinitionImportWork.CompleteSynchronously(AssessAutofillCoreAsync(current, replaceableDefaults, null, cancellationToken));
 
     /// <summary>Cooperatively assesses a candidate without mutating the workspace. In-flight work retains its immutable evidence across disposal.</summary>
-    public ValueTask<DefinitionImportResult> AssessAutofillAsync(SetupAnswerSnapshot current,
+    public ValueTask<DefinitionImportResult> AssessAutofillAsync(AnswerSnapshot current,
         IReadOnlySet<string>? replaceableDefaults, Func<CancellationToken, ValueTask> cooperativeYield,
         CancellationToken cancellationToken = default)
     {
@@ -113,7 +113,7 @@ public sealed class DefinitionImportAssessment : IDisposable
         return AssessAutofillCoreAsync(current, replaceableDefaults, cooperativeYield, cancellationToken);
     }
 
-    private async ValueTask<DefinitionImportResult> AssessAutofillCoreAsync(SetupAnswerSnapshot current,
+    private async ValueTask<DefinitionImportResult> AssessAutofillCoreAsync(AnswerSnapshot current,
         IReadOnlySet<string>? replaceableDefaults, Func<CancellationToken, ValueTask>? cooperativeYield,
         CancellationToken cancellationToken)
     {
@@ -121,7 +121,7 @@ public sealed class DefinitionImportAssessment : IDisposable
         ArgumentNullException.ThrowIfNull(current);
         cancellationToken.ThrowIfCancellationRequested();
         DefinitionImportEvidence? evidence = _evidence;
-        SetupDefinition? definition = _definition;
+        Definition? definition = _definition;
         if (cooperativeYield is not null)
         {
             await cooperativeYield(cancellationToken);
@@ -152,11 +152,11 @@ internal sealed record DefinitionImportObservation(DefinitionImportObservationSt
 internal sealed class DefinitionImportEvidence
 {
     private readonly Dictionary<DefinitionPath, DefinitionImportObservation> _observations;
-    internal SetupAnswerSnapshot Answers { get; }
+    internal AnswerSnapshot Answers { get; }
     internal IReadOnlyList<DefinitionPath> Assignments { get; }
 
     /// <summary>Takes ownership of recovery's completed private observation dictionary.</summary>
-    internal DefinitionImportEvidence(SetupAnswerSnapshot answers, IEnumerable<DefinitionPath> assignments,
+    internal DefinitionImportEvidence(AnswerSnapshot answers, IEnumerable<DefinitionPath> assignments,
         Dictionary<DefinitionPath, DefinitionImportObservation> ownedObservations)
     {
         Answers = answers;
@@ -310,7 +310,7 @@ internal sealed class DefinitionImportWork(CancellationToken cancellationToken,
     internal async ValueTask VisitAsync()
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (Units == SetupCompositionLimits.DefaultParserEvents) throw new DefinitionImportLimitException();
+        if (Units == CompositionLimits.DefaultParserEvents) throw new DefinitionImportLimitException();
         Units++;
         if (cooperativeYield is not null && Units % YieldQuantum == 0)
         {
@@ -321,13 +321,13 @@ internal sealed class DefinitionImportWork(CancellationToken cancellationToken,
     internal async ValueTask InverseAsync()
     {
         await VisitAsync();
-        if (InverseNodes == SetupCompositionLimits.DefaultNormalizedNodes) throw new DefinitionImportLimitException();
+        if (InverseNodes == CompositionLimits.DefaultNormalizedNodes) throw new DefinitionImportLimitException();
         InverseNodes++;
     }
     internal async ValueTask ValidationAsync()
     {
         await VisitAsync();
-        if (ValidationNodes == SetupCompositionLimits.DefaultNormalizedNodes) throw new DefinitionImportLimitException();
+        if (ValidationNodes == CompositionLimits.DefaultNormalizedNodes) throw new DefinitionImportLimitException();
         ValidationNodes++;
         // Validation resolves paths, dependencies and constraints in addition to visiting each node.
         if (cooperativeYield is not null && ValidationNodes % 256 == 0)

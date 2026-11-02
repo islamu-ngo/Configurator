@@ -102,7 +102,7 @@ public sealed class EventDefinitionFormTests
             await Assert.That(form.SetValue(["operation"], JsonSerializer.SerializeToElement("environment"))).IsTrue();
         else if (state == "omitted")
             await Assert.That(form.SetValue(["operation"], null)).IsTrue();
-        SetupAnswerSnapshot before = form.Snapshot();
+        AnswerSnapshot before = form.Snapshot();
 
         DefinitionImportResult result = await form.ImportAsync("configuration-manifest", ReadArtifact);
 
@@ -153,7 +153,7 @@ public sealed class EventDefinitionFormTests
         using var form = new DefinitionFormModel(await Definition(), consent
             ? DefinitionSessionPrivacy.BrowserSecretsEnabled : DefinitionSessionPrivacy.BrowserNoSecrets);
         form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"));
-        SetupAnswerSnapshot original = form.Snapshot();
+        AnswerSnapshot original = form.Snapshot();
         bool consumed = false;
         DefinitionImportResult result = await form.ImportAsync("configuration-manifest", token =>
         {
@@ -188,7 +188,7 @@ public sealed class EventDefinitionFormTests
         await Assert.That(form.Snapshot().Values["configuration-manifest.spec.instance.settings"].GetProperty("modules.tech_enabled").GetBoolean()).IsTrue();
     }
 
-    private static async Task<SetupDefinition> Definition() => SetupDefinitionCodec.ParseJson(
+    private static async Task<Definition> Definition() => DefinitionCodec.ParseJson(
         await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json")));
 
     private static async Task<ReadOnlyMemory<byte>> ReadArtifact(CancellationToken token) =>

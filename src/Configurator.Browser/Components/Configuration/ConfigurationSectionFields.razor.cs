@@ -9,7 +9,7 @@ public partial class ConfigurationSectionFields
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
-    [Parameter, EditorRequired] public IReadOnlyList<SetupFieldState> Fields { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<FieldState> Fields { get; set; } = [];
     [Parameter] public CancellationToken MountCancellation { get; set; }
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public string? FocusField { get; set; }
@@ -20,7 +20,7 @@ public partial class ConfigurationSectionFields
     private const int FollowingBatchSize = 10;
     private readonly HashSet<string> _mounted = new(StringComparer.Ordinal);
     private readonly HashSet<string> _mountable = new(StringComparer.Ordinal);
-    private SetupFieldState[] _activeFields = [];
+    private FieldState[] _activeFields = [];
     private DefinitionFormModel? _observedForm;
     private CancellationToken _observedCancellation;
     private Task<IJSObjectReference>? _module;

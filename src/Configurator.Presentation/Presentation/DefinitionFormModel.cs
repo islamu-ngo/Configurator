@@ -28,7 +28,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private DefinitionFormProjection? _projection;
     private bool _disposed;
 
-    public DefinitionFormModel(SetupDefinition definition,
+    public DefinitionFormModel(Definition definition,
         DefinitionSessionPrivacy sessionPrivacy = DefinitionSessionPrivacy.NativeComplete,
         IReadOnlySet<string>? supportedCapabilities = null,
         DefinitionEditorVisibilityPolicy editorVisibility = DefinitionEditorVisibilityPolicy.Authored)
@@ -64,7 +64,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 experience.Title, experience.InitialDisclosure, experience.Navigation,
                 fallback is null ? experience.Sections : experience.Sections.Append(fallback),
                 experience.Description)).ToArray()
-            : [new DefinitionFormExperience("configure", "Configure", SetupFieldDisclosure.Guided,
+            : [new DefinitionFormExperience("configure", "Configure", FieldDisclosure.Guided,
                 "sections", Sections.Select(section => section.Id), null)]);
         _view = new(definition.Presentation?.DefaultExperience ?? "configure")
         {
@@ -74,7 +74,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         _index = new DefinitionFormIndex(definition, Sections, Experiences);
     }
 
-    public SetupDefinition Definition { get; }
+    public Definition Definition { get; }
     public IReadOnlyList<DefinitionFormExperience> Experiences { get; }
     public IReadOnlyList<DefinitionFormSection> Sections { get; }
     public IReadOnlyList<DefinitionFormSection> DisplaySections => Array.AsReadOnly(Sections.Select(section =>
@@ -136,11 +136,11 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
     public bool OptionalEditorsExpanded => _view.OptionalEditorsExpanded;
-    public SetupFieldDisclosure? DisclosureOverride => _view.DisclosureOverride;
+    public FieldDisclosure? DisclosureOverride => _view.DisclosureOverride;
     public event EventHandler? ViewChanged;
 
     /// <summary>Selects optional detail independently of the authored experience without editing answers.</summary>
-    public void SetDisclosureOverride(SetupFieldDisclosure? disclosure)
+    public void SetDisclosureOverride(FieldDisclosure? disclosure)
     {
         if (disclosure is { } value && !Enum.IsDefined(value))
             throw new ArgumentOutOfRangeException(nameof(disclosure));
@@ -154,7 +154,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         OnViewChanged();
     }
 
-    private SetupFieldDisclosure EffectiveDisclosure =>
+    private FieldDisclosure EffectiveDisclosure =>
         DisclosureOverride ?? Experiences.Single(item => item.Id == SelectedExperienceId).InitialDisclosure;
 
     public bool SelectExperience(string id)
@@ -224,8 +224,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (section is not null && _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded))
                 expanded = sectionExpanded;
             if (expanded) return true;
-            SetupFieldDisclosure disclosure = indexed.Disclosure;
-            return disclosure == SetupFieldDisclosure.Essential || disclosure <= EffectiveDisclosure &&
+            FieldDisclosure disclosure = indexed.Disclosure;
+            return disclosure == FieldDisclosure.Essential || disclosure <= EffectiveDisclosure &&
                 (section is null || section.Disclosure <= EffectiveDisclosure);
         }
     }
@@ -366,7 +366,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                     field.ClearDeniedDrafts(CanEdit);
                     if (field.Value is not { } value)
                     {
-                        if (field.Definition.Sensitivity == SetupFieldSensitivity.Secret) field.Clear();
+                        if (field.Definition.Sensitivity == FieldSensitivity.Secret) field.Clear();
                         continue;
                     }
                     JsonNode? retained = DefinitionSecretPolicy.RemoveSecrets(field.Definition.Node,
@@ -794,7 +794,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         return true;
     }
 
-    private bool AllowsValue(SetupFieldDefinition field, string text, JsonElement? candidate)
+    private bool AllowsValue(FieldDefinition field, string text, JsonElement? candidate)
     {
         string fieldId = field.Id;
         DefinitionFieldInput input = Fields[_index!.FieldPositions[fieldId]];
@@ -809,11 +809,11 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (candidate is { } value) values[field.Name] = value;
             try
             {
-                _ = new SetupAnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)).Where(path =>
+                _ = new AnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)).Where(path =>
                     !values.TryGetValue(path.Segments[0], out JsonElement root) ||
                     !TrySuppliedValue(root, path.Segments.Skip(1), out _)));
             }
-            catch (SetupDefinitionException exception)
+            catch (DefinitionException exception)
             {
                 fitsBudget = false;
                 rejection = exception.Code is "answer-limit" or "scalar-invalid" or "document-limit"
@@ -915,7 +915,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public SetupAnswerSnapshot Snapshot()
+    public AnswerSnapshot Snapshot()
     {
         lock (_gate)
         {
@@ -926,7 +926,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 if (Fields[position].Value is { } supplied)
                     values.Add(Fields[position].Definition.Name, supplied);
             }
-            return new SetupAnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)));
+            return new AnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)));
         }
     }
 
@@ -944,7 +944,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(read);
-        SetupAnswerSnapshot original;
+        AnswerSnapshot original;
         HashSet<string> replaceableDefaults;
         long generation;
         using (BeginMutation())
@@ -1137,7 +1137,7 @@ public sealed class DefinitionFieldInput : ObservableObject
     private readonly Action<Action> _notify;
     private DefinitionFieldState State => _readState();
 
-    internal DefinitionFieldInput(SetupFieldDefinition definition, object gate, Func<DefinitionFieldState> readState,
+    internal DefinitionFieldInput(FieldDefinition definition, object gate, Func<DefinitionFieldState> readState,
         Action<Func<bool>> changed,
         Func<string, JsonElement?, bool> allowsValue, Func<JsonElement?> readEffective,
         Action<IReadOnlyList<string>, bool> recordOverride, Action<Action> notify)
@@ -1152,10 +1152,10 @@ public sealed class DefinitionFieldInput : ObservableObject
         _notify = notify;
     }
 
-    public SetupFieldDefinition Definition { get; }
+    public FieldDefinition Definition { get; }
     public string Title => Definition.Title;
     public string? Help => Definition.Help;
-    public bool RequiresMasking => Definition.Sensitivity != SetupFieldSensitivity.Public;
+    public bool RequiresMasking => Definition.Sensitivity != FieldSensitivity.Public;
     public bool HasAnswerBudgetError => InputDiagnosticCode == "answer-budget-exceeded";
     public string? InputDiagnosticCode
     {
