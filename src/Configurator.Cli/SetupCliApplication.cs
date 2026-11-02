@@ -60,7 +60,7 @@ public sealed class SetupCliApplication
                     invocation.Io.MaximumOutputBytes, delivery.Token);
             else
             {
-                if (text.GetStringBuilder().Length == 0) SetupCliHumanOutput.Render(console, result);
+                if (text.GetStringBuilder().Length == 0) SetupCliHumanOutput.Render(console, result, invocation.Culture);
                 byte[] bytes = Encoding.UTF8.GetBytes(text.ToString());
                 ISetupCliWriter writer = command.Output == "-" || result.Exit != SetupCliExitCode.Success
                     ? invocation.Io.Error : invocation.Io.Output;

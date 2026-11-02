@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6F4JG1E4SYJ0JW5TDK0R9XB
+Title: "Pass the captured culture to CLI result rendering"
+Type: fix
+Scope: localization
+Summary: "Use the invocation culture when rendering CLI result panels."
+Group: cli-rendering
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/QUICK_REFERENCE.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/OPERATIONS.md
+    Disposition: not-applicable
