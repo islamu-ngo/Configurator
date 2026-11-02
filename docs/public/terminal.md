@@ -11,6 +11,10 @@ Changing the workspace language does not change the host's language. Save
 receipts distinguish file creation, immediate verification and cleanup; a
 created file's continued integrity is never guaranteed by the receipt.
 
+Tab and Shift+Tab move focus out of a masked field without changing its value.
+Escape and Alt shortcuts remain available; ordinary clipboard and history
+commands stay blocked in masked fields.
+
 The [support index](../internal/STATUS.md) distinguishes actual Terminal process
 exercises from Desktop X11 scenarios and package admission.
 

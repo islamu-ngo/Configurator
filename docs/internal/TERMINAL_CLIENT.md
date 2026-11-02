@@ -37,6 +37,10 @@ scoped to the worker's disposable bundle.
 The content scrolls within an 80×24 outer terminal. Relative button columns and
 focus-driven scrolling keep controls reachable after resize.
 
+Masked controls return Tab, Shift+Tab, Escape and Alt shortcuts to the owner;
+these keys cannot be appended to the private buffer. Explicit clipboard,
+context and history commands keep their existing blocked behavior.
+
 ### Schema-driven secret actions
 
 `TerminalWindow.Secrets` delegates generation and derivation to

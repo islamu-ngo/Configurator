@@ -79,8 +79,9 @@ internal sealed class SecretTextField : TextField
 
     protected override bool OnKeyDownNotHandled(Key key)
     {
+        if (key == Key.Tab || key == Key.Tab.WithShift || key == Key.Esc || key.IsAlt) return false;
         if (ReadOnly) return true;
-        if (key.IsCtrl || key.IsAlt || string.IsNullOrEmpty(key.AsGrapheme))
+        if (key.IsCtrl || string.IsNullOrEmpty(key.AsGrapheme))
             return true;
         if (_secret.TryAppend(key.AsGrapheme))
         {

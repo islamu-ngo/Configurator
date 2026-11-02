@@ -59,6 +59,20 @@ public sealed class TerminalSecurityTests
     }
 
     [Test]
+    public async Task SecretFieldLeavesNavigationAndShortcutsForTheOwnerWithoutEditing()
+    {
+        using var secret = new TerminalSecretBuffer(256, urlSafeOnly: false);
+        using var field = new SecretTextField(secret);
+        foreach (Key key in new[] { Key.Tab, Key.Tab.WithShift, Key.Esc, new Key('o').WithAlt })
+        {
+            await Assert.That(field.NewKeyDownEvent(key)).IsFalse();
+            await Assert.That(secret.Count).IsEqualTo(0);
+        }
+        await Assert.That(field.NewKeyDownEvent(new Key('x'))).IsTrue();
+        await Assert.That(secret.Count).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task SecretFieldBlocksClipboardContextAndUndoHistory()
     {
         using var secret = new TerminalSecretBuffer();
