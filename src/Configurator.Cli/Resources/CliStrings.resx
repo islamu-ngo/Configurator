@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="Scope" xml:space="preserve"><value>Scope</value></data>
+  <data name="ScopeDescription" xml:space="preserve"><value>Local draft or export; no platform changes were applied.</value></data>
+  <data name="AssessmentExecution" xml:space="preserve"><value>Assessment execution</value></data>
+  <data name="Compatibility" xml:space="preserve"><value>Compatibility</value></data>
+  <data name="Coverage" xml:space="preserve"><value>Coverage</value></data>
+  <data name="FindingInventory" xml:space="preserve"><value>Finding inventory</value></data>
+  <data name="RetainedInventory" xml:space="preserve"><value>{0}; retained {1}</value></data>
+  <data name="Autofill" xml:space="preserve"><value>Autofill</value></data>
+  <data name="Preparation" xml:space="preserve"><value>Preparation</value></data>
+  <data name="TargetAcceptance" xml:space="preserve"><value>Target acceptance</value></data>
+  <data name="MoreFindings" xml:space="preserve"><value>More findings</value></data>
+  <data name="MoreFindingsGuidance" xml:space="preserve"><value>Use --machine --detail findings with nextOffset and the expected detail digest.</value></data>
+  <data name="Artifacts" xml:space="preserve"><value>Artifacts</value></data>
+  <data name="PublicationOutcome" xml:space="preserve"><value>{0}; installation {1}; verification {2}</value></data>
+  <data name="Recovery" xml:space="preserve"><value>Recovery</value></data>
+  <data name="RecoveryGuidance" xml:space="preserve"><value>Keep the original-password file. Answer publication did not complete; inspect the destinations before retrying.</value></data>
+  <data name="MoreDiagnostics" xml:space="preserve"><value>More diagnostics</value></data>
+  <data name="MoreDiagnosticsGuidance" xml:space="preserve"><value>Use --machine --detail diagnostics with bounded continuation.</value></data>
+  <data name="Readiness" xml:space="preserve"><value>Readiness</value></data>
+  <data name="State_success" xml:space="preserve"><value>Success</value></data>
+  <data name="State_validation" xml:space="preserve"><value>Validation failed</value></data>
+  <data name="State_incomplete" xml:space="preserve"><value>Incomplete</value></data>
+  <data name="State_blocked" xml:space="preserve"><value>Blocked</value></data>
+  <data name="State_usage" xml:space="preserve"><value>Invalid arguments</value></data>
+  <data name="State_data" xml:space="preserve"><value>Invalid input</value></data>
+  <data name="State_internal" xml:space="preserve"><value>Internal failure</value></data>
+  <data name="State_io" xml:space="preserve"><value>Input or output failure</value></data>
+  <data name="State_cancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="State_completed" xml:space="preserve"><value>Completed</value></data>
+  <data name="State_not_evaluated" xml:space="preserve"><value>Not evaluated</value></data>
+  <data name="State_unassessed" xml:space="preserve"><value>Unassessed</value></data>
+  <data name="State_ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="State_error" xml:space="preserve"><value>Error</value></data>
+  <data name="State_warning" xml:space="preserve"><value>Warning</value></data>
+  <data name="State_info" xml:space="preserve"><value>Information</value></data>
+  <data name="State_written" xml:space="preserve"><value>Written</value></data>
+  <data name="State_established" xml:space="preserve"><value>Established</value></data>
+  <data name="State_succeeded" xml:space="preserve"><value>Succeeded</value></data>
+  <data name="State_failed" xml:space="preserve"><value>Failed</value></data>
+  <data name="State_not_attempted" xml:space="preserve"><value>Not attempted</value></data>
+  <data name="State_not_applicable" xml:space="preserve"><value>Not applicable</value></data>
+  <data name="State_unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="State_compatible" xml:space="preserve"><value>Compatible</value></data>
+  <data name="State_changes_required" xml:space="preserve"><value>Changes required</value></data>
+  <data name="State_unsupported" xml:space="preserve"><value>Unsupported</value></data>
+  <data name="State_invalid_input" xml:space="preserve"><value>Invalid input</value></data>
+  <data name="State_complete" xml:space="preserve"><value>Complete</value></data>
+  <data name="State_stopped" xml:space="preserve"><value>Stopped</value></data>
+  <data name="State_eligible" xml:space="preserve"><value>Eligible</value></data>
+  <data name="State_ineligible" xml:space="preserve"><value>Ineligible</value></data>
+  <data name="State_missing_required" xml:space="preserve"><value>Required input missing</value></data>
+  <data name="State_invalid_supplied_value" xml:space="preserve"><value>Supplied value invalid</value></data>
+  <data name="State_unrecognized_input" xml:space="preserve"><value>Unrecognized input</value></data>
+  <data name="State_structural_output_change" xml:space="preserve"><value>Output structure changes</value></data>
+  <data name="State_context_derived_value" xml:space="preserve"><value>Value derived from context</value></data>
+</root>

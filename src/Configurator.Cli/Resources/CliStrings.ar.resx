@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Status" xml:space="preserve"><value>الحالة</value></data>
+  <data name="Scope" xml:space="preserve"><value>النطاق</value></data>
+  <data name="ScopeDescription" xml:space="preserve"><value>مسودة أو تصدير محلي؛ لم تُطبّق أي تغييرات على المنصة.</value></data>
+  <data name="AssessmentExecution" xml:space="preserve"><value>تنفيذ التقييم</value></data>
+  <data name="Compatibility" xml:space="preserve"><value>التوافق</value></data>
+  <data name="Coverage" xml:space="preserve"><value>التغطية</value></data>
+  <data name="FindingInventory" xml:space="preserve"><value>حصر النتائج</value></data>
+  <data name="RetainedInventory" xml:space="preserve"><value>{0}؛ النتائج المحتفظ بها {1}</value></data>
+  <data name="Autofill" xml:space="preserve"><value>التعبئة التلقائية</value></data>
+  <data name="Preparation" xml:space="preserve"><value>التحضير</value></data>
+  <data name="TargetAcceptance" xml:space="preserve"><value>قبول التطبيق المستهدف</value></data>
+  <data name="MoreFindings" xml:space="preserve"><value>نتائج إضافية</value></data>
+  <data name="MoreFindingsGuidance" xml:space="preserve"><value>استخدم --machine --detail findings مع nextOffset وبصمة التفاصيل المتوقعة.</value></data>
+  <data name="Artifacts" xml:space="preserve"><value>المخرجات</value></data>
+  <data name="PublicationOutcome" xml:space="preserve"><value>{0}؛ التثبيت {1}؛ التحقق {2}</value></data>
+  <data name="Recovery" xml:space="preserve"><value>الاسترداد</value></data>
+  <data name="RecoveryGuidance" xml:space="preserve"><value>احتفظ بملف كلمة المرور الأصلية. لم يكتمل نشر الإجابات؛ افحص وجهات الحفظ قبل إعادة المحاولة.</value></data>
+  <data name="MoreDiagnostics" xml:space="preserve"><value>تشخيصات إضافية</value></data>
+  <data name="MoreDiagnosticsGuidance" xml:space="preserve"><value>استخدم --machine --detail diagnostics لاستعراض التشخيصات على دفعات محدودة.</value></data>
+  <data name="Readiness" xml:space="preserve"><value>الجاهزية</value></data>
+  <data name="State_success" xml:space="preserve"><value>نجاح</value></data>
+  <data name="State_validation" xml:space="preserve"><value>فشل التحقق</value></data>
+  <data name="State_incomplete" xml:space="preserve"><value>غير مكتمل</value></data>
+  <data name="State_blocked" xml:space="preserve"><value>محظور</value></data>
+  <data name="State_usage" xml:space="preserve"><value>وسائط غير صالحة</value></data>
+  <data name="State_data" xml:space="preserve"><value>مدخلات غير صالحة</value></data>
+  <data name="State_internal" xml:space="preserve"><value>خطأ داخلي</value></data>
+  <data name="State_io" xml:space="preserve"><value>فشل الإدخال أو الإخراج</value></data>
+  <data name="State_cancelled" xml:space="preserve"><value>ملغى</value></data>
+  <data name="State_completed" xml:space="preserve"><value>مكتمل</value></data>
+  <data name="State_not_evaluated" xml:space="preserve"><value>لم يُقيّم</value></data>
+  <data name="State_unassessed" xml:space="preserve"><value>لم يُفحص</value></data>
+  <data name="State_ready" xml:space="preserve"><value>جاهز</value></data>
+  <data name="State_error" xml:space="preserve"><value>خطأ</value></data>
+  <data name="State_warning" xml:space="preserve"><value>تحذير</value></data>
+  <data name="State_info" xml:space="preserve"><value>معلومة</value></data>
+  <data name="State_written" xml:space="preserve"><value>مكتوب</value></data>
+  <data name="State_established" xml:space="preserve"><value>مُثبت</value></data>
+  <data name="State_succeeded" xml:space="preserve"><value>ناجح</value></data>
+  <data name="State_failed" xml:space="preserve"><value>فاشل</value></data>
+  <data name="State_not_attempted" xml:space="preserve"><value>لم تُجرَ محاولة</value></data>
+  <data name="State_not_applicable" xml:space="preserve"><value>لا ينطبق</value></data>
+  <data name="State_unknown" xml:space="preserve"><value>غير معروف</value></data>
+  <data name="State_compatible" xml:space="preserve"><value>متوافق</value></data>
+  <data name="State_changes_required" xml:space="preserve"><value>تغييرات مطلوبة</value></data>
+  <data name="State_unsupported" xml:space="preserve"><value>غير مدعوم</value></data>
+  <data name="State_invalid_input" xml:space="preserve"><value>مدخلات غير صالحة</value></data>
+  <data name="State_complete" xml:space="preserve"><value>كامل</value></data>
+  <data name="State_stopped" xml:space="preserve"><value>متوقف</value></data>
+  <data name="State_eligible" xml:space="preserve"><value>مؤهل</value></data>
+  <data name="State_ineligible" xml:space="preserve"><value>غير مؤهل</value></data>
+  <data name="State_missing_required" xml:space="preserve"><value>مدخل مطلوب مفقود</value></data>
+  <data name="State_invalid_supplied_value" xml:space="preserve"><value>قيمة مدخلة غير صالحة</value></data>
+  <data name="State_unrecognized_input" xml:space="preserve"><value>مدخل غير معروف</value></data>
+  <data name="State_structural_output_change" xml:space="preserve"><value>تغيير في بنية المخرجات</value></data>
+  <data name="State_context_derived_value" xml:space="preserve"><value>قيمة مشتقة من السياق</value></data>
+</root>
