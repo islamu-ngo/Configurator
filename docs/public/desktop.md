@@ -31,6 +31,10 @@ Command-line arguments are optional:
 
 The application bar displays the loaded definition's title, application ID, publisher, family UUID, revision number, and computed SHA-256 digest pin. Changing the definition file on disk does not alter the running workspace; select **Reload** to explicitly admit an updated revision.
 
+Dismissing a picker preserves your current answers and preparation. Unavailable
+pickers and remote locations produce separate guidance. A selection that finishes
+after cancellation or workspace replacement cannot change the new workspace.
+
 ---
 
 ## Desktop GUI Layout

@@ -4,7 +4,7 @@
 > **Status:** Typed definition adapters; schema-driven secret qualification is pending
 > **Owner:** Desktop
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/Presentation/`
+> **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/`
 
 Desktop remains on the centrally pinned Avalonia 12.1.3 packages. It references
 Presentation and Artifacts, with Core types available through those references.
@@ -458,3 +458,45 @@ in light/dark themes, at the top and footer. It subscribes to native resize and
 animation-frame signals before rendering PNGs; captures contain synthetic
 fixture values only. The workspace has one vertical scroll owner so a shorter
 window cannot collapse the editable region behind fixed header/footer panes.
+
+### Architecture and conventions qualification (2026-11-02)
+
+The pre-package-smoke Desktop candidate passed all 297 tests with no failures or skips after
+the typed selection, explicit locale, theme and view decomposition changes.
+Release builds of the test owner and NativeHost completed with zero warnings
+and errors. The rebuilt NativeHost passed all 21 required scenarios separately
+in English and Arabic on Linux x64/X11 using Xvfb and .NET 10.0.10 (34.24 s and
+29.26 s). This includes late operation/close handling, factual publication
+receipts, shared map editing and secret generation/validation.
+
+The native captures at `.tmp/architecture-desktop-native-final/{en,ar}` bind to
+NativeHost SHA-256 `673e13e7e44054693f69f91d5340541b7357aae1d8690b15c0d618e4335b5794`
+and Desktop assembly SHA-256
+`10b55d03ae10f9bb013ce487c2e1e291025363bd8e7394bc7faf6db048ca8aaa`.
+Minimum-size Arabic capture inspection confirmed that provider-owned definition
+pin guidance follows the workspace locale; definition-authored text remains
+distinct. Automated tests cover light/dark/high-contrast resource contrast and
+retired native preference callbacks. Manual picker operation, screen-reader
+speech, other hosts/scales and isolated published-payload execution remain
+separate qualification requirements; these source-harness results do not
+establish them.
+
+A subsequent actual-package smoke exposed cleared experience selection on a
+locale switch and visually reordered native paths in RTL. Both received a
+failing rendered regression before the fix: Desktop now retains experience
+choice identities while refreshing their titles, and native path/filename
+editors use LTR text direction within RTL layouts. The post-fix owner again
+passed all 297 tests, and all 21 NativeHost scenarios passed in each locale.
+
+The rebuilt Linux package, executable SHA-256
+`0b0d3c52614bba05e7905a4ff009d5148c74f9a232870d6dd3eb729c10a37f9e`,
+was then launched directly in an isolated Xvfb display with the maintained minimal
+self-hosted definition. Actual screenshots confirmed that the nondefault Custom
+experience remains selected after keyboard selection of Arabic and that the
+definition path remains LTR. Ctrl+O focus and normal close (exit 0, empty process
+log) also passed. Final captures are under
+`.tmp/architecture-desktop-package-final/`. This establishes focused packaged
+startup/locale/keyboard/close behavior; the attempted native file dialog could
+not be qualified because the isolated GNOME portal lacked desktop services.
+Screen-reader speech, other scales/platforms and a complete manual picker flow
+remain separate evidence requirements.
