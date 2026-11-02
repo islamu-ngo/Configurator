@@ -3,6 +3,7 @@ namespace Configurator.Desktop.Views;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
@@ -61,7 +62,7 @@ public sealed class FocusBehavior : AvaloniaObject
     {
         control.GetValue(CancelPendingProperty)?.Invoke();
         static Control Resolve(Control owner) => owner is Window window && GetTarget(owner) is { } name
-            ? window.FindControl<Control>(name) ?? owner : owner;
+            ? window.GetLogicalDescendants().OfType<Control>().FirstOrDefault(item => item.Name == name) ?? owner : owner;
         Control target = Resolve(control);
         if (target.IsEffectivelyVisible && target.IsEffectivelyEnabled && target.Focus()) return;
 

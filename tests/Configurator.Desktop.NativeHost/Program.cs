@@ -156,10 +156,10 @@ internal static class Program
             await File.WriteAllBytesAsync(definitionPath, definition);
             await LoadAsync(window, shell, definitionPath, true);
             Require(shell.Loader.DefinitionPin.Contains(workspace.Form!.Definition.Digest.Value, StringComparison.Ordinal), "pin-missing");
-            window.GetControl<TextBox>("OutputDirectory").Text = directory;
-            Require(window.GetControl<ComboBox>("Artifact").SelectedIndex >= 0 &&
-                window.GetControl<ComboBox>("Artifact").SelectionBoxItem is not null, "artifact-label-missing");
-            Require(window.GetControl<ComboBox>("Experience").SelectedItem is not null &&
+            window.GetNamedControl<TextBox>("OutputDirectory").Text = directory;
+            Require(window.GetNamedControl<ComboBox>("Artifact").SelectedIndex >= 0 &&
+                window.GetNamedControl<ComboBox>("Artifact").SelectionBoxItem is not null, "artifact-label-missing");
+            Require(window.GetNamedControl<ComboBox>("Experience").SelectedItem is not null &&
                 workspace.SelectedExperience?.Title == "Configure", "neutral-experience-missing");
             await CaptureAsync(window, "loaded");
             Pass();
@@ -191,18 +191,18 @@ internal static class Program
             await FlushAsync();
             Require(Editor(window, "Port").IsVisible, "activation");
             long revision = workspace.Form.InputRevision;
-            window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
+            window.GetNamedControl<CheckBox>("OptionalEditors").IsChecked = true;
             await FlushAsync();
             Require(Editor(window, "Advanced note").IsVisible && Editor(window, "Owner").IsVisible &&
                 workspace.Form.InputRevision == revision, "expansion-mutates-input");
-            window.GetControl<CheckBox>("OptionalEditors").IsChecked = false;
+            window.GetNamedControl<CheckBox>("OptionalEditors").IsChecked = false;
             await FlushAsync();
             Require(!Editor(window, "Advanced note").IsVisible, "authored-detail-not-restored");
-            window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
+            window.GetNamedControl<CheckBox>("OptionalEditors").IsChecked = true;
             await FlushAsync();
             Input<TextBox>(window, "Advanced note").Text = "too-long-note";
             await FlushAsync();
-            window.GetControl<CheckBox>("OptionalEditors").IsChecked = false;
+            window.GetNamedControl<CheckBox>("OptionalEditors").IsChecked = false;
             await FlushAsync();
             Require(Editor(window, "Advanced note").IsVisible && Editor(window, "Owner").IsVisible, "invalid-hidden");
             Input<TextBox>(window, "Advanced note").Text = "";
@@ -212,7 +212,7 @@ internal static class Program
             Pass();
 
             _currentCheck = "D04-json-yaml-dotenv-import";
-            window.GetControl<ComboBox>("ImportPurpose").SelectedIndex = 1;
+            window.GetNamedControl<ComboBox>("ImportPurpose").SelectedIndex = 1;
             foreach (var (id, file, content) in new[]
             {
                 ("config", "import.json", "{\"name\":\"JSON imported\"}"),
@@ -226,7 +226,7 @@ internal static class Program
                 await FlushAsync();
                 string path = Path.Combine(directory, file);
                 await File.WriteAllTextAsync(path, content);
-                window.GetControl<TextBox>("ExistingFilePath").Text = path;
+                window.GetNamedControl<TextBox>("ExistingFilePath").Text = path;
                 await ActionAsync(window, shell, "Import", () => shell.Status.StartsWith("import-", StringComparison.Ordinal));
                 Require(shell.Status == "import-ready", shell.Status switch
                 {
@@ -251,10 +251,10 @@ internal static class Program
             Input<TextBox>(window, "Owner age").Text = "23";
             await FlushAsync();
             foreach (string id in publisher.SelectedArtifactIds.ToArray()) Include(window, id, false);
-            Click(window.GetControl<Button>("PrepareBundle"));
+            Click(window.GetNamedControl<Button>("PrepareBundle"));
             Require(!publisher.CanSaveBundle, "empty-selection-ready");
             Include(window, "remote", true);
-            Click(window.GetControl<Button>("PrepareBundle"));
+            Click(window.GetNamedControl<Button>("PrepareBundle"));
             Require(!publisher.CanSaveBundle, "inactive-selection-ready");
             Include(window, "remote", false);
             Include(window, "config", true);
@@ -275,12 +275,12 @@ internal static class Program
 
             _currentCheck = "D07-bundle-preflight-recovery";
             Include(window, "environment", true);
-            Click(window.GetControl<Button>("PrepareBundle"));
+            Click(window.GetNamedControl<Button>("PrepareBundle"));
             Require(publisher.CanSaveBundle, "bundle-not-ready");
             await ActionAsync(window, shell, "SaveBundle", () => !shell.IsSaving && shell.Status.StartsWith("bundle-save-", StringComparison.Ordinal));
             Require(!File.Exists(Path.Combine(directory, "service.env")) && (await File.ReadAllBytesAsync(target)).AsSpan().SequenceEqual(original), "bundle-partial-preflight");
             File.Delete(target);
-            Click(window.GetControl<Button>("PrepareBundle"));
+            Click(window.GetNamedControl<Button>("PrepareBundle"));
             await ActionAsync(window, shell, "SaveBundle", () => !shell.IsSaving && shell.Status.StartsWith("bundle-save-", StringComparison.Ordinal));
             await VerifyJsonAsync(target, """{"name":"dotenv-imported","owner":{"name":"Synthetic private owner","age":23},"hosts":["native.example"]}""");
             Require(await File.ReadAllTextAsync(Path.Combine(directory, "service.env")) == "NAME=dotenv-imported\n", "bundle-environment-bytes");
@@ -299,12 +299,12 @@ internal static class Program
             delayed.SetResult("{\"name\":\"Stale import\"}"u8.ToArray());
             Require(!await pending.WaitAsync(TimeSpan.FromSeconds(10)) && workspace.Form!.Snapshot().Values["name"].GetString() == "Later edit", "stale-import");
             await PrepareAsync(window, shell);
-            Click(window.GetControl<Button>("Cancel"));
+            Click(window.GetNamedControl<Button>("Cancel"));
             Require(!publisher.CanSave && !publisher.CanSaveBundle && !shell.IsSaving, "cancel-stale-preparation");
             Pass();
 
             _currentCheck = "D10-value-free-feedback-retry";
-            window.GetControl<TextBox>("FileName").Text = "../unsafe.json";
+            window.GetNamedControl<TextBox>("FileName").Text = "../unsafe.json";
             await PrepareAsync(window, shell);
             await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
             Require(!publisher.CanSave && !shell.IsSaving, "failure-not-consumed");
@@ -313,12 +313,12 @@ internal static class Program
                 RequireSafe(AutomationProperties.GetName(control), directory);
                 RequireSafe(AutomationProperties.GetHelpText(control), directory);
             }
-            RequireSafe(window.GetControl<TextBlock>("Status").Text, directory);
-            RequireSafe(window.GetControl<TextBlock>("StatusHelp").Text, directory);
-            window.GetControl<TextBox>("FileName").Text = "retry.json";
+            RequireSafe(window.GetNamedControl<TextBlock>("Status").Text, directory);
+            RequireSafe(window.GetNamedControl<TextBlock>("StatusHelp").Text, directory);
+            window.GetNamedControl<TextBox>("FileName").Text = "retry.json";
             await PrepareAsync(window, shell);
             Require(publisher.CanSave, "retry-unavailable");
-            Click(window.GetControl<Button>("Cancel"));
+            Click(window.GetNamedControl<Button>("Cancel"));
             Pass();
 
             _currentCheck = "D18-shared-editing-presence-localized-actions";
@@ -573,7 +573,7 @@ internal static class Program
         retired.Text = "5";
         await FlushAsync();
         Select(window, shell, "config");
-        window.GetControl<TextBox>("OutputDirectory").Text = directory;
+        window.GetNamedControl<TextBox>("OutputDirectory").Text = directory;
         await PrepareAsync(window, shell);
         Input<ComboBox>(window, "Provider").SelectedItem = provider.Choices[1];
         await FlushAsync();
@@ -585,7 +585,7 @@ internal static class Program
         Require(form.InputRevision == switchedRevision &&
             form.Snapshot().Values["provider"].GetRawText() == """{"kind":"second"}""", "retired-branch-writes-answer");
 
-        window.GetControl<TextBox>("FileName").Text = "typed-before.json";
+        window.GetNamedControl<TextBox>("FileName").Text = "typed-before.json";
         await PrepareAsync(window, shell);
         await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
         string beforePath = Path.Combine(directory, "typed-before.json");
@@ -593,7 +593,7 @@ internal static class Program
             {"choice":1,"named":{"caption":"fixed caption","literal/key":7},"provider":{"kind":"second"},
              "rows.part":[{"count.part":1,"note.part":"first"},{"count.part":2,"note.part":"second"}]}
             """);
-        window.GetControl<TextBox>("FileName").Text = "typed-after.json";
+        window.GetNamedControl<TextBox>("FileName").Text = "typed-after.json";
         await PrepareAsync(window, shell);
         var prepared = publisher.Preparation;
         long revision = form.InputRevision;
@@ -608,7 +608,7 @@ internal static class Program
             form.ViewChanged += ViewChanged;
             try
             {
-                window.GetControl<ComboBox>("DefinitionLocale").SelectedItem = locale;
+                window.GetNamedControl<ComboBox>("DefinitionLocale").SelectedItem = locale;
                 await changed.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 await FlushAsync();
             }
@@ -659,7 +659,7 @@ internal static class Program
                 await FlushAsync();
                 Select(window, shell, "environment");
                 await PrepareAsync(window, shell);
-                Click(window.GetControl<Button>("Save"));
+                Click(window.GetNamedControl<Button>("Save"));
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 Task physical = shell.ActiveCompletion;
                 Task decision = CloseDecisionAsync(shell);
@@ -675,8 +675,8 @@ internal static class Program
                     await FlushAsync();
                     Require(window.IsVisible && !closed.Task.IsCompleted && shell.CloseDecisionRequired &&
                         shell.Publisher.CurrentPublication is { IsUnknown: true, IsSettled: false }, "close-unknown-not-retained");
-                    Button stay = window.GetControl<Button>("StayOpen");
-                    Button force = window.GetControl<Button>("ForceClose");
+                    Button stay = window.GetNamedControl<Button>("StayOpen");
+                    Button force = window.GetNamedControl<Button>("ForceClose");
                     Require(stay.IsEffectivelyVisible && stay.IsEffectivelyEnabled &&
                         force.IsEffectivelyVisible && force.IsEffectivelyEnabled &&
                         ReferenceEquals(stay.Command, shell.StayOpenCommand) &&
@@ -687,7 +687,7 @@ internal static class Program
                         !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(force)) &&
                         stay.Focus(), "close-controls-unreachable");
                     await CaptureAsync(window, check + "-unknown");
-                    RequireSafe(window.GetControl<TextBlock>("CloseStatus").Text, "Example service");
+                    RequireSafe(window.GetNamedControl<TextBlock>("CloseStatus").Text, "Example service");
                     if (check == "D17-close-stay-force")
                     {
                         Click(stay);
@@ -789,10 +789,10 @@ internal static class Program
             Select(window, shell, "environment");
             await PrepareAsync(window, shell);
             TextBox retainedControl = Input<TextBox>(window, "Service name");
-            Click(window.GetControl<Button>("Save"));
+            Click(window.GetNamedControl<Button>("Save"));
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
             Task completion = shell.ActiveCompletion;
-            Click(window.GetControl<Button>("Cancel"));
+            Click(window.GetNamedControl<Button>("Cancel"));
             Require(!completion.IsCompleted && shell.IsBusy && !shell.Publisher.CanSave &&
                 !await shell.Publisher.PrepareAsync(), "physical-owner-released");
             Require(borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8), "borrowed-input-cleared");
@@ -806,13 +806,13 @@ internal static class Program
             Require(receipt.IsSettled && receipt.CleanupFailed &&
                 receipt.Outcomes.Single().Result is { InstallationEstablished: true, VerificationSucceeded: false } &&
                 !shell.Publisher.CanSave, "historical-installation-lost");
-            TextBlock facts = window.GetControl<TextBlock>("PublicationReceipt");
+            TextBlock facts = window.GetNamedControl<TextBlock>("PublicationReceipt");
             Require(facts.Text is { Length: > 0 } text &&
                 !text.Contains("Example service", StringComparison.Ordinal), "receipt-rendering");
             Require(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(facts)) &&
                 !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(facts)) &&
                 ReferenceEquals(retainedControl, Input<TextBox>(window, "Service name")), "receipt-control-identity");
-            Require(window.GetControl<Button>("Cancel").Focus(), "settlement-keyboard-focus");
+            Require(window.GetNamedControl<Button>("Cancel").Focus(), "settlement-keyboard-focus");
             await CaptureAsync(window, "settlement-receipt");
         }
         finally
@@ -865,7 +865,7 @@ internal static class Program
         _currentStep = "event-load";
         await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json"), true);
         SelectChoice(window, shell, "operation", "File to prepare", "configuration-manifest");
-        window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
+        window.GetNamedControl<CheckBox>("OptionalEditors").IsChecked = true;
         Select(window, shell, "configuration-manifest");
         await FlushAsync();
         _currentStep = "event-name";
@@ -894,8 +894,8 @@ internal static class Program
         Select(window, shell, "configuration-manifest");
         foreach (string id in shell.Publisher.SelectedArtifactIds.ToArray()) Include(window, id, false);
         Include(window, "configuration-manifest", true);
-        window.GetControl<TextBox>("OutputDirectory").Text = directory;
-        window.GetControl<TextBox>("FileName").Text = "event-" + count.ToString(CultureInfo.InvariantCulture) + ".json";
+        window.GetNamedControl<TextBox>("OutputDirectory").Text = directory;
+        window.GetNamedControl<TextBox>("FileName").Text = "event-" + count.ToString(CultureInfo.InvariantCulture) + ".json";
         await PrepareAsync(window, shell);
         _currentStep = "event-save";
         await ActionAsync(window, shell, "Save", () => !shell.IsSaving && shell.Status.StartsWith("save-", StringComparison.Ordinal));
@@ -919,14 +919,14 @@ internal static class Program
                 Require(row.GetProperty("spec").GetProperty(member).ValueKind == JsonValueKind.Object, "event-required-objects");
             rowIndex++;
         }
-        Click(window.GetControl<Button>("PrepareBundle"));
+        Click(window.GetNamedControl<Button>("PrepareBundle"));
         Require(shell.Publisher.CanSaveBundle && shell.Publisher.SelectedArtifactIds.SequenceEqual(["configuration-manifest"]), "event-active-outputs");
-        Click(window.GetControl<Button>("Cancel"));
+        Click(window.GetNamedControl<Button>("Cancel"));
     }
 
     private static async Task LoadAsync(MainWindow window, DesktopShellViewModel shell, string path, bool success)
     {
-        window.GetControl<TextBox>("DefinitionPath").Text = path;
+        window.GetNamedControl<TextBox>("DefinitionPath").Text = path;
         await ActionAsync(window, shell, "LoadDefinition", () => success ? shell.Status == "definition-loaded" :
             shell.Status.StartsWith("definition-invalid", StringComparison.Ordinal) || shell.Status == "definition-unreadable");
         Require((shell.Workspace.Form is not null) == success && !shell.Publisher.CanSave, "definition-admission");
@@ -939,7 +939,7 @@ internal static class Program
         await LoadAsync(window, shell, definitionPath, true);
         ArtifactPublisherViewModel publisher = shell.Publisher;
         var form = shell.Workspace.Form!;
-        Require(window.GetControl<ComboBox>("ImportPurpose").SelectedIndex == 0, "comparison-not-default");
+        Require(window.GetNamedControl<ComboBox>("ImportPurpose").SelectedIndex == 0, "comparison-not-default");
         Select(window, shell, "config");
         TextBox name = Input<TextBox>(window, "Service name");
         name.Text = "Current native work";
@@ -948,7 +948,7 @@ internal static class Program
         long revision = form.InputRevision;
         string path = Path.Combine(directory, "comparison.json");
         await File.WriteAllTextAsync(path, """{"name":"Imported candidate"}""");
-        window.GetControl<TextBox>("ExistingFilePath").Text = path;
+        window.GetNamedControl<TextBox>("ExistingFilePath").Text = path;
         await ActionAsync(window, shell, "Import", () => publisher.HasImportComparison);
         Require(form.InputRevision == revision && name.Text == "Current native work" &&
             ReferenceEquals(preparation, publisher.Preparation) && publisher.CanSave,
@@ -1128,7 +1128,7 @@ internal static class Program
         shell.Publisher.PropertyChanged += Changed;
         try
         {
-            Click(window.GetControl<Button>(button));
+            Click(window.GetNamedControl<Button>(button));
             if (finished()) completion.TrySetResult();
             try { await completion.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
             catch (TimeoutException) { throw new QualificationException("action-timeout:" + button + ":" + shell.Status); }
@@ -1142,7 +1142,7 @@ internal static class Program
     }
 
     private static void Select(MainWindow window, DesktopShellViewModel shell, string id) =>
-        window.GetControl<ComboBox>("Artifact").SelectedItem = shell.Publisher.Artifacts.Single(item => item.Id == id);
+        window.GetNamedControl<ComboBox>("Artifact").SelectedItem = shell.Publisher.Artifacts.Single(item => item.Id == id);
 
     private static void SelectChoice(MainWindow window, DesktopShellViewModel shell, string fieldId, string title, string value)
     {
@@ -1177,7 +1177,7 @@ internal static class Program
         double originalWidth = window.Width;
         double originalHeight = window.Height;
         ThemeVariant? originalTheme = window.RequestedThemeVariant;
-        var scroll = window.GetControl<ScrollViewer>("WorkspaceScroll");
+        var scroll = window.GetNamedControl<ScrollViewer>("WorkspaceScroll");
         Vector originalOffset = scroll.Offset;
         foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         {

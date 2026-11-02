@@ -1,0 +1,118 @@
+<UserControl x:Class="Configurator.Desktop.Views.ArtifactPublicationView"
+    xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels" xmlns:definitions="using:Configurator.Core.Definitions"
+    xmlns:local="using:Configurator.Desktop.Views"
+    x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
+    <StackPanel Spacing="8">
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <StackPanel>
+          <TextBlock Text="{Binding Workspace.Strings[Artifact]}" />
+          <ComboBox Name="Artifact" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="{Binding Workspace.Strings[Artifact]}"
+                    ItemsSource="{Binding Publisher.Artifacts}"
+                    SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="definitions:ArtifactDefinition">
+                <TextBlock Text="{Binding Id}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Grid.Column="1">
+          <TextBlock Text="{Binding Workspace.Strings[FileName]}" />
+          <TextBox Name="FileName" Text="{Binding Publisher.FileName, Mode=TwoWay}" FlowDirection="LeftToRight" AutomationProperties.Name="{Binding Workspace.Strings[FileName]}" />
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="{Binding Workspace.Strings[BundleOutputs]}" />
+      <ItemsControl Name="ArtifactSelections" ItemsSource="{Binding Publisher.ArtifactSelections}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ArtifactSelectionViewModel">
+            <CheckBox Content="{Binding Id}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0"
+                      AutomationProperties.Name="{Binding AutomationName}"
+                      AutomationProperties.HelpText="{Binding Title}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="{Binding Publisher.ArtifactConsequences}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Publisher.ImportPurposeLabel}" />
+      <ComboBox Name="ImportPurpose" ItemsSource="{Binding Publisher.ImportPurposes}"
+                SelectedIndex="{Binding Publisher.ImportPurposeIndex, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Publisher.ImportPurposeLabel}"
+                AutomationProperties.HelpText="{Binding Publisher.ImportLimitHelp}" />
+      <TextBlock Text="{Binding Publisher.ImportLimitHelp}" TextWrapping="Wrap" />
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel>
+          <TextBlock Text="{Binding Workspace.Strings[ImportPath]}" TextWrapping="Wrap" />
+          <TextBox Name="ExistingFilePath" Text="{Binding Publisher.ExistingFilePath, Mode=TwoWay}" FlowDirection="LeftToRight"
+                   AutomationProperties.Name="{Binding Workspace.Strings[ImportPath]}" />
+        </StackPanel>
+        <Button Grid.Column="1" Name="SelectImport" Content="{Binding Workspace.Strings[ChooseImport]}"
+                Command="{Binding Publisher.SelectImportCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseImport]}"
+                VerticalAlignment="Bottom" />
+        <Button Grid.Column="2" Name="Import" Content="{Binding Publisher.ReviewFileLabel}"
+                AutomationProperties.Name="{Binding Publisher.ReviewFileLabel}"
+                Command="{Binding Publisher.ImportFileCommand}" VerticalAlignment="Bottom" />
+      </Grid>
+      <StackPanel Name="ImportComparison" IsVisible="{Binding Publisher.HasImportComparison}">
+        <local:ImportComparisonView DataContext="{Binding Publisher}" />
+      </StackPanel>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <StackPanel>
+        <TextBlock Text="{Binding Workspace.Strings[OutputDirectory]}" />
+        <TextBox Name="OutputDirectory" Text="{Binding Publisher.OutputDirectory, Mode=TwoWay}" FlowDirection="LeftToRight"
+                 AutomationProperties.Name="{Binding Workspace.Strings[OutputDirectory]}" />
+      </StackPanel>
+        <Button Grid.Column="1" Name="SelectOutput" Content="{Binding Workspace.Strings[ChooseFolder]}"
+                Command="{Binding Publisher.SelectOutputDirectoryCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseFolder]}"
+                VerticalAlignment="Bottom" />
+      </Grid>
+      <WrapPanel>
+        <Button Name="Validate" Content="{Binding Workspace.Strings[Validate]}" Margin="0,0,8,0" Command="{Binding Workspace.ValidateCommand}" />
+        <Button Name="Prepare" Content="{Binding Workspace.Strings[Prepare]}" Margin="0,0,8,0"
+                Command="{Binding Publisher.PrepareCommand}" />
+        <Button Name="Save" Content="{Binding Workspace.Strings[Save]}" Margin="0,0,8,0"
+                Command="{Binding Publisher.SaveCommand}" />
+        <Button Name="PrepareBundle" Content="{Binding Workspace.Strings[PrepareBundle]}" Margin="0,0,8,0"
+                Command="{Binding Publisher.PrepareBundleCommand}" />
+        <Button Name="SaveBundle" Content="{Binding Workspace.Strings[SaveBundle]}" Margin="0,0,8,0"
+                Command="{Binding Publisher.SaveBundleCommand}" />
+        <Button Name="Cancel" Content="{Binding Workspace.Strings[Cancel]}" Command="{Binding CancelCommand}" />
+      </WrapPanel>
+      <TextBlock Name="ProtectedCapability" Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap" />
+      <TextBlock Name="Status" Text="{Binding Status}" TextWrapping="Wrap"
+                 AutomationProperties.Name="{Binding Workspace.Strings[OperationStatus]}" />
+      <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
+                 AutomationProperties.Name="{Binding Workspace.Strings[NextStep]}" />
+      <Border IsVisible="{Binding IsClosing}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+              BorderThickness="1" Padding="12">
+        <StackPanel Spacing="8">
+          <TextBlock Name="CloseStatus" Text="{Binding CloseMessage}" TextWrapping="Wrap"
+                     AutomationProperties.Name="{Binding Workspace.Strings[OperationStatus]}" />
+          <WrapPanel IsVisible="{Binding CloseDecisionRequired}">
+            <Button Name="StayOpen" Content="{Binding Workspace.Strings[StayOpen]}" Margin="0,0,8,0"
+                    Command="{Binding StayOpenCommand}" AutomationProperties.Name="{Binding Workspace.Strings[StayOpenName]}"
+                    AutomationProperties.HelpText="{Binding Workspace.Strings[StayOpenHelp]}" />
+            <Button Name="ForceClose" Content="{Binding Workspace.Strings[ForceClose]}" Command="{Binding ForceCloseCommand}"
+                    AutomationProperties.Name="{Binding Workspace.Strings[ForceCloseName]}"
+                    AutomationProperties.HelpText="{Binding Workspace.Strings[ForceCloseHelp]}" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+      <TextBlock Text="{Binding Workspace.Strings[PublicationFacts]}" FontWeight="SemiBold" />
+      <TextBlock Name="PublicationReceipt" Text="{Binding Publisher.PublicationSummary}" TextWrapping="Wrap"
+                 AutomationProperties.Name="{Binding Workspace.Strings[PublicationFacts]}"
+                 AutomationProperties.HelpText="{Binding Workspace.Strings[PublicationHelp]}" />
+      <Expander Header="{Binding Workspace.Strings[PublicationHistory]}" AutomationProperties.Name="{Binding Workspace.Strings[PublicationHistory]}">
+        <ItemsControl Name="PublicationHistory" ItemsSource="{Binding Publisher.PublicationHistoryText}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,4" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Expander>
+    </StackPanel>
+</UserControl>

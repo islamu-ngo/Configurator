@@ -38,18 +38,18 @@ public sealed class MainWindowBindingTests
                     window.Show();
                     loader.LoadDefinition(ViewModels.DefinitionEditingTests.Definition().CanonicalBytes.ToArray());
                     Dispatcher.UIThread.RunJobs();
-                    string? english = window.GetControl<Button>("Validate").Content?.ToString();
+                    string? english = window.GetNamedControl<Button>("Validate").Content?.ToString();
                     string englishPin = loader.DefinitionPin;
-                    object? selectedExperience = window.GetControl<ComboBox>("Experience").SelectedItem;
+                    object? selectedExperience = window.GetNamedControl<ComboBox>("Experience").SelectedItem;
                     workspace.SelectedLocale = "ar";
                     Dispatcher.UIThread.RunJobs();
-                    string? arabic = window.GetControl<Button>("Validate").Content?.ToString();
+                    string? arabic = window.GetNamedControl<Button>("Validate").Content?.ToString();
                     string arabicPin = loader.DefinitionPin;
-                    var experience = window.GetControl<ComboBox>("Experience");
+                    var experience = window.GetNamedControl<ComboBox>("Experience");
                     bool experienceSelected = selectedExperience is not null &&
                         ReferenceEquals(experience.SelectedItem, selectedExperience) && experience.SelectionBoxItem is not null;
                     bool pathsLeftToRight = PathEditorNames
-                        .All(name => window.GetControl<TextBox>(name).FlowDirection == FlowDirection.LeftToRight);
+                        .All(name => window.GetNamedControl<TextBox>(name).FlowDirection == FlowDirection.LeftToRight);
                     bool readable = true;
                     foreach (ThemeVariant variant in new[] { ThemeVariant.Light, ThemeVariant.Dark, DesktopTheme.HighContrast })
                     {
@@ -121,15 +121,15 @@ public sealed class MainWindowBindingTests
                     Dispatcher.UIThread.RunJobs();
                     return (
                         commands: ActionNames
-                            .All(name => window.GetControl<Button>(name).Command is not null),
-                        declarative: window.FindControl<ItemsControl>("Fields") is { ItemCount: > 0 },
-                        artifactLabel: window.GetControl<ComboBox>("Artifact").SelectedIndex >= 0 &&
-                            window.GetControl<ComboBox>("Artifact").SelectionBoxItem is not null &&
-                            window.GetControl<ComboBox>("Artifact").GetVisualDescendants()
+                            .All(name => window.GetNamedControl<Button>(name).Command is not null),
+                        declarative: window.FindNamedControl<ItemsControl>("Fields") is { ItemCount: > 0 },
+                        artifactLabel: window.GetNamedControl<ComboBox>("Artifact").SelectedIndex >= 0 &&
+                            window.GetNamedControl<ComboBox>("Artifact").SelectionBoxItem is not null &&
+                            window.GetNamedControl<ComboBox>("Artifact").GetVisualDescendants()
                                 .OfType<TextBlock>().Any(control => control.Text == publisher.ArtifactId &&
                                     control.IsEffectivelyVisible && control.Bounds.Width > 0),
-                        gated: !window.GetControl<Button>("Save").IsEffectivelyEnabled &&
-                            !window.GetControl<Button>("SaveBundle").IsEffectivelyEnabled);
+                        gated: !window.GetNamedControl<Button>("Save").IsEffectivelyEnabled &&
+                            !window.GetNamedControl<Button>("SaveBundle").IsEffectivelyEnabled);
                 }
                 finally { window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));

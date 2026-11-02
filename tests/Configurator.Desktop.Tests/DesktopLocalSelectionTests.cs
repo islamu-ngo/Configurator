@@ -50,7 +50,7 @@ public sealed class DesktopLocalSelectionTests
                     if (args.PropertyName == nameof(shell.IsSelecting) && !shell.IsSelecting)
                         settled.TrySetResult();
                 };
-                var button = window.GetControl<Button>("SelectOutput");
+                var button = window.GetNamedControl<Button>("SelectOutput");
                 button.Focus();
                 button.Command!.Execute(button.CommandParameter);
                 if (outcome == "close") window.Close();
@@ -64,14 +64,14 @@ public sealed class DesktopLocalSelectionTests
                 return (focused: outcome == "replacement"
                         ? current.GetLogicalDescendants().OfType<TextBox>().Any(control =>
                             AutomationProperties.GetName(control) == "Service name" && control.IsFocused)
-                        : current.GetControl<Button>("SelectOutput").IsFocused,
+                        : current.GetNamedControl<Button>("SelectOutput").IsFocused,
                     directoryUnchanged: shell.Publisher.OutputDirectory == directory,
                     closedCleanly: outcome != "close" || current.DataContext is null && shell.Workspace.Form is null,
                     safe: current.GetLogicalDescendants().OfType<Control>().All(control =>
                         !(AutomationProperties.GetName(control)?.Contains("synthetic-private", StringComparison.Ordinal) ?? false) &&
                         !(AutomationProperties.GetHelpText(control)?.Contains("synthetic-private", StringComparison.Ordinal) ?? false)) &&
-                        !(current.GetControl<TextBlock>("Status").Text?.Contains("synthetic-private", StringComparison.Ordinal) ?? false) &&
-                        !(current.GetControl<TextBlock>("StatusHelp").Text?.Contains("synthetic-private", StringComparison.Ordinal) ?? false));
+                        !(current.GetNamedControl<TextBlock>("Status").Text?.Contains("synthetic-private", StringComparison.Ordinal) ?? false) &&
+                        !(current.GetNamedControl<TextBlock>("StatusHelp").Text?.Contains("synthetic-private", StringComparison.Ordinal) ?? false));
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
             await Assert.That(observed.directoryUnchanged).IsTrue();
             await Assert.That(observed.safe).IsTrue();
