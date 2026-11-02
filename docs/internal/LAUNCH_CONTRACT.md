@@ -79,6 +79,12 @@ changes cannot upgrade a running workspace.
 
 ## Definition source boundary
 
+`Open` owns and disposes its `BrowserDefinitionSource`. A JavaScript module
+returned after source disposal is released before any fetch or registry
+admission. Concurrent initialization retains one code-module handle and releases
+redundant handles; definition transport bytes retain their existing clearing and
+generation fences.
+
 Optional `DefinitionStoreCatalog` discovery is browser-owned public metadata,
 loaded only on catalogue/source pages without an active workspace. Packaged same-origin
 snapshots use a separate bounded asset reader; Core admission, exact indexed

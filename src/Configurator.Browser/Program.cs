@@ -10,7 +10,6 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddSingleton(BrowserDefinitionRegistry.LoadBundled());
 builder.Services.AddScoped<BrowserOfflinePolicy>();
-builder.Services.AddScoped<BrowserDefinitionSource>();
 builder.Services.AddScoped<AppearanceThemeService>();
 builder.Services.AddScoped<BrowserNavigationState>();
 builder.Services.AddScoped<WorkspaceSearchState>();

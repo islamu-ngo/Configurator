@@ -33,7 +33,17 @@ public sealed class BrowserDefinitionSource(BrowserDefinitionRegistry registry, 
                 registry.Admit(retained);
                 return cachedSelection;
             }
-            _module ??= await javascript.InvokeAsync<IJSObjectReference>("import", cancellation.Token, "./js/browser-definition-source.js");
+            if (_module is null)
+            {
+                IJSObjectReference module = await javascript.InvokeAsync<IJSObjectReference>("import", cancellation.Token, "./js/browser-definition-source.js");
+                if (_disposed)
+                {
+                    await module.DisposeAsync();
+                    throw new BrowserLaunchException("source-cancelled");
+                }
+                if (_module is null) _module = module;
+                else if (!ReferenceEquals(_module, module)) await module.DisposeAsync();
+            }
             CheckCurrent(generation, cancellation.Token);
             using CancellationTokenRegistration registration = cancellation.Token.Register(() => { _ = AbortRemoteAsync(); });
             bytes = await _module.InvokeAsync<byte[]>("fetchDefinition", cancellation.Token, request.Source.AbsoluteUri, MaximumDocumentBytes);

@@ -54,6 +54,24 @@ public sealed class BrowserDefinitionSourceTests
         """;
 
     [Test]
+    public async Task DisposalDuringModuleImportReleasesLateHandleWithoutFetching()
+    {
+        await using var javascript = new DelayedSourceModule();
+        var registry = new BrowserDefinitionRegistry([]);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        await using var source = new BrowserDefinitionSource(registry, javascript, policy);
+        var request = BrowserDefinitionPointer.Parse("#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
+        Task<BrowserLaunchSelection> pending = source.FetchAsync(request);
+        await javascript.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await source.DisposeAsync();
+        javascript.Release.SetResult();
+        await Assert.That(async () => await pending.WaitAsync(TimeSpan.FromSeconds(5))).Throws<BrowserLaunchException>();
+        await Assert.That(javascript.Disposed).IsTrue();
+        await Assert.That(javascript.Fetched).IsFalse();
+        await Assert.That(registry.Current.Definitions).IsEmpty();
+    }
+
+    [Test]
     public async Task LocalAuthoringAdmissionIsPreAnswerAndNeverInvokesNetworkOrStorage()
     {
         await using var context = BrowserFixture.Context();
@@ -313,6 +331,35 @@ public sealed class BrowserDefinitionSourceTests
         }
         await Assert.That(component.Find("[data-code=source-admitted]").TextContent).Contains("admitted");
         await Assert.That(component.FindAll("button").Any(button => button.TextContent == "Open configuration workspace")).IsTrue();
+    }
+
+    private sealed class DelayedSourceModule : IJSRuntime, IJSObjectReference
+    {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal bool Disposed { get; private set; }
+        internal bool Fetched { get; private set; }
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "import")
+            {
+                Entered.TrySetResult();
+                await Release.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                return (TValue)(object)this;
+            }
+            if (identifier == "fetchDefinition") Fetched = true;
+            return default!;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed = true;
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class GatedDefinitionStream(byte[] bytes) : MemoryStream(bytes)
