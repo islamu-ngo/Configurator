@@ -1,10 +1,10 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Presentation;
 
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
+using Configurator.Core.Dotenv;
 using Configurator.Core.Environment;
 
 public sealed partial class DefinitionFormModel

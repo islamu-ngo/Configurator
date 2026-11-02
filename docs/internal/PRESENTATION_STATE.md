@@ -4,9 +4,15 @@
 > **Status:** Implemented shared state; surface and package qualification remain scoped to dated evidence
 > **Owner:** Presentation
 > **Last Verified:** 2026-10-31
-> **Source Anchors:** `src/Configurator.Presentation/Presentation/`, `src/Configurator.Core/Definitions/`
+> **Source Anchors:** `src/Configurator.Presentation/`, `src/Configurator.Core/Definitions/`
 
 ## Recursive editing and localized display
+
+Discovery carries the admitted `DefinitionNodeType` and a typed
+`DefinitionDiscoveryMatchReason`. Match reasons use explicit public tokens at
+the rendering boundary. Facet values remain strings because section and output
+facets contain definition-owned identifiers; operation status and invalidation
+already use the shared workspace enums.
 
 The [technical conformance profile](DEFINITION_CONFORMANCE_PROFILE.md) owns
 admitted semantics and source-observed limits; this contract owns workspace
@@ -40,6 +46,18 @@ discriminator and removes the old branch payload. Core alone initializes missing
 eligible children. Requiredness never creates absent containers. Reset removes
 the override and omission and advances one input revision, rather than
 materializing initialized values into the supplied snapshot.
+
+`AddMapEntry` owns literal-key admission, duplicate/declared-key rejection and
+`maxProperties` enforcement under the same mutation gate as ordinary edits.
+Rejected additions preserve answers and input revision. Nested `SetValue`
+also checks the parent mapping bound before inserting a new property, so an
+adapter cannot bypass the limit by using the lower-level edit operation.
+The same check applies to each missing ancestor created by a nested edit;
+replacing an existing null container does not consume another property slot.
+Desktop, Terminal and Browser delegate map creation to this shared operation;
+their local eligibility checks only control presentation. Collection methods
+and `DefinitionFieldInput` have separate files while retaining the same editing
+state and object/Monitor synchronization domain.
 
 An optional consumer capability set is checked before the form creates answer
 editors. Adapters must advertise their actual editing support there; generic
@@ -268,6 +286,12 @@ literal schema children, root positions, section membership and experience order
 artifact bindings and activation-controller references. List-item schema metadata
 is indexed once, but actual row presence and logical row tokens remain workspace
 state. This index contains no answers, origins, activity or readiness.
+Path lookup uses immutable `DefinitionPath` keys with copied ordinal segments,
+including root, empty names, slashes and tildes. Facts and discovery relevance
+share these keys without JSON serialization. Stable logical editor and row
+identities remain separate from current physical paths, so moving a row does
+not change its editor identity.
+
 `GetFieldEditor` retrieves the existing owned root editor and schema through that literal-ID
 index. Browser field mounting uses it rather than repeatedly scanning roots and
 decoding definition IDs from JSON. Cached display metadata and frozen binding

@@ -6,12 +6,12 @@ using Configurator.Core.Definitions;
 /// <summary>One current input revision's private derived facts, without another answer tree.</summary>
 internal sealed class DefinitionFormFacts
 {
-    private readonly Dictionary<string, DefinitionNodeState> _nodes = new(StringComparer.Ordinal);
+    private readonly Dictionary<DefinitionPath, DefinitionNodeState> _nodes = [];
     private readonly DefinitionFormIndex _index;
     private readonly HashSet<string> _activeFields;
-    private readonly Dictionary<string, string[]> _correctionPaths = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string[]> _promotionPaths = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _requiredPaths = new(StringComparer.Ordinal);
+    private readonly Dictionary<DefinitionPath, string[]> _correctionPaths = [];
+    private readonly Dictionary<DefinitionPath, string[]> _promotionPaths = [];
+    private readonly HashSet<DefinitionPath> _requiredPaths = [];
     private readonly record struct EntryState(DefinitionFormIndex.Node Metadata, DefinitionFormSection Section,
         DefinitionNodeState Node, bool InputError, bool Deferred, DefinitionAnswerOrigin Origin,
         IReadOnlyList<string>? Artifacts, IReadOnlyList<string>? BindingKeys);
@@ -85,10 +85,10 @@ internal sealed class DefinitionFormFacts
         DefinitionFormProgress CountProgress(IEnumerable<DefinitionNodeState> nodes,
             IEnumerable<DefinitionDiagnostic> diagnostics, IReadOnlyList<DefinitionDiagnostic> inputErrors)
         {
-            string Key(DefinitionDiagnostic diagnostic) =>
+            DefinitionPath Key(DefinitionDiagnostic diagnostic) =>
                 _index.PathKey([diagnostic.FieldId, .. diagnostic.RelativePath]);
             var invalidPaths = diagnostics.Where(diagnostic => diagnostic.Code != "value-required")
-                .Concat(inputErrors).Select(Key).ToHashSet(StringComparer.Ordinal);
+                .Concat(inputErrors).Select(Key).ToHashSet();
             bool HasInputError(DefinitionNodeState node)
             {
                 for (int diagnosticIndex = 0; diagnosticIndex < inputErrors.Count; diagnosticIndex++)
@@ -121,10 +121,10 @@ internal sealed class DefinitionFormFacts
             entry.Artifacts, entry.BindingKeys, entry.Node.IsActive ? [] :
                 ActiveControllers(entry.Metadata, index, activeFields))).ToArray()));
 
-    private static Lazy<IReadOnlySet<string>> CreateRelevantPaths(EntryState[] entries, DefinitionFormIndex index) =>
+    private static Lazy<IReadOnlySet<DefinitionPath>> CreateRelevantPaths(EntryState[] entries, DefinitionFormIndex index) =>
         new(() =>
         {
-            var paths = new HashSet<string>(StringComparer.Ordinal);
+            var paths = new HashSet<DefinitionPath>();
             foreach (EntryState entry in entries)
             {
                 DefinitionNodeState node = entry.Node;
@@ -163,7 +163,7 @@ internal sealed class DefinitionFormFacts
     internal DefinitionFormProgress Progress { get; }
     internal IReadOnlyDictionary<string, DefinitionFormProgress> SectionProgress { get; }
     internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> Entries { get; }
-    internal Lazy<IReadOnlySet<string>> RelevantPaths { get; }
+    internal Lazy<IReadOnlySet<DefinitionPath>> RelevantPaths { get; }
     internal IEnumerable<string[]> CorrectionPaths => _correctionPaths.Values;
     internal IEnumerable<string[]> PromotionPaths => _promotionPaths.Values;
     internal bool IsActive(string fieldId) => _activeFields.Contains(fieldId);
@@ -177,7 +177,7 @@ internal sealed class DefinitionFormFacts
         for (int length = 1; length <= path.Count; length++)
         {
             string[] prefix = path.Take(length).ToArray();
-            string key = _index.PathKey(prefix);
+            DefinitionPath key = _index.PathKey(prefix);
             if (correction) _correctionPaths.TryAdd(key, prefix);
             else _requiredPaths.Add(key);
             if (promote) _promotionPaths.TryAdd(key, prefix);

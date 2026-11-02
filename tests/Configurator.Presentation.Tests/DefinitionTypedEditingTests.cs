@@ -18,7 +18,7 @@ public sealed class DefinitionTypedEditingTests
         {
             string[] path = ["map", key];
             await Assert.That(form.GetEditorState(path)).IsNotNull();
-            await Assert.That(form.GetEditorState(path)!.RelativePath.Single()).IsEqualTo(key);
+            await Assert.That(form.GetEditorState(path)!.IsProvided).IsTrue();
             await Assert.That(form.Snapshot().Values["map"].GetProperty(key).GetInt32()).IsEqualTo(4);
         }
         await Assert.That(form.GetEditorState(["map", "a", "b"])).IsNull();

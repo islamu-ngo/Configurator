@@ -33,17 +33,10 @@ public sealed partial class DefinitionFormModel
 
     private bool SecretEligible(IReadOnlyList<string> path)
     {
-        if (_disposed || !TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) || !CanEdit(path) ||
-            Facts.EditorState(path)?.IsActive != true ||
-            node.Schema.Secret is not { Acquisition: DefinitionSecretAcquisition.Local, Generation: not null }) return false;
-        if (ReadOnly(Definition.Configuration) || Omitted.Any(omitted =>
-            omitted.Segments.Count < path.Count && path.Take(omitted.Segments.Count).SequenceEqual(omitted.Segments))) return false;
-        for (int count = 1; count <= path.Count; count++)
-            if (GetEditorSchema(path.Take(count).ToArray()) is { } ancestor && ReadOnly(ancestor)) return false;
-        return true;
-
-        static bool ReadOnly(DefinitionNode schema) => schema.Keywords.TryGetProperty("readOnly", out JsonElement readOnly)
-            && readOnly.ValueKind == JsonValueKind.True;
+        if (_disposed || !TryMetadataNode(path, out _, out _) || !CanEdit(path) ||
+            Facts.EditorState(path)?.IsActive != true) return false;
+        return DefinitionSecretOperations.Resolve(Definition, Omitted.Select(omitted => DataPath(omitted.Segments)),
+            Facts.Validation, DataPath(path), out _) is not null;
     }
 
     /// <summary>Copies transient input, applies only to the captured editor revision, and owns any original password until dismissal.</summary>
@@ -99,6 +92,10 @@ public sealed partial class DefinitionFormModel
                 if (!result.Succeeded) return Reject(result.ErrorCode ?? "secret-generation-failed");
                 JsonElement value = JsonSerializer.SerializeToElement(result.Output!.CopyValue());
                 if (!DefinitionValidator.ValueValid(GetEditorSchema(location)!, value))
+                    return Reject("secret-generated-value-invalid");
+                AnswerSnapshot candidate = DefinitionSecretOperations.Replace(Snapshot(), Facts.Validation, DataPath(location), value);
+                DefinitionValidationResult candidateValidation = DefinitionValidator.Validate(Definition, candidate, cancellationToken);
+                if (DefinitionSecretOperations.Resolve(Definition, candidate.Omitted, candidateValidation, DataPath(location), out _) is null)
                     return Reject("secret-generated-value-invalid");
                 if (!SetValue(location, value))
                     return Reject("secret-apply-failed");

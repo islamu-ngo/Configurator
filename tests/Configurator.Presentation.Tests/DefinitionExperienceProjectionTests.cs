@@ -399,7 +399,7 @@ public sealed class DefinitionExperienceProjectionTests
         form.EditValue(["enabled"], "false");
         form.SetDiscovery("ENABLE_INTEGRATION");
         await Assert.That(form.Projection.Matches.Single().Entry.FieldId).IsEqualTo("enabled");
-        await Assert.That(form.Projection.Matches.Single().MatchReason).IsEqualTo("binding-key");
+        await Assert.That(form.Projection.Matches.Single().MatchReason).IsEqualTo(DefinitionDiscoveryMatchReason.BindingKey);
         long revision = form.InputRevision;
         form.SetDiscoverySelection(new("absent", facets:
             new Dictionary<DefinitionDiscoveryFacet, IReadOnlyList<string>>

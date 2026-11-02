@@ -10,13 +10,14 @@ public sealed class DefinitionDiscoveryEntry
 {
     private readonly string? _schemaPath;
     public DefinitionDiscoveryEntry(string fieldId, IEnumerable<string> relativePath, string title,
-        string sectionId, string sectionTitle, string type, FieldSensitivity sensitivity,
+        string sectionId, string sectionTitle, DefinitionNodeType type, FieldSensitivity sensitivity,
         bool isActive, bool isRequired, bool isProvided, bool isReady, bool needsAttention,
         bool isSecretDeferred, DefinitionAnswerOrigin origin, IEnumerable<string>? searchTerms = null,
         string? help = null, string? instructions = null, IEnumerable<string>? outputArtifactIds = null,
         IEnumerable<string>? bindingKeys = null, int sectionOrder = 0,
         IEnumerable<string>? activeControllerFields = null)
     {
+        if (!Enum.IsDefined(type)) throw new ArgumentOutOfRangeException(nameof(type));
         FieldId = fieldId;
         RelativePath = Array.AsReadOnly(relativePath.ToArray());
         Title = title;
@@ -45,7 +46,7 @@ public sealed class DefinitionDiscoveryEntry
     public string Title { get; }
     public string SectionId { get; }
     public string SectionTitle { get; }
-    public string Type { get; }
+    public DefinitionNodeType Type { get; }
     public FieldSensitivity Sensitivity { get; }
     public bool IsActive { get; }
     public bool IsRequired { get; }
@@ -72,7 +73,7 @@ public sealed class DefinitionDiscoveryEntry
         Title = metadata.Title ?? section.Title + " item";
         SectionId = section.Id;
         SectionTitle = section.Title;
-        Type = metadata.Type;
+        Type = metadata.Schema.Type;
         Sensitivity = state.Sensitivity;
         IsActive = state.IsActive;
         IsRequired = state.IsRequired;
@@ -148,7 +149,7 @@ public sealed class DefinitionDiscoverySelection
     public IReadOnlyDictionary<DefinitionDiscoveryFacet, IReadOnlyList<string>> Facets { get; }
 }
 
-public sealed record DefinitionDiscoveryMatch(DefinitionDiscoveryEntry Entry, string MatchReason, int Rank);
+public sealed record DefinitionDiscoveryMatch(DefinitionDiscoveryEntry Entry, DefinitionDiscoveryMatchReason MatchReason, int Rank);
 public sealed record DefinitionDiscoveryFacetOption(string Value, int Count);
 
 public sealed class DefinitionDiscoverySnapshot
@@ -169,6 +170,18 @@ public sealed class DefinitionDiscoverySnapshot
 /// <summary>Deterministic discovery over admitted metadata; it neither reads nor changes workspace answers.</summary>
 public static class DefinitionDiscovery
 {
+    public static string ToToken(this DefinitionDiscoveryMatchReason reason) => reason switch
+    {
+        DefinitionDiscoveryMatchReason.All => "all",
+        DefinitionDiscoveryMatchReason.BindingKey => "binding-key",
+        DefinitionDiscoveryMatchReason.FieldId => "field-id",
+        DefinitionDiscoveryMatchReason.Title => "title",
+        DefinitionDiscoveryMatchReason.SearchTerm => "search-term",
+        DefinitionDiscoveryMatchReason.Help => "help",
+        DefinitionDiscoveryMatchReason.Metadata => "metadata",
+        _ => throw new ArgumentOutOfRangeException(nameof(reason))
+    };
+
     public static DefinitionDiscoverySnapshot Search(IEnumerable<DefinitionDiscoveryEntry> entries,
         DefinitionDiscoverySelection selection)
     {
@@ -260,19 +273,20 @@ public static class DefinitionDiscovery
     private static DefinitionDiscoveryMatch Match(DefinitionDiscoveryEntry entry, DefinitionDiscoverySelection selection)
     {
         string query = selection.Query;
-        if (query.Length == 0) return new(entry, "all", 0);
-        if (entry.BindingKeys.Contains(query, StringComparer.OrdinalIgnoreCase)) return new(entry, "binding-key", 0);
-        if (string.Equals(entry.FieldId, query, StringComparison.OrdinalIgnoreCase)) return new(entry, "field-id", 0);
-        if (string.Equals(entry.Title, query, StringComparison.OrdinalIgnoreCase)) return new(entry, "title", 1);
-        if (entry.Title.StartsWith(query, StringComparison.OrdinalIgnoreCase)) return new(entry, "title", 2);
+        if (query.Length == 0) return new(entry, DefinitionDiscoveryMatchReason.All, 0);
+        if (entry.BindingKeys.Contains(query, StringComparer.OrdinalIgnoreCase)) return new(entry, DefinitionDiscoveryMatchReason.BindingKey, 0);
+        if (string.Equals(entry.FieldId, query, StringComparison.OrdinalIgnoreCase)) return new(entry, DefinitionDiscoveryMatchReason.FieldId, 0);
+        if (string.Equals(entry.Title, query, StringComparison.OrdinalIgnoreCase)) return new(entry, DefinitionDiscoveryMatchReason.Title, 1);
+        if (entry.Title.StartsWith(query, StringComparison.OrdinalIgnoreCase)) return new(entry, DefinitionDiscoveryMatchReason.Title, 2);
         if (selection.QueryTerms.All(token => entry.Title.Contains(token, StringComparison.OrdinalIgnoreCase)))
-            return new(entry, "title", 3);
+            return new(entry, DefinitionDiscoveryMatchReason.Title, 3);
         if (selection.QueryTerms.All(token => entry.SearchTerms.Any(term =>
             term.Contains(token, StringComparison.OrdinalIgnoreCase))))
-            return new(entry, "search-term", 4);
+            return new(entry, DefinitionDiscoveryMatchReason.SearchTerm, 4);
         return new(entry, selection.QueryTerms.Any(token =>
             (entry.Help?.Contains(token, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (entry.Instructions?.Contains(token, StringComparison.OrdinalIgnoreCase) ?? false)) ? "help" : "metadata", 5);
+            (entry.Instructions?.Contains(token, StringComparison.OrdinalIgnoreCase) ?? false))
+            ? DefinitionDiscoveryMatchReason.Help : DefinitionDiscoveryMatchReason.Metadata, 5);
     }
 
     private static int CompareMatches(DefinitionDiscoveryMatch left, DefinitionDiscoveryMatch right)

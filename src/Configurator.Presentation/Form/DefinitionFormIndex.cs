@@ -95,7 +95,7 @@ internal sealed class DefinitionFormIndex
             field => "field-" + definition.FamilyId.ToString("N") + "-" +
                 Convert.ToHexString(Encoding.UTF8.GetBytes(field.Id)), StringComparer.Ordinal);
         RootPathKeys = definition.Fields.ToDictionary(field => field.Id,
-            field => JsonSerializer.Serialize(new[] { field.Id }), StringComparer.Ordinal);
+            field => DefinitionPath.FromSegments([field.Id]), StringComparer.Ordinal);
         SectionsByField = sections.SelectMany(section => section.Fields.Select(field => (field, section)))
             .ToDictionary(item => item.field, item => item.section, StringComparer.Ordinal);
         ExperienceSections = experiences.ToDictionary(experience => experience.Id, experience =>
@@ -118,13 +118,13 @@ internal sealed class DefinitionFormIndex
     internal IReadOnlyList<string> FieldIds { get; }
     internal Dictionary<string, IReadOnlyList<string>> RootPaths { get; }
     internal Dictionary<string, string> RootIdentities { get; }
-    private Dictionary<string, string> RootPathKeys { get; }
+    private Dictionary<string, DefinitionPath> RootPathKeys { get; }
     internal Dictionary<string, DefinitionFormSection> SectionsByField { get; }
     internal Dictionary<string, IReadOnlyList<DefinitionFormSection>> ExperienceSections { get; }
     internal Dictionary<string, (IReadOnlyList<string> Artifacts, IReadOnlyList<string> Keys)> Bindings { get; }
 
-    internal string PathKey(IReadOnlyList<string> path) =>
-        path.Count == 1 ? RootPathKeys[path[0]] : JsonSerializer.Serialize(path);
+    internal DefinitionPath PathKey(IReadOnlyList<string> path) =>
+        path.Count == 1 ? RootPathKeys[path[0]] : DefinitionPath.FromSegments(path);
 
     private static void CollectBindings(JsonElement projection, string artifact, string[] keys,
         Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)> bindings,

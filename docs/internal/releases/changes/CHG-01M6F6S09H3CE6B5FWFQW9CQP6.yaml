@@ -1,0 +1,30 @@
+Change-Id: CHG-01M6F6S09H3CE6B5FWFQW9CQP6
+Title: "Keep map edits within shared workspace bounds"
+Type: fix
+Scope: privacy
+Summary: "Centralize literal map insertion and ancestor bounds while preserving workspace generations, structural identity and private answer ownership."
+Group: workspace-map-bounds
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: Discovery projection type and match reasons use closed enums instead of string values; update C# consumers and render explicit match tokens.
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: Central map insertion and nested edits reject duplicate keys and ancestor property-limit violations without changing answers or input revision; existing custody and generation fences remain intact.
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: Rebuild interactive adapters against shared workspace contracts and use AddMapEntry for map insertion.
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: Rejected map additions preserve the existing answers and workspace revision instead of inserting over-limit properties.

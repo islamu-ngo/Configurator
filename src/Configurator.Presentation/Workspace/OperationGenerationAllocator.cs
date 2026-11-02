@@ -1,17 +1,5 @@
 namespace Configurator.Presentation;
 
-using System.Globalization;
-
-public readonly record struct OperationGeneration(long Value)
-{
-    public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
-}
-
-public interface IOperationGenerationAllocator
-{
-    bool TryAllocate(out OperationGeneration generation);
-}
-
 public sealed class OperationGenerationAllocator : IOperationGenerationAllocator
 {
     private long _current;

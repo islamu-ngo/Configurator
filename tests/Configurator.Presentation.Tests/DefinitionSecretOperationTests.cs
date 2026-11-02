@@ -10,6 +10,28 @@ public sealed class DefinitionSecretOperationTests
     private static readonly string[] OriginalRows = ["synthetic-removed-password", "synthetic-survivor-password"];
     private static readonly string[] ReorderedRows = ["synthetic-survivor-password", "synthetic-removed-password"];
     [Test]
+    public async Task ReentrantConsentRevocationCannotPublishAGeneratedSecret()
+    {
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        string[] path = [form.Fields.Single().Definition.Id];
+        bool revoked = false;
+        form.ViewChanged += (_, _) =>
+        {
+            if (revoked || !form.SecretOperation.IsRunning) return;
+            revoked = true;
+            form.SetSecretEntryEnabled(false);
+        };
+
+        DefinitionSecretOperationResult result = await form.GenerateSecretAsync(path);
+
+        await Assert.That(revoked).IsTrue();
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(form.ReadValue(path)).IsNull();
+        await Assert.That(form.CopyGeneratedPassword()).IsNull();
+        await Assert.That(form.SecretOperation.IsRunning).IsFalse();
+    }
+
+    [Test]
     public async Task RenewedConsentAllowsExplicitGenerationWithoutRestoringClearedSecrets()
     {
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);

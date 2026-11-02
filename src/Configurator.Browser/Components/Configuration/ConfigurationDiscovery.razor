@@ -15,7 +15,7 @@
         {
             var entry = match.Entry;
             <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
-                data-discovery-result="@entry.FieldId" data-match="@match.MatchReason" data-active="@entry.IsActive.ToString().ToLowerInvariant()">
+                data-discovery-result="@entry.FieldId" data-match="@match.MatchReason.ToToken()" data-active="@entry.IsActive.ToString().ToLowerInvariant()">
                 <div class="configuration-discovery__result-heading">
                     <strong>@entry.Title</strong>
                     @if (entry.IsActive)
@@ -35,7 +35,7 @@
                 }
                 <details><summary>@T("DiscoveryMatchDetails")</summary>
                     <code>@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</code>
-                    <p>@T("DiscoveryMatchReason"): @MatchTitle(match.MatchReason).</p>
+                    <p>@T("DiscoveryMatchReason"): @MatchTitle(match.MatchReason.ToToken()).</p>
                     @if (entry.ActiveControllerFields.Count > 0)
                     {
                         <p>@T("DiscoveryControllers"): @string.Join(", ", entry.ActiveControllerFields.Select(id => Form.GetEditorPresentation([id])?.Title ?? Form.Definition.Fields.Single(field => field.Id == id).Title))</p>

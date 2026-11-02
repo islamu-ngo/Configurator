@@ -6,6 +6,25 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionDiscoveryTests
 {
     [Test]
+    [Arguments("", DefinitionDiscoveryMatchReason.All, "all")]
+    [Arguments("field", DefinitionDiscoveryMatchReason.FieldId, "field-id")]
+    [Arguments("Common", DefinitionDiscoveryMatchReason.Title, "title")]
+    [Arguments("TLS", DefinitionDiscoveryMatchReason.Help, "help")]
+    public async Task MatchReasonsRetainExplicitPublicTokens(string query, DefinitionDiscoveryMatchReason reason, string token)
+    {
+        DefinitionDiscoveryMatch match = DefinitionDiscovery.Search([Entry("field", help: "TLS")], new(query)).Matches.Single();
+        await Assert.That(match.MatchReason).IsEqualTo(reason);
+        await Assert.That(match.MatchReason.ToToken()).IsEqualTo(token);
+    }
+
+    [Test]
+    public async Task UndefinedMatchReasonsCannotBecomePublicTokens()
+    {
+        await Assert.That(() => default(DefinitionDiscoveryMatchReason).ToToken()).Throws<ArgumentOutOfRangeException>();
+        await Assert.That(() => ((DefinitionDiscoveryMatchReason)999).ToToken()).Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public async Task WarmDiscoveryUsesCurrentExperienceOrderWithoutChangingAnswerFacts()
     {
         using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
@@ -334,6 +353,6 @@ public sealed class DefinitionDiscoveryTests
         FieldSensitivity sensitivity = FieldSensitivity.Public, string[]? path = null,
         string[]? terms = null, string? help = null, string? instructions = null,
         string[]? artifacts = null, string[]? keys = null, int order = 0) =>
-        new(id, path ?? [], title, section, section, "string", sensitivity, active, required, provided, ready,
+        new(id, path ?? [], title, section, section, DefinitionNodeType.Text, sensitivity, active, required, provided, ready,
             attention, deferred, origin, terms, help, instructions, artifacts ?? ["env", "env"], keys, order);
 }
