@@ -848,11 +848,11 @@ public sealed class BrowserDeveloperEditingTests
         public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             object? result = null;
-            if (identifier == "import" && args?[0]?.ToString() is not ("./js/configuration-developer.js" or "./configuration-rendering.js"))
+            if (identifier == "import" && args?[0]?.ToString() is not ("./js/configuration-developer.js" or "./js/configuration-rendering.js"))
                 return await fallback.InvokeAsync<TValue>(identifier, cancellationToken, args);
             if (identifier == "import")
             {
-                if (args?[0]?.ToString() != "./configuration-rendering.js")
+                if (args?[0]?.ToString() != "./js/configuration-rendering.js")
                 {
                     ImportStarted.TrySetResult();
                     if (ImportRelease is not null) await ImportRelease.Task.WaitAsync(TimeSpan.FromSeconds(5));

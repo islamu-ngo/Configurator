@@ -282,7 +282,7 @@ public sealed class BrowserConfigurationWorkflowTests
     public async Task DraftAndCompleteUseSharedProjectionAndOnlyExplicitCopyExposesBytes()
     {
         await using var context = BrowserFixture.Context();
-        var module = context.JSInterop.SetupModule("./browser-artifacts.js");
+        var module = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         module.SetupVoid("open", _ => true).SetVoidResult();
         module.Setup<bool>("copy", _ => true).SetResult(true);
         module.SetupVoid("invalidate", _ => true).SetVoidResult();
@@ -321,7 +321,7 @@ public sealed class BrowserConfigurationWorkflowTests
     public async Task ClipboardFailureProvidesValueSafeDownloadAlternative()
     {
         await using var context = BrowserFixture.Context();
-        var module = context.JSInterop.SetupModule("./browser-artifacts.js");
+        var module = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(false);
         module.Setup<bool>("download", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));

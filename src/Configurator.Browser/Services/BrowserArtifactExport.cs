@@ -41,7 +41,7 @@ public sealed class BrowserArtifactExport(IJSRuntime javascript) : IAsyncDisposa
 
     private async Task<IJSObjectReference?> LoadModuleAsync()
     {
-        IJSObjectReference imported = await javascript.InvokeAsync<IJSObjectReference>("import", "./browser-artifacts.js");
+        IJSObjectReference imported = await javascript.InvokeAsync<IJSObjectReference>("import", "./js/browser-artifacts.js");
         if (_disposed) { await imported.DisposeAsync(); return null; }
         _module = imported;
         await imported.InvokeVoidAsync("register", _id);

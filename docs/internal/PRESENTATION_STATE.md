@@ -384,7 +384,7 @@ Presentation captures the immutable answer snapshot and pristine-default
 permissions under its mutation gate, computes outside that gate, and checks
 generation, revision, consent and disposal after each suspension and again at
 publication. No mutation gate spans an await. Browser uses the existing
-`configuration-rendering.js` frame boundary before acquisition and between
+`js/configuration-rendering.js` frame boundary before acquisition and between
 bounded traversal batches, so pending/cancel controls can paint while the same
 operation retains its private evidence. Cancellation or replacement stops the
 superseded operation at its next checkpoint without granting it adoption

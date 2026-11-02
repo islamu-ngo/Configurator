@@ -190,7 +190,7 @@ public partial class ConfigurationDeveloper : ComponentBase
             IJSObjectReference ownedBridge = _bridge;
             if (_rendering is null)
             {
-                IJSObjectReference rendering = await Javascript.InvokeAsync<IJSObjectReference>("import", "./configuration-rendering.js");
+                IJSObjectReference rendering = await Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js");
                 if (!LeaseCurrent(owner, session, token)) { await rendering.DisposeAsync(); return; }
                 _rendering = rendering;
             }

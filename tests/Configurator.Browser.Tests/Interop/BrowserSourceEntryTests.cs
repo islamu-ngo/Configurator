@@ -16,7 +16,7 @@ public sealed class BrowserSourceEntryTests
         var pwa = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         pwa.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
         pwa.Setup<string[]>("retainedDigests").SetResult([]);
-        var source = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var source = context.JSInterop.SetupModule("./js/browser-definition-source.js");
         var pending = source.Setup<byte[]>("fetchDefinition", _ => true);
         string entry = BrowserFixture.Definition.EntryPoints[0];
         context.Services.GetRequiredService<NavigationManager>().NavigateTo(
@@ -100,7 +100,7 @@ public sealed class BrowserSourceEntryTests
         var pwa = context.JSInterop.SetupModule("./pwa-lifecycle.js");
         pwa.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
         pwa.Setup<string[]>("retainedDigests").SetResult([]);
-        var source = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var source = context.JSInterop.SetupModule("./js/browser-definition-source.js");
         source.Setup<byte[]>("fetchDefinition", _ => true).SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         context.Services.AddSingleton(policy);

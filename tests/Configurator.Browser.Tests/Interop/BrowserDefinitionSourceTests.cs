@@ -84,7 +84,7 @@ public sealed class BrowserDefinitionSourceTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
         byte[] bytes = Encoding.UTF8.GetBytes(AuthoringJson);
-        var module = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var module = context.JSInterop.SetupModule("./js/browser-definition-source.js");
         module.Setup<byte[]>("fetchDefinition", _ => true).SetResult(bytes);
         var request = BrowserDefinitionPointer.Parse("#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
         await Assert.That(async () => { await source.FetchAsync(request); }).Throws<BrowserLaunchException>();
@@ -179,7 +179,7 @@ public sealed class BrowserDefinitionSourceTests
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
         byte[] bytes = BrowserFixture.Definition.CanonicalBytes.ToArray();
-        var module = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var module = context.JSInterop.SetupModule("./js/browser-definition-source.js");
         module.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(bytes);
         var request = BrowserDefinitionPointer.Parse("#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json&digest=" + BrowserFixture.Definition.Digest.Value);
         BrowserLaunchSelection selected = await source.FetchAsync(request);
@@ -196,7 +196,7 @@ public sealed class BrowserDefinitionSourceTests
         var javascript = context.Services.GetRequiredService<IJSRuntime>();
         await using var policy = new BrowserOfflinePolicy(javascript);
         await using var source = new BrowserDefinitionSource(registry, javascript, policy);
-        var module = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var module = context.JSInterop.SetupModule("./js/browser-definition-source.js");
         foreach (string selector in new[] { "digest=" + new string('f', 64), "appVersion=unknown", "entry=unknown", "locale=unknown" })
         {
             module.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
@@ -255,7 +255,7 @@ public sealed class BrowserDefinitionSourceTests
         lifecycle.Setup<string[]>("retainedDigests").SetResult([]);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         context.Services.AddSingleton(policy);
-        var transport = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var transport = context.JSInterop.SetupModule("./js/browser-definition-source.js");
         var pending = transport.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes);
         NavigationManager navigation = context.Services.GetRequiredService<NavigationManager>();
         navigation.NavigateTo("/open#src=https%3A%2F%2Fpublisher.example%2Fdefinition.json");
@@ -280,10 +280,10 @@ public sealed class BrowserDefinitionSourceTests
         lifecycle.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         context.Services.AddSingleton(policy);
-        var transport = context.JSInterop.SetupModule("./browser-definition-source.js");
+        var transport = context.JSInterop.SetupModule("./js/browser-definition-source.js");
         transport.Setup<byte[]>("fetchDefinition", "https://publisher.example/definition.json", BrowserDefinitionSource.MaximumDocumentBytes)
             .SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
-        var exports = context.JSInterop.SetupModule("./browser-artifacts.js");
+        var exports = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         exports.SetupVoid("open", _ => true).SetVoidResult();
         exports.Setup<bool>("copy", _ => true).SetResult(true);
         var cleanup = exports.SetupVoid("invalidate", _ => true);

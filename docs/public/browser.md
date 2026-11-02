@@ -392,6 +392,10 @@ Serve the resulting `artifacts/configurator/browser/wwwroot/` directory using an
 - Proper MIME types for `.wasm` (`application/wasm`) and `.json` are served.
 - Single-page application (SPA) fallback redirects unknown routes to `index.html`.
 
+Keep the published directory layout intact: interop modules are under `js/`,
+while `pwa-lifecycle.js` and the service worker remain at the application root.
+Missing asset requests must return an error rather than the SPA fallback.
+
 ### Docker Container
 
 The Browser project includes a multi-stage `Dockerfile` serving static assets via an unprivileged .NET static server:

@@ -262,7 +262,7 @@ public sealed class BrowserExportLifecycleTests
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
         public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
-            if (fallback is not null && (identifier != "import" || args?.FirstOrDefault()?.ToString() != "./browser-artifacts.js"))
+            if (fallback is not null && (identifier != "import" || args?.FirstOrDefault()?.ToString() != "./js/browser-artifacts.js"))
                 return await fallback.InvokeAsync<TValue>(identifier, cancellationToken, args);
             Started.TrySetResult();
             return (TValue)(object)await Release.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);

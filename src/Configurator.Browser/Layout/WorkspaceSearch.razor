@@ -113,7 +113,7 @@
         if (_disposed) return;
         if (_module is null)
         {
-            var module = await Javascript.InvokeAsync<IJSObjectReference>("import", "./workspace-interactions.js");
+            var module = await Javascript.InvokeAsync<IJSObjectReference>("import", "./js/workspace-interactions.js");
             if (_disposed) { await module.DisposeAsync(); return; }
             _module = module;
             _reference = DotNetObjectReference.Create(this);

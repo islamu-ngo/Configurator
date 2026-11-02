@@ -19,7 +19,7 @@ public sealed class BrowserStoreIndependenceTests
             await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
             await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
             context.Services.AddSingleton(catalog);
-            var module = context.JSInterop.SetupModule("./browser-store.js");
+            var module = context.JSInterop.SetupModule("./js/browser-store.js");
             module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(bytes);
             var component = context.Render<Pages.Catalogue>();
             await Assert.That(component.Find("a[href=open]")).IsNotNull();
@@ -46,7 +46,7 @@ public sealed class BrowserStoreIndependenceTests
         other["revisions"]![0]!["snapshotPath"] = "definitions/another/1.json";
         index["projects"]![0]!["name"] = "Zulu <script>metadata</script>";
         index["projects"]!.AsArray().Add(other);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(index.ToJsonString()));
         var component = context.Render<Pages.Catalogue>();
         await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
@@ -74,7 +74,7 @@ public sealed class BrowserStoreIndependenceTests
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
         context.Services.AddSingleton(catalog);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(BrowserDefinitionStoreTests.Index().ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
         var component = context.Render<Pages.StoreProject>(parameters => parameters.Add(page => page.ProjectId, "demo"));
@@ -99,7 +99,7 @@ public sealed class BrowserStoreIndependenceTests
         unrelated["familyId"] = "61cdd5fa-4adc-49fb-9f6a-349807670c31";
         unrelated["revisions"]![0]!["snapshotPath"] = "definitions/unrelated/1.json";
         index["projects"]!.AsArray().Add(unrelated);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes)
             .SetResult(Encoding.UTF8.GetBytes(index.ToJsonString()));
         var component = context.Render<Pages.Catalogue>();
@@ -114,7 +114,7 @@ public sealed class BrowserStoreIndependenceTests
     public async Task InvalidRequestedRevisionNeverFallsBackToAnotherCandidate()
     {
         await using var context = BrowserFixture.Context();
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes)
             .SetResult(Encoding.UTF8.GetBytes(BrowserDefinitionStoreTests.Index().ToJsonString()));
         context.Services.GetRequiredService<NavigationManager>().NavigateTo("store/demo?revision=999");
@@ -132,7 +132,7 @@ public sealed class BrowserStoreIndependenceTests
         await using var context = BrowserFixture.Context();
         var index = BrowserDefinitionStoreTests.Index();
         index["projects"]![0]!["revisions"]![0]!["publisher"] = "Conflicting publisher label";
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes)
             .SetResult(Encoding.UTF8.GetBytes(index.ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes)
@@ -156,7 +156,7 @@ public sealed class BrowserStoreIndependenceTests
         alternative["revisions"]![0]!["snapshotPath"] = "definitions/another/1.json";
         index["projects"]![0]!["revisions"]![0]!["publisher"] = "Conflicting publisher label";
         index["projects"]!.AsArray().Add(alternative);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes)
             .SetResult(Encoding.UTF8.GetBytes(index.ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/another/1.json", BrowserDefinitionSource.MaximumDocumentBytes)
@@ -178,7 +178,7 @@ public sealed class BrowserStoreIndependenceTests
     {
         var registry = new BrowserDefinitionRegistry([]);
         await using var context = BrowserFixture.Context(registry);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes)
             .SetResult(Encoding.UTF8.GetBytes(BrowserDefinitionStoreTests.Index().ToJsonString()));
         var pending = module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes);

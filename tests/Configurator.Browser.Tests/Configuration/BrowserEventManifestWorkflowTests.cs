@@ -17,7 +17,7 @@ public sealed class BrowserEventManifestWorkflowTests
     {
         var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
         await using var context = BrowserFixture.Context();
-        var module = context.JSInterop.SetupModule("./browser-artifacts.js");
+        var module = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "operation", "configuration-manifest");

@@ -315,7 +315,7 @@
         {
             if (_linkModule is null)
             {
-                IJSObjectReference module = await Javascript.InvokeAsync<IJSObjectReference>("import", "./browser-definition-source.js");
+                IJSObjectReference module = await Javascript.InvokeAsync<IJSObjectReference>("import", "./js/browser-definition-source.js");
                 if (_disposed || generation != _generation) { await module.DisposeAsync(); return; }
                 _linkModule = module;
             }

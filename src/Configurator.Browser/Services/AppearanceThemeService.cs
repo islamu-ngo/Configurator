@@ -26,7 +26,7 @@ public sealed class AppearanceThemeService(IJSRuntime javascript) : IAsyncDispos
         long generation = _generation;
         try
         {
-            IJSObjectReference module = await javascript.InvokeAsync<IJSObjectReference>("import", "./browser-appearance.js");
+            IJSObjectReference module = await javascript.InvokeAsync<IJSObjectReference>("import", "./js/browser-appearance.js");
             if (_disposed)
             {
                 await module.DisposeAsync();

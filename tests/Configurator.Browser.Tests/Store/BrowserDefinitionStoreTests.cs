@@ -38,7 +38,7 @@ public sealed class BrowserDefinitionStoreTests
         var registry = new BrowserDefinitionRegistry([]);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index().ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(BrowserFixture.Revision(2).CanonicalBytes.ToArray());
         await catalog.LoadAsync();
@@ -63,7 +63,7 @@ public sealed class BrowserDefinitionStoreTests
             else if (member == "digest") revision[member] = new string('f', 64);
             else if (revision[member] is JsonArray array) array[0] = "different";
             else revision[member] = "Different metadata";
-            var module = context.JSInterop.SetupModule("./browser-store.js");
+            var module = context.JSInterop.SetupModule("./js/browser-store.js");
             module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(index.ToJsonString()));
             module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
             await catalog.LoadAsync();
@@ -83,7 +83,7 @@ public sealed class BrowserDefinitionStoreTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(changed.ToJsonString()));
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index(definition).ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(definition.CanonicalBytes.ToArray());
         await catalog.LoadAsync();
@@ -102,7 +102,7 @@ public sealed class BrowserDefinitionStoreTests
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await policy.InitializeAsync();
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index().ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
         await catalog.LoadAsync();
@@ -123,7 +123,7 @@ public sealed class BrowserDefinitionStoreTests
         lifecycle.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index().ToJsonString()));
         var pending = module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes);
         await catalog.LoadAsync();
@@ -170,7 +170,7 @@ public sealed class BrowserDefinitionStoreTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
         await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
         await using var catalog = new DefinitionStoreCatalog(registry, context.JSInterop.JSRuntime, policy);
-        var module = context.JSInterop.SetupModule("./browser-store.js");
+        var module = context.JSInterop.SetupModule("./js/browser-store.js");
         module.Setup<byte[]>("readAsset", "index.json", DefinitionStoreCatalog.MaximumIndexBytes).SetResult(Encoding.UTF8.GetBytes(Index(definition).ToJsonString()));
         module.Setup<byte[]>("readAsset", "definitions/demo/1.json", BrowserDefinitionSource.MaximumDocumentBytes).SetResult(definition.CanonicalBytes.ToArray());
         await catalog.LoadAsync();

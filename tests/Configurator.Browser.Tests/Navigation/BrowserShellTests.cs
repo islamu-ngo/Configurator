@@ -291,7 +291,7 @@ public sealed class BrowserShellTests
     public async Task AppearanceChangesPreserveCurrentAnswersAndPreparedOutput()
     {
         await using var context = BrowserFixture.Context();
-        var exports = context.JSInterop.SetupModule("./browser-artifacts.js");
+        var exports = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         exports.SetupVoid("open", _ => true).SetVoidResult();
         exports.Setup<bool>("copy", _ => true).SetResult(true);
         exports.SetupVoid("invalidate", _ => true).SetVoidResult();

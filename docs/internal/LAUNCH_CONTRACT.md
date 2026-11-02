@@ -207,7 +207,7 @@ public-only definitions, unknown/obsolete members and malformed input alike.
 Definition labels cannot prove an old file safe. The Browser acquisition limit
 remains 1 MiB; a bounded local stream is passed through
 `DefinitionFormModel.CompareAsync(artifact, read, yield, token)`. The adapter
-uses `configuration-rendering.js`'s `nextTask` boundary before
+uses `js/configuration-rendering.js`'s `nextTask` boundary before
 acquisition and between bounded Core traversal batches. Its local MessageChannel
 closes both ports before resuming; comparison yields to the event loop without
 waiting one display frame per batch. Incremental form mounting retains the

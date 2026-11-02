@@ -61,7 +61,7 @@ internal static class BrowserFixture
         context.Services.AddSingleton(new PopoverHost());
         context.Services.AddSingleton(new SectionNavigationHost());
         context.Services.AddMudServices();
-        var appearance = context.JSInterop.SetupModule("./browser-appearance.js");
+        var appearance = context.JSInterop.SetupModule("./js/browser-appearance.js");
         appearance.Setup<string?>("read", _ => true).SetResult(null);
         appearance.SetupVoid("watch", _ => true).SetVoidResult();
         appearance.SetupVoid("write", _ => true).SetVoidResult();
@@ -71,12 +71,12 @@ internal static class BrowserFixture
         offline.Setup<BrowserOfflineState>("initialize", _ => true).SetResult(new BrowserOfflineState(true, true, true));
         offline.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
         offline.SetupVoid("endWorkspace", _ => true).SetVoidResult();
-        var store = context.JSInterop.SetupModule("./browser-store.js");
+        var store = context.JSInterop.SetupModule("./js/browser-store.js");
         store.Setup<byte[]>("readAsset", _ => true).SetResult([]);
-        var interactions = context.JSInterop.SetupModule("./workspace-interactions.js");
+        var interactions = context.JSInterop.SetupModule("./js/workspace-interactions.js");
         interactions.SetupVoid("watch", _ => true).SetVoidResult();
         interactions.SetupVoid("unwatch", _ => true).SetVoidResult();
-        var rendering = context.JSInterop.SetupModule("./configuration-rendering.js");
+        var rendering = context.JSInterop.SetupModule("./js/configuration-rendering.js");
         rendering.SetupVoid("nextFrame", _ => true).SetVoidResult();
         rendering.SetupVoid("nextTask", _ => true).SetVoidResult();
         return context;

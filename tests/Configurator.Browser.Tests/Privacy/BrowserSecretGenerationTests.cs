@@ -209,7 +209,7 @@ public sealed class BrowserSecretGenerationTests
     public async Task ClipboardFailurePreservesMaskedValue()
     {
         await using var context = BrowserFixture.Context();
-        var bridge = context.JSInterop.SetupModule("./browser-artifacts.js");
+        var bridge = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         bridge.Setup<bool>("copy", _ => true).SetResult(false);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });

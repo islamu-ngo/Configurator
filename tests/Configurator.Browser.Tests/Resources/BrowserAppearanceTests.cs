@@ -39,7 +39,7 @@ public sealed class BrowserAppearanceTests
     public async Task OnlyBoundedPreferencesCrossStorageInteropAndSystemChangesStayLocal()
     {
         using var context = new BunitContext();
-        var module = context.JSInterop.SetupModule("./browser-appearance.js");
+        var module = context.JSInterop.SetupModule("./js/browser-appearance.js");
         module.Setup<string?>("read", _ => true).SetResult("""{"themeMode":"dark","direction":"rtl","answers":"synthetic-private-canary"}""");
         module.SetupVoid("watch", _ => true).SetVoidResult();
         module.SetupVoid("apply", _ => true).SetVoidResult();
@@ -65,7 +65,7 @@ public sealed class BrowserAppearanceTests
     public async Task LatePreferenceReadCannotReplaceTheUsersCurrentChoice()
     {
         using var context = new BunitContext();
-        var module = context.JSInterop.SetupModule("./browser-appearance.js");
+        var module = context.JSInterop.SetupModule("./js/browser-appearance.js");
         var read = module.Setup<string?>("read", _ => true);
         module.SetupVoid("watch", _ => true).SetVoidResult();
         module.SetupVoid("apply", _ => true).SetVoidResult();

@@ -197,7 +197,7 @@ public sealed class DefinitionStoreCatalog(BrowserDefinitionRegistry registry, I
         {
             if (_module is null)
             {
-                IJSObjectReference module = await javascript.InvokeAsync<IJSObjectReference>("import", cancellation.Token, "./browser-store.js");
+                IJSObjectReference module = await javascript.InvokeAsync<IJSObjectReference>("import", cancellation.Token, "./js/browser-store.js");
                 if (_disposed) { await module.DisposeAsync(); throw new BrowserLaunchException("store-cancelled"); }
                 if (_module is null) _module = module;
                 else if (!ReferenceEquals(_module, module)) await module.DisposeAsync();

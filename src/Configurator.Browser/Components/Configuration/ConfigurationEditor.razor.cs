@@ -568,7 +568,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private async ValueTask YieldComparisonAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./configuration-rendering.js").AsTask();
+        _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
         IJSObjectReference module = await _comparisonRendering;
         cancellationToken.ThrowIfCancellationRequested();
         await module.InvokeVoidAsync("nextTask");

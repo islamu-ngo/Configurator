@@ -457,7 +457,7 @@ public partial class ConfigurationField
             string controlId = ControlId;
             ElementReference element = _radioGroup;
             await using IJSObjectReference module =
-                await Javascript.InvokeAsync<IJSObjectReference>("import", "./configuration-rendering.js");
+                await Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js");
             if (_disposed || !_controlMounted || generation != _controlGeneration || focusGeneration != FocusGeneration
                 || !ReferenceEquals(form, Form) || revision != form.InputRevision || ControlId != controlId || !UseRadios
                 || !Form.IsEditorVisible(Path) || !Form.CanEdit(Path)) return;

@@ -399,7 +399,7 @@ public sealed class BrowserIncrementalMountTests
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
-            if (identifier == "import" && args?.FirstOrDefault()?.ToString() == "./configuration-rendering.js")
+            if (identifier == "import" && args?.FirstOrDefault()?.ToString() == "./js/configuration-rendering.js")
                 return ValueTask.FromResult((TValue)(object)_module);
             if (identifier.Contains("focus", StringComparison.OrdinalIgnoreCase)) ++FocusCalls;
             return _fallback.InvokeAsync<TValue>(identifier, cancellationToken, args);

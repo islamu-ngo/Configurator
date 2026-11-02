@@ -76,7 +76,7 @@ public partial class ConfigurationSectionFields
         DefinitionFormModel form = Form;
         CancellationToken cancellation = MountCancellation;
         _scheduledGeneration = generation;
-        _module ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./configuration-rendering.js").AsTask();
+        _module ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
         IJSObjectReference module = await _module;
         if (!IsCurrent()) return;
         await module.InvokeVoidAsync("nextFrame");

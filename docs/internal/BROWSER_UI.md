@@ -132,7 +132,7 @@ coverage is available without consent. Source acquisition and editor mounting
 require the current workspace's enabled privacy state.
 
 Source admission and editor DOM construction use separate tasks through the
-existing `configuration-rendering.js.nextFrame` boundary. The component owns the
+existing `js/configuration-rendering.js.nextFrame` boundary. The component owns the
 acquired byte array until transfer, rechecks its lease after the yield and clears
 that array on retirement as well as normal completion. Revocation, edits,
 replacement and explicit cancellation cannot mount the held old source.
@@ -290,7 +290,7 @@ unrelated fields continue through the frame boundary. A dedicated mount generati
 form identity and editor cancellation token reject obsolete continuations after
 input, view changes, replacement or disposal. View-only supersession does not
 consume another synchronous batch. Secret denial and prepared-output retirement
-remain synchronous. `configuration-rendering.js` posts a local null-message task
+remain synchronous. `js/configuration-rendering.js` posts a local null-message task
 from an animation callback; neither answers nor artifacts enter that handoff.
 The module is a required public offline asset.
 
@@ -299,7 +299,7 @@ mounts `ConfigurationDiscovery` filters/results only after deliberate opening.
 `WorkspaceSearchState` holds owner-qualified delegates and a render fragment,
 not an answer snapshot or a second query. The editor releases its generation
 before replacement, discard or disposal; retired registrations cannot clear or
-search the current editor. `workspace-interactions.js` receives only an element,
+search the current editor. `js/workspace-interactions.js` receives only an element,
 callback reference and generation for Ctrl-K/Command-K and outside dismissal.
 Escape/Close restore the visible query or phone trigger; result selection closes without stealing the
 editor's destination focus. Application navigation and workspace search are
