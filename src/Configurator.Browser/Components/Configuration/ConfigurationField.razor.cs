@@ -381,24 +381,8 @@ public partial class ConfigurationField
     }
     private void AddMapEntry(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {
-        if (!IsCurrentAction(form, path, revision, generation) || ObjectSchema.AdditionalProperties is not { } entrySchema) return;
-        if (Value is { ValueKind: JsonValueKind.Object } current && current.TryGetProperty(_newMapKey, out _))
-        {
-            _invalidMapKey = true;
-            return;
-        }
-        string[] entryPath = [.. Path, _newMapKey];
-        try { _ = DefinitionPath.FromSegments(entryPath); }
-        catch (ArgumentException) { _invalidMapKey = true; return; }
-        JsonElement initial = entrySchema.Type switch
-        {
-            DefinitionNodeType.Text => JsonSerializer.SerializeToElement(""),
-            DefinitionNodeType.Boolean => JsonSerializer.SerializeToElement(false),
-            DefinitionNodeType.WholeNumber or DefinitionNodeType.Number => JsonSerializer.SerializeToElement(0),
-            DefinitionNodeType.Sequence => JsonSerializer.SerializeToElement(Array.Empty<object>()),
-            _ => JsonSerializer.SerializeToElement(new Dictionary<string, object>())
-        };
-        _invalidMapKey = !Form.SetValue(entryPath, initial);
+        if (!IsCurrentAction(form, path, revision, generation)) return;
+        _invalidMapKey = !Form.AddMapEntry(Path, _newMapKey);
         if (!_invalidMapKey)
         {
             _focusMapEntry = _newMapKey;

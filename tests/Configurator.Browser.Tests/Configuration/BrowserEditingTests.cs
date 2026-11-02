@@ -133,6 +133,31 @@ public sealed class BrowserEditingTests
     }
 
     [Test]
+    public async Task ArabicMapRejectsDuplicateAndMaximumPropertyEditsWithoutChangingAcceptedAnswers()
+    {
+        using var form = Form();
+        form.SelectLocale("ar");
+        form.SetValue(["map"], JsonSerializer.SerializeToElement(new Dictionary<string, int> { ["existing"] = 4 }));
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
+        var field = context.Render<ConfigurationField>(parameters => parameters
+            .Add(component => component.Form, form).Add(component => component.Path, ["map"])
+            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "map").Node));
+        long revision = form.InputRevision;
+        foreach (string key in new[] { "existing", "extra" })
+        {
+            await field.InvokeAsync(() => field.FindComponents<MudTextField<string>>()
+                .Single(item => item.Instance.InputId?.EndsWith("-new-key", StringComparison.Ordinal) == true)
+                .Instance.ValueChanged.InvokeAsync(key));
+            await field.Find("[data-action='add-map-entry']").ClickAsync(new MouseEventArgs());
+            await Assert.That(form.InputRevision).IsEqualTo(revision);
+            await Assert.That(form.Snapshot().Values["map"].EnumerateObject().Count()).IsEqualTo(1);
+            await Assert.That(form.Snapshot().Values["map"].GetProperty("existing").GetInt32()).IsEqualTo(4);
+            await Assert.That(field.FindComponents<MudTextField<string>>()
+                .Single(item => item.Instance.InputId?.EndsWith("-new-key", StringComparison.Ordinal) == true).Instance.Error).IsTrue();
+        }
+    }
+
+    [Test]
     public async Task ProviderBranchSelectionRendersOnlyTheSelectedDeclaredChildren()
     {
         using var form = Form();
@@ -156,7 +181,7 @@ public sealed class BrowserEditingTests
              "properties":{"enabled":{"type":"boolean","x-configurator":{"sensitivity":"public","initialValue":false}},
                "value":{"type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}}},
              "if":{"properties":{"enabled":{"const":true}},"required":["enabled"]},"then":{"required":["value"]}},
-           "map":{"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{"type":"integer","x-configurator":{"sensitivity":"public"}}},
+           "map":{"type":"object","maxProperties":1,"x-configurator":{"sensitivity":"public"},"additionalProperties":{"type":"integer","x-configurator":{"sensitivity":"public"}}},
            "choice":{"type":["integer","null"],"enum":[1,2,null],"title":"Choice","x-configurator":{"sensitivity":"public","detail":"basic",
              "initialValue":1,"suggestedValue":2,"choices":[{"value":1,"label":"Equal"},{"value":2,"label":"Equal"},{"value":null,"label":"Null"}]}},
            "provider":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
