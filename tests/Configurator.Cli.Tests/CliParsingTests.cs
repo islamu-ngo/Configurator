@@ -5,6 +5,25 @@ namespace Configurator.Cli.Tests;
 public sealed class CliParsingTests
 {
     [Test]
+    public async Task ModeBetweenFamilyAndOperationSelectsMachineOutput()
+    {
+        var io = new CliFixture();
+        await Assert.That(await io.RunAsync("artifact", "--machine", "validate", "--definition", "definition.json",
+            "--artifact", "config", "--input", "answers.json")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        await Assert.That(io.StandardError).IsEmpty();
+    }
+
+    [Test]
+    public async Task LeadingModeRemainsBeforeTheOptionTerminator()
+    {
+        var io = new CliFixture();
+        await Assert.That(await io.RunAsync("--machine", "doctor", "--")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        await Assert.That(io.StandardError).IsEmpty();
+    }
+
+    [Test]
     public async Task PublicSecretLikePathAndUppercaseFieldIdAreAccepted()
     {
         var io = new CliFixture();

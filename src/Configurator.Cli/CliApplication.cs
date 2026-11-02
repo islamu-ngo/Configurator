@@ -9,7 +9,14 @@ namespace Configurator.Cli;
 
 public sealed class CliApplication
 {
-    public async Task<CliExitCode> RunAsync(CliInvocation invocation, CancellationToken cancellationToken = default)
+    public Task<CliExitCode> RunAsync(CliInvocation invocation, CancellationToken cancellationToken = default) =>
+        RunCoreAsync(invocation, null, cancellationToken);
+
+    internal Task<CliExitCode> RejectArgumentsAsync(CliMode mode, CliIo io, CancellationToken cancellationToken) =>
+        RunCoreAsync(new CliInvocation([], mode, io), "argument-shape-invalid", cancellationToken);
+
+    private async Task<CliExitCode> RunCoreAsync(CliInvocation invocation, string? argumentError,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(invocation);
         using var text = new StringWriter(System.Globalization.CultureInfo.InvariantCulture);
@@ -28,7 +35,8 @@ public sealed class CliApplication
             CliPreflight preflight = CliArgumentPreflight.Inspect(invocation);
             command = preflight.Command;
             cancellationToken.ThrowIfCancellationRequested();
-            if (preflight.Error is not null) result = CliResults.Failure(CliExitCode.Usage, preflight.Error);
+            if (argumentError is not null || preflight.Error is not null)
+                result = CliResults.Failure(CliExitCode.Usage, argumentError ?? preflight.Error!);
             else
             {
                 var runtime = new CliCommandRuntime(this, invocation, ledger);

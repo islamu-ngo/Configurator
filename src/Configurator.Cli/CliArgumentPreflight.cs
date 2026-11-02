@@ -28,6 +28,8 @@ internal static class CliArgumentPreflight
         if (arguments.Any(argument => argument.Any(char.IsControl)))
             return Failure(machine, "argument-shape-invalid");
 
+        arguments = NormalizeModePosition(arguments);
+
         string family = "cli";
         string operation = "help";
         bool help = arguments.Length == 0 || tokens.Any(token => token is "--help" or "-h");
@@ -95,6 +97,24 @@ internal static class CliArgumentPreflight
                 && index + 1 < arguments.Count && !arguments[index + 1].StartsWith("--", StringComparison.Ordinal))
                 index++;
         }
+    }
+
+    private static string[] NormalizeModePosition(string[] arguments)
+    {
+        var route = new List<string>(2);
+        var modes = new List<string>();
+        int index = 0;
+        while (index < arguments.Length)
+        {
+            string argument = arguments[index];
+            if (argument is "--machine" or "--text") modes.Add(argument);
+            else if (!argument.StartsWith('-')) route.Add(argument);
+            else break;
+            index++;
+            if (route.Count == 2 || route is ["doctor"]) break;
+        }
+        // Keep modes ahead of an option terminator and out of option values.
+        return modes.Count == 0 ? arguments : [.. route, .. modes, .. arguments.Skip(index)];
     }
 
     private static string[] NormalizeStandardIo(string[] arguments, IReadOnlyList<CliOptionDescriptor>? options)

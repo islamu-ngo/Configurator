@@ -6,6 +6,11 @@ prepare declared configuration artifacts (`.env`, JSON, YAML).
 
 The CLI is designed for headless servers, automation pipelines, and CI/CD workflows. It never contacts target servers or administers running systems.
 
+Use `--machine` before or after the command to receive one JSON result envelope:
+`islamu-configurator --machine doctor` and `islamu-configurator doctor --machine`
+are equivalent. Invalid arguments produce a usage result without echoing input
+values or private paths.
+
 > [!NOTE]
 > **Getting Started:** If you are running Configurator for the first time with synthetic example files, see the [Prepare a configuration offline](getting-started.md) guide.
 

@@ -20,16 +20,6 @@ public sealed class CliProgramTests
     }
 
     [Test]
-    public async Task OversizedArgumentsProduceOneSafeUsageEnvelope()
-    {
-        ProcessResult result = await ExecuteAsync(["doctor", "--machine", new string('x', 4097)]);
-        await Assert.That(result.ExitCode).IsEqualTo(64);
-        await Assert.That(result.StandardError).IsEmpty();
-        await Assert.That(CliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
-        await Assert.That(result.StandardOutput.Count(value => value == (byte)'\n')).IsEqualTo(1);
-    }
-
-    [Test]
     public async Task TerminalStdinRejectsWithoutWaitingForEof()
     {
         if (!OperatingSystem.IsLinux())

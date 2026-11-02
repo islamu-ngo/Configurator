@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7PBR49T9XKG5WGT621AWW
+Title: "accept machine mode before command names"
+Type: fix
+Scope: cli
+Summary: "accept machine mode before command names."
+Group: cli-01
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "accept machine mode before command names."

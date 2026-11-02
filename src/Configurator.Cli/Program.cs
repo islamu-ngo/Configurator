@@ -54,7 +54,7 @@ internal static class CliProgram
             }
             catch (ArgumentException)
             {
-                invocation = new(["doctor", mode == CliMode.Machine ? "--machine" : "--text", "--invalid-arguments"], mode, io);
+                return (int)await new CliApplication().RejectArgumentsAsync(mode, io, cancellation.Token);
             }
             return (int)await new CliApplication().RunAsync(invocation, cancellation.Token);
         }

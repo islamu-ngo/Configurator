@@ -86,6 +86,11 @@ not contaminated by status text: human status goes to stderr when `--output -`
 is selected. Human result content uses safe `Text`, not markup interpretation;
 machine mode never scrapes human help or emits its formatting.
 
+Root mode switches may precede the command (`--machine doctor`) or follow it
+(`doctor --machine`). Preflight retains duplicate/conflict checks before dispatch.
+Arguments rejected by the bounded invocation constructor use the same delivery
+boundary as other usage failures, without fabricating a different command.
+
 ### Bounded operation execution
 
 `CliIo` requires separate `ISetupCliAuthoringFiles` authority in addition
