@@ -1,4 +1,5 @@
 .app-text-field { min-inline-size: 0; inline-size: 100%; }
+.app-text-field__textarea { box-sizing: border-box; inline-size: 100%; resize: vertical; color: var(--isl-color-text); background: var(--isl-color-surface); border: var(--isl-card-border); border-radius: var(--isl-radius-sm); padding: var(--isl-space-2); font: inherit; }
 .app-text-field ::deep .mud-input-control { margin-block: 0; }
 .app-text-field ::deep .mud-input-slot { box-sizing: border-box; block-size: var(--isl-field-control-height, 2.75rem); min-block-size: var(--isl-field-control-height, 2.75rem); padding-block: var(--isl-space-2); }
 .app-text-field__error { margin-block: var(--isl-space-2) 0; font-size: .875rem; color: var(--isl-color-error); }

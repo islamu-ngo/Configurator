@@ -32,7 +32,7 @@ explicit launch entry selects its matching declared task once. Later supplied
 choices, explicit false and omissions take precedence over initialization.
 Opening an older pinned definition retains that definition's own behavior.
 
-The workspace edits the admitted v2 schema directly. Typed maps keep literal keys,
+The workspace edits the admitted schema directly. Typed maps keep literal keys,
 including dots and slashes, separate from editor paths. Add an entry, edit its
 declared value and remove it deliberately; compound values do not require an
 unrestricted JSON text area. Provider alternatives use the declared discriminator
@@ -276,6 +276,27 @@ those errors into success. Correction actions return to the actual input, and
 > Secret entry is disabled by default for every new workspace. You choose between two secure workflows:
 > - **Secret-Deferred Draft:** Keep secret entry disabled. Configurator produces a draft file with clear placeholders marking where secrets must be supplied locally after export.
 > - **Explicit Consent:** Voluntarily enable secret entry for this workspace. Inputs are masked, and password manager autofill is supported. Revoking consent synchronously denies further secret access, removes secret answers and retained comparisons, and invalidates staged outputs. Owned byte buffers are cleared; managed strings and browser/runtime copies cannot be guaranteed physically erased. Exported files, clipboard contents and password-manager storage remain outside workspace clearing.
+
+### Generate and inspect local secrets
+
+After enabling secret entry, fields with an admitted local generation recipe
+offer **Generate** or **Regenerate**. Generation runs locally and keeps the result
+masked. **Show**, **Hide**, and **Copy** are deliberate actions; generation never
+copies or downloads a value automatically. Clipboard failure preserves the field
+so you can retry. Editing or revoking consent resets reveal state.
+For multiline PEM private keys, use **Show** to enter or edit the complete text;
+**Hide** restores the read-only masked view. The revealed multiline editor stays
+open while you type so line breaks and incomplete drafts remain correctable.
+
+Secret requirements appear beside the field. Invalid text stays editable and
+shared validation explains unmet rules after interaction. These checks establish
+local format and policy conformance, not target acceptance or issuer authority.
+
+Hash and digest recipes can take temporary input or generate a separate original
+password. The encoded result goes into the field. The original password has its
+own masked surface: copy it before dismissing it, leaving Configure, or editing the workspace. It is
+not included in ordinary prepared artifacts. Workspace clearing cannot retract
+copies already placed on the system clipboard.
 
 ### Importing Existing Configuration
 

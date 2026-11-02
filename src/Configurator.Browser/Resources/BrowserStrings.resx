@@ -395,4 +395,18 @@
   <data name="DiscoveryNext" xml:space="preserve"><value>Next settings</value></data>
   <data name="MaskedChoiceReplace" xml:space="preserve"><value>Current value hidden; choose a replacement</value></data>
   <data name="MaskedChoiceAbsent" xml:space="preserve"><value>Not supplied; choose a value</value></data>
+  <data name="SecretGenerate" xml:space="preserve"><value>Generate</value></data>
+  <data name="SecretRegenerate" xml:space="preserve"><value>Regenerate</value></data>
+  <data name="SecretShow" xml:space="preserve"><value>Show</value></data>
+  <data name="SecretHide" xml:space="preserve"><value>Hide</value></data>
+  <data name="SecretCopy" xml:space="preserve"><value>Copy</value></data>
+  <data name="SecretDismiss" xml:space="preserve"><value>Dismiss original password</value></data>
+  <data name="SecretDerivationInput" xml:space="preserve"><value>Temporary input for derivation</value></data>
+  <data name="SecretOriginalPassword" xml:space="preserve"><value>Original generated password — copy before editing or leaving this view</value></data>
+  <data name="SecretRunning" xml:space="preserve"><value>Generating locally…</value></data>
+  <data name="SecretGenerated" xml:space="preserve"><value>Generated locally. The value remains hidden.</value></data>
+  <data name="SecretFailed" xml:space="preserve"><value>The operation did not complete. Your current value is preserved.</value></data>
+  <data name="SecretGeneratedOrigin" xml:space="preserve"><value>Generated locally</value></data>
+  <data name="SecretCancel" xml:space="preserve"><value>Cancel generation</value></data>
+  <data name="SecretMultilineHelp" xml:space="preserve"><value>Use Show to enter or edit a multiline private key. Hide returns to a read-only masked view.</value></data>
 </root>

@@ -395,4 +395,18 @@
   <data name="DiscoveryNext" xml:space="preserve"><value>الإعدادات التالية</value></data>
   <data name="MaskedChoiceReplace" xml:space="preserve"><value>القيمة الحالية مخفية؛ اختر قيمة بديلة</value></data>
   <data name="MaskedChoiceAbsent" xml:space="preserve"><value>لم تُدخل قيمة؛ اختر قيمة</value></data>
+  <data name="SecretGenerate" xml:space="preserve"><value>توليد</value></data>
+  <data name="SecretRegenerate" xml:space="preserve"><value>إعادة التوليد</value></data>
+  <data name="SecretShow" xml:space="preserve"><value>إظهار</value></data>
+  <data name="SecretHide" xml:space="preserve"><value>إخفاء</value></data>
+  <data name="SecretCopy" xml:space="preserve"><value>نسخ</value></data>
+  <data name="SecretDismiss" xml:space="preserve"><value>مسح كلمة المرور الأصلية</value></data>
+  <data name="SecretDerivationInput" xml:space="preserve"><value>مدخل مؤقت للاشتقاق</value></data>
+  <data name="SecretOriginalPassword" xml:space="preserve"><value>كلمة المرور الأصلية المولّدة — انسخها قبل التعديل أو مغادرة هذا العرض</value></data>
+  <data name="SecretRunning" xml:space="preserve"><value>جارٍ التوليد محليًا…</value></data>
+  <data name="SecretGenerated" xml:space="preserve"><value>تم التوليد محليًا. تبقى القيمة مخفية.</value></data>
+  <data name="SecretFailed" xml:space="preserve"><value>لم تكتمل العملية. تم الاحتفاظ بالقيمة الحالية.</value></data>
+  <data name="SecretGeneratedOrigin" xml:space="preserve"><value>مولّدة محليًا</value></data>
+  <data name="SecretCancel" xml:space="preserve"><value>إلغاء التوليد</value></data>
+  <data name="SecretMultilineHelp" xml:space="preserve"><value>استخدم إظهار لإدخال مفتاح خاص متعدد الأسطر أو تعديله. يعيد إخفاء العرض المقنّع للقراءة فقط.</value></data>
 </root>

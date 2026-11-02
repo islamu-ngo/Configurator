@@ -178,6 +178,7 @@
     {
         DefinitionAnswerOrigin.Defaulted => "ReviewOriginDefault",
         DefinitionAnswerOrigin.Imported => "ReviewOriginImported",
+        DefinitionAnswerOrigin.Generated => "SecretGeneratedOrigin",
         DefinitionAnswerOrigin.Explicit => "ReviewOriginExplicit",
         _ => "ReviewOriginOmitted"
     });
@@ -188,6 +189,8 @@
         : entry.IsRequired ? "ReviewStateRequiredMissing" : "ReviewStateOptionalMissing");
     private string DescribeDiagnostic(string code)
     {
+        if (code.StartsWith("secret-", StringComparison.Ordinal))
+            return DefinitionFormModel.SecretRuleMessage(code, Form?.Locale ?? "en") + " (" + code + ")";
         string key = code switch
         {
             "value-required" => "ReviewValueRequired",

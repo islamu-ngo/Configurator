@@ -57,6 +57,38 @@ verify rendered structure, preference admission and presentation changes.
 Published-browser keyboard, zoom/reflow, theme, RTL, offline and CSP evidence
 is separate from component-test evidence.
 
+## Schema-driven secret controls
+
+`ConfigurationField` classifies sensitivity through `DefinitionSensitivityPolicy`
+and reads the admitted `DefinitionNode.Secret` specification. Secret strings
+mount `ConfigurationSecretActions` only while the shared form permits editing.
+The component delegates generation, validation and operation ownership to
+Presentation; it does not evaluate cryptographic policy itself.
+
+Generate/Regenerate, Show/Hide, Copy and Cancel use native keyboard-operable
+buttons with field-specific accessible names. Shared English/Arabic requirements
+connect to the input through `aria-describedby`; current failures connect through
+the existing error element. Invalid draft input remains editable. PKCS8 PEM uses
+a read-only masked input until Show deliberately opens a multiline editor;
+native single-line inputs would otherwise remove line breaks. Editing that
+revealed textarea preserves its visibility and exact draft; Hide, external
+edits, revocation and disposal retire the revealed view. Status text
+announces safe operation outcomes, never answer values.
+
+Transient derivation input clears before the operation yields. Owned character
+and export byte buffers are zeroed. A generated original password remains in
+Presentation until an explicit reveal/copy, dismissal, edit or disposal; it has a
+distinct masked result surface. Field edits reset reveal state, and retiring
+callbacks are fenced by component generation and editor identity. Clipboard
+actions reuse `BrowserArtifactExport`, including its asynchronous revocation
+checks. No automatic copy, download, storage or worker message is introduced.
+
+Browser task yields allow busy rendering and queued cancellation/revocation
+before result application. A synchronous cryptographic primitive itself cannot
+be interrupted halfway through on a single-threaded WebAssembly runtime; the
+shared operation rejects its result after cancellation. Published AOT validation
+is a separate gate from component tests.
+
 ## Interface refinement
 
 Shared native text controls explicitly opt into `form-control`; MudBlazor

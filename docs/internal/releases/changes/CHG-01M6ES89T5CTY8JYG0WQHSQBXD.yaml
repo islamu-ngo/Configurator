@@ -1,0 +1,25 @@
+Change-Id: CHG-01M6ES89T5CTY8JYG0WQHSQBXD
+Title: "Generate secrets in the browser workspace"
+Type: feat
+Scope: privacy
+Summary: "Generate, validate, reveal and explicitly copy local secrets with workspace consent and stale-result protection."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

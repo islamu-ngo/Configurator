@@ -238,22 +238,38 @@
             long editControlGeneration = _controlGeneration;
             <div class="configuration-field__input" @oninput="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }"
                  @onchange="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration, changeOnly: true)) editRevision = editForm.InputRevision; }">
-                <AppTextField @ref="_textControl" InputId="@ControlId" Value="@Text" Masked="@isMasked"
+                <AppTextField @ref="_textControl" InputId="@ControlId" Value="@Text" Masked="@(isMasked && !_secretRevealed)"
+                              Multiline="@IsMultilineSecret" ReadOnly="@(IsMultilineSecret && !_secretRevealed)"
                               InputMode="@(type == "integer" ? InputMode.numeric : type == "number" ? InputMode.@decimal : InputMode.text)"
                               Disabled="@(!canEdit)" Required="@required" Error="@(_invalid || error.Length > 0)" InputAttributes="@(new Dictionary<string, object>
                               {
                                   ["name"] = ControlId, ["autocomplete"] = Autocomplete, ["spellcheck"] = "false",
                                   ["aria-invalid"] = (_invalid || error.Length > 0).ToString().ToLowerInvariant(),
-                                  ["aria-describedby"] = ControlId + "-help " + ControlId + "-error"
+                                  ["aria-describedby"] = ControlId + "-help " + ControlId + "-error" + (Schema.Secret is null ? "" : " " + ControlId + "-rules")
                               })" ErrorText="@(_invalid ? Ui("FieldInputTypeInvalid") : error)" />
             </div>
+            @if (isSecret && canEdit && type == "string")
+            {
+                <ConfigurationSecretActions Form="Form" Schema="Schema" Path="Path" ControlId="@ControlId" Title="@Title"
+                                            Value="@Text" Revealed="_secretRevealed" RevealedChanged="SetSecretRevealed" />
+            }
         }
         }
     }
     <p id="@(ControlId + "-help")" class="configuration-field__help" hidden="@(!HasHelp)">@Help
         @if (isMasked && type == "boolean") { <span>@Ui("FieldBooleanHelp")</span> }
         @if (InputPurposeHelp is { } purposeHelp) { <span>@purposeHelp</span> }
+        @if (IsMultilineSecret) { <span>@Ui("SecretMultilineHelp")</span> }
     </p>
+    @if (Schema.Secret is not null && canEdit)
+    {
+        <ul class="configuration-field__help" id="@(ControlId + "-rules")">
+            @foreach (var rule in Form.GetSecretValidation(Path).Requirements)
+            {
+                <li data-secret-rule="@rule.Code">@rule.Message</li>
+            }
+        </ul>
+    }
     @if (type is "object" or "array" || !canEdit || UseRadios)
     {
         <p id="@(ControlId + "-error")" class="configuration-field__error">@(_invalid ? Ui("FieldInputTypeInvalid") : error)</p>
