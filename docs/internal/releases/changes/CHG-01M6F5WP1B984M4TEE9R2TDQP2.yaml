@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F5WP1B984M4TEE9R2TDQP2
+Title: "Share admitted secret traversal and replacement"
+Type: refactor
+Scope: privacy
+Summary: "Provide immutable secret leaf traversal and replacement without granting workspace or publication authority."
+Group: secret-transformations
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: Traversal requires admitted active local secret leaves and respects read-only and omitted ancestors; replacement preserves unrelated answers.
+  Migration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable

@@ -354,6 +354,7 @@ internal static class SetupCoreAssemblyVerifier
             or "Configurator.Core.Definitions.DefinitionSecretEncoding"
             or "Configurator.Core.Definitions.DefinitionSecretInput"
             or "Configurator.Core.Definitions.DefinitionSecretKind"
+            or "Configurator.Core.Definitions.DefinitionSecretOperations"
             or "Configurator.Core.Definitions.DefinitionSecretVocabulary" => name == owner.Name,
         "Configurator.Core.Definitions.DefinitionSecretGeneration" => name == owner.Name || name is "Password" or "get_Password" or "set_Password",
         "Configurator.Core.Secrets.SecretGenerationResult" => name == owner.Name || name is "GeneratedPassword" or "get_GeneratedPassword",
