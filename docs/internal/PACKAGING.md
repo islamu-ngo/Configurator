@@ -3,8 +3,13 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Implemented local packaging; publication authority not activated
 > **Owner:** Packaging/Release
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-11-02
 > **Source Anchors:** `eng/configurator/Configurator.Release.proj`, `src/`, `tests/Configurator.Architecture.Tests/`
+
+The [current development candidate record](OPERATIONS.md#fixed-development-baseline-001-2026-11-02)
+binds the current Linux packages and both Browser AOT Store variants to
+their executed checks and hashes. All affected Artifacts cases now pass;
+historical Red gaps and unexecuted hosts remain explicitly scoped.
 
 `global.json` selects both the SDK and workload-set versions. Before the first
 restore on a clean SDK installation, `dotnet workload update` initializes the
@@ -72,10 +77,10 @@ only `$(ConfiguratorPublishDirectory)schemas`, then copies the current public
 `schemas/*.schema.json`. Retired versions cannot survive republishing; unrelated
 package content outside the owned schema directory is retained. The stage can run
 independently without restoring, building or publishing executables.
-`ReleaseContractTests` seeds command v1 and a retired schema in a temporary package,
+`ReleaseContractTests` seeds an unsupported command schema in a temporary package,
 executes this actual MSBuild target for each native surface, and checks exact
 current-schema names/bytes plus preservation of unrelated package files. It uses
-the repository's current schema set, so retiring command v1 requires no test alias.
+the repository's current schema set without a historical-version allowlist.
 
 `PublishConfiguratorBrowser` removes every inherited native publication flag
 before restoring/publishing `Configurator.Browser`. Distribute its complete
@@ -170,12 +175,19 @@ does not prove real browser update/network/cache behavior.
 
 ## Qualified definition generation
 
-The admitted generation uses authoring v2/runtime 2, command v4 and private
-answers v1. Package tests compare distributed schemas and frozen baselines with
+Product and public contract versions stay `0.0.1` during development, including
+breaking changes. Authoring/runtime, command, answers and Store each have one
+current format. Package tests compare distributed schemas and frozen baselines with
 their owning generators, then execute real package consumers. The optional
-store's v1 active inputs were retired through native fresh-family generation,
+store's older active inputs are replaced through native fresh-family generation,
 not a compatibility reader or historical digest rewrite. See
-[the exact client evidence](OPERATIONS.md#definition-v2-qualification).
+[the earlier client evidence](OPERATIONS.md#definition-v2-qualification).
+The schema-driven secret payload requires new package qualification. The
+`Configurator.DependencyProbes.Cryptography` project exercises the real Core
+profiles under Browser AOT before product integration; its results cannot
+substitute for running the actual published Browser. The portable
+`BouncyCastle.Cryptography` dependency retains its identity and notices in each
+distributed closure. See [cryptographic contracts](SECRET_CRYPTOGRAPHY.md).
 
 ## Browser container
 
@@ -334,7 +346,7 @@ synthetic definition/answer workspace, verifies its inputs remain unchanged and
 requires no output file. No owner-source execution substitutes for these calls.
 
 Each receipt must be one LF-terminated UTF-8 object, without BOM, CR, terminal
-controls, stderr or more than 65,536 bytes. The checkout-owned command v4 schema
+controls, stderr or more than 65,536 bytes. The checkout-owned command 0.0.1 schema
 enforces required fields, closed nested objects, duplicate-key rejection, types,
 enum/constant vocabulary, string/array/numeric bounds and patterns. Additional
 checks bind invocation, process/receipt exit, status/completion, diagnostics
@@ -347,8 +359,8 @@ the terminal page without changing the input. A stopped inventory has no exact
 total. The verifier also checks returned-count progress, byte budgets and
 value-free finding coordinates. Self-tests exercise hostile continuation and
 assessment envelopes independently of product serialization. Regenerate packages
-before qualification: the schema refresh retires command v3 rather than retaining
-a compatibility artifact.
+before qualification: schema refresh distributes only the current schema set,
+without compatibility artifacts.
 
 Linux executes protected create and an existing-file conflict, verifies exact
 bytes and owner-only mode, and proves the conflict did not overwrite the file.

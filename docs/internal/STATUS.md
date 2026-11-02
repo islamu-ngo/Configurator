@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Mixed; current implementation routes and bounded historical evidence
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-30
+> **Last Verified:** 2026-11-02
 > **Source Anchors:** `docs/internal/CLI_CONTRACT.md`, `docs/internal/IMPORT_COMPARISON.md`, `docs/internal/OPERATIONS.md`, `docs/internal/adr/`
 
 This index separates claims that require different evidence. It routes to the
@@ -16,10 +16,11 @@ Use the [knowledge map](KNOWLEDGE_MAP.md) for document lifecycle and the
 
 | Scope | Current owner and disposition | Evidence boundary |
 | --- | --- | --- |
-| Bounded definition v2, compilation and evaluation | [Conformance profile](DEFINITION_CONFORMANCE_PROFILE.md), [Core contract](CORE_DEFINITION_CONTRACT.md), [maintainer authoring](MAINTAINER_AUTHORING.md); delivered bounded profile | [Definition v2 qualification](OPERATIONS.md#definition-v2-qualification) and [final delivery](OPERATIONS.md#final-definition-delivery-and-responsibility) describe the recorded candidate, not arbitrary target acceptance |
+| Bounded definition 0.0.1, compilation and evaluation | [Conformance profile](DEFINITION_CONFORMANCE_PROFILE.md), [Core contract](CORE_DEFINITION_CONTRACT.md), [maintainer authoring](MAINTAINER_AUTHORING.md); one current development format | [Earlier qualification](OPERATIONS.md#definition-v2-qualification) and [final delivery](OPERATIONS.md#final-definition-delivery-and-responsibility) retain prior candidate evidence and do not qualify changed payloads |
 | Shared workspace, Browser and native ownership | [Presentation](PRESENTATION_STATE.md), [Browser](BROWSER_UI.md), [Desktop](DESKTOP_CLIENT.md), [Terminal](TERMINAL_CLIENT.md) | [Cross-platform program qualification](OPERATIONS.md#cross-platform-quality-program-qualification-2026-10-27) retains delivered mechanisms and open duties |
 | Ordinary configuration import and comparison | [Import/comparison](IMPORT_COMPARISON.md); implementation in progress, client/package qualification pending | [Accepted assessment design](adr/ADR-artifact-import-comparison.md) is not delivery or actual-client evidence |
-| Machine CLI | [CLI contract](CLI_CONTRACT.md); machine v4 implemented, package qualification pending | Historical v3 qualification below cannot qualify v4; authoring/runtime v2 and private answers v1 are separate version axes |
+| Machine CLI | [CLI contract](CLI_CONTRACT.md); current 0.0.1 machine format includes explicit local secret operations | Authoring/runtime, answers and command formats share the fixed development baseline; historical evidence does not qualify a changed payload |
+| Schema-driven secret policies and operations | [Cryptography contract](SECRET_CRYPTOGRAPHY.md), [shared workspace](PRESENTATION_STATE.md), [synthetic example](../../examples/secret-generation/README.md) | Source and unit checks, published AOT execution, native clipboard checks and target acceptance require separate evidence; prior package observations do not qualify these additions |
 
 ## Package admission
 
@@ -28,7 +29,11 @@ publication commands. [Definition v2 qualification](OPERATIONS.md#definition-v2-
 and [cross-platform final packages](OPERATIONS.md#final-packages-and-actual-surfaces)
 record actual local publications and their checks. Cross-publication, package
 admission and execution on the target host are distinct. No prior package
-result closes the pending import/comparison or machine v4 qualification.
+result closes the secret-generation or machine 0.0.1 qualification. The
+[current baseline record](OPERATIONS.md#fixed-development-baseline-001-2026-11-02)
+provides separate solution, package, browser and Linux native evidence and records
+the repair of the obsolete Artifacts fixtures. It does not extend those claims
+to other hosts or target applications.
 
 ## Executed surface and host
 
@@ -37,7 +42,7 @@ result closes the pending import/comparison or machine v4 qualification.
 | Desktop | Native interactive configuration and publication | Linux x64 X11 native guards, including English/Arabic observations | [Definition-v2 qualification](OPERATIONS.md#definition-v2-qualification), [retained identity](OPERATIONS.md#qa-matrix-and-retained-identity) | Does not qualify Terminal, every picker, another host or assistive technology |
 | Terminal | Keyboard configuration and native publication | Actual published process at its recorded terminal dimensions, synthetic protected output | [Definition-v2 Terminal record](OPERATIONS.md#definition-v2-qualification), [final delivery](OPERATIONS.md#final-definition-delivery-and-responsibility) | Desktop X11 guard totals do not describe this process; full bidirectional shaping and assistive technology remain separate |
 | Browser | Static local workspace and deliberate export | Published AOT desktop/mobile layouts, offline, RTL and custody exercises | [Definition-v2 Browser record](OPERATIONS.md#definition-v2-qualification), [final packages](OPERATIONS.md#final-packages-and-actual-surfaces) | Browser exports do not establish native file protection; recorded package identity matters |
-| CLI | Offline machine preparation and publication | Standalone Linux x64 complete/incomplete and create-only conflict scenarios | [Recorded CLI qualification](OPERATIONS.md#definition-v2-qualification), [final delivery](OPERATIONS.md#final-definition-delivery-and-responsibility) | Earlier command-version/package evidence does not qualify current v4 additions |
+| CLI | Offline machine preparation and publication | Standalone Linux x64 complete/incomplete and create-only conflict scenarios | [Recorded CLI qualification](OPERATIONS.md#definition-v2-qualification), [final delivery](OPERATIONS.md#final-definition-delivery-and-responsibility) | Earlier command-version/package evidence does not qualify current contract |
 | Browser performance | Revision-bound editing and rendering | Reference-host indexed-edit measurements | [Frozen candidate](OPERATIONS.md#frozen-indexed-edit-candidate-2026-10-23), [committed editor](OPERATIONS.md#committed-aot-editor-candidate-2026-10-24) | Candidate-specific, not a latency promise for later packages or devices |
 | Additional native hosts/installers | See package-admission contract | Pending actual-host duties | [Host evidence follow-up](../../dev/backlog/configurator-native-host-evidence.md), [required duties](../../dev/backlog/cross-platform-quality-required-followups.md) | Cross-publication and Linux x64 passes are not execution on another host |
 

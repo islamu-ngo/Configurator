@@ -564,3 +564,47 @@ heading over revealing a hidden label in document flow.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; the owning UI contract documents stable panel focus.
+
+[2026-11-02 Europe/Brussels] — Masked text changes are not secret input changes
+
+**Context**: Schema-driven secret controls added deliberate reveal/copy and preservation of the existing secret when a replacement exceeds the bounded terminal buffer.
+
+**Symptom / Observation**: The full Terminal suite passed 135/138 cases. Three existing scalar/list/nested masked correction cases failed after replacing invalid input with a valid value of the same length; `CommitField()` still returned false.
+
+**Root Cause**: `SetupTerminalWindow` observed `TextField.ValueChanged`, but the text stored in the control is a mask. Equal-length secret replacements produce identical mask text, so the control does not emit a value change. The previous clear-before-replace sequence accidentally forced notification while also erasing the old value on rejected replacement. Revealing text is a visual change and must not count as an answer edit either.
+
+**Resolution**: `SetupSecretTextField.SensitiveInputChanged` now reports bounded buffer mutations separately from rendered text. Reveal does not emit this event; rejected replacement preserves both buffer and display. Release build passed with zero warnings/errors. `dotnet run --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --no-build -- --treenode-filter "/*/*/(SetupTerminalGuiAdapterTests)|(SetupTerminalSecretGenerationTests)/*" --minimum-expected-tests 1` passed 56/56 cases in 3.088s after the fix.
+
+**Why This Matters for Future Work**: A redacted or formatted UI projection cannot serve as the change detector for its underlying value. Keep model mutation notifications independent of masked text and visual disclosure state.
+
+**References**:
+- `src/Configurator.Terminal/SetupSecretTextField.cs:49`
+- `src/Configurator.Terminal/SetupTerminalWindow.cs:188`
+- `tests/Configurator.Terminal.Tests/SetupTerminalGuiAdapterTests.cs:128`
+- `tests/Configurator.Terminal.Tests/SetupTerminalSecretGenerationTests.cs:18`
+- `docs/internal/TERMINAL_CLIENT.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the terminal owner documents the current implementation.
+
+[2026-11-02 Europe/Brussels] — Consent clearing must not permanently disable explicit generation
+
+**Context**: The actual published Browser secret workflow revokes consent by clearing secret leaves and recording their omission.
+
+**Symptom / Observation**: Re-enabling consent left every Generate action disabled even though the workspace again permitted secret entry. Existing consent tests proved clearing, but did not exercise renewed consent followed by generation.
+
+**Root Cause**: Generation eligibility rejected both omitted ancestors and the field itself. Explicit generation is a deliberate new value for an omitted leaf; an omitted parent still represents an absent structure that generation must not recreate implicitly.
+
+**Resolution**: Presentation and CLI reject only strict omitted ancestors. `RenewedConsentAllowsExplicitGenerationWithoutRestoringClearedSecrets` failed before the fix; it and `ExplicitGenerationSuppliesAnOmittedLeaf` now pass in the complete 294-case Presentation and 258-case CLI suites. The final published Browser re-enabled generation after consent renewal while old values stayed cleared.
+
+**Why This Matters for Future Work**: Test recovery after a privacy transition as well as the clearing transition. Omission of a leaf and omission of its containing structure have different mutation semantics.
+
+**References**:
+- `src/Configurator.Presentation/Presentation/DefinitionSecretOperation.cs`
+- `src/Configurator.Cli/SetupCliSecretHandlers.cs`
+- `tests/Configurator.Presentation.Tests/DefinitionSecretOperationTests.cs`
+- `tests/Configurator.Cli.Tests/SetupCliSecretTests.cs`
+- `docs/internal/OPERATIONS.md#schema-driven-secrets-qualification-2026-11-02`
+
+**Promotion Consideration**:
+- [x] Shared workspace and CLI contracts document the stable eligibility rule.

@@ -2,14 +2,14 @@
 
 ## Contracts and lifecycle
 
-Use `schemas/configurator-authoring-v2.schema.json` for structural editor assistance and `definition schema --kind authoring --text` for built-in discovery. Semantic admission remains `definition check`; `definition lint` adds advisories. The installed command help owns options. Keep these contracts separate:
+Use `schemas/configurator-authoring.schema.json` for structural editor assistance and `definition schema --kind authoring --text` for built-in discovery. Semantic admission remains `definition check`; `definition lint` adds advisories. The installed command help owns options. Keep these contracts separate:
 
 | Document | Contract |
 |---|---|
-| One handwritten YAML/JSON source | `$schema: urn:islamu:configurator:authoring:v2` |
-| Compiled canonical public JSON | `schemaVersion: 2`, `profile: bounded-v2`, computed sorted `requiredCapabilities`; no `$schema` |
-| Machine receipt | Command v4; authoring/runtime handshake 2/2 |
-| Separate private answers | `answerContractVersion: 1`, object `values`, concrete pointer array `omitted` |
+| One handwritten YAML/JSON source | `$schema: urn:islamu:configurator:authoring:v0.0.1` |
+| Compiled canonical public JSON | `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1`, computed sorted `requiredCapabilities`; no `$schema` |
+| Machine receipt | Command `0.0.1`; authoring/runtime handshake string `0.0.1` |
+| Separate private answers | `answerContractVersion: "0.0.1"`, object `values`, concrete pointer array `omitted` |
 
 Declare `identity`, project ID/name, exact `applicationVersions`, recursive `configuration` and filename-keyed `outputs`. Repository and explicit definition license are needed for optional Store redistribution, not invented for local use. Application version and family revision are independent of contract versions. Native `definition init` allocates identity; `init --fork-from` creates a new family from admitted source without converting its format. Never copy fixture UUIDs. Within a family, retain the current canonical anchor, edit the source without manually advancing revision, use `definition revise`, review/adopt its next-revision candidate, then build. Unchanged canonical content does not advance revision; retain release history.
 
@@ -32,6 +32,10 @@ Keys preserve empty names, punctuation, case and Unicode composition. References
 Child initialization never creates an absent parent. Review every nested leaf before declaring `x-configurator.sensitivity: public`. Missing sensitivity is sensitive; `writeOnly` and inherited secret floors cannot be lowered. All definition literals are public: keep private defaults, initial/suggested values, examples and constants out, and never lower classification to admit them.
 
 ## Supported bounded patterns
+
+For password, token, hash or key fields, read [secret policies](secrets.md) before
+choosing `x-configurator.secret`. The target's public contract owns format and
+constraints; missing facts cannot be inferred from a field name.
 
 - Typed maps use a recursive `additionalProperties` schema, optionally beside fixed properties; ordinary closed objects use `false`. Untyped `true` rejects. Map keys remain exact and private diagnostic identifiers must not expose them.
 - Variants use 2-16 closed object `oneOf` branches with exactly one eligible common required scalar discriminator and distinct `const` values. This is not general composition; nullable variants handle null outside branch selection.

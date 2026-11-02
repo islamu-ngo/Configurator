@@ -1,6 +1,6 @@
 ---
 name: configurator-integrate
-description: Create or review a compact Configurator YAML/JSON source, scaffold a bounded public JSON Schema, or prepare an optional store contribution. Do not use for private answer collection, target apply, or deployment.
+description: Create or review a compact Configurator YAML/JSON source and public secret policy, scaffold a bounded public JSON Schema, or prepare an optional store contribution. Do not use for private answer collection, credential generation, target apply, or deployment.
 type: workflow
 enforcement: suggest
 priority: high

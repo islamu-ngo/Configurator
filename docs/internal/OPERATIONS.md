@@ -31,9 +31,12 @@ acceptance from delivery. These indexes add no runtime or publication authority.
 | Prepare release evidence | [Release runbook](RELEASE_RUNBOOK.md); local validation is not signed-publication activation |
 | Validate documentation changes | [Native knowledge commands](../../eng/knowledge/README.md#documentation-ci) and [documentation workflow](../../.github/workflows/docs-quality.yml); current checks and optional manual historical audit have separate outcomes, hosted execution requires a later push |
 
-Machine v4 is documented as implemented in the current CLI contract, with package
-qualification pending. The machine v3 delivery evidence below remains evidence
-for its recorded candidate, not a qualification of machine v4.
+Machine contract `0.0.1` is the current development baseline. The earlier
+[secret candidate qualification](#schema-driven-secrets-qualification-2026-11-02)
+records the pre-reset payload; [current baseline execution](#fixed-development-baseline-001-2026-11-02)
+is recorded separately.
+Earlier machine delivery evidence below remains evidence for its recorded
+candidate and does not qualify the current payload.
 
 ## Operational Runbooks
 
@@ -1827,3 +1830,174 @@ changes contrary to the current task.
 ReleaseEngineering separately validates commit syntax, immutable Change-Ids and
 local release evidence. See its [operating instructions](../../eng/release/README.md).
 No credentials, Event signer lists or machine MCP settings are transfer inputs.
+
+## Schema-driven secrets qualification (2026-11-02)
+
+This candidate implements authoring/runtime v3 (`bounded-v3`), command v5 and
+unchanged private answers v1. It was built directly in the development checkout
+over `4f130d1`, without a commit or remote publication. Core owns admitted secret
+policies, bounded validation and generation; Presentation owns operation revisions,
+consent and transient original-password custody. All four clients consume those
+owners. Local validity never establishes target acceptance.
+
+Commands used SDK 10.0.302, `TMPDIR="$HOME/.cache/agent-tmp"`,
+`DOTNET_PROCESSOR_COUNT=2` and serialized builds with `-m:1 -nr:false
+-p:UseSharedCompilation=false`. Final solution Release build completed with zero
+warnings/errors; `dotnet format Configurator.slnx --verify-no-changes --no-restore
+--verbosity quiet` exited 0. Locked restore, generated schema/example/command
+freshness and the three release ratchets passed.
+
+Each owner ran with `dotnet run --project tests/Configurator.<Owner>.Tests/
+Configurator.<Owner>.Tests.csproj -c Release --no-build --
+--minimum-expected-tests 1`; every listed pass had zero skips:
+
+| Owner | Passed | Duration |
+| --- | ---: | ---: |
+| Core | 427 | 13.001 s |
+| Presentation | 294 | 3.491 s |
+| CLI | 258 | 6.403 s |
+| Browser | 378 | 9.751 s |
+| Desktop | 290 | 5.952 s |
+| Terminal | 139 | 7.596 s |
+
+Architecture/package execution initially passed 76/77 in 23.119 s. Its remaining
+CLI validator still referenced retired v4/v2 fixtures. Migrating that owner to
+v5/v3, retaining old-version rejection and admitting the new `secret` help route
+made the targeted remaining case pass in 35.563 s. The validator's native
+`--self-test` accepted six valid envelopes and rejected 79 invalid ones. The 76
+unaffected passes remain current; this is aggregate evidence, not a second full run.
+
+`dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator
+-p:ConfiguratorSurface=<cli|terminal|desktop> -p:ConfiguratorRid=linux-x64`
+published all three final packages with dependency notices. Browser publication
+used `-t:PublishConfiguratorBrowser`, both with the default Store-free root and
+with `-p:ConfiguratorOutputRoot=artifacts/configurator-with-store
+-p:DefinitionStoreSourceRoot=<checkout>/store`. Both static AOT variants passed
+the actual package/store inventory checks. Per-tool NuGet lock paths isolate
+the Store builder, ratchet generator and local preview server from a pre-existing
+ignored shared lock; the lock was preserved.
+
+Actual execution separately established:
+
+- The packaged Linux CLI generated password and token answers, validated them,
+  and refused destination reuse with exit 4. Both files had mode 0600; receipts
+  exposed no values. Earlier generated-original sidecar, derivation and partial
+  publication cases are recorded in the workstream context and CLI suite.
+- Desktop native X11 guards passed all 21 named scenarios in both `en` and `ar`,
+  including generation, correction focus, original-password custody, exact PEM
+  clipboard transfer and stale edits. The final packaged executable also loaded
+  the public synthetic example and generated a masked password through its actual
+  Generate button; the UI reported local generation. Startup was not inferred
+  from the managed suite.
+- The final Terminal package ran in a real 110×36 PTY, generated a masked password
+  and closed without publication (exit 4). Earlier built-binary PTY checks proved
+  deliberate reveal/hide, ordinary-copy blocking, headless clipboard refusal
+  without answer loss, no OSC52 export and clearing an input modal on SIGTERM.
+- The final published Browser AOT payload generated all 11 fixture profile
+  families in Chrome. Keyboard reveal focused a multiline PEM control, explicit
+  copy succeeded, Hide remasked it, and Arabic RTL keyboard generation worked.
+  Generated original passwords started masked, explicit copy succeeded and
+  dismissal restored Generate focus. Revocation cleared values; renewed consent
+  restored eligibility without restoring old secrets. Local/session storage were
+  empty; caches contained only public app assets and an empty public-definition
+  cache. Observed requests were local public GETs, with no answer-bearing traffic.
+- The independent published crypto probe passed all 37 profiles; measurements
+  and limits are in [Secret cryptography](SECRET_CRYPTOGRAPHY.md).
+
+Candidate SHA256 identities:
+
+| Payload | SHA256 |
+| --- | --- |
+| Linux CLI executable | `b7690fa1590010bd332c7aaa3e6f68421b20197d4002ac590847f9a14246a3bb` |
+| Linux Terminal executable | `d769f4667820766284ce45c80cdeca80cc98528dadf4557e42901b95c2550a38` |
+| Linux Desktop executable | `94b8b7282fba8503025bd376fe7c1bc55774b3fa6022f7e9ff29eac9633da12b` |
+| Browser `dotnet.native.5kv7g0fb56.wasm` | `855b4b5777f9c2003e45bf1ccc8044af373e77656276ec9d472414b22c408bae` |
+
+Evidence: `$TMPDIR/schema-driven-*-final.log`, native/package logs named in the
+[execution context](../../dev/active/schema-driven-secrets/schema-driven-secrets-context.md),
+and ignored `.playwright-mcp/schema-driven-browser-final-{network.txt,cleared.yml}`.
+The network's optional Store lookup returns 404 in the Store-free package.
+
+Known limits: the unchanged Artifacts bundle fixture already failed 27 cases on
+obsolete v1 metadata before implementation; the final owner run retained those
+same 27 failures (38/65 passed). No unrelated test was weakened. Some initial
+pre-fix Red runs were interrupted by workstation memory pressure, so their
+historical sequencing remains unproven despite current passing regressions.
+Other operating systems, assistive technology, mobile performance and target
+application acceptance are not qualified by this workstation evidence.
+
+## Fixed development baseline 0.0.1 (2026-11-02)
+
+The user explicitly fixed Configurator product/public contracts at `0.0.1` for
+ongoing development, including breaking changes. `Directory.Build.props` owns
+product metadata (`0.0.1`, assembly/file version `0.0.1.0`);
+`Configurator.Core.ConfiguratorVersion.Current` supplies the public wire version.
+Definition, answer and Store version fields are strings. The CLI envelope is
+`islamu-configurator-command/v0.0.1`. All five active schemas have stable filenames
+without version suffixes. Generators maintain only current outputs, without
+obsolete-version retirement lists or a one-off Store migration command.
+
+Superseded schemas are in ignored `schemas/archive/pre-0.0.1-20261102/`; old
+public examples, Store snapshots and the unused v2 qualification fixture are in
+ignored `dev/archive/pre-0.0.1-20261102/`. Git history was not rewritten. The
+current examples and Store use fresh native-generated family identities;
+revision/digest conflict checks remain intact. Third-party dependencies,
+cryptographic formats and target application versions did not change.
+
+Verification used the same controlled SDK/build settings as the preceding
+record. `dotnet restore Configurator.slnx --force-evaluate --verbosity quiet`
+and a subsequent `--locked-mode` restore exited 0. Solution Release build exited 0
+with zero warnings/errors in 88.34 s; full format verification and the final
+changed-test formatting slice exited 0. Native schema/example/Store/reference
+checks passed (four examples, two Store revisions, three generated ratchets).
+Store self-tests passed 50/50; command-reference self-tests 113/113; CLI package
+validator self-tests accepted 6 valid and rejected 79 malformed envelopes.
+
+| Owner | Final evidence |
+| --- | --- |
+| Core | Full run 415/427; 12 stale example answer-envelope failures corrected, then all 23 cases in the three affected classes passed. All 427 cases have current passing evidence. |
+| Presentation | 294/294, 2.326 s |
+| CLI | 258/258, 6.236 s |
+| Browser | 378/378, 12.256 s |
+| Desktop | 290/290, 7.275 s |
+| Terminal | 139/139, 6.439 s |
+| Artifacts | 65/65, 1.284 s; migrating the obsolete fixture resolved the earlier 27 failures without weakening protected-write assertions |
+| Architecture/packages | 77/77, 58.272 s, including actual CLI execution and both Browser Store variants |
+
+All final passing runs had zero skips. The Core full run took 12.023 s; its
+fixture-resource rebuild took 4.65 s and targeted rerun 1.180 s. No product logic
+changed to accommodate those fixtures. The final architecture assertion checks
+exactly the five current schema paths recursively, so archived or additional
+versioned schemas cannot pass package qualification.
+
+The native publication targets and both Browser AOT targets exited 0, retaining
+7/30/32 dependency notices for CLI/Terminal/Desktop and 37 for each Browser
+variant. Actual Linux package checks generated a masked password through Desktop
+and a 110×36 Terminal PTY; the latter closed without publication (exit 4).
+The packaged CLI emitted the current envelope and protected answer contract,
+generated 32 characters and installed mode 0600; only predicates were printed,
+and the synthetic generated file was removed. The English X11 native harness
+also passed all 21 required checks.
+
+Actual Chrome execution of the published AOT payload generated all 11 secret
+fixture families with masked results, explicitly copied/dismissed an original
+password, and verified revocation followed by consent renewal and fresh generation
+without restoring cleared values. Network observations contained public local
+GETs only. The Store-enabled variant loaded its 0.0.1 catalogue, selected revision 1
+of `minimal-self-hosted` and opened the pinned workspace. That route uses the
+Store's slug, independently of the target application's `project.id`.
+
+| Final payload | SHA256 |
+| --- | --- |
+| Linux CLI | `a1bae32c408fb33c487cec89c3a82c8b24cf6090e1fb6363db4d1bbc002a8738` |
+| Linux Terminal | `5b2cf5220273ad0a7fee188989a958b908574837affe7a475b220963df4cb70b` |
+| Linux Desktop | `7bdbe83ad977128835bfce8f0666ace7aff76467f522aee1cf174cc997f1a1b8` |
+| Browser `dotnet.native.to7e26ywiq.wasm` | `6d586f64c5c51130650d64c24e9232ad82ff81ab19af2efb17d78d86fdbf5529` |
+
+Exact commands and logs are in the
+[workstream context](../../dev/active/schema-driven-secrets/schema-driven-secrets-context.md).
+Local evidence uses `$TMPDIR/development-baseline-*` and ignored
+`.playwright-mcp/development-baseline-{browser,store}-*` files. Owned documentation
+validation passed 66 files/973 links after this final record; skills passed their
+three existing validators. Other OS/device/assistive-technology qualification was
+not repeated for this contract reset. No commit or remote publication occurred.

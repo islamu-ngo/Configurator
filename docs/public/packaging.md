@@ -8,22 +8,30 @@ You do not need to install the .NET SDK to run standalone packages—only to bui
 
 ## Definition contracts and qualification
 
-Current packages carry authoring v2, runtime schema version 2 (`bounded-v2`),
-command envelope v4 and private answer contract v1. These versions are
-independent. Retired public definition/command schemas are not packaged.
-Machine consumers must migrate directly from v3 to v4 assessment and continuation
-fields; no v3 envelope or schema is retained. Use `nextOffset`/`returnedCount`,
+The product and public contracts stay at `0.0.1` during development, including
+breaking changes. Runtime definitions use `bounded-v0.0.1`; command, answer and
+Store formats also have one current implementation. Only the current unversioned
+schema filenames are packaged. Older local schema copies belong in ignored
+`schemas/archive/`; no old envelope reader or migration adapter is retained.
+Use `nextOffset`/`returnedCount`,
 not the requested page size. Comparison completion is separate from compatibility,
 workspace preparation and target acceptance; see the [CLI guide](cli.md).
-The optional Store uses fresh v2 families; old v1 identities remain historical
+The optional Store uses fresh families when content identities change; older identities remain historical
 Git evidence and are not silently migrated or repinned.
 
-Linux x64 qualification includes real native create-only writes, X11 controls,
+Earlier Linux x64 qualification includes real native create-only writes, X11 controls,
 a Terminal process and published Browser desktop/mobile flows. Browser downloads
 do not inherit native restricted-save guarantees. Package, rendering and schema
 checks do not establish another host's support, publisher authentication, signer
 activation or target acceptance. Exact evidence and reproduction commands belong
 to the [operations record](../internal/OPERATIONS.md#definition-v2-qualification).
+That historical evidence does not qualify the new secret-generation payload.
+The [current 0.0.1 baseline record](../internal/OPERATIONS.md#fixed-development-baseline-001-2026-11-02)
+qualifies the Linux x64 CLI, Terminal and Desktop candidate and the published
+Browser AOT flows, including consent revocation, generated-password custody and
+the optional Store. It records package identities and passing checks, including
+the repaired Artifacts fixtures. The separate cryptography probe's
+measurements are bounded by [cryptography limits](../internal/SECRET_CRYPTOGRAPHY.md).
 
 ## Quick Install & Binary Matrix
 

@@ -1,8 +1,12 @@
 # Scaffold from a public schema
 
+When imported fields represent credentials, review [secret policies](secrets.md).
+`writeOnly` establishes sensitivity, not a password algorithm, key format or
+generation recipe; supply those only from the target's public contract.
+
 Use `definition init --from-schema` with a local public Draft 2020-12 schema. Supply only explicitly selected, root-confined local reference documents through the installed command's declared interface. No remote reference fetching is allowed.
 
-Import scaffolds the bounded-v2 profile, not a general JSON Schema evaluator. Supported shapes include explicit scalar types, nullable scalars, homogeneous typed scalar enums, recursive constrained array items, closed objects, typed maps, closed discriminator branches and corresponding numeric, length, cardinality and uniqueness assertions. Untyped `additionalProperties: true`, tuples, general unions/composition, regex and unsupported assertions reject rather than disappear. Do not infer support for arbitrary conditional schemas from bounded runtime relationships.
+Import scaffolds the bounded-v0.0.1 profile, not a general JSON Schema evaluator. Supported shapes include explicit scalar types, nullable scalars, homogeneous typed scalar enums, recursive constrained array items, closed objects, typed maps, closed discriminator branches and corresponding numeric, length, cardinality and uniqueness assertions. Untyped `additionalProperties: true`, tuples, general unions/composition, regex and unsupported assertions reject rather than disappear. Do not infer support for arbitrary conditional schemas from bounded runtime relationships.
 
 Supplied local reference expansion is offline, bounded and acyclic; remote/dynamic references and resource rescoping reject. Source local references remain confined to the configuration root. A standalone null schema becomes a nullable scalar restricted to enum `[null]`, with a conversion record.
 
