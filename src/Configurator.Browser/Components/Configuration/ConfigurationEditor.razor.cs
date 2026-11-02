@@ -30,7 +30,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private readonly PresentationSession _session = new(new WeakReferenceMessenger());
     private readonly List<PreparedArtifact> _prepared = [];
     private readonly List<string> _diagnostics = [];
-    private string _activeWorkflowStage = "configure";
+    private WorkflowStage _activeWorkflowStage = WorkflowStage.Configure;
+    private enum WorkflowStage { Configure, Review, Prepare }
     private long _viewGeneration;
     private (DefinitionFormModel Form, long Generation, FocusTarget Target)? _pendingFocus;
     private enum FocusTarget { Configure, Review, Files, Consent, Import, Start, Output }
@@ -117,7 +118,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _search?.Release(this, _searchLease);
         if (_form is not null) _form.ImportComparisonChanged -= ImportComparisonChanged;
         _form?.Dispose();
-        _activeWorkflowStage = "configure";
+        _activeWorkflowStage = WorkflowStage.Configure;
         _returnToReview = false;
         _selectedSection = null;
         _focusField = null;
@@ -213,9 +214,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             || index < 0 || index >= selector.Options.Count) return;
         if (!_form!.SelectOutput(selector.Options[index].Value)) return;
         _selectedSection = null;
-        if (_activeWorkflowStage != "configure")
+        if (_activeWorkflowStage != WorkflowStage.Configure)
         {
-            SelectWorkflowStage("configure");
+            SelectWorkflowStage(WorkflowStage.Configure);
             RequestFocus(FocusTarget.Output);
         }
     }
@@ -247,10 +248,10 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         RetireDeveloper();
         _developerMode = developer;
         _configurePanel = null;
-        SelectWorkflowStage("configure");
+        SelectWorkflowStage(WorkflowStage.Configure);
     }
 
-    private async Task RequestWorkflowStageAsync(string stage)
+    private async Task RequestWorkflowStageAsync(WorkflowStage stage)
     {
         if (_activeWorkflowStage == stage || !await ResolvePendingAsync()) return;
         SelectWorkflowStage(stage);
@@ -292,14 +293,14 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         _selectedSection = section;
         _focusField = null;
-        SelectWorkflowStage("configure");
+        SelectWorkflowStage(WorkflowStage.Configure);
     }
 
-    private void SelectWorkflowStage(string stage)
+    private void SelectWorkflowStage(WorkflowStage stage)
     {
-        if (_activeWorkflowStage == "configure" && _developerMode && stage != "configure")
+        if (_activeWorkflowStage == WorkflowStage.Configure && _developerMode && stage != WorkflowStage.Configure)
             RetireDeveloper();
-        bool leavingFiles = _activeWorkflowStage == "prepare" && stage != "prepare";
+        bool leavingFiles = _activeWorkflowStage == WorkflowStage.Prepare && stage != WorkflowStage.Prepare;
         RetireView();
         InvalidateMounts();
         // Retire in-flight work without discarding a completed comparison owned by the form.
@@ -311,11 +312,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         }
         else ++_generation;
         _activeWorkflowStage = stage;
-        if (stage != "configure") _configurePanel = null;
-        if (stage != "review") _reviewPanel = null;
-        if (stage != "prepare") _filesPanel = null;
-        if (stage == "review") _validation = _form!.Validate();
-        RequestFocus(stage switch { "review" => FocusTarget.Review, "prepare" => FocusTarget.Files, _ => FocusTarget.Configure });
+        if (stage != WorkflowStage.Configure) _configurePanel = null;
+        if (stage != WorkflowStage.Review) _reviewPanel = null;
+        if (stage != WorkflowStage.Prepare) _filesPanel = null;
+        if (stage == WorkflowStage.Review) _validation = _form!.Validate();
+        RequestFocus(stage switch { WorkflowStage.Review => FocusTarget.Review, WorkflowStage.Prepare => FocusTarget.Files, _ => FocusTarget.Configure });
         if (leavingFiles)
         {
             Task[] retirements = _prepared.Select(artifact =>
@@ -338,14 +339,14 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _developerMode = false;
         if (OutputSelector is { } selector && field.Name == selector.Location.Segments[0] && path.Count == 1)
         {
-            SelectWorkflowStage("configure");
+            SelectWorkflowStage(WorkflowStage.Configure);
             RequestFocus(FocusTarget.Output);
             return;
         }
         bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
-        SelectWorkflowStage("configure");
+        SelectWorkflowStage(WorkflowStage.Configure);
         _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
         _focusField = denied ? null : field.Id;
         _focusPath = denied ? [] : path;
@@ -361,11 +362,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private void ReturnToReview()
     {
         _returnToReview = false;
-        SelectWorkflowStage("review");
+        SelectWorkflowStage(WorkflowStage.Review);
     }
     private void ReviewImportConsent()
     {
-        SelectWorkflowStage("configure");
+        SelectWorkflowStage(WorkflowStage.Configure);
         RequestFocus(FocusTarget.Consent);
     }
     private void ImportComparisonChanged(object? sender, EventArgs args)
@@ -386,7 +387,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         await ConsentAsync(new ChangeEventArgs { Value = true });
         if (!_disposed && ReferenceEquals(form, _form) && form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)
         {
-            SelectWorkflowStage("configure");
+            SelectWorkflowStage(WorkflowStage.Configure);
             RequestFocus(FocusTarget.Consent);
         }
     }
@@ -482,7 +483,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         if (args.Value is not string id || !_form!.SelectExperience(id)) return;
         _selectedSection = null;
-        SelectWorkflowStage("configure");
+        SelectWorkflowStage(WorkflowStage.Configure);
     }
     private void ChangeImportFormat(ChangeEventArgs args)
     {
@@ -611,12 +612,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private async Task PrepareAsync(bool draft)
     {
         if (_disposed || !_ready) return;
-        if (_activeWorkflowStage != "prepare") SelectWorkflowStage("prepare");
+        if (_activeWorkflowStage != WorkflowStage.Prepare) SelectWorkflowStage(WorkflowStage.Prepare);
         DefinitionFormModel form = _form!;
         long generation = _generation + 1;
         await InvalidateOutputAsync();
         if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
-        _activeWorkflowStage = "prepare";
+        _activeWorkflowStage = WorkflowStage.Prepare;
         AnswerSnapshot answers;
         try { answers = form.Snapshot(); }
         catch (DefinitionException)
@@ -763,7 +764,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         artifact.StatusCode = revealed ? "preview-revealed" : "preview-unavailable";
     }
     private bool IsCurrentExport(PreparedArtifact artifact, DefinitionFormModel form, long view) =>
-        IsCurrentView(form, view) && _ready && _activeWorkflowStage == "prepare" && _prepared.Contains(artifact);
+        IsCurrentView(form, view) && _ready && _activeWorkflowStage == WorkflowStage.Prepare && _prepared.Contains(artifact);
     private Task ImportAsync(InputFileChangeEventArgs args) =>
         LoadAsync(async (buffer, token) =>
         {
@@ -873,12 +874,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (!IsCurrentView(request.Form, request.Generation)) return;
         ElementReference? target = request.Target switch
         {
-            FocusTarget.Configure when _ready && _activeWorkflowStage == "configure" => _developerMode
+            FocusTarget.Configure when _ready && _activeWorkflowStage == WorkflowStage.Configure => _developerMode
                 ? _developerPanel?.Heading : _configurePanel?.SectionHeading,
-            FocusTarget.Review when _ready && _activeWorkflowStage == "review" => _reviewPanel?.Heading,
-            FocusTarget.Files when _ready && _activeWorkflowStage == "prepare" => _filesPanel?.Heading,
-            FocusTarget.Consent when _ready && _activeWorkflowStage == "configure" => _consentControl,
-            FocusTarget.Import when _ready && _activeWorkflowStage == "configure" => _fileInput?.Element,
+            FocusTarget.Review when _ready && _activeWorkflowStage == WorkflowStage.Review => _reviewPanel?.Heading,
+            FocusTarget.Files when _ready && _activeWorkflowStage == WorkflowStage.Prepare => _filesPanel?.Heading,
+            FocusTarget.Consent when _ready && _activeWorkflowStage == WorkflowStage.Configure => _consentControl,
+            FocusTarget.Import when _ready && _activeWorkflowStage == WorkflowStage.Configure => _fileInput?.Element,
             FocusTarget.Output when _ready && OutputSelector is not null => _outputControl,
             FocusTarget.Start when !_ready => _startButton,
             _ => null
@@ -1010,7 +1011,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             SelectCurrentImportArtifact();
             RegisterSearch();
             RefreshConsentAction();
-            _activeWorkflowStage = "configure";
+            _activeWorkflowStage = WorkflowStage.Configure;
             _requiredCount = _form.Projection.Progress.Required;
             _focusField = null;
         }

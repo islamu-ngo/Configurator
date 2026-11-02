@@ -21,9 +21,9 @@
             string? currentSectionId = SelectedSection(viewSections); }
         <nav class="configuration-editor__workflow" aria-label="@UiText("ConfigurationWorkflow")">
             <ol>
-                <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == "configure" ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("configure") : Task.CompletedTask'><span aria-hidden="true">1</span> @UiText("WorkflowConfigure")</button></li>
-                <li><button type="button" data-workflow-step="review" aria-current="@(_activeWorkflowStage == "review" ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("review") : Task.CompletedTask'><span aria-hidden="true">2</span> @UiText("WorkflowReview")</button></li>
-                <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == "prepare" ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("prepare") : Task.CompletedTask'><span aria-hidden="true">3</span> @UiText("WorkflowFiles")</button></li>
+                <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == WorkflowStage.Configure ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Configure) : Task.CompletedTask'><span aria-hidden="true">1</span> @UiText("WorkflowConfigure")</button></li>
+                <li><button type="button" data-workflow-step="review" aria-current="@(_activeWorkflowStage == WorkflowStage.Review ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Review) : Task.CompletedTask'><span aria-hidden="true">2</span> @UiText("WorkflowReview")</button></li>
+                <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == WorkflowStage.Prepare ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Prepare) : Task.CompletedTask'><span aria-hidden="true">3</span> @UiText("WorkflowFiles")</button></li>
             </ol>
         </nav>
         <div class="configuration-editor__progress" aria-live="polite" aria-atomic="true"
@@ -40,7 +40,7 @@
             @if (progress.Missing + progress.Invalid > 0)
             {
                 <button type="button" class="button button--secondary" data-action="review-required-work"
-                        @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("review") : Task.CompletedTask'>@UiText("NeedsAttention"): @(progress.Missing + progress.Invalid)</button>
+                        @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Review) : Task.CompletedTask'>@UiText("NeedsAttention"): @(progress.Missing + progress.Invalid)</button>
             }
         </div>
         <p role="status" class="@(_statusCode == "workspace-ready" ? "sr-only" : "notice")" data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
@@ -49,7 +49,7 @@
             <AppButton Variant="Variant.Outlined" data-action="revoke-secret-entry"
                        OnClick="() => IsCurrentView(actionForm, actionView) ? ConsentAsync(new ChangeEventArgs { Value = false }) : Task.CompletedTask">@UiText("RevokeSecrets")</AppButton>
         }
-        @if (_activeWorkflowStage == "configure")
+        @if (_activeWorkflowStage == WorkflowStage.Configure)
         {
         @if (_developerMode)
         {
@@ -65,7 +65,7 @@
                                      SelectedChanged="section => { if (IsCurrentView(actionForm, actionView)) SelectSection(section); }"
                                      MountCancellation="_mountCancellation.Token" Validation="_validation"
                                      FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
-                                     ReviewRequested='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }' />
+                                     ReviewRequested='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkflowStage.Review); }' />
         </CascadingValue>
         @if (_returnToReview)
         {
@@ -171,7 +171,7 @@
             </details>
         }
         }
-        @if (_activeWorkflowStage == "review")
+        @if (_activeWorkflowStage == WorkflowStage.Review)
         {
             <ConfigurationReviewPanel @ref="_reviewPanel" Form="_form"
                                  Readiness="@PreparationReadiness"
@@ -181,11 +181,11 @@
                                  EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask"
                                  PrepareDraft="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(true) : Task.CompletedTask" />
         }
-        @if (_activeWorkflowStage == "prepare")
+        @if (_activeWorkflowStage == WorkflowStage.Prepare)
         {
         <ConfigurationFilesPanel @ref="_filesPanel" Locale="@_form.Locale"
                                  Readiness="@PreparationReadiness" HasPreparedFiles="@(_prepared.Count > 0)"
-                                 Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }'
+                                 Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkflowStage.Review); }'
                                  Prepare="draft => IsCurrentView(actionForm, actionView) ? PrepareAsync(draft) : Task.CompletedTask"
                                  Clear="() => IsCurrentView(actionForm, actionView) ? ClearAsync() : Task.CompletedTask">
         <ConfigurationReview Definition="Definition" Form="_form" Validation="_validation" DiagnosticCodes="_diagnostics"
