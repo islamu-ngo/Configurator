@@ -50,6 +50,49 @@
   <data name="SecretClipboardUnavailable" xml:space="preserve"><value>الحافظة غير متاحة. لا تزال قيمتك في مساحة العمل هذه.</value></data>
   <data name="SecretCancelled" xml:space="preserve"><value>أُلغي التوليد أو تجاوزه تعديل.</value></data>
   <data name="SecretOperationFailed" xml:space="preserve"><value>تعذر إكمال العملية. راجع المتطلبات المحددة وحاول مجدداً.</value></data>
+  <data name="RemoveItemName" xml:space="preserve"><value>إزالة عنصر من {0}</value></data>
+  <data name="InvalidValue" xml:space="preserve"><value>يلزم إدخال قيمة صالحة. راجع النوع والقيود المعلنة.</value></data>
+  <data name="Required" xml:space="preserve"><value>مطلوب</value></data>
+  <data name="Optional" xml:space="preserve"><value>اختياري</value></data>
+  <data name="minimum" xml:space="preserve"><value>الحد الأدنى</value></data>
+  <data name="maximum" xml:space="preserve"><value>الحد الأقصى</value></data>
+  <data name="minLength" xml:space="preserve"><value>الطول الأدنى</value></data>
+  <data name="maxLength" xml:space="preserve"><value>الطول الأقصى</value></data>
+  <data name="minItems" xml:space="preserve"><value>العدد الأدنى للعناصر</value></data>
+  <data name="maxItems" xml:space="preserve"><value>العدد الأقصى للعناصر</value></data>
+  <data name="ProtectedInput" xml:space="preserve"><value>مدخل محمي — القيم مخفية.</value></data>
+  <data name="WindowTitle" xml:space="preserve"><value>Configurator — إعداد دون اتصال</value></data>
+  <data name="PreparationTitle" xml:space="preserve"><value>إعداد التهيئة دون اتصال</value></data>
+  <data name="DefinitionPath" xml:space="preserve"><value>مسار التعريف المحلي (JSON أو YAML)</value></data>
+  <data name="ChooseDefinition" xml:space="preserve"><value>اختيار تعريف…</value></data>
+  <data name="LoadDefinition" xml:space="preserve"><value>_تحميل التعريف</value></data>
+  <data name="Experience" xml:space="preserve"><value>تجربة التهيئة</value></data>
+  <data name="OptionalEditors" xml:space="preserve"><value>إظهار المحررات _الاختيارية</value></data>
+  <data name="RightToLeft" xml:space="preserve"><value>اتجاه من _اليمين إلى اليسار</value></data>
+  <data name="Artifact" xml:space="preserve"><value>المخرج المعلن</value></data>
+  <data name="FileName" xml:space="preserve"><value>اسم الملف الجديد</value></data>
+  <data name="BundleOutputs" xml:space="preserve"><value>مخرجات الحزمة (اختر ملفاً أو أكثر)</value></data>
+  <data name="ImportPath" xml:space="preserve"><value>الملف الموجود لاستيراده للمخرج المحدد</value></data>
+  <data name="ChooseImport" xml:space="preserve"><value>اختيار ملف للاستيراد…</value></data>
+  <data name="OutputDirectory" xml:space="preserve"><value>مجلد الإخراج الموجود</value></data>
+  <data name="ChooseFolder" xml:space="preserve"><value>اختيار مجلد…</value></data>
+  <data name="Validate" xml:space="preserve"><value>_تحقق</value></data>
+  <data name="Prepare" xml:space="preserve"><value>_إعداد المخرج</value></data>
+  <data name="Save" xml:space="preserve"><value>_حفظ ملف محمي جديد</value></data>
+  <data name="PrepareBundle" xml:space="preserve"><value>إعداد _حزمة</value></data>
+  <data name="SaveBundle" xml:space="preserve"><value>حفظ حزمة محمية</value></data>
+  <data name="Cancel" xml:space="preserve"><value>_إلغاء / تجاهل الإعداد</value></data>
+  <data name="OperationStatus" xml:space="preserve"><value>حالة العملية</value></data>
+  <data name="NextStep" xml:space="preserve"><value>الخطوة التالية</value></data>
+  <data name="StayOpen" xml:space="preserve"><value>_البقاء مفتوحاً</value></data>
+  <data name="ForceClose" xml:space="preserve"><value>_إغلاق قسري</value></data>
+  <data name="StayOpenHelp" xml:space="preserve"><value>سحب طلب الإغلاق مع الاحتفاظ بملكية العملية الأصلية وطلب إلغائها.</value></data>
+  <data name="ForceCloseHelp" xml:space="preserve"><value>إغلاق رغم نتيجة أصلية غير معروفة. لا يضمن منع الكتابة أو التراجع أو مسح الذاكرة.</value></data>
+  <data name="PublicationFacts" xml:space="preserve"><value>حقائق النشر</value></data>
+  <data name="PublicationHelp" xml:space="preserve"><value>حقائق التثبيت والتحقق والتنظيف السابقة لا تستعيد الإعداد ولا تضمن سلامة الملف الحالية.</value></data>
+  <data name="PublicationHistory" xml:space="preserve"><value>محاولات النشر السابقة</value></data>
+  <data name="NotSupplied" xml:space="preserve"><value>غير متوفر</value></data>
+  <data name="EmptyString" xml:space="preserve"><value>نص فارغ</value></data>
   <data name="StatusGeneral" xml:space="preserve"><value>التحضير المحلي لا يطبّق الإعدادات على التطبيق المستهدف.</value></data>
   <data name="StatusDefinitionRequired" xml:space="preserve"><value>اختر تعريفًا محليًا بتنسيق JSON أو YAML ثم حمّله.</value></data>
   <data name="StatusDefinitionInvalid" xml:space="preserve"><value>تحقق من تنسيق التعريف المحلي وحجمه وأذوناته ثم أعد تحميله.</value></data>
@@ -69,4 +112,37 @@
   <data name="StatusInputsChanged" xml:space="preserve"><value>تحقق من الإجابات الحالية وحضّرها قبل الحفظ.</value></data>
   <data name="ClosePending" xml:space="preserve"><value>بانتظار اكتمال العملية الأصلية والتنظيف. الإلغاء لا يثبت عدم كتابة أي شيء.</value></data>
   <data name="CloseUnknown" xml:space="preserve"><value>لم تكتمل العملية الأصلية ونتيجتها غير معروفة. أبقِ النافذة مفتوحة للانتظار أو أغلقها قسرًا عن قصد. الإغلاق القسري لا يضمن عدم الكتابة أو محو الذاكرة المُدارة.</value></data>
+  <data name="AllFiles" xml:space="preserve"><value>كل الملفات</value></data>
+  <data name="DefinitionFiles" xml:space="preserve"><value>تعريفات الإعداد</value></data>
+  <data name="AddItemName" xml:space="preserve"><value>إضافة عنصر إلى {0}</value></data>
+  <data name="AddItem" xml:space="preserve"><value>_إضافة عنصر</value></data>
+  <data name="RemoveItem" xml:space="preserve"><value>_إزالة عنصر</value></data>
+  <data name="RemoveEntry" xml:space="preserve"><value>_إزالة إدخال</value></data>
+  <data name="ProtectedSaveAvailable" xml:space="preserve"><value>الحفظ المحمي لملفات جديدة متاح على هذا الجهاز.</value></data>
+  <data name="ProtectedSaveUnavailable" xml:space="preserve"><value>الحفظ المحمي غير متاح على هذا الجهاز؛ لا يمكن حفظ المخرجات المعدة هنا.</value></data>
+  <data name="ArtifactConsequences" xml:space="preserve"><value>التنسيق: {0} | التطبيق: {1} | إعادة التشغيل: {2}
+مخرج مقيد. ينشئ الحفظ ملفاً جديداً خاصاً بمالكه، ولا يستبدل ملفاً ولا يطبق التهيئة.</value></data>
+  <data name="SelectArtifact" xml:space="preserve"><value>اختر مخرجاً معلناً.</value></data>
+  <data name="NoPublication" xml:space="preserve"><value>لم تتم محاولة نشر.</value></data>
+  <data name="PublicationAttempt" xml:space="preserve"><value>المحاولة {0}</value></data>
+  <data name="PublicationFailedUnknown" xml:space="preserve"><value>فشلت؛ النتيجة غير معروفة</value></data>
+  <data name="PublicationUnknown" xml:space="preserve"><value>النتيجة غير معروفة</value></data>
+  <data name="PublicationSettled" xml:space="preserve"><value>اكتملت</value></data>
+  <data name="PublicationNotAttempted" xml:space="preserve"><value>لم تتم المحاولة</value></data>
+  <data name="PublicationVerified" xml:space="preserve"><value>تم التثبيت والتحقق</value></data>
+  <data name="PublicationUnverified" xml:space="preserve"><value>تم التثبيت؛ لم ينجح التحقق</value></data>
+  <data name="PublicationFailed" xml:space="preserve"><value>فشل التثبيت</value></data>
+  <data name="PublicationReview" xml:space="preserve"><value>السلامة الحالية غير مضمونة؛ راجع الوجهة يدوياً.</value></data>
+  <data name="CleanupFailed" xml:space="preserve"><value>فشل التنظيف</value></data>
+  <data name="IncludeArtifact" xml:space="preserve"><value>تضمين {0} في الحزمة</value></data>
+  <data name="ItemTitle" xml:space="preserve"><value>عنصر {0}</value></data>
+  <data name="Setting" xml:space="preserve"><value>إعداد</value></data>
+  <data name="Yes" xml:space="preserve"><value>نعم</value></data>
+  <data name="No" xml:space="preserve"><value>لا</value></data>
+  <data name="StayOpenName" xml:space="preserve"><value>البقاء مفتوحًا</value></data>
+  <data name="ForceCloseName" xml:space="preserve"><value>الإغلاق القسري</value></data>
+  <data name="NoDefinition" xml:space="preserve"><value>لم يُحمّل تعريف</value></data>
+  <data name="DefinitionPinFormat" xml:space="preserve"><value>{0} | {1} | الناشر: {2}
+العائلة: {3} | المراجعة: {4} | SHA-256: {5}
+بيانات الناشر ليست إثباتًا للثقة. التحضير المحلي لا يطبّق الإعداد.</value></data>
 </root>

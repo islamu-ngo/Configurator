@@ -8,27 +8,42 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
-using Configurator.Desktop.Services;
 using Configurator.Desktop.Resources;
+using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.Views;
 
 public sealed class MainWindowBindingTests
 {
+
     [Test]
     [NotInParallel]
-    public async Task ErrorPaletteStaysReadable()
+    public async Task WindowChromeRefreshesLocaleAndErrorPaletteStaysReadable()
     {
         var session = HeadlessUnitTestSession.StartNew(typeof(MainWindowBindingTests));
         try
         {
-            bool readable = await session.Dispatch(() =>
+            var state = await session.Dispatch(() =>
             {
-                var window = new MainWindow();
+                var messenger = new WeakReferenceMessenger();
+                var dialogs = new NoDialogs();
+                using var loader = new DefinitionLoaderViewModel(messenger, dialogs);
+                using var workspace = new FormWorkspaceViewModel(messenger);
+                using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
+                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+                var window = new MainWindow { DataContext = shell };
                 try
                 {
                     window.Show();
-                    bool result = true;
+                    loader.LoadDefinition(ViewModels.DefinitionEditingTests.Definition().CanonicalBytes.ToArray());
+                    Dispatcher.UIThread.RunJobs();
+                    string? english = window.GetControl<Button>("Validate").Content?.ToString();
+                    string englishPin = loader.DefinitionPin;
+                    workspace.SelectedLocale = "ar";
+                    Dispatcher.UIThread.RunJobs();
+                    string? arabic = window.GetControl<Button>("Validate").Content?.ToString();
+                    string arabicPin = loader.DefinitionPin;
+                    bool readable = true;
                     foreach (ThemeVariant variant in new[] { ThemeVariant.Light, ThemeVariant.Dark, DesktopTheme.HighContrast })
                     {
                         window.RequestedThemeVariant = variant;
@@ -36,14 +51,18 @@ public sealed class MainWindowBindingTests
                         if (!window.TryFindResource("ConfiguratorErrorBrush", window.ActualThemeVariant, out object? error) ||
                             !window.TryFindResource("ConfiguratorSurfaceBrush", window.ActualThemeVariant, out object? surface) ||
                             error is not SolidColorBrush foreground || surface is not SolidColorBrush background)
-                            result = false;
-                        else result &= Contrast(foreground.Color, background.Color) >= 4.5;
+                            readable = false;
+                        else readable &= Contrast(foreground.Color, background.Color) >= 4.5;
                     }
-                    return result;
+                    return (english, arabic, englishPin, arabicPin, readable);
                 }
                 finally { window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
-            await Assert.That(readable).IsTrue();
+            await Assert.That(state.arabic).IsNotEqualTo(state.english);
+            await Assert.That(state.arabic!.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+            await Assert.That(state.arabicPin).IsNotEqualTo(state.englishPin);
+            await Assert.That(state.arabicPin.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+            await Assert.That(state.readable).IsTrue();
         }
         finally { await Task.Run(session.Dispose); }
     }

@@ -19,7 +19,8 @@ public sealed class ListFieldViewModel : FieldViewModel
             !IsDisposed && Items.Count > MinimumItems && item is not null && _items.Contains(item));
     }
     public ReadOnlyObservableCollection<FieldViewModel> Items { get; }
-    public string AddItemName => $"Add item to {Title}";
+    public string AddItemName => Strings.Format("AddItemName", Title);
+    protected override void OnRefreshed() => OnPropertyChanged(nameof(AddItemName));
     public int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var maximum) ? maximum.GetInt32() : 4096;
     public int MinimumItems => Schema.Keywords.TryGetProperty("minItems", out var minimum) ? minimum.GetInt32() : 0;
     public IRelayCommand AddItemCommand { get; }

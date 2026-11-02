@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7TK3QMQQ5Q7KMC4VXKVBT
+Title: "refresh desktop text with the workspace locale"
+Type: feat
+Scope: localization
+Summary: "refresh desktop text with the workspace locale."
+Group: desktop-04-locale
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "refresh desktop text with the workspace locale."

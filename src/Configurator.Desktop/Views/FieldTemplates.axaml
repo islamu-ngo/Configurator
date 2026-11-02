@@ -18,12 +18,12 @@
                  IsVisible="{Binding Format, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
       <TextBlock Text="{Binding ConstraintsSummary}" TextWrapping="Wrap"
                  IsVisible="{Binding ConstraintsSummary, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="Protected input — values are masked." IsVisible="{Binding RequiresMasking}" />
+      <TextBlock Text="{Binding Strings[ProtectedInput]}" IsVisible="{Binding RequiresMasking}" />
     </StackPanel>
   </DataTemplate>
   <DataTemplate x:Key="FieldActions" x:DataType="fields:FieldViewModel">
     <StackPanel Spacing="4">
-      <TextBlock Classes="error" Text="{Binding ErrorText}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" Classes.error="{Binding HasError}" />
       <StackPanel Orientation="Horizontal" Spacing="6">
         <Button Content="{Binding SupplyLabel}" Command="{Binding SupplyCommand}" IsVisible="{Binding IsContainer}"
                 AutomationProperties.Name="{Binding SupplyName}" AutomationProperties.HelpText="{Binding SupplyHelp}"
@@ -46,6 +46,7 @@
                AcceptsReturn="{Binding AcceptsReturn}"
                AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding InputHelpText}"
                local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+  <StackPanel Spacing="4">
       <StackPanel IsVisible="{Binding RequiresSecretInput}" Spacing="4">
         <TextBlock Text="{Binding SecretInputLabel}" />
         <TextBox Text="{Binding SecretInput, Mode=TwoWay}" PasswordChar="●" MaxLength="65536"
@@ -76,6 +77,7 @@
                   AutomationProperties.Name="{Binding DismissSecretResultName}" />
         </WrapPanel>
       </StackPanel>
+  </StackPanel>
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
     </StackPanel>
   </DataTemplate>
@@ -86,7 +88,7 @@
                 HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
                 local:FocusBehavior.Request="{Binding FocusRequestVersion}">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="fields:EnumFieldViewModel+Choice">
+          <DataTemplate x:DataType="fields:EnumChoice">
             <TextBlock Text="{Binding Label}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
@@ -133,14 +135,14 @@
           <DataTemplate x:DataType="fields:FieldViewModel">
             <StackPanel Spacing="4">
               <ContentControl Content="{Binding}" />
-              <Button Content="_Remove item" Command="{Binding RemoveCommand}"
-                      AutomationProperties.Name="{Binding RemoveItemName}" AutomationProperties.HelpText="Remove this list item" />
+              <Button Content="{Binding Strings[RemoveItem]}" Command="{Binding RemoveCommand}"
+                      AutomationProperties.Name="{Binding RemoveItemName}" AutomationProperties.HelpText="{Binding Strings[RemoveItem]}" />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <Button Content="_Add item" Command="{Binding AddItemCommand}"
-              AutomationProperties.Name="{Binding AddItemName}" AutomationProperties.HelpText="Add an item to this list"
+      <Button Content="{Binding Strings[AddItem]}" Command="{Binding AddItemCommand}"
+              AutomationProperties.Name="{Binding AddItemName}" AutomationProperties.HelpText="{Binding AddItemName}"
               local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
     </StackPanel>
@@ -154,7 +156,7 @@
           <DataTemplate x:DataType="fields:FieldViewModel">
             <StackPanel Spacing="4">
               <ContentControl Content="{Binding}" />
-              <Button Content="_Remove entry" Command="{Binding RemoveCommand}"
+              <Button Content="{Binding Strings[RemoveEntry]}" Command="{Binding RemoveCommand}"
                       AutomationProperties.Name="{Binding RemoveItemName}" />
             </StackPanel>
           </DataTemplate>
@@ -176,7 +178,7 @@
                 HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Title}"
                 AutomationProperties.HelpText="{Binding HelpText}" local:FocusBehavior.Request="{Binding FocusRequestVersion}">
         <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="fields:VariantFieldViewModel+VariantChoice">
+          <DataTemplate x:DataType="fields:VariantChoice">
             <TextBlock Text="{Binding Title}" />
           </DataTemplate>
         </ComboBox.ItemTemplate>

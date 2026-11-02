@@ -53,8 +53,9 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     public IReadOnlyList<FieldViewModel> Fields => _fields;
     public IReadOnlyList<DefinitionFormExperience> Experiences => _experiences;
     public IReadOnlyList<string> Locales => Form?.Definition.Locales ?? [];
-    public string LocaleLabel => Configurator.Desktop.Resources.DesktopActionText.LocaleLabel;
-    public string FollowLocaleDirectionLabel => Configurator.Desktop.Resources.DesktopActionText.FollowLocaleDirectionLabel;
+    public Configurator.Desktop.Resources.DesktopStrings Strings => new(Form?.Locale);
+    public string LocaleLabel => Strings.LocaleLabel;
+    public string FollowLocaleDirectionLabel => Strings.FollowLocaleDirectionLabel;
     public string? SelectedLocale
     {
         get => Form?.Locale;
@@ -124,6 +125,9 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     private void NotifyFieldState()
     {
+        OnPropertyChanged(nameof(Strings));
+        OnPropertyChanged(nameof(LocaleLabel));
+        OnPropertyChanged(nameof(FollowLocaleDirectionLabel));
         OnPropertyChanged(nameof(FirstError));
         OnPropertyChanged(nameof(FirstVisible));
     }

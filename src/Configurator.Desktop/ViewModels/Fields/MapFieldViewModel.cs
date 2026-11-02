@@ -42,11 +42,18 @@ public sealed class MapFieldViewModel : FieldViewModel
             if (SetProperty(ref _newKey, value ?? "")) AddEntryCommand.NotifyCanExecuteChanged();
         }
     }
-    public string NewKeyLabel => DesktopActionText.NewKeyLabel;
-    public string AddEntryLabel => DesktopActionText.AddEntryLabel;
-    public string AddEntryName => DesktopActionText.AddEntryName(Title);
+    public string NewKeyLabel => Strings.NewKeyLabel;
+    public string AddEntryLabel => Strings.AddEntryLabel;
+    public string AddEntryName => Strings.AddEntryName(Title);
     public IRelayCommand AddEntryCommand { get; }
     public IRelayCommand<FieldViewModel> RemoveEntryCommand { get; }
+
+    protected override void OnRefreshed()
+    {
+        OnPropertyChanged(nameof(NewKeyLabel));
+        OnPropertyChanged(nameof(AddEntryLabel));
+        OnPropertyChanged(nameof(AddEntryName));
+    }
 
     internal override void Load(JsonElement? value)
     {

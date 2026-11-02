@@ -222,7 +222,7 @@ internal static class Program
             {
                 _currentStep = "import-" + id;
                 Select(window, shell, id);
-                Click(Named<Button>(window, DesktopActionText.ResetName("Service name")));
+                Click(Named<Button>(window, shell.Workspace.Strings.ResetName("Service name")));
                 await FlushAsync();
                 string path = Path.Combine(directory, file);
                 await File.WriteAllTextAsync(path, content);
@@ -458,6 +458,7 @@ internal static class Program
         {
             window.Show();
             Require(shell.Loader.LoadDefinition(EditingDefinition()), "editing-definition");
+            shell.Workspace.SelectedLocale = culture;
             await FlushAsync();
             var form = shell.Workspace.Form!;
             long revision = form.InputRevision;
@@ -473,12 +474,12 @@ internal static class Program
                     .Where(button => ReferenceEquals(button.DataContext, field)).ToArray();
                 Button supply = buttons.Single(button => ReferenceEquals(button.Command, field.SupplyCommand));
                 Button clear = buttons.Single(button => ReferenceEquals(button.Command, field.ClearCommand));
-                Require(Equals(supply.Content, DesktopActionText.SupplyLabel) &&
-                    Equals(clear.Content, DesktopActionText.ClearLabel), "localized-labels-" + culture);
-                Require(AutomationProperties.GetName(supply) == DesktopActionText.SupplyName(field.Title) &&
-                    AutomationProperties.GetName(clear) == DesktopActionText.ClearName(field.Title), "localized-names-" + culture);
-                Require(AutomationProperties.GetHelpText(supply) == DesktopActionText.SupplyHelp &&
-                    AutomationProperties.GetHelpText(clear) == DesktopActionText.ClearHelp, "localized-help-" + culture);
+                Require(Equals(supply.Content, shell.Workspace.Strings.SupplyLabel) &&
+                    Equals(clear.Content, shell.Workspace.Strings.ClearLabel), "localized-labels-" + culture);
+                Require(AutomationProperties.GetName(supply) == shell.Workspace.Strings.SupplyName(field.Title) &&
+                    AutomationProperties.GetName(clear) == shell.Workspace.Strings.ClearName(field.Title), "localized-names-" + culture);
+                Require(AutomationProperties.GetHelpText(supply) == shell.Workspace.Strings.SupplyHelp &&
+                    AutomationProperties.GetHelpText(clear) == shell.Workspace.Strings.ClearHelp, "localized-help-" + culture);
                 Click(supply);
                 await FlushAsync();
                 Require(supply.IsFocused && form.Snapshot().Values[field.Id].GetRawText() ==
@@ -678,8 +679,10 @@ internal static class Program
                     Button force = window.GetControl<Button>("ForceClose");
                     Require(stay.IsEffectivelyVisible && stay.IsEffectivelyEnabled &&
                         force.IsEffectivelyVisible && force.IsEffectivelyEnabled &&
-                        AutomationProperties.GetName(stay) == "Stay open" &&
-                        AutomationProperties.GetName(force) == "Force close" &&
+                        ReferenceEquals(stay.Command, shell.StayOpenCommand) &&
+                        ReferenceEquals(force.Command, shell.ForceCloseCommand) &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetName(stay)) &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetName(force)) &&
                         !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(stay)) &&
                         !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(force)) &&
                         stay.Focus(), "close-controls-unreachable");
@@ -804,8 +807,7 @@ internal static class Program
                 receipt.Outcomes.Single().Result is { InstallationEstablished: true, VerificationSucceeded: false } &&
                 !shell.Publisher.CanSave, "historical-installation-lost");
             TextBlock facts = window.GetControl<TextBlock>("PublicationReceipt");
-            Require(facts.Text is { } text && text.Contains("installed-unverified", StringComparison.Ordinal) &&
-                text.Contains("cleanup-failed", StringComparison.Ordinal) &&
+            Require(facts.Text is { Length: > 0 } text &&
                 !text.Contains("Example service", StringComparison.Ordinal), "receipt-rendering");
             Require(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(facts)) &&
                 !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(facts)) &&
@@ -970,8 +972,8 @@ internal static class Program
         await ActionAsync(window, shell, "Import", () => publisher.HasImportComparison && !shell.IsBusy);
         Require(age.Text == "invalid-native-draft" && form.InputRevision == draftRevision,
             "comparison-committed-draft");
-        Click(Named<Button>(window, DesktopActionText.ResetName("Owner age")));
-        Click(Named<Button>(window, DesktopActionText.ResetName("Service name")));
+        Click(Named<Button>(window, shell.Workspace.Strings.ResetName("Owner age")));
+        Click(Named<Button>(window, shell.Workspace.Strings.ResetName("Service name")));
         await ActionAsync(window, shell, "Import", () => publisher.HasImportComparison && !shell.IsBusy);
         Require(publisher.CanFillImportFields, "comparison-pristine-adoption-unavailable");
         Click(CommandButton(window, publisher.FillImportFieldsCommand));

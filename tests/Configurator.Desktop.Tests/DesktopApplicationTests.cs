@@ -116,12 +116,12 @@ public sealed class DesktopApplicationTests
                         .Where(button => ReferenceEquals(button.DataContext, field)).ToArray();
                     var supply = buttons.Single(button => ReferenceEquals(button.Command, field.SupplyCommand));
                     var clear = buttons.Single(button => ReferenceEquals(button.Command, field.ClearCommand));
-                    shippedCopy &= Equals(supply.Content, DesktopActionText.SupplyLabel) &&
-                        AutomationProperties.GetName(supply) == DesktopActionText.SupplyName(field.Title) &&
-                        AutomationProperties.GetHelpText(supply) == DesktopActionText.SupplyHelp &&
-                        Equals(clear.Content, DesktopActionText.ClearLabel) &&
-                        AutomationProperties.GetName(clear) == DesktopActionText.ClearName(field.Title) &&
-                        AutomationProperties.GetHelpText(clear) == DesktopActionText.ClearHelp;
+                    shippedCopy &= Equals(supply.Content, shell.Workspace.Strings.SupplyLabel) &&
+                        AutomationProperties.GetName(supply) == shell.Workspace.Strings.SupplyName(field.Title) &&
+                        AutomationProperties.GetHelpText(supply) == shell.Workspace.Strings.SupplyHelp &&
+                        Equals(clear.Content, shell.Workspace.Strings.ClearLabel) &&
+                        AutomationProperties.GetName(clear) == shell.Workspace.Strings.ClearName(field.Title) &&
+                        AutomationProperties.GetHelpText(clear) == shell.Workspace.Strings.ClearHelp;
                     Click(supply);
                     Dispatcher.UIThread.RunJobs();
                     focused &= supply.IsFocused;
@@ -1099,8 +1099,10 @@ public sealed class DesktopApplicationTests
                     var force = window.GetControl<Button>("ForceClose");
                     bool reachable = stay.IsEffectivelyVisible && stay.IsEffectivelyEnabled &&
                         force.IsEffectivelyVisible && force.IsEffectivelyEnabled &&
-                        AutomationProperties.GetName(stay) == "Stay open" &&
-                        AutomationProperties.GetName(force) == "Force close" &&
+                        ReferenceEquals(stay.Command, shell.StayOpenCommand) &&
+                        ReferenceEquals(force.Command, shell.ForceCloseCommand) &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetName(stay)) &&
+                        !string.IsNullOrWhiteSpace(AutomationProperties.GetName(force)) &&
                         !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(stay)) &&
                         !string.IsNullOrWhiteSpace(AutomationProperties.GetHelpText(force)) && stay.Focus() && stay.IsFocused;
                     bool heldOpen = window.IsVisible && !closed.Task.IsCompleted && !shell.ActiveCompletion.IsCompleted;

@@ -60,6 +60,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     protected bool IsProvided => _provided;
     protected FieldViewModel Root => _root ?? this;
     protected DefinitionFormModel Form => Root._form!;
+    public DesktopStrings Strings => new(Root._form?.Locale);
     internal ISecretClipboardService? Clipboard { get; set; }
     protected ISecretClipboardService? SecretClipboard => Root.Clipboard;
     internal virtual IEnumerable<FieldViewModel> Descendants => [];
@@ -74,33 +75,33 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
                 string key = string.IsNullOrWhiteSpace(_name) || _name.Any(char.IsControl) ? JsonSerializer.Serialize(_name) : _name;
                 return key.Length <= 256 ? key : key[..256];
             }
-            if (IsListItem && ReadMetadata("title").Length == 0) return $"{Parent!.Title} item";
+            if (IsListItem && ReadMetadata("title").Length == 0) return Strings.Format("ItemTitle", Parent!.Title);
             if (_presentation?.Title is { Length: > 0 } localized) return localized;
             if (Parent is null && _input is not null) return _input.Definition.Title;
             if (ReadMetadata("title") is { Length: > 0 } title) return title;
-            if (IsListItem) return $"{Parent!.Title} item";
-            string inferred = string.IsNullOrWhiteSpace(_name) ? "Setting" : _name;
+            if (IsListItem) return Strings.Format("ItemTitle", Parent!.Title);
+            string inferred = string.IsNullOrWhiteSpace(_name) ? Strings["Setting"] : _name;
             if (inferred.Any(char.IsControl)) inferred = JsonSerializer.Serialize(inferred);
             return inferred.Length <= 256 ? inferred : inferred[..256];
         }
     }
     public string Name => Title;
-    public string ClearLabel => DesktopActionText.ClearLabel;
-    public string ClearName => DesktopActionText.ClearName(Title);
-    public string ClearHelp => DesktopActionText.ClearHelp;
-    public string SupplyLabel => DesktopActionText.SupplyLabel;
-    public string SupplyName => DesktopActionText.SupplyName(Title);
-    public string SupplyHelp => DesktopActionText.SupplyHelp;
+    public string ClearLabel => Strings.ClearLabel;
+    public string ClearName => Strings.ClearName(Title);
+    public string ClearHelp => Strings.ClearHelp;
+    public string SupplyLabel => Strings.SupplyLabel;
+    public string SupplyName => Strings.SupplyName(Title);
+    public string SupplyHelp => Strings.SupplyHelp;
     public bool IsContainer => Schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence;
-    public string SuggestionLabel => DesktopActionText.SuggestionLabel;
-    public string SuggestionName => DesktopActionText.SuggestionName(Title);
-    public string ResetLabel => DesktopActionText.ResetLabel;
-    public string ResetName => DesktopActionText.ResetName(Title);
-    public string ResetHelp => DesktopActionText.ResetHelp;
-    public string NullLabel => DesktopActionText.NullLabel;
-    public string NullName => DesktopActionText.NullName(Title);
+    public string SuggestionLabel => Strings.SuggestionLabel;
+    public string SuggestionName => Strings.SuggestionName(Title);
+    public string ResetLabel => Strings.ResetLabel;
+    public string ResetName => Strings.ResetName(Title);
+    public string ResetHelp => Strings.ResetHelp;
+    public string NullLabel => Strings.NullLabel;
+    public string NullName => Strings.NullName(Title);
     public bool CanSetNull => Schema.IsNullable;
-    public string RemoveItemName => $"Remove item from {Parent?.Title ?? Title}";
+    public string RemoveItemName => Strings.Format("RemoveItemName", Parent?.Title ?? Title);
     public string Help => _presentation?.Description ?? ReadMetadata("description");
     public string HelpText
     {
@@ -118,7 +119,8 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public string Format => ReadMetadata("format");
     public string ConstraintsSummary => string.Join(" | ", ConstraintNames
         .Where(name => Schema.Keywords.TryGetProperty(name, out _))
-        .Select(name => $"{name}: {Schema.Keywords.GetProperty(name).GetRawText()}"));
+        .Select(name => Strings[name] + ": " + (Schema.Keywords.GetProperty(name).TryGetDecimal(out decimal bound)
+            ? bound.ToString(Strings.Culture) : Schema.Keywords.GetProperty(name).GetRawText())));
     public bool RequiresMasking { get; }
     public virtual char PasswordChar => RequiresMasking ? '●' : '\0';
     public bool IsPublic => !RequiresMasking;
@@ -127,8 +129,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public bool HasError { get => _hasError; private set => SetProperty(ref _hasError, value); }
     public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
     public bool IsRequired { get => _isRequired; private set => SetProperty(ref _isRequired, value); }
-    public virtual string ErrorText => HasError ? "A valid value is required. Check the declared type and constraints."
-        : IsRequired ? "Required" : "Optional";
+    public virtual string ErrorText => Strings[HasError ? "InvalidValue" : IsRequired ? "Required" : "Optional"];
     public int FocusRequestVersion => _focusRequestVersion;
     public int SupplyFocusRequestVersion => _supplyFocusRequestVersion;
     public IRelayCommand ClearCommand { get; }
@@ -254,6 +255,16 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             child.RefreshNode(childPath, childValue, active, diagnostics);
         }
         OnPropertyChanged(nameof(ErrorText));
+        OnPropertyChanged(nameof(Strings));
+        OnPropertyChanged(nameof(ConstraintsSummary));
+        OnPropertyChanged(nameof(ClearLabel));
+        OnPropertyChanged(nameof(ClearHelp));
+        OnPropertyChanged(nameof(SupplyLabel));
+        OnPropertyChanged(nameof(SupplyHelp));
+        OnPropertyChanged(nameof(SuggestionLabel));
+        OnPropertyChanged(nameof(ResetLabel));
+        OnPropertyChanged(nameof(ResetHelp));
+        OnPropertyChanged(nameof(NullLabel));
         OnPropertyChanged(nameof(HasProtectedDescendants));
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(Name));

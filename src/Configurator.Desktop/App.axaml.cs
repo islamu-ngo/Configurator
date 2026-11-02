@@ -27,7 +27,8 @@ public sealed partial class App : Application, IDisposable
             services.AddSingleton<IProtectedArtifactWriter, ProtectedArtifactWriter>();
             services.AddSingleton<IMessenger, WeakReferenceMessenger>();
             services.AddSingleton<IStorageDialogService>(provider =>
-                new AvaloniaStorageDialogService(() => provider.GetRequiredService<MainWindow>().StorageProvider));
+                new AvaloniaStorageDialogService(() => provider.GetRequiredService<MainWindow>().StorageProvider,
+                    () => provider.GetRequiredService<FormWorkspaceViewModel>().Form?.Locale));
             services.AddSingleton<ISecretClipboardService>(provider =>
                 new AvaloniaSecretClipboardService(() => provider.GetRequiredService<MainWindow>().Clipboard));
             services.AddSingleton<DefinitionLoaderViewModel>();

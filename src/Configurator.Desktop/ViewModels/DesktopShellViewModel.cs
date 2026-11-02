@@ -1,10 +1,10 @@
 namespace Configurator.Desktop.ViewModels;
 
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Desktop.Messages;
-using Configurator.Desktop.Resources;
 
 /// <summary>Coordinates operation lifetime and status without owning field or artifact behavior.</summary>
 public sealed partial class DesktopShellViewModel : ObservableObject, IDisposable
@@ -62,6 +62,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
             if (!root._disposed && (message.Generation is null || message.Generation == root._generation))
                 root.SetStatus(message.Status, message.Guidance);
         });
+        workspace.PropertyChanged += WorkspaceChanged;
         messenger.Register<DesktopShellViewModel, FocusRequestedMessage>(this, static (root, message) =>
         {
             if (root._disposed) return;
@@ -76,16 +77,24 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     /// <summary>Physical settlement, including consumer-owned cleanup; cancellation alone never completes this task.</summary>
     public Task ActiveCompletion => _activeOperation?.Completion ?? Task.CompletedTask;
     public bool IsCloseAuthorized { get; private set; }
-    public string CloseMessage => DesktopActionText.Read(CloseDecisionRequired ? "CloseUnknown" : "ClosePending");
+    public string CloseMessage => Workspace.Strings.Read(CloseDecisionRequired ? "CloseUnknown" : "ClosePending");
     public bool CanForceClose => !_disposed && CloseDecisionRequired;
     public bool CanStayOpen => !_disposed && IsClosing;
-    public string StatusHelp => DesktopActionText.Read("Status" + _guidance);
+    public string StatusHelp => Workspace.Strings.Read("Status" + _guidance);
 
     private void SetStatus(string status, DesktopStatusGuidance guidance)
     {
         _guidance = guidance;
         Status = status;
         OnPropertyChanged(nameof(StatusHelp));
+    }
+
+    private void WorkspaceChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(FormWorkspaceViewModel.Strings)) return;
+        Loader.SetLocale(Workspace.SelectedLocale);
+        OnPropertyChanged(nameof(StatusHelp));
+        OnPropertyChanged(nameof(CloseMessage));
     }
 
     private void Begin(OperationRequestedMessage message)
@@ -219,6 +228,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
 
     public void Dispose()
     {
+        Workspace.PropertyChanged -= WorkspaceChanged;
         if (_disposed) return;
         _disposed = true;
         _closeDecision?.TrySetResult(false);

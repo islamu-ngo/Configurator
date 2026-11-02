@@ -8,6 +8,26 @@ using Configurator.Presentation;
 public sealed class DefinitionEditingTests
 {
     [Test]
+    public async Task WorkspaceLocalesRefreshActionsIndependentlyOfHostCulture()
+    {
+        using var english = new DefinitionFormModel(Definition());
+        using var arabic = new DefinitionFormModel(Definition());
+        using var englishFactory = new FormFieldFactory();
+        using var arabicFactory = new FormFieldFactory();
+        FieldViewModel first = englishFactory.Create(english)[0];
+        FieldViewModel second = arabicFactory.Create(arabic)[0];
+        var changes = new List<string?>();
+        second.PropertyChanged += (_, change) => changes.Add(change.PropertyName);
+        string original = first.ClearLabel;
+        arabic.SelectLocale("ar");
+        await Assert.That(first.ClearLabel).IsEqualTo(original);
+        await Assert.That(second.ClearLabel.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+        await Assert.That(changes.Contains(nameof(FieldViewModel.ClearLabel))).IsTrue();
+        arabic.SelectLocale("en");
+        await Assert.That(second.ClearLabel).IsEqualTo(original);
+    }
+
+    [Test]
     public async Task MixedMapKeepsDeclaredEditorsSeparateFromLiteralAdditionalEntries()
     {
         using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson("""

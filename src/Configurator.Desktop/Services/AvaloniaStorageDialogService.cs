@@ -3,10 +3,12 @@ namespace Configurator.Desktop.Services;
 using System.Runtime.ExceptionServices;
 using Avalonia.Platform.Storage;
 using Configurator.Artifacts;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.ViewModels;
 
-public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider) : IStorageDialogService
+public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider, Func<string?>? locale = null) : IStorageDialogService
 {
+    private DesktopStrings Strings => new(locale?.Invoke());
     public async Task<StorageSelection<BoundedFileInput>> ReadImportAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -14,9 +16,9 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
         if (!storageProvider.CanOpen) return new(StorageSelectionStatus.Unavailable);
         IReadOnlyList<IStorageFile> items = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Choose existing configuration",
+            Title = Strings.Read("ChooseImport"),
             AllowMultiple = false,
-            FileTypeFilter = [new FilePickerFileType("All files") { Patterns = ["*"] }]
+            FileTypeFilter = [new FilePickerFileType(Strings.Read("AllFiles")) { Patterns = ["*"] }]
         });
         BoundedFileInput? input = null;
         try
@@ -60,7 +62,7 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
                 if (!storageProvider.CanPickFolder) return new(StorageSelectionStatus.Unavailable);
                 items = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
-                    Title = "Choose existing protected output directory",
+                    Title = Strings.Read("ChooseFolder"),
                     AllowMultiple = false
                 });
                 break;
@@ -70,11 +72,11 @@ public sealed class AvaloniaStorageDialogService(Func<IStorageProvider> provider
                 items = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = kind == DesktopPathSelectionKind.Definition
-                        ? "Choose local definition" : "Choose existing configuration",
+                        ? Strings.Read("ChooseDefinition") : Strings.Read("ChooseImport"),
                     AllowMultiple = false,
                     FileTypeFilter = kind == DesktopPathSelectionKind.Definition
-                        ? [new FilePickerFileType("Setup definitions") { Patterns = ["*.json", "*.yaml", "*.yml"] }]
-                        : [new FilePickerFileType("All files") { Patterns = ["*"] }]
+                        ? [new FilePickerFileType(Strings.Read("DefinitionFiles")) { Patterns = ["*.json", "*.yaml", "*.yml"] }]
+                        : [new FilePickerFileType(Strings.Read("AllFiles")) { Patterns = ["*"] }]
                 });
                 break;
             default:

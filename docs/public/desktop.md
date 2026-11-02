@@ -157,6 +157,9 @@ fallback for field titles/descriptions, choice labels and branch titles.
 Instructions, units, choice explanations and static guidance links also feed
 accessible help. Literal map keys are local answer data, not translated labels.
 Changing locale does not change typed values, answer revision or prepared output.
+The same workspace selection refreshes provider action labels, window controls,
+field guidance and import review text in English or Arabic. Other provider
+languages fall back to English without changing the computer's language settings.
 
 The window follows the system's light/dark appearance and high-contrast preference.
 Validation errors retain visible text as well as a distinct color and weight.

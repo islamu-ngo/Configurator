@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.Messages;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.Services;
 
 /// <summary>Admits bounded local definition bytes before creating an editable workspace.</summary>
@@ -15,6 +16,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     private readonly IStorageDialogService _dialogs;
     private readonly Func<string, Stream> _openRead;
     private Definition? _definition;
+    private string? _locale;
     private long _generation;
     private bool _disposed;
 
@@ -44,10 +46,16 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     }
 
     public bool CanSelectPath => !_disposed && !IsBusy;
-    public string DefinitionPin => _definition is null ? "No definition loaded" :
-        $"{_definition.Title} | {_definition.ApplicationId} | publisher: {_definition.Publisher}\n" +
-        $"Family: {_definition.FamilyId:D} | revision: {_definition.Revision} | SHA-256: {_definition.Digest.Value}\n" +
-        "Publisher metadata is not a trust assertion. Local preparation does not apply configuration.";
+    public string DefinitionPin => _definition is null ? new DesktopStrings(_locale).Read("NoDefinition") :
+        new DesktopStrings(_locale).Format("DefinitionPinFormat", _definition.Title, _definition.ApplicationId,
+            _definition.Publisher, _definition.FamilyId.ToString("D"), _definition.Revision, _definition.Digest.Value);
+
+    internal void SetLocale(string? locale)
+    {
+        if (_disposed || _locale == locale) return;
+        _locale = locale;
+        OnPropertyChanged(nameof(DefinitionPin));
+    }
 
     partial void OnDefinitionPathChanged(string value) => _messenger.Send(new InputsInvalidatedMessage());
 
@@ -81,6 +89,35 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         catch (DefinitionException exception)
         {
             _messenger.Send(new StatusChangedMessage($"definition-invalid:{exception.Code}", _generation, DesktopStatusGuidance.DefinitionInvalid));
+            return false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSelectPath))]
+    public async Task<bool> LoadDefinitionAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!CanSelectPath) return false;
+        ClearDefinition();
+        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "load", cancellationToken);
+        if (operation is null) return false;
+        string path = DefinitionPath;
+        try
+        {
+            string extension = Path.GetExtension(path).ToLowerInvariant();
+            if (extension is not (".json" or ".yaml" or ".yml"))
+            {
+                _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation, DesktopStatusGuidance.DefinitionInvalid));
+                return false;
+            }
+            using BoundedFileInput source = await BoundedFileInput.ReadAsync(() => _openRead(path),
+                ProtectedArtifactWriter.MaximumBytes, operation.Token);
+            if (!operation.IsCurrent) return false;
+            return Admit(source.Bytes, extension is ".yaml" or ".yml");
+        }
+        catch (InvalidDataException)
+        {
+            _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation, DesktopStatusGuidance.DefinitionInvalid));
             return false;
         }
         catch (OperationCanceledException)
@@ -135,95 +172,6 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
             UnauthorizedAccessException or InvalidOperationException)
         {
             _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation, DesktopStatusGuidance.SelectionUnavailable));
-            return false;
-        }
-        finally
-        {
-            operation.Dispose();
-            if (!accepted && !_disposed && focusGeneration == _generation)
-                _messenger.Send(new FocusRequestedMessage("SelectDefinition"));
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanSelectPath))]
-    public async Task<bool> LoadDefinitionAsync(CancellationToken cancellationToken = default)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!CanSelectPath) return false;
-        ClearDefinition();
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "load", cancellationToken);
-        if (operation is null) return false;
-        string path = DefinitionPath;
-        try
-        {
-            string extension = Path.GetExtension(path).ToLowerInvariant();
-            if (extension is not (".json" or ".yaml" or ".yml"))
-            {
-                _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation, DesktopStatusGuidance.DefinitionInvalid));
-                return false;
-            }
-            using BoundedFileInput source = await BoundedFileInput.ReadAsync(() => _openRead(path),
-                ProtectedArtifactWriter.MaximumBytes, operation.Token);
-            if (!operation.IsCurrent) return false;
-            return Admit(source.Bytes, extension is ".yaml" or ".yml");
-        }
-        catch (InvalidDataException)
-        {
-            _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation, DesktopStatusGuidance.DefinitionInvalid));
-            return false;
-        }
-        catch (OperationCanceledException)
-        {
-            _messenger.Send(new StatusChangedMessage("load-cancelled", operation.Generation));
-            return false;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            _messenger.Send(new StatusChangedMessage("definition-unreadable", operation.Generation));
-            return false;
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanSelectPath))]
-    public async Task<bool> SelectDefinitionAsync(CancellationToken cancellationToken = default)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "selection", cancellationToken);
-        if (operation is null) return false;
-        bool accepted = false;
-        long focusGeneration = operation.Generation;
-        try
-        {
-            StorageSelection<Uri> selected = await _dialogs.SelectAsync(DesktopPathSelectionKind.Definition, operation.Token);
-            if (!operation.IsCurrent || selected.Status == StorageSelectionStatus.Cancelled) return false;
-            if (selected.Status == StorageSelectionStatus.Unavailable)
-            {
-                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
-                return false;
-            }
-            if (selected.Status != StorageSelectionStatus.Selected || selected.Value is null ||
-                !AvaloniaStorageDialogService.TryGetLocalPath(selected.Value, out string path))
-            {
-                _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
-                return false;
-            }
-            operation.Dispose();
-            DefinitionPath = path;
-            Task<bool> loading = LoadDefinitionAsync(cancellationToken);
-            focusGeneration = _generation;
-            accepted = await loading;
-            return accepted;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (ArgumentException)
-        {
-            _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
-            return false;
-        }
-        catch (Exception exception) when (exception is NotSupportedException or IOException or
-            UnauthorizedAccessException or InvalidOperationException)
-        {
-            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
             return false;
         }
         finally

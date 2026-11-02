@@ -409,8 +409,10 @@ public sealed class FieldViewModelTests
             await Assert.That(form.Fields.Single().Text).IsEqualTo("4");
             field.ClearCommand.Execute(null);
             await Assert.That(form.Fields.Single().Text).IsEmpty();
-            await Assert.That(field.ConstraintsSummary).Contains("minimum: 1");
-            await Assert.That(field.ConstraintsSummary).Contains("maximum: 9");
+            await Assert.That(((NumericFieldViewModel)field).Minimum).IsEqualTo(1m);
+            await Assert.That(((NumericFieldViewModel)field).Maximum).IsEqualTo(9m);
+            await Assert.That(string.Join(",", System.Text.RegularExpressions.Regex.Matches(
+                field.ConstraintsSummary, "[0-9]+").Select(match => match.Value))).IsEqualTo("1,9");
             field.RequestFocus();
             await Assert.That(field.FocusRequestVersion > 0).IsTrue();
         }
@@ -551,8 +553,8 @@ public sealed class FieldViewModelTests
         {
             var note = fields.Single();
             await Assert.That(note.IsVisible).IsTrue();
-            await Assert.That(note.ConstraintsSummary).Contains("minLength: 1");
-            await Assert.That(note.ConstraintsSummary).Contains("maxLength: 8");
+            await Assert.That(string.Join(",", System.Text.RegularExpressions.Regex.Matches(
+                note.ConstraintsSummary, "[0-9]+").Select(match => match.Value))).IsEqualTo("1,8");
         }
         finally { Dispose(fields); }
     }

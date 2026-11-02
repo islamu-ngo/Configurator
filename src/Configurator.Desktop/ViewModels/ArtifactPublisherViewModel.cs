@@ -1,7 +1,5 @@
 namespace Configurator.Desktop.ViewModels;
 
-using System.Globalization;
-using System.Resources;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,10 +19,7 @@ using Configurator.Presentation;
 /// <summary>Prepares pinned snapshots and consumes restricted output through create-only publication.</summary>
 public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisposable
 {
-    private static readonly ResourceManager ImportText = new(typeof(DesktopActionText));
-    private readonly CompositeFormat _importFactsFormat = CompositeFormat.Parse(Text("ImportFactsFormat"));
-    private readonly CompositeFormat _importAdoptionFormat = CompositeFormat.Parse(Text("ImportAdoptionFormat"));
-    private readonly CompositeFormat _importPageFormat = CompositeFormat.Parse(Text("ImportPageFormat"));
+    private DesktopStrings Strings => new(_form?.Locale);
     private const int ImportPageSize = 32;
     private readonly IMessenger _messenger;
     private readonly IStorageDialogService _dialogs;
@@ -149,13 +144,10 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     public IReadOnlyList<string> SelectedArtifactIds => Artifacts.Where(item => _selectedArtifactIds.Contains(item.Id))
         .Select(item => item.Id).ToArray();
     public bool ProtectedSaveAvailable { get; }
-    public string ProtectedCapability => ProtectedSaveAvailable
-        ? "Protected create-only save is available on this host."
-        : "Protected save is unavailable on this host; prepared output cannot be saved here.";
+    public string ProtectedCapability => Strings[ProtectedSaveAvailable ? "ProtectedSaveAvailable" : "ProtectedSaveUnavailable"];
     public string ArtifactConsequences => SelectedArtifact is { } artifact
-        ? $"Format: {artifact.Format.ToToken()} | apply: {artifact.ApplySemantics.ToToken()} | restart: {artifact.Restart.ToToken()}\n" +
-          "Restricted output. Save creates a new owner-only file; it never overwrites or applies it."
-        : "Select a declared artifact.";
+        ? Strings.Format("ArtifactConsequences", artifact.Format.ToToken(), artifact.ApplySemantics.ToToken(), artifact.Restart.ToToken())
+        : Strings["SelectArtifact"];
     public DefinitionPreparationMetadata? Preparation => _preparationWorkspace?.Result as DefinitionPreparationMetadata;
     public bool CanSelectPath => !_disposed && !IsBusy;
     public bool CanPrepare => !_disposed && !IsBusy && _form is not null;
@@ -173,13 +165,14 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     public bool HasImportComparison => !_disposed && _form?.ImportComparison is not null;
     public bool CanFillImportFields => CanImport && _form?.CanAdoptImportComparison == true;
     public string ImportFacts => _form?.ImportComparison is { } report
-        ? string.Format(CultureInfo.CurrentCulture, _importFactsFormat, report.ArtifactId,
-            report.Compatibility, report.ExecutionCompleted, report.CoverageComplete,
-            report.InventoryComplete, report.AutofillEligible) : string.Empty;
-    public string ImportAdoption => string.Format(CultureInfo.CurrentCulture, _importAdoptionFormat,
-        _form?.ImportAutofillCode ?? "import-stale");
+        ? Strings.Format("ImportFactsFormat", report.ArtifactId,
+            PresentationStrings.ImportCompatibility(report.Compatibility, _form.Locale),
+            Strings[report.ExecutionCompleted ? "Yes" : "No"], Strings[report.CoverageComplete ? "Yes" : "No"],
+            Strings[report.InventoryComplete ? "Yes" : "No"], Strings[report.AutofillEligible ? "Yes" : "No"]) : string.Empty;
+    public string ImportAdoption => Strings.Format("ImportAdoptionFormat",
+        PresentationStrings.ImportAutofill(_form?.ImportAutofillCode, _form?.Locale ?? "en"));
     public IReadOnlyList<ImportFindingViewModel> ImportFindings => _importFindings;
-    public string ImportPageText => string.Format(CultureInfo.CurrentCulture, _importPageFormat,
+    public string ImportPageText => Strings.Format("ImportPageFormat",
         _importFindings.Length == 0 ? 0 : _importPage * ImportPageSize + 1,
         _importPage * ImportPageSize + _importFindings.Length, _form?.ImportComparison?.RetainedFindingCount ?? 0);
     public bool CanPreviousImportPage => HasImportComparison && _importPage > 0;
@@ -202,7 +195,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     {
         get { lock (_receiptGate) return _publication?.Receipt ?? _publicationHistory.LastOrDefault(); }
     }
-    public string PublicationSummary => LatestPublication is { } receipt ? FormatReceipt(receipt) : "No publication attempted.";
+    public string PublicationSummary => LatestPublication is { } receipt ? FormatReceipt(receipt) : Strings["NoPublication"];
     public IReadOnlyList<string> PublicationHistoryText => PublicationHistory.Select(FormatReceipt).ToArray();
 
     private DesktopPublicationOperation BeginPublication(DesktopOperation operation, IEnumerable<string> artifactIds,
@@ -250,14 +243,19 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         publication?.MarkUnknown();
     }
 
-    private static string FormatReceipt(ProtectedArtifactPublicationReceipt receipt) =>
-        $"Attempt {receipt.AttemptId:N}: " +
-        (receipt.Failed ? "failed; unknown" : !receipt.IsSettled || receipt.IsUnknown ? "unknown" : "settled") +
+    private string FormatReceipt(ProtectedArtifactPublicationReceipt receipt) =>
+        Strings.Format("PublicationAttempt", receipt.AttemptId.ToString("N")) + ": " +
+        Strings[receipt.Failed ? "PublicationFailedUnknown" : !receipt.IsSettled || receipt.IsUnknown ? "PublicationUnknown" : "PublicationSettled"] +
         (receipt.CompletionCode is { } code ? $"; {code}" : string.Empty) +
-        (receipt.CleanupFailed ? "; cleanup-failed" : string.Empty) + "\n" +
+        (receipt.CleanupFailed ? "; " + Strings["CleanupFailed"] : string.Empty) + "\n" +
         string.Join("\n", receipt.Outcomes.Select(outcome => outcome.ArtifactId + ": " +
-            (outcome.Result is { } result ? FormatCommitResult(result)
-                : !receipt.IsSettled || receipt.IsUnknown ? "unknown" : "not-attempted")));
+            (outcome.Result is { } result ? FormatCommitDisplay(result)
+                : Strings[!receipt.IsSettled || receipt.IsUnknown ? "PublicationUnknown" : "PublicationNotAttempted"])));
+
+    private string FormatCommitDisplay(ProtectedArtifactCommitResult result) =>
+        Strings[result.InstallationEstablished ? result.VerificationSucceeded ? "PublicationVerified" : "PublicationUnverified" : "PublicationFailed"] +
+        ": " + result.Status + (result.InstallationEstablished ? "; " + Strings["PublicationReview"] : string.Empty) +
+        (result.CleanupFailed ? "; " + Strings["CleanupFailed"] : string.Empty);
 
     partial void OnOutputDirectoryChanged(string value) => _messenger.Send(new InputsInvalidatedMessage());
     partial void OnFileNameChanged(string value)
@@ -284,10 +282,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (_form is not null)
         {
             _form.ImportComparisonChanged -= ImportComparisonChanged;
+            _form.ViewChanged -= LocaleChanged;
             _form.ClearImportComparison();
         }
         _form = form;
-        if (form is not null) form.ImportComparisonChanged += ImportComparisonChanged;
+        if (form is not null)
+        {
+            form.ImportComparisonChanged += ImportComparisonChanged;
+            form.ViewChanged += LocaleChanged;
+        }
         ImportPurposeIndex = 0;
         RefreshImportComparison();
         _selectedArtifactIds.Clear();
@@ -300,7 +303,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }
         finally { _replacingForm = false; }
         if (ArtifactId is not null) _selectedArtifactIds.Add(ArtifactId);
-        _artifactSelections = Artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.FileName,
+        _artifactSelections = Artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.FileName, _form?.Locale ?? "en",
             _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected))).ToArray();
         OnPropertyChanged(nameof(ArtifactSelections));
         OnPropertyChanged(nameof(SelectedArtifactIds));
@@ -308,6 +311,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         OnPropertyChanged(nameof(SelectedArtifact));
         OnPropertyChanged(nameof(FileName));
         OnPropertyChanged(nameof(ArtifactConsequences));
+        LocaleChanged(form, EventArgs.Empty);
         NotifyCommands();
     }
 
@@ -597,10 +601,22 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         FillImportFieldsCommand.NotifyCanExecuteChanged();
     }
 
+    private void LocaleChanged(object? sender, EventArgs args)
+    {
+        if (_disposed || !ReferenceEquals(sender, _form)) return;
+        foreach (ArtifactSelectionViewModel selection in _artifactSelections) selection.SetLocale(_form?.Locale ?? "en");
+        foreach (string property in new[] { nameof(ImportPurposes), nameof(ImportPurposeLabel), nameof(ReviewFileLabel),
+            nameof(ImportLimitHelp), nameof(ImportComparisonTitle), nameof(FillFieldsLabel), nameof(DismissImportLabel),
+            nameof(PreviousImportPageLabel), nameof(NextImportPageLabel), nameof(ImportSchemaHelp), nameof(ImportFacts), nameof(ImportAdoption),
+            nameof(ProtectedCapability), nameof(ArtifactConsequences), nameof(PublicationSummary), nameof(PublicationHistoryText) })
+            OnPropertyChanged(property);
+        RefreshImportPage();
+    }
+
     private void RefreshImportPage()
     {
         _importFindings = _form?.ImportComparison?.Findings.Skip(_importPage * ImportPageSize)
-            .Take(ImportPageSize).Select(finding => new ImportFindingViewModel(finding,
+            .Take(ImportPageSize).Select(finding => new ImportFindingViewModel(finding, _form.Locale,
                 new RelayCommand(() => ExplainImportFinding(finding)))).ToArray() ?? [];
         OnPropertyChanged(nameof(ImportFindings));
         OnPropertyChanged(nameof(ImportPageText));
@@ -643,6 +659,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         return result.Succeeded;
     }
 
+    private static DesktopStatusGuidance ImportGuidance(string code) => code switch
+    {
+        "import-read-failed" => DesktopStatusGuidance.ImportUnreadable,
+        "import-unsupported" or "inverse-unsupported" or "inverse-ambiguous" => DesktopStatusGuidance.ImportUnsupported,
+        "answer-conflict" => DesktopStatusGuidance.AnswerConflict,
+        "input-invalid" or "input-ambiguous" or "import-field-invalid" => DesktopStatusGuidance.InputInvalid,
+        _ => DesktopStatusGuidance.General
+    };
+
     internal static async ValueTask YieldDispatcherAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -659,21 +684,12 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     }
 
     [RelayCommand(CanExecute = nameof(CanPreviousImportPage))]
-    private static DesktopStatusGuidance ImportGuidance(string code) => code switch
-    {
-        "import-read-failed" => DesktopStatusGuidance.ImportUnreadable,
-        "import-unsupported" or "inverse-unsupported" or "inverse-ambiguous" => DesktopStatusGuidance.ImportUnsupported,
-        "answer-conflict" => DesktopStatusGuidance.AnswerConflict,
-        "input-invalid" or "input-ambiguous" or "import-field-invalid" => DesktopStatusGuidance.InputInvalid,
-        _ => DesktopStatusGuidance.General
-    };
-
     private void PreviousImportPage() { _importPage--; RefreshImportPage(); }
 
     [RelayCommand(CanExecute = nameof(CanNextImportPage))]
     private void NextImportPage() { _importPage++; RefreshImportPage(); }
 
-    private static string Text(string key) => ImportText.GetString(key, CultureInfo.CurrentUICulture)!;
+    private string Text(string key) => Strings.Read(key);
 
     [RelayCommand(CanExecute = nameof(CanSelectPath))]
     public Task<bool> SelectOutputDirectoryAsync(CancellationToken cancellationToken = default) =>
@@ -821,7 +837,11 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (_disposed) return;
         _disposed = true;
         ClearImportComparison();
-        if (_form is not null) _form.ImportComparisonChanged -= ImportComparisonChanged;
+        if (_form is not null)
+        {
+            _form.ImportComparisonChanged -= ImportComparisonChanged;
+            _form.ViewChanged -= LocaleChanged;
+        }
         ClearPreparation();
         _form = null;
         _session.Dispose();
@@ -832,28 +852,34 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
 }
 
 /// <summary>One detached, value-free imported-file issue; it never holds a proposal or workspace location.</summary>
-public sealed class ImportFindingViewModel(DefinitionImportFinding finding, IRelayCommand explain)
+public sealed class ImportFindingViewModel(DefinitionImportFinding finding, string locale, IRelayCommand explain)
 {
-    private static readonly ResourceManager Text = new(typeof(DesktopActionText));
-    private readonly CompositeFormat _summaryFormat = CompositeFormat.Parse(
-        Text.GetString("ImportFindingFormat", CultureInfo.CurrentUICulture)!);
-    public string Summary => string.Format(CultureInfo.CurrentCulture,
-        _summaryFormat, finding.Kind, finding.Code);
+    private readonly DesktopStrings _strings = new(locale);
+    public string Summary => _strings.Format("ImportFindingFormat",
+        PresentationStrings.ImportFinding(finding.Kind, locale), PresentationStrings.Diagnostic(finding.Code, locale));
     public bool CanExplain => finding.Schema is not null;
     public bool IsBlocking => finding.Kind is DefinitionImportFindingKind.MissingRequired or
         DefinitionImportFindingKind.InvalidSuppliedValue or DefinitionImportFindingKind.UnrecognizedInput or
         DefinitionImportFindingKind.StructuralOutputChange;
-    public string ExplainLabel => Text.GetString("ExplainImportLabel", CultureInfo.CurrentUICulture)!;
+    public string ExplainLabel => _strings.Read("ExplainImportLabel");
     public IRelayCommand ExplainCommand { get; } = explain;
 }
 
+
 /// <summary>Represents one declared bundle selection; the publisher owns its membership.</summary>
-public sealed class ArtifactSelectionViewModel(string id, string title, bool selected, Action<bool> select)
+public sealed class ArtifactSelectionViewModel(string id, string title, string locale, bool selected, Action<bool> select)
     : ObservableObject
 {
     private bool _isSelected = selected;
+    private DesktopStrings _strings = new(locale);
     public string Id { get; } = id;
     public string Title { get; } = title;
+    public string AutomationName => _strings.Format("IncludeArtifact", Id);
+    internal void SetLocale(string locale)
+    {
+        _strings = new(locale);
+        OnPropertyChanged(nameof(AutomationName));
+    }
     public bool IsSelected
     {
         get => _isSelected;

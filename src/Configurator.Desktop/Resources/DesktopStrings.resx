@@ -50,6 +50,49 @@
   <data name="SecretClipboardUnavailable" xml:space="preserve"><value>The clipboard is unavailable. Your value is still in this workspace.</value></data>
   <data name="SecretCancelled" xml:space="preserve"><value>Generation was cancelled or superseded by an edit.</value></data>
   <data name="SecretOperationFailed" xml:space="preserve"><value>The secret operation could not complete. Check the declared requirements and try again.</value></data>
+  <data name="RemoveItemName" xml:space="preserve"><value>Remove item from {0}</value></data>
+  <data name="InvalidValue" xml:space="preserve"><value>A valid value is required. Check the declared type and constraints.</value></data>
+  <data name="Required" xml:space="preserve"><value>Required</value></data>
+  <data name="Optional" xml:space="preserve"><value>Optional</value></data>
+  <data name="minimum" xml:space="preserve"><value>Minimum</value></data>
+  <data name="maximum" xml:space="preserve"><value>Maximum</value></data>
+  <data name="minLength" xml:space="preserve"><value>Minimum length</value></data>
+  <data name="maxLength" xml:space="preserve"><value>Maximum length</value></data>
+  <data name="minItems" xml:space="preserve"><value>Minimum items</value></data>
+  <data name="maxItems" xml:space="preserve"><value>Maximum items</value></data>
+  <data name="ProtectedInput" xml:space="preserve"><value>Protected input — values are masked.</value></data>
+  <data name="WindowTitle" xml:space="preserve"><value>Configurator — offline preparation</value></data>
+  <data name="PreparationTitle" xml:space="preserve"><value>Offline configuration preparation</value></data>
+  <data name="DefinitionPath" xml:space="preserve"><value>Local definition path (JSON or YAML)</value></data>
+  <data name="ChooseDefinition" xml:space="preserve"><value>Choose definition…</value></data>
+  <data name="LoadDefinition" xml:space="preserve"><value>_Load definition</value></data>
+  <data name="Experience" xml:space="preserve"><value>Configuration experience</value></data>
+  <data name="OptionalEditors" xml:space="preserve"><value>Show _optional editors</value></data>
+  <data name="RightToLeft" xml:space="preserve"><value>_Right-to-left layout</value></data>
+  <data name="Artifact" xml:space="preserve"><value>Declared artifact</value></data>
+  <data name="FileName" xml:space="preserve"><value>New file name</value></data>
+  <data name="BundleOutputs" xml:space="preserve"><value>Bundle outputs (select one or more declared files)</value></data>
+  <data name="ImportPath" xml:space="preserve"><value>Existing file to import for the selected artifact</value></data>
+  <data name="ChooseImport" xml:space="preserve"><value>Choose import…</value></data>
+  <data name="OutputDirectory" xml:space="preserve"><value>Existing output directory</value></data>
+  <data name="ChooseFolder" xml:space="preserve"><value>Choose folder…</value></data>
+  <data name="Validate" xml:space="preserve"><value>_Validate</value></data>
+  <data name="Prepare" xml:space="preserve"><value>_Prepare artifact</value></data>
+  <data name="Save" xml:space="preserve"><value>_Save new protected file</value></data>
+  <data name="PrepareBundle" xml:space="preserve"><value>Prepare _bundle</value></data>
+  <data name="SaveBundle" xml:space="preserve"><value>Save protected bundle</value></data>
+  <data name="Cancel" xml:space="preserve"><value>_Cancel / discard preparation</value></data>
+  <data name="OperationStatus" xml:space="preserve"><value>Operation status</value></data>
+  <data name="NextStep" xml:space="preserve"><value>Next step</value></data>
+  <data name="StayOpen" xml:space="preserve"><value>_Stay open</value></data>
+  <data name="ForceClose" xml:space="preserve"><value>_Force close</value></data>
+  <data name="StayOpenHelp" xml:space="preserve"><value>Withdraw the close request while native work remains owned and cancellation stays requested.</value></data>
+  <data name="ForceCloseHelp" xml:space="preserve"><value>Close despite an unknown native outcome. This cannot guarantee no write, rollback or managed memory erasure.</value></data>
+  <data name="PublicationFacts" xml:space="preserve"><value>Publication facts</value></data>
+  <data name="PublicationHelp" xml:space="preserve"><value>Historical installation, verification and cleanup facts do not restore preparation or guarantee current file integrity.</value></data>
+  <data name="PublicationHistory" xml:space="preserve"><value>Previous publication attempts</value></data>
+  <data name="NotSupplied" xml:space="preserve"><value>Not supplied</value></data>
+  <data name="EmptyString" xml:space="preserve"><value>Empty string</value></data>
   <data name="StatusGeneral" xml:space="preserve"><value>Local preparation does not apply configuration to the target application.</value></data>
   <data name="StatusDefinitionRequired" xml:space="preserve"><value>Choose a local JSON or YAML definition, then load it.</value></data>
   <data name="StatusDefinitionInvalid" xml:space="preserve"><value>Check the local definition and its supported format, size and permissions, then load it again.</value></data>
@@ -69,4 +112,37 @@
   <data name="StatusInputsChanged" xml:space="preserve"><value>Validate and prepare the current answers before saving.</value></data>
   <data name="ClosePending" xml:space="preserve"><value>Waiting for the native consumer and cleanup. Cancellation does not prove that nothing was written.</value></data>
   <data name="CloseUnknown" xml:space="preserve"><value>The native operation has not settled. Its outcome is unknown. Stay open to keep waiting, or deliberately force close. Force close cannot guarantee no write or managed memory erasure.</value></data>
+  <data name="AllFiles" xml:space="preserve"><value>All files</value></data>
+  <data name="DefinitionFiles" xml:space="preserve"><value>Configuration definitions</value></data>
+  <data name="AddItemName" xml:space="preserve"><value>Add item to {0}</value></data>
+  <data name="AddItem" xml:space="preserve"><value>_Add item</value></data>
+  <data name="RemoveItem" xml:space="preserve"><value>_Remove item</value></data>
+  <data name="RemoveEntry" xml:space="preserve"><value>_Remove entry</value></data>
+  <data name="ProtectedSaveAvailable" xml:space="preserve"><value>Protected create-only save is available on this host.</value></data>
+  <data name="ProtectedSaveUnavailable" xml:space="preserve"><value>Protected save is unavailable on this host; prepared output cannot be saved here.</value></data>
+  <data name="ArtifactConsequences" xml:space="preserve"><value>Format: {0} | apply: {1} | restart: {2}
+Restricted output. Save creates a new owner-only file; it never overwrites or applies it.</value></data>
+  <data name="SelectArtifact" xml:space="preserve"><value>Select a declared artifact.</value></data>
+  <data name="NoPublication" xml:space="preserve"><value>No publication attempted.</value></data>
+  <data name="PublicationAttempt" xml:space="preserve"><value>Attempt {0}</value></data>
+  <data name="PublicationFailedUnknown" xml:space="preserve"><value>Failed; outcome unknown</value></data>
+  <data name="PublicationUnknown" xml:space="preserve"><value>Outcome unknown</value></data>
+  <data name="PublicationSettled" xml:space="preserve"><value>Completed</value></data>
+  <data name="PublicationNotAttempted" xml:space="preserve"><value>Not attempted</value></data>
+  <data name="PublicationVerified" xml:space="preserve"><value>Installed and verified</value></data>
+  <data name="PublicationUnverified" xml:space="preserve"><value>Installed; verification unsuccessful</value></data>
+  <data name="PublicationFailed" xml:space="preserve"><value>Installation failed</value></data>
+  <data name="PublicationReview" xml:space="preserve"><value>Current integrity is not guaranteed; review the destination manually.</value></data>
+  <data name="CleanupFailed" xml:space="preserve"><value>Cleanup failed</value></data>
+  <data name="IncludeArtifact" xml:space="preserve"><value>Include {0} in bundle</value></data>
+  <data name="ItemTitle" xml:space="preserve"><value>{0} item</value></data>
+  <data name="Setting" xml:space="preserve"><value>Setting</value></data>
+  <data name="Yes" xml:space="preserve"><value>Yes</value></data>
+  <data name="No" xml:space="preserve"><value>No</value></data>
+  <data name="StayOpenName" xml:space="preserve"><value>Stay open</value></data>
+  <data name="ForceCloseName" xml:space="preserve"><value>Force close</value></data>
+  <data name="NoDefinition" xml:space="preserve"><value>No definition loaded</value></data>
+  <data name="DefinitionPinFormat" xml:space="preserve"><value>{0} | {1} | publisher: {2}
+Family: {3} | revision: {4} | SHA-256: {5}
+Publisher metadata is not a trust assertion. Local preparation does not apply configuration.</value></data>
 </root>

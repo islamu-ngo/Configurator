@@ -8,6 +8,22 @@ using Configurator.Desktop.ViewModels;
 public sealed class StorageDialogServiceTests
 {
     [Test]
+    public async Task PickerUsesCurrentWorkspaceLocaleForEachRequest()
+    {
+        string locale = "en";
+        var provider = new StorageProvider();
+        var service = new AvaloniaStorageDialogService(() => provider.Proxy, () => locale);
+        await service.SelectAsync(DesktopPathSelectionKind.Definition);
+        string? english = provider.FileOptions!.Title;
+        locale = "ar";
+        await service.SelectAsync(DesktopPathSelectionKind.Definition);
+        string? arabic = provider.FileOptions!.Title;
+        await Assert.That(english).IsNotNull();
+        await Assert.That(arabic).IsNotEqualTo(english);
+        await Assert.That(arabic!.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+    }
+
+    [Test]
     public async Task SelectionDiagnosticsContainOnlyOutcome()
     {
         var selected = new StorageSelection<Uri>(StorageSelectionStatus.Selected,

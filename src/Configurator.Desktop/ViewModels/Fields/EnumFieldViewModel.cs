@@ -13,10 +13,10 @@ public sealed class EnumFieldViewModel : FieldViewModel
         : base(schema, name, required, parent, listItem, inheritedMasking)
     {
         Choices = RequiresMasking ? [] : Array.AsReadOnly(
-            new[] { new Choice(0, "Not supplied") }.Concat(schema.Keywords.GetProperty("enum").EnumerateArray()
-                .Select((choice, index) => new Choice(index + 1, Display(choice) is { Length: > 0 } text ? text : "Empty string"))).ToArray());
+            new[] { new EnumChoice(0, Strings["NotSupplied"]) }.Concat(schema.Keywords.GetProperty("enum").EnumerateArray()
+                .Select((choice, index) => new EnumChoice(index + 1, Display(choice) is { Length: > 0 } text ? text : Strings["EmptyString"]))).ToArray());
     }
-    public IReadOnlyList<Choice> Choices { get; }
+    public IReadOnlyList<EnumChoice> Choices { get; }
     public int SelectedIndex
     {
         get => RequiresMasking ? -1 : !IsProvided ? 0 : _selectedIndex;
@@ -33,8 +33,9 @@ public sealed class EnumFieldViewModel : FieldViewModel
         {
             if (!RequiresMasking && Form.GetEditorPresentation(FullPath()) is { } display)
             {
+                Choices[0].UpdateLabel(Strings["NotSupplied"]);
                 for (int index = 0; index < display.Choices.Count; index++)
-                    Choices[index + 1].UpdateLabel(display.Choices[index].Label.Length == 0 ? "Empty string" : display.Choices[index].Label);
+                    Choices[index + 1].UpdateLabel(display.Choices[index].Label.Length == 0 ? Strings["EmptyString"] : display.Choices[index].Label);
             }
             _selectedIndex = -1;
             if (!RequiresMasking && value is { } supplied)
@@ -56,12 +57,13 @@ public sealed class EnumFieldViewModel : FieldViewModel
     }
     protected override void NotifyValue() => OnPropertyChanged(nameof(SelectedIndex));
 
-    public sealed class Choice : ObservableObject
-    {
-        private string _label;
-        internal Choice(int index, string label) { Index = index; _label = label; }
-        public int Index { get; }
-        public string Label => _label;
-        internal void UpdateLabel(string label) => SetProperty(ref _label, label, nameof(Label));
-    }
+}
+
+public sealed class EnumChoice : ObservableObject
+{
+    private string _label;
+    internal EnumChoice(int index, string label) { Index = index; _label = label; }
+    public int Index { get; }
+    public string Label => _label;
+    internal void UpdateLabel(string label) => SetProperty(ref _label, label, nameof(Label));
 }

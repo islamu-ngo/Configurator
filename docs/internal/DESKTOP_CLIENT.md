@@ -206,10 +206,13 @@ coordinates locally before marking nested errors; private map keys are not
 serialized into status. List mutation preserves usable focus through declarative
 focus requests and a view-owned focus behavior. Headless control tests check
 actual focus and key routing, not just label/property presence.
-Supply, Clear, suggestion, reset, null, map-add and locale action resources come from
-`Resources/DesktopActionText` through `ResourceManager` and `CurrentUICulture`.
-These shipped resources are separate from definition localization; neither
-implies complete Desktop translation. Childless/zero-capacity containers have a reachable
+Supply, Clear, suggestion, reset, null, map-add, field guidance and window chrome
+resolve through `Resources/DesktopStrings` with the explicit workspace locale.
+The resource accessor never changes process culture. Workspace and field refresh
+notifications update visible labels and automation names; simultaneous workspaces
+can retain different locales. Unsupported provider locales fall back to English.
+Definition-authored translations remain separate from provider text.
+Childless/zero-capacity containers have a reachable
 Supply focus destination even when there is no editable descendant or enabled
 Add item action.
 
