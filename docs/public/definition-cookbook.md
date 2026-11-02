@@ -21,6 +21,18 @@ These independently authored fragments use that vocabulary; they were not
 executed in this documentation unit. Named fixture methods below are source
 anchors for the mechanism, not a new claim that their suites passed.
 
+## Legal documents with editable language rows
+
+The Event example groups each legal document in a closed object. Its
+`jurisdictionAssumptions` and `localizations` members are bounded arrays, so
+operators can add or remove jurisdictions and document languages. Each language
+row requires its own language tag, title, summary and Markdown content; values
+in another row cannot satisfy that requirement. The artifact projection repeats
+the current rows and keeps Event's document kind fixed. Tenant display name and
+brand display name remain distinct inputs. These are draft inputs for Event
+review, not legal approval or publication. See the
+[Event source and independent output fixtures](../../examples/islamu-event/README.md).
+
 ## Typed null, absence, omission, reset and suggestion
 
 A property schema for an optional public worker count:

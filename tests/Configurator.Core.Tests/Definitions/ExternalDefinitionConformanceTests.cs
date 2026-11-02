@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 
@@ -5,6 +7,51 @@ namespace Configurator.Core.Tests.Definitions;
 
 public sealed class ExternalDefinitionConformanceTests
 {
+    [Test]
+    [Arguments("tenant-package.spec.legalDocuments.TenantPrivacyNotice")]
+    [Arguments("legal-drafts.spec.instance.legalDocuments.TermsOfService")]
+    public async Task LegalDocumentsHaveBoundedRowsWithItemLocalRequirements(string documentKey)
+    {
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
+        await Assert.That(definition.Configuration.Properties.ContainsKey(documentKey)).IsTrue();
+        DefinitionNode document = definition.Configuration.Properties[documentKey];
+        await Assert.That(document.Type).IsEqualTo(DefinitionNodeType.Mapping);
+        DefinitionNode jurisdictions = document.Properties["jurisdictionAssumptions"];
+        await Assert.That(jurisdictions.Type).IsEqualTo(DefinitionNodeType.Sequence);
+        await Assert.That(jurisdictions.Items!.Type).IsEqualTo(DefinitionNodeType.Text);
+        DefinitionNode localizations = document.Properties["localizations"];
+        await Assert.That(localizations.Type).IsEqualTo(DefinitionNodeType.Sequence);
+        await Assert.That(localizations.Keywords.GetProperty("maxItems").GetInt32()).IsLessThanOrEqualTo(4096);
+        await Assert.That(localizations.Items!.Required.Contains("languageTag")).IsTrue();
+        await Assert.That(localizations.Items.Required.Contains("markdown")).IsTrue();
+        await Assert.That(localizations.Items.Required.Contains("title")).IsTrue();
+    }
+
+    [Test]
+    public async Task LegalLanguageRowsRequireTheirOwnContentAndRemovedRowsLeaveOutput()
+    {
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Resource("EventDefinition"));
+        JsonNode answers = JsonNode.Parse(Resource("EventAnswers.legal-drafts.json"))!;
+        JsonArray languages = answers["values"]!["legal-drafts.spec.instance.legalDocuments.TermsOfService"]!["localizations"]!.AsArray();
+        languages[1]!.AsObject().Remove("title");
+        DefinitionArtifactResult incomplete = DefinitionArtifactComposer.Compose(definition, "legal-drafts",
+            SetupAnswerSnapshotCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(answers.ToJsonString()), 8));
+        await Assert.That(incomplete.Succeeded).IsFalse();
+
+        languages.RemoveAt(1);
+        DefinitionArtifactResult complete = DefinitionArtifactComposer.Compose(definition, "legal-drafts",
+            SetupAnswerSnapshotCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(answers.ToJsonString()), 9));
+        await Assert.That(complete.Succeeded).IsTrue();
+        using (complete.Artifact)
+        using (JsonDocument output = JsonDocument.Parse(complete.Artifact!.Bytes))
+        {
+            JsonElement rows = output.RootElement.GetProperty("spec").GetProperty("instance")
+                .GetProperty("legalDocuments").GetProperty("TermsOfService").GetProperty("localizations");
+            await Assert.That(rows.GetArrayLength()).IsEqualTo(1);
+            await Assert.That(rows[0].GetProperty("languageTag").GetString()).IsEqualTo("en");
+        }
+    }
+
     [Test]
     [Arguments("environment", "environment", "environment.env")]
     [Arguments("configuration-manifest", "configuration-manifest", "configuration-manifest.json")]

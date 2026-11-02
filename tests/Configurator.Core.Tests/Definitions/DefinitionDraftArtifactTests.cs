@@ -11,6 +11,41 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionDraftArtifactTests
 {
     [Test]
+    public async Task DraftCopiesExcludeInactiveRowSecretsAndDeferOnlyActiveRowObligations()
+    {
+        JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;
+        source["configuration"]!["required"] = new JsonArray("rows");
+        source["configuration"]!["properties"] = JsonNode.Parse("""
+            {"rows":{"type":"array","items":{"type":"object","additionalProperties":false,
+             "required":["provider","credential"],"properties":{
+              "provider":{"type":"string","enum":["external","local"],"x-configurator":{"sensitivity":"public"}},
+              "credential":{"type":"string","x-configurator":{"sensitivity":"secret","applicableWhen":{
+               "op":"equals","reference":{"scope":"item","path":"/provider"},"value":"external"}}}}}}}
+            """);
+        source["outputs"] = JsonNode.Parse("""
+            {"rows.json":{"id":"rows","format":"json","projection":{
+              "op":"copy","reference":{"scope":"root","path":"/rows"}}},
+             "credentials.json":{"id":"credentials","format":"json","projection":{
+              "op":"repeat","reference":{"scope":"root","path":"/rows"},
+              "item":{"op":"object","members":{"credential":{
+               "op":"copy","reference":{"scope":"item","path":"/credential"}}}}}}}
+            """);
+        SetupDefinition definition = DefinitionFixture.Parse(source.ToJsonString());
+        SetupAnswerSnapshot answers = DefinitionFixture.Answers("""
+            {"rows":[{"provider":"local","credential":"synthetic-inactive-secret"},{"provider":"external"}]}
+            """);
+        using DefinitionDraftBundleResult draft = DefinitionDraftArtifactComposer.ComposeBundle(
+            definition, ["rows", "credentials"], answers);
+        await Assert.That(draft.Succeeded).IsTrue();
+        await Assert.That(Encoding.UTF8.GetString(draft.Artifacts.Single(item => item.ArtifactId == "rows").Bytes.Span))
+            .IsEqualTo("""[{"provider":"local"},{"credential":"","provider":"external"}]""");
+        await Assert.That(Encoding.UTF8.GetString(draft.Artifacts.Single(item => item.ArtifactId == "credentials").Bytes.Span))
+            .IsEqualTo("""[{},{"credential":""}]""");
+        await Assert.That(draft.Completions.Count).IsEqualTo(2);
+        await Assert.That(draft.Completions.All(item => item.FieldPath == "/rows/1/credential")).IsTrue();
+    }
+
+    [Test]
     public async Task DeferredItemControllerWithholdsItsArtifactWithoutGuessingOrHidingIndependentRows()
     {
         JsonNode source = JsonNode.Parse(DefinitionFixture.Json)!;

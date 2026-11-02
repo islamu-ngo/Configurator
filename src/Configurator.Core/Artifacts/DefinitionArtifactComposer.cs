@@ -326,7 +326,7 @@ public static class DefinitionArtifactComposer
                     return CopyField(branch, value, fieldPath, outputPath, depth, secret,
                         completionFieldPath, completionOutputPath);
                 }
-                if (secret && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence) && !value.HasValue)
+                if (secret && !value.HasValue && validation.DeferredLocations.Contains(location))
                 {
                     budget.Node(depth);
                     completions.Add(new(artifact.Id, completionFieldPath, completionOutputPath));

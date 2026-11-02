@@ -160,6 +160,17 @@ Static credential-free HTTPS links may have fragments, not queries. Rendering
 and deliberate opening must add no fetching, interpolation or answer transfer.
 Useful secret-acquisition help remains an integration-review obligation.
 
+The Event sources keep their target-backed choices and provider predicates in
+the admitted definition, not in a client evaluator. The
+[versioned contract inventory](../../examples/islamu-event/provider-contract-inventory.md)
+records canonical wire values, owner symbols, defaults and evidence limits.
+Refresh its independent conformance vectors when the target changes, then revise
+both existing families natively and append a Store snapshot. Never infer a closed
+enum from a sample default or translate wire values with display labels.
+Keycloak connection selection, local deployment and target acceptance are separate
+decisions. Conditional requiredness and applicability must be reviewed together:
+inactive answers may survive transiently but cannot reappear in artifact output.
+
 Credential descriptors require an effective secret string context. Kinds are
 password, opaque-token, symmetric-key, private-key and connection-string;
 acquisition is existing/create/issuer. Create is only password/symmetric-key;

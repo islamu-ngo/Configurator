@@ -8,8 +8,8 @@ allocated through Configurator's native identity editor. The admitted runtime
 owns its current revision and canonical digest. The prior Event family
 and its publication facts are historical, not authority for this new family.
 
-`configurator.json` is the reauthored neutral v2 source, preserving 427 declared
-root settings and five output mappings. Configurator's compiler produces the sole canonical
+`configurator.json` is the reauthored neutral v2 source, preserving five output
+mappings. Configurator's compiler produces the sole canonical
 `definition.json`, admitted by Configurator Core's bounded parser. `answers/` and
 `expected/` carry environment, manifest, tenant package, operator-identity and
 legal-draft vectors. Configurator's actual CLI composes these answer workspaces,
@@ -50,13 +50,42 @@ unchanged:
 | Legal drafts | `legal-drafts` | `legal-drafts.json` |
 
 A fresh workspace starts at Environment through `initialValue`, without storing
-a supplied answer. Basics includes platform settings by initializing
+a supplied answer. Essentials includes platform settings by initializing
 `select.feature.platform-config` to true. This only makes the existing offline
 fields applicable; it does not enable authentication, payments, MCP, telemetry
 or another target integration, supply addresses or credentials, or grant secret
 consent. Public API/site addresses and the authentication provider remain unset
 until supplied. Explicit false, another output choice and explicit omissions
 take precedence; reset makes initialization eligible again.
+
+Essentials includes the existing required setup secret and its explicit secret-entry
+consent path. The [provider contract inventory](provider-contract-inventory.md)
+records all 361 baseline environment fields against the reviewed Event revision,
+including canonical choice values and target-owned provider requirements.
+Dropdowns preserve exact wire values across locale changes. Target parser aliases
+are not additional Configurator choices; unknown values fail shared validation.
+The inventory is scoped to this baseline, not every field in newer Event builds.
+The unsupported `AI_API_KEY` alias is removed; use the target's provider-specific
+credential fields. Its audit row remains recorded rather than hiding the removal.
+
+Authentication provider selection controls the Keycloak connection group. Keycloak
+requires endpoint, realm, `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_BLAZOR_CLIENT_SECRET`;
+the optional `KEYCLOAK_BLAZOR_CLIENT_ID` is a separate API override. Local Keycloak
+deployment remains a deliberate hosting choice, including `KEYCLOAK_HTTP_PORT`.
+Selecting authentication alone does not activate that local port. Secret-provider selection controls
+Infisical requirements. SQLite uses `DATABASE_NAME` for its persisted file path
+and excludes server connection credentials. Inactive accepted answers remain in
+transient memory for switch-back, but inactive secrets produce neither values nor
+completion placeholders in complete or draft output. Revocation clears all secret
+branches. Configurator does not verify connectivity or target acceptance.
+
+Legal documents now use bounded document objects containing `jurisdictionAssumptions`
+and `localizations` arrays. Each language row owns its required fields. This breaks
+the former literal dotted answer keys: recreate old private legal answers using
+the new document rows, or use supported target-artifact import after reviewing its
+capabilities. There is no legacy answer-shape adapter. Existing target artifact
+keys and independent expected bytes remain unchanged; old Store snapshots remain
+immutable and must be reopened explicitly if needed.
 
 Sections keep inclusion choices beside their hosting, database, identity,
 storage, messaging, optional-service, security and operational settings.
@@ -85,14 +114,14 @@ dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuratio
   --output .tmp/browser-ux-simplification/event-example-next.json
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
   definition revise --source store/islamu-event/configurator.json \
-  --against store/islamu-event/releases/2.json \
+  --against store/islamu-event/releases/6.json \
   --output .tmp/browser-ux-simplification/event-store-next.json
 ```
 
 These destinations are create-only. Review both native receipts and candidates,
 then adopt each candidate as its corresponding handwritten source. Never
 hand-increment identity or change historical snapshots. The store command above
-uses the current revision-2 anchor; use the matching immutable anchor when
+uses the current revision-5 anchor; use the matching immutable anchor when
 revising a later release.
 
 Regenerate the local v2 runtime and append the store release through their

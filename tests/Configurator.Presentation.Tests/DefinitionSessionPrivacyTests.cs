@@ -3,10 +3,52 @@ namespace Configurator.Presentation.Tests;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 
 public sealed class DefinitionSessionPrivacyTests
 {
+    [Test]
+    public async Task ProviderSwitchPreservesInactiveAnswersButExcludesExportsAndRevocationClearsThem()
+    {
+        JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
+        source["configuration"]!["properties"]!["provider"] = JsonNode.Parse("""
+            {"type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}}
+            """);
+        source["configuration"]!["properties"]!["settings"]!["properties"]!["password"]!["x-configurator"]!["applicableWhen"] = JsonNode.Parse("""
+            {"op":"equals","reference":{"scope":"root","path":"/provider"},"value":"external"}
+            """);
+        source["requiredCapabilities"]!.AsArray().Insert(0, "predicate.root");
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        DefinitionFieldInput provider = form.Fields.Single(field => field.Definition.Name == "provider");
+        provider.Text = "external";
+        form.Fields.Single(field => field.Definition.Name == "settings").Text =
+            """{"name":"safe","password":"synthetic-switch-back-secret"}""";
+        var pending = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<DefinitionImportResult> import = form.ImportAsync("config", _ => pending.Task);
+        provider.Text = "local";
+        pending.SetResult("""{"settings":{"name":"late","password":"synthetic-late-secret"}}"""u8.ToArray());
+        await Assert.That((await import.WaitAsync(TimeSpan.FromSeconds(5))).Succeeded).IsFalse();
+        await Assert.That(form.Snapshot().Values["settings"].GetProperty("password").GetString())
+            .IsEqualTo("synthetic-switch-back-secret");
+        DefinitionArtifactResult complete = DefinitionArtifactComposer.Compose(definition, "config", form.Snapshot());
+        using DefinitionArtifact? completeArtifact = complete.Artifact;
+        using DefinitionDraftArtifactResult draft = DefinitionDraftArtifactComposer.Compose(definition, "config", form.Snapshot());
+        await Assert.That(complete.Succeeded).IsTrue();
+        await Assert.That(draft.Succeeded).IsTrue();
+        await Assert.That(Encoding.UTF8.GetString(complete.Artifact!.Bytes.Span)).IsEqualTo("""{"settings":{"name":"safe"}}""");
+        await Assert.That(Encoding.UTF8.GetString(draft.Artifact!.Bytes.Span)).IsEqualTo("""{"settings":{"name":"safe"}}""");
+        await Assert.That(draft.Completions).IsEmpty();
+        provider.Text = "external";
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/settings/password"), out JsonElement secret)).IsTrue();
+        await Assert.That(secret.GetString()).IsEqualTo("synthetic-switch-back-secret");
+        provider.Text = "local";
+        form.SetSecretEntryEnabled(false);
+        await Assert.That(form.Snapshot().Values["settings"].TryGetProperty("password", out _)).IsFalse();
+        await Assert.That(form.Snapshot().Values["settings"].GetProperty("name").GetString()).IsEqualTo("safe");
+    }
+
     [Test]
     public async Task BrowserRejectsNestedSecretButKeepsNonsecretSiblingEditable()
     {

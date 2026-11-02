@@ -46,12 +46,13 @@
     "sections": [
       {
         "id": "basics",
-        "title": "Basics",
-        "description": "Choose an output and enter known public addresses. Inclusion only exposes offline settings; it does not enable a target integration.",
+        "title": "Essentials",
+        "description": "Enter the public addresses and authentication provider, then deliberately allow secret entry to supply the required setup secret.",
         "pointers": [
           "/env.API_ENDPOINT",
           "/env.AUTHENTICATION_PROVIDER",
           "/env.PUBLIC_BASE_URL",
+          "/env.SETUP_SECRET",
           "/operation",
           "/select.feature.platform-config"
         ]
@@ -61,6 +62,8 @@
         "title": "Hosting and service containers",
         "description": "Include deployment or supporting-container settings only for the services you intend to configure.",
         "pointers": [
+          "/select.feature.deployment-config",
+          "/select.feature.external-compose-config",
           "/env.AGENT_BROWSER_SEED_ENABLED",
           "/env.API_HTTP_PORT",
           "/env.ASPNETCORE_ENVIRONMENT",
@@ -149,9 +152,7 @@
           "/env.WEBLATE_POSTGRES_DB",
           "/env.WEBLATE_POSTGRES_PASSWORD",
           "/env.WEBLATE_POSTGRES_USER",
-          "/env.WEBLATE_SITE_DOMAIN",
-          "/select.feature.deployment-config",
-          "/select.feature.external-compose-config"
+          "/env.WEBLATE_SITE_DOMAIN"
         ]
       },
       {
@@ -159,12 +160,15 @@
         "title": "Application databases",
         "description": "Select the database settings you need, then supply the connection details locally.",
         "pointers": [
+          "/select.feature.database-config",
+          "/select.feature.postgresql-config",
+          "/select.feature.server-database-config",
+          "/env.DATABASE_PROVIDER",
           "/env.DATABASE_HOST",
           "/env.DATABASE_MIGRATOR_PASSWORD",
           "/env.DATABASE_MIGRATOR_USERNAME",
           "/env.DATABASE_NAME",
           "/env.DATABASE_PORT",
-          "/env.DATABASE_PROVIDER",
           "/env.DATABASE_RUNTIME_PASSWORD",
           "/env.DATABASE_RUNTIME_USERNAME",
           "/env.DATABASE_SCHEMA",
@@ -184,10 +188,7 @@
           "/env.POSTGRESQL_HOST",
           "/env.POSTGRESQL_PASSWORD",
           "/env.POSTGRESQL_PORT",
-          "/env.POSTGRESQL_USERNAME",
-          "/select.feature.database-config",
-          "/select.feature.postgresql-config",
-          "/select.feature.server-database-config"
+          "/env.POSTGRESQL_USERNAME"
         ]
       },
       {
@@ -195,6 +196,12 @@
         "title": "Identity and administrator bootstrap",
         "description": "Configure identity providers, operator details and deliberate administrator bootstrap choices.",
         "pointers": [
+          "/select.feature.identity-config",
+          "/select.feature.local-bootstrap-config",
+          "/env.IDENTITY_DATABASE_PROVIDER",
+          "/env.IDENTITY_DATABASE_TOPOLOGY",
+          "/env.INSTANCE_BOOTSTRAP_ADMIN_PROVIDER",
+          "/env.INSTANCE_BOOTSTRAP_MODE",
           "/env.IDENTITYCORRELATION__TRUSTEDISSUERS__0",
           "/env.IDENTITY_DATABASE_CONNECTION_STRING",
           "/env.IDENTITY_DATABASE_HOST",
@@ -202,21 +209,17 @@
           "/env.IDENTITY_DATABASE_MIGRATOR_USERNAME",
           "/env.IDENTITY_DATABASE_NAME",
           "/env.IDENTITY_DATABASE_PORT",
-          "/env.IDENTITY_DATABASE_PROVIDER",
           "/env.IDENTITY_DATABASE_RUNTIME_PASSWORD",
           "/env.IDENTITY_DATABASE_RUNTIME_USERNAME",
           "/env.IDENTITY_DATABASE_SCHEMA",
           "/env.IDENTITY_DATABASE_TLS_MODE",
-          "/env.IDENTITY_DATABASE_TOPOLOGY",
           "/env.IDENTITY_DATABASE_TRUST_SERVER_CERTIFICATE",
           "/env.INSTANCE_BOOTSTRAP_ADMIN_EMAIL",
           "/env.INSTANCE_BOOTSTRAP_ADMIN_FIRST_NAME",
           "/env.INSTANCE_BOOTSTRAP_ADMIN_LAST_NAME",
-          "/env.INSTANCE_BOOTSTRAP_ADMIN_PROVIDER",
           "/env.INSTANCE_BOOTSTRAP_ADMIN_SUBJECT",
           "/env.INSTANCE_BOOTSTRAP_BINDING_GENERATION",
           "/env.INSTANCE_BOOTSTRAP_LOCAL_PASSWORD",
-          "/env.INSTANCE_BOOTSTRAP_MODE",
           "/env.INSTANCE__OPERATORIDENTITY__ISOFFICIALINSTANCE",
           "/env.INSTANCE__OPERATORIDENTITY__JURISDICTIONCOUNTRYCODE",
           "/env.INSTANCE__OPERATORIDENTITY__LEGALNAME",
@@ -236,11 +239,7 @@
           "/env.KEYCLOAK_ENDPOINT",
           "/env.KEYCLOAK_HTTP_PORT",
           "/env.KEYCLOAK_REALM",
-          "/env.KEYCLOAK_REQUIRE_HTTPS_METADATA",
-          "/select.feature.configured-bootstrap-config",
-          "/select.feature.identity-config",
-          "/select.feature.keycloak-config",
-          "/select.feature.local-bootstrap-config"
+          "/env.KEYCLOAK_REQUIRE_HTTPS_METADATA"
         ]
       },
       {
@@ -248,6 +247,9 @@
         "title": "Files and object storage",
         "description": "Configure local or S3 storage and review reconciliation choices before target validation.",
         "pointers": [
+          "/select.feature.local-storage-config",
+          "/select.feature.s3-storage-config",
+          "/select.feature.storage-config",
           "/env.LOCAL_STORAGE_CREATE_ROOT_IF_MISSING",
           "/env.LOCAL_STORAGE_ROOT_PATH",
           "/env.STORAGE_RECONCILIATION_DELETE_QUARANTINED_OBJECTS",
@@ -260,10 +262,7 @@
           "/env.STORAGE_S3_ENDPOINT",
           "/env.STORAGE_S3_PUBLIC_ENDPOINT",
           "/env.STORAGE_S3_REGION",
-          "/env.STORAGE_S3_SECRET_ACCESS_KEY",
-          "/select.feature.local-storage-config",
-          "/select.feature.s3-storage-config",
-          "/select.feature.storage-config"
+          "/env.STORAGE_S3_SECRET_ACCESS_KEY"
         ]
       },
       {
@@ -271,6 +270,8 @@
         "title": "Email and webhooks",
         "description": "Configure delivery services and webhook providers without sending messages or contacting them.",
         "pointers": [
+          "/select.feature.messaging-config",
+          "/select.feature.svix-config",
           "/env.EMAIL_DISPATCH_RABBITMQ_CLIENT_PROVIDED_NAME",
           "/env.EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING",
           "/env.EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING_NAME",
@@ -311,9 +312,7 @@
           "/env.WEBHOOKS_SVIX_OPERATIONAL_WEBHOOK_SECRET",
           "/env.WEBHOOKS_SVIX_OPERATIONAL_WEBHOOK_SECRET_REF",
           "/env.WEBHOOKS_SVIX_PROVIDER_VERSION",
-          "/env.WEB_PUSH_ENABLED",
-          "/select.feature.messaging-config",
-          "/select.feature.svix-config"
+          "/env.WEB_PUSH_ENABLED"
         ]
       },
       {
@@ -321,12 +320,15 @@
         "title": "Optional services and payments",
         "description": "Include only the optional integrations and payment settings needed for your deployment.",
         "pointers": [
+          "/select.feature.integration-config",
+          "/select.feature.payments-config",
+          "/env.AI_PROVIDER",
+          "/env.GEOCODING_PROVIDER",
+          "/env.WEBHOOKS_PROVIDER",
           "/env.AI_ANTHROPIC_API_KEY",
-          "/env.AI_API_KEY",
           "/env.AI_ENDPOINT",
           "/env.AI_MODEL_ID",
           "/env.AI_OPENAI_API_KEY",
-          "/env.AI_PROVIDER",
           "/env.AI_TOOL_PROPOSALS_ENABLED",
           "/env.GEOCODING_COUNTRY_CODES",
           "/env.GEOCODING_DATASET_VERSION",
@@ -335,7 +337,6 @@
           "/env.GEOCODING_MAXIMUM_RESPONSE_BYTES",
           "/env.GEOCODING_MAXIMUM_RESULTS",
           "/env.GEOCODING_MAXIMUM_RETRY_COUNT",
-          "/env.GEOCODING_PROVIDER",
           "/env.GEOCODING_READINESS_TIMEOUT_MILLISECONDS",
           "/env.GEOCODING_RETRY_DELAYS_MILLISECONDS",
           "/env.GEOCODING_SELECTION_LIFETIME_SECONDS",
@@ -352,10 +353,7 @@
           "/env.PAYMENTS_STRIPE_MODE",
           "/env.STRIPE_PLATFORM_SECRET_KEY",
           "/env.STRIPE_WEBHOOK_SECRET",
-          "/env.WEBHOOKS_ENABLED",
-          "/env.WEBHOOKS_PROVIDER",
-          "/select.feature.integration-config",
-          "/select.feature.payments-config"
+          "/env.WEBHOOKS_ENABLED"
         ]
       },
       {
@@ -363,6 +361,9 @@
         "title": "Security and secret providers",
         "description": "Review security, recovery, authorization and secret-provider settings. Secret entry requires workspace consent.",
         "pointers": [
+          "/select.feature.cerbos-config",
+          "/select.feature.security-config",
+          "/env.SECRET_PROVIDER",
           "/env.ADMISSIONS_CREDENTIAL_LOOKUP_HMAC_KEY",
           "/env.ADMISSIONS_RECOVERY_CAPABILITY_HMAC_KEY",
           "/env.ADMISSIONS_SCANNER_CAPABILITY_HMAC_KEY",
@@ -396,7 +397,6 @@
           "/env.RATELIMITING__ANONYMOUSREGISTRATION__QUEUELIMIT",
           "/env.RATELIMITING__ANONYMOUSREGISTRATION__SUBNETPERMITLIMIT",
           "/env.RATELIMITING__ANONYMOUSREGISTRATION__WINDOWSECONDS",
-          "/env.SECRET_PROVIDER",
           "/env.SETUP_SECRET_BINDING_COMMITMENT_HMAC_KEY",
           "/env.TICKETING_RECOVERY_MANIFEST_HMAC_KEY",
           "/env.TICKETING__RECOVERY__BACKLOGTHRESHOLD",
@@ -413,10 +413,7 @@
           "/env.TICKETING__RECOVERY__MINIMUMWORKERFENCE",
           "/env.TICKETING__RECOVERY__RETAINEDKEYVERSIONS__0",
           "/env.TICKETING__RECOVERY__UNHEALTHYOLDESTDUESECONDS",
-          "/env.TICKETING__RECOVERY__WARNINGOLDESTDUESECONDS",
-          "/select.feature.cerbos-config",
-          "/select.feature.infisical-config",
-          "/select.feature.security-config"
+          "/env.TICKETING__RECOVERY__WARNINGOLDESTDUESECONDS"
         ]
       },
       {
@@ -424,6 +421,9 @@
         "title": "Analytics and agent browser",
         "description": "Configure reporting and agent-browser credentials only when those capabilities are needed.",
         "pointers": [
+          "/select.feature.agent-browser-config",
+          "/select.feature.observability-config",
+          "/env.REPORTING_MODE",
           "/env.AGENT_BROWSER_PERSONA_PASSWORD",
           "/env.AGENT_BROWSER_REDIS_PASSWORD",
           "/env.ANALYTICS_PERSONAL_API_KEY",
@@ -440,14 +440,11 @@
           "/env.REPORTING_HEALTH_FAILED_PROVIDER_SYNC_WARNING_THRESHOLD",
           "/env.REPORTING_HEALTH_STUCK_PROVIDER_SYNC_MINUTES",
           "/env.REPORTING_MIRROR_REVIEW_QUEUE",
-          "/env.REPORTING_MODE",
           "/env.REPORTING_OSPREY_ALLOW_LOCAL_PROVIDER_ENDPOINTS",
           "/env.REPORTING_OSPREY_API_KEY",
           "/env.REPORTING_OSPREY_ENABLED",
           "/env.REPORTING_OSPREY_ENDPOINT_URL",
-          "/env.REPORTING_SYNC_REPORTS",
-          "/select.feature.agent-browser-config",
-          "/select.feature.observability-config"
+          "/env.REPORTING_SYNC_REPORTS"
         ]
       },
       {
@@ -469,21 +466,14 @@
           "/tenant-package.metadata.source.tenantName",
           "/tenant-package.spec.displayName",
           "/tenant-package.spec.documents.tenant.branding.payload.displayName",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.audience",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.jurisdictionAssumptions.0",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.lifecycleIntent",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.languageTag",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.markdown",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.summary",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.title",
-          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.requiresFreshAcceptance",
+          "/tenant-package.spec.legalDocuments.TenantPrivacyNotice",
           "/tenant-package.spec.settings"
         ]
       },
       {
         "id": "operator",
         "title": "Operator identity",
-        "description": "Prepare operator identity fields. Event owns integrity digests, revision and acceptance.",
+        "description": "Author the identity content, then obtain integrity and revision inputs using Event's documented --prepare-identity DOCUMENT NEW_MANIFEST workflow. Content edits invalidate those target-produced inputs. Configurator does not allocate revisions, compute Event integrity, or grant official status.",
         "pointers": [
           "/operator-identity.contentDigest",
           "/operator-identity.document.isOfficialInstance",
@@ -503,18 +493,7 @@
         "description": "Prepare localized legal drafts and jurisdiction assumptions for review, never approval or publication.",
         "pointers": [
           "/legal-drafts.metadata.name",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.audience",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.jurisdictionAssumptions.0",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.lifecycleIntent",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.languageTag",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.markdown",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.summary",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.title",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.languageTag",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.markdown",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.summary",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.title",
-          "/legal-drafts.spec.instance.legalDocuments.TermsOfService.requiresFreshAcceptance",
+          "/legal-drafts.spec.instance.legalDocuments.TermsOfService",
           "/legal-drafts.spec.instance.settings",
           "/legal-drafts.tenants"
         ]
@@ -524,6 +503,9 @@
         "title": "Advanced platform settings",
         "description": "Review additional platform and control-plane settings only when required. Unknown values remain unset.",
         "pointers": [
+          "/select.capability.deployment",
+          "/select.topology.standalone",
+          "/env.ERASURE_DATABASE_TOPOLOGY",
           "/env.ATPROTO_LOGIN_ENABLED",
           "/env.ATPROTO_OAUTH_CLIENT_PRIVATE_JWKS",
           "/env.ATPROTO_SESSION_ENCRYPTION_KEYRING",
@@ -537,7 +519,6 @@
           "/env.CONTROL_PLANE_TENANT_ADMINISTRATOR_SIGN_IN_URL",
           "/env.CONTROL_PLANE_URL",
           "/env.ERASURE_BUSY_TIMEOUT_SECONDS",
-          "/env.ERASURE_DATABASE_TOPOLOGY",
           "/env.ERASURE_EMBEDDED_PATH",
           "/env.ERASURE_WRITER_REPLICA_COUNT",
           "/env.INSTANCE_ADMIN_PUBLIC_ORIGIN",
@@ -563,10 +544,7 @@
           "/env.PROVISIONING_TRUSTED",
           "/env.REGISTRATION_PROVIDER_API_TOKEN",
           "/env.REGISTRATION_PROVIDER_WEBHOOK_SECRET",
-          "/env.SETUP_SECRET",
-          "/env.SETUP_SECRET_REQUIRED",
-          "/select.capability.deployment",
-          "/select.topology.standalone"
+          "/env.SETUP_SECRET_REQUIRED"
         ]
       }
     ],
@@ -612,7 +590,7 @@
           "/presentation/outputSelector/options/2/title": "حزمة المستأجر",
           "/presentation/outputSelector/options/3/title": "هوية المشغل",
           "/presentation/outputSelector/options/4/title": "المسودات القانونية",
-          "/presentation/sections/0/title": "الأساسيات",
+          "/presentation/sections/0/title": "الإعدادات الأساسية",
           "/presentation/sections/1/title": "الاستضافة وحاويات الخدمات",
           "/presentation/sections/2/title": "قواعد بيانات التطبيق",
           "/presentation/sections/3/title": "الهوية وتهيئة المسؤول",
@@ -640,10 +618,6 @@
           "/configuration/properties/select.feature.postgresql-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
           "/configuration/properties/select.feature.identity-config/title": "تضمين إعدادات الهوية والمشغل",
           "/configuration/properties/select.feature.identity-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
-          "/configuration/properties/select.feature.keycloak-config/title": "تضمين إعدادات Keycloak",
-          "/configuration/properties/select.feature.keycloak-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
-          "/configuration/properties/select.feature.configured-bootstrap-config/title": "تضمين إعدادات تهيئة المسؤول",
-          "/configuration/properties/select.feature.configured-bootstrap-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
           "/configuration/properties/select.feature.local-bootstrap-config/title": "تضمين كلمة مرور المسؤول المحلي",
           "/configuration/properties/select.feature.local-bootstrap-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
           "/configuration/properties/select.feature.storage-config/title": "تضمين إعدادات تسوية التخزين",
@@ -664,8 +638,6 @@
           "/configuration/properties/select.feature.security-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
           "/configuration/properties/select.feature.cerbos-config/title": "تضمين إعدادات التفويض Cerbos",
           "/configuration/properties/select.feature.cerbos-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
-          "/configuration/properties/select.feature.infisical-config/title": "تضمين إعدادات مزود الأسرار Infisical",
-          "/configuration/properties/select.feature.infisical-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
           "/configuration/properties/select.feature.observability-config/title": "تضمين إعدادات التحليلات والتقارير",
           "/configuration/properties/select.feature.observability-config/x-configurator/guidance/instructions": "تضمين هذه الإعدادات في مساحة العمل المحلية فقط لا يفعّل خدمة ولا يمنح موافقة ولا يكتشف قدرات ولا يوفر بيانات اعتماد. تتقدم القيمة الصريحة false أو الحذف المقصود على التهيئة.",
           "/configuration/properties/select.feature.agent-browser-config/title": "تضمين بيانات اعتماد متصفح الوكيل",
@@ -673,7 +645,7 @@
           "/configuration/properties/env.API_ENDPOINT/title": "عنوان API",
           "/configuration/properties/env.PUBLIC_BASE_URL/title": "عنوان الموقع العام",
           "/configuration/properties/env.AUTHENTICATION_PROVIDER/title": "مزود المصادقة",
-          "/presentation/sections/0/description": "اختر ملفا وأدخل العناوين العامة المعروفة. التضمين يعرض إعدادات محلية فقط ولا يفعّل تكاملا في التطبيق المستهدف.",
+          "/presentation/sections/0/description": "أدخل العناوين العامة ومزود المصادقة، ثم اسمح بإدخال الأسرار عمدا لتوفير سر الإعداد المطلوب.",
           "/presentation/sections/1/description": "ضمّن إعدادات النشر أو الحاويات المساندة للخدمات التي تنوي تكوينها فقط.",
           "/presentation/sections/2/description": "اختر إعدادات قاعدة البيانات المطلوبة ثم أدخل تفاصيل الاتصال محليا.",
           "/presentation/sections/3/description": "اضبط مزودي الهوية وتفاصيل المشغل وخيارات تهيئة المسؤول المقصودة.",
@@ -684,12 +656,202 @@
           "/presentation/sections/8/description": "اضبط التقارير وبيانات اعتماد متصفح الوكيل عند الحاجة إلى هذه القدرات فقط.",
           "/presentation/sections/9/description": "أعد إعدادات النسخة وصفوف المستأجرين ليتحقق منها Event؛ الإعداد لا يطبقها.",
           "/presentation/sections/10/description": "أعد بيانات المستأجر وإعداداته وهويته المرئية والمسودات القانونية لمراجعة التطبيق المستهدف.",
-          "/presentation/sections/11/description": "أعد حقول هوية المشغل. يتولى Event بصمات التكامل والإصدار والقبول.",
+          "/presentation/sections/11/description": "حرر محتوى الهوية ثم احصل على بيانات التكامل والإصدار باستخدام إجراء Event الموثق --prepare-identity DOCUMENT NEW_MANIFEST. تعديل المحتوى يبطل هذه البيانات. لا يخصص Configurator إصدارات ولا يحسب تكامل Event ولا يمنح صفة رسمية.",
           "/presentation/sections/12/description": "أعد مسودات قانونية مترجمة وافتراضات الاختصاص للمراجعة وليس للاعتماد أو النشر.",
           "/presentation/sections/13/description": "راجع إعدادات المنصة ولوحة التحكم الإضافية عند الحاجة فقط. تبقى القيم المجهولة غير محددة.",
           "/configuration/properties/env.API_ENDPOINT/x-configurator/guidance/instructions": "أدخل عنوان API العام المعروف؛ لا يرسل أي طلب ولا يخترع عنوانا.",
           "/configuration/properties/env.PUBLIC_BASE_URL/x-configurator/guidance/instructions": "أدخل عنوان الموقع العام المعروف واتركه غير محدد حتى يعرف عنوان النشر.",
-          "/configuration/properties/env.AUTHENTICATION_PROVIDER/x-configurator/guidance/instructions": "أدخل المزود الذي يتوقعه Event. لا يقوم هذا الحقل بالمصادقة أو تفعيل مزود."
+          "/configuration/properties/env.AUTHENTICATION_PROVIDER/x-configurator/guidance/instructions": "أدخل المزود الذي يتوقعه Event. لا يقوم هذا الحقل بالمصادقة أو تفعيل مزود.",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/audience/title": "الجمهور المستهدف",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/lifecycleIntent/title": "حالة المراجعة",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/requiresFreshAcceptance/title": "طلب قبول جديد",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/jurisdictionAssumptions/title": "افتراضات الاختصاص القضائي",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/title": "لغات الوثيقة",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/title": "إشعار خصوصية المستأجر",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/jurisdictionAssumptions/items/title": "البلد أو الاختصاص القضائي",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/title": "وثيقة مترجمة",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/languageTag/title": "رمز اللغة",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/markdown/title": "محتوى الوثيقة (Markdown)",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/summary/title": "الملخص",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/title/title": "عنوان الوثيقة",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/audience/title": "الجمهور المستهدف",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/lifecycleIntent/title": "حالة المراجعة",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/requiresFreshAcceptance/title": "طلب قبول جديد",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/jurisdictionAssumptions/title": "افتراضات الاختصاص القضائي",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/title": "لغات الوثيقة",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/title": "مسودة شروط الخدمة",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/jurisdictionAssumptions/items/title": "البلد أو الاختصاص القضائي",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/title": "وثيقة مترجمة",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/languageTag/title": "رمز اللغة",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/markdown/title": "محتوى الوثيقة (Markdown)",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/summary/title": "الملخص",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/title/title": "عنوان الوثيقة",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/jurisdictionAssumptions/items/description": "افتراض اختصاص قضائي لهذه المسودة؛ يراجع Event مدى انطباقه.",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/languageTag/description": "رمز اللغة لصف الوثيقة هذا.",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/markdown/description": "محتوى مسودة بهذه اللغة بانتظار مراجعة التطبيق المستهدف.",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/summary/description": "ملخص قصير بلغة الوثيقة هذه.",
+          "/configuration/properties/tenant-package.spec.legalDocuments.TenantPrivacyNotice/properties/localizations/items/properties/title/description": "عنوان الوثيقة بهذه اللغة.",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/jurisdictionAssumptions/items/description": "افتراض اختصاص قضائي لهذه المسودة؛ يراجع Event مدى انطباقه.",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/languageTag/description": "رمز اللغة لصف الوثيقة هذا.",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/markdown/description": "محتوى مسودة بهذه اللغة بانتظار مراجعة التطبيق المستهدف.",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/summary/description": "ملخص قصير بلغة الوثيقة هذه.",
+          "/configuration/properties/legal-drafts.spec.instance.legalDocuments.TermsOfService/properties/localizations/items/properties/title/description": "عنوان الوثيقة بهذه اللغة.",
+          "/configuration/properties/tenant-package.spec.displayName/title": "اسم المستأجر الظاهر",
+          "/configuration/properties/tenant-package.spec.documents.tenant.branding.payload.displayName/title": "اسم العلامة الظاهر",
+          "/configuration/properties/env.AUTHENTICATION_PROVIDER/x-configurator/choices/0/label": "محلي",
+          "/configuration/properties/env.AUTHENTICATION_PROVIDER/x-configurator/choices/1/label": "keycloak",
+          "/configuration/properties/env.AUTHENTICATION_PROVIDER/x-configurator/choices/2/label": "atproto",
+          "/configuration/properties/env.AUTHORIZATION_PROVIDER/x-configurator/choices/0/label": "محلي",
+          "/configuration/properties/env.AUTHORIZATION_PROVIDER/x-configurator/choices/1/label": "cerbos",
+          "/configuration/properties/env.DATABASE_PROVIDER/x-configurator/choices/0/label": "PostgreSql",
+          "/configuration/properties/env.DATABASE_PROVIDER/x-configurator/choices/1/label": "Sqlite",
+          "/configuration/properties/env.DATABASE_PROVIDER/x-configurator/choices/2/label": "SqlServer",
+          "/configuration/properties/env.DATABASE_PROVIDER/x-configurator/choices/3/label": "MariaDb",
+          "/configuration/properties/env.DATABASE_PROVIDER/x-configurator/choices/4/label": "MySql",
+          "/configuration/properties/env.IDENTITY_DATABASE_PROVIDER/x-configurator/choices/0/label": "PostgreSql",
+          "/configuration/properties/env.IDENTITY_DATABASE_PROVIDER/x-configurator/choices/1/label": "Sqlite",
+          "/configuration/properties/env.IDENTITY_DATABASE_PROVIDER/x-configurator/choices/2/label": "SqlServer",
+          "/configuration/properties/env.IDENTITY_DATABASE_PROVIDER/x-configurator/choices/3/label": "MariaDb",
+          "/configuration/properties/env.IDENTITY_DATABASE_PROVIDER/x-configurator/choices/4/label": "MySql",
+          "/configuration/properties/env.DATABASE_TLS_MODE/x-configurator/choices/0/label": "مفضّل",
+          "/configuration/properties/env.DATABASE_TLS_MODE/x-configurator/choices/1/label": "مطلوب",
+          "/configuration/properties/env.DATABASE_TLS_MODE/x-configurator/choices/2/label": "معطّل",
+          "/configuration/properties/env.IDENTITY_DATABASE_TLS_MODE/x-configurator/choices/0/label": "مفضّل",
+          "/configuration/properties/env.IDENTITY_DATABASE_TLS_MODE/x-configurator/choices/1/label": "مطلوب",
+          "/configuration/properties/env.IDENTITY_DATABASE_TLS_MODE/x-configurator/choices/2/label": "معطّل",
+          "/configuration/properties/env.ERASURE_DATABASE_TLS_MODE/x-configurator/choices/0/label": "مفضّل",
+          "/configuration/properties/env.ERASURE_DATABASE_TLS_MODE/x-configurator/choices/1/label": "مطلوب",
+          "/configuration/properties/env.ERASURE_DATABASE_TLS_MODE/x-configurator/choices/2/label": "معطّل",
+          "/configuration/properties/env.PRIVACY_ERASURE_AUTHORITY_TLS_MODE/x-configurator/choices/0/label": "مفضّل",
+          "/configuration/properties/env.PRIVACY_ERASURE_AUTHORITY_TLS_MODE/x-configurator/choices/1/label": "مطلوب",
+          "/configuration/properties/env.PRIVACY_ERASURE_AUTHORITY_TLS_MODE/x-configurator/choices/2/label": "معطّل",
+          "/configuration/properties/env.SECRET_PROVIDER/x-configurator/choices/0/label": "متغيرات البيئة",
+          "/configuration/properties/env.SECRET_PROVIDER/x-configurator/choices/1/label": "أسرار المستخدم",
+          "/configuration/properties/env.SECRET_PROVIDER/x-configurator/choices/2/label": "Infisical",
+          "/configuration/properties/env.AI_PROVIDER/x-configurator/choices/0/label": "بدون مزود",
+          "/configuration/properties/env.AI_PROVIDER/x-configurator/choices/1/label": "محاكاة",
+          "/configuration/properties/env.AI_PROVIDER/x-configurator/choices/2/label": "OPENAI_COMPATIBLE",
+          "/configuration/properties/env.AI_PROVIDER/x-configurator/choices/3/label": "ANTHROPIC_COMPATIBLE",
+          "/configuration/properties/env.AI_PROVIDER/x-configurator/choices/4/label": "OPENAI",
+          "/configuration/properties/env.AI_PROVIDER/x-configurator/choices/5/label": "AZURE_OPENAI",
+          "/configuration/properties/env.AI_PROVIDER/x-configurator/choices/6/label": "ANTHROPIC",
+          "/configuration/properties/env.GEOCODING_PROVIDER/x-configurator/choices/0/label": "بدون مزود",
+          "/configuration/properties/env.GEOCODING_PROVIDER/x-configurator/choices/1/label": "Photon",
+          "/configuration/properties/env.REPORTING_MODE/x-configurator/choices/0/label": "معطّل",
+          "/configuration/properties/env.REPORTING_MODE/x-configurator/choices/1/label": "محلي فقط",
+          "/configuration/properties/env.REPORTING_MODE/x-configurator/choices/2/label": "Osprey",
+          "/configuration/properties/env.REPORTING_MODE/x-configurator/choices/3/label": "Coop",
+          "/configuration/properties/env.REPORTING_MODE/x-configurator/choices/4/label": "مجموعة مزودين",
+          "/configuration/properties/env.WEBHOOKS_PROVIDER/x-configurator/choices/0/label": "معطّل",
+          "/configuration/properties/env.WEBHOOKS_PROVIDER/x-configurator/choices/1/label": "محلي",
+          "/configuration/properties/env.WEBHOOKS_PROVIDER/x-configurator/choices/2/label": "Svix",
+          "/configuration/properties/env.WEBHOOKS_PROVIDER/x-configurator/choices/3/label": "مجموعة مزودين",
+          "/configuration/properties/env.WEBHOOKS_PROVIDER/x-configurator/choices/4/label": "تجربة دون تنفيذ",
+          "/configuration/properties/env.CONFIGURATION_MANIFEST_MODE/x-configurator/choices/0/label": "معطّل",
+          "/configuration/properties/env.CONFIGURATION_MANIFEST_MODE/x-configurator/choices/1/label": "التحقق فقط",
+          "/configuration/properties/env.CONFIGURATION_MANIFEST_MODE/x-configurator/choices/2/label": "تهيئة أولية",
+          "/configuration/properties/env.INSTANCE_BOOTSTRAP_MODE/x-configurator/choices/0/label": "تفاعلي",
+          "/configuration/properties/env.INSTANCE_BOOTSTRAP_MODE/x-configurator/choices/1/label": "مسؤول محدد",
+          "/configuration/properties/env.INSTANCE_BOOTSTRAP_ADMIN_PROVIDER/x-configurator/choices/0/label": "محلي",
+          "/configuration/properties/env.INSTANCE_BOOTSTRAP_ADMIN_PROVIDER/x-configurator/choices/1/label": "keycloak",
+          "/configuration/properties/env.INSTANCE_BOOTSTRAP_ADMIN_PROVIDER/x-configurator/choices/2/label": "atproto",
+          "/configuration/properties/env.DEPLOYMENT_MODE/x-configurator/choices/0/label": "مستأجر واحد",
+          "/configuration/properties/env.DEPLOYMENT_MODE/x-configurator/choices/1/label": "مستأجرون متعددون",
+          "/configuration/properties/env.IDENTITY_DATABASE_TOPOLOGY/x-configurator/choices/0/label": "في قاعدة البيانات نفسها",
+          "/configuration/properties/env.IDENTITY_DATABASE_TOPOLOGY/x-configurator/choices/1/label": "قاعدة بيانات خارجية",
+          "/configuration/properties/env.ERASURE_DATABASE_TOPOLOGY/x-configurator/choices/0/label": "SQLite مضمّنة",
+          "/configuration/properties/env.ERASURE_DATABASE_TOPOLOGY/x-configurator/choices/1/label": "قاعدة بيانات خارجية",
+          "/configuration/properties/env.ERASURE_DATABASE_TOPOLOGY/x-configurator/choices/2/label": "في قاعدة البيانات نفسها",
+          "/configuration/properties/env.MAIL_SMTP_ENCRYPTION/x-configurator/choices/0/label": "بدون مزود",
+          "/configuration/properties/env.MAIL_SMTP_ENCRYPTION/x-configurator/choices/1/label": "StartTls",
+          "/configuration/properties/env.MAIL_SMTP_ENCRYPTION/x-configurator/choices/2/label": "SslOnConnect",
+          "/configuration/properties/env.MAIL_SMTP_ENCRYPTION/x-configurator/choices/3/label": "تلقائي",
+          "/configuration/properties/env.PAYMENTS_STRIPE_MODE/x-configurator/choices/0/label": "اختبار",
+          "/configuration/properties/env.PAYMENTS_STRIPE_MODE/x-configurator/choices/1/label": "تشغيل فعلي",
+          "/configuration/properties/env.PAYMENTS__CHECKOUTGOVERNANCE__ACTIVATIONSTATUS/x-configurator/choices/0/label": "معتمد",
+          "/configuration/properties/env.PAYMENTS__CHECKOUTGOVERNANCE__ACTIVATIONSTATUS/x-configurator/choices/1/label": "معلّق",
+          "/configuration/properties/env.PAYMENTS__CHECKOUTGOVERNANCE__CHARGETYPE/x-configurator/choices/0/label": "دفع مباشر",
+          "/configuration/properties/env.INSTANCE__OPERATORIDENTITY__OPERATORKINDCODE/x-configurator/choices/0/label": "منظمة مسجلة",
+          "/configuration/properties/env.INSTANCE__OPERATORIDENTITY__OPERATORKINDCODE/x-configurator/choices/1/label": "تاجر فردي",
+          "/configuration/properties/env.INSTANCE__OPERATORIDENTITY__OPERATORKINDCODE/x-configurator/choices/2/label": "فرد",
+          "/configuration/properties/env.INSTANCE__OPERATORIDENTITY__OPERATORKINDCODE/x-configurator/choices/3/label": "هيئة عامة",
+          "/configuration/properties/env.INSTANCE__OPERATORIDENTITY__OPERATORKINDCODE/x-configurator/choices/4/label": "جمعية غير مسجلة",
+          "/configuration/properties/env.WEBHOOKS_SVIX_ENVIRONMENT/x-configurator/choices/0/label": "استضافة ذاتية",
+          "/configuration/properties/env.WEBHOOKS_SVIX_PROVIDER_VERSION/x-configurator/choices/0/label": "1.96.1",
+          "/configuration/properties/env.WEBHOOKS_SVIX_CAPABILITY_POLICY_VERSION/x-configurator/choices/0/label": "svix-self-hosted-1.96.1-v1",
+          "/configuration/properties/env.LOCAL_STORAGE_CREATE_ROOT_IF_MISSING/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.LOCAL_STORAGE_CREATE_ROOT_IF_MISSING/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.REPORTING_EVALUATE_SIGNALS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.REPORTING_EVALUATE_SIGNALS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.REPORTING_EXECUTE_DECISIONS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.REPORTING_EXECUTE_DECISIONS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.REPORTING_MIRROR_REVIEW_QUEUE/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.REPORTING_MIRROR_REVIEW_QUEUE/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.REPORTING_SYNC_REPORTS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.REPORTING_SYNC_REPORTS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.REPORTING_COOP_ALLOW_LOCAL_PROVIDER_ENDPOINTS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.REPORTING_COOP_ALLOW_LOCAL_PROVIDER_ENDPOINTS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.REPORTING_OSPREY_ALLOW_LOCAL_PROVIDER_ENDPOINTS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.REPORTING_OSPREY_ALLOW_LOCAL_PROVIDER_ENDPOINTS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.LISTMONK_PRECONFIRM_SUBSCRIPTIONS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.LISTMONK_PRECONFIRM_SUBSCRIPTIONS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.LISTMONK_SYNC_ON_REGISTRATION/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.LISTMONK_SYNC_ON_REGISTRATION/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.PROVISIONING_TRUSTED/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.PROVISIONING_TRUSTED/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.MCP_STATELESS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.MCP_STATELESS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.MCP_ENABLE_LEGACY_SSE/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.MCP_ENABLE_LEGACY_SSE/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.CONTROL_PLANE_MANAGED_MODE/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.CONTROL_PLANE_MANAGED_MODE/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.KEYCLOAK_REQUIRE_HTTPS_METADATA/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.KEYCLOAK_REQUIRE_HTTPS_METADATA/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.STORAGE_RECONCILIATION_DELETE_QUARANTINED_OBJECTS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.STORAGE_RECONCILIATION_DELETE_QUARANTINED_OBJECTS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.STORAGE_RECONCILIATION_QUARANTINE_MISSING_OBJECTS/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.STORAGE_RECONCILIATION_QUARANTINE_MISSING_OBJECTS/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.STORAGE_RECONCILIATION_QUARANTINE_ORPHAN_LOCAL_FILES/x-configurator/choices/0/label": "نعم",
+          "/configuration/properties/env.STORAGE_RECONCILIATION_QUARANTINE_ORPHAN_LOCAL_FILES/x-configurator/choices/1/label": "لا",
+          "/configuration/properties/env.TICKETING__RECOVERY__MANIFESTSIGNINGKEYREFERENCE/x-configurator/choices/0/label": "ticketing.recovery_manifest_hmac_key",
+          "/configuration/properties/env.SETUP_SECRET/title": "سر الإعداد",
+          "/configuration/properties/env.SETUP_SECRET/x-configurator/guidance/instructions": "أدخل سر الإعداد الذي يتوقعه Event، أو أنشئه باتباع إجراء الإعداد الموثق في Event. لا يصدر Configurator السر ولا يشتقه.",
+          "/configuration/properties/env.KEYCLOAK_BLAZOR_CLIENT_SECRET/title": "سر عميل Keycloak",
+          "/configuration/properties/env.KEYCLOAK_BLAZOR_CLIENT_SECRET/x-configurator/guidance/instructions": "احصل على سر العميل السري من مسؤول نطاق Keycloak. استخدم العميل المحدد في KEYCLOAK_CLIENT_ID؛ لا يتصل Configurator بخدمة Keycloak.",
+          "/configuration/properties/env.INFISICAL_CLIENT_SECRET/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.KEYCLOAK_ADMIN_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.DATABASE_RUNTIME_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.VAPID_PRIVATE_KEY/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.COOP_SESSION_SECRET/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.DATABASE_MIGRATOR_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.ERASURE_DATABASE_MIGRATOR_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.ERASURE_DATABASE_RUNTIME_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.PRIVACY_ERASURE_AUTHORITY_MIGRATOR_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.PRIVACY_ERASURE_AUTHORITY_RUNTIME_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.MESSAGING_URI/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.REDIS_CONNECTION_STRING/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.CERBOS_PG_URL/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.SVIX_DB_DSN/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.SVIX_REDIS_DSN/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.CERBOS_ADMIN_PASSWORD_HASH/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.CERBOS_POSTGRES_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.COOP_DATABASE_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.COOP_SCYLLA_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.FORMBRICKS_CRON_SECRET/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.FORMBRICKS_CUBEJS_API_SECRET/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.FORMBRICKS_DATABASE_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.FORMBRICKS_ENCRYPTION_KEY/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.FORMBRICKS_HUB_API_KEY/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.FORMBRICKS_NEXTAUTH_SECRET/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.SVIX_DB_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.SVIX_JWT_SECRET/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.WEBLATE_ADMIN_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.WEBLATE_POSTGRES_PASSWORD/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.CONTROL_PLANE_REGISTRATION_TOKEN/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.REPORTING_COOP_API_KEY/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.REPORTING_COOP_WEBHOOK_SECRET/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/env.REPORTING_OSPREY_API_KEY/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها."
         }
       }
     }
@@ -1856,36 +2018,6 @@
           "sensitivity": "secret"
         }
       },
-      "env.AI_API_KEY": {
-        "description": "Host validator: integration-setting. Host validation remains required. Host restart: capability; startup-owned: true",
-        "title": "AI_API_KEY",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "all",
-            "operands": [
-              {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
-              },
-              {
-                "op": "equals",
-                "reference": {
-                  "path": "/select.feature.integration-config",
-                  "scope": "root"
-                },
-                "value": true
-              }
-            ]
-          },
-          "detail": "advanced",
-          "sensitivity": "sensitive"
-        }
-      },
       "env.AI_ENDPOINT": {
         "description": "Host validator: absolute-uri. Host validation remains required. Host restart: capability; startup-owned: true",
         "format": "absolute-uri",
@@ -2003,9 +2135,48 @@
               }
             ]
           },
-          "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "NONE",
+              "label": "NONE"
+            },
+            {
+              "value": "FAKE",
+              "label": "FAKE"
+            },
+            {
+              "value": "OPENAI_COMPATIBLE",
+              "label": "OPENAI_COMPATIBLE"
+            },
+            {
+              "value": "ANTHROPIC_COMPATIBLE",
+              "label": "ANTHROPIC_COMPATIBLE"
+            },
+            {
+              "value": "OPENAI",
+              "label": "OPENAI"
+            },
+            {
+              "value": "AZURE_OPENAI",
+              "label": "AZURE_OPENAI"
+            },
+            {
+              "value": "ANTHROPIC",
+              "label": "ANTHROPIC"
+            }
+          ]
+        },
+        "enum": [
+          "NONE",
+          "FAKE",
+          "OPENAI_COMPATIBLE",
+          "ANTHROPIC_COMPATIBLE",
+          "OPENAI",
+          "AZURE_OPENAI",
+          "ANTHROPIC"
+        ]
       },
       "env.AI_TOOL_PROPOSALS_ENABLED": {
         "description": "Host validator: boolean. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -2468,8 +2639,27 @@
           "sensitivity": "public",
           "guidance": {
             "instructions": "Supply the provider expected by Event. This field does not authenticate or activate a provider."
-          }
-        }
+          },
+          "choices": [
+            {
+              "value": "local",
+              "label": "local"
+            },
+            {
+              "value": "keycloak",
+              "label": "keycloak"
+            },
+            {
+              "value": "atproto",
+              "label": "atproto"
+            }
+          ]
+        },
+        "enum": [
+          "local",
+          "keycloak",
+          "atproto"
+        ]
       },
       "env.AUTHORIZATION_PROVIDER": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -2497,9 +2687,23 @@
               }
             ]
           },
-          "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "local",
+              "label": "local"
+            },
+            {
+              "value": "cerbos",
+              "label": "cerbos"
+            }
+          ]
+        },
+        "enum": [
+          "local",
+          "cerbos"
+        ]
       },
       "env.CERBOS_ADMIN_PASSWORD": {
         "description": "Host validator: authorization-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -2558,7 +2762,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.CERBOS_ADMIN_USERNAME": {
@@ -2744,7 +2955,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "connection-string",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.CERBOS_PLAINTEXT_MODE": {
@@ -2834,7 +3052,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.CERBOS_POSTGRES_USER": {
@@ -2953,10 +3178,29 @@
               }
             ]
           },
-          "detail": "standard",
+          "detail": "basic",
           "initialValue": "Off",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Off",
+              "label": "Off"
+            },
+            {
+              "value": "ValidateOnly",
+              "label": "ValidateOnly"
+            },
+            {
+              "value": "Bootstrap",
+              "label": "Bootstrap"
+            }
+          ]
+        },
+        "enum": [
+          "Off",
+          "ValidateOnly",
+          "Bootstrap"
+        ]
       },
       "env.CONFIGURATION_MANIFEST_PATH": {
         "description": "Host validator: deployment-setting. Host validation remains required. Host restart: deployment; startup-owned: true",
@@ -3081,8 +3325,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.CONTROL_PLANE_MAXIMUM_TENANT_COUNT": {
         "description": "Host validator: managed-deployment-setting. Host validation remains required. Host restart: deployment; startup-owned: true",
@@ -3225,7 +3483,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.CONTROL_PLANE_TENANT_ADMINISTRATOR_SIGN_IN_URL": {
@@ -3474,7 +3739,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.COOP_DATABASE_USER": {
@@ -3746,7 +4018,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.COOP_SCYLLA_SSL": {
@@ -3836,7 +4115,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "symmetric-key",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.COOP_UI_URL": {
@@ -3908,20 +4194,33 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
@@ -3938,25 +4237,45 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
           "detail": "standard",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.DATABASE_MIGRATOR_USERNAME": {
@@ -3968,20 +4287,33 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
@@ -4030,20 +4362,33 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
@@ -4077,10 +4422,39 @@
               }
             ]
           },
-          "detail": "standard",
+          "detail": "basic",
           "initialValue": "PostgreSql",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "PostgreSql",
+              "label": "PostgreSql"
+            },
+            {
+              "value": "Sqlite",
+              "label": "Sqlite"
+            },
+            {
+              "value": "SqlServer",
+              "label": "SqlServer"
+            },
+            {
+              "value": "MariaDb",
+              "label": "MariaDb"
+            },
+            {
+              "value": "MySql",
+              "label": "MySql"
+            }
+          ]
+        },
+        "enum": [
+          "PostgreSql",
+          "Sqlite",
+          "SqlServer",
+          "MariaDb",
+          "MySql"
+        ]
       },
       "env.DATABASE_RUNTIME_PASSWORD": {
         "description": "Host validator: database-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -4091,25 +4465,45 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
           "detail": "standard",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.DATABASE_RUNTIME_USERNAME": {
@@ -4121,20 +4515,33 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
@@ -4182,20 +4589,33 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.server-database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.server-database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
@@ -4212,27 +4632,59 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
           "detail": "standard",
           "initialValue": "Prefer",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Prefer",
+              "label": "Prefer"
+            },
+            {
+              "value": "Required",
+              "label": "Required"
+            },
+            {
+              "value": "Disabled",
+              "label": "Disabled"
+            }
+          ]
+        },
+        "enum": [
+          "Prefer",
+          "Required",
+          "Disabled"
+        ]
       },
       "env.DATABASE_TRUST_SERVER_CERTIFICATE": {
         "description": "Host validator: boolean. Host validation remains required. Host restart: process; startup-owned: true",
@@ -4243,20 +4695,33 @@
             "op": "all",
             "operands": [
               {
-                "op": "equals",
-                "reference": {
-                  "path": "/operation",
-                  "scope": "root"
-                },
-                "value": "environment"
+                "op": "all",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/operation",
+                      "scope": "root"
+                    },
+                    "value": "environment"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "path": "/select.feature.database-config",
+                      "scope": "root"
+                    },
+                    "value": true
+                  }
+                ]
               },
               {
-                "op": "equals",
+                "op": "notEquals",
+                "value": "Sqlite",
                 "reference": {
-                  "path": "/select.feature.database-config",
-                  "scope": "root"
-                },
-                "value": true
+                  "scope": "root",
+                  "path": "/env.DATABASE_PROVIDER"
+                }
               }
             ]
           },
@@ -4291,9 +4756,23 @@
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "SingleTenant",
+              "label": "SingleTenant"
+            },
+            {
+              "value": "MultiTenant",
+              "label": "MultiTenant"
+            }
+          ]
+        },
+        "enum": [
+          "SingleTenant",
+          "MultiTenant"
+        ]
       },
       "env.DOTNET_ENVIRONMENT": {
         "description": "Host validator: deployment-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -4382,7 +4861,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "connection-string",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING_NAME": {
@@ -5043,7 +5529,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.ERASURE_DATABASE_MIGRATOR_USERNAME": {
@@ -5165,7 +5658,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.ERASURE_DATABASE_RUNTIME_USERNAME": {
@@ -5225,8 +5725,27 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Prefer",
+              "label": "Prefer"
+            },
+            {
+              "value": "Required",
+              "label": "Required"
+            },
+            {
+              "value": "Disabled",
+              "label": "Disabled"
+            }
+          ]
+        },
+        "enum": [
+          "Prefer",
+          "Required",
+          "Disabled"
+        ]
       },
       "env.ERASURE_DATABASE_TOPOLOGY": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -5254,9 +5773,28 @@
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "EmbeddedSqlite",
+              "label": "EmbeddedSqlite"
+            },
+            {
+              "value": "ExternalDatabase",
+              "label": "ExternalDatabase"
+            },
+            {
+              "value": "CoLocated",
+              "label": "CoLocated"
+            }
+          ]
+        },
+        "enum": [
+          "EmbeddedSqlite",
+          "ExternalDatabase",
+          "CoLocated"
+        ]
       },
       "env.ERASURE_DATABASE_TRUST_SERVER_CERTIFICATE": {
         "description": "Host validator: boolean. Host validation remains required. Host restart: process; startup-owned: true",
@@ -5375,7 +5913,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.FORMBRICKS_CUBEJS_API_SECRET": {
@@ -5405,7 +5950,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.FORMBRICKS_DATABASE_NAME": {
@@ -5465,7 +6017,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.FORMBRICKS_DATABASE_USER": {
@@ -5525,7 +6084,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "symmetric-key",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.FORMBRICKS_HTTP_PORT": {
@@ -5587,7 +6153,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.FORMBRICKS_NEXTAUTH_SECRET": {
@@ -5617,7 +6190,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "symmetric-key",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.FORMBRICKS_WEBAPP_URL": {
@@ -5887,9 +6467,23 @@
               }
             ]
           },
-          "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "None",
+              "label": "None"
+            },
+            {
+              "value": "Photon",
+              "label": "Photon"
+            }
+          ]
+        },
+        "enum": [
+          "None",
+          "Photon"
+        ]
       },
       "env.GEOCODING_READINESS_TIMEOUT_MILLISECONDS": {
         "description": "Host validator: integration-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -6281,9 +6875,38 @@
               }
             ]
           },
-          "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "PostgreSql",
+              "label": "PostgreSql"
+            },
+            {
+              "value": "Sqlite",
+              "label": "Sqlite"
+            },
+            {
+              "value": "SqlServer",
+              "label": "SqlServer"
+            },
+            {
+              "value": "MariaDb",
+              "label": "MariaDb"
+            },
+            {
+              "value": "MySql",
+              "label": "MySql"
+            }
+          ]
+        },
+        "enum": [
+          "PostgreSql",
+          "Sqlite",
+          "SqlServer",
+          "MariaDb",
+          "MySql"
+        ]
       },
       "env.IDENTITY_DATABASE_RUNTIME_PASSWORD": {
         "description": "Host validator: database-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -6402,8 +7025,27 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Prefer",
+              "label": "Prefer"
+            },
+            {
+              "value": "Required",
+              "label": "Required"
+            },
+            {
+              "value": "Disabled",
+              "label": "Disabled"
+            }
+          ]
+        },
+        "enum": [
+          "Prefer",
+          "Required",
+          "Disabled"
+        ]
       },
       "env.IDENTITY_DATABASE_TOPOLOGY": {
         "description": "Host validator: identity-database-topology. Host validation remains required. Host restart: process; startup-owned: true",
@@ -6431,10 +7073,24 @@
               }
             ]
           },
-          "detail": "standard",
+          "detail": "basic",
           "initialValue": "colocated",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "colocated",
+              "label": "colocated"
+            },
+            {
+              "value": "external",
+              "label": "external"
+            }
+          ]
+        },
+        "enum": [
+          "colocated",
+          "external"
+        ]
       },
       "env.IDENTITY_DATABASE_TRUST_SERVER_CERTIFICATE": {
         "description": "Host validator: boolean. Host validation remains required. Host restart: process; startup-owned: true",
@@ -6485,10 +7141,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.infisical-config",
+                  "path": "/env.SECRET_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "Infisical"
               }
             ]
           },
@@ -6515,15 +7171,22 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.infisical-config",
+                  "path": "/env.SECRET_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "Infisical"
               }
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.INFISICAL_ENV": {
@@ -6545,10 +7208,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.infisical-config",
+                  "path": "/env.SECRET_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "Infisical"
               }
             ]
           },
@@ -6575,10 +7238,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.infisical-config",
+                  "path": "/env.SECRET_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "Infisical"
               }
             ]
           },
@@ -6605,10 +7268,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.infisical-config",
+                  "path": "/env.SECRET_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "Infisical"
               }
             ]
           },
@@ -6685,10 +7348,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.configured-bootstrap-config",
+                  "path": "/env.INSTANCE_BOOTSTRAP_MODE",
                   "scope": "root"
                 },
-                "value": true
+                "value": "ConfiguredAdministrator"
               }
             ]
           },
@@ -6715,10 +7378,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.configured-bootstrap-config",
+                  "path": "/env.INSTANCE_BOOTSTRAP_MODE",
                   "scope": "root"
                 },
-                "value": true
+                "value": "ConfiguredAdministrator"
               }
             ]
           },
@@ -6745,10 +7408,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.configured-bootstrap-config",
+                  "path": "/env.INSTANCE_BOOTSTRAP_MODE",
                   "scope": "root"
                 },
-                "value": true
+                "value": "ConfiguredAdministrator"
               }
             ]
           },
@@ -6775,16 +7438,35 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.configured-bootstrap-config",
+                  "path": "/env.INSTANCE_BOOTSTRAP_MODE",
                   "scope": "root"
                 },
-                "value": true
+                "value": "ConfiguredAdministrator"
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "local",
+              "label": "local"
+            },
+            {
+              "value": "keycloak",
+              "label": "keycloak"
+            },
+            {
+              "value": "atproto",
+              "label": "atproto"
+            }
+          ]
+        },
+        "enum": [
+          "local",
+          "keycloak",
+          "atproto"
+        ]
       },
       "env.INSTANCE_BOOTSTRAP_ADMIN_SUBJECT": {
         "description": "Host validator: identity-subject. Host validation remains required. Host restart: process; startup-owned: true",
@@ -6805,10 +7487,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.configured-bootstrap-config",
+                  "path": "/env.INSTANCE_BOOTSTRAP_MODE",
                   "scope": "root"
                 },
-                "value": true
+                "value": "ConfiguredAdministrator"
               }
             ]
           },
@@ -6836,10 +7518,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.configured-bootstrap-config",
+                  "path": "/env.INSTANCE_BOOTSTRAP_MODE",
                   "scope": "root"
                 },
-                "value": true
+                "value": "ConfiguredAdministrator"
               }
             ]
           },
@@ -6903,9 +7585,23 @@
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Interactive",
+              "label": "Interactive"
+            },
+            {
+              "value": "ConfiguredAdministrator",
+              "label": "ConfiguredAdministrator"
+            }
+          ]
+        },
+        "enum": [
+          "Interactive",
+          "ConfiguredAdministrator"
+        ]
       },
       "env.INSTANCE__OPERATORIDENTITY__ISOFFICIALINSTANCE": {
         "description": "Host validator: boolean. Host validation remains required. Host restart: process; startup-owned: true",
@@ -7115,8 +7811,37 @@
             ]
           },
           "detail": "standard",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "registered_organization",
+              "label": "registered_organization"
+            },
+            {
+              "value": "sole_trader",
+              "label": "sole_trader"
+            },
+            {
+              "value": "individual",
+              "label": "individual"
+            },
+            {
+              "value": "public_body",
+              "label": "public_body"
+            },
+            {
+              "value": "unincorporated_association",
+              "label": "unincorporated_association"
+            }
+          ]
+        },
+        "enum": [
+          "registered_organization",
+          "sole_trader",
+          "individual",
+          "public_body",
+          "unincorporated_association"
+        ]
       },
       "env.INSTANCE__OPERATORIDENTITY__PRIVACYURL": {
         "description": "Host validator: absolute-uri. Host validation remains required. Host restart: process; startup-owned: true",
@@ -7358,7 +8083,14 @@
             ]
           },
           "detail": "standard",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.KEYCLOAK_BLAZOR_CLIENT_ID": {
@@ -7380,10 +8112,10 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.keycloak-config",
+                  "path": "/env.AUTHENTICATION_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "keycloak"
               }
             ]
           },
@@ -7393,7 +8125,7 @@
       },
       "env.KEYCLOAK_BLAZOR_CLIENT_SECRET": {
         "description": "Host validator: identity-setting. Host validation remains required. Host restart: process; startup-owned: true",
-        "title": "KEYCLOAK_BLAZOR_CLIENT_SECRET",
+        "title": "Keycloak client secret",
         "type": "string",
         "x-configurator": {
           "applicableWhen": {
@@ -7410,15 +8142,22 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.keycloak-config",
+                  "path": "/env.AUTHENTICATION_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "keycloak"
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "secret"
+          "detail": "basic",
+          "sensitivity": "secret",
+          "guidance": {
+            "instructions": "Obtain this confidential client's secret from the Keycloak realm administrator. Use the client identified by KEYCLOAK_CLIENT_ID; Configurator does not contact Keycloak."
+          },
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "issuer"
+          }
         }
       },
       "env.KEYCLOAK_CLIENT_ID": {
@@ -7440,14 +8179,14 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.keycloak-config",
+                  "path": "/env.AUTHENTICATION_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "keycloak"
               }
             ]
           },
-          "detail": "advanced",
+          "detail": "basic",
           "sensitivity": "secret"
         }
       },
@@ -7561,14 +8300,14 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.keycloak-config",
+                  "path": "/env.AUTHENTICATION_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "keycloak"
               }
             ]
           },
-          "detail": "standard",
+          "detail": "basic",
           "sensitivity": "secret"
         }
       },
@@ -7593,7 +8332,7 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.keycloak-config",
+                  "path": "/select.feature.external-compose-config",
                   "scope": "root"
                 },
                 "value": true
@@ -7653,14 +8392,14 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.keycloak-config",
+                  "path": "/env.AUTHENTICATION_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "keycloak"
               }
             ]
           },
-          "detail": "standard",
+          "detail": "basic",
           "sensitivity": "secret"
         }
       },
@@ -7683,16 +8422,30 @@
               {
                 "op": "equals",
                 "reference": {
-                  "path": "/select.feature.keycloak-config",
+                  "path": "/env.AUTHENTICATION_PROVIDER",
                   "scope": "root"
                 },
-                "value": true
+                "value": "keycloak"
               }
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.LISTMONK_API_KEY": {
         "description": "Host validator: integration-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -7873,8 +8626,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.LISTMONK_SYNC_ON_REGISTRATION": {
         "description": "Host validator: integration-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -7903,8 +8670,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.LOCALIZATION_TMS_API_KEY": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -7963,8 +8744,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.LOCAL_STORAGE_ROOT_PATH": {
         "description": "Host validator: storage-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -8056,8 +8851,32 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "None",
+              "label": "None"
+            },
+            {
+              "value": "StartTls",
+              "label": "StartTls"
+            },
+            {
+              "value": "SslOnConnect",
+              "label": "SslOnConnect"
+            },
+            {
+              "value": "Auto",
+              "label": "Auto"
+            }
+          ]
+        },
+        "enum": [
+          "None",
+          "StartTls",
+          "SslOnConnect",
+          "Auto"
+        ]
       },
       "env.MAIL_SMTP_FROM_ADDRESS": {
         "description": "Host validator: messaging-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -8329,8 +9148,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.MCP_ENDPOINT_PATH": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -8389,8 +9222,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.MESSAGING_URI": {
         "description": "Host validator: messaging-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -8419,7 +9266,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "connection-string",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.MINIO_API_PORT": {
@@ -8723,8 +9577,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Test",
+              "label": "Test"
+            },
+            {
+              "value": "Live",
+              "label": "Live"
+            }
+          ]
+        },
+        "enum": [
+          "Test",
+          "Live"
+        ]
       },
       "env.PAYMENTS__CHECKOUTGOVERNANCE__ACTIVATIONSTATUS": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -8753,8 +9621,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "approved",
+              "label": "approved"
+            },
+            {
+              "value": "suspended",
+              "label": "suspended"
+            }
+          ]
+        },
+        "enum": [
+          "approved",
+          "suspended"
+        ]
       },
       "env.PAYMENTS__CHECKOUTGOVERNANCE__CHARGETYPE": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -8783,8 +9665,17 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "direct-charge",
+              "label": "direct-charge"
+            }
+          ]
+        },
+        "enum": [
+          "direct-charge"
+        ]
       },
       "env.PAYMENTS__CHECKOUTGOVERNANCE__COMPLAINTOWNER": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -9295,7 +10186,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.PRIVACY_ERASURE_AUTHORITY_MIGRATOR_USERNAME": {
@@ -9385,7 +10283,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.PRIVACY_ERASURE_AUTHORITY_RUNTIME_USERNAME": {
@@ -9445,8 +10350,27 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Prefer",
+              "label": "Prefer"
+            },
+            {
+              "value": "Required",
+              "label": "Required"
+            },
+            {
+              "value": "Disabled",
+              "label": "Disabled"
+            }
+          ]
+        },
+        "enum": [
+          "Prefer",
+          "Required",
+          "Disabled"
+        ]
       },
       "env.PRIVACY_ERASURE_AUTHORITY_TRUST_SERVER_CERTIFICATE": {
         "description": "Host validator: boolean. Host validation remains required. Host restart: deployment; startup-owned: false",
@@ -9685,8 +10609,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.PUBLIC_BASE_URL": {
         "description": "Host validator: absolute-uri. Host validation remains required. Host restart: process; startup-owned: true",
@@ -9904,7 +10842,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "connection-string",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.REGISTRATION_PROVIDER_API_TOKEN": {
@@ -9994,8 +10939,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.REPORTING_COOP_API_KEY": {
         "description": "Host validator: observability-setting. Host validation remains required. Host restart: none; startup-owned: true",
@@ -10024,7 +10983,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.REPORTING_COOP_ENABLED": {
@@ -10115,7 +11081,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.REPORTING_ENABLED": {
@@ -10176,8 +11149,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.REPORTING_EXECUTE_DECISIONS": {
         "description": "Host validator: observability-setting. Host validation remains required. Host restart: none; startup-owned: true",
@@ -10206,8 +11193,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.REPORTING_HEALTH_FAILED_PROVIDER_SYNC_WARNING_THRESHOLD": {
         "description": "Host validator: observability-setting. Host validation remains required. Host restart: none; startup-owned: true",
@@ -10296,8 +11297,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.REPORTING_MODE": {
         "description": "Host validator: observability-setting. Host validation remains required. Host restart: none; startup-owned: true",
@@ -10325,9 +11340,38 @@
               }
             ]
           },
-          "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Disabled",
+              "label": "Disabled"
+            },
+            {
+              "value": "LocalOnly",
+              "label": "LocalOnly"
+            },
+            {
+              "value": "Osprey",
+              "label": "Osprey"
+            },
+            {
+              "value": "Coop",
+              "label": "Coop"
+            },
+            {
+              "value": "Composite",
+              "label": "Composite"
+            }
+          ]
+        },
+        "enum": [
+          "Disabled",
+          "LocalOnly",
+          "Osprey",
+          "Coop",
+          "Composite"
+        ]
       },
       "env.REPORTING_OSPREY_ALLOW_LOCAL_PROVIDER_ENDPOINTS": {
         "description": "Host validator: observability-setting. Host validation remains required. Host restart: none; startup-owned: true",
@@ -10356,8 +11400,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.REPORTING_OSPREY_API_KEY": {
         "description": "Host validator: observability-setting. Host validation remains required. Host restart: none; startup-owned: true",
@@ -10386,7 +11444,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.REPORTING_OSPREY_ENABLED": {
@@ -10477,8 +11542,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.SECRET_PROVIDER": {
         "description": "Host validator: security-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -10506,13 +11585,32 @@
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
+          "detail": "basic",
+          "sensitivity": "sensitive",
+          "choices": [
+            {
+              "value": "Environment",
+              "label": "Environment"
+            },
+            {
+              "value": "UserSecrets",
+              "label": "UserSecrets"
+            },
+            {
+              "value": "Infisical",
+              "label": "Infisical"
+            }
+          ]
+        },
+        "enum": [
+          "Environment",
+          "UserSecrets",
+          "Infisical"
+        ]
       },
       "env.SETUP_SECRET": {
         "description": "Host validator: platform-setting. Host validation remains required. Host restart: process; startup-owned: true",
-        "title": "SETUP_SECRET",
+        "title": "Setup secret",
         "type": "string",
         "x-configurator": {
           "applicableWhen": {
@@ -10536,8 +11634,15 @@
               }
             ]
           },
-          "detail": "standard",
-          "sensitivity": "secret"
+          "detail": "basic",
+          "sensitivity": "secret",
+          "guidance": {
+            "instructions": "Supply the existing setup secret expected by Event, or create one using Event's documented setup procedure. Configurator does not issue or derive it."
+          },
+          "credential": {
+            "kind": "opaque-token",
+            "acquisition": "existing"
+          }
         }
       },
       "env.SETUP_SECRET_BINDING_COMMITMENT_HMAC_KEY": {
@@ -10657,8 +11762,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.STORAGE_RECONCILIATION_DRY_RUN": {
         "description": "Host validator: boolean. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -10749,8 +11868,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.STORAGE_RECONCILIATION_QUARANTINE_ORPHAN_LOCAL_FILES": {
         "description": "Host validator: storage-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -10779,8 +11912,22 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "true",
+              "label": "true"
+            },
+            {
+              "value": "false",
+              "label": "false"
+            }
+          ]
+        },
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "env.STORAGE_S3_ACCESS_KEY_ID": {
         "description": "Host validator: storage-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -11111,7 +12258,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "connection-string",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.SVIX_DB_PASSWORD": {
@@ -11141,7 +12295,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.SVIX_DB_USERNAME": {
@@ -11233,7 +12394,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "symmetric-key",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.SVIX_QUEUE_TYPE": {
@@ -11293,7 +12461,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "connection-string",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.SVIX_TAG": {
@@ -11563,8 +12738,17 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "ticketing.recovery_manifest_hmac_key",
+              "label": "ticketing.recovery_manifest_hmac_key"
+            }
+          ]
+        },
+        "enum": [
+          "ticketing.recovery_manifest_hmac_key"
+        ]
       },
       "env.TICKETING__RECOVERY__MINIMUMAUTHORITYFLOOR": {
         "description": "Host validator: security-setting. Host validation remains required. Host restart: process; startup-owned: true",
@@ -11865,7 +13049,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "private-key",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.VAPID_PUBLIC_KEY": {
@@ -11985,9 +13176,38 @@
               }
             ]
           },
-          "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "detail": "basic",
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "Disabled",
+              "label": "Disabled"
+            },
+            {
+              "value": "Local",
+              "label": "Local"
+            },
+            {
+              "value": "Svix",
+              "label": "Svix"
+            },
+            {
+              "value": "Composite",
+              "label": "Composite"
+            },
+            {
+              "value": "DryRun",
+              "label": "DryRun"
+            }
+          ]
+        },
+        "enum": [
+          "Disabled",
+          "Local",
+          "Svix",
+          "Composite",
+          "DryRun"
+        ]
       },
       "env.WEBHOOKS_SVIX_AUTH_TOKEN": {
         "description": "Host validator: webhook-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -12107,8 +13327,17 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "svix-self-hosted-1.96.1-v1",
+              "label": "svix-self-hosted-1.96.1-v1"
+            }
+          ]
+        },
+        "enum": [
+          "svix-self-hosted-1.96.1-v1"
+        ]
       },
       "env.WEBHOOKS_SVIX_ENVIRONMENT": {
         "description": "Host validator: webhook-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -12137,8 +13366,17 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "self-hosted",
+              "label": "self-hosted"
+            }
+          ]
+        },
+        "enum": [
+          "self-hosted"
+        ]
       },
       "env.WEBHOOKS_SVIX_OPERATIONAL_WEBHOOK_SECRET": {
         "description": "Host validator: webhook-setting. Host validation remains required. Host restart: capability; startup-owned: true",
@@ -12227,8 +13465,17 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "public"
-        }
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "1.96.1",
+              "label": "1.96.1"
+            }
+          ]
+        },
+        "enum": [
+          "1.96.1"
+        ]
       },
       "env.WEBLATE_ADMIN_EMAIL": {
         "description": "Host validator: compose-interpolation. Host validation remains required. Host restart: deployment; startup-owned: false",
@@ -12317,7 +13564,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.WEBLATE_HTTP_PORT": {
@@ -12439,7 +13693,14 @@
             ]
           },
           "detail": "advanced",
-          "sensitivity": "sensitive"
+          "sensitivity": "secret",
+          "credential": {
+            "kind": "password",
+            "acquisition": "existing"
+          },
+          "guidance": {
+            "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+          }
         }
       },
       "env.WEBLATE_POSTGRES_USER": {
@@ -12537,233 +13798,6 @@
         "description": "$.metadata.name",
         "title": "name",
         "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.audience": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.audience",
-        "enum": [
-          "Public",
-          "RegisteredUsers",
-          "Administrators",
-          "Developers",
-          "EventParticipants"
-        ],
-        "title": "audience",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.jurisdictionAssumptions.0": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.jurisdictionAssumptions.0",
-        "title": "0",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.lifecycleIntent": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.lifecycleIntent",
-        "enum": [
-          "Draft",
-          "ReviewRequired"
-        ],
-        "title": "lifecycleIntent",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.languageTag": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.0.languageTag",
-        "maxLength": 35,
-        "minLength": 1,
-        "title": "languageTag",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.markdown": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.0.markdown",
-        "title": "markdown",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.summary": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.0.summary",
-        "maxLength": 500,
-        "minLength": 1,
-        "title": "summary",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.title": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.0.title",
-        "maxLength": 200,
-        "minLength": 1,
-        "title": "title",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.languageTag": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.1.languageTag",
-        "maxLength": 35,
-        "minLength": 1,
-        "title": "languageTag",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.markdown": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.1.markdown",
-        "title": "markdown",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.summary": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.1.summary",
-        "maxLength": 500,
-        "minLength": 1,
-        "title": "summary",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.title": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.localizations.1.title",
-        "maxLength": 200,
-        "minLength": 1,
-        "title": "title",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "legal-drafts"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.requiresFreshAcceptance": {
-        "description": "$.spec.instance.legalDocuments.TermsOfService.requiresFreshAcceptance",
-        "title": "requiresFreshAcceptance",
-        "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
             "op": "equals",
@@ -13726,27 +14760,6 @@
           }
         }
       },
-      "select.feature.configured-bootstrap-config": {
-        "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "Include administrator bootstrap settings",
-        "type": "boolean",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "environment"
-          },
-          "detail": "standard",
-          "initialValue": false,
-          "sensitivity": "public",
-          "guidance": {
-            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
-          }
-        }
-      },
       "select.feature.database-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
         "title": "Include application database settings",
@@ -13831,51 +14844,9 @@
           }
         }
       },
-      "select.feature.infisical-config": {
-        "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "Include Infisical secret provider settings",
-        "type": "boolean",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "environment"
-          },
-          "detail": "standard",
-          "initialValue": false,
-          "sensitivity": "public",
-          "guidance": {
-            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
-          }
-        }
-      },
       "select.feature.integration-config": {
         "description": "Explicit offline selection, not a detected deployment capability.",
         "title": "Include optional service integrations",
-        "type": "boolean",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "environment"
-          },
-          "detail": "standard",
-          "initialValue": false,
-          "sensitivity": "public",
-          "guidance": {
-            "instructions": "Include these settings in this offline workspace. This does not enable a target service, grant consent, detect capabilities or supply credentials. Explicit false or omission takes precedence."
-          }
-        }
-      },
-      "select.feature.keycloak-config": {
-        "description": "Explicit offline selection, not a detected deployment capability.",
-        "title": "Include Keycloak settings",
         "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
@@ -14202,7 +15173,7 @@
         "description": "$.spec.displayName",
         "maxLength": 500,
         "minLength": 1,
-        "title": "displayName",
+        "title": "Tenant display name",
         "type": "string",
         "x-configurator": {
           "applicableWhen": {
@@ -14221,161 +15192,8 @@
         "description": "$.spec.documents.tenant.branding.payload.displayName",
         "maxLength": 500,
         "minLength": 1,
-        "title": "displayName",
+        "title": "Brand display name",
         "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.audience": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.audience",
-        "enum": [
-          "Public",
-          "RegisteredUsers",
-          "Administrators",
-          "Developers",
-          "EventParticipants"
-        ],
-        "title": "audience",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.jurisdictionAssumptions.0": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.jurisdictionAssumptions.0",
-        "title": "0",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.lifecycleIntent": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.lifecycleIntent",
-        "enum": [
-          "Draft",
-          "ReviewRequired"
-        ],
-        "title": "lifecycleIntent",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.languageTag": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.localizations.0.languageTag",
-        "maxLength": 35,
-        "minLength": 1,
-        "title": "languageTag",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.markdown": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.localizations.0.markdown",
-        "title": "markdown",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.summary": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.localizations.0.summary",
-        "maxLength": 500,
-        "minLength": 1,
-        "title": "summary",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.title": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.localizations.0.title",
-        "maxLength": 200,
-        "minLength": 1,
-        "title": "title",
-        "type": "string",
-        "x-configurator": {
-          "applicableWhen": {
-            "op": "equals",
-            "reference": {
-              "path": "/operation",
-              "scope": "root"
-            },
-            "value": "tenant-package"
-          },
-          "detail": "standard",
-          "sensitivity": "sensitive"
-        }
-      },
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.requiresFreshAcceptance": {
-        "description": "$.spec.legalDocuments.TenantPrivacyNotice.requiresFreshAcceptance",
-        "title": "requiresFreshAcceptance",
-        "type": "boolean",
         "x-configurator": {
           "applicableWhen": {
             "op": "equals",
@@ -14640,6 +15458,310 @@
           "detail": "standard",
           "sensitivity": "sensitive"
         }
+      },
+      "tenant-package.spec.legalDocuments.TenantPrivacyNotice": {
+        "type": "object",
+        "title": "Tenant privacy notice",
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "description": "$.spec.legalDocuments.TenantPrivacyNotice.audience",
+            "enum": [
+              "Public",
+              "RegisteredUsers",
+              "Administrators",
+              "Developers",
+              "EventParticipants"
+            ],
+            "title": "Intended audience",
+            "type": "string",
+            "x-configurator": {
+              "detail": "standard",
+              "sensitivity": "sensitive"
+            }
+          },
+          "lifecycleIntent": {
+            "description": "$.spec.legalDocuments.TenantPrivacyNotice.lifecycleIntent",
+            "enum": [
+              "Draft",
+              "ReviewRequired"
+            ],
+            "title": "Review status",
+            "type": "string",
+            "x-configurator": {
+              "detail": "standard",
+              "sensitivity": "sensitive"
+            }
+          },
+          "requiresFreshAcceptance": {
+            "description": "$.spec.legalDocuments.TenantPrivacyNotice.requiresFreshAcceptance",
+            "title": "Require renewed acceptance",
+            "type": "boolean",
+            "x-configurator": {
+              "detail": "standard",
+              "sensitivity": "sensitive"
+            }
+          },
+          "jurisdictionAssumptions": {
+            "type": "array",
+            "title": "Jurisdiction assumptions",
+            "minItems": 1,
+            "maxItems": 4096,
+            "items": {
+              "description": "Jurisdiction assumption for this draft; Event reviews its applicability.",
+              "title": "Country or jurisdiction",
+              "type": "string",
+              "x-configurator": {
+                "detail": "standard",
+                "sensitivity": "sensitive"
+              }
+            },
+            "x-configurator": {
+              "sensitivity": "sensitive",
+              "detail": "standard"
+            }
+          },
+          "localizations": {
+            "type": "array",
+            "title": "Document languages",
+            "minItems": 1,
+            "maxItems": 4096,
+            "items": {
+              "type": "object",
+              "title": "Localized document",
+              "properties": {
+                "languageTag": {
+                  "description": "Language tag for this document row.",
+                  "maxLength": 35,
+                  "minLength": 1,
+                  "title": "Language tag",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                },
+                "markdown": {
+                  "description": "Draft content for this language, pending target review.",
+                  "title": "Document content (Markdown)",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                },
+                "summary": {
+                  "description": "Short summary in this document language.",
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "title": "Summary",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                },
+                "title": {
+                  "description": "Document title in this language.",
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "title": "Document title",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "languageTag",
+                "markdown",
+                "summary",
+                "title"
+              ],
+              "x-configurator": {
+                "sensitivity": "sensitive",
+                "detail": "standard"
+              }
+            },
+            "x-configurator": {
+              "sensitivity": "sensitive",
+              "detail": "standard"
+            }
+          }
+        },
+        "required": [
+          "audience",
+          "jurisdictionAssumptions",
+          "lifecycleIntent",
+          "localizations",
+          "requiresFreshAcceptance"
+        ],
+        "x-configurator": {
+          "applicableWhen": {
+            "op": "equals",
+            "reference": {
+              "path": "/operation",
+              "scope": "root"
+            },
+            "value": "tenant-package"
+          },
+          "detail": "standard",
+          "sensitivity": "sensitive"
+        }
+      },
+      "legal-drafts.spec.instance.legalDocuments.TermsOfService": {
+        "type": "object",
+        "title": "Terms of service draft",
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "description": "$.spec.instance.legalDocuments.TermsOfService.audience",
+            "enum": [
+              "Public",
+              "RegisteredUsers",
+              "Administrators",
+              "Developers",
+              "EventParticipants"
+            ],
+            "title": "Intended audience",
+            "type": "string",
+            "x-configurator": {
+              "detail": "standard",
+              "sensitivity": "sensitive"
+            }
+          },
+          "lifecycleIntent": {
+            "description": "$.spec.instance.legalDocuments.TermsOfService.lifecycleIntent",
+            "enum": [
+              "Draft",
+              "ReviewRequired"
+            ],
+            "title": "Review status",
+            "type": "string",
+            "x-configurator": {
+              "detail": "standard",
+              "sensitivity": "sensitive"
+            }
+          },
+          "requiresFreshAcceptance": {
+            "description": "$.spec.instance.legalDocuments.TermsOfService.requiresFreshAcceptance",
+            "title": "Require renewed acceptance",
+            "type": "boolean",
+            "x-configurator": {
+              "detail": "standard",
+              "sensitivity": "sensitive"
+            }
+          },
+          "jurisdictionAssumptions": {
+            "type": "array",
+            "title": "Jurisdiction assumptions",
+            "minItems": 1,
+            "maxItems": 4096,
+            "items": {
+              "description": "Jurisdiction assumption for this draft; Event reviews its applicability.",
+              "title": "Country or jurisdiction",
+              "type": "string",
+              "x-configurator": {
+                "detail": "standard",
+                "sensitivity": "sensitive"
+              }
+            },
+            "x-configurator": {
+              "sensitivity": "sensitive",
+              "detail": "standard"
+            }
+          },
+          "localizations": {
+            "type": "array",
+            "title": "Document languages",
+            "minItems": 1,
+            "maxItems": 4096,
+            "items": {
+              "type": "object",
+              "title": "Localized document",
+              "properties": {
+                "languageTag": {
+                  "description": "Language tag for this document row.",
+                  "maxLength": 35,
+                  "minLength": 1,
+                  "title": "Language tag",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                },
+                "markdown": {
+                  "description": "Draft content for this language, pending target review.",
+                  "title": "Document content (Markdown)",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                },
+                "summary": {
+                  "description": "Short summary in this document language.",
+                  "maxLength": 500,
+                  "minLength": 1,
+                  "title": "Summary",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                },
+                "title": {
+                  "description": "Document title in this language.",
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "title": "Document title",
+                  "type": "string",
+                  "x-configurator": {
+                    "detail": "standard",
+                    "sensitivity": "sensitive"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "languageTag",
+                "markdown",
+                "summary",
+                "title"
+              ],
+              "x-configurator": {
+                "sensitivity": "sensitive",
+                "detail": "standard"
+              }
+            },
+            "x-configurator": {
+              "sensitivity": "sensitive",
+              "detail": "standard"
+            }
+          }
+        },
+        "required": [
+          "audience",
+          "jurisdictionAssumptions",
+          "lifecycleIntent",
+          "localizations",
+          "requiresFreshAcceptance"
+        ],
+        "x-configurator": {
+          "applicableWhen": {
+            "op": "equals",
+            "reference": {
+              "path": "/operation",
+              "scope": "root"
+            },
+            "value": "legal-drafts"
+          },
+          "detail": "standard",
+          "sensitivity": "sensitive"
+        }
       }
     },
     "required": [
@@ -14668,7 +15790,6 @@
       "env.INSTANCE__OPERATORIDENTITY__OPERATORID",
       "env.INSTANCE__OPERATORIDENTITY__OPERATORKINDCODE",
       "env.INSTANCE__OPERATORIDENTITY__PUBLICNAME",
-      "env.KEYCLOAK_BLAZOR_CLIENT_ID",
       "env.KEYCLOAK_BLAZOR_CLIENT_SECRET",
       "env.KEYCLOAK_ENDPOINT",
       "env.KEYCLOAK_REALM",
@@ -14681,18 +15802,7 @@
       "env.SETUP_SECRET",
       "env.TICKETING_RECOVERY_MANIFEST_HMAC_KEY",
       "legal-drafts.metadata.name",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.audience",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.jurisdictionAssumptions.0",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.lifecycleIntent",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.languageTag",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.markdown",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.summary",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.title",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.languageTag",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.markdown",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.summary",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.title",
-      "legal-drafts.spec.instance.legalDocuments.TermsOfService.requiresFreshAcceptance",
+      "legal-drafts.spec.instance.legalDocuments.TermsOfService",
       "legal-drafts.spec.instance.settings",
       "legal-drafts.tenants",
       "operation",
@@ -14710,19 +15820,30 @@
       "tenant-package.metadata.source.tenantName",
       "tenant-package.spec.displayName",
       "tenant-package.spec.documents.tenant.branding.payload.displayName",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.audience",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.jurisdictionAssumptions.0",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.lifecycleIntent",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.languageTag",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.markdown",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.summary",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.title",
-      "tenant-package.spec.legalDocuments.TenantPrivacyNotice.requiresFreshAcceptance",
-      "tenant-package.spec.settings"
+      "tenant-package.spec.legalDocuments.TenantPrivacyNotice",
+      "tenant-package.spec.settings",
+      "env.KEYCLOAK_CLIENT_ID",
+      "env.INFISICAL_URL",
+      "env.INFISICAL_PROJECT_ID",
+      "env.INFISICAL_ENV",
+      "env.INFISICAL_CLIENT_ID",
+      "env.INFISICAL_CLIENT_SECRET",
+      "env.STORAGE_S3_ENDPOINT",
+      "env.STORAGE_S3_BUCKET_NAME",
+      "env.STORAGE_S3_ACCESS_KEY_ID",
+      "env.STORAGE_S3_SECRET_ACCESS_KEY"
     ],
     "type": "object",
     "x-configurator": {
       "sensitivity": "public"
+    },
+    "dependentRequired": {
+      "env.INSTANCE_BOOTSTRAP_ADMIN_FIRST_NAME": [
+        "env.INSTANCE_BOOTSTRAP_ADMIN_LAST_NAME"
+      ],
+      "env.INSTANCE_BOOTSTRAP_ADMIN_LAST_NAME": [
+        "env.INSTANCE_BOOTSTRAP_ADMIN_FIRST_NAME"
+      ]
     }
   },
   "entryPoints": [
@@ -14734,7 +15855,7 @@
   ],
   "identity": {
     "familyId": "d532b75d-5b62-4276-a03b-2bec28155d3d",
-    "revision": 2
+    "revision": 6
   },
   "outputs": {
     "configuration-manifest.json": {
@@ -14912,13 +16033,6 @@
             "op": "copy",
             "reference": {
               "path": "/env.AI_ANTHROPIC_API_KEY",
-              "scope": "root"
-            }
-          },
-          "AI_API_KEY": {
-            "op": "copy",
-            "reference": {
-              "path": "/env.AI_API_KEY",
               "scope": "root"
             }
           },
@@ -17409,21 +18523,23 @@
                           "audience": {
                             "op": "copy",
                             "reference": {
-                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.audience",
+                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService/audience",
                               "scope": "root"
                             }
                           },
                           "jurisdictionAssumptions": {
-                            "items": [
-                              {
-                                "op": "copy",
-                                "reference": {
-                                  "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.jurisdictionAssumptions.0",
-                                  "scope": "root"
-                                }
+                            "op": "repeat",
+                            "reference": {
+                              "scope": "root",
+                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService/jurisdictionAssumptions"
+                            },
+                            "item": {
+                              "op": "copy",
+                              "reference": {
+                                "scope": "item",
+                                "path": ""
                               }
-                            ],
-                            "op": "list"
+                            }
                           },
                           "kind": {
                             "op": "literal",
@@ -17432,85 +18548,28 @@
                           "lifecycleIntent": {
                             "op": "copy",
                             "reference": {
-                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.lifecycleIntent",
+                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService/lifecycleIntent",
                               "scope": "root"
                             }
                           },
                           "localizations": {
-                            "items": [
-                              {
-                                "members": {
-                                  "languageTag": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.languageTag",
-                                      "scope": "root"
-                                    }
-                                  },
-                                  "markdown": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.markdown",
-                                      "scope": "root"
-                                    }
-                                  },
-                                  "summary": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.summary",
-                                      "scope": "root"
-                                    }
-                                  },
-                                  "title": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.0.title",
-                                      "scope": "root"
-                                    }
-                                  }
-                                },
-                                "op": "object"
-                              },
-                              {
-                                "members": {
-                                  "languageTag": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.languageTag",
-                                      "scope": "root"
-                                    }
-                                  },
-                                  "markdown": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.markdown",
-                                      "scope": "root"
-                                    }
-                                  },
-                                  "summary": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.summary",
-                                      "scope": "root"
-                                    }
-                                  },
-                                  "title": {
-                                    "op": "copy",
-                                    "reference": {
-                                      "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.localizations.1.title",
-                                      "scope": "root"
-                                    }
-                                  }
-                                },
-                                "op": "object"
+                            "op": "repeat",
+                            "reference": {
+                              "scope": "root",
+                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService/localizations"
+                            },
+                            "item": {
+                              "op": "copy",
+                              "reference": {
+                                "scope": "item",
+                                "path": ""
                               }
-                            ],
-                            "op": "list"
+                            }
                           },
                           "requiresFreshAcceptance": {
                             "op": "copy",
                             "reference": {
-                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService.requiresFreshAcceptance",
+                              "path": "/legal-drafts.spec.instance.legalDocuments.TermsOfService/requiresFreshAcceptance",
                               "scope": "root"
                             }
                           }
@@ -17774,21 +18833,23 @@
                       "audience": {
                         "op": "copy",
                         "reference": {
-                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.audience",
+                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice/audience",
                           "scope": "root"
                         }
                       },
                       "jurisdictionAssumptions": {
-                        "items": [
-                          {
-                            "op": "copy",
-                            "reference": {
-                              "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.jurisdictionAssumptions.0",
-                              "scope": "root"
-                            }
+                        "op": "repeat",
+                        "reference": {
+                          "scope": "root",
+                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice/jurisdictionAssumptions"
+                        },
+                        "item": {
+                          "op": "copy",
+                          "reference": {
+                            "scope": "item",
+                            "path": ""
                           }
-                        ],
-                        "op": "list"
+                        }
                       },
                       "kind": {
                         "op": "literal",
@@ -17797,52 +18858,28 @@
                       "lifecycleIntent": {
                         "op": "copy",
                         "reference": {
-                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.lifecycleIntent",
+                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice/lifecycleIntent",
                           "scope": "root"
                         }
                       },
                       "localizations": {
-                        "items": [
-                          {
-                            "members": {
-                              "languageTag": {
-                                "op": "copy",
-                                "reference": {
-                                  "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.languageTag",
-                                  "scope": "root"
-                                }
-                              },
-                              "markdown": {
-                                "op": "copy",
-                                "reference": {
-                                  "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.markdown",
-                                  "scope": "root"
-                                }
-                              },
-                              "summary": {
-                                "op": "copy",
-                                "reference": {
-                                  "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.summary",
-                                  "scope": "root"
-                                }
-                              },
-                              "title": {
-                                "op": "copy",
-                                "reference": {
-                                  "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.localizations.0.title",
-                                  "scope": "root"
-                                }
-                              }
-                            },
-                            "op": "object"
+                        "op": "repeat",
+                        "reference": {
+                          "scope": "root",
+                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice/localizations"
+                        },
+                        "item": {
+                          "op": "copy",
+                          "reference": {
+                            "scope": "item",
+                            "path": ""
                           }
-                        ],
-                        "op": "list"
+                        }
                       },
                       "requiresFreshAcceptance": {
                         "op": "copy",
                         "reference": {
-                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice.requiresFreshAcceptance",
+                          "path": "/tenant-package.spec.legalDocuments.TenantPrivacyNotice/requiresFreshAcceptance",
                           "scope": "root"
                         }
                       }

@@ -514,6 +514,9 @@ These operations establish different facts:
 Complete preparation rejects validation diagnostics. Draft preparation may defer
 missing active secret leaves, including leaves in present recursive containers;
 missing non-secret obligations and invalid supplied values still fail.
+Inactive provider secrets produce neither exported values nor draft completion
+placeholders. Their accepted values remain transient for deliberate switch-back;
+revoking secret consent clears them, including inactive branches.
 String placeholders are empty strings; non-string JSON/YAML secret placeholders
 can be null. Completion metadata identifies the unfinished work; dynamic map
 names are represented by entry ordinals, not echoed as public correction paths.

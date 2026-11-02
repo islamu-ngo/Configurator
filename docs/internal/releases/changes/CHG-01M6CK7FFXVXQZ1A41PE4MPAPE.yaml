@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6CK7FFXVXQZ1A41PE4MPAPE
+Title: "Guide Event configuration with target-backed choices and credential dependencies"
+Type: feat
+Scope: definitions
+Summary: "Ask for essential setup inputs first, group legal and jurisdiction answers into typed rows, validate canonical provider choices, and exclude inactive secrets from draft obligations."
+Group: event-provider-configuration
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+  Migration:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+  Configuration:
+    Reference: examples/islamu-event/provider-contract-inventory.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definition-cookbook.md
+    Disposition: documented

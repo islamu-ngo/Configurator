@@ -203,7 +203,7 @@ Core owns effective-value resolution for validation, drafts and output:
 | Standard default | Descriptive, never inserted |
 | Absent container with initialized children | Keep container absent |
 | Present container with never-supplied children | Resolve eligible initialization recursively |
-| Inapplicable root property | Exclude from effective validation/output |
+| Inapplicable root or nested property | Exclude from effective validation/output |
 
 Required means presence, not whitespace rejection; notBlank/length assertions are
 separate. Required descendants do not create absent optional containers. Clients
@@ -248,8 +248,13 @@ An explicit omit does not acquire a null result type.
 Output remains data, not executable templates.
 
 `DefinitionDraftArtifactComposer.Compose/ComposeBundle` returns disposable draft
-artifacts, completions and value-free diagnostics. Only genuinely missing secret
-leaves defer; malformed supplied values and ordinary missing values block.
+artifacts, completions and value-free diagnostics. Only genuinely missing active
+secret leaves defer; malformed supplied values and ordinary missing values block.
+Inactive provider secrets are absent from both complete and draft output, including
+placeholder fields and completion obligations. The composer uses the validator's
+deferred locations rather than reconstructing applicability while copying objects
+or repeated rows. Accepted inactive answers may remain in the transient workspace
+for switch-back; revocation clears secret leaves regardless of applicability.
 Unresolved secret-dependent outputs are withheld by artifact ID. Completion
 locations identify remaining work, not proof of complete readiness. Draft dotenv
 uses blank assignments and a warning; JSON/YAML placeholders remain draft-only.

@@ -14,5 +14,6 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" />
+    <EmbeddedResource Include="../../examples/islamu-event/definition.json" LogicalName="EventDefinition" />
   </ItemGroup>
 </Project>

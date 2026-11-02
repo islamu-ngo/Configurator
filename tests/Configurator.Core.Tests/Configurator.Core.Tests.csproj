@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="../../examples/islamu-event/definition.json" LogicalName="EventDefinition" />
+    <EmbeddedResource Include="../../store/islamu-event/configurator.json" LogicalName="EventStoreSource" />
     <EmbeddedResource Include="../../examples/islamu-event/answers/*" LogicalName="EventAnswers.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../examples/islamu-event/expected/*" LogicalName="EventExpected.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../../examples/grafana-13.2.2/setup-definition.json" LogicalName="GrafanaDefinition" />
