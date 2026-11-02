@@ -197,6 +197,10 @@ restores, public schemas/contracts, dependency notices or the SDK's PWA asset
 inventory. The Dockerfile-specific `Dockerfile.dockerignore` admits only build
 inputs and public definitions, excluding `.git`, task workspaces, environment
 files and host `bin`/`obj`/artifact output.
+The admitted inputs include feature-folder source, English/Arabic resources and
+the editor's reviewed manifest, license, recipe and approval record. The editor
+verifier checks these existing inputs inside the image; it does not rebuild or
+download editor dependencies during container publication.
 
 The build uses the repository SDK 10.0.302. Its final stage contains the pinned
 ASP.NET Core runtime, the small `Configurator.Browser.Host` executable and the

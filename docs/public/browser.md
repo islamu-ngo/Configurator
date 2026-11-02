@@ -412,6 +412,10 @@ Missing asset requests must return an error rather than the SPA fallback.
 
 The Browser project includes a multi-stage `Dockerfile` serving static assets via an unprivileged .NET static server:
 
+Build from the repository root so the image can verify the reviewed editor
+assets and include the application's English and Arabic resources. The build
+context allowlist excludes local answers, environment files and task artifacts.
+
 ```bash
 # Build the container image from the repository root
 docker build -f src/Configurator.Browser/Dockerfile -t islamu-configurator-browser .
