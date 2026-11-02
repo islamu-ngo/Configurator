@@ -1,10 +1,10 @@
 # Definition-driven Terminal.Gui adapter
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Typed v3 adapter with shared secret operations; actual process qualification is separate
+> **Status:** Typed offline adapter with shared secret operations; local Linux process qualification recorded below
 > **Owner:** Terminal
-> **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Terminal/`, `src/Configurator.Presentation/Presentation/`
+> **Last Verified:** 2026-11-02
+> **Source Anchors:** `src/Configurator.Terminal/`, `src/Configurator.Presentation/`
 
 The client uses official Terminal.Gui with an exact central package pin and
 generated locks. Its published package retains reviewed embedded-asset notices;
@@ -25,7 +25,7 @@ Publication status remains backed by typed installation, verification and
 cleanup facts. User guidance translates those facts; adapter diagnostic codes
 remain separate from rendered prose in `StatusCode`.
 
-
+The window retains one state owner, with editing, import, publication, lifecycle
 and secret-dialog behavior in cohesive partial files. Preparation captures an
 immutable answer snapshot and selected outputs before composing on a worker.
 Its generation/revision checks reject readiness after edits, clearing, selection
@@ -33,13 +33,11 @@ changes or disposal. The dispatcher observes completion, and close cancellation
 includes preparation in the existing bounded drain. Composition bytes remain
 scoped to the worker's disposable bundle.
 
-
 The content scrolls within an 80×24 outer terminal. Relative button columns and
-focus-driven scrolling keep controls reachable after resize.
-
-Masked controls return Tab, Shift+Tab, Escape and Alt shortcuts to the owner;
-these keys cannot be appended to the private buffer. Explicit clipboard,
-context and history commands keep their existing blocked behavior.
+focus-driven scrolling keep controls reachable after resize. Masked controls
+return Tab, Shift+Tab, Escape and Alt shortcuts to the owner; these keys cannot
+be appended to the private buffer. Explicit copy/cut/paste/history commands keep
+their existing blocked behavior.
 
 ### Schema-driven secret actions
 
@@ -152,7 +150,7 @@ and reading an untouched or nonexistent append position does not supply an item.
 The locale action calls `SelectLocale` for admitted public metadata only.
 `GetEditorPresentation` and `GetVariantTitle` supply translated titles and choice
 labels with base fallback; shipped action resources remain culture-selected.
-`TerminalText.FormatHelp` assembles descriptions, instructions, units,
+`TerminalStrings.FormatHelp` assembles descriptions, instructions, units,
 choice explanations, credential acquisition guidance and static links.
 `HelpPages` bounds the visible two-line page, preserves multiline navigation,
 and replaces control characters without interpreting terminal escapes or markup.
@@ -318,6 +316,41 @@ barrier, signal cleanup and small-viewport focus safety. Tests use observable
 behavior, not source/prose scraping or sleeps.
 
 ## Targeted verification
+
+### Architecture and convention qualification (2026-11-02)
+
+The Release Terminal test project built with zero warnings/errors; its complete
+MTP suite passed 150 tests with zero failures or skips. The suite includes
+controlled suspended-preparation transitions, workspace locale independence,
+80×24 English/Arabic focus and nonoverlap, map bounds, and masked-key propagation.
+
+The actual Linux x64 Release DLL was exercised in an owned PTY at 80×24 in
+English and Arabic, resized to 110×36 and back, and separately reduced to 40×12
+before recovery. Locale switching refreshed chrome and artifact selection text.
+Nine synthetic masked characters remained nine when Tab moved focus. Keyboard
+Clear removed them; keyboard Close restored the terminal and returned exit 4
+(no successful save). The undersized view showed its resize notice and hid
+editing. No output was saved; captured terminal output contained no synthetic
+input plaintext. This qualifies that local built DLL, not a published package,
+other hosts, screen readers, Braille or complete Arabic glyph shaping.
+
+The candidate DLL SHA-256 was
+`21dd362308a54dc1024296fa4d18c0225a770c7241de405494e3cfcd20e4cd7b`.
+The build used `-m:1 /p:UseSharedCompilation=false /nodeReuse:false`; the suite
+used `--no-build -- --minimum-expected-tests 1`. Earlier failed candidates exposed
+a resource-manifest mismatch, lost literal diagnostic segments and swallowed
+masked-field navigation keys; the final suite and PTY run above include their
+corrections. Historical qualification paragraphs below retain their original
+candidate limits.
+
+The subsequently published Linux x64 executable
+`artifacts/configurator/terminal/linux-x64/islamu-configurator-terminal`, SHA-256
+`c8faf924f6f7e1cd363a4bda35f7ea122aac7a6fef528975a9cf8ceb36e9228c`,
+also passed separate English/Arabic 80×24 → 110×36 → 80×24 PTY runs. Tab and
+Shift+Tab preserved nine masked characters; keyboard Clear removed them and
+Close restored the terminal with exit 4. No output was saved and no synthetic
+input plaintext appeared in captured output. This qualifies that packaged
+Linux process for these interactions, beyond the earlier built-DLL checks.
 
 Run from Configurator:
 
