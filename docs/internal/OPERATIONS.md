@@ -1780,6 +1780,26 @@ The [project map](../../PROJECTS.md) owns project commands and package precondit
 Use `dotnet test --project <affected-test-project.csproj> --configuration Release`
 with actual paths, not a solution-level run or an absent source-system owner.
 
+## Browser UX revision-5 verification
+
+The November 2 integrated source passes Core 362/362, Presentation 277/277,
+Browser 370/370, CLI provider integration 1/1 and actual-package Architecture
+77/77. Release build and format checks pass without warning suppression. Native
+example/Store/ratchet/editor freshness checks pass. Both Event families are at
+revision 6; prior Store snapshots remain immutable.
+
+Local AOT packages with and without Store are verified against their actual assets.
+The [execution report](reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md#focused-november-2-continuation)
+records exact counts, package roots, failed attempts and browser observation
+limits. Earlier performance passes elsewhere in this document do not qualify
+these changed sources. The final partial timing run retained 720 measured actions
+and failed its retained limits; the complete 960-action cohort was not completed.
+Performance, human comparison, physical-device and AT qualification remain open.
+The focused continuation removes redundant metadata/visibility/lifecycle work,
+corrects English/Arabic consent directions, and records new bulk-edit recovery,
+cache/revocation/offline and waiting-worker activation evidence. Its small timing
+diagnostic is not a qualification pass; the earlier scalar timeout is unresolved.
+
 ## AI Agent Operational Context
 
 AI-agent workflow rules are not runtime operations. Keep them in

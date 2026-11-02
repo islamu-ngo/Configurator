@@ -2,13 +2,437 @@
 
 > **Audience:** Contributors | AI agents | Product steward
 > **Kind:** Workstream execution evidence
-> **Status:** Native/package and scoped final timing checks verified; human/platform qualification remains open
+> **Status:** Revision-5 source delivered and native checks passed; browser performance and human qualification incomplete
 > **Owner:** Browser and Presentation maintainers
-> **Last Verified:** 2026-11-01
+> **Last Verified:** 2026-11-02
 > **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/`, `src/Configurator.Core/Definitions/`, `dev/active/browser-ux-simplification/`
-> **Evidence period:** 2026-10-31 through 2026-11-01
+> **Evidence period:** 2026-10-31 through 2026-11-02
 
-## Status and evidence limits
+## Revision-5 execution and evidence boundary
+
+Full implementation was authorized on November 1 in the existing checkout.
+The current source passes Core 362/362, Presentation 277/277, Browser 370/370,
+CLI provider integration 1/1 and final-package Architecture 77/77. Local packages,
+format and freshness checks pass. Actual browser verification corrected focus,
+required-state announcements and narrow RTL overflow. Performance qualification
+failed and remains incomplete; no full-plan completion or measured benefit is
+claimed. The final package identities and remaining limits are recorded below.
+
+The historical passes below qualify the earlier implementation only. Revised
+entry, search, workspace, definition semantics and handoff changes require new
+affected-owner checks and final-package evidence. Participant, physical-device,
+OS-IME and assistive-technology qualification remains open.
+
+Documentation research used official interface and behavior facts:
+
+- [Microsoft Blazor synchronization context](https://learn.microsoft.com/en-us/aspnet/core/blazor/components/synchronization-context?view=aspnetcore-10.0):
+  an incomplete await permits re-entry, so asynchronous UI operations must retain
+  and recheck their workspace/revision authority.
+- [MudBlazor focus trap](https://mudblazor.com/components/focustrap): dialogs
+  already own focus trapping; avoid a competing focus owner.
+- [W3C focus visibility](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html)
+  and [modal dialogs](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/):
+  focused controls must remain reachable and visible within the active surface.
+
+No third-party implementation, documentation prose or new dependency was copied.
+Implementation structure follows existing repository components and state owners.
+Context7 was requested and attempted through its configured MCP endpoint, which
+returned `-32001 Authentication required`; successful retrieval is not claimed.
+Initially the computer-use session listed no browsers and rejected both Chrome and
+in-app browser creation as unavailable. These are tooling gaps, not browser QA
+passes; native component checks do not replace actual surface qualification.
+The user subsequently enabled Context7 and Chrome DevTools. Context7 successfully
+resolved `/dotnet/aspnetcore.docs` and returned the official synchronization-context
+and lifecycle documentation: re-entry/disposal can occur across incomplete awaits,
+so continuations must check their current authority. Chrome DevTools successfully
+listed a fresh browser page. Final surface checks must still bind new packages.
+
+### Revision-5 focused verification
+
+Commands use SDK 10.0.302 and `TMPDIR="$HOME/.cache/agent-tmp"`. Builds that
+share outputs are serialized with `flock --close`; runtime tests remain scoped
+to the named owner. The following results precede final integration and do not
+substitute for the final package checks.
+
+| Check | Executed result |
+| --- | --- |
+| `dotnet restore Configurator.slnx --locked-mode` | Exit 0; locked restore completed. |
+| Core `DefinitionDraftArtifactTests` | 17 passed; inactive secrets are excluded from draft completion obligations. |
+| Presentation `DefinitionSessionPrivacyTests` | 9 passed; retained inactive secrets are cleared by revocation. |
+| Entry Browser Release build | Exit 0; zero warnings/errors, 6.50 seconds. |
+| Entry StoreIndependence / DefinitionStore / SourceEntry / LaunchRoute | Separate class runs: 9 / 8 / 9 / 27 passed, zero skipped; 0.641 / 0.337 / 1.126 / 1.373 seconds. |
+| Handoff Browser Release build | Exit 0; zero warnings/errors, 29.95 seconds. |
+| Review / ImportComparison / ExportLifecycle / OutputSelection | Separate class runs: 11 / 13 / 8 / 6 passed; 0.960 / 4.148 / 2.284 / 1.915 seconds. |
+| ConfigurationWorkflow / SecretBoundary / WorkspaceLifecycle / Localization | Separate class runs: 10 / 13 / 28 / 9 passed; 2.328 / 2.792 / 2.982 / 0.436 seconds. |
+| Public enum dropdown regression | Red 2 failed; Green 2 passed, 1.790 seconds. |
+| Example authoring/runtime freshness | Native `--write-examples` then `--check-examples`: agreement 3/3. |
+
+Entry and handoff test commands used
+`dotnet run --project tests/Configurator.Browser.Tests/Configurator.Browser.Tests.csproj --configuration Release --no-build -- --treenode-filter "/*/*/<Class>/*" --minimum-expected-tests 1`,
+once for each named class. Pipe-separated class filters selected only the first
+class in this environment and are not counted as combined verification. Final
+small source/test changes after these runs require the integrated rebuild.
+
+Retained failure evidence includes the original entry grouping/direct-opening/
+revision-recovery failures, explicit-link admission failure, Review correction
+ordering and Files correction failures, stale search/consent failures, optional
+disclosure failure, and provider metadata/CLI/Developer rejection failures.
+These are defect anchors, not omitted tests or weakened acceptance criteria.
+
+### Focused November 2 continuation
+
+The section renderer no longer constructs a second localized editor presentation
+just to obtain an authored title. The field component remains the title owner;
+untitled fields keep the mechanical fallback. The Configure panel now reads
+root visibility from its existing immutable projection instead of reevaluating
+the same predicates three times. Independent review checked locale, answer and
+disclosure invalidation. The affected Browser Release build passed with zero
+warnings/errors (7.35 s), and Browser passed 369/369 with zero skipped (9.528 s):
+`/tmp/browser-ux-projection-build.log` and `/tmp/browser-ux-projection-Browser.log`.
+
+Context7 and web research both retrieved Microsoft's
+[Blazor rendering guidance](https://learn.microsoft.com/en-us/aspnet/core/blazor/performance/rendering?view=aspnetcore-10.0).
+The change reuses existing ownership and invalidation; no dependency, global
+metadata cache or scheduler change was introduced.
+
+The bounded six-transition diagnostic for each package is **not qualification**.
+Before: Advanced 223.3/131.8/130.6 ms and Essentials 48.1/34.6/37.5 ms.
+After: Advanced 195.4/98.8/114.3 ms and Essentials 40.3/31.4/35.8 ms.
+First observations and all failures remain in `projection-{before,after}-diagnostic.json`
+under `.tmp/browser-ux-simplification-revision5/`. No significance, percentile or
+budget pass is claimed from this small sample. Five initial repeated clicks used
+stale snapshot IDs and failed before producing browser events; the corrected
+diagnostic acquired current IDs for every action. All recorded clicks are trusted.
+
+The earlier 4x typing timeout remains unresolved: four focused trusted
+single-character replacements each emitted exactly one input and retained the
+expected text. The archived failing cohort's preceding warmup emitted five input
+events, so it does not establish application text loss.
+`typing-timeout-focused-probe.json` retains the focused event sequence.
+
+The `package-projection-{free,store}` AOT pair published successfully. Runtime
+`dotnet.native.ko5d1klns9.wasm` has SHA-256
+`04df2bed8126ce7b225a58422c392623cf8bf431b2630dec39e77658dc64cd9c`.
+Actual-package Architecture passed 77/77 in 46.865 s; format exited 0.
+Native CLI/Terminal/Desktop trees were reused from the unchanged verified native
+package, rather than reported as newly published. Actual browser checks on this
+runtime established:
+
+- Environment editing rejected inactive keys and malformed text, kept invalid
+  source editable with Apply disabled, applied two valid public settings, and
+  preserved those accepted values after cancelling a subsequent invalid edit.
+  Returning to Form focused its visible section heading and retired the editor.
+- Complete preparation produced one private artifact. Revocation removed it,
+  disabled consent and left no synthetic secret in visible document content.
+  Download was clicked; this pass did not verify its saved filesystem bytes.
+- Cache inspection found no synthetic canaries in cached text, URLs or browser
+  storage across 88 entries; no IndexedDB databases existed. The captured 84
+  requests were GETs: 82 local asset requests and two inline data images, with
+  no answer markers. Offline reload retained app availability but cleared answers,
+  consent and artifacts; an uncached request rejected.
+- An actual older-to-newer worker update remained waiting while a workspace held
+  public and secret answers, without controller replacement or answer loss.
+  Both caches (175 entries) contained no synthetic canaries. After all old clients
+  left, the new worker activated, only its cache remained and its runtime loaded.
+  An initial secret probe used the wrong field selector; the corrected probe
+  verified `env.SETUP_SECRET`. Both observations are retained.
+
+Evidence files are `projection-{malformed,recovery,custody,revocation,offline,update-selector-probe,update-waiting,update-activated}.json`.
+The newer `package-current-{free,store}` pair additionally corrects two stale
+English/Arabic consent directions that referred to controls as being “above.”
+Resource-only validation passed 9/9 localization checks (193 ms), and its Release
+build had zero warnings/errors (7.64 s). Runtime `dotnet.native.4p9xvc56cd.wasm`
+has SHA-256 `58ae722e10ef47997212628d1033095fa48f52f0bed8f1fe568eb3024b9efbca`;
+actual-package Architecture passed 77/77 (45.647 s). Actual English/Arabic copy
+and RTL direction were inspected. These copy-only checks do not requalify timing.
+
+The final lifecycle refinement returns immediately from `ConfigurationField.OnParametersSet`
+when its existing unchanged-parameter fence holds. It previously skipped rendering
+but still rebuilt metadata and reevaluated visibility. No new cache or invalidation
+rule was introduced. Independent review checked every parameter, the consent
+cascade, privacy/input revisions, projection replacement and focus generations.
+`IdenticalParametersPreserveFocusUntilANewFocusGenerationArrives` guards an unchanged
+refresh followed by a focus-only update without changing answers or projection.
+The Release Browser build passed with zero warnings/errors (7.67 s), focused
+workflow tests passed 12/12 (767 ms), and full Browser passed 370/370, zero skipped
+(7.964 s). Logs: `/tmp/workspace-lifecycle-{build,targeted,full}.log`.
+
+The final `package-lifecycle-{free,store}` publications both succeeded. Runtime
+`dotnet.native.ifp4ea5emr.wasm` has SHA-256
+`42a0f64d5983b009ace7e27c6bb52b31e64690dad4605fd50224efca3651724d`.
+Actual-package Architecture passed 77/77 with zero skipped (91.683 s), recorded
+in `/tmp/browser-ux-lifecycle-Architecture.log`. These are the latest source
+packages; the earlier roots in this report remain scoped historical evidence.
+The app loaded and section transitions completed in the final runtime.
+`lifecycle-contended-diagnostic.json` retains six trusted transitions: Advanced
+302.2/402.2/322.1 ms and Essentials 132.1/134.3/149.0 ms. Native checks overlapped
+this sample and host load reached 24.93 on 16 cores; it establishes neither a
+causal improvement nor regression. Do not discard it or count it as a pass.
+Future timing must run after owned native checks finish, with environmental
+conditions recorded. The same bounded diagnostic protocol is not a substitute
+for the approved qualification cohort.
+
+After native checks finished, the final runtime also passed a functional bulk-edit
+and large-document journey. An explicit deployment selection admitted ten useful
+Environment settings; Apply then switching to canonical answers confirmed all ten
+independent expected typed values, the retained capability, and no protected keys.
+A 279315-byte Environment document (9000 synthetic comment lines plus those ten
+settings) used a clearly labeled synthetic DOM paste for fixture setup. Trusted
+Preview and Apply completed in 111.1 and 267.4 ms; these are one-off completion
+observations, not immediate-feedback budgets or paste/performance qualification.
+The accepted port changed to 8125 while all eleven canonical values remained.
+Editing it again to 8126 and cancelling preserved 8125 on reopening the source.
+Evidence: `lifecycle-{bulk10,large-setup,large-actions,large-result,cancel}.json`.
+Format verification exited 0 (`/tmp/browser-ux-lifecycle-format.log`), and the
+final documentation check passed 363 files with zero failed batches
+(`/tmp/browser-ux-final-continuation-docs.log`).
+
+The Arabic keyboard probe on the copy-corrected package selected `keycloak` via
+`k` then Enter, retained focus on the authentication field, and raised the active
+required count to six; `arabic-keyboard-choice.json` retains locale/selection/focus.
+`consent-copy-arabic.json` records corrected copy and RTL direction. The native
+documentation link check passed all 363 files with zero failed batches before
+these evidence-only additions (`/tmp/browser-ux-continuation-docs.log`).
+
+The bounded diagnostics do not close performance, large-work latency, physical-device,
+OS-IME, assistive-technology or participant-comparison gates.
+
+### Revision-5 integrated native and package verification
+
+The final source advances both distinct Event families to revision 6. The
+example family remains `c0d02619-0134-411b-b495-ef302f592669`, with digest
+`83a40fe40ecbf3d7639be76054e385c33f5b8f211e12b70e7c6f921f2f54b868`.
+The provider inventory pins target evidence to Event commit
+`b6ad1594b7f92ac3399a5a8bf8d241e4f8d69c66`. Historical Store revisions remain
+immutable. Browser inspection found that the local Keycloak HTTP port incorrectly
+followed authentication selection alone; revision 6 gates it on deliberate local
+container inclusion, like its internal URL. An independent provider assertion
+guards that deployment distinction.
+
+| Final check | Physically executed result |
+| --- | --- |
+| `dotnet build Configurator.slnx --configuration Release --verbosity quiet` | Exit 0, zero warnings/errors, 15.88 s; `/tmp/browser-ux-final-build3.log`. |
+| Complete Core suite | 362/362 passed, zero skipped, 10.265 s; `/tmp/browser-ux-final-Core6.log`. |
+| Complete Presentation suite | 277/277 passed, zero skipped, 1.985 s; `/tmp/browser-ux-final-Presentation.log`. |
+| Complete Browser suite | 365/365 passed, zero skipped, 8.265 s; `/tmp/browser-ux-final-Browser4.log`. |
+| CLI Event provider integration | 1/1 passed, 0.870 s; `/tmp/browser-ux-final-CliProvider.log`. |
+| Architecture with actual package roots | 77/77 passed, zero skipped, 118.993 s; `/tmp/browser-ux-final-Architecture.log`. |
+| `dotnet format Configurator.slnx --verify-no-changes --no-restore --verbosity quiet` | Exit 0 after fixing two test import-order diagnostics; repeated after final test edits, exit 0. |
+| Definition generator `--check-examples` | 3/3 current, exit 0. |
+| `BuildDefinitionStore.cs --source store --output .tmp/browser-ux-definition-store --check` | Seven revisions current, exit 0. |
+| Ratchet checks and editor asset check | Three ratchets current; editor closure `0494667e39ad04b311fd84b37ed53397e156020156198ee3ce1626b090664bd9`, two outputs current; `/tmp/browser-ux-exit-checks.log`. |
+
+Suite commands execute the existing `tests/Configurator.<Owner>.Tests/` project
+in Release with `--no-build`; the CLI run selects `SetupCliEventProviderTests`.
+Earlier failed integrated runs remain in `/tmp/browser-ux-final-Browser.log`,
+`Browser2.log` and `Browser3.log` with the same prefix. Corrections align synthetic
+test setup with explicit optional disclosure, output ownership and masked choice
+replacement. They retain the tested workload and privacy assertions.
+
+The native release owner published CLI, Terminal and Desktop for `linux-x64`,
+plus AOT Browser with and without the Store. All five commands exited 0. Local
+roots are `.tmp/browser-ux-simplification-revision5/package-free` and
+`package-store`; native trees are identical in both. Both Browser packages contain
+`dotnet.native.mgebmg8vqv.wasm`, SHA-256
+`f6731e16561c6ee52c307a653f2f98fd3a980f9105b76429fb950f768d4a2d66`.
+The final Browser tests use local origins 5197 (Store) and 5198 (store-free).
+These are local package checks, not publication or actual-host certification of
+additional native platforms. Logs are `/tmp/browser-ux-package-{cli,terminal,desktop,free,store}.log`.
+
+### November 2 pointer-focus correction
+
+The first six final-package timing cohorts retained 480 measured samples,
+60 warmups and 12 first observations. Section feedback/content limits failed at
+both CPU rates; Review/Files entry was faster but Configure feedback still had
+outliers. Raw records are in `pre-focus-normal-partial.json`. No failed sample
+was removed. Four subsequent Developer first/warm observations are also retained.
+
+Developer-to-Form pointer activation then exposed a deterministic functional
+failure. Captured pointer-down targeted Form; pointer-up/click targeted its
+surrounding `details`. The fallback workspace heading had been visually hidden
+until focused; it occupied 55.5 px while focused and collapsed during Form's
+pointer-down focus transfer. This moved the button before pointer-up. The
+two-click reproduction completed in two seconds and failed the assertion that
+one Form click changed mode. `developer-return-pointer-red.json` retains targets,
+coordinates and the original timing observations. Earlier waits without an
+observed action were instrumentation failures, not completed latency samples.
+
+`ConfigurationEditor` now resolves Configure focus to the mounted Form section
+or Developer heading, using the same disposed/current-view checks as the other
+panels. The hidden workspace label is not focusable and no longer changes layout
+on focus. The visible Developer heading uses the existing focus-ring tokens.
+`EditorModeFocusTargetsTheMountedPanelWithoutChangingAnswers` failed 1/1 against
+the old target, then the complete Browser suite passed **366/366**, zero skipped,
+20.045 s. Its Release build passed with zero warnings/errors in 11.82 s. These
+logs are `/tmp/browser-ux-focus-{red,red-build,green-build,Browser}.log`.
+The rebuilt AOT pair passed actual pointer Green: two complete round trips
+retained the Form/Developer button as all three pointer targets and focused the
+visible panel heading. Raw evidence is `developer-return-pointer-green.json`.
+Those packages used `dotnet.native.gkgmgpcttu.wasm`, SHA-256
+`a0ee7481132040bedbc62f1df898afc19ec03ac36a7092892d232f40b7172dc7`;
+their actual-package Architecture run passed 77/77 in 52.057 s and format exited 0.
+They are superseded by the accessibility correction below, not silently treated
+as the final source's package proof.
+
+### November 2 required-control accessibility correction
+
+Actual keyboard type-ahead (`k`, Enter) selected canonical `keycloak`, retained
+focus on its control and changed required work from two to six answers. All five
+output modes remained reachable; Manifest, Tenant, Operator and Legal had distinct
+headings and no raw zero labels or horizontal overflow. Arabic Legal rendered
+`lang=ar`, `dir=rtl` without overflow. These observations are retained in
+`focus-output-rtl-observations.json`.
+
+Inspection then found required inputs announcing `aria-required=false`, despite
+their correct visible requirement. The Arabic Legal metadata-name assertion is
+retained in `required-control-red.json`. MudBlazor's input and radio group own that
+attribute through `Required`; splatting it alone did not override the default.
+The existing text wrapper now forwards `Required`, and the field renderer supplies
+it to text, enum and boolean controls. The enum wrapper also compares requiredness
+before suppressing a parameter render. Radio `aria-invalid` still follows the
+shared validation result; no new validation owner or private-value copy was added.
+
+The installed MudBlazor 9.7.0 XML API, official
+[input API documentation](https://www.mudblazor.com/api/MudBaseInput%601) and
+Context7's version-pinned component guidance informed the parameter choice;
+the rendered regressions establish its actual behavior. No upstream source was
+copied. Three dependency-driven control cases verify required/invalid transitions
+without extra answer edits. Masked required choices also pass blur, replacement
+privacy and retired-callback checks. The complete Browser suite passes **369/369**,
+zero skipped, 7.800 s (`/tmp/browser-ux-accessible-Browser2.log`).
+
+Initial test-fixture attempts incorrectly used `RequiredOverride` in place of
+shared requiredness, then omitted the declared relationship capability; those
+failures and a mistaken test API call are retained in `/tmp/browser-ux-required-*`.
+They are test-setup failures, not additional product defect evidence. The boolean
+cohort independently reproduced the same required-state mismatch and retained an
+explicit group invalid-state assertion. The accessibility packages passed
+actual-package Architecture 77/77 in 49.970 s and format exit 0. Published
+Space activation of focused consent deliberately enabled entry; Setup secret
+then exposed `aria-required=true` and `aria-invalid=false`. Arabic Legal metadata
+also exposed the correct required state.
+
+### Final scoped reflow correction and package identity
+
+At 320 CSS pixels, Arabic Legal revealed unbroken labels and metadata paths
+overflowing 30 field containers. Mobile `innerWidth` expanded to 332, while
+`documentElement.clientWidth` remained 320: comparing scroll width to inner width
+would miss this failure. A scoped wrapping probe reduced document scroll width
+to 320 and field overflows to zero; `rtl-reflow-red-probe.json` retains both
+observations. The owning isolated stylesheet now sets `overflow-wrap:anywhere`
+on `.configuration-field`, without clipping content or changing authored text.
+
+Published Green is `rtl-reflow-green.json`: Arabic/RTL, client and scroll widths
+both 320, zero field overflows, required metadata input correctly announced.
+Final package roots are `.tmp/browser-ux-simplification-revision5/package-final-free`
+and `package-final-store`; both native release-owner publications exited 0. Their
+actual-package Architecture run passed **77/77**, zero skipped, 59.999 s.
+The prior native suites and 369/369 Browser pass remain current: this final
+correction changes isolated CSS only.
+
+Both packages have native runtime `dotnet.native.a3cvgs38rb.wasm`, SHA-256
+`0a817f3a29df7bc7923e6cee7c523e4fe8714393485ecdada2f37020ee60710e`.
+The isolated CSS bundle SHA-256 is
+`5ded9a8b6755632091e10ff0554aa525aa0358442b7d63ebf9569c75a25d3774`.
+Service-worker asset manifest SHA-256 is
+`7c01b8524aee3ab8bf1684c38cc8bdf612342176f960f0002eea1bdb55170f7a`
+without Store and
+`5e4adef93df80a386c4ecb5a655d55ec4dc0c5c98099a62b2386d01abcdeec90`
+with Store. CSS/manifest identities matter because wrapping did not change
+native WASM. Final local origins are 5203 and 5204.
+
+The final with-Store catalogue has two project groups, retaining seven Event and
+two minimal-service source choices. The included Event action opens its admitted
+revision directly. Keyboard Tab/Enter selected the `setup` result and focused
+unchecked consent; no consent or answer mutation preceded Space.
+
+### Final timing outcome and remaining qualification
+
+The settled `a3cvgs38rb`/wrapped-CSS package retained **720 measured actions**,
+96 warmup records and 20 first observations. The nine complete directional pairs
+have 40 measured samples per direction and rate. Every measured record has trusted
+input and finite, nonnegative, ordered clocks. The intended full normal cohort
+requires 960 measured actions and was not completed. Raw data is
+`final-normal-partial.json`; the native jq audit and directional summaries are
+`final-normal-partial-summary.json`. Earlier cohorts and all slow samples remain.
+
+At 1x, Advanced feedback maximum was 51.5 ms and content p95 168 ms; Essentials
+feedback maximum was 50 ms, which fails the strict below-50 requirement. At 4x,
+Advanced feedback maximum was 288 ms and content p95 909.6 ms. Other completed
+cohorts also retained failures. No budget or percentile definition was relaxed.
+
+A separate 34-field mount diagnostic and Chrome INP summary did not establish a
+bounded source correction. Chrome reported 80 ms INP, split into 0.5 ms input
+delay, 66 ms processing and 14 ms presentation. These standard INP figures do not
+replace the stricter task budgets. Chrome's configured workspace permissions
+rejected raw trace-file export; the mount diagnostic and tool summary remain.
+A temporary following-task-yield browser probe did not materially improve
+completion; it was restored, with no scheduling change committed to source.
+
+The scalar measurement setup initially replaced a full URL through `type_text`,
+which emitted 17 input events. That 1,197.7 ms observation remains separately in
+`ordinary-scalar-full-replacement-probe.json`. The normal scalar cohort instead
+uses one trusted character replacement per action; every completed 1x scalar
+record has exactly one input event. The 4x scalar cohort stopped during warmup
+with a retained `content-timeout` (feedback 300.4 ms); its cause is unresolved.
+No 4x scalar measured samples or final short-choice cohorts are claimed.
+
+After the user's status challenge, repetitive timing work ended. The task-owned
+browser was returned to 1x CPU and a fresh catalogue, clearing the synthetic
+workspace. Further work should diagnose the failed performance paths and the
+scalar timeout before repeating qualification. Final-package large Preview/
+Apply/cancel cohorts, update/worker custody checks, native browser zoom and any
+remaining full journey scenarios are not certified by these partial results.
+Earlier scoped functional observations remain evidence only for their named
+assets. Physical devices, OS IME/AT and the 8–12 participant comparison remain
+unperformed. All corresponding task and I-VSD qualification gates stay open.
+
+### Earlier revision-5 package functional observations
+
+Source review retains the existing ownership boundaries: definitions declare
+choices and activation; Core validates/composes; Presentation owns accepted
+answers and generations; Browser renders and performs deliberate exports.
+The new dropdown uses the existing `AppSelectField`. For a masked choice it
+offers public replacement options without reflecting the accepted selection,
+then replaces the control and fences its retired callback. The two sensitivity
+variants in `BrowserMaskedChoiceTests` cover selection privacy, replacement,
+retired callbacks and revocation. No new service, dependency abstraction or compatibility adapter was
+introduced. The tooling lockfile's additional linux-x64 compiler target was
+generated by native publication, not edited to satisfy a gate.
+
+The independent implementation review's findings on conflicting directory
+metadata, import-format synchronization, correction reopening and stale search
+callbacks were corrected before the integrated checks. The final masked-choice
+and mobile-order changes received parent review and regression verification;
+there was no second independent review of those last changes after agent quota
+exhaustion. Actual target acceptance remains outside this workstream.
+
+Before the later focus/accessibility/reflow corrections, Chrome DevTools exercised
+the `mgebmg8vqv` AOT package with synthetic answers only.
+At 390 × 844, the first ordinary input occupied y=659.8–703.8 and the document
+had no horizontal overflow. Essentials began at y=466. The attention count was
+one, without counting a deferred requirement twice. The mobile `setup` search
+result owned its center hit target and moved focus to `secret-consent`, leaving
+consent unchecked and the Configure panel active.
+
+After explicit consent, a synthetic endpoint and setup secret produced a
+complete `event.env`. Download worked without Copy or Reveal. A local Blob probe
+observed 111 bytes with the synthetic values. Revocation removed prepared files
+and secret entry authority. A subsequent deliberate draft download was 354 bytes,
+retained the public endpoint, excluded the secret and identified the unresolved
+setup-secret obligation. No synthetic value appeared in the 87 inspected cache
+entries' text assets/URLs, localStorage, sessionStorage or resource URLs; no
+IndexedDB database was present. This scan does not claim a byte scan of binary
+assets or browser-extension custody.
+
+Offline reload loaded the cached application and cleared answers and consent.
+An uncached fetch probe rejected under offline emulation even though
+`navigator.onLine` reported true. Trusted click/type input subsequently accepted
+the full synthetic endpoint offline and retained focus. Earlier DevTools `fill`
+timeouts left partial text and are retained as tool failures, not successful
+input evidence. Debug previews on ports 5195/5196 are preliminary evidence only.
+
+## Historical revision-3 status and evidence limits
 
 The task-aware definition, single-rail workspace, direct controls, Review/Files
 recovery and local Developer editor are implemented. Form and Developer share
