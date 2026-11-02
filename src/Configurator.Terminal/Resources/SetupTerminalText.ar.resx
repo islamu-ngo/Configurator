@@ -7,7 +7,7 @@
   <data name="ImportFile" xml:space="preserve"><value>ملف الاستيراد:</value></data>
   <data name="Close" xml:space="preserve"><value>إ_غلاق / إلغاء</value></data>
   <data name="Ready" xml:space="preserve"><value>إعداد محلي فقط. لا تُستبدل الملفات الموجودة.</value></data>
-  <data name="Limitations" xml:space="preserve"><value>تنقل بلوحة المفاتيح. الإدخال الخاص محجوب والحافظة والسجل معطلان. قارئ الشاشة وبرايل وتشكيل RTL ومسح ذاكرة .NET غير متحقق منها.</value></data>
+  <data name="Limitations" xml:space="preserve"><value>تنقل بلوحة المفاتيح. تبدأ الأسرار محجوبة ويتطلب نسخها زر نسخ السر. قارئ الشاشة وبرايل وتشكيل RTL ومسح ذاكرة .NET غير متحقق منها.</value></data>
   <data name="TerminalTooSmall" xml:space="preserve"><value>غيّر الحجم إلى 80 عمودًا و26 صفًا على الأقل. التحرير مخفي حتى ذلك الحين.</value></data>
   <data name="InvalidSecret" xml:space="preserve"><value>الإدخال يتجاوز الحد المدعوم.</value></data>
   <data name="SecretCommandsDisabled" xml:space="preserve"><value>أوامر الحافظة وقائمة السياق والسجل معطلة في الإدخال المحمي.</value></data>
@@ -107,4 +107,20 @@
   <data name="CredentialIssuer" xml:space="preserve"><value>احصل على هذه القيمة من الجهة المصدرة لها. لا تستبدلها بكلمة مرور مولدة محليًا.</value></data>
   <data name="CredentialCreate" xml:space="preserve"><value>اختر قيمة جديدة تستوفي متطلبات التطبيق المستهدف. قد يساعدك مدير كلمات المرور في إنشائها وحفظها.</value></data>
   <data name="CredentialExisting" xml:space="preserve"><value>استخدم القيمة الحالية التي يقبلها التطبيق المستهدف بالفعل.</value></data>
+  <data name="GenerateSecret" xml:space="preserve"><value>توليد</value></data>
+  <data name="RegenerateSecret" xml:space="preserve"><value>إعادة التوليد</value></data>
+  <data name="ShowSecret" xml:space="preserve"><value>إظهار</value></data>
+  <data name="HideSecret" xml:space="preserve"><value>إخفاء</value></data>
+  <data name="CopySecret" xml:space="preserve"><value>نسخ السر</value></data>
+  <data name="SecretCopied" xml:space="preserve"><value>نُسخ إلى حافظة النظام. سجل الحافظة خارج مساحة العمل.</value></data>
+  <data name="SecretClipboardUnavailable" xml:space="preserve"><value>حافظة النظام غير متاحة. بقيت القيمة دون تغيير ولم تُصدّر عبر تسلسل طرفية.</value></data>
+  <data name="SecretDerivationInput" xml:space="preserve"><value>أدخل قيمة الاشتقاق المؤقتة</value></data>
+  <data name="SecretInputLimit" xml:space="preserve"><value>يتجاوز الإدخال حد مخزن UTF-8. احتُفظ بالإدخال الحالي.</value></data>
+  <data name="SecretRuleFailed" xml:space="preserve"><value>يلزم التصحيح:</value></data>
+  <data name="SecretGenerated" xml:space="preserve"><value>وُلّدت محليًا. لم يُتحقق من قبول النظام الهدف.</value></data>
+  <data name="SecretGenerating" xml:space="preserve"><value>جارٍ التوليد محليًا… يمكنك متابعة التحرير؛ تغيير الإدخال يُبطل هذه النتيجة.</value></data>
+  <data name="SecretGenerationFailed" xml:space="preserve"><value>أُلغي التوليد أو أصبحت نتيجته قديمة أو خالف السياسة المحلية.</value></data>
+  <data name="GeneratedPassword" xml:space="preserve"><value>كلمة المرور الأصلية المولّدة</value></data>
+  <data name="GeneratedValue" xml:space="preserve"><value>مولّدة محليًا</value></data>
+  <data name="GeneratedPasswordNotice" xml:space="preserve"><value>انسخ كلمة المرور صراحةً قبل الإغلاق. يؤدي الإغلاق إلى حذف النتيجة المؤقتة.</value></data>
 </root>

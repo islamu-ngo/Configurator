@@ -14,7 +14,7 @@ using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
 using global::Terminal.Gui.Views;
 
-internal sealed class SetupTerminalWindow : Window
+internal sealed partial class SetupTerminalWindow : Window
 {
     internal const int MinimumTerminalWidth = 80;
     internal const int MinimumTerminalHeight = 26;
@@ -54,6 +54,9 @@ internal sealed class SetupTerminalWindow : Window
     private readonly Button _locale;
     private readonly Button _helpNext;
     private readonly Button _correction;
+    private readonly Button _generateSecret;
+    private readonly Button _revealSecret;
+    private readonly Button _copySecret;
     private readonly Button[] _itemActions;
     private readonly Button[] _listButtons;
     private readonly View[] _normal;
@@ -95,6 +98,9 @@ internal sealed class SetupTerminalWindow : Window
         _importOperation = new(operation.Form, _dispatch, readImport,
             cooperativeYield: cooperativeYield ?? YieldToApplicationAsync);
         _importOperation.Settled += ImportSettled;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        _application.Invoke(() => Configurator.Engineering.MeasureNativeImportComparison.Attach(this));
+#endif
         _editor = new(operation.Form);
         Title = SetupTerminalText.Get("WindowTitle");
         Width = Dim.Fill();
@@ -159,9 +165,12 @@ internal sealed class SetupTerminalWindow : Window
         var itemNull = Button("ItemNull", 1, 20, () => EditTyped("SetNull", item: true));
         var itemSuggestion = Button("ItemSuggestion", 25, 20, () => EditTyped("ApplySuggestion", item: true));
         _itemActions = [itemNull, itemSuggestion];
+        _generateSecret = Button("GenerateSecret", 1, 22, GenerateSecret);
+        _revealSecret = Button("ShowSecret", 25, 22, ToggleSecretVisibility);
+        _copySecret = Button("CopySecret", 49, 22, CopySecret);
         var clear = Button("ClearPrivate", 1, 21, ClearPrivateState);
         var close = Button("Close", 40, 21, CloseOrCancel);
-        var limitations = new Label { X = 1, Y = 22, Width = Dim.Fill(2), Height = 2, Text = SetupTerminalText.Get("Limitations") };
+        var limitations = new Label { X = 1, Y = 23, Width = Dim.Fill(2), Height = 2, Text = SetupTerminalText.Get("Limitations") };
         _smallNotice = new Label
         {
             X = 1,
@@ -174,11 +183,12 @@ internal sealed class SetupTerminalWindow : Window
         Add(heading, _locale, _correction, _experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
             _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import, _fillImport, _nextFinding,
             validate, _prepare, _save, _nextOutcome, _nextAttempt, _status,
-            clear, close, limitations, previousItem, nextItem, removeItem, _addItem, _helpNext, _null, _reset, _suggest, itemNull, itemSuggestion);
+            clear, close, limitations, previousItem, nextItem, removeItem, _addItem, _helpNext, _null, _reset, _suggest, itemNull, itemSuggestion,
+            _generateSecret, _revealSecret, _copySecret);
         _normal = SubViews.ToArray();
         Add(_smallNotice);
         _value.ValueChanged += (_, _) => EditorChanged();
-        _masked.ValueChanged += (_, _) => EditorChanged();
+        _masked.SensitiveInputChanged += (_, _) => EditorChanged();
         _masked.InputRejected += (_, _) => Status("InvalidSecret");
         _masked.SensitiveCommandBlocked += (_, _) => Status("SecretCommandsDisabled");
         _importPath.ValueChanged += (_, _) =>
@@ -246,6 +256,7 @@ internal sealed class SetupTerminalWindow : Window
         }
         Status(CommitField() ? "InputChanged" : "DraftInvalid");
         ShowFieldLabel(VisibleSlots.Length);
+        ShowHelp();
         RefreshCommands();
     }
 
@@ -429,7 +440,12 @@ internal sealed class SetupTerminalWindow : Window
             + (_slot.IsList ? $" [{_itemIndex + 1}/{SetupTerminalFieldEditor.ItemCount(_slot) + 1}]" : "")
             + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + SetupTerminalText.Get("Required") : "")
             + (SetupTerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + SetupTerminalText.Get("NullValue")
-                : _operation.Form.AnswerOrigin(_slot.FullPath) == DefinitionAnswerOrigin.Omitted ? " | " + SetupTerminalText.Get("Omitted") : ""));
+                : _operation.Form.AnswerOrigin(_slot.FullPath) switch
+                {
+                    DefinitionAnswerOrigin.Omitted => " | " + SetupTerminalText.Get("Omitted"),
+                    DefinitionAnswerOrigin.Generated => " | " + SetupTerminalText.Get("GeneratedValue"),
+                    _ => ""
+                }));
 
     private void SetEditorVisibility()
     {
@@ -453,6 +469,11 @@ internal sealed class SetupTerminalWindow : Window
                 SetupTerminalFieldEditor.HasItem(_slot, _itemIndex) &&
                 (index == 0 ? _slot.Schema.Items!.IsNullable : HasSuggestion(_slot.Schema.Items!));
         foreach (var button in _listButtons) button.Visible = !_tooSmall && _slot is { IsList: true };
+        bool secret = scalar && _slot is { RequiresMasking: true };
+        _generateSecret.Visible = secret;
+        _revealSecret.Visible = secret;
+        _copySecret.Visible = secret;
+        _revealSecret.Text = SetupTerminalText.Get(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
     }
 
     private void FocusInput()
@@ -556,6 +577,13 @@ internal sealed class SetupTerminalWindow : Window
         if (_slot is { IsList: true } list && SetupTerminalFieldEditor.HasItem(list, _itemIndex))
             text += "\n" + SetupTerminalText.FormatHelp(
                 _operation.Form.GetEditorPresentation(SetupTerminalFieldEditor.EditPath(list, _itemIndex)), list.Schema.Items!.Keywords);
+        if (_slot is { RequiresMasking: true, IsObject: false, IsObjectList: false })
+        {
+            DefinitionSecretValidation rules = _operation.Form.GetSecretValidation(
+                SetupTerminalFieldEditor.EditPath(_slot, _itemIndex));
+            text += "\n" + string.Join("\n", rules.Requirements.Select(rule => rule.Message)
+                .Concat(rules.Failures.Select(rule => SetupTerminalText.Get("SecretRuleFailed") + " " + rule.Message)));
+        }
         IReadOnlyList<string> pages = SetupTerminalText.HelpPages(text, Math.Max(2, (Viewport.Width - 4) / 2));
         _helpPage %= Math.Max(1, pages.Count);
         _help.Text = pages.Count > 0 ? pages[_helpPage] : "";
@@ -652,7 +680,13 @@ internal sealed class SetupTerminalWindow : Window
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Suspend the current slice without waiting for the terminal's timer cadence.
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
+#endif
         await Task.Yield();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
+#endif
         cancellationToken.ThrowIfCancellationRequested();
     }
 
@@ -805,6 +839,7 @@ internal sealed class SetupTerminalWindow : Window
 
     internal void ClearPrivateState()
     {
+        ClearSecretDialog();
         _importOperation.RequestCancellationAsync();
         _loading = true;
         _masked.ClearSensitiveState();
@@ -826,6 +861,7 @@ internal sealed class SetupTerminalWindow : Window
     {
         _secret.Clear();
         if (Volatile.Read(ref _disposed) || Interlocked.Exchange(ref _closeRequested, 1) != 0) return;
+        _secretCancellation.Cancel();
         Observe(_importOperation.RequestCancellationAsync());
         Observe(_workspace.RequestCancellationAsync());
         DispatchToOwner(static window => window.BeginClose());
@@ -836,7 +872,7 @@ internal sealed class SetupTerminalWindow : Window
         ClearPrivateState();
         foreach (View view in _normal) view.Enabled = false;
         Status("ShutdownWaiting");
-        Task pending = Task.WhenAll(_importOperation.Completion, _workspace.WaitForPendingOperationsAsync());
+        Task pending = Task.WhenAll(_importOperation.Completion, _workspace.WaitForPendingOperationsAsync(), _secretCompletion);
         Observe(pending);
         _shutdown = FinishCloseAsync(pending, _timeProvider, _dispatch, _owner, _callbackGeneration);
         Observe(_shutdown);
@@ -1023,6 +1059,11 @@ internal sealed class SetupTerminalWindow : Window
         _fillImport.Enabled = available && !_draftEdited && (_operation.Form.ImportComparison is null
             ? !string.IsNullOrWhiteSpace(_importPath.Text) : _operation.Form.CanAdoptImportComparison);
         _nextFinding.Enabled = available && _operation.Form.ImportComparison is { Findings.Count: > 0 };
+        _generateSecret.Enabled = available && _slot is not null && _operation.Form.CanGenerateSecret(
+            SetupTerminalFieldEditor.EditPath(_slot, _itemIndex));
+        _generateSecret.Text = SetupTerminalText.Get(_secret.Count > 0 ? "RegenerateSecret" : "GenerateSecret");
+        _revealSecret.Enabled = available && _secret.Count > 0;
+        _copySecret.Enabled = available && _secret.Count > 0;
     }
 
     private void ViewportUpdated(object? sender, DrawEventArgs args) => ApplyViewportPolicy(args.NewViewport.Size);
@@ -1044,6 +1085,9 @@ internal sealed class SetupTerminalWindow : Window
         if (disposing && !_disposed)
         {
             _disposed = true;
+            ClearSecretDialog();
+            _secretCancellation.Cancel();
+            _secretCancellation.Dispose();
             DetachObservers();
             _masked.ClearSensitiveState();
             _importPath.Text = string.Empty;

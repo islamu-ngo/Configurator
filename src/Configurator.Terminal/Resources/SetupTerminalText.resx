@@ -7,7 +7,7 @@
   <data name="ImportFile" xml:space="preserve"><value>Import file:</value></data>
   <data name="Close" xml:space="preserve"><value>Cl_ose / cancel</value></data>
   <data name="Ready" xml:space="preserve"><value>Local preparation only. Existing files are never overwritten.</value></data>
-  <data name="Limitations" xml:space="preserve"><value>Tab/Shift+Tab and button shortcuts. Private input is masked; clipboard/history blocked. Screen-reader, braille, RTL shaping and managed-heap erasure are unverified.</value></data>
+  <data name="Limitations" xml:space="preserve"><value>Tab/Shift+Tab and button shortcuts. Secrets start masked; copying requires Copy secret. Screen-reader, braille, RTL shaping and managed-heap erasure are unverified.</value></data>
   <data name="TerminalTooSmall" xml:space="preserve"><value>Resize to at least 80 columns by 26 rows. Editing is hidden until then.</value></data>
   <data name="InvalidSecret" xml:space="preserve"><value>Input exceeds the supported bound.</value></data>
   <data name="SecretCommandsDisabled" xml:space="preserve"><value>Clipboard, context-menu and history commands are disabled for protected input.</value></data>
@@ -107,4 +107,20 @@
   <data name="CredentialIssuer" xml:space="preserve"><value>Obtain this value from its issuer. Do not substitute a locally generated password.</value></data>
   <data name="CredentialCreate" xml:space="preserve"><value>Choose a new value that meets the target's requirements. A password manager may help create and retain it.</value></data>
   <data name="CredentialExisting" xml:space="preserve"><value>Use the existing value already accepted by your target.</value></data>
+  <data name="GenerateSecret" xml:space="preserve"><value>Generate</value></data>
+  <data name="RegenerateSecret" xml:space="preserve"><value>Regenerate</value></data>
+  <data name="ShowSecret" xml:space="preserve"><value>Show</value></data>
+  <data name="HideSecret" xml:space="preserve"><value>Hide</value></data>
+  <data name="CopySecret" xml:space="preserve"><value>Copy secret</value></data>
+  <data name="SecretCopied" xml:space="preserve"><value>Copied to the system clipboard. Clipboard history is outside this workspace.</value></data>
+  <data name="SecretClipboardUnavailable" xml:space="preserve"><value>System clipboard unavailable. The value is unchanged; no terminal escape export was attempted.</value></data>
+  <data name="SecretDerivationInput" xml:space="preserve"><value>Enter transient derivation input</value></data>
+  <data name="SecretInputLimit" xml:space="preserve"><value>The input exceeds the bounded UTF-8 buffer. Existing input is preserved.</value></data>
+  <data name="SecretRuleFailed" xml:space="preserve"><value>Needs correction:</value></data>
+  <data name="SecretGenerated" xml:space="preserve"><value>Generated locally. Target acceptance remains unverified.</value></data>
+  <data name="SecretGenerating" xml:space="preserve"><value>Generating locally… You may continue editing; changed input invalidates this result.</value></data>
+  <data name="SecretGenerationFailed" xml:space="preserve"><value>Generation was cancelled, became stale, or failed local policy.</value></data>
+  <data name="GeneratedPassword" xml:space="preserve"><value>Generated original password</value></data>
+  <data name="GeneratedValue" xml:space="preserve"><value>generated locally</value></data>
+  <data name="GeneratedPasswordNotice" xml:space="preserve"><value>Copy this password deliberately before closing. Closing dismisses the transient result.</value></data>
 </root>

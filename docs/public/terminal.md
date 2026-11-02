@@ -36,10 +36,10 @@ dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj \
 # Launch from an admitted definition registry by family and version
 dotnet run --project src/Configurator.Terminal/Configurator.Terminal.csproj \
   --configuration Release -- --registry /path/to/definitions \
-  --family 69cdb122-41d2-4fab-9b82-7929a889c726 --app-version 1.0
+  --family 4d8950ad-972c-4357-8605-7a7c89c05a17 --app-version 1.0
 ```
 
-Local definition files can contain either a compact maintainer source (`$schema: urn:islamu:configurator:authoring:v2`) or an expanded runtime v2 definition. The engine compiles and admits compact sources before any answers are collected, generating canonical identities identical to the CLI and Desktop clients. See the [definition guide](definitions.md) for authoring details.
+Local definition files can contain either a compact maintainer source (`$schema: urn:islamu:configurator:authoring:v0.0.1`) or an expanded runtime 0.0.1 definition. The engine compiles and admits compact sources before any answers are collected, generating canonical identities identical to the CLI and Desktop clients. See the [definition guide](definitions.md) for authoring details.
 
 > [!NOTE]
 > Definitions are frozen for the duration of the session. If you edit the definition source on disk, close and relaunch the terminal to load the updated revision.
@@ -111,6 +111,29 @@ Fields enforce strict typing based on the setup definition:
 - **Initialization:** `x-configurator.initialValue` supplies eligible effective values without copying them into the supplied answer snapshot. Standard JSON Schema `default` is descriptive only. Requiredness does not create an absent parent container; explicit omission suppresses initialization until reset.
 
 Protected secrets are masked on screen. Secret draft buffers exist only while focused; navigating away flushes the transient editing buffer.
+
+For a field with an admitted local generation recipe, use **Generate** or
+**Regenerate**. The definition controls the algorithm and policy. Generation
+does not prove that a remote service accepts the value. Field help shows shared
+policy requirements and safe correction messages.
+
+**Show/Hide** controls visibility separately from generation. **Copy secret**
+deliberately transfers the value to the system clipboard; ordinary copy/cut
+shortcuts remain blocked. If the clipboard is unavailable, the value remains
+unchanged and the terminal reports the failure. It never exports secrets using
+terminal escape sequences as a fallback. Clipboard history is outside the
+workspace's control.
+On Linux, copying requires an X11/XWayland desktop session (`DISPLAY`) and the
+native clipboard capability. A headless terminal reports clipboard unavailable.
+Reveal displays line breaks and other control characters as spaces. This is a
+display safeguard; copying a generated/imported PEM key preserves its exact
+multiline value. Ordinary clipboard paste into secret fields remains blocked.
+
+Hash/digest recipes that require entered input open a separate masked prompt.
+Recipes that generate an original password show it in a masked result dialog;
+copy it deliberately before closing if it must be retained. Closing dismisses
+that transient result. Changing the workspace while generation runs makes the
+old result stale rather than applying it to a different field or row.
 
 ### Working with Objects and Lists
 

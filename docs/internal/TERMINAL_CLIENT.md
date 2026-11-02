@@ -1,7 +1,7 @@
 # Definition-driven Terminal.Gui adapter
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Implemented typed v2 adapter; actual process qualification is separate
+> **Status:** Typed v3 adapter with shared secret operations; actual process qualification is separate
 > **Owner:** Terminal
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Terminal/`, `src/Configurator.Presentation/Presentation/`
@@ -13,6 +13,42 @@ It references Core, Artifacts and Presentation; no Event wire
 DTOs, built-in catalogue, HTTP client or implicit application selection remain.
 
 ## Data and control flow
+
+### Schema-driven secret actions
+
+`SetupTerminalWindow.Secrets` delegates generation and derivation to
+`DefinitionFormModel.GenerateSecretAsync`, capturing the selected leaf path.
+Presentation owns eligibility, revision/editor identity fencing, cancellation
+and application; the terminal never implements a cryptographic profile. Field
+help uses `GetSecretValidation` for the same safe policy messages as other
+clients. Ordinary editing remains possible when a value violates a policy.
+
+Generate/Regenerate, Show/Hide and Copy secret are separate keyboard buttons.
+Visibility changes suppress editor change notifications and do not change the
+answer. `SetupSecretTextField` continues blocking normal copy/cut/context/undo
+commands even while revealed. Copy invokes the current application's native
+`IClipboard` only after its capability check; failure preserves the value and
+does not attempt an OSC52 escape-sequence fallback.
+The current Linux clipboard integration also requires `DISPLAY`; installed
+clipboard tooling alone did not establish a reachable desktop in PTY testing.
+Headless sessions fail explicitly before invoking the native clipboard.
+Reveal renders control characters, including PEM line breaks, as spaces to keep
+terminal control sequences inert. The independent private buffer retains exact
+characters; copying or committing a generated/imported PEM retains its newlines.
+
+Entered derivation input uses a separate masked modal buffer. Generated original
+passwords use a masked result modal with deliberate reveal/copy and dismissal.
+Character/UTF-8 working buffers are bounded and cleared with
+`CryptographicOperations.ZeroMemory`; managed strings and clipboard history
+cannot receive an erasure guarantee. The terminal closes the transient result
+through the shared form when its result modal is dismissed.
+
+The existing Terminal.Gui package's `IApplication.Clipboard`/`IClipboard`
+interfaces supply native capability and transfer status. Interface research:
+[Terminal.Gui API](https://tui-cs.github.io/Terminal.Gui/api/Terminal.Gui.App.IClipboard.html)
+(accessed 2026-11-02); no external implementation source was copied.
+
+### Session and editing
 
 `SetupTerminalProgram` rejects redirected stdin, stdout or stderr before loading
 a definition (`interactive-terminal-required`, exit 4). This is an interactive

@@ -1,5 +1,7 @@
 namespace Configurator.Terminal;
 
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using Configurator.Core.Environment;
 
@@ -42,7 +44,7 @@ internal sealed class SetupTerminalSecretBuffer : IDisposable
                 || (_urlSafeOnly && value.Any(character => !IsUrlSafe(character))))
                 return false;
 
-            _characters.AsSpan().Clear();
+            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(_characters.AsSpan()));
             value.AsSpan().CopyTo(_characters);
             _count = value.Length;
             return true;
@@ -76,7 +78,7 @@ internal sealed class SetupTerminalSecretBuffer : IDisposable
                 return;
             int removed = _count > 1 && char.IsLowSurrogate(_characters[_count - 1])
                 && char.IsHighSurrogate(_characters[_count - 2]) ? 2 : 1;
-            _characters.AsSpan(_count - removed, removed).Clear();
+            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(_characters.AsSpan(_count - removed, removed)));
             _count -= removed;
         }
     }
@@ -95,11 +97,29 @@ internal sealed class SetupTerminalSecretBuffer : IDisposable
         }
     }
 
+    internal string CopyText()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return new string(_characters, 0, _count);
+        }
+    }
+
+    internal char[] CopyCharacters()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _characters.AsSpan(0, _count).ToArray();
+        }
+    }
+
     internal void Clear()
     {
         lock (_gate)
         {
-            _characters.AsSpan().Clear();
+            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(_characters.AsSpan()));
             _count = 0;
         }
     }
@@ -110,13 +130,13 @@ internal sealed class SetupTerminalSecretBuffer : IDisposable
         {
             if (_disposed)
                 return;
-            _characters.AsSpan().Clear();
+            CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(_characters.AsSpan()));
             _count = 0;
             _disposed = true;
         }
     }
 
-    public override string ToString() => $"{nameof(SetupTerminalSecretBuffer)}:Redacted:Count={Count}";
+    public override string ToString() => $"{nameof(SetupTerminalSecretBuffer)}:Redacted";
 
     private static bool IsUrlSafe(char value) => value is >= 'a' and <= 'z'
         or >= 'A' and <= 'Z'
