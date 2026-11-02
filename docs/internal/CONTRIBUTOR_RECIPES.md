@@ -180,9 +180,9 @@ machine contract. Start with [CLI contract](CLI_CONTRACT.md), not human-help
 formatting or a private answer file.
 
 **Inspected source/test owners.**
-[`CliMachineOutput.Serialize`](../../src/Configurator.Cli/CliMachineOutput.cs)
+[`CliMachineOutput.Serialize`](../../src/Configurator.Cli/Rendering/CliMachineOutput.cs)
 constructs a 0.0.1 envelope and newline-framed bytes.
-[`CliCommandSchemaMetadata`](../../src/Configurator.Cli/CliCommandSchemaMetadata.cs)
+[`CliCommandSchemaMetadata`](../../src/Configurator.Cli/Commands/CliCommandSchemaMetadata.cs)
 generates the schema.
 [`CliContractTests.MachineVersionFourRejectsRetiredAndUnknownEnvelopesWithoutCompatibility`](../../tests/Configurator.Cli.Tests/CliContractTests.cs)
 mutates a synthetic envelope and checks `machine-version`.

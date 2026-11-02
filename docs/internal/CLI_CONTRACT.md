@@ -4,7 +4,7 @@
 > **Status:** Machine 0.0.1 implemented; package qualification pending
 > **Owner:** CLI
 > **Last Verified:** 2026-10-30
-> **Source Anchors:** `src/Configurator.Cli/CliApplication.cs`, `src/Configurator.Cli/CliMachineOutput.cs`, `schemas/configurator-cli.schema.json`
+> **Source Anchors:** `src/Configurator.Cli/CliApplication.cs`, `src/Configurator.Cli/Rendering/CliMachineOutput.cs`, `schemas/configurator-cli.schema.json`
 
 The CLI references only Configurator.Core, Configurator.Artifacts and the admitted
 Spectre packages. The public [command usage](../public/cli.md) documents all

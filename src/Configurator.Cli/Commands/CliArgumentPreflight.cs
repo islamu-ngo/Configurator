@@ -1,11 +1,5 @@
 namespace Configurator.Cli;
 
-internal sealed record CliPreflight(
-    CliCommand Command,
-    string[] Arguments,
-    bool RunSpectre,
-    string? Error);
-
 internal static class CliArgumentPreflight
 {
     private static readonly Dictionary<string, bool> ValueOptions = CliCommandRegistry.Families

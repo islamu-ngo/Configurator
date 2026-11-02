@@ -3,11 +3,6 @@ using Spectre.Console.Rendering;
 
 namespace Configurator.Cli;
 
-public sealed record CliHelpView(string Scope, IReadOnlyList<string> CommandPath,
-    IReadOnlyList<string> Commands, IReadOnlyList<CliHelpOption> Options);
-
-public sealed record CliHelpOption(string Name, bool RequiresValue, bool Repeatable);
-
 internal sealed class CliHelpProvider : IHelpProvider
 {
     internal CliHelpView? View { get; private set; }

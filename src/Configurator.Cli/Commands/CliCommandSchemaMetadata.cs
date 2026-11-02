@@ -5,15 +5,6 @@ using Configurator.Core;
 
 namespace Configurator.Cli;
 
-public sealed record CliRegisteredOperationMetadata(
-    string Name,
-    IReadOnlyList<string> Options);
-
-public sealed record CliRegisteredCommandMetadata(
-    string Name,
-    IReadOnlyList<CliRegisteredOperationMetadata> Operations,
-    IReadOnlyList<string> Options);
-
 public static class CliCommandSchemaMetadata
 {
     public const string RelativePath = "schemas/configurator-cli.schema.json";

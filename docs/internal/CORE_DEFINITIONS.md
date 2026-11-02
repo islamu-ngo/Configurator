@@ -78,7 +78,7 @@ map identifies those fixtures; it does not claim an executed pass.
 
 ## Native identity and checked generation
 
-`src/Configurator.Cli/Commands/DefinitionCommands.cs` exposes init, check, lint,
+`src/Configurator.Cli/Commands/Definitions/DefinitionCommands.cs` exposes init, check, lint,
 schema, build and revise. `CliDefinitionHandlers` obtains bounded public
 source through the injected file adapter before compiling. Schema discovery
 returns built-in documents before authoring-file acquisition; it does not

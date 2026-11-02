@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Configurator.Core;
 using Configurator.Core.Definitions;
 using Configurator.Core.Secrets;
@@ -18,7 +17,7 @@ internal static class CliSecretHandlers
         AnswerSnapshot answers = await CliIoOperations.AnswersAsync(invocation, command.Input!, "0", cancellationToken);
         DefinitionPath path = DefinitionPath.Parse(command.Pointer!);
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, answers, cancellationToken);
-        DefinitionNode? node = Resolve(definition, answers, validation, path, out DefinitionLocationSegment[] location);
+        DefinitionNode? node = DefinitionSecretOperations.Resolve(definition, answers.Omitted, validation, path, out DefinitionLocationSegment[] location);
         if (node?.Secret is not { Acquisition: DefinitionSecretAcquisition.Local, Generation: not null } specification)
             return CliResults.Failure(CliExitCode.Blocked, "secret-operation-unavailable", "/input");
         bool derives = specification.Kind is DefinitionSecretKind.PasswordHash or DefinitionSecretKind.Digest;
@@ -71,7 +70,7 @@ internal static class CliSecretHandlers
             if (SecretValueValidator.Validate(specification, value).Count != 0
                 || !DefinitionValidator.ValueValid(node, JsonSerializer.SerializeToElement(value)))
                 return CliResults.Failure(CliExitCode.Validation, "secret-generated-value-invalid", "/input");
-            AnswerSnapshot updated = Replace(answers, path, value);
+            AnswerSnapshot updated = DefinitionSecretOperations.Replace(answers, validation, path, JsonSerializer.SerializeToElement(value));
             DefinitionValidationResult updatedValidation = DefinitionValidator.Validate(definition, updated, cancellationToken);
             FieldDefinition field = definition.Fields.Single(field => field.Name == path.Segments[0]);
             if (updatedValidation.Nodes.Any(state => state.FieldId == field.Id
@@ -123,77 +122,4 @@ internal static class CliSecretHandlers
         }
     }
 
-    private static DefinitionNode? Resolve(Definition definition, AnswerSnapshot answers,
-        DefinitionValidationResult validation, DefinitionPath path, out DefinitionLocationSegment[] location)
-    {
-        location = [];
-        if (path.Segments.Count == 0) return null;
-        if (answers.Omitted.Any(omitted => omitted.Segments.Count < path.Segments.Count
-            && path.Segments.Take(omitted.Segments.Count).SequenceEqual(omitted.Segments))) return null;
-        FieldDefinition? field = definition.Fields.FirstOrDefault(field => field.Name == path.Segments[0]);
-        if (field is null) return null;
-        var segments = new List<DefinitionLocationSegment>();
-        DefinitionNode schema = definition.Configuration;
-        JsonElement value = JsonSerializer.SerializeToElement(answers.Values);
-        for (int index = 0; index <= path.Segments.Count; index++)
-        {
-            if (schema.Keywords.TryGetProperty("readOnly", out JsonElement readOnly) && readOnly.ValueKind == JsonValueKind.True)
-                return null;
-            if (schema.Variants.Count != 0)
-            {
-                DefinitionNode? variant = DefinitionValidator.SelectVariant(schema, value);
-                if (variant is null) return null;
-                schema = variant;
-                if (schema.Keywords.TryGetProperty("readOnly", out readOnly) && readOnly.ValueKind == JsonValueKind.True) return null;
-            }
-            if (index == path.Segments.Count)
-            {
-                location = segments.ToArray();
-                return validation.Nodes.Any(state => state.FieldId == field.Id
-                    && state.Location.Segments.SequenceEqual(segments) && state.IsActive) ? schema : null;
-            }
-            string segment = path.Segments[index];
-            if (schema.Type == DefinitionNodeType.Mapping)
-            {
-                if (value.ValueKind != JsonValueKind.Object) return null;
-                bool declared = schema.Properties.TryGetValue(segment, out DefinitionNode? child);
-                if (!declared) child = schema.AdditionalProperties;
-                if (child is null) return null;
-                if (index > 0)
-                {
-                    if (declared) segments.Add(DefinitionLocationSegment.Property(segment));
-                    else
-                    {
-                        string[] keys = value.EnumerateObject().Where(member => !schema.Properties.ContainsKey(member.Name))
-                            .Select(member => member.Name).ToArray();
-                        int ordinal = Array.IndexOf(keys, segment);
-                        if (ordinal < 0) return null;
-                        segments.Add(DefinitionLocationSegment.MapEntry(ordinal));
-                    }
-                }
-                value = value.TryGetProperty(segment, out JsonElement member) ? member : default;
-                schema = child;
-            }
-            else if (schema.Type == DefinitionNodeType.Sequence && schema.Items is not null
-                && value.ValueKind == JsonValueKind.Array && path.TryGetArrayIndex(index, out int row)
-                && row < value.GetArrayLength())
-            { schema = schema.Items; value = value[row]; segments.Add(DefinitionLocationSegment.ArrayRow(row)); }
-            else return null;
-        }
-        return null;
-    }
-
-    private static AnswerSnapshot Replace(AnswerSnapshot answers, DefinitionPath path, string value)
-    {
-        JsonNode root = JsonSerializer.SerializeToNode(answers.Values)!;
-        JsonNode parent = root;
-        for (int index = 0; index < path.Segments.Count - 1; index++)
-            parent = parent is JsonArray array ? array[int.Parse(path.Segments[index], System.Globalization.CultureInfo.InvariantCulture)]!
-                : parent[path.Segments[index]]!;
-        if (parent is JsonArray sequence) sequence[int.Parse(path.Segments[^1], System.Globalization.CultureInfo.InvariantCulture)] = value;
-        else parent[path.Segments[^1]] = value;
-        return new(answers.InputRevision + 1, root.AsObject().ToDictionary(item => item.Key,
-            item => JsonSerializer.SerializeToElement(item.Value), StringComparer.Ordinal),
-            answers.Omitted.Where(omitted => !omitted.Segments.Take(path.Segments.Count).SequenceEqual(path.Segments)));
-    }
 }

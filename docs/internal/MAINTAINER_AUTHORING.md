@@ -4,7 +4,7 @@
 > **Status:** Current bounded-v0.0.1 contract; package and host qualification is recorded separately
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/DefinitionSourceCodec.cs`, `src/Configurator.Cli/CliDefinitionHandlers.cs`, `schemas/configurator-authoring.schema.json`
+> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/DefinitionSourceCodec.cs`, `src/Configurator.Cli/Commands/Definitions/CliDefinitionHandlers.cs`, `schemas/configurator-authoring.schema.json`
 
 ## Source and admission
 

@@ -5,17 +5,6 @@ using Spectre.Console.Cli;
 
 namespace Configurator.Cli;
 
-internal sealed record CliOptionDescriptor(string Name, bool RequiresValue, bool Repeatable);
-
-internal sealed record CliOperationDescriptor(
-    string Name,
-    Type SettingsType,
-    IReadOnlyList<CliOptionDescriptor> Options,
-    Action<IConfigurator<CliCommandSettings>, string, CliCommandRuntime> RegisterBranch,
-    Action<IConfigurator, string, CliCommandRuntime> RegisterRoot);
-
-internal sealed record CliFamilyDescriptor(string Name, IReadOnlyList<CliOperationDescriptor> Operations);
-
 internal static class CliCommandRegistry
 {
     internal static IReadOnlyList<CliFamilyDescriptor> Families { get; } =
