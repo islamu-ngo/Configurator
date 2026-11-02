@@ -14,7 +14,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     public async Task ClosedDiscoveryUnmountsAndReopensCurrentSelectionWithoutEditingAnswers()
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, Definition());
+        var component = BrowserFixture.RenderWorkspace(context, Definition());
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(component.FindAll("[data-discovery-result]")).IsEmpty();
         await component.InvokeAsync(() => form.SetDiscovery("host"));
@@ -46,7 +46,7 @@ public sealed class BrowserConfigurationDiscoveryTests
         source["requiredCapabilities"] = new JsonArray("projection.literal", "schema.object", "schema.string");
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, definition);
+        var component = BrowserFixture.RenderWorkspace(context, definition);
         await OpenDiscovery(component);
         await Assert.That(component.Find("[data-discovery-count]").GetAttribute("data-discovery-count")).IsEqualTo("61");
         await Assert.That(component.Find("[data-facet='Sensitivity'] [data-option='public']").GetAttribute("data-count")).IsEqualTo("61");
@@ -63,7 +63,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     public async Task DiscoveryPreservesPreparedOutputAndAnswerRevision()
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, Definition());
+        var component = BrowserFixture.RenderWorkspace(context, Definition());
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() => form.EditValue(["host.name"], "example.test"));
         await BrowserFixture.PrepareAsync(component, draft: false);
@@ -80,7 +80,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     public async Task ExactBindingSearchNavigatesLiteralFieldWithoutEditingAnswers()
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, Definition());
+        var component = BrowserFixture.RenderWorkspace(context, Definition());
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
         await OpenDiscovery(component);
@@ -99,7 +99,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     public async Task FacetsCombineOrWithinAndAcrossWithIndependentResetsAndCounts()
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, Definition());
+        var component = BrowserFixture.RenderWorkspace(context, Definition());
         await OpenDiscovery(component);
         await Assert.That(component.Find("[data-facet='Sensitivity'] [data-option='secret']").GetAttribute("data-count")).IsEqualTo("1");
         await component.Find("[data-facet='Sensitivity'] [data-option='secret'] input").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -122,7 +122,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     public async Task InactiveResultRoutesToControllerWithoutActivatingFeatureOrConsent()
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, Definition());
+        var component = BrowserFixture.RenderWorkspace(context, Definition());
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
         await OpenDiscovery(component);
@@ -143,7 +143,7 @@ public sealed class BrowserConfigurationDiscoveryTests
     public async Task SearchNeverIndexesPrivateAnswersAndCorrectionPreservesSearchSelection()
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, Definition());
+        var component = BrowserFixture.RenderWorkspace(context, Definition());
         await OpenDiscovery(component);
         await Assert.That(component.Find("#configuration-search").GetAttribute("spellcheck")).IsEqualTo("false");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -167,14 +167,6 @@ public sealed class BrowserConfigurationDiscoveryTests
 
     private static Task OpenDiscovery(IRenderedComponent<MainLayout> component) =>
         component.Find("#configuration-search").ClickAsync(new MouseEventArgs());
-
-    private static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context, Definition definition) =>
-        context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
-        {
-            builder.OpenComponent<ConfigurationEditor>(0);
-            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
-            builder.CloseComponent();
-        }));
 
     private static Definition Definition()
     {

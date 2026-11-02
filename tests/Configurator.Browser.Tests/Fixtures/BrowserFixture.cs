@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AngleSharp.Dom;
 using Bunit;
+using Configurator.Browser.Layout;
 using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
@@ -91,6 +92,14 @@ internal static class BrowserFixture
             if (action.GetAttribute("aria-current") != "step") await action.ClickAsync(new MouseEventArgs());
         });
     }
+
+    internal static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context, Definition definition) =>
+        context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
+            builder.CloseComponent();
+        }));
 
     internal static async Task PrepareAsync<T>(IRenderedComponent<T> component, bool draft)
         where T : class, IComponent

@@ -18,7 +18,7 @@ public sealed class BrowserFieldHelpTests
         JsonArray required = source["configuration"]!["required"]!.AsArray();
         required.Remove(required.Single(field => field!.GetValue<string>() == "hostname"));
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        var component = RenderWorkspace(context, definition);
+        var component = BrowserFixture.RenderWorkspace(context, definition);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         for (int edit = 0; edit < 2; edit++)
         {
@@ -38,7 +38,7 @@ public sealed class BrowserFieldHelpTests
     public async Task UnchangedFieldActionsReadCurrentBindingDelegate()
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, BrowserFixture.Definition);
+        var component = BrowserFixture.RenderWorkspace(context, BrowserFixture.Definition);
         var actions = component.FindComponents<ConfigurationFieldActions>()
             .Single(item => item.Instance.Path.Count == 1 && item.Instance.Path[0] == "hostname");
         Func<(IReadOnlyList<string>, IReadOnlyList<string>)> previous = () => (new[] { "old-artifact" }, new[] { "OLD_KEY" });
@@ -66,7 +66,7 @@ public sealed class BrowserFieldHelpTests
             """);
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","reference":{"scope":"root","path":"/credential"}}}}""");
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        var component = RenderWorkspace(context, definition);
+        var component = BrowserFixture.RenderWorkspace(context, definition);
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-help-private-answer" });
         await component.Find("[data-field='credential'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
@@ -93,7 +93,7 @@ public sealed class BrowserFieldHelpTests
     public async Task ConsentOrWorkspaceReplacementClosesOnlyItsRetiredFieldInspector(bool replace, bool consent)
     {
         await using var context = BrowserFixture.Context();
-        var component = RenderWorkspace(context, BrowserFixture.Definition);
+        var component = BrowserFixture.RenderWorkspace(context, BrowserFixture.Definition);
         var editor = component.FindComponent<ConfigurationEditor>();
         var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
         if (consent) await editor.InvokeAsync(() => form.SetSecretEntryEnabled(true));
@@ -108,11 +108,4 @@ public sealed class BrowserFieldHelpTests
         await Assert.That(component.FindAll("[role='dialog']")).IsEmpty();
     }
 
-    private static IRenderedComponent<MainLayout> RenderWorkspace(BunitContext context, Definition definition) =>
-        context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
-        {
-            builder.OpenComponent<ConfigurationEditor>(0);
-            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
-            builder.CloseComponent();
-        }));
 }
