@@ -36,6 +36,7 @@ dotnet_separate_import_directive_groups = false
 
 # Modern namespace syntax
 csharp_style_namespace_declarations = file_scoped:warning
+dotnet_diagnostic.IDE0161.severity = warning
 
 # Nullability diagnostics kept explicit in editor + build
 dotnet_diagnostic.CS8600.severity = warning
@@ -57,6 +58,7 @@ dotnet_naming_rule.async_methods_end_in_async.style = end_in_async
 
 dotnet_naming_symbols.async_methods.applicable_kinds = method
 dotnet_naming_symbols.async_methods.applicable_accessibilities = *
+dotnet_naming_symbols.async_methods.required_modifiers = async
 dotnet_naming_style.end_in_async.required_suffix = Async
 dotnet_naming_style.end_in_async.capitalization = pascal_case
 
