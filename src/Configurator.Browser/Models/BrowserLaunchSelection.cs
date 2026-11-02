@@ -1,13 +1,8 @@
-namespace Configurator.Browser;
+namespace Configurator.Browser.Models;
 
 using System.Collections.Frozen;
 using Configurator.Core;
 using Configurator.Core.Definitions;
-
-public sealed class BrowserLaunchException(string code) : Exception(code)
-{
-    public string Code { get; } = code;
-}
 
 /// <summary>Captures the exact admitted document, not a mutable registry lookup.</summary>
 public sealed record BrowserLaunchSelection(Definition Definition, string Entry, string Locale, bool EntryExplicit)

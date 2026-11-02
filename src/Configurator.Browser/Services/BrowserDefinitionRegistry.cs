@@ -1,4 +1,4 @@
-namespace Configurator.Browser;
+namespace Configurator.Browser.Services;
 
 using Configurator.Core.Definitions;
 

@@ -1,4 +1,4 @@
-namespace Configurator.Browser;
+namespace Configurator.Browser.Models;
 
 using System.Net;
 using System.Net.Sockets;

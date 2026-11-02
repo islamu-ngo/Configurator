@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6F7XKHJ305JZPY26D81VQ7W
+Title: "organize browser service and launch ownership"
+Type: refactor
+Scope: architecture
+Summary: "organize browser service and launch ownership."
+Group: browser-01-service-layout
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Browser infrastructure types now use Configurator.Browser.Services or Configurator.Browser.Models. Update source imports; no aliases are retained."
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Browser infrastructure types now use Configurator.Browser.Services or Configurator.Browser.Models. Update source imports; no aliases are retained."
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable

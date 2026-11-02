@@ -1,4 +1,4 @@
-namespace Configurator.Browser;
+namespace Configurator.Browser.Services;
 
 using Configurator.Core;
 using Configurator.Core.Definitions;
@@ -153,5 +153,3 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
     }
 }
 
-/// <summary>Reports worker-confirmed complete app preload separately from installed offline capability.</summary>
-public sealed record BrowserOfflineState(bool AppPrepared, bool OfflineReady, bool Online);
