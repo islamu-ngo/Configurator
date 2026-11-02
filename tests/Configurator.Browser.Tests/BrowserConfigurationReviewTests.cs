@@ -10,6 +10,32 @@ using Microsoft.AspNetCore.Components.Web;
 public sealed class BrowserConfigurationReviewTests
 {
     [Test]
+    public async Task FailedPreparationOffersCurrentCorrectionsWithoutChangingAnswers()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        long revision = form.InputRevision;
+        await BrowserFixture.PrepareAsync(component, draft: false);
+        await Assert.That(component.FindAll("[data-prepared-file]")).IsEmpty();
+        await component.Find("[data-correction='hostname']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-field='hostname'] input").Count).IsEqualTo(1);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
+    public async Task ReviewPlacesCorrectionsBeforeOutputDecisions()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.SelectPanelAsync(component, "review");
+        var sections = component.FindAll(".configuration-review, [data-review-effects]");
+        await Assert.That(sections[0].ClassList.Contains("configuration-review")).IsTrue();
+    }
+
+    [Test]
     public async Task ReadyReviewOffersPreparationWithoutChangingAnswers()
     {
         await using var context = BrowserFixture.Context();
@@ -92,6 +118,7 @@ public sealed class BrowserConfigurationReviewTests
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.InvokeAsync(() => form.SetDiscovery("obstructing-query"));
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         long revision = form.InputRevision;
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"dependent":"synthetic-file-canary"}"""));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
@@ -160,7 +187,7 @@ public sealed class BrowserConfigurationReviewTests
     }
 
     [Test]
-    public async Task SupportedImportPrecedesManualEntry()
+    public async Task OrdinaryEntryPrecedesOptionalConfigurationReuse()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
@@ -168,7 +195,8 @@ public sealed class BrowserConfigurationReviewTests
         int importIndex = controls.IndexOf("artifact-import");
         int manualIndex = controls.IndexOf(component.Find("[data-field='name'] input").Id);
         await Assert.That(importIndex).IsGreaterThanOrEqualTo(0);
-        await Assert.That(manualIndex).IsGreaterThan(importIndex);
+        await Assert.That(manualIndex).IsGreaterThanOrEqualTo(0);
+        await Assert.That(importIndex).IsGreaterThan(manualIndex);
     }
 
     [Test]

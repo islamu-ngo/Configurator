@@ -130,6 +130,7 @@ public sealed class BrowserSecretBoundaryTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         using var stream = new MemoryStream("""{"mode":"single","hostname":"compared.test","credential":"synthetic-retained-secret"}"""u8.ToArray());
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         var review = component.FindComponent<ConfigurationImportReview>().Instance;
         var form = review.Form;

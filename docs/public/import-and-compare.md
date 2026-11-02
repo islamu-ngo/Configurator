@@ -28,7 +28,10 @@ must show unsupported or incomplete coverage rather than guess missing values.
 
 ## Compare Before Filling Fields
 
-**Compare with this definition** is the default purpose. Comparison leaves your
+In Browser, **Start from an existing configuration** defaults to **Fill fields**
+and selects the current output when it identifies exactly one file. Choose a
+format explicitly when the output is ambiguous. Choose **Compare with this
+definition** to inspect a file without adopting it. Comparison leaves your
 current answers, pending editor text, omissions and prepared output unchanged.
 Imported-file problems are separate from the validity of your current form.
 
@@ -54,7 +57,7 @@ Color is accompanied by severity text; comparison is not a color-only check.
 
 ## Deliberately Fill Fields
 
-Choose **Fill fields** only when you want recovered values applied. The action
+Use **Fill fields** when you want recovered values applied. The action
 checks the current workspace again. Untouched initialization can be replaced;
 your explicit answers, omissions and pending drafts are protected.
 

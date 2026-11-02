@@ -402,6 +402,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         using var input = new MemoryStream("""{"mode":"single","hostname":"compared.test","credential":"synthetic-navigation-secret"}"""u8.ToArray());
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.LoadAsync(input));
         var comparison = form.ImportComparison;
         var navigation = context.Services.GetRequiredService<BrowserNavigationState>();
@@ -443,6 +444,8 @@ public sealed class BrowserWorkspaceLifecycleTests
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         using var stream = new HeldReadStream("""{"mode":"single","hostname":"late.test","credential":"synthetic-retired-comparison"}"""u8.ToArray());
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
+        await component.Find("#import-artifact").ChangeAsync(new ChangeEventArgs { Value = definition.Artifacts[0].Id });
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
@@ -494,6 +497,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         using var first = new MemoryStream("""{"mode":"single","hostname":"first.test","credential":"synthetic-first-secret"}"""u8.ToArray());
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.LoadAsync(first));
         var review = component.FindComponent<ConfigurationImportReview>().Instance;
         var form = review.Form;

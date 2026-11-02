@@ -269,7 +269,7 @@
   <data name="EnableWorkspaceSecrets" xml:space="preserve"><value>Enable secret entry for this workspace</value></data>
   <data name="WorkspaceSecretHelp" xml:space="preserve"><value>Required before reading any configuration file, including unknown content. Values remain masked; turning this off retires comparisons, clears secret answers and invalidates prepared files.</value></data>
   <data name="StartExistingConfiguration" xml:space="preserve"><value>Start from an existing configuration</value></data>
-  <data name="ArtifactImportHelp" xml:space="preserve"><value>Maximum 1 MiB, read locally without upload. Every file may contain secrets, including obsolete or malformed content; enable workspace secret consent above before reading. Compare leaves answers, drafts and prepared files unchanged.</value></data>
+  <data name="ArtifactImportHelp" xml:space="preserve"><value>Maximum 1 MiB, read locally without upload. Every file may contain secrets, including obsolete or malformed content; enable workspace secret consent before reading. Compare leaves answers, drafts and prepared files unchanged.</value></data>
   <data name="ImportPurpose" xml:space="preserve"><value>Purpose</value></data>
   <data name="CompareDefinition" xml:space="preserve"><value>Compare with this definition</value></data>
   <data name="FillFields" xml:space="preserve"><value>Fill fields</value></data>
@@ -307,7 +307,8 @@
   <data name="AnswersBudgetExceededStatus" xml:space="preserve"><value>Answers exceed the shared preparation limit. Reduce input sizes before preparing configuration.</value></data>
   <data name="InputBudgetExceededStatus" xml:space="preserve"><value>An input exceeded the shared preparation limit. Reduce or clear the rejected field before preparing configuration.</value></data>
   <data name="InputTypeInvalidStatus" xml:space="preserve"><value>Correct invalid field values before preparing configuration.</value></data>
-  <data name="PreparationRejectedStatus" xml:space="preserve"><value>No configuration prepared. Correct required settings or reduce output size.</value></data>
+  <data name="PreparationRejectedStatus" xml:space="preserve"><value>No files prepared. Follow the corrections below. Your answers are retained; previous prepared files are retired.</value></data>
+  <data name="ImportChooseFormat" xml:space="preserve"><value>Choose the file format</value></data>
   <data name="PreparationRetryStatus" xml:space="preserve"><value>No configuration prepared. Prepare the current workspace again.</value></data>
   <data name="PreparedDraftStatus" xml:space="preserve"><value>Prepared {0} draft artifact. Deferred secrets or withheld outputs still require completion.</value></data>
   <data name="PreparedDraftsStatus" xml:space="preserve"><value>Prepared {0} draft artifacts. Deferred secrets or withheld outputs still require completion.</value></data>
@@ -328,4 +329,24 @@
   <data name="WorkspaceClearedStatus" xml:space="preserve"><value>Answers and output cleared. Secret entry is disabled. Start a new local workspace to continue.</value></data>
   <data name="EntrySourceRecovery" xml:space="preserve"><value>Check the public HTTPS definition URL and selectors, or open the original JSON or YAML definition from your device. No answers have been restored.</value></data>
   <data name="EntryReopenHelp" xml:space="preserve"><value>A definition opened only in this session may be unavailable after reload. Reopen its original definition file or public link to start a fresh workspace. Your previous answers are not stored.</value></data>
+  <data name="HelpTitle" xml:space="preserve"><value>Help with configuration</value></data>
+  <data name="HelpChooseTitle" xml:space="preserve"><value>Choose your project and task</value></data>
+  <data name="HelpChooseBody" xml:space="preserve"><value>Choose a project from the catalogue, or open a custom JSON/YAML definition or public HTTPS link. Exact revisions identify content; publisher names and directory inclusion do not authenticate a publisher.</value></data>
+  <data name="HelpProjects" xml:space="preserve"><value>Browse projects</value></data>
+  <data name="HelpCustomDefinition" xml:space="preserve"><value>Open a custom definition</value></data>
+  <data name="HelpWorkTitle" xml:space="preserve"><value>Configure, review and download</value></data>
+  <data name="HelpWorkBody" xml:space="preserve"><value>Complete the essential questions, then use Review to find remaining corrections. Files prepares a complete configuration or a deliberate incomplete draft. Download is available without revealing or copying the file first.</value></data>
+  <data name="HelpReuseBody" xml:space="preserve"><value>Start from an existing configuration reuses a local file with Fill fields. Choose Compare with this definition for inspection only. Consent is required before either action reads a file; conflicting answers are never silently overwritten.</value></data>
+  <data name="HelpCustodyTitle" xml:space="preserve"><value>Keep control of your answers</value></data>
+  <data name="HelpCustodyBody" xml:space="preserve"><value>Answers and prepared files stay in this tab, outside appearance preferences and public caches. Closing or reloading clears them. Leaving a workspace asks you to discard current work.</value></data>
+  <data name="HelpSecretsBody" xml:space="preserve"><value>Secret entry requires consent for each workspace. Revoking consent clears secret answers and prepared output. A secret-deferred draft still needs completion. Copy and Download deliberately transfer files to your chosen destination.</value></data>
+  <data name="HelpTargetBody" xml:space="preserve"><value>A browser download cannot guarantee restricted native file permissions. The target application validates and authorizes use of the files; preparation does not mean they were accepted or applied.</value></data>
+  <data name="HelpOfflineTitle" xml:space="preserve"><value>Work offline</value></data>
+  <data name="HelpOfflineBody" xml:space="preserve"><value>Use Open configuration while online to prepare the application for offline use. Retain definitions only after confirming they are safe public content. Cached definitions contain no answers. The optional directory is not needed for bundled or local definitions.</value></data>
+  <data name="HelpAppearanceTitle" xml:space="preserve"><value>Adjust presentation</value></data>
+  <data name="HelpAppearanceBody" xml:space="preserve"><value>Open Settings in the navigation menu to choose appearance, contrast and text direction. These local preferences do not change configuration answers. Workspace tools contain the available editing modes and display options.</value></data>
+  <data name="FilesDeferredSecret" xml:space="preserve"><value>Deferred secret</value></data>
+  <data name="FilesDeferredRequired" xml:space="preserve"><value>Required: supply this value before using the configuration.</value></data>
+  <data name="FilesDeferredOptional" xml:space="preserve"><value>Optional secret withheld: decide whether this service needs a value before use.</value></data>
+  <data name="FilesDeferredUnknown" xml:space="preserve"><value>Check this completion location against the target requirements before use.</value></data>
 </root>

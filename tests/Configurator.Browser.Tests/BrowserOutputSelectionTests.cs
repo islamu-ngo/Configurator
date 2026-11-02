@@ -10,6 +10,25 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class BrowserOutputSelectionTests
 {
     [Test]
+    public async Task ReuseFollowsOutputMutationsButPreservesExplicitFormatDuringOrdinaryEdits()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition("file.kind")));
+        var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
+        await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("settings");
+        await component.InvokeAsync(() => form.SelectOutput("identity"));
+        await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("identity");
+        await component.Find("#import-artifact").ChangeAsync(new ChangeEventArgs { Value = "settings" });
+        await component.InvokeAsync(() => form.EditValue(["hostname"], "synthetic.test"));
+        await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("settings");
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
+        await component.InvokeAsync(() => component.Instance.DiscardAsync());
+        await component.InvokeAsync(() => component.Instance.BeginAsync());
+        await Assert.That(component.Find("#import-purpose").GetAttribute("value")).IsEqualTo("fill");
+        await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("settings");
+    }
+
+    [Test]
     [Arguments("deployment/target")]
     [Arguments("file.kind")]
     public async Task ImplicitEntryPreservesCoreInitializationWithoutSupplyingAnAnswer(string fieldName)
@@ -18,7 +37,7 @@ public sealed class BrowserOutputSelectionTests
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([definition]));
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}");
         var component = context.Render<App>();
-        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
         await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.FromSegments([fieldName]), out JsonElement value)).IsTrue();
         await Assert.That(value.GetString()).IsEqualTo("settings");
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
@@ -35,7 +54,7 @@ public sealed class BrowserOutputSelectionTests
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}?entry=identity");
         var component = context.Render<App>();
         var editor = component.FindComponent<ConfigurationEditor>();
-        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
         await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.FromSegments([fieldName]), out JsonElement value)).IsTrue();
         await Assert.That(value.GetString()).IsEqualTo("identity");
         await Assert.That(form.Snapshot().Values[fieldName].GetString()).IsEqualTo("identity");
@@ -47,7 +66,7 @@ public sealed class BrowserOutputSelectionTests
         editor.Render(parameters => parameters.Add(item => item.Definition, definition));
         await Assert.That(form.Snapshot().Values[fieldName].GetString()).IsEqualTo("settings");
         await Assert.That(form.InputRevision).IsEqualTo(revision);
-        await Assert.That(component.FindComponents<ConfigurationField>()[0].Instance.Form).IsSameReferenceAs(form);
+        await Assert.That(component.FindComponent<ConfigurationConfigurePanel>().Instance.Form).IsSameReferenceAs(form);
     }
 
     [Test]
@@ -58,7 +77,7 @@ public sealed class BrowserOutputSelectionTests
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}");
         var component = context.Render<App>();
-        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
         await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/operation"), out JsonElement value)).IsTrue();
         await Assert.That(value.GetString()).IsEqualTo("environment");
         await Assert.That(form.InputRevision).IsEqualTo(0L);

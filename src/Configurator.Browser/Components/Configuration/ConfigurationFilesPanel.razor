@@ -4,6 +4,7 @@
 <section class="configuration-files-panel" aria-labelledby="configuration-prepare-heading">
     <h3 @ref="_heading" class="configuration-files-panel__heading" id="configuration-prepare-heading" tabindex="-1">@BrowserStrings.Get("FilesTitle", Locale)</h3>
     <p class="form-help">@BrowserStrings.Get("FilesHelp", Locale)</p>
+    <p class="form-help">@BrowserStrings.Get("HelpTargetBody", Locale)</p>
     <div class="actions configuration-files-panel__actions">
         @if (Readiness == "blocked" && !HasPreparedFiles)
         {

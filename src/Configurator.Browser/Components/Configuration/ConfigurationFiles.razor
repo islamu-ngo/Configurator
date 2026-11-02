@@ -2,6 +2,7 @@
 @using System.Globalization
 @using Configurator.Browser.Resources
 @using Configurator.Presentation
+@using Configurator.Core.Definitions
 
 <section class="configuration-files" aria-labelledby="@("artifact-" + Metadata.ArtifactId)"
          data-prepared-file="@Metadata.ArtifactId" data-readiness="@(Metadata.IsDraft ? "draft" : "complete")">
@@ -12,7 +13,16 @@
         <ul class="configuration-files__completions">
             @foreach (var item in Metadata.Completions)
             {
-                <li><code>@item.FieldPath</code> <span aria-hidden="true">&rarr;</span> <code>@item.OutputPath</code></li>
+                var path = DefinitionPath.Parse(item.FieldPath).Segments;
+                var entry = Form.Projection.Entries.FirstOrDefault(entry => path.Count > 0 &&
+                    entry.FieldId == DefinitionProfile.FieldId(path[0]) && entry.RelativePath.SequenceEqual(path.Skip(1)));
+                <li data-completion-required="@(entry?.IsRequired.ToString().ToLowerInvariant() ?? "unknown")">
+                    <strong>@(entry?.Title ?? Text("FilesDeferredSecret"))</strong>
+                    <span>@Text(entry is null ? "FilesDeferredUnknown" : entry.IsRequired ? "FilesDeferredRequired" : "FilesDeferredOptional")</span>
+                    <details><summary>@Text("ReviewDetails")</summary>
+                        <code>@item.FieldPath</code> <span aria-hidden="true">&rarr;</span> <code>@item.OutputPath</code>
+                    </details>
+                </li>
             }
         </ul>
     }
@@ -32,6 +42,7 @@
 
 @code {
     [Parameter, EditorRequired] public DefinitionPreparationMetadata Metadata { get; set; } = null!;
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public string Locale { get; set; } = "en";
     [Parameter] public bool Revealed { get; set; }
     [Parameter] public string? StatusKey { get; set; }

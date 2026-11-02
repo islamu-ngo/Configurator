@@ -242,9 +242,9 @@ permit only a draft, and answers ready for complete preparation. Its summary
 counts required answers, optional settings without a value and deferred secrets.
 It does not display private answer values.
 
-- **Active Corrections:** Displays validation errors across all sections with direct links to jump to the affected field.
+- **Active Corrections:** Displays validation errors before output decisions, with direct links to jump to the affected field. Files uses the same corrections when preparation fails.
 - **Configuration Inventory:** Inspect active settings, authored-default origins, supplied/omitted states, deferred secrets and declared output bindings.
-- **Output Inspection:** Review declared filenames, formats and restart guidance. Preparation determines which conditional files are actually included.
+- **Output Inspection:** Review the selected task's declared filenames, formats and restart guidance. Origins and output bindings are available in details. Preparation determines which conditional files are actually included.
 
 When ready, prepare complete files directly from the summary. If only secrets
 remain unresolved, the summary offers a clearly incomplete draft instead.
@@ -269,8 +269,10 @@ selected definition. No old definition, upload or target connection is needed.
    **secret entry for this workspace** before choosing any configuration file,
    even with a public-only definition: unknown or obsolete content may contain
    secrets. Declined consent prevents reading, including malformed files.
-2. Under **Start from an existing configuration**, select the declared artifact
-   and keep the default purpose, **Compare with this definition**. The capability
+2. Under **Start from an existing configuration**, the purpose defaults to
+   **Fill fields** and the current output's format is selected when unambiguous.
+   Choose a format when needed. Select **Compare with this definition** for a
+   read-only assessment instead. The capability
    summary distinguishes supported inspection from strict autofill. The local
    input limit is **1 MiB**.
    Wide direct-key Environment mappings use the same bounded inspection rules;
@@ -313,6 +315,7 @@ Once answers are validated, choose **Prepare complete configuration** or **Prepa
 - **Hidden Staging:** Output is not inserted into the private preview until you deliberately choose **Reveal**. **Hide** clears that preview again.
 - **Export Actions:** Use **Copy** to copy contents to the clipboard, or **Download** to trigger a browser file download via short-lived Blob URLs.
 - **File-local Recovery:** Copy or download feedback belongs to its file. If clipboard access fails, **Download** remains immediately available; no answer or artifact contents appear in the error.
+- **Preparation Recovery:** Failed preparation preserves your answers and invalid drafts while retiring previous prepared files. Use the displayed correction to return to the affected field, then prepare again.
 - **Filename Verification:** Verify downloaded filenames before deployment. Some browsers normalize special filenames (for example, downloading `.env` as `env.txt`). Rename the downloaded file if required.
 
 ---

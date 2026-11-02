@@ -197,6 +197,10 @@ disposal retire current comparison ownership; late reads cannot revive it.
 Locale/disclosure changes may reproject safe facts without rereading the input.
 
 Fill fields rechecks current conflicts, drafts, revision, consent and eligibility,
+and is Browser's initial reuse purpose. The current output selector supplies a
+default import artifact only when its declared option identifies one artifact;
+otherwise the operator must choose a format. Compare remains an explicit
+read-only purpose. Both use the same consent and generation checks. Adoption
 then performs one existing form mutation. Only untouched initialization may be
 replaced. Explicit answers, explicit omissions and pending drafts are protected.
 Missing required work may remain unfinished; invalid, unrecognized, structurally

@@ -190,8 +190,10 @@ deferred and supplied/defaulted entries by default. Omitted optional and inactiv
 inspection are explicit view-only choices. Diagnostics remain reachable outside
 the paged effects. Neither paging nor mounting grants consent or output authority.
 
-Local artifact comparison defaults to **Compare with this definition**, not
-autofill. `ConfigurationEditor` obtains the existing public-asset preparation and
+Local configuration reuse defaults to **Fill fields** and the current output's
+single declared artifact; ambiguous output sets require a format choice.
+**Compare with this definition** is an explicit read-only purpose.
+`ConfigurationEditor` obtains the existing public-asset preparation and
 workspace custody acknowledgment, then checks explicit workspace secret consent
 before opening or consuming any raw configuration input. This applies to
 public-only definitions, unknown/obsolete members and malformed input alike.

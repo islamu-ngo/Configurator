@@ -46,7 +46,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private object?[] _statusArguments = [];
     private string _statusCode = "workspace-ready";
     private string _importArtifact = string.Empty;
-    private string _importPurpose = "compare";
+    private string _importOutputSelection = "-1";
+    private string _importPurpose = "fill";
     private bool _importPending;
     private bool _importConsentRequired;
     private const int MaximumImportBytes = 1024 * 1024;
@@ -134,7 +135,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _form.InputChanged += InputChanged;
         _form.ViewChanged += ViewChanged;
         _form.ImportComparisonChanged += ImportComparisonChanged;
-        _importArtifact = ImportArtifacts.FirstOrDefault()?.Id ?? string.Empty;
+        _importPurpose = "fill";
+        SelectCurrentImportArtifact();
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         DefinitionFormModel form = _form;
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
@@ -386,6 +388,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         InvalidateMounts();
         _focusField = null;
         Invalidate();
+        if (_importOutputSelection != OutputSelection) SelectCurrentImportArtifact();
         int required = _form!.Projection.Progress.Required;
         if (required == _requiredCount) SetStatus("AnswersChangedStatus");
         else SetStatus("RequiredWorkChangedStatus", _requiredCount, required);
@@ -464,6 +467,18 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _importArtifact = artifactId!;
         SetStatus("ImportFormatChangedStatus");
         _statusCode = "import-format-changed";
+    }
+    private void SelectCurrentImportArtifact()
+    {
+        _importOutputSelection = OutputSelection;
+        var artifacts = ImportArtifacts.Select(artifact => artifact.Id).ToArray();
+        if (OutputSelector is { } selector)
+        {
+            artifacts = _form!.Validate().TryGetEffectiveValue(selector.Location, out var value)
+                ? selector.Options.FirstOrDefault(option => option.Value == value.GetString())?.ArtifactIds.ToArray() ?? []
+                : [];
+        }
+        _importArtifact = artifacts.Length == 1 ? artifacts[0] : string.Empty;
     }
     private void ChangeImportPurpose(ChangeEventArgs args)
     {
@@ -961,6 +976,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;
             _form.ImportComparisonChanged += ImportComparisonChanged;
+            _importPurpose = "fill";
+            SelectCurrentImportArtifact();
             RegisterSearch();
             _activeWorkflowStage = "configure";
             _requiredCount = _form.Projection.Progress.Required;

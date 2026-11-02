@@ -321,7 +321,12 @@ search reachable during deep editing. Its global shortcut yields to an active
 dialog rather than escaping modal focus custody.
 
 `ConfigurationReview` projects shared diagnostics into value-free explanations
-and correction buttons. The effects region mounts at Review and pages 50 entries
+and correction buttons before output decisions. Files reuses the same diagnostic
+component and revision-bound correction callbacks after failed preparation;
+answers and input drafts survive while previous export eligibility is retired.
+Review lists the current output selector's artifact set, retaining the declared
+set for definitions without output selection. Origins and bindings are secondary
+details. The effects region mounts at Review and pages 50 entries
 at a time. Its default selection includes active required work, corrections,
 deferred secrets and supplied/defaulted entries; separate controls inspect
 omitted optional and inactive metadata without enabling it. Diagnostic correction

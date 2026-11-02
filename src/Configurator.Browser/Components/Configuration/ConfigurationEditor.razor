@@ -146,6 +146,7 @@
                     <div class="form-group">
                         <label for="import-artifact">@UiText("ImportArtifactFormat")</label>
                         <select id="import-artifact" value="@_importArtifact" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeImportFormat(args); }">
+                            <option value="" disabled>@UiText("ImportChooseFormat")</option>
                             @foreach (var artifact in ImportArtifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
                         </select>
                     </div>
@@ -218,10 +219,14 @@
                                  Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }'
                                  Prepare="draft => IsCurrentView(actionForm, actionView) ? PrepareAsync(draft) : Task.CompletedTask"
                                  Clear="() => IsCurrentView(actionForm, actionView) ? ClearAsync() : Task.CompletedTask">
+        <ConfigurationReview Definition="Definition" Form="_form" Validation="_validation" DiagnosticCodes="_diagnostics"
+                             InvalidFields="_form.InputDiagnostics" SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                             CorrectField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }"
+                             EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask" />
         @foreach (var prepared in _prepared)
         {
             <div class="configuration-editor__artifact" @key="prepared">
-                <ConfigurationFiles @ref="prepared.View" Metadata="prepared.Metadata" Locale="@_form.Locale"
+                <ConfigurationFiles @ref="prepared.View" Metadata="prepared.Metadata" Form="_form" Locale="@_form.Locale"
                                     Revealed="@prepared.Revealed" StatusKey="@prepared.StatusKey" StatusCode="@prepared.StatusCode"
                                     Copy="() => IsCurrentView(actionForm, actionView) ? CopyAsync(prepared) : Task.CompletedTask"
                                     Download="() => IsCurrentView(actionForm, actionView) ? DownloadAsync(prepared) : Task.CompletedTask"

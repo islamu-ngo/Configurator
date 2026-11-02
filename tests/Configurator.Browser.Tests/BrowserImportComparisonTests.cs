@@ -12,6 +12,25 @@ using Microsoft.AspNetCore.Components.Web;
 public sealed class BrowserImportComparisonTests
 {
     [Test]
+    public async Task AmbiguousOutputRequiresFormatSelectionBeforeReading()
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        JsonNode second = source["artifacts"]![0]!.DeepClone();
+        second["id"] = "second";
+        second["fileName"] = "second.json";
+        source["artifacts"]!.AsArray().Add(second);
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
+            SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()))));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("");
+        using var stream = new MemoryStream("{}"u8.ToArray());
+        await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+        await Assert.That(stream.Position).IsEqualTo(0);
+        await Assert.That(component.Find("#artifact-import").HasAttribute("disabled")).IsTrue();
+    }
+
+    [Test]
     [Arguments("""{"obsolete-private-name":"synthetic-unknown-secret"}""")]
     [Arguments("""{"obsolete-private-name":"synthetic-malformed-secret""")]
     public async Task PublicOnlyDefinitionCannotConsumeUnknownOrMalformedInputWithoutConsent(string text)
@@ -35,7 +54,7 @@ public sealed class BrowserImportComparisonTests
     }
 
     [Test]
-    public async Task DefaultComparisonPreservesAnswersRevisionAndPreparedOutput()
+    public async Task ExplicitComparisonPreservesAnswersRevisionAndPreparedOutput()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
@@ -45,6 +64,7 @@ public sealed class BrowserImportComparisonTests
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await BrowserFixture.PrepareAsync(component, draft: true);
         await BrowserFixture.SelectPanelAsync(component, "configure");
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         long revision = form.InputRevision;
         using var stream = new MemoryStream("""{"mode":"single","hostname":"file.test","credential":"synthetic-compared-secret"}"""u8.ToArray());
 
@@ -67,12 +87,13 @@ public sealed class BrowserImportComparisonTests
     }
 
     [Test]
-    public async Task DefaultComparisonDoesNotCommitInvalidDraftOrRefreshItsControl()
+    public async Task ExplicitComparisonDoesNotCommitInvalidDraftOrRefreshItsControl()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "invalid draft" });
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
         string[] diagnostics = form.InputDiagnostics.Select(item => item.Code).ToArray();
@@ -93,9 +114,9 @@ public sealed class BrowserImportComparisonTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await Assert.That(component.Find("#import-purpose").GetAttribute("value")).IsEqualTo("compare");
+        await Assert.That(component.Find("#import-purpose").GetAttribute("value")).IsEqualTo("fill");
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
-        if (purpose == "fill")
+        if (purpose == "compare")
             await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = purpose });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
@@ -123,6 +144,7 @@ public sealed class BrowserImportComparisonTests
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         int inputs = 0, views = 0, comparisons = 0;
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         form.InputChanged += (_, _) => inputs++;
         form.ViewChanged += (_, _) => views++;
         form.ImportComparisonChanged += (_, _) => comparisons++;

@@ -2,65 +2,6 @@
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
 
-@if (ShowEffects && Form is not null)
-{
-    <section class="configuration-review__effects" data-review-effects aria-label="@Ui("ReviewEffects")">
-        <p>@Ui("ReviewEffectsHelp")</p>
-        <p>@Ui("ReviewDeclaredOutputs")</p>
-        <ul class="configuration-review__outputs">
-            @foreach (var artifact in Definition.Artifacts)
-            {
-                <li data-review-output="@artifact.Id"><strong>@artifact.FileName</strong> · @artifact.Format · @artifact.ApplySemantics · @UiFormat("ReviewRestart", artifact.Restart)</li>
-            }
-        </ul>
-        <div class="actions">
-            <label><input id="review-include-omitted" type="checkbox" checked="@_includeOmitted" @onchange="IncludeOmitted" /> @Ui("ReviewInspectOmitted")</label>
-            <label><input id="review-include-inactive" type="checkbox" checked="@_includeInactive" @onchange="IncludeInactive" /> @Ui("ReviewInspectInactive")</label>
-        </div>
-        <p data-review-count="@_entries.Count">@UiFormat("ReviewSettingsCount", _entries.Count)</p>
-        <ul class="configuration-review__answers">
-            @foreach (var entry in _entries.Skip(_page * PageSize).Take(PageSize))
-            {
-                var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, entry.RelativePath);
-                <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
-                    data-review-path="@string.Join(".", new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
-                    <div class="configuration-review__answer">
-                        <strong>@FieldTitle(diagnostic)</strong>
-                        @if (entry.IsActive)
-                        {
-                            <button type="button" class="button button--secondary" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
-                                    aria-label="@UiFormat("ReviewChangeField", FieldTitle(diagnostic))">@Ui("ReviewChange")</button>
-                        }
-                    </div>
-                    <p>@OriginText(entry.Origin) · @StateText(entry)</p>
-                    @if (entry.Sensitivity != SetupFieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
-                    {
-                        <p>@Ui("ReviewPrivateMasked")</p>
-                    }
-                    @if (entry.OutputArtifactIds.Count > 0)
-                    {
-                        <details><summary>@Ui("ReviewBindings")</summary>
-                            <p>@string.Join(", ", entry.OutputArtifactIds)</p>
-                            <p>@string.Join(", ", entry.BindingKeys)</p>
-                            <p>@Ui("ReviewBindingsHelp")</p>
-                        </details>
-                    }
-                </li>
-            }
-        </ul>
-        @if (_entries.Count > PageSize)
-        {
-            <nav class="actions" aria-label="@Ui("ReviewPages")">
-                <button type="button" class="button button--secondary" data-action="review-previous"
-                        disabled="@(_page == 0)" @onclick="() => _page--">@Ui("ReviewPrevious")</button>
-                <span role="status">@UiFormat("ReviewPage", _page + 1, PageCount)</span>
-                <button type="button" class="button button--secondary" data-action="review-next"
-                        disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">@Ui("ReviewNext")</button>
-            </nav>
-        }
-    </section>
-}
-
 @if (Validation is not null || DiagnosticCodes.Count > 0 || InvalidFields.Count > 0)
 {
     <section class="configuration-review" aria-labelledby="configuration-review-heading" role="@(DiagnosticCodes.Count > 0 ? "alert" : null)">
@@ -93,6 +34,66 @@
             <div class="actions">
                 <AppButton Variant="Variant.Outlined" data-action="enable-secret-entry" OnClick="() => EnableSecrets.InvokeAsync()">@Ui("EnableWorkspaceSecrets")</AppButton>
             </div>
+        }
+    </section>
+}
+
+@if (ShowEffects && Form is not null)
+{
+    <section class="configuration-review__effects" data-review-effects aria-label="@Ui("ReviewEffects")">
+        <p>@Ui("ReviewEffectsHelp")</p>
+        <p>@Ui("ReviewDeclaredOutputs")</p>
+        <ul class="configuration-review__outputs">
+            @foreach (var artifact in SelectedArtifacts())
+            {
+                <li data-review-output="@artifact.Id"><strong>@artifact.FileName</strong> · @artifact.Format · @artifact.ApplySemantics · @UiFormat("ReviewRestart", artifact.Restart)</li>
+            }
+        </ul>
+        <div class="actions">
+            <label><input id="review-include-omitted" type="checkbox" checked="@_includeOmitted" @onchange="IncludeOmitted" /> @Ui("ReviewInspectOmitted")</label>
+            <label><input id="review-include-inactive" type="checkbox" checked="@_includeInactive" @onchange="IncludeInactive" /> @Ui("ReviewInspectInactive")</label>
+        </div>
+        <p data-review-count="@_entries.Count">@UiFormat("ReviewSettingsCount", _entries.Count)</p>
+        <ul class="configuration-review__answers">
+            @foreach (var entry in _entries.Skip(_page * PageSize).Take(PageSize))
+            {
+                var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, entry.RelativePath);
+                <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
+                    data-review-path="@string.Join(".", new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
+                    <div class="configuration-review__answer">
+                        <strong>@FieldTitle(diagnostic)</strong>
+                        @if (entry.IsActive)
+                        {
+                            <button type="button" class="button button--secondary" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
+                                    aria-label="@UiFormat("ReviewChangeField", FieldTitle(diagnostic))">@Ui("ReviewChange")</button>
+                        }
+                    </div>
+                    <p>@StateText(entry)</p>
+                    @if (entry.Sensitivity != SetupFieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
+                    {
+                        <p>@Ui("ReviewPrivateMasked")</p>
+                    }
+                    @if (entry.OutputArtifactIds.Count > 0)
+                    {
+                        <details><summary>@Ui("ReviewBindings")</summary>
+                            <p>@OriginText(entry.Origin)</p>
+                            <p>@string.Join(", ", entry.OutputArtifactIds)</p>
+                            <p>@string.Join(", ", entry.BindingKeys)</p>
+                            <p>@Ui("ReviewBindingsHelp")</p>
+                        </details>
+                    }
+                </li>
+            }
+        </ul>
+        @if (_entries.Count > PageSize)
+        {
+            <nav class="actions" aria-label="@Ui("ReviewPages")">
+                <button type="button" class="button button--secondary" data-action="review-previous"
+                        disabled="@(_page == 0)" @onclick="() => _page--">@Ui("ReviewPrevious")</button>
+                <span role="status">@UiFormat("ReviewPage", _page + 1, PageCount)</span>
+                <button type="button" class="button button--secondary" data-action="review-next"
+                        disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">@Ui("ReviewNext")</button>
+            </nav>
         }
     </section>
 }
@@ -154,13 +155,23 @@
         {
             var projection = Form.Projection;
             var relevant = projection.RelevantEntries.ToHashSet();
-            _entries = projection.Entries.Where(entry => relevant.Contains(entry) ||
+            string? selectorField = Definition.Presentation?.OutputSelector is { } selector
+                ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
+            _entries = projection.Entries.Where(entry => (relevant.Contains(entry) && entry.FieldId != selectorField) ||
                 (entry.IsActive ? _includeOmitted : _includeInactive)).ToArray();
         }
         else _entries = [];
         _page = Math.Min(_page, PageCount - 1);
     }
     private string Ui(string key) => BrowserStrings.Get(key, Form?.Locale ?? "en");
+    private IEnumerable<SetupArtifactDefinition> SelectedArtifacts()
+    {
+        if (Definition.Presentation?.OutputSelector is not { } selector || Form is null)
+            return Definition.Artifacts;
+        if (!Form.Validate().TryGetEffectiveValue(selector.Location, out var value)) return [];
+        var option = selector.Options.FirstOrDefault(option => option.Value == value.GetString());
+        return option is null ? [] : Definition.Artifacts.Where(artifact => option.ArtifactIds.Contains(artifact.Id));
+    }
     private string UiFormat(string key, params object[] values) =>
         string.Format(CultureInfo.GetCultureInfo(Form?.Locale ?? "en"), Ui(key), values);
     private string OriginText(DefinitionAnswerOrigin origin) => Ui(origin switch
@@ -192,6 +203,9 @@
     }
     private string FieldTitle(DefinitionDiagnostic diagnostic)
     {
+        var entry = Form?.Projection.Entries.FirstOrDefault(entry => entry.FieldId == diagnostic.FieldId &&
+            entry.RelativePath.SequenceEqual(diagnostic.RelativePath));
+        if (entry is not null) return entry.Title;
         if (!_fieldsById.TryGetValue(diagnostic.FieldId, out var field)) return Ui("ReviewPreparation");
         var titles = new List<string> { ConfigurationDiagnosticText.Title(field) };
         DefinitionNode node = field.Node;

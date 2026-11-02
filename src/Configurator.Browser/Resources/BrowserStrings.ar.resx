@@ -269,7 +269,7 @@
   <data name="EnableWorkspaceSecrets" xml:space="preserve"><value>تمكين إدخال الأسرار لمساحة العمل هذه</value></data>
   <data name="WorkspaceSecretHelp" xml:space="preserve"><value>مطلوب قبل قراءة أي ملف إعدادات، بما في ذلك المحتوى غير المعروف. تبقى القيم محجوبة؛ ويؤدي إيقاف هذا الخيار إلى إنهاء المقارنات ومسح الإجابات السرية وإبطال الملفات المحضّرة.</value></data>
   <data name="StartExistingConfiguration" xml:space="preserve"><value>البدء من إعدادات موجودة</value></data>
-  <data name="ArtifactImportHelp" xml:space="preserve"><value>الحد الأقصى 1 MiB، وتتم القراءة محليًا دون رفع. قد يحتوي أي ملف على أسرار، حتى إن كان محتواه قديمًا أو غير صالح؛ فعّل الموافقة على إدخال الأسرار أعلاه قبل القراءة. لا تغيّر المقارنة الإجابات أو المسودات أو الملفات المحضّرة.</value></data>
+  <data name="ArtifactImportHelp" xml:space="preserve"><value>الحد الأقصى 1 MiB، وتتم القراءة محليًا دون رفع. قد يحتوي أي ملف على أسرار، حتى إن كان محتواه قديمًا أو غير صالح؛ فعّل الموافقة على إدخال الأسرار قبل القراءة. لا تغيّر المقارنة الإجابات أو المسودات أو الملفات المحضّرة.</value></data>
   <data name="ImportPurpose" xml:space="preserve"><value>الغرض</value></data>
   <data name="CompareDefinition" xml:space="preserve"><value>المقارنة مع هذا التعريف</value></data>
   <data name="FillFields" xml:space="preserve"><value>تعبئة الحقول</value></data>
@@ -307,7 +307,8 @@
   <data name="AnswersBudgetExceededStatus" xml:space="preserve"><value>تتجاوز الإجابات حد التحضير المشترك. قلّل أحجام المدخلات قبل تحضير الإعدادات.</value></data>
   <data name="InputBudgetExceededStatus" xml:space="preserve"><value>تجاوز أحد المدخلات حد التحضير المشترك. قلّل محتوى الحقل المرفوض أو امسحه قبل تحضير الإعدادات.</value></data>
   <data name="InputTypeInvalidStatus" xml:space="preserve"><value>صحّح قيم الحقول غير الصالحة قبل تحضير الإعدادات.</value></data>
-  <data name="PreparationRejectedStatus" xml:space="preserve"><value>لم تُحضّر أي إعدادات. صحّح الإعدادات المطلوبة أو قلّل حجم المخرجات.</value></data>
+  <data name="PreparationRejectedStatus" xml:space="preserve"><value>لم تُحضّر ملفات. اتبع التصحيحات أدناه. احتُفظ بإجاباتك وأُلغيت صلاحية الملفات المحضّرة سابقًا.</value></data>
+  <data name="ImportChooseFormat" xml:space="preserve"><value>اختر تنسيق الملف</value></data>
   <data name="PreparationRetryStatus" xml:space="preserve"><value>لم تُحضّر أي إعدادات. أعد تحضير مساحة العمل الحالية.</value></data>
   <data name="PreparedDraftStatus" xml:space="preserve"><value>عدد ملفات المسودة المحضّرة: {0}. لا تزال الأسرار المؤجّلة أو المخرجات المحجوبة تتطلب الإكمال.</value></data>
   <data name="PreparedDraftsStatus" xml:space="preserve"><value>عدد ملفات المسودة المحضّرة: {0}. لا تزال الأسرار المؤجّلة أو المخرجات المحجوبة تتطلب الإكمال.</value></data>
@@ -328,4 +329,24 @@
   <data name="WorkspaceClearedStatus" xml:space="preserve"><value>مُسحت الإجابات والمخرجات. إدخال الأسرار معطّل. ابدأ مساحة عمل محلية جديدة للمتابعة.</value></data>
   <data name="EntrySourceRecovery" xml:space="preserve"><value>تحقق من رابط تعريف HTTPS العام وخياراته، أو افتح ملف التعريف الأصلي بصيغة JSON أو YAML من جهازك. لم تتم استعادة أي إجابات.</value></data>
   <data name="EntryReopenHelp" xml:space="preserve"><value>قد لا يتوفر التعريف المفتوح في هذه الجلسة فقط بعد إعادة التحميل. أعد فتح ملف التعريف الأصلي أو رابطه العام لبدء مساحة عمل جديدة. لا تُخزّن إجاباتك السابقة.</value></data>
+  <data name="HelpTitle" xml:space="preserve"><value>المساعدة في الإعداد</value></data>
+  <data name="HelpChooseTitle" xml:space="preserve"><value>اختر مشروعك ومهمتك</value></data>
+  <data name="HelpChooseBody" xml:space="preserve"><value>اختر مشروعًا من الكتالوج، أو افتح تعريفًا مخصصًا بصيغة JSON أو YAML أو رابط HTTPS عامًا. تحدّد المراجعة الدقيقة المحتوى؛ ولا تثبت أسماء الناشرين أو عضوية الدليل هويتهم.</value></data>
+  <data name="HelpProjects" xml:space="preserve"><value>تصفّح المشاريع</value></data>
+  <data name="HelpCustomDefinition" xml:space="preserve"><value>افتح تعريفًا مخصصًا</value></data>
+  <data name="HelpWorkTitle" xml:space="preserve"><value>أعدّ وراجع ونزّل</value></data>
+  <data name="HelpWorkBody" xml:space="preserve"><value>أكمل الأسئلة الأساسية ثم استخدم المراجعة للوصول إلى التصحيحات المتبقية. تحضّر الملفات إعدادًا كاملًا أو مسودة غير مكتملة باختيارك. التنزيل متاح دون كشف الملف أو نسخه أولًا.</value></data>
+  <data name="HelpReuseBody" xml:space="preserve"><value>يعيد البدء من إعداد موجود استخدام ملف محلي عبر ملء الحقول. اختر المقارنة مع هذا التعريف للفحص فقط. تتطلب قراءة الملف الموافقة في الحالتين، ولا تُستبدل الإجابات المتعارضة تلقائيًا.</value></data>
+  <data name="HelpCustodyTitle" xml:space="preserve"><value>تحكّم في إجاباتك</value></data>
+  <data name="HelpCustodyBody" xml:space="preserve"><value>تبقى الإجابات والملفات المحضّرة في علامة التبويب، خارج تفضيلات المظهر وذاكرة التخزين العامة. يمحوها الإغلاق أو إعادة التحميل. تطلب مغادرة مساحة العمل تأكيد التخلي عن العمل الحالي.</value></data>
+  <data name="HelpSecretsBody" xml:space="preserve"><value>يتطلب إدخال الأسرار موافقة لكل مساحة عمل. يمحو سحب الموافقة الإجابات السرية والمخرجات المحضّرة. تظل مسودة الأسرار المؤجلة بحاجة إلى الإكمال. ينقل النسخ والتنزيل الملفات عمدًا إلى وجهتك المختارة.</value></data>
+  <data name="HelpTargetBody" xml:space="preserve"><value>لا يضمن تنزيل المتصفح أذونات الملفات المحلية المقيّدة. يتحقق التطبيق الهدف من الملفات ويأذن باستخدامها؛ ولا يعني التحضير قبولها أو تطبيقها.</value></data>
+  <data name="HelpOfflineTitle" xml:space="preserve"><value>العمل دون اتصال</value></data>
+  <data name="HelpOfflineBody" xml:space="preserve"><value>استخدم فتح الإعداد أثناء الاتصال لتهيئة التطبيق للعمل دون اتصال. احتفظ بالتعريفات بعد التأكد من أنها محتوى عام آمن فقط. لا تحتوي التعريفات المخزنة على إجابات. الدليل اختياري للتعريفات المضمّنة أو المحلية.</value></data>
+  <data name="HelpAppearanceTitle" xml:space="preserve"><value>ضبط العرض</value></data>
+  <data name="HelpAppearanceBody" xml:space="preserve"><value>افتح الإعدادات في قائمة التنقل لاختيار المظهر والتباين واتجاه النص. لا تغيّر هذه التفضيلات المحلية إجابات الإعداد. تتضمن أدوات مساحة العمل أوضاع التحرير وخيارات العرض المتاحة.</value></data>
+  <data name="FilesDeferredSecret" xml:space="preserve"><value>سر مؤجّل</value></data>
+  <data name="FilesDeferredRequired" xml:space="preserve"><value>مطلوب: أدخل هذه القيمة قبل استخدام الإعداد.</value></data>
+  <data name="FilesDeferredOptional" xml:space="preserve"><value>سر اختياري محجوب: حدّد ما إذا كانت الخدمة تحتاج قيمة قبل الاستخدام.</value></data>
+  <data name="FilesDeferredUnknown" xml:space="preserve"><value>تحقق من موضع الإكمال هذا وفق متطلبات التطبيق الهدف قبل الاستخدام.</value></data>
 </root>
