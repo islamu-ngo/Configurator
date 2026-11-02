@@ -1,3 +1,4 @@
+using Configurator.Core.Dotenv;
 namespace Configurator.Presentation;
 
 using System.Security.Cryptography;
@@ -164,7 +165,7 @@ public sealed class DefinitionDocumentSession : IDisposable
             generation = _generation;
         }
         if (source.Length > (Representation == DefinitionDocumentRepresentation.Environment
-            ? Configurator.Core.Environment.DotenvCodec.MaximumFileUtf8Bytes
+            ? Configurator.Core.Dotenv.DotenvCodec.MaximumFileUtf8Bytes
             : Configurator.Core.Composition.CompositionLimits.DefaultAggregateSourceBytes))
             return DefinitionDocumentParseResult.Reject("document-limit");
         // Snapshot caller memory before admission; a published candidate never refers to it.

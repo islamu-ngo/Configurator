@@ -1,3 +1,4 @@
+using Configurator.Core.Dotenv;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Runtime.InteropServices;

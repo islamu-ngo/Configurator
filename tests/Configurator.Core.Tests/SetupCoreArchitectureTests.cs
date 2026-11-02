@@ -1,3 +1,4 @@
+using Configurator.Core.Dotenv;
 namespace Configurator.Core.Tests;
 
 using System.Collections;
@@ -240,8 +241,7 @@ internal static class SetupCoreAssemblyVerifier
         foreach (Type type in closure)
         {
             bool isPublicContract = type.IsPublic || type.IsNestedPublic;
-            bool isEnvironmentContract = string.Equals(
-                type.Namespace, "Configurator.Core.Environment", StringComparison.Ordinal);
+            bool isEnvironmentContract = type.Namespace is "Configurator.Core.Environment" or "Configurator.Core.Dotenv";
             bool isCompositionContract = string.Equals(
                 type.Namespace, CompositionNamespace, StringComparison.Ordinal);
             if (isPublicContract

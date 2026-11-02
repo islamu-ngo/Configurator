@@ -1,3 +1,4 @@
+using Configurator.Core.Dotenv;
 namespace Configurator.Browser.Components.Configuration;
 
 using System.Buffers;

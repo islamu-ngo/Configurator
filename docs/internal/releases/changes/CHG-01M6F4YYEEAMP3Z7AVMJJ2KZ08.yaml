@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6F4YYEEAMP3Z7AVMJJ2KZ08
+Title: "Align dotenv types with their source namespace"
+Type: refactor
+Scope: architecture
+Summary: "Use Configurator.Core.Dotenv for dotenv-specific source contracts and update their callers."
+Group: dotenv-namespace
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITIONS.md
+    Disposition: documented
+    Detail: Replace Configurator.Core.Environment imports for dotenv types with Configurator.Core.Dotenv.
+  Security:
+    Reference: docs/internal/CORE_DEFINITIONS.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/CORE_DEFINITIONS.md
+    Disposition: documented
+    Detail: Recompile consumers after updating dotenv namespace references.
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITIONS.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITIONS.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CORE_DEFINITIONS.md
+    Disposition: not-applicable

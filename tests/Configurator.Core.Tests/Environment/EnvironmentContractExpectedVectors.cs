@@ -1,3 +1,4 @@
+using Configurator.Core.Dotenv;
 namespace Configurator.Core.Tests.EnvironmentTests;
 
 using System.Text;

@@ -1,6 +1,7 @@
-namespace Configurator.Core.Environment;
+namespace Configurator.Core.Dotenv;
 
 using System.Text;
+using Configurator.Core.Environment;
 
 public static class DotenvCodec
 {
@@ -329,14 +330,4 @@ public static class DotenvCodec
 
     private static IEnumerable<EnvironmentDiagnostic> Ordered(IEnumerable<EnvironmentDiagnostic> values) =>
         values.OrderBy(item => item.Path, StringComparer.Ordinal).ThenBy(item => item.Code, StringComparer.Ordinal);
-}
-
-internal static class DotenvSpanExtensions
-{
-    internal static bool All(this ReadOnlySpan<char> value, Func<char, bool> predicate)
-    {
-        foreach (char character in value)
-            if (!predicate(character)) return false;
-        return true;
-    }
 }

@@ -1,3 +1,4 @@
+using Configurator.Core.Dotenv;
 namespace Configurator.Core.Definitions.Authoring;
 
 using System.Security.Cryptography;
