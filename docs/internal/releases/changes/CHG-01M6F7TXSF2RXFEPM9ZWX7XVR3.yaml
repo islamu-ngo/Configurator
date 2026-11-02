@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6F7TXSF2RXFEPM9ZWX7XVR3
+Title: "give desktop projections cohesive source owners"
+Type: refactor
+Scope: architecture
+Summary: "give desktop projections cohesive source owners."
+Group: desktop-06-types
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Replace VariantFieldViewModel.VariantChoice references with the namespace-level VariantChoice type and rebuild C# consumers."
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Replace VariantFieldViewModel.VariantChoice references with the namespace-level VariantChoice type and rebuild C# consumers."
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable

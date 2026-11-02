@@ -1,7 +1,6 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
 using System.Text.Json;
-using CommunityToolkit.Mvvm.ComponentModel;
 using Configurator.Core.Definitions;
 
 public sealed class EnumFieldViewModel : FieldViewModel
@@ -57,13 +56,4 @@ public sealed class EnumFieldViewModel : FieldViewModel
     }
     protected override void NotifyValue() => OnPropertyChanged(nameof(SelectedIndex));
 
-}
-
-public sealed class EnumChoice : ObservableObject
-{
-    private string _label;
-    internal EnumChoice(int index, string label) { Index = index; _label = label; }
-    public int Index { get; }
-    public string Label => _label;
-    internal void UpdateLabel(string label) => SetProperty(ref _label, label, nameof(Label));
 }

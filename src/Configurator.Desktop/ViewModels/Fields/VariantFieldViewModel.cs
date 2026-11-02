@@ -2,7 +2,6 @@ namespace Configurator.Desktop.ViewModels.Fields;
 
 using System.Collections.ObjectModel;
 using System.Text.Json;
-using CommunityToolkit.Mvvm.ComponentModel;
 using Configurator.Core.Definitions;
 
 public sealed class VariantFieldViewModel : FieldViewModel
@@ -74,12 +73,4 @@ public sealed class VariantFieldViewModel : FieldViewModel
         SetProperty(ref _selectedChoice, null, nameof(SelectedChoice));
     }
 
-    public sealed class VariantChoice : ObservableObject
-    {
-        private string _title = "";
-        internal VariantChoice(int index) => Index = index;
-        public int Index { get; }
-        public string Title => _title;
-        internal void UpdateTitle(string title) => SetProperty(ref _title, title, nameof(Title));
-    }
 }
