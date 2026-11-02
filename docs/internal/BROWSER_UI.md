@@ -138,6 +138,13 @@ select the shared document session, not a second answer dictionary. Public
 coverage is available without consent. Source acquisition and editor mounting
 require the current workspace's enabled privacy state.
 
+The component lifecycle and JavaScript lease remain in its code-behind;
+`ConfigurationDeveloper.Operations.cs` groups document preview, application and
+formatting. `ConfigurationEditor.Import.cs` owns bounded reads/comparison and
+`ConfigurationEditor.Publication.cs` groups preparation and deliberate export.
+These partials share the existing component state and generation checks; they
+do not introduce parallel workspaces, locks or independent mutation authority.
+
 Source admission and editor DOM construction use separate tasks through the
 existing `js/configuration-rendering.js.nextFrame` boundary. The component owns the
 acquired byte array until transfer, rechecks its lease after the yield and clears
