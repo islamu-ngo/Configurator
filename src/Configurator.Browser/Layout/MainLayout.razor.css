@@ -11,7 +11,7 @@
     inline-size: 100%;
     max-inline-size: var(--isl-content-width);
     margin-inline: auto;
-    padding: var(--isl-space-10) var(--isl-space-8);
+    padding: var(--isl-space-4) var(--isl-space-6);
     min-inline-size: 0;
 }
 

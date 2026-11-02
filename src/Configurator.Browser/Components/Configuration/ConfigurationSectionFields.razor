@@ -11,7 +11,7 @@
             {
                 <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
                                     Validation="Validation" RequiredOverride="state.IsRequired"
-                                    TitleOverride="@(editor.Schema.Keywords.TryGetProperty("title", out _) ? Form.GetEditorPresentation(new[] { state.Id })?.Title : ConfigurationDiagnosticText.Title(state.Definition))"
+                                    TitleOverride="@(editor.Schema.Keywords.TryGetProperty("title", out _) ? null : ConfigurationDiagnosticText.Title(state.Definition))"
                                     FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
                                     FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
             }

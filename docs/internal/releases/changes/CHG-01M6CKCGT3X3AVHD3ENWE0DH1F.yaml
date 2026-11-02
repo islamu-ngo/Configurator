@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6CKCGT3X3AVHD3ENWE0DH1F
+Title: "Compact task workspace and operable setting search"
+Type: feat
+Scope: browser
+Summary: "Place configuration sections and search results first, expose optional editor tools through disclosures, and retain revision-fenced correction and consent controls."
+Group: browser-ux-simplification
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+  OpenAPI:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented

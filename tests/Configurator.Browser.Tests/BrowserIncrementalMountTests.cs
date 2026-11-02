@@ -330,7 +330,7 @@ public sealed class BrowserIncrementalMountTests
                 ["x-configurator"] = new JsonObject
                 {
                     ["sensitivity"] = secret && index == 1 ? "secret" : "public",
-                    ["detail"] = index < 4 ? "basic" : advancedTail ? "advanced" : "standard"
+                    ["detail"] = advancedTail && index >= 4 ? "advanced" : "basic"
                 }
             };
         source["revision"] = revision;

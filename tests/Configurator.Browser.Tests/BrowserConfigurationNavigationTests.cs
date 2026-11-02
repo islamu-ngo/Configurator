@@ -10,6 +10,46 @@ using Microsoft.AspNetCore.Components.Web;
 public sealed class BrowserConfigurationNavigationTests
 {
     [Test]
+    public async Task EditorModeFocusTargetsTheMountedPanelWithoutChangingAnswers()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, GroupedDefinition()));
+        var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
+        long revision = form.InputRevision;
+
+        await component.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0])
+            .IsEqualTo(component.FindComponent<ConfigurationDeveloper>().Instance.Heading!.Value);
+
+        await component.Find("[data-editing-mode='form']").ClickAsync(new MouseEventArgs());
+        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0])
+            .IsEqualTo(component.FindComponent<ConfigurationConfigurePanel>().Instance.SectionHeading!.Value);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
+    [Arguments("standard")]
+    [Arguments("advanced")]
+    public async Task AuthoredOptionalTuningDisclosurePreservesTheAcceptedRevision(string detail)
+    {
+        JsonNode document = JsonNode.Parse(GroupedDefinition().CanonicalBytes.Span)!;
+        BrowserFixture.WithField(document, "tuning", """
+            {"type":"string","title":"Optional tuning","x-configurator":{"sensitivity":"public","detail":"advanced"}}
+            """);
+        document["presentation"]!["sections"]![0]!["pointers"]!.AsArray().Add("/tuning");
+        document["configuration"]!["properties"]!["tuning"]!["x-configurator"]!["detail"] = detail;
+        SetupDefinition definition = SetupDefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(component.FindAll("[data-field='tuning'] input")).IsEmpty();
+        await component.Find("[data-action='show-section-options']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-field='tuning'] input")).Count().IsEqualTo(1);
+        await Assert.That(form.InputRevision).IsEqualTo(0);
+        await Assert.That(form.Definition.Digest).IsEqualTo(definition.Digest);
+    }
+
+    [Test]
     public async Task SectionSwitchingPreservesConsentAnswersAndPinnedIdentity()
     {
         SetupDefinition definition = GroupedDefinition();

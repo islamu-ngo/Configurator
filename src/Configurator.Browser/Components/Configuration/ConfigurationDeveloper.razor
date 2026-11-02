@@ -2,7 +2,7 @@
 @using Configurator.Presentation
 
 <section class="configuration-developer" data-developer-panel dir="@Form.Direction" aria-labelledby="@(_id + "-title")">
-    <h3 class="configuration-developer__heading" id="@(_id + "-title")">@Text("Title")</h3>
+    <h3 @ref="_heading" class="configuration-developer__heading" id="@(_id + "-title")" tabindex="-1">@Text("Title")</h3>
     <p>@Text("Introduction")</p>
     <div class="configuration-developer__controls">
         <div class="configuration-developer__choice">

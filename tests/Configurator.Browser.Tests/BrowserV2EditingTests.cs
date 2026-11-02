@@ -62,7 +62,7 @@ public sealed class BrowserV2EditingTests
         long revision = form.InputRevision;
         await Assert.That(editor.Find(".configuration-editor").GetAttribute("lang")).IsEqualTo("ar");
         await Assert.That(editor.Find(".configuration-editor").GetAttribute("dir")).IsEqualTo("rtl");
-        await Assert.That(editor.Find("[data-field='choice'] .configuration-field__label").TextContent).Contains("Translated choice");
+        await Assert.That(editor.Find("[data-field='choice'] label[for]").TextContent).Contains("Translated choice");
         editor.Find("#configuration-locale").Change("en");
         await Assert.That(editor.Find(".configuration-editor").GetAttribute("dir")).IsEqualTo("ltr");
         await Assert.That(form.InputRevision).IsEqualTo(revision);
@@ -77,7 +77,7 @@ public sealed class BrowserV2EditingTests
         var field = context.Render<ConfigurationField>(parameters => parameters
             .Add(component => component.Form, form).Add(component => component.Path, ["choice"])
             .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "choice").Node));
-        await Assert.That(field.FindComponents<MudRadio<string>>().Select(item => item.Instance.Value))
+        await Assert.That(field.FindComponents<MudSelectItem<string>>().Select(item => item.Instance.Value))
             .IsEquivalentTo(ChoiceOrdinals);
         var staleReset = field.FindComponent<ConfigurationFieldActions>().Instance.OnReset;
         await field.InvokeAsync(() => field.FindComponent<ConfigurationFieldActions>().Instance.OnSuggest.InvokeAsync());

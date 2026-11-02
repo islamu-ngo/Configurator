@@ -120,16 +120,31 @@ revision and computed digest without making that metadata the main editing task.
 
 ### Workspace Layout & Appearance
 
-The desktop rail contains application and configuration-section navigation.
+The desktop rail puts configuration sections before application links.
 On narrow screens, **Menu** reveals navigation without squeezing a second rail
 beside the form. **Settings** contains System, Light, Dark and high-contrast themes,
 plus Automatic, left-to-right and right-to-left direction.
 
-The workspace keeps its output and language selectors above three real panels:
+The workspace keeps output and language selectors in **Output task and language** after the active panel. Its three panels are
 **Configure**, **Review** and **Files**. Only the current panel mounts interactive
 controls. Changing panels, sections or language preserves accepted answers,
-unfinished inputs, secret consent and the pinned definition. **Setting detail**
-contains secondary profile and Comfortable/Compact density controls.
+unfinished inputs, secret consent and the pinned definition. **Editor tools and detail**
+contains Form/Developer switching, profile and Comfortable/Compact density controls.
+Local Previous/Next actions move between sections; the final section leads to Review.
+Authored optional tuning starts collapsed, while required corrections remain
+reachable. Required text and choice controls expose the same requirement to
+assistive technology as their visible labels, including provider-dependent changes.
+**Show optional settings** opens the section's optional controls in
+one action; ordinary scalar answers do not need individual expansion.
+Definitions without an authored presentation retain direct editing.
+Closed choices use localized dropdowns with keyboard type-ahead and preserve
+their exact typed values; ordinary booleans retain their explicit yes/no choice.
+Masked closed choices offer declared replacements without revealing the current
+selection. Selecting one replaces the answer; use the existing Omit or Reset
+actions to remove an override. Secret replacements still require consent.
+Secret consent has its own disclosure, separate from editor tools. A denied
+field opens that consent control without enabling it. Once enabled, a revoke
+action remains visible in Configure, Review and Files.
 
 Leaving **Files** hides its private preview and retires pending file actions, but
 keeps the prepared bundle for a deliberate return. Editing, revoking consent,
@@ -164,7 +179,8 @@ Inputs dynamically adapt to their declared data types:
 ### Developer Editing
 
 **Configure** offers **Form** and **Developer** views over the same accepted
-workspace. Developer supports editable-answer JSON and, when available,
+workspace. Switching views focuses the visible panel heading. Developer supports
+editable-answer JSON and, when available,
 constrained **Environment** settings. Coverage identifies the editable public
 scope and excluded settings; this is not a complete private backup or a promise
 that an arbitrary existing output file can be imported.
@@ -232,6 +248,7 @@ Quickly locate specific questions using the built-in search palette:
 
 - **Keyboard Shortcut:** Press `Ctrl + K` or `Cmd + K` (or tap **Search settings** on mobile) to open search.
 - **Search Queries:** Searches match question titles, field IDs, concepts, and authored guidance.
+- **Results first:** Matching settings precede the optional search-filter disclosure. Search remains above the workspace controls on narrow screens; Escape returns to the search entry.
 - **Faceted Filters:** Filter settings by section, requirement, applicability, completion status, and sensitivity.
 - **Direct Navigation:** Selecting a search result navigates directly to the question and brings it into focus.
 

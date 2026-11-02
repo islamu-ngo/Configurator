@@ -6,6 +6,7 @@ using Bunit;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using MudBlazor;
 
 public sealed class BrowserSecretBoundaryTests
 {
@@ -120,7 +121,7 @@ public sealed class BrowserSecretBoundaryTests
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("private-canary");
         var mode = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["mode"]));
-        await Assert.That(mode.FindComponent<MudBlazor.MudRadioGroup<string>>().Instance.Value).IsEqualTo("");
+        await Assert.That(mode.FindComponent<MudBlazor.MudSelect<string>>().Instance.Value).IsEqualTo("");
     }
 
     [Test]
@@ -166,7 +167,14 @@ public sealed class BrowserSecretBoundaryTests
         await Assert.That(component.FindAll("[data-field='private'] input")).IsEmpty();
         component.Find("#secret-consent").Change(true);
         await Assert.That(component.FindAll("[data-field='private'] input")).Count().IsEqualTo(3);
-        await Assert.That(component.FindAll("[data-field='private'] input").All(input => input.GetAttribute("type") == "password")).IsTrue();
-        await Assert.That(component.FindAll("[data-field='private'] .configuration-field__choice")).IsEmpty();
+        await Assert.That(component.Find("[data-field='private.enabled'] input").GetAttribute("type")).IsEqualTo("password");
+        await Assert.That(component.Find("[data-field='private.count'] input").GetAttribute("type")).IsEqualTo("password");
+        var choice = component.FindComponents<ConfigurationField>().Single(field => field.Instance.Path.SequenceEqual(["private", "mode"]));
+        var form = choice.Instance.Form;
+        await component.InvokeAsync(() => choice.FindComponent<MudSelect<string>>().Instance.ValueChanged.InvokeAsync("1"));
+        await Assert.That(form.Snapshot().Values["private"].GetProperty("mode").GetString()).IsEqualTo("cluster");
+        await Assert.That(component.FindComponents<ConfigurationField>().Single(field => field.Instance.Path.SequenceEqual(["private", "mode"]))
+            .FindComponent<MudSelect<string>>().Instance.Value).IsEqualTo("");
+        await Assert.That(component.FindAll("[data-field='private.mode'] .configuration-field__choice").Count).IsEqualTo(1);
     }
 }

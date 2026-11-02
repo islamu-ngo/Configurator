@@ -27,6 +27,7 @@
     color: var(--isl-color-text);
     font: inherit;
 }
+.configuration-developer__heading:focus-visible,
 .configuration-developer__choice select:focus-visible,
 .configuration-developer__resolution h4:focus-visible {
     outline: var(--isl-space-1) solid var(--isl-focus-ring);

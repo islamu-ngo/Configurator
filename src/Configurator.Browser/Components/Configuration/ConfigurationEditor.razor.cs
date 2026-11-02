@@ -33,13 +33,15 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private (DefinitionFormModel Form, long Generation, FocusTarget Target)? _pendingFocus;
     private enum FocusTarget { Configure, Review, Files, Consent, Import, Start, Output }
     private int _requiredCount;
-    private ElementReference _configureHeading;
     private ElementReference _outputControl;
     private ConfigurationConfigurePanel? _configurePanel;
     private ConfigurationReviewPanel? _reviewPanel;
     private ConfigurationFilesPanel? _filesPanel;
     private ConfigurationDeveloper? _developerPanel;
     private bool _developerMode;
+    private bool _consentOpen;
+    private bool _taskToolsOpen;
+    private EventCallback _consentAction;
     private long _developerEpoch;
     private long _outputChoiceKey;
     private string _statusKey = "WorkspaceReadyStatus";
@@ -119,6 +121,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _focusField = null;
         _pinned = Definition;
         _compact = false;
+        _consentOpen = false;
+        _taskToolsOpen = false;
         ImportArtifacts = Definition.Artifacts.ToArray();
         _importCapabilities = ImportArtifacts.ToDictionary(artifact => artifact.Id,
             artifact => DefinitionImport.GetCapability(Definition, artifact.Id), StringComparer.Ordinal);
@@ -126,7 +130,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _ready = false;
         _beginPending = true;
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
-            BrowserLaunchSelection.EditingCapabilities, DefinitionEditorVisibilityPolicy.Direct);
+            BrowserLaunchSelection.EditingCapabilities, Definition.Presentation is null
+                ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
+        if (Definition.Presentation is not null) _form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
         if (InitialLocale is not null && !_form.SelectLocale(InitialLocale))
             throw new InvalidOperationException("locale-unsupported");
         if (InitialEntry is not null) _form.SelectOutput(InitialEntry);
@@ -141,6 +147,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         DefinitionFormModel form = _form;
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
         RegisterSearch();
+        RefreshConsentAction();
     }
 
     private void RegisterSearch()
@@ -152,14 +159,15 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _searchLease = lease = _search.Register(this, () => form.DiscoveryQuery,
             query => form.SetDiscovery(query), builder =>
             {
+                long inputRevision = form.InputRevision;
                 builder.OpenComponent<ConfigurationDiscovery>(0);
                 builder.AddAttribute(1, nameof(ConfigurationDiscovery.Form), form);
                 builder.AddAttribute(2, nameof(ConfigurationDiscovery.Navigate),
                     EventCallback.Factory.Create<DefinitionDiagnostic>(this, async diagnostic =>
                     {
-                        if (_disposed || !ReferenceEquals(form, _form) || lease != _search.Generation) return;
+                        if (_disposed || !ReferenceEquals(form, _form) || lease != _search.Generation || inputRevision != form.InputRevision) return;
                         if (!await ResolvePendingAsync() || _disposed || !ReferenceEquals(form, _form)
-                            || lease != _search.Generation) return;
+                            || lease != _search.Generation || inputRevision != form.InputRevision) return;
                         _search.CompleteNavigation(this, lease);
                         CorrectField(diagnostic);
                     }));
@@ -432,8 +440,23 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _pendingFocus = null;
         _focusField = null;
         _focusPath = [];
+        RefreshConsentAction();
     }
-    private void RequestFocus(FocusTarget target) => _pendingFocus = (_form!, _viewGeneration, target);
+    private void RefreshConsentAction()
+    {
+        DefinitionFormModel? form = _form;
+        long view = _viewGeneration;
+        _consentAction = EventCallback.Factory.Create(this, () =>
+        {
+            if (form is not null && IsCurrentView(form, view)) RequestFocus(FocusTarget.Consent);
+        });
+    }
+    private void RequestFocus(FocusTarget target)
+    {
+        if (target == FocusTarget.Consent) _consentOpen = true;
+        if (target == FocusTarget.Output) _taskToolsOpen = true;
+        _pendingFocus = (_form!, _viewGeneration, target);
+    }
     private void ChangeDetail(ChangeEventArgs args)
     {
         switch (args.Value)
@@ -848,7 +871,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (!IsCurrentView(request.Form, request.Generation)) return;
         ElementReference? target = request.Target switch
         {
-            FocusTarget.Configure when _ready && _activeWorkflowStage == "configure" => _configurePanel?.SectionHeading ?? _configureHeading,
+            FocusTarget.Configure when _ready && _activeWorkflowStage == "configure" => _developerMode
+                ? _developerPanel?.Heading : _configurePanel?.SectionHeading,
             FocusTarget.Review when _ready && _activeWorkflowStage == "review" => _reviewPanel?.Heading,
             FocusTarget.Files when _ready && _activeWorkflowStage == "prepare" => _filesPanel?.Heading,
             FocusTarget.Consent when _ready && _activeWorkflowStage == "configure" => _consentControl,
@@ -970,8 +994,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (!_disposed && ReferenceEquals(form, _form))
         {
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
-                editorVisibility: DefinitionEditorVisibilityPolicy.Direct);
+                editorVisibility: Definition.Presentation is null
+                    ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
+            if (Definition.Presentation is not null) _form.SetDisclosureOverride(SetupFieldDisclosure.Essential);
             _compact = false;
+            _consentOpen = false;
+            _taskToolsOpen = false;
             IndexSections();
             _form.InputChanged += InputChanged;
             _form.ViewChanged += ViewChanged;
@@ -979,6 +1007,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             _importPurpose = "fill";
             SelectCurrentImportArtifact();
             RegisterSearch();
+            RefreshConsentAction();
             _activeWorkflowStage = "configure";
             _requiredCount = _form.Projection.Progress.Required;
             _focusField = null;

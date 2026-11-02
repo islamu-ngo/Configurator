@@ -16,6 +16,34 @@ using Microsoft.JSInterop;
 
 public sealed class BrowserDeveloperEditingTests
 {
+    [Test]
+    public async Task EventProviderPreviewRejectsUnknownChoiceAndAppliesCorrectedWireValue()
+    {
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("c0d02619-0134-411b-b495-ef302f592669"));
+        await using var context = BrowserFixture.Context();
+        using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        await using var engine = Boundary(context);
+        var component = Render(context, form);
+        await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        const string source = """
+            {"answerContractVersion":1,"values":{"operation":"environment",
+             "select.feature.platform-config":true,"env.AUTHENTICATION_PROVIDER":"unsupported-synthetic-provider"},"omitted":[]}
+            """;
+        long revision = form.InputRevision;
+        await component.InvokeAsync(() => engine.ChangeAsync(source));
+        await Click(component, "developer-preview");
+        await Assert.That(component.FindAll("[data-developer-diagnostic]").Count > 0).IsTrue();
+        await Assert.That(component.FindAll("[data-action='developer-apply']:not([disabled])")).IsEmpty();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(component.Markup).DoesNotContain("unsupported-synthetic-provider");
+
+        await component.InvokeAsync(() => engine.ChangeAsync(source.Replace("unsupported-synthetic-provider", "local", StringComparison.Ordinal)));
+        await Click(component, "developer-preview");
+        await Click(component, "developer-apply");
+        await Assert.That(form.Snapshot().Values["env.AUTHENTICATION_PROVIDER"].GetString()).IsEqualTo("local");
+        await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
+    }
+
     private const string Pending = """{ "answerContractVersion":1, "values":{"mode":"single","hostname":"pending.test"}, "omitted":[] }""";
 
     [Test]

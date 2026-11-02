@@ -99,6 +99,7 @@ public sealed class BrowserCollectionWorkflowTests
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "example.test" });
         await BrowserFixture.SectionNavigation(context, component).Find($"[data-section='{rowsSection}']").ClickAsync(new MouseEventArgs());
         string[] names = ["alpha", "beta", "alpha"];
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "guided" });
         for (int index = 0; index < names.Length; index++)
         {
             await component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());

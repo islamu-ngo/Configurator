@@ -1,4 +1,6 @@
 .nav-menu__header {
+    position: relative;
+    z-index: var(--mud-zindex-popover);
     grid-area: header;
     display: flex;
     flex-wrap: wrap;

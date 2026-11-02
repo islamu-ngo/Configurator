@@ -21,6 +21,7 @@ public sealed class BrowserEventManifestWorkflowTests
         module.Setup<bool>("copy", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "operation", "configuration-manifest");
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "guided" });
         await component.Find("[data-field='configuration-manifest.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "qa-config" });
         await component.Find("[data-field='configuration-manifest.spec.instance.settings'] > fieldset > button").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").GetAttribute("type")).IsEqualTo("password");

@@ -15,6 +15,10 @@
             else if (IsSecret)
             {
                 <p data-secret-denied>@Ui("FieldSecretDenied")</p>
+                @if (RequestSecretConsent.HasDelegate)
+                {
+                    <button type="button" class="button button--secondary" data-action="field-secret-consent" @onclick="RequestSecretConsent">@Ui("ReviewSecretConsent")</button>
+                }
             }
         </div>
     }
@@ -148,6 +152,10 @@
                                            GetBindings="InspectorBindings" />
             </div>
             <p data-secret-denied>@Ui("FieldSecretDenied")</p>
+            @if (RequestSecretConsent.HasDelegate)
+            {
+                <button type="button" class="button button--secondary" data-action="field-secret-consent" @onclick="RequestSecretConsent">@Ui("ReviewSecretConsent")</button>
+            }
         }
         else
         {
@@ -174,7 +182,7 @@
                                        OnNull="@(() => SupplyNull(actionForm, actionPath, actionRevision, actionGeneration))"
                                        GetBindings="InspectorBindings" />
         </div>
-        @if ((type == "boolean" || HasChoices) && !isMasked)
+        @if (HasChoices || type == "boolean" && !isMasked)
         {
             var editForm = Form;
             var editPath = Path.ToArray();
@@ -184,59 +192,39 @@
             {
                 <div class="configuration-field__radios" @ref="_radioGroup">
                     <MudRadioGroup T="string" Name="@ControlId" Value="@Selection" Disabled="@(!canEdit)"
+                                   Required="@required" aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())"
                                    aria-labelledby="@(ControlId + "-label")" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
-                                   aria-required="@required.ToString().ToLowerInvariant()" aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())"
                                    ValueChanged="value => { if (Edit(new ChangeEventArgs { Value = value }, editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }">
                         <MudRadio T="string" Value="@string.Empty" AriaLabel="@Ui("NotSupplied")">
                             <span id="@(ControlId + "-absence-label")">@Ui("NotSupplied")</span>
                         </MudRadio>
-                        @if (!HasChoices)
-                        {
-                            <MudRadio T="string" Value="@("true")" AriaLabel="@Ui("Yes")">
-                                <span id="@(ControlId + "-yes-label")">@Ui("Yes")</span>
-                            </MudRadio>
-                            <MudRadio T="string" Value="@("false")" AriaLabel="@Ui("No")">
-                                <span id="@(ControlId + "-no-label")">@Ui("No")</span>
-                            </MudRadio>
-                        }
-                        else
-                        {
-                            int choiceIndex = 0;
-                            @foreach (JsonElement choice in Choices.EnumerateArray())
-                            {
-                                int index = choiceIndex++;
-                                <MudRadio T="string" Value="@ChoiceIdentity(index)" AriaLabel="@ChoiceLabel(index, choice)">
-                                    <span id="@(ControlId + "-choice-label-" + ChoiceIdentity(index))">@ChoiceLabel(index, choice)</span>
-                                </MudRadio>
-                            }
-                        }
+                        <MudRadio T="string" Value="@("true")" AriaLabel="@Ui("Yes")">
+                            <span id="@(ControlId + "-yes-label")">@Ui("Yes")</span>
+                        </MudRadio>
+                        <MudRadio T="string" Value="@("false")" AriaLabel="@Ui("No")">
+                            <span id="@(ControlId + "-no-label")">@Ui("No")</span>
+                        </MudRadio>
                     </MudRadioGroup>
                 </div>
             }
             else
             {
             <div class="configuration-field__choice">
-            <AppSelectField ChoiceSchema="Schema" @ref="_choiceControl" InputId="@ControlId" Value="@Selection" Variant="Variant.Outlined"
+            <AppSelectField @key="_controlGeneration" ChoiceSchema="Schema" @ref="_choiceControl" InputId="@ControlId" Value="@(isMasked ? string.Empty : Selection)" Variant="Variant.Outlined"
                        ToStringFunc="SelectionLabel" QuickSearchInterval="@TimeSpan.FromMilliseconds(700)"
-                       Margin="Margin.Dense" Disabled="@(!canEdit)" Error="@(_invalid || error.Length > 0)"
+                       Margin="Margin.Dense" Disabled="@(!canEdit)" Required="@required" Error="@(_invalid || error.Length > 0)"
                        ErrorId="@(ControlId + "-error")" HelperId="@(ControlId + "-help")"
                        ErrorText="@(_invalid ? Ui("FieldInputTypeInvalid") : error)"
-                       UserAttributes="@(new Dictionary<string, object> { ["aria-required"] = required.ToString().ToLowerInvariant(), ["aria-labelledby"] = ControlId + "-label", ["lang"] = Form.Locale })"
+                       UserAttributes="@(new Dictionary<string, object> { ["aria-labelledby"] = ControlId + "-label", ["lang"] = Form.Locale })"
                        ValueChanged="value => { if (Edit(new ChangeEventArgs { Value = value }, editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }">
-                <MudSelectItem T="string" Value="@string.Empty">@Ui("NotSupplied")</MudSelectItem>
-                @if (!HasChoices)
-                {
-                    <MudSelectItem T="string" Value="@("true")">@Ui("Yes")</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("false")">@Ui("No")</MudSelectItem>
-                }
-                else
-                {
+                <MudSelectItem T="string" Value="@string.Empty" Disabled="@isMasked">@SelectionLabel(string.Empty)</MudSelectItem>
+                @{
                     int choiceIndex = 0;
-                    @foreach (JsonElement choice in Choices.EnumerateArray())
-                    {
-                        int index = choiceIndex++;
-                        <MudSelectItem T="string" Value="@ChoiceIdentity(index)">@ChoiceLabel(index, choice)</MudSelectItem>
-                    }
+                }
+                @foreach (JsonElement choice in Choices.EnumerateArray())
+                {
+                    int index = choiceIndex++;
+                    <MudSelectItem T="string" Value="@ChoiceIdentity(index)">@ChoiceLabel(index, choice)</MudSelectItem>
                 }
             </AppSelectField>
             </div>
@@ -252,10 +240,9 @@
                  @onchange="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration, changeOnly: true)) editRevision = editForm.InputRevision; }">
                 <AppTextField @ref="_textControl" InputId="@ControlId" Value="@Text" Masked="@isMasked"
                               InputMode="@(type == "integer" ? InputMode.numeric : type == "number" ? InputMode.@decimal : InputMode.text)"
-                              Disabled="@(!canEdit)" Error="@(_invalid || error.Length > 0)" InputAttributes="@(new Dictionary<string, object>
+                              Disabled="@(!canEdit)" Required="@required" Error="@(_invalid || error.Length > 0)" InputAttributes="@(new Dictionary<string, object>
                               {
                                   ["name"] = ControlId, ["autocomplete"] = Autocomplete, ["spellcheck"] = "false",
-                                  ["aria-required"] = required.ToString().ToLowerInvariant(),
                                   ["aria-invalid"] = (_invalid || error.Length > 0).ToString().ToLowerInvariant(),
                                   ["aria-describedby"] = ControlId + "-help " + ControlId + "-error"
                               })" ErrorText="@(_invalid ? Ui("FieldInputTypeInvalid") : error)" />
@@ -265,7 +252,6 @@
     }
     <p id="@(ControlId + "-help")" class="configuration-field__help" hidden="@(!HasHelp)">@Help
         @if (isMasked && type == "boolean") { <span>@Ui("FieldBooleanHelp")</span> }
-        @if (isMasked && HasChoices) { <span>@UiFormat("FieldDeclaredChoices", string.Join(", ", Choices.EnumerateArray().Select(Display)))</span> }
         @if (InputPurposeHelp is { } purposeHelp) { <span>@purposeHelp</span> }
     </p>
     @if (type is "object" or "array" || !canEdit || UseRadios)

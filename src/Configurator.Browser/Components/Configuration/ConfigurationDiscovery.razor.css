@@ -2,7 +2,7 @@
 .configuration-discovery__option { display: flex; align-items: center; gap: var(--isl-space-3); min-block-size: var(--isl-target-min); cursor: pointer; overflow-wrap: anywhere; }
 .configuration-discovery__option input { flex-shrink: 0; inline-size: 1.125rem; block-size: 1.125rem; }
 .configuration-discovery__count { font-variant-numeric: tabular-nums; color: var(--isl-color-text-secondary); }
-.configuration-discovery__filters { margin-block: var(--isl-space-4); }
+.configuration-discovery__controls { margin-block: var(--isl-space-4); }
 .configuration-discovery__facet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--isl-space-4); }
 .configuration-discovery__facet-grid fieldset { min-inline-size: 0; padding: var(--isl-space-3); border: var(--isl-card-border); border-radius: var(--isl-radius-sm); }
 .configuration-discovery__facet-grid legend { font-weight: 600; }

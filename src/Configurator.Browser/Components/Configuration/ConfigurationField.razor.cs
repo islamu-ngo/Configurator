@@ -14,6 +14,7 @@ public partial class ConfigurationField
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [CascadingParameter(Name = "WorkspaceConsentAction")] public EventCallback RequestSecretConsent { get; set; }
     [Parameter, EditorRequired] public DefinitionNode Schema { get; set; } = null!;
     [Parameter, EditorRequired] public IReadOnlyList<string> Path { get; set; } = [];
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
@@ -36,7 +37,7 @@ public partial class ConfigurationField
     private int _focusNewRow = -1;
     private bool _focusObjectChildren;
     private bool _focusAdd;
-    private bool _focusAfterOmit;
+    private bool _focusAfterAction;
     private bool _invalid;
     private bool _disposed;
     private bool _controlMounted;
@@ -77,6 +78,7 @@ public partial class ConfigurationField
             && !PathChanged(nameof(Path), Path)
             && !Changed(nameof(Validation), Validation)
             && !Changed(nameof(ValidationChanged), ValidationChanged)
+            && !Changed(nameof(RequestSecretConsent), RequestSecretConsent)
             && !Changed(nameof(InheritedSecret), InheritedSecret)
             && !Changed(nameof(InheritedSensitive), InheritedSensitive)
             && !Changed(nameof(RequiredOverride), RequiredOverride)
@@ -133,7 +135,7 @@ public partial class ConfigurationField
         }
     }
     private bool HasHelp => !string.IsNullOrWhiteSpace(Help)
-        || InputPurposeHelp is not null || IsMasked && (Type == "boolean" || HasChoices);
+        || InputPurposeHelp is not null || IsMasked && Type == "boolean";
     private bool Required => Form.GetEditorState(Path)?.IsRequired ?? RequiredOverride ?? false;
     private bool HasOptionalChildren => ContainsOptionalProperty(ObjectSchema);
     private bool OptionalEditorsExpanded => Form.IsEditorExpanded(Path);
@@ -149,11 +151,7 @@ public partial class ConfigurationField
             ContainsOptionalProperty(child.Value));
     private bool HasChoices => Schema.Keywords.TryGetProperty("enum", out _);
     private JsonElement Choices => Schema.Keywords.GetProperty("enum");
-    private bool UseRadios => !IsMasked && (HasChoices
-        ? Choices.GetArrayLength() is >= 2 and <= 5
-            && Choices.EnumerateArray().Select((choice, index) => ChoiceLabel(index, choice))
-                .All(label => label.Length <= 48 && !label.Contains('\n') && !label.Contains('\r'))
-        : Type == "boolean");
+    private bool UseRadios => !IsMasked && !HasChoices && Type == "boolean";
     private static string ChoiceIdentity(int index) => index.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private string ChoiceLabel(int index, JsonElement value)
     {
@@ -162,7 +160,8 @@ public partial class ConfigurationField
     }
     private string SelectionLabel(string? identity)
     {
-        if (string.IsNullOrEmpty(identity)) return Ui("NotSupplied");
+        if (string.IsNullOrEmpty(identity)) return Ui(IsMasked && HasChoices
+            ? Value is null ? "MaskedChoiceAbsent" : "MaskedChoiceReplace" : "NotSupplied");
         if (!HasChoices) return Ui(identity == "true" ? "Yes" : "No");
         int index = int.Parse(identity, System.Globalization.CultureInfo.InvariantCulture);
         return ChoiceLabel(index, Choices[index]);
@@ -229,6 +228,7 @@ public partial class ConfigurationField
     }
     protected override void OnParametersSet()
     {
+        if (_suppressParameterRender) return;
         _presentation = Form.GetEditorPresentation(Path);
         bool actionsMounted = Form.IsEditorVisible(Path) && Form.CanEdit(Path);
         if (_actionsMounted != actionsMounted)
@@ -277,6 +277,11 @@ public partial class ConfigurationField
             if (!int.TryParse(selection, out int index) || index < 0 ||
                 index >= Choices.GetArrayLength()) return false;
             _invalid = !Form.SetValue(Path, Choices[index]);
+            if (IsMasked)
+            {
+                ++_controlGeneration;
+                _focusAfterAction = true;
+            }
             _ = NotifyValidityAsync();
             return true;
         }
@@ -311,7 +316,7 @@ public partial class ConfigurationField
     {
         if (!Form.EditValue(Path, null)) return;
         _invalid = false;
-        _focusAfterOmit = true;
+        _focusAfterAction = true;
         _ = NotifyValidityAsync();
     }
     private void Add()
@@ -402,11 +407,14 @@ public partial class ConfigurationField
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         _focusNewRow = -1;
-        if (_focusAfterOmit)
+        if (_focusAfterAction)
         {
-            _focusAfterOmit = false;
-            if (Type is "object" or "array") await _group.FocusAsync(preventScroll: true);
-            else await FocusScalarAsync(preventScroll: true);
+            _focusAfterAction = false;
+            if (Form.CanEdit(Path) && Form.IsEditorVisible(Path))
+            {
+                if (Type is "object" or "array") await _group.FocusAsync(preventScroll: true);
+                else await FocusScalarAsync(preventScroll: true);
+            }
         }
         if (_focusObjectChildren) { _focusObjectChildren = false; if (!CanFocus(Schema, Path)) await _group.FocusAsync(preventScroll: true); }
         if (FocusFirstControl && !_focusedForRequest && Form.CanEdit(Path) && Type != "object" && (Type != "array" || Count == 0))
@@ -436,7 +444,7 @@ public partial class ConfigurationField
                 || !Form.IsEditorVisible(Path) || !Form.CanEdit(Path)) return;
             await module.InvokeVoidAsync("focusRadio", element, preventScroll);
         }
-        else if (_textControl is not null && (Type != "boolean" && !HasChoices || IsMasked))
+        else if (_textControl is not null && !HasChoices && (Type != "boolean" || IsMasked))
             await _textControl.FocusAsync();
         else if (_choiceControl is not null) await _choiceControl.FocusAsync();
     }

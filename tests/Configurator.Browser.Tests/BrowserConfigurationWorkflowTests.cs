@@ -147,6 +147,7 @@ public sealed class BrowserConfigurationWorkflowTests
         await component.Find("[data-action='prepare-reviewed-draft']").ClickAsync(new MouseEventArgs());
 
         await Assert.That(component.FindAll("[data-readiness='draft']").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-completion-required='true']").Count).IsEqualTo(1);
         await Assert.That(component.FindAll("[data-readiness='complete']")).IsEmpty();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
     }

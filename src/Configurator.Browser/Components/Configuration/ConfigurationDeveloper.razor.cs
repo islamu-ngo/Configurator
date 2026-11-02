@@ -21,6 +21,9 @@ public partial class ConfigurationDeveloper : ComponentBase
     [Parameter] public EventCallback<bool> DirtyChanged { get; set; }
     [Parameter] public EventCallback RequestConsent { get; set; }
 
+    private ElementReference _heading;
+    public ElementReference? Heading => _disposed ? null : _heading;
+
     private static readonly ResourceManager English = new("Configurator.Browser.Resources.BrowserUi", typeof(ConfigurationDeveloper).Assembly);
     private static readonly ResourceManager Arabic = new("Configurator.Browser.Resources.BrowserUi.ar", typeof(ConfigurationDeveloper).Assembly);
     private readonly string _id = "developer-" + Guid.NewGuid().ToString("N");

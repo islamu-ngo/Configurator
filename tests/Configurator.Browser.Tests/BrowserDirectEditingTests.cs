@@ -22,7 +22,8 @@ public sealed class BrowserDirectEditingTests
         await Assert.That(component.Find("#" + radios[0].GetAttribute("aria-labelledby")).TextContent).IsEqualTo("Not supplied");
         await Assert.That(component.Find("#" + radios[1].GetAttribute("aria-labelledby")).TextContent).IsEqualTo("Yes");
         await Assert.That(component.Find("#" + radios[2].GetAttribute("aria-labelledby")).TextContent).IsEqualTo("No");
-        await Assert.That(component.FindAll("[data-field='flavor'] input[type=radio]")).Count().IsEqualTo(4);
+        var flavor = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["flavor"]));
+        await Assert.That(flavor.FindComponents<MudSelect<string>>().Count).IsEqualTo(1);
         await Assert.That(component.FindAll("[data-action='expand-field']")).IsEmpty();
         await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
@@ -30,7 +31,7 @@ public sealed class BrowserDirectEditingTests
     }
 
     [Test]
-    public async Task DirectRadioChoicesKeepUntouchedFalseAndExplicitEmptyDistinct()
+    public async Task DirectChoicesKeepUntouchedFalseAndExplicitEmptyDistinct()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
@@ -42,7 +43,7 @@ public sealed class BrowserDirectEditingTests
         await component.InvokeAsync(() => feature.FindComponent<MudRadioGroup<string>>().Instance.ValueChanged.InvokeAsync("false"));
         await Assert.That(form.Snapshot().Values["feature"].GetBoolean()).IsFalse();
         var flavor = component.FindComponents<ConfigurationField>().Single(item => item.Instance.Path.SequenceEqual(["flavor"]));
-        await component.InvokeAsync(() => flavor.FindComponent<MudRadioGroup<string>>().Instance.ValueChanged.InvokeAsync("0"));
+        await component.InvokeAsync(() => flavor.FindComponent<MudSelect<string>>().Instance.ValueChanged.InvokeAsync("0"));
         await Assert.That(form.Snapshot().Values["flavor"].GetString()).IsEqualTo(string.Empty);
         await Assert.That(form.Snapshot().Values.ContainsKey("nickname")).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(2);

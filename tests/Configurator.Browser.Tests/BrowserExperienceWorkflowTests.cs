@@ -13,6 +13,33 @@ using MudBlazor;
 public sealed class BrowserExperienceWorkflowTests
 {
     [Test]
+    public async Task IdenticalParametersPreserveFocusUntilANewFocusGenerationArrives()
+    {
+        await using var context = BrowserFixture.Context();
+        using var form = new DefinitionFormModel(BrowserFixture.Definition);
+        var component = context.Render<ConfigurationField>(parameters => parameters
+            .Add(item => item.Form, form)
+            .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "hostname").Node)
+            .Add(item => item.Path, ["hostname"])
+            .Add(item => item.FocusFirstControl, true)
+            .Add(item => item.FocusGeneration, 1));
+        var projection = form.Projection;
+        long revision = form.InputRevision;
+        int FocusCalls() => context.JSInterop.Invocations.Count(call =>
+            call.Identifier.Contains("focus", StringComparison.OrdinalIgnoreCase));
+        int initialFocusCalls = FocusCalls();
+        await Assert.That(initialFocusCalls).IsGreaterThan(0);
+
+        await component.InvokeAsync(() => component.Render(parameters => parameters.Add(item => item.FocusGeneration, 1)));
+        await Assert.That(FocusCalls()).IsEqualTo(initialFocusCalls);
+        await component.InvokeAsync(() => component.Render(parameters => parameters.Add(item => item.FocusGeneration, 2)));
+
+        await Assert.That(FocusCalls()).IsEqualTo(initialFocusCalls + 1);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(ReferenceEquals(form.Projection, projection)).IsTrue();
+    }
+
+    [Test]
     public async Task UnchangedChoiceRefreshesCurrentCallbackAndRejectsRetiredInput()
     {
         await using var context = BrowserFixture.Context();
@@ -21,7 +48,7 @@ public sealed class BrowserExperienceWorkflowTests
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         var retired = component.FindComponents<ConfigurationField>().Single(field => field.Instance.Path.SequenceEqual(["mode"]))
-            .FindComponent<MudRadioGroup<string>>().Instance.ValueChanged;
+            .FindComponent<MudSelect<string>>().Instance.ValueChanged;
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current.test" });
         long revision = form.InputRevision;
         await component.InvokeAsync(() => retired.InvokeAsync("1"));
@@ -156,6 +183,7 @@ public sealed class BrowserExperienceWorkflowTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "guided" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         foreach (string text in new[] { "e", "ex", "example.test" })
             await component.Find("[data-field='options.host'] input").InputAsync(new ChangeEventArgs { Value = text });
@@ -192,7 +220,7 @@ public sealed class BrowserExperienceWorkflowTests
     }
 
     [Test]
-    public async Task DirectOrdinaryControlsAndGroupDisclosureDoNotGrantSecretConsentOrChangeAnswerRevision()
+    public async Task OptionalGroupDisclosureDoesNotGrantSecretConsentOrChangeAnswerRevision()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters =>
@@ -200,7 +228,7 @@ public sealed class BrowserExperienceWorkflowTests
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "essential" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
-        await Assert.That(component.FindAll("[data-field='options.limit'] input").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-field='options.limit'] input")).IsEmpty();
         await Assert.That(component.FindAll("[data-field='options.api_token'] input")).IsEmpty();
 
         await component.Find("[data-field='options'] button[data-action='expand-optional']")

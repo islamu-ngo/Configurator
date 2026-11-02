@@ -1,4 +1,4 @@
-.configuration-field { margin-block: 0 var(--isl-field-gap); }
+.configuration-field { margin-block: 0 var(--isl-field-gap); overflow-wrap: anywhere; }
 .configuration-field--group { margin-block-end: var(--isl-group-gap); }
 .configuration-field__label, .configuration-field__identity label { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--isl-space-2); margin: 0; font-weight: 600; font-size: inherit; }
 .configuration-field__requirement { color: var(--isl-color-text-secondary); font-size: .75rem; font-weight: 400; }

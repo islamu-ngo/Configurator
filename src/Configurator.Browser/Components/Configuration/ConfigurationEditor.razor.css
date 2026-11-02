@@ -1,8 +1,9 @@
-.configuration-editor { container-type: inline-size; padding: var(--isl-section-padding); }
+.configuration-editor { container-type: inline-size; padding: var(--isl-space-4); }
 .configuration-editor--compact { --isl-field-gap: var(--isl-space-2); --isl-group-gap: var(--isl-space-5); --isl-section-padding: var(--isl-space-4); --isl-label-gap: var(--isl-space-1); --isl-field-control-height: var(--isl-space-10); }
 .configuration-editor__header h2 { font-size: var(--isl-typography-h4-size); margin-block-end: var(--isl-space-1); }
 .configuration-editor__header p { max-inline-size: 65ch; color: var(--isl-color-text-secondary); margin-block-end: var(--isl-space-2); }
 .configuration-editor__boundary { margin-block-end: var(--isl-space-3); color: var(--isl-color-text-secondary); font-size: .875rem; }
+.configuration-editor__task-tools { margin-block-end: var(--isl-space-3); }
 .configuration-editor__toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--isl-space-3); padding-block: var(--isl-space-3); border-block-end: var(--isl-card-border); }
 .configuration-editor__mode { display: grid; gap: var(--isl-space-1); flex: 0 1 11rem; max-inline-size: 13rem; min-inline-size: 0; }
 .configuration-editor__mode select { box-sizing: border-box; block-size: var(--isl-target-min); padding-block: var(--isl-space-1); }
@@ -22,7 +23,7 @@
 .configuration-editor__workflow button[aria-current="step"], .configuration-editor__workflow button:hover { background: var(--isl-color-surface-muted); font-weight: 600; }
 .configuration-editor__progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--isl-space-2); margin-block: var(--isl-space-3); font-variant-numeric: tabular-nums; }
 .configuration-editor__progress span { color: var(--isl-color-text-secondary); }
-.configuration-editor__progress progress { order: 3; flex-basis: 100%; appearance: none; inline-size: 100%; block-size: var(--isl-space-2); border: 0; border-radius: var(--isl-radius-full); overflow: hidden; background: var(--isl-color-surface-muted); }
+.configuration-editor__progress progress { appearance: none; inline-size: 5rem; block-size: var(--isl-space-2); border: 0; border-radius: var(--isl-radius-full); overflow: hidden; background: var(--isl-color-surface-muted); }
 .configuration-editor__progress progress::-webkit-progress-bar { background: var(--isl-color-surface-muted); }
 .configuration-editor__progress progress::-webkit-progress-value { background: var(--isl-color-primary); }
 .configuration-editor__progress progress::-moz-progress-bar { background: var(--isl-color-primary); }
@@ -31,5 +32,5 @@
     .configuration-editor__mode { flex: 1 1 calc((100% - var(--isl-space-3)) / 2); max-inline-size: none; }
     .configuration-editor__consent { flex-basis: 100%; }
     .configuration-editor__import-controls { grid-template-columns: minmax(0, 1fr); }
-    .configuration-editor__workflow button { grid-template-columns: minmax(0, 1fr); text-align: center; gap: var(--isl-space-1); padding: var(--isl-space-2); }
+    .configuration-editor__workflow button { display: flex; justify-content: center; gap: var(--isl-space-1); padding: var(--isl-space-2); }
 }

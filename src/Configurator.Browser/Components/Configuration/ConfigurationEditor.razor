@@ -8,14 +8,9 @@
          lang="@_form!.Locale" dir="@DisplayDirection"
          data-experience="@_form!.SelectedExperienceId" data-density="@(_compact ? "compact" : "comfortable")">
     <header class="configuration-editor__header">
-        <h2 @ref="_configureHeading" id="configuration-heading" tabindex="-1">@UiText("WorkspaceTitle")</h2>
-        <p id="session-boundary">@UiText("AnswersStayLocal")</p>
+        <h2 class="sr-only" id="configuration-heading">@UiText("WorkspaceTitle")</h2>
+        <p class="sr-only" id="session-boundary">@UiText("AnswersStayLocal")</p>
     </header>
-    <details class="configuration-editor__boundary">
-        <summary>@UiText("PrivacyExportLimits")</summary>
-        <p class="form-help" data-declared-outputs>@UiFormat("DeclaredFiles", string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)))</p>
-        <p>@UiText("WorkspaceExportBoundary")</p>
-    </details>
     @if (!_ready)
     {
         <button @ref="_startButton" class="button" type="button" @onclick="() => IsCurrentView(actionForm, actionView) ? BeginAsync() : Task.CompletedTask">@UiText("StartWorkspace")</button>
@@ -24,36 +19,6 @@
         <legend class="sr-only">@UiText("ConfigurationAnswers")</legend>
         @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
             string? currentSectionId = SelectedSection(viewSections); }
-        <div class="configuration-editor__toolbar">
-            @if (OutputSelector is { } outputSelector)
-            {
-                <div class="configuration-editor__mode configuration-editor__output">
-                    <label for="configuration-output">@UiText("SelectOutput")</label>
-                    <select @key="_outputChoiceKey" @ref="_outputControl" id="configuration-output" value="@OutputSelection"
-                            data-output-field="@DefinitionProfile.FieldId(outputSelector.Location.Segments[0])"
-                            @onchange="args => IsCurrentView(actionForm, actionView) ? RequestOutputChangeAsync(args) : Task.CompletedTask">
-                        <option value="-1" disabled>@UiText("NotSupplied")</option>
-                        @for (int index = 0; index < outputSelector.Options.Count; ++index)
-                        {
-                            <option value="@index.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                                    data-output-value="@outputSelector.Options[index].Value">@OutputTitle(index)</option>
-                        }
-                    </select>
-                </div>
-            }
-            @if (_form.Definition.Locales.Count > 1)
-            {
-                <div class="configuration-editor__mode">
-                    <label for="configuration-locale">@UiText("Language")</label>
-                    <select id="configuration-locale" value="@_form.Locale" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeLocale(args); }">
-                        @foreach (string locale in _form.Definition.Locales)
-                        {
-                            <option value="@locale">@LanguageName(locale)</option>
-                        }
-                    </select>
-                </div>
-            }
-        </div>
         <nav class="configuration-editor__workflow" aria-label="@UiText("ConfigurationWorkflow")">
             <ol>
                 <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == "configure" ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("configure") : Task.CompletedTask'><span aria-hidden="true">1</span> @UiText("WorkflowConfigure")</button></li>
@@ -72,12 +37,44 @@
                 <strong>@UiFormat(progress.Required == 1 ? "RequiredAnswerReady" : "RequiredAnswersReady", progress.Ready, progress.Required)</strong>
                 <progress value="@progress.Ready" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
             }
-            <span>@UiFormat(progress.Deferred == 1 ? "ReadinessOneSecret" : "ReadinessSecrets", progress.Missing, progress.Invalid, progress.Deferred)</span>
+            @if (progress.Missing + progress.Invalid > 0)
+            {
+                <button type="button" class="button button--secondary" data-action="review-required-work"
+                        @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync("review") : Task.CompletedTask'>@UiText("NeedsAttention"): @(progress.Missing + progress.Invalid)</button>
+            }
         </div>
-        <p role="status" class="notice" data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
+        <p role="status" class="@(_statusCode == "workspace-ready" ? "sr-only" : "notice")" data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
+        @if (_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)
+        {
+            <AppButton Variant="Variant.Outlined" data-action="revoke-secret-entry"
+                       OnClick="() => IsCurrentView(actionForm, actionView) ? ConsentAsync(new ChangeEventArgs { Value = false }) : Task.CompletedTask">@UiText("RevokeSecrets")</AppButton>
+        }
         @if (_activeWorkflowStage == "configure")
         {
+        @if (_developerMode)
+        {
+            <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="_form"
+                                    EnvironmentArtifactId="@(Definition.Artifacts.FirstOrDefault(artifact => artifact.Format == "dotenv")?.Id)"
+                                    DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
+                                    RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
+        }
+        else
+        {
+        <CascadingValue Name="WorkspaceConsentAction" Value="_consentAction">
+        <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
+                                     SelectedChanged="section => { if (IsCurrentView(actionForm, actionView)) SelectSection(section); }"
+                                     MountCancellation="_mountCancellation.Token" Validation="_validation"
+                                     FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
+                                     ReviewRequested='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }' />
+        </CascadingValue>
+        @if (_returnToReview)
+        {
+            <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
+        }
+        }
         <div class="configuration-editor__toolbar">
+            <details class="configuration-editor__view-options">
+            <summary>@UiText("WorkspaceEditorTools")</summary>
             <div class="actions" role="group" aria-label="@UiText("ConfigurationAnswers")">
                 <AppButton Variant="@(_developerMode ? Variant.Outlined : Variant.Filled)" data-editing-mode="form"
                            aria-pressed="@((!_developerMode).ToString().ToLowerInvariant())"
@@ -86,8 +83,6 @@
                            aria-pressed="@_developerMode.ToString().ToLowerInvariant()"
                            OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(true) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(true, actionForm.Locale)</AppButton>
             </div>
-            <details class="configuration-editor__view-options">
-            <summary>@UiText("ProfileDetail")</summary>
             @if (_form.Experiences.Count > 1)
             {
                 <div class="configuration-editor__mode">
@@ -121,14 +116,6 @@
                                     ContextTitle="@($"{Definition.Title} / {SelectedExperience.Title}")" Description="@SelectedExperience.Description"
                                     SectionDescription="@(currentSectionId is null ? null : _editorSections[currentSectionId].Description)" />
             </details>
-            <div class="configuration-editor__consent">
-                <input @ref="_consentControl" id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                       aria-describedby="session-boundary secret-consent-help" @onchange="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask" />
-                <div>
-                    <label for="secret-consent">@UiText("EnableWorkspaceSecrets")</label>
-                    <p id="secret-consent-help" class="form-help">@UiText("WorkspaceSecretHelp")</p>
-                </div>
-            </div>
         </div>
         @if (!_developerMode && ImportArtifacts.Length > 0)
         {
@@ -182,25 +169,6 @@
                                            Clear="report => { if (IsCurrentView(actionForm, actionView)) ClearComparison(report); }" />
             </details>
         }
-        @if (_developerMode)
-        {
-            <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="_form"
-                                    EnvironmentArtifactId="@(Definition.Artifacts.FirstOrDefault(artifact => artifact.Format == "dotenv")?.Id)"
-                                    DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
-                                    RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
-        }
-        else
-        {
-        <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
-                                     SelectedChanged="section => { if (IsCurrentView(actionForm, actionView)) SelectSection(section); }"
-                                     MountCancellation="_mountCancellation.Token" Validation="_validation"
-                                     FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
-                                     ReviewRequested='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage("review"); }' />
-        @if (_returnToReview)
-        {
-            <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
-        }
-        }
         }
         @if (_activeWorkflowStage == "review")
         {
@@ -235,6 +203,55 @@
         }
         </ConfigurationFilesPanel>
         }
+        <details class="configuration-editor__task-tools" open="@_taskToolsOpen">
+        <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _taskToolsOpen = !_taskToolsOpen; }" @onclick:preventDefault>@UiText("WorkspaceTaskTools")</summary>
+        <div class="configuration-editor__toolbar">
+            @if (OutputSelector is { } outputSelector)
+            {
+                <div class="configuration-editor__mode configuration-editor__output">
+                    <label for="configuration-output">@UiText("SelectOutput")</label>
+                    <select @key="_outputChoiceKey" @ref="_outputControl" id="configuration-output" value="@OutputSelection"
+                            data-output-field="@DefinitionProfile.FieldId(outputSelector.Location.Segments[0])"
+                            @onchange="args => IsCurrentView(actionForm, actionView) ? RequestOutputChangeAsync(args) : Task.CompletedTask">
+                        <option value="-1" disabled>@UiText("NotSupplied")</option>
+                        @for (int index = 0; index < outputSelector.Options.Count; ++index)
+                        {
+                            <option value="@index.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                    data-output-value="@outputSelector.Options[index].Value">@OutputTitle(index)</option>
+                        }
+                    </select>
+                </div>
+            }
+            @if (_form.Definition.Locales.Count > 1)
+            {
+                <div class="configuration-editor__mode">
+                    <label for="configuration-locale">@UiText("Language")</label>
+                    <select id="configuration-locale" value="@_form.Locale" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeLocale(args); }">
+                        @foreach (string locale in _form.Definition.Locales)
+                        {
+                            <option value="@locale">@LanguageName(locale)</option>
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+        </details>
+        <details class="configuration-editor__privacy" data-secret-consent open="@_consentOpen">
+            <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _consentOpen = !_consentOpen; }" @onclick:preventDefault>@UiText("ReviewSecretConsent")</summary>
+            <div class="configuration-editor__consent">
+                <input @ref="_consentControl" id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                       aria-describedby="session-boundary secret-consent-help" @onchange="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask" />
+                <div>
+                    <label for="secret-consent">@UiText("EnableWorkspaceSecrets")</label>
+                    <p id="secret-consent-help" class="form-help">@UiText("WorkspaceSecretHelp")</p>
+                </div>
+            </div>
+        </details>
+    <details class="configuration-editor__boundary">
+        <summary>@UiText("PrivacyExportLimits")</summary>
+        <p class="form-help" data-declared-outputs>@UiFormat("DeclaredFiles", string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)))</p>
+        <p>@UiText("WorkspaceExportBoundary")</p>
+    </details>
     </fieldset>
 </section>
 </MudRTLProvider>

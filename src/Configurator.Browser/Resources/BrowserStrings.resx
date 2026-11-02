@@ -157,10 +157,9 @@
   <data name="AddFieldEntry" xml:space="preserve"><value>Add entry</value></data>
   <data name="FieldNewEntryKey" xml:space="preserve"><value>{0} new entry key</value></data>
   <data name="FieldInvalidMapKey" xml:space="preserve"><value>Use a valid bounded key that is not already present.</value></data>
-  <data name="FieldSecretDenied" xml:space="preserve"><value>Secret entry is disabled for this workspace. Enable it deliberately above, or complete a downloaded draft locally.</value></data>
+  <data name="FieldSecretDenied" xml:space="preserve"><value>Secret entry is disabled for this workspace. Review workspace secret consent to enable it deliberately, or complete a downloaded draft locally.</value></data>
   <data name="FieldInputTypeInvalid" xml:space="preserve"><value>Supply a value of the declared type. (input-type-invalid)</value></data>
   <data name="FieldBooleanHelp" xml:space="preserve"><value>Use true or false.</value></data>
-  <data name="FieldDeclaredChoices" xml:space="preserve"><value>Declared choices: {0}.</value></data>
   <data name="CredentialIssuerHelp" xml:space="preserve"><value>Obtain this value from its issuer, then paste it or map a password manager custom field. Do not substitute a locally generated password.</value></data>
   <data name="CredentialCreateHelp" xml:space="preserve"><value>Choose a new value that meets the target's requirements. A password manager may help create and retain it.</value></data>
   <data name="CredentialExistingHelp" xml:space="preserve"><value>Use the value already accepted by your target. A password manager may fill or paste it.</value></data>
@@ -327,6 +326,49 @@
   <data name="ImportReadFailedStatus" xml:space="preserve"><value>Comparison could not finish. No answers changed; repair a separate copy or choose the file again.</value></data>
   <data name="AppPreparationIncompleteStatus" xml:space="preserve"><value>Offline app preparation is incomplete. Finish loading public app assets before entering answers.</value></data>
   <data name="WorkspaceClearedStatus" xml:space="preserve"><value>Answers and output cleared. Secret entry is disabled. Start a new local workspace to continue.</value></data>
+  <data name="DiscoveryFilters" xml:space="preserve"><value>Search filters</value></data>
+  <data name="DiscoveryClearSearch" xml:space="preserve"><value>Clear search</value></data>
+  <data name="DiscoveryClearFilters" xml:space="preserve"><value>Clear filters</value></data>
+  <data name="DiscoveryIncludeInactive" xml:space="preserve"><value>Include inactive settings (does not enable them)</value></data>
+  <data name="DiscoveryFilterHelp" xml:space="preserve"><value>Match any option within each selected group, and all selected groups.</value></data>
+  <data name="DiscoveryMatches" xml:space="preserve"><value>{0} matching settings</value></data>
+  <data name="DiscoveryNoMatches" xml:space="preserve"><value>No matching settings. Clear search or filters, or include inactive settings to inspect their activation.</value></data>
+  <data name="DiscoveryConfigure" xml:space="preserve"><value>Configure</value></data>
+  <data name="DiscoveryReviewActivation" xml:space="preserve"><value>Review activation</value></data>
+  <data name="DiscoveryInactive" xml:space="preserve"><value>Inactive; not exported</value></data>
+  <data name="DiscoveryInactiveHelp" xml:space="preserve"><value>This setting is inactive. Reviewing its controlling question does not enable it.</value></data>
+  <data name="DiscoveryMatchDetails" xml:space="preserve"><value>Key and match details</value></data>
+  <data name="WorkspaceTaskTools" xml:space="preserve"><value>Output task and language</value></data>
+  <data name="WorkspaceEditorTools" xml:space="preserve"><value>Editor tools and detail</value></data>
+  <data name="DiscoveryMatchReason" xml:space="preserve"><value>Matched by</value></data>
+  <data name="DiscoveryControllers" xml:space="preserve"><value>Controlling questions</value></data>
+  <data name="DiscoveryPages" xml:space="preserve"><value>Setting result pages</value></data>
+  <data name="DiscoverySelectedFilters" xml:space="preserve"><value>Selected filters</value></data>
+  <data name="DiscoveryRemove" xml:space="preserve"><value>Remove</value></data>
+  <data name="DiscoveryRequirement" xml:space="preserve"><value>Requirement</value></data>
+  <data name="DiscoveryApplicability" xml:space="preserve"><value>Applicability</value></data>
+  <data name="DiscoveryState" xml:space="preserve"><value>Answer state</value></data>
+  <data name="DiscoverySensitivity" xml:space="preserve"><value>Sensitivity</value></data>
+  <data name="DiscoveryOutput" xml:space="preserve"><value>Declared output</value></data>
+  <data name="DiscoveryMatchOutput" xml:space="preserve"><value>exact declared output key</value></data>
+  <data name="DiscoveryMatchField" xml:space="preserve"><value>exact field key</value></data>
+  <data name="DiscoveryMatchTitle" xml:space="preserve"><value>question title</value></data>
+  <data name="DiscoveryMatchTerms" xml:space="preserve"><value>authored search terms</value></data>
+  <data name="DiscoveryMatchHelp" xml:space="preserve"><value>guidance</value></data>
+  <data name="DiscoveryMatchMetadata" xml:space="preserve"><value>definition metadata</value></data>
+  <data name="DiscoveryOption_required" xml:space="preserve"><value>Required</value></data>
+  <data name="DiscoveryOption_optional" xml:space="preserve"><value>Optional</value></data>
+  <data name="DiscoveryOption_active" xml:space="preserve"><value>Active</value></data>
+  <data name="DiscoveryOption_inactive" xml:space="preserve"><value>Inactive</value></data>
+  <data name="DiscoveryOption_needs-attention" xml:space="preserve"><value>Needs attention</value></data>
+  <data name="DiscoveryOption_ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="DiscoveryOption_supplied" xml:space="preserve"><value>Supplied</value></data>
+  <data name="DiscoveryOption_defaulted" xml:space="preserve"><value>Defaulted</value></data>
+  <data name="DiscoveryOption_omitted" xml:space="preserve"><value>Omitted</value></data>
+  <data name="DiscoveryOption_secret-deferred" xml:space="preserve"><value>Secret deferred</value></data>
+  <data name="DiscoveryOption_public" xml:space="preserve"><value>Public</value></data>
+  <data name="DiscoveryOption_sensitive" xml:space="preserve"><value>Sensitive</value></data>
+  <data name="DiscoveryOption_secret" xml:space="preserve"><value>Secret</value></data>
   <data name="EntrySourceRecovery" xml:space="preserve"><value>Check the public HTTPS definition URL and selectors, or open the original JSON or YAML definition from your device. No answers have been restored.</value></data>
   <data name="EntryReopenHelp" xml:space="preserve"><value>A definition opened only in this session may be unavailable after reload. Reopen its original definition file or public link to start a fresh workspace. Your previous answers are not stored.</value></data>
   <data name="HelpTitle" xml:space="preserve"><value>Help with configuration</value></data>
@@ -349,4 +391,8 @@
   <data name="FilesDeferredRequired" xml:space="preserve"><value>Required: supply this value before using the configuration.</value></data>
   <data name="FilesDeferredOptional" xml:space="preserve"><value>Optional secret withheld: decide whether this service needs a value before use.</value></data>
   <data name="FilesDeferredUnknown" xml:space="preserve"><value>Check this completion location against the target requirements before use.</value></data>
+  <data name="DiscoveryPrevious" xml:space="preserve"><value>Previous settings</value></data>
+  <data name="DiscoveryNext" xml:space="preserve"><value>Next settings</value></data>
+  <data name="MaskedChoiceReplace" xml:space="preserve"><value>Current value hidden; choose a replacement</value></data>
+  <data name="MaskedChoiceAbsent" xml:space="preserve"><value>Not supplied; choose a value</value></data>
 </root>

@@ -208,7 +208,10 @@ shared validation.
 Configure, Review and Files have separate mounted children, not hidden interactive
 copies. Their disposal never disposes the parent form or prepared bundle. A
 captured form identity and view generation fence callbacks and post-await focus;
-only a currently mounted eligible heading/control may receive focus. Leaving
+only a currently mounted eligible heading/control may receive focus. Configure
+resolves to the mounted Form section or Developer heading. The hidden workspace
+label is never a focus target: revealing it on focus and collapsing it on blur
+would move lower pointer targets between pointer-down and pointer-up. Leaving
 Files invalidates each export capability and clears its preview without disposing
 the prepared workspace. A later deliberate action rechecks current eligibility
 before rearming bytes. Answer edits, revoke, clear and replacement still retire
@@ -269,6 +272,26 @@ callback reference and generation for Ctrl-K/Command-K and outside dismissal.
 Escape/Close restore the visible query or phone trigger; result selection closes without stealing the
 editor's destination focus. Application navigation and workspace search are
 separate labelled surfaces, not a partial combobox.
+The header establishes its own stacking context at the existing MudBlazor popover
+layer so workspace containment cannot intercept result hit targets. Discovery
+places results before its filter disclosure in DOM order, with English/Arabic
+resources for result controls, facets and status. Section navigation precedes
+global links in the shared rail; local previous/next/review actions reuse the same
+section callbacks. Output/language and editor/detail controls are native disclosures.
+Correction-owned disclosures track summary clicks in component state, so repeated
+corrections reopen them after a user closes them. `RequestFocus` opens the relevant
+disclosure before scheduling focus. Denied fields receive the editor's cached,
+view-fenced consent callback; it only opens consent. The explicit revoke action
+remains outside disclosures on every workflow panel. Search navigation captures
+the input revision and checks it before and after dirty-document resolution.
+The Browser selects shared authored visibility when presentation metadata exists,
+starting at Essential disclosure on creation and reset, and retaining direct
+visibility for neutral definitions. Secondary tools follow the active work in DOM
+order. Shared required/error
+promotion continues to override optional disclosure; no Browser evaluator is added.
+Closed choices use the existing typed ordinal select and keyboard type-ahead.
+Masked choices expose replacement options without preselecting the accepted
+value, retaining the existing consent, mutation and stale-control fences.
 The form retains one current query/facet selection. Ranking and facet
 counts cover the complete shared selection; only the current 50-result page
 mounts. Selection or experience changes reset the page, and answer changes clamp
@@ -286,8 +309,13 @@ destination-focus behavior.
 boolean differs from false, and absent objects/lists differ from empty values.
 `AppTextField` wraps a full-width outlined string-bound MudInput and renders its
 connected scalar error directly, including numeric drafts and masked credentials.
-Public enum/boolean leaves use MudSelect with
-distinct absence and admitted-empty identities. The form still owns parsing and
+Closed enums use `AppSelectField` with distinct absence and admitted-empty
+identities; unmasked booleans without an enum retain their radio group. Scalar,
+enum controls and boolean groups receive current requiredness through MudBlazor's `Required`
+parameter, which owns the rendered input's `aria-required`. Attribute splatting
+alone is insufficient. `AppSelectField` includes requiredness in its parameter
+render comparison, so dependency changes update the accessible state. Radio
+groups retain an explicit `aria-invalid` from shared validation. The form still owns parsing and
 invalid drafts; raw text input/change and received choice notifications use the
 same form/path/revision/mounted-control generation fence. A callback captured
 before an editor unmount cannot edit its remounted successor. Focus, input modes
@@ -296,6 +324,8 @@ Masked scalar controls inherit sensitive or secret ancestors; secret consent
 still uses the form's edit permission, allowing public siblings to remain
 editable. Authored titles are preserved. Mechanical identifier formatting is
 used only when title equals key, with the exact key available separately.
+Long labels and metadata paths wrap within the field, including collapsed
+compound children in narrow RTL layouts; they must not widen the viewport.
 List rows obtain their immutable item metadata from the shared admitted index,
 not a new JSON serialization on each render. The renderer supplies the row title,
 required state and inherited masking separately. Unchanged parameter updates may

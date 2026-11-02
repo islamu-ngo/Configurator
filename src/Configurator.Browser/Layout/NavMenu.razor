@@ -9,6 +9,9 @@
 <nav id="application-navigation" class="nav-menu @(_open ? "nav-menu--open" : "")"
      aria-label="@T("ApplicationNavigation")" @onkeydown="HandleNavigationKeyAsync">
     <button class="nav-menu__close" type="button" @onclick="CloseAsync">@T("CloseMenu")</button>
+    <div class="nav-menu__sections" @onclick="CloseSectionNavigation">
+        <SectionOutlet SectionName="configuration-sections" />
+    </div>
     <p class="nav-menu__section">@T("Workspace")</p>
     <ul class="nav-menu__links">
         <li class="nav-menu__item">
@@ -21,9 +24,6 @@
             <NavLink href="help" Class="d-block text-decoration-none" @onclick="CloseAsync"><span class="nav-menu__link"><MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />@T("Help")</span></NavLink>
         </li>
     </ul>
-    <div class="nav-menu__sections" @onclick="CloseSectionNavigation">
-        <SectionOutlet SectionName="configuration-sections" />
-    </div>
     <div class="nav-menu__settings">
         <button @ref="_settingsToggle" class="nav-menu__settings-toggle" type="button"
                 aria-controls="navigation-settings" aria-expanded="@(_settingsOpen ? "true" : "false")"

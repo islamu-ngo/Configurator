@@ -45,6 +45,9 @@ An optional consumer capability set is checked before the form creates answer
 editors. Adapters must advertise their actual editing support there; generic
 shared support does not qualify a renderer. Required/error paths remain
 reachable independently of optional journey detail.
+Browser uses authored visibility for definitions with presentation metadata and
+direct visibility for neutral definitions. Disclosure changes remain view-only;
+required/error promotion and correction paths continue to use these shared facts.
 
 `DefinitionLocalization` retains only admitted public translation metadata.
 `SelectLocale` publishes view changes without input changes or preparation

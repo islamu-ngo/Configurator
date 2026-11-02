@@ -7,12 +7,15 @@
 @if (!_disposed && !MountCancellation.IsCancellationRequested)
 {
     var projection = Form.Projection;
+    var actionForm = Form;
+    long inputRevision = Form.InputRevision;
+    var actionMount = MountCancellation;
     var experience = Form.DisplayExperiences.Single(item => item.Id == Form.SelectedExperienceId);
     var states = Form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
     string? outputField = Form.Definition.Presentation?.OutputSelector is { } selector
         ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
     var sections = Sections.Where(section => section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive &&
-        (experience.Sections.Contains(section.Id) || Form.IsEditorVisible([fieldId])))).ToArray();
+        (experience.Sections.Contains(section.Id) || projection.IsFieldVisible(fieldId)))).ToArray();
     string? selected = sections.Any(section => section.Id == SelectedSection) ? SelectedSection : sections.FirstOrDefault()?.Id;
 <SectionContent SectionName="configuration-sections">
     @if (sections.Length > 1)
@@ -32,12 +35,17 @@
                 {
                     <p id="@(SectionId(section.Id) + "-description")" class="configuration-configure-panel__description">@section.Description</p>
                 }
-                <ConfigurationSectionFields @key="Form" Form="Form" Fields="@(section.Fields.Where(fieldId => fieldId != outputField).Select(fieldId => states[fieldId]).ToArray())"
+                <ConfigurationSectionFields @key="Form" Form="Form" Fields="@(section.Fields.Where(fieldId => fieldId != outputField && projection.IsFieldVisible(fieldId)).Select(fieldId => states[fieldId]).ToArray())"
                                             MountCancellation="MountCancellation" Validation="Validation"
                                             FocusField="@FocusField" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+                @if (section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && !projection.IsFieldVisible(fieldId)))
+                {
+                    <AppButton Variant="Variant.Outlined" data-action="show-section-options"
+                               OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
+                }
             </section>
         }
-        @if (experience.Navigation == "wizard" && sections.Length > 1)
+        @if (sections.Length > 0)
         {
             int index = Array.FindIndex(sections, section => section.Id == selected);
             <div class="actions configuration-configure-panel__actions">

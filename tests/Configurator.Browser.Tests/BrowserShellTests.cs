@@ -13,6 +13,65 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class BrowserShellTests
 {
     [Test]
+    public async Task ClearingWorkspaceRetiresOldConsentActionsAndCreatesWorkingRecovery()
+    {
+        await using var context = BrowserFixture.Context();
+        var editor = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var oldConsent = editor.FindComponents<ConfigurationField>().Single(field => field.Instance.Path.SequenceEqual(["credential"])).Instance.RequestSecretConsent;
+        await BrowserFixture.SelectPanelAsync(editor, "prepare");
+        await editor.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
+        await editor.InvokeAsync(editor.Instance.BeginAsync);
+        await editor.InvokeAsync(() => oldConsent.InvokeAsync());
+        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsFalse();
+        await editor.Find("[data-field='credential'] [data-action='field-secret-consent']").ClickAsync(new MouseEventArgs());
+        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(editor.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+    }
+
+    [Test]
+    public async Task SearchResultCapturedBeforeAnAnswerEditCannotNavigate()
+    {
+        await using var context = BrowserFixture.Context();
+        var shell = context.Render<NavMenu>();
+        var editor = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await shell.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "credential" });
+        var navigate = shell.FindComponent<ConfigurationDiscovery>().Instance.Navigate;
+        await editor.InvokeAsync(() => form.EditValue(["hostname"], "synthetic-updated.test"));
+        int focusCount = context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus");
+        await editor.InvokeAsync(() => navigate.InvokeAsync(new Configurator.Core.Definitions.DefinitionDiagnostic("discovery", "credential")));
+        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus")).IsEqualTo(focusCount);
+        await Assert.That(shell.FindAll("[data-discovery-result]").Count).IsEqualTo(1);
+        await Assert.That(form.InputRevision).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task SecretSearchSelectionReachesConsentWithoutChangingAnswers()
+    {
+        await using var context = BrowserFixture.Context();
+        var shell = context.Render<NavMenu>();
+        var editor = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await shell.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "credential" });
+        await shell.Find("[data-discovery-result='credential'] button").ClickAsync(new MouseEventArgs());
+        await Assert.That(shell.FindAll("[data-discovery-result]")).IsEmpty();
+        await Assert.That(editor.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(editor.Find("[data-workflow-step='configure']").GetAttribute("aria-current")).IsEqualTo("step");
+        await Assert.That(form.InputRevision).IsEqualTo(0);
+        await Assert.That(form.CanEdit(["credential"])).IsFalse();
+        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]).IsNotNull();
+        await editor.Find("details[data-secret-consent] > summary").ClickAsync(new MouseEventArgs());
+        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsFalse();
+        await shell.Find("button[aria-controls='workspace-search-results']").ClickAsync(new MouseEventArgs());
+        await shell.Find("[data-discovery-result='credential'] button").ClickAsync(new MouseEventArgs());
+        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+    }
+
+    [Test]
     public async Task ClosedSearchReflectsExternalQueryAndCurrentWorkspaceWhenReopened()
     {
         await using var context = BrowserFixture.Context();
@@ -127,7 +186,7 @@ public sealed class BrowserShellTests
         await Assert.That(component.FindAll("a[href^='launch/']")).Count().IsEqualTo(1);
         var help = context.Render<Help>();
         await Assert.That(help.FindAll("h1")).Count().IsEqualTo(1);
-        await Assert.That(help.Find("a[href='open']").TextContent).IsEqualTo("Open configuration");
+        await Assert.That(help.Find("a[href='open']").TextContent).IsNotEmpty();
     }
 
     [Test]

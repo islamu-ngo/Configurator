@@ -157,10 +157,9 @@
   <data name="AddFieldEntry" xml:space="preserve"><value>أضف إدخالًا</value></data>
   <data name="FieldNewEntryKey" xml:space="preserve"><value>مفتاح إدخال جديد لـ {0}</value></data>
   <data name="FieldInvalidMapKey" xml:space="preserve"><value>استخدم مفتاحًا صالحًا ضمن الحدود المسموحة وغير موجود مسبقًا.</value></data>
-  <data name="FieldSecretDenied" xml:space="preserve"><value>إدخال الأسرار معطّل في مساحة العمل هذه. فعّله عمدًا من الأعلى، أو أكمل مسودة منزّلة محليًا.</value></data>
+  <data name="FieldSecretDenied" xml:space="preserve"><value>إدخال الأسرار معطّل في مساحة العمل هذه. راجع الموافقة على إدخال الأسرار في مساحة العمل لتفعيله عمدًا، أو أكمل مسودة منزّلة محليًا.</value></data>
   <data name="FieldInputTypeInvalid" xml:space="preserve"><value>قدّم قيمة من النوع المعلَن. (input-type-invalid)</value></data>
   <data name="FieldBooleanHelp" xml:space="preserve"><value>استخدم true أو false.</value></data>
-  <data name="FieldDeclaredChoices" xml:space="preserve"><value>الخيارات المعلَنة: {0}.</value></data>
   <data name="CredentialIssuerHelp" xml:space="preserve"><value>احصل على هذه القيمة من الجهة المصدرة، ثم الصقها أو اربطها بحقل مخصص في مدير كلمات المرور. لا تستبدلها بكلمة مرور مولّدة محليًا.</value></data>
   <data name="CredentialCreateHelp" xml:space="preserve"><value>اختر قيمة جديدة تستوفي متطلبات التطبيق الهدف. قد يساعدك مدير كلمات المرور على إنشائها وحفظها.</value></data>
   <data name="CredentialExistingHelp" xml:space="preserve"><value>استخدم القيمة التي يقبلها التطبيق الهدف بالفعل. يمكن لمدير كلمات المرور تعبئتها أو لصقها.</value></data>
@@ -327,6 +326,49 @@
   <data name="ImportReadFailedStatus" xml:space="preserve"><value>تعذّر إكمال المقارنة. لم تتغير الإجابات؛ أصلح نسخة منفصلة أو اختر الملف مجددًا.</value></data>
   <data name="AppPreparationIncompleteStatus" xml:space="preserve"><value>لم يكتمل تجهيز التطبيق للعمل دون اتصال. أكمل تحميل ملفات التطبيق العامة قبل إدخال الإجابات.</value></data>
   <data name="WorkspaceClearedStatus" xml:space="preserve"><value>مُسحت الإجابات والمخرجات. إدخال الأسرار معطّل. ابدأ مساحة عمل محلية جديدة للمتابعة.</value></data>
+  <data name="DiscoveryFilters" xml:space="preserve"><value>مرشحات البحث</value></data>
+  <data name="DiscoveryClearSearch" xml:space="preserve"><value>مسح البحث</value></data>
+  <data name="DiscoveryClearFilters" xml:space="preserve"><value>مسح المرشحات</value></data>
+  <data name="DiscoveryIncludeInactive" xml:space="preserve"><value>تضمين الإعدادات غير النشطة (لا يؤدي إلى تفعيلها)</value></data>
+  <data name="DiscoveryFilterHelp" xml:space="preserve"><value>مطابقة أي خيار ضمن كل مجموعة محددة، وجميع المجموعات المحددة.</value></data>
+  <data name="DiscoveryMatches" xml:space="preserve"><value>{0} إعدادات مطابقة</value></data>
+  <data name="DiscoveryNoMatches" xml:space="preserve"><value>لا توجد إعدادات مطابقة. امسح البحث أو المرشحات، أو ضمّن الإعدادات غير النشطة لمراجعة شروط تفعيلها.</value></data>
+  <data name="DiscoveryConfigure" xml:space="preserve"><value>تهيئة</value></data>
+  <data name="DiscoveryReviewActivation" xml:space="preserve"><value>مراجعة التفعيل</value></data>
+  <data name="DiscoveryInactive" xml:space="preserve"><value>غير نشط؛ لا يُصدَّر</value></data>
+  <data name="DiscoveryInactiveHelp" xml:space="preserve"><value>هذا الإعداد غير نشط. مراجعة السؤال المتحكم به لا تفعّله.</value></data>
+  <data name="DiscoveryMatchDetails" xml:space="preserve"><value>المفتاح وتفاصيل المطابقة</value></data>
+  <data name="WorkspaceTaskTools" xml:space="preserve"><value>مهمة الإخراج واللغة</value></data>
+  <data name="WorkspaceEditorTools" xml:space="preserve"><value>أدوات المحرر والتفاصيل</value></data>
+  <data name="DiscoveryMatchReason" xml:space="preserve"><value>سبب المطابقة</value></data>
+  <data name="DiscoveryControllers" xml:space="preserve"><value>الأسئلة المتحكمة</value></data>
+  <data name="DiscoveryPages" xml:space="preserve"><value>صفحات نتائج الإعدادات</value></data>
+  <data name="DiscoverySelectedFilters" xml:space="preserve"><value>المرشحات المحددة</value></data>
+  <data name="DiscoveryRemove" xml:space="preserve"><value>إزالة</value></data>
+  <data name="DiscoveryRequirement" xml:space="preserve"><value>المتطلبات</value></data>
+  <data name="DiscoveryApplicability" xml:space="preserve"><value>قابلية التطبيق</value></data>
+  <data name="DiscoveryState" xml:space="preserve"><value>حالة الإجابة</value></data>
+  <data name="DiscoverySensitivity" xml:space="preserve"><value>الحساسية</value></data>
+  <data name="DiscoveryOutput" xml:space="preserve"><value>الإخراج المعلن</value></data>
+  <data name="DiscoveryMatchOutput" xml:space="preserve"><value>مفتاح الإخراج المطابق</value></data>
+  <data name="DiscoveryMatchField" xml:space="preserve"><value>مفتاح الحقل المطابق</value></data>
+  <data name="DiscoveryMatchTitle" xml:space="preserve"><value>عنوان السؤال</value></data>
+  <data name="DiscoveryMatchTerms" xml:space="preserve"><value>مصطلحات البحث</value></data>
+  <data name="DiscoveryMatchHelp" xml:space="preserve"><value>الإرشادات</value></data>
+  <data name="DiscoveryMatchMetadata" xml:space="preserve"><value>بيانات التعريف</value></data>
+  <data name="DiscoveryOption_required" xml:space="preserve"><value>مطلوب</value></data>
+  <data name="DiscoveryOption_optional" xml:space="preserve"><value>اختياري</value></data>
+  <data name="DiscoveryOption_active" xml:space="preserve"><value>نشط</value></data>
+  <data name="DiscoveryOption_inactive" xml:space="preserve"><value>غير نشط</value></data>
+  <data name="DiscoveryOption_needs-attention" xml:space="preserve"><value>يحتاج إلى مراجعة</value></data>
+  <data name="DiscoveryOption_ready" xml:space="preserve"><value>جاهز</value></data>
+  <data name="DiscoveryOption_supplied" xml:space="preserve"><value>مقدّم</value></data>
+  <data name="DiscoveryOption_defaulted" xml:space="preserve"><value>افتراضي</value></data>
+  <data name="DiscoveryOption_omitted" xml:space="preserve"><value>مستبعد</value></data>
+  <data name="DiscoveryOption_secret-deferred" xml:space="preserve"><value>سر مؤجل</value></data>
+  <data name="DiscoveryOption_public" xml:space="preserve"><value>عام</value></data>
+  <data name="DiscoveryOption_sensitive" xml:space="preserve"><value>حساس</value></data>
+  <data name="DiscoveryOption_secret" xml:space="preserve"><value>سري</value></data>
   <data name="EntrySourceRecovery" xml:space="preserve"><value>تحقق من رابط تعريف HTTPS العام وخياراته، أو افتح ملف التعريف الأصلي بصيغة JSON أو YAML من جهازك. لم تتم استعادة أي إجابات.</value></data>
   <data name="EntryReopenHelp" xml:space="preserve"><value>قد لا يتوفر التعريف المفتوح في هذه الجلسة فقط بعد إعادة التحميل. أعد فتح ملف التعريف الأصلي أو رابطه العام لبدء مساحة عمل جديدة. لا تُخزّن إجاباتك السابقة.</value></data>
   <data name="HelpTitle" xml:space="preserve"><value>المساعدة في الإعداد</value></data>
@@ -349,4 +391,8 @@
   <data name="FilesDeferredRequired" xml:space="preserve"><value>مطلوب: أدخل هذه القيمة قبل استخدام الإعداد.</value></data>
   <data name="FilesDeferredOptional" xml:space="preserve"><value>سر اختياري محجوب: حدّد ما إذا كانت الخدمة تحتاج قيمة قبل الاستخدام.</value></data>
   <data name="FilesDeferredUnknown" xml:space="preserve"><value>تحقق من موضع الإكمال هذا وفق متطلبات التطبيق الهدف قبل الاستخدام.</value></data>
+  <data name="DiscoveryPrevious" xml:space="preserve"><value>الإعدادات السابقة</value></data>
+  <data name="DiscoveryNext" xml:space="preserve"><value>الإعدادات التالية</value></data>
+  <data name="MaskedChoiceReplace" xml:space="preserve"><value>القيمة الحالية مخفية؛ اختر قيمة بديلة</value></data>
+  <data name="MaskedChoiceAbsent" xml:space="preserve"><value>لم تُدخل قيمة؛ اختر قيمة</value></data>
 </root>

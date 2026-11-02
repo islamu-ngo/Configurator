@@ -27,6 +27,7 @@ public sealed class AppSelectField : MudSelect<string>
             || Changed(nameof(Value), Value)
             || Changed(nameof(InputId), InputId)
             || Changed(nameof(Disabled), Disabled)
+            || Changed(nameof(Required), Required)
             || Changed(nameof(Error), Error)
             || Changed(nameof(ErrorId), ErrorId)
             || Changed(nameof(HelperId), HelperId)

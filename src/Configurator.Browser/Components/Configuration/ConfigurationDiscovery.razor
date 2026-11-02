@@ -2,18 +2,73 @@
 @using Configurator.Core.Definitions
 
 <div class="configuration-discovery">
+    <div class="configuration-discovery__matches">
+    <p aria-live="polite" aria-atomic="true" data-discovery-count="@Form.Projection.Discovery.TotalCount">
+        @string.Format(System.Globalization.CultureInfo.CurrentCulture, T("DiscoveryMatches"), Form.Projection.Discovery.TotalCount)
+    </p>
+    @if (Form.Projection.Matches.Count == 0)
+    {
+        <p>@T("DiscoveryNoMatches")</p>
+    }
+    <ul class="configuration-discovery__results">
+        @foreach (var match in Form.Projection.Matches.Skip(_page * PageSize).Take(PageSize))
+        {
+            var entry = match.Entry;
+            <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
+                data-discovery-result="@entry.FieldId" data-match="@match.MatchReason" data-active="@entry.IsActive.ToString().ToLowerInvariant()">
+                <div class="configuration-discovery__result-heading">
+                    <strong>@entry.Title</strong>
+                    @if (entry.IsActive)
+                    {
+                        <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery", entry.FieldId, entry.RelativePath))'
+                                aria-label="@(T("DiscoveryConfigure") + " " + entry.Title)">@T("DiscoveryConfigure")</button>
+                    }
+                    else if (entry.ActiveControllerFields.Count > 0)
+                    {
+                        <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery-controller", entry.ActiveControllerFields[0]))'>@T("DiscoveryReviewActivation")</button>
+                    }
+                </div>
+                <p>@entry.SectionTitle / @T(entry.IsActive ? entry.IsRequired ? "Required" : "Optional" : "DiscoveryInactive")</p>
+                @if (!entry.IsActive)
+                {
+                    <p>@T("DiscoveryInactiveHelp")</p>
+                }
+                <details><summary>@T("DiscoveryMatchDetails")</summary>
+                    <code>@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</code>
+                    <p>@T("DiscoveryMatchReason"): @MatchTitle(match.MatchReason).</p>
+                    @if (entry.ActiveControllerFields.Count > 0)
+                    {
+                        <p>@T("DiscoveryControllers"): @string.Join(", ", entry.ActiveControllerFields.Select(id => Form.GetEditorPresentation([id])?.Title ?? Form.Definition.Fields.Single(field => field.Id == id).Title))</p>
+                    }
+                </details>
+            </li>
+        }
+    </ul>
+    @if (Form.Projection.Matches.Count > PageSize)
+    {
+        <nav class="actions" aria-label="@T("DiscoveryPages")">
+            <button type="button" class="button button--secondary" data-action="discovery-previous"
+                    disabled="@(_page == 0)" @onclick="() => _page--">@T("DiscoveryPrevious")</button>
+            <span role="status">@(_page + 1) / @PageCount</span>
+            <button type="button" class="button button--secondary" data-action="discovery-next"
+                    disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">@T("DiscoveryNext")</button>
+        </nav>
+    }
+    </div>
+    <details class="configuration-discovery__controls">
+    <summary>@T("DiscoveryFilters")</summary>
     <div class="actions">
-        <button type="button" class="button button--secondary" data-action="clear-discovery-search" @onclick="ClearQuery">Clear search</button>
-        <button type="button" class="button button--secondary" data-action="clear-discovery-filters" @onclick="ClearFilters">Clear filters</button>
-        <button type="button" class="button button--secondary" data-action="reset-discovery" @onclick="Reset">Reset search and filters</button>
+        <button type="button" class="button button--secondary" data-action="clear-discovery-search" @onclick="ClearQuery">@T("DiscoveryClearSearch")</button>
+        @if (Form.DiscoverySelection.Facets.Any(pair => pair.Value.Count > 0) || Form.DiscoverySelection.IncludeInactive)
+        {
+            <button type="button" class="button button--secondary" data-action="clear-discovery-filters" @onclick="ClearFilters">@T("DiscoveryClearFilters")</button>
+        }
     </div>
     <label class="configuration-discovery__option">
         <input id="discovery-include-inactive" type="checkbox" checked="@Form.DiscoverySelection.IncludeInactive" @onchange="IncludeInactive" />
-        Include inactive settings (does not enable them)
+        @T("DiscoveryIncludeInactive")
     </label>
-    <details class="configuration-discovery__filters">
-        <summary>Filter settings</summary>
-        <p class="form-help">Options within one group combine with OR; groups combine with AND. Each count ignores only its own group's selections.</p>
+        <p class="form-help">@T("DiscoveryFilterHelp")</p>
         <div class="configuration-discovery__facet-grid">
             @foreach (var facet in Form.Projection.Discovery.Facets)
             {
@@ -30,78 +85,28 @@
                 </fieldset>
             }
         </div>
-    </details>
     @if (Form.DiscoverySelection.Facets.Any(pair => pair.Value.Count > 0))
     {
-        <div class="configuration-discovery__chips" aria-label="Selected filters">
+        <div class="configuration-discovery__chips" aria-label="@T("DiscoverySelectedFilters")">
             @foreach (var facet in Form.DiscoverySelection.Facets)
             {
                 @foreach (string value in facet.Value)
                 {
                     <button type="button" class="button button--secondary" @onclick="() => Toggle(facet.Key, value, false)"
-                            aria-label="@("Remove " + FacetTitle(facet.Key) + " filter " + OptionTitle(facet.Key, value))">
-                        @FacetTitle(facet.Key): @OptionTitle(facet.Key, value) (remove)
+                            aria-label="@(T("DiscoveryRemove") + " " + FacetTitle(facet.Key) + ": " + OptionTitle(facet.Key, value))">
+                        @FacetTitle(facet.Key): @OptionTitle(facet.Key, value) (@T("DiscoveryRemove"))
                     </button>
                 }
             }
         </div>
     }
-    <p aria-live="polite" aria-atomic="true" data-discovery-count="@Form.Projection.Discovery.TotalCount">
-        @Form.Projection.Discovery.TotalCount matching settings
-    </p>
-    @if (Form.Projection.Matches.Count == 0)
-    {
-        <p>No matching settings. Clear search or filters independently, or include inactive settings to inspect their activation.</p>
-    }
-    <ul class="configuration-discovery__results">
-        @foreach (var match in Form.Projection.Matches.Skip(_page * PageSize).Take(PageSize))
-        {
-            var entry = match.Entry;
-            <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
-                data-discovery-result="@entry.FieldId" data-match="@match.MatchReason" data-active="@entry.IsActive.ToString().ToLowerInvariant()">
-                <div class="configuration-discovery__result-heading">
-                    <strong>@entry.Title</strong>
-                    @if (entry.IsActive)
-                    {
-                        <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery", entry.FieldId, entry.RelativePath))'
-                                aria-label="@("Configure " + entry.Title)">Configure</button>
-                    }
-                    else if (entry.ActiveControllerFields.Count > 0)
-                    {
-                        <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery-controller", entry.ActiveControllerFields[0]))'>Review activation</button>
-                    }
-                </div>
-                <p>@entry.SectionTitle / @(entry.IsActive ? entry.IsRequired ? "Required" : "Optional" : "Inactive; not exported") / @entry.Sensitivity</p>
-                @if (!entry.IsActive)
-                {
-                    <p>This setting is inactive under its authored conditions. Reviewing a controlling question does not enable it.</p>
-                }
-                <details><summary>Key and match details</summary>
-                    <code>@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</code>
-                    <p>Matched by @MatchTitle(match.MatchReason).</p>
-                    @if (entry.ActiveControllerFields.Count > 0)
-                    {
-                        <p>Active controlling questions: @string.Join(", ", entry.ActiveControllerFields.Select(id => Form.Definition.Fields.Single(field => field.Id == id).Title))</p>
-                    }
-                </details>
-            </li>
-        }
-    </ul>
-    @if (Form.Projection.Matches.Count > PageSize)
-    {
-        <nav class="actions" aria-label="Setting result pages">
-            <button type="button" class="button button--secondary" data-action="discovery-previous"
-                    disabled="@(_page == 0)" @onclick="() => _page--">Previous settings</button>
-            <span role="status">Page @(_page + 1) of @PageCount</span>
-            <button type="button" class="button button--secondary" data-action="discovery-next"
-                    disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">Next settings</button>
-        </nav>
-    }
+    </details>
 </div>
 
 @code {
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public EventCallback<DefinitionDiagnostic> Navigate { get; set; }
+    private string T(string key) => BrowserStrings.Get(key, Form.Locale);
     private const int PageSize = 50;
     private DefinitionFormModel? _observedForm;
     private DefinitionDiscoverySelection? _observedSelection;
@@ -123,7 +128,6 @@
     }
     private void ClearQuery() { _page = 0; Form.ClearDiscoveryQuery(); }
     private void ClearFilters() { _page = 0; Form.ClearDiscoveryFilters(); }
-    private void Reset() { _page = 0; Form.ResetDiscovery(); }
     private void IncludeInactive(ChangeEventArgs args)
     {
         _page = 0;
@@ -142,23 +146,23 @@
         _page = 0;
         Form.SetDiscoverySelection(new(Form.DiscoveryQuery, Form.DiscoverySelection.IncludeInactive, facets));
     }
-    private static string FacetTitle(DefinitionDiscoveryFacet facet) => facet switch
+    private string FacetTitle(DefinitionDiscoveryFacet facet) => T(facet switch
     {
-        DefinitionDiscoveryFacet.Requirement => "Requirement",
-        DefinitionDiscoveryFacet.Applicability => "Applicability",
-        DefinitionDiscoveryFacet.State => "Answer state",
-        DefinitionDiscoveryFacet.Sensitivity => "Sensitivity",
-        DefinitionDiscoveryFacet.Artifact => "Declared output",
-        _ => "Section"
-    };
+        DefinitionDiscoveryFacet.Requirement => "DiscoveryRequirement",
+        DefinitionDiscoveryFacet.Applicability => "DiscoveryApplicability",
+        DefinitionDiscoveryFacet.State => "DiscoveryState",
+        DefinitionDiscoveryFacet.Sensitivity => "DiscoverySensitivity",
+        DefinitionDiscoveryFacet.Artifact => "DiscoveryOutput",
+        _ => "Sections"
+    });
     private string OptionTitle(DefinitionDiscoveryFacet facet, string value) => facet == DefinitionDiscoveryFacet.Section
-        ? Form.Sections.Single(section => section.Id == value).Title
+        ? Form.DisplaySections.Single(section => section.Id == value).Title
         : facet == DefinitionDiscoveryFacet.Artifact ? Form.Definition.Artifacts.Single(artifact => artifact.Id == value).FileName
-        : value.Replace('-', ' ');
-    private static string MatchTitle(string reason) => reason switch
+        : T("DiscoveryOption_" + value);
+    private string MatchTitle(string reason) => T(reason switch
     {
-        "binding-key" => "exact declared output key", "field-id" => "exact field key",
-        "title" => "question title", "search-term" => "authored search terms",
-        "help" => "guidance", "all" => "current filters", _ => "definition metadata"
-    };
+        "binding-key" => "DiscoveryMatchOutput", "field-id" => "DiscoveryMatchField",
+        "title" => "DiscoveryMatchTitle", "search-term" => "DiscoveryMatchTerms",
+        "help" => "DiscoveryMatchHelp", "all" => "DiscoveryFilters", _ => "DiscoveryMatchMetadata"
+    });
 }
