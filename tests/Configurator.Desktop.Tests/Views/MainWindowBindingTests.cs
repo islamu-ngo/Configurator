@@ -2,16 +2,64 @@ namespace Configurator.Desktop.Tests.Views;
 
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Desktop.Services;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.Views;
 
 public sealed class MainWindowBindingTests
 {
+    [Test]
+    [NotInParallel]
+    public async Task ErrorPaletteStaysReadable()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(MainWindowBindingTests));
+        try
+        {
+            bool readable = await session.Dispatch(() =>
+            {
+                var window = new MainWindow();
+                try
+                {
+                    window.Show();
+                    bool result = true;
+                    foreach (ThemeVariant variant in new[] { ThemeVariant.Light, ThemeVariant.Dark, DesktopTheme.HighContrast })
+                    {
+                        window.RequestedThemeVariant = variant;
+                        Dispatcher.UIThread.RunJobs();
+                        if (!window.TryFindResource("ConfiguratorErrorBrush", window.ActualThemeVariant, out object? error) ||
+                            !window.TryFindResource("ConfiguratorSurfaceBrush", window.ActualThemeVariant, out object? surface) ||
+                            error is not SolidColorBrush foreground || surface is not SolidColorBrush background)
+                            result = false;
+                        else result &= Contrast(foreground.Color, background.Color) >= 4.5;
+                    }
+                    return result;
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+            await Assert.That(readable).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    private static double Contrast(Color first, Color second)
+    {
+        static double Channel(byte channel)
+        {
+            double value = channel / 255.0;
+            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+        static double Luminance(Color color) => 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
+        double a = Luminance(first), b = Luminance(second);
+        return (Math.Max(a, b) + 0.05) / (Math.Min(a, b) + 0.05);
+    }
+
     private static readonly string[] ActionNames =
     [
         "LoadDefinition", "Validate", "Prepare", "Save", "PrepareBundle", "SaveBundle",

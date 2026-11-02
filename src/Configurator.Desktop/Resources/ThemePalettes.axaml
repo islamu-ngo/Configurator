@@ -1,0 +1,24 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="using:Configurator.Desktop.Resources">
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="ConfiguratorErrorBrush" Color="#A4262C" />
+      <SolidColorBrush x:Key="ConfiguratorSurfaceBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorTextBrush" Color="#161616" />
+      <SolidColorBrush x:Key="ConfiguratorBorderBrush" Color="#606060" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="ConfiguratorErrorBrush" Color="#FFB4AB" />
+      <SolidColorBrush x:Key="ConfiguratorSurfaceBrush" Color="#202020" />
+      <SolidColorBrush x:Key="ConfiguratorTextBrush" Color="#F5F5F5" />
+      <SolidColorBrush x:Key="ConfiguratorBorderBrush" Color="#B0B0B0" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:DesktopTheme.HighContrast}">
+      <SolidColorBrush x:Key="ConfiguratorErrorBrush" Color="#FFFF00" />
+      <SolidColorBrush x:Key="ConfiguratorSurfaceBrush" Color="#000000" />
+      <SolidColorBrush x:Key="ConfiguratorTextBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorBorderBrush" Color="#FFFFFF" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

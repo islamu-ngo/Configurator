@@ -7,10 +7,10 @@
     x:CompileBindings="True">
   <UserControl.Styles>
     <Style Selector="TextBlock.blocking">
-      <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ConfiguratorErrorBrush}" />
     </Style>
   </UserControl.Styles>
-  <Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+  <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
           BorderThickness="1" Padding="12">
     <StackPanel Spacing="8">
       <TextBlock Text="{Binding ImportComparisonTitle}" FontWeight="SemiBold" TextWrapping="Wrap" />

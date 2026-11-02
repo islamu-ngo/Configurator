@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7T8594EZ6MSCPBXS5HB9V
+Title: "preserve desktop contrast across system themes"
+Type: fix
+Scope: accessibility
+Summary: "preserve desktop contrast across system themes."
+Group: desktop-02-theme
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "preserve desktop contrast across system themes."

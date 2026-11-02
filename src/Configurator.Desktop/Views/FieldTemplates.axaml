@@ -23,7 +23,7 @@
   </DataTemplate>
   <DataTemplate x:Key="FieldActions" x:DataType="fields:FieldViewModel">
     <StackPanel Spacing="4">
-      <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" />
+      <TextBlock Classes="error" Text="{Binding ErrorText}" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" Spacing="6">
         <Button Content="{Binding SupplyLabel}" Command="{Binding SupplyCommand}" IsVisible="{Binding IsContainer}"
                 AutomationProperties.Name="{Binding SupplyName}" AutomationProperties.HelpText="{Binding SupplyHelp}"

@@ -212,6 +212,14 @@ These shipped resources are separate from definition localization; neither
 implies complete Desktop translation. Childless/zero-capacity containers have a reachable
 Supply focus destination even when there is no editable descendant or enabled
 Add item action.
+
+`ThemePalettes.axaml` owns semantic surface, text, error and border brushes for
+light/dark/high contrast; `DesignTokens.axaml` applies them to the window and
+validation guidance. `DesktopTheme` follows the platform contrast preference,
+uses a dark-inheriting high-contrast variant and releases its platform subscription
+at application exit. Ordinary theme choice remains platform-owned. Native Fluent
+focus and control styling remain active. Actual-host rendering qualification is
+recorded separately from the resource contrast tests.
 Selection buttons return focus after cancellation/failure; successful intake
 focuses the first visible field. Closing disposes the shell, fencing outstanding
 selection as well as private saves. Code-behind contains initialization and

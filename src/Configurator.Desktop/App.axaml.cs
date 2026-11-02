@@ -5,14 +5,16 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.Views;
 using Microsoft.Extensions.DependencyInjection;
 
-public sealed partial class App : Application
+public sealed partial class App : Application, IDisposable
 {
     private ServiceProvider? _services;
+    private DesktopTheme? _theme;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -20,6 +22,7 @@ public sealed partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            if (PlatformSettings is { } settings) _theme = new DesktopTheme(this, settings);
             var services = new ServiceCollection();
             services.AddSingleton<IProtectedArtifactWriter, ProtectedArtifactWriter>();
             services.AddSingleton<IMessenger, WeakReferenceMessenger>();
@@ -51,13 +54,17 @@ public sealed partial class App : Application
                 if (args.Length == 2) shell.Publisher.OutputDirectory = args[1];
                 desktop.MainWindow.Opened += async (_, _) => await shell.Loader.LoadDefinitionAsync();
             }
-            desktop.Exit += (_, _) =>
-            {
-                _services.Dispose();
-                _services = null;
-            };
+            desktop.Exit += (_, _) => Dispose();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    public void Dispose()
+    {
+        _theme?.Dispose();
+        _theme = null;
+        _services?.Dispose();
+        _services = null;
     }
 }

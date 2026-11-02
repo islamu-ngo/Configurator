@@ -158,6 +158,9 @@ Instructions, units, choice explanations and static guidance links also feed
 accessible help. Literal map keys are local answer data, not translated labels.
 Changing locale does not change typed values, answer revision or prepared output.
 
+The window follows the system's light/dark appearance and high-contrast preference.
+Validation errors retain visible text as well as a distinct color and weight.
+
 **Follow locale direction** is enabled initially. Changing **Right-to-left
 layout** selects an explicit direction override; enable follow-direction again
 to resume the locale's direction. Neither direction control changes language.
