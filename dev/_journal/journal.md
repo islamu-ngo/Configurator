@@ -496,3 +496,71 @@ Normal workstation timing still does not replace human or physical-device study.
 
 **Promotion Consideration**:
 - [x] Stays in journal only; the execution report owns the bounded environment evidence.
+
+[2026-11-01 Europe/Brussels] — Close build-lock descriptors before starting compiler servers
+
+**Context**: Parallel browser UX implementation needed serialized native builds
+because shared Razor/MSBuild outputs produced file-sharing failures.
+
+**Symptom / Observation**: Queued builds remained blocked after the command that
+acquired the lock exited. `lslocks -o PID,COMMAND,PATH` identified the persistent
+`VBCSCompiler` process as the holder of the task's lock, rather than `flock`.
+
+**Root Cause**: Plain `flock lockfile dotnet ...` lets child processes inherit
+the open lock descriptor. A persistent compiler server can retain it beyond the
+build command's lifetime, including while serving another checkout.
+
+**Resolution**: Use `flock --close lockfile dotnet ...`. Cancelled only owned
+queued waiters and moved them to a fresh coordinated lock after confirming no
+Configurator build remained active. The shared compiler was also serving other
+work, so it was not forcibly terminated. `lslocks` then showed only the active
+`flock` owner and queued waiters on the replacement lock; build/test outcomes
+remain separately recorded in the execution report.
+
+**Why This Matters for Future Work**: Serialize shared build outputs without
+letting long-lived compiler processes retain the serialization lease. Check the
+actual lock holder before treating silence as a slow test or killing a server.
+
+**References**:
+- `docs/internal/reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md`
+- `PROJECTS.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; a tool-operation lesson, not a product policy.
+
+[2026-11-02 Europe/Brussels] — Focus-driven layout changes can swallow a pointer action
+
+**Context**: Final published-browser qualification followed moving secondary
+editor tools below the active configuration panel.
+
+**Symptom / Observation**: One pointer click on Form after opening Developer did
+not switch modes. Capture showed pointer-down on Form's label, then pointer-up
+and click on the surrounding disclosure. The button moved 55.5 px during focus
+transfer, although the browser automation reported a successful click.
+
+**Root Cause**: Configure focus fell back to a visually hidden workspace heading
+while Developer was mounted. A `:focus` rule revealed that heading in normal
+flow. Pointer-down focused Form and hid the heading again, moving everything
+below it before pointer-up. This was a layout/focus interaction, not a stale
+answer generation or a renderer deadlock.
+
+**Resolution**: Resolve focus to the currently mounted Form or Developer heading;
+keep the workspace label non-focusable. The native focus-owner regression failed
+against the old target, then the full Browser suite passed 366/366. The published
+correction retained Form as the down/up/click target across repeated round trips.
+Later accessibility work has separate package identities and verification.
+
+**Why This Matters for Future Work**: A pointer command's success does not prove
+the intended control received its click. When focus changes geometry, compare
+down/up targets and test the actual surface. Prefer a stable visible destination
+heading over revealing a hidden label in document flow.
+
+**References**:
+- `src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs`
+- `tests/Configurator.Browser.Tests/BrowserConfigurationNavigationTests.cs`
+- `docs/internal/reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md`
+- `.tmp/browser-ux-simplification-revision5/developer-return-pointer-red.json`
+- `.tmp/browser-ux-simplification-revision5/developer-return-pointer-green.json`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the owning UI contract documents stable panel focus.
