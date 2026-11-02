@@ -13,6 +13,12 @@ public sealed record DefinitionImportSchemaExplanation(
 public sealed partial class DefinitionFormModel
 {
     private DefinitionImportAssessment? _importComparison;
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+    internal long[] ReadImportOwnershipProbeState()
+    {
+        lock (_gate) return [_importGeneration, _importComparison is null ? 0 : 1, _disposed ? 1 : 0];
+    }
+#endif
     private long _importGeneration;
     private long _importComparisonRevision;
     private string? _importAutofillCode;

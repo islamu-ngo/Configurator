@@ -5,7 +5,7 @@
 > **Owner:** Presentation
 > **Contributing reviewers:** Core owns inverse compilation and semantic evaluation
 > **Last Verified:** 2026-11-01
-> **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionImport.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Presentation/DefinitionFormModel.cs`
+> **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionImport.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Form/DefinitionFormModel.cs`
 
 ## Purpose And Authority
 
@@ -241,6 +241,39 @@ evidence. Round trips alone cannot establish inverse correctness. Client tests
 and actual Release/AOT or native interactions are separate proof obligations.
 Measured responsiveness and retained-memory outcomes belong in Operations with
 exact fixture/package identities; proposed budgets are not passing evidence.
+
+### Instrumentation ownership
+
+`ImportComparisonMemoryProbe.targets` enables compile-time hooks for Browser raw
+buffers, actual handler/comparison tasks, retirement generations and Core proposal
+ownership. `NativeImportComparisonProbe.targets` additionally enables physical
+read/completion/clearing callbacks, native UI attachment and checkpoints on both
+sides of cooperative yields. The targets compile engineering sources and internal
+friend access only when explicitly enabled; they never rewrite compiler input.
+Ordinary builds contain neither the callbacks nor the observer state. Browser's
+numeric JavaScript exports remain confined to the measurement candidate.
+
+The native driver is compiled into the actual Desktop or Terminal application,
+not run as a standalone C# file. Generate synthetic fixtures with
+`eng/configurator/PrepareImportComparisonFixtures.cs`, build the client with
+`-p:CustomAfterMicrosoftCommonTargets=<absolute-repository>/eng/configurator/NativeImportComparisonProbe.targets`
+and `-p:ConfiguratorNativeImportComparisonProbe=true`, and launch its normal
+entrypoint with the generated definition. Set `CONFIGURATOR_NATIVE_PROBE_INPUT`
+to the corresponding generated input, `CONFIGURATOR_NATIVE_PROBE_ARTIFACT=config`
+and `CONFIGURATOR_NATIVE_PROBE_OUTPUT` to a new receipt path. Set
+`CONFIGURATOR_NATIVE_PROBE_MODE=memory` for six warmups followed by twenty observed
+compare/clear cycles; the default timing mode retains first use, five warmups and
+forty samples for comparison, followed by cancellation samples.
+
+Use a separate build output directory for measurement candidates, then rebuild
+normally before package qualification. Candidate observations are not proof that
+an ordinary package has identical allocation or timing. Receipt identities,
+fixture sizes and actual-host qualification belong in the execution ledger.
+Production packaging through `Configurator.Release.proj` rejects all three
+measurement switches before touching package output. Diagnostic candidates use
+direct project build/publish commands with an isolated output directory instead.
+Ordinary compiled-assembly checks and this release-entrypoint guard are distinct
+from inspecting the contents of compressed native bundles or Browser Webcil.
 
 ### Initial Native Operation Measurements
 

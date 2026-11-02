@@ -26,7 +26,13 @@ internal sealed partial class TerminalWindow
     {
         cancellationToken.ThrowIfCancellationRequested();
         // Suspend the current slice without waiting for the terminal's timer cadence.
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
+#endif
         await Task.Yield();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
+#endif
         cancellationToken.ThrowIfCancellationRequested();
     }
 

@@ -2,7 +2,6 @@ namespace Configurator.Engineering;
 
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
 using Configurator.Presentation;
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
@@ -11,12 +10,13 @@ using Avalonia.Threading;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.Views;
 #else
+using Configurator.Terminal;
 using global::Terminal.Gui.App;
 using global::Terminal.Gui.ViewBase;
 #endif
 
 /// <summary>Explicit diagnostic-candidate driver inside the real native application process.</summary>
-public static class MeasureNativeImportComparison
+internal static class MeasureNativeImportComparison
 {
     private static object? _root;
     private static string? _input;
@@ -61,9 +61,7 @@ public static class MeasureNativeImportComparison
                 Shell.Workspace.IsRightToLeft =
                     Environment.GetEnvironmentVariable("CONFIGURATOR_NATIVE_PROBE_DIRECTION") == "rtl";
 #else
-                object operation = Field(_root!, "_operation");
-                operation.GetType().GetProperty("ArtifactId", BindingFlags.Instance | BindingFlags.NonPublic)!
-                    .SetValue(operation, artifact);
+                TerminalWindow.SelectProbeArtifact(artifact);
 #endif
             });
             await PaintAsync();
@@ -179,20 +177,20 @@ public static class MeasureNativeImportComparison
         _memoryEnabled = true;
         // Allocate the meter's own retained state before warming the no-proposal baseline.
         for (int index = 0; index < 20; index++) Owners.Add(new());
-        AppContext.SetData("Configurator.NativeProbe.Checkpoint", new Action(MemoryCheckpoint));
-        AppContext.SetData("Configurator.NativeProbe.Input", new Action<object, byte[]>(static (owner, bytes) =>
+        NativeImportComparisonProbe.Checkpoint = MemoryCheckpoint;
+        NativeImportComparisonProbe.Input = static (owner, bytes) =>
         {
             OwnerCycle owned = _memoryCycle < 0 ? WarmOwner : Owners[_memoryCycle];
             owned.InputOwner.SetTarget(owner);
             owned.Input.SetTarget(bytes);
-        }));
-        AppContext.SetData("Configurator.NativeProbe.DisposeInput", new Action<byte[]>(static bytes =>
+        };
+        NativeImportComparisonProbe.DisposeInput = static bytes =>
         {
             OwnerCycle owned = _memoryCycle < 0 ? WarmOwner : Owners[_memoryCycle];
             owned.InputDisposed++;
             owned.InputCleared = bytes.All(value => value == 0);
-        }));
-        AppContext.SetData("Configurator.NativeProbe.Proposal", new Action<object, object?, object?, object?>(static (owner, evidence, answers, assignments) =>
+        };
+        NativeImportComparisonProbe.Proposal = static (owner, evidence, answers, assignments) =>
         {
             OwnerCycle owned = _memoryCycle < 0 ? WarmOwner : Owners[_memoryCycle];
             owned.Proposals++;
@@ -200,11 +198,11 @@ public static class MeasureNativeImportComparison
             owned.Evidence.SetTarget(evidence ?? throw new InvalidOperationException("native-probe-evidence-absent"));
             owned.Answers.SetTarget(answers ?? throw new InvalidOperationException("native-probe-answers-absent"));
             owned.Assignments.SetTarget(assignments ?? throw new InvalidOperationException("native-probe-assignments-absent"));
-        }));
-        AppContext.SetData("Configurator.NativeProbe.DisposeProposal", new Action<object>(static _ =>
+        };
+        NativeImportComparisonProbe.DisposeProposal = static _ =>
         {
             (_memoryCycle < 0 ? WarmOwner : Owners[_memoryCycle]).ProposalDisposed++;
-        }));
+        };
     }
 
     private static async Task CompareAsync(int sample, string phase)
@@ -220,12 +218,7 @@ public static class MeasureNativeImportComparison
             shell.Publisher.ImportPurposeIndex = 0;
             physical = shell.Publisher.ImportFileAsync();
 #else
-            object window = _root!;
-            object path = Field(window, "_importPath");
-            path.GetType().GetProperty("Text")!.SetValue(path, _input);
-            Invoke(window, "StartImport", true);
-            physical = (Task)Field(window, "_importOperation").GetType().GetProperty("Completion", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .GetValue(Field(window, "_importOperation"))!;
+            physical = TerminalWindow.StartProbeImport(_input!);
 #endif
             acknowledgment = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         });
@@ -258,7 +251,7 @@ public static class MeasureNativeImportComparison
 #else
             if (Form.ImportComparison!.RetainedFindingCount > 0)
             {
-                Invoke(_root!, "NextComparisonFinding");
+                TerminalWindow.NextProbeFinding();
                 navigated = true;
             }
 #endif
@@ -284,7 +277,7 @@ public static class MeasureNativeImportComparison
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
             Shell.Publisher.ClearImportComparisonCommand.Execute(null);
 #else
-            Invoke(_root!, "ClearPrivateState");
+            TerminalWindow.ClearProbeState();
 #endif
         });
         await PaintAsync();
@@ -311,20 +304,14 @@ public static class MeasureNativeImportComparison
     private static void ClearDiagnosticHistory()
     {
 #if !CONFIGURATOR_DESKTOP_NATIVE_PROBE
-        string mode = DiagnosticHistoryMode();
-        if (mode is "importPath" or "all")
-            ((global::Terminal.Gui.Views.TextField)Field(_root!, "_importPath")).ClearHistoryChanges();
-        if (mode is "value" or "all")
-            ((global::Terminal.Gui.Views.TextField)Field(_root!, "_value")).ClearHistoryChanges();
-        if (mode is "status" or "all")
-            ((global::Terminal.Gui.Views.TextField)Field(_root!, "_status")).ClearHistoryChanges();
+        TerminalWindow.ClearProbeHistory(DiagnosticHistoryMode());
 #endif
     }
 
     private static async Task CancelAsync(int sample)
     {
         var read = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        AppContext.SetData("Configurator.NativeProbe.ReadComplete", new Action(() => read.TrySetResult()));
+        NativeImportComparisonProbe.ReadComplete = () => read.TrySetResult();
         Task physical = Task.CompletedTask;
         await UiAsync(() =>
         {
@@ -332,11 +319,7 @@ public static class MeasureNativeImportComparison
             Shell.Publisher.ExistingFilePath = _input!;
             physical = Shell.Publisher.ImportFileAsync();
 #else
-            object path = Field(_root!, "_importPath");
-            path.GetType().GetProperty("Text")!.SetValue(path, _input);
-            Invoke(_root!, "StartImport", true);
-            object operation = Field(_root!, "_importOperation");
-            physical = (Task)operation.GetType().GetProperty("Completion", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(operation)!;
+            physical = TerminalWindow.StartProbeImport(_input!);
 #endif
         });
         await read.Task.WaitAsync(TimeSpan.FromSeconds(30));
@@ -352,7 +335,7 @@ public static class MeasureNativeImportComparison
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
             Shell.CancelCommand.Execute(null);
 #else
-            Invoke(_root!, "CancelImport");
+            TerminalWindow.CancelProbeImport();
 #endif
             after = Form.ReadImportOwnershipProbeState();
             logicalMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
@@ -366,7 +349,7 @@ public static class MeasureNativeImportComparison
         {
             if (Form.ImportComparison is not null) throw new InvalidOperationException("native-probe-late-publication");
         });
-        AppContext.SetData("Configurator.NativeProbe.ReadComplete", null);
+        NativeImportComparisonProbe.ReadComplete = null;
         Samples.Add(new
         {
             phase = "cancellation", sample, cancelledWhilePending, before, after,
@@ -411,7 +394,7 @@ public static class MeasureNativeImportComparison
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
         Dispatcher.UIThread.Post(Run);
 #else
-        ((IApplication)Field(_root!, "_application")).Invoke(Run);
+        TerminalWindow.ProbeApplication.Invoke(Run);
 #endif
         return done.Task.WaitAsync(TimeSpan.FromSeconds(30));
     }
@@ -430,7 +413,7 @@ public static class MeasureNativeImportComparison
         await UiAsync(() =>
         {
             ((View)_root!).SetNeedsDraw();
-            ((IApplication)Field(_root!, "_application")).LayoutAndDraw(true);
+            TerminalWindow.ProbeApplication.LayoutAndDraw(true);
         });
 #endif
     }
@@ -439,14 +422,8 @@ public static class MeasureNativeImportComparison
     private static DesktopShellViewModel Shell => (DesktopShellViewModel)((MainWindow)_root!).DataContext!;
     private static DefinitionFormModel Form => Shell.Workspace.Form!;
 #else
-    private static DefinitionFormModel Form =>
-        (DefinitionFormModel)Field(_root!, "_operation").GetType().GetProperty("Form", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Field(_root!, "_operation"))!;
-
-    private static object Field(object target, string name) =>
-        target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
-
-    private static void Invoke(object target, string name, params object[] arguments) =>
-        target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(target, arguments);
+    private static TerminalWindow TerminalWindow => (TerminalWindow)_root!;
+    private static DefinitionFormModel Form => TerminalWindow.ProbeForm;
 #endif
 
     private sealed class OwnerCycle

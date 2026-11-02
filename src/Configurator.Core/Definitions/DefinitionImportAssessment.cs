@@ -18,6 +18,9 @@ public sealed class DefinitionImportAssessment : IDisposable
         _definition = definition;
         _evidence = evidence;
         _refusal = refusal;
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveProposal(this, evidence, evidence?.Answers, evidence?.Assignments);
+#endif
     }
     public DefinitionImportReport Report { get; }
     public DefinitionImportResult AssessAutofill(AnswerSnapshot current,
@@ -56,6 +59,9 @@ public sealed class DefinitionImportAssessment : IDisposable
     public void Dispose()
     {
         _disposed = true;
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+        Configurator.Engineering.ImportComparisonOwnershipProbe.DisposeProposal(this);
+#endif
         _evidence = null;
         _definition = null;
     }

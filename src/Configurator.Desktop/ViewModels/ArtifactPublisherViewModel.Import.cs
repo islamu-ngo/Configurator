@@ -173,7 +173,13 @@ public sealed partial class ArtifactPublisherViewModel
     internal static async ValueTask YieldDispatcherAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
+#endif
         await Dispatcher.Yield(DispatcherPriority.Background);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.NativeImportComparisonProbe.Checkpoint?.Invoke();
+#endif
         cancellationToken.ThrowIfCancellationRequested();
     }
 

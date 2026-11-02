@@ -9,6 +9,32 @@ namespace Configurator.Architecture.Tests;
 public sealed class ReleaseContractTests
 {
     [Test]
+    [Arguments("PublishConfigurator", "ConfiguratorImportComparisonMemoryProbe")]
+    [Arguments("PublishConfigurator", "ConfiguratorImportComparisonOwnershipProbe")]
+    [Arguments("PublishConfigurator", "ConfiguratorNativeImportComparisonProbe")]
+    [Arguments("PublishConfiguratorBrowser", "ConfiguratorImportComparisonMemoryProbe")]
+    [Arguments("PublishConfiguratorBrowser", "ConfiguratorImportComparisonOwnershipProbe")]
+    [Arguments("PublishConfiguratorBrowser", "ConfiguratorNativeImportComparisonProbe")]
+    public async Task ProductionPackagingRejectsMeasurementCandidatesBeforeTouchingOutput(string target, string probe)
+    {
+        string output = Path.Combine(Path.GetTempPath(), $"configurator-probe-release-{Guid.NewGuid():N}");
+        string existing = Path.Combine(output, "browser", "existing.txt");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(existing)!);
+            await File.WriteAllTextAsync(existing, "existing package");
+            var result = await ReleaseTestPaths.Run("dotnet", "msbuild", "eng/configurator/Configurator.Release.proj",
+                "-nologo", "-verbosity:quiet", $"-t:{target}", $"-p:{probe}=true",
+                "-p:ConfiguratorRid=linux-x64", $"-p:ConfiguratorOutputRoot={output}");
+            await Assert.That(result.ExitCode).IsNotEqualTo(0);
+            await Assert.That(result.Output).Contains("CONFIGURATOR_PROBE_RELEASE_FORBIDDEN");
+            await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("existing package");
+            await Assert.That(Directory.GetFiles(output, "*", SearchOption.AllDirectories)).IsEquivalentTo([existing]);
+        }
+        finally { Directory.Delete(output, recursive: true); }
+    }
+
+    [Test]
     [Arguments("cli", "islamu-configurator", 7)]
     [Arguments("terminal", "islamu-configurator-terminal", 4)]
     [Arguments("desktop", "islamu-configurator-desktop", 1)]

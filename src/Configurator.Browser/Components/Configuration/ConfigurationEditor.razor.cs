@@ -577,6 +577,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _importPending = false;
         _importConsentRequired = false;
         _form?.ClearImportComparison();
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveRetirement(this);
+#endif
         _navigation?.RefreshWork(this, _navigationLease);
         if (releaseFileControl) ++_fileKey;
     }

@@ -166,6 +166,10 @@ dotnet msbuild eng/configurator/Configurator.Release.proj \
 
 Compiled binaries will appear under the corresponding paths in `artifacts/configurator/`.
 
+Release packaging rejects enabled import-comparison measurement probes before
+changing output. Contributors producing diagnostic candidates must use a separate
+output directory and the [measurement build procedure](../internal/IMPORT_COMPARISON.md#instrumentation-ownership).
+
 ---
 
 ## Bundling the Public Definition Store

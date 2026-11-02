@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 /// One fresh runtime observes exactly twenty sequential compare/clear cycles.
 /// No private object is stored strongly or returned to the caller.
 /// </summary>
-public static class ImportComparisonOwnershipProbe
+internal static class ImportComparisonOwnershipProbe
 {
     private static readonly object Unobserved = new();
     private static readonly Cycle[] Cycles = CreateCycles();
@@ -125,8 +125,9 @@ public static class ImportComparisonOwnershipProbe
 
     public static void ObserveProposal(object owner, object? evidence, object? answers, object? assignments)
     {
-        if (AppContext.GetData("Configurator.NativeProbe.Proposal") is Action<object, object?, object?, object?> observe)
-            observe(owner, evidence, answers, assignments);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        NativeImportComparisonProbe.Proposal?.Invoke(owner, evidence, answers, assignments);
+#endif
         if (_started == 0) return;
         Cycle cycle = Cycles[_started - 1]!;
         if (cycle.ProposalObserved != 0 || evidence is null || answers is null || assignments is null)
@@ -143,8 +144,9 @@ public static class ImportComparisonOwnershipProbe
 
     public static void DisposeProposal(object owner)
     {
-        if (AppContext.GetData("Configurator.NativeProbe.DisposeProposal") is Action<object> observe)
-            observe(owner);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        NativeImportComparisonProbe.DisposeProposal?.Invoke(owner);
+#endif
         if (_started == 0) return;
         Cycle cycle = Cycles[_started - 1]!;
         if (cycle.ProposalDisposed != 0 || cycle.ProposalObserved == 0 ||

@@ -44,6 +44,13 @@ standalone publication and independent static browser publication. Its default
 native client. `PublishConfigurator` requires an explicit RID, embeds native
 dependencies, disables trimming, renames the apphost to the documented operator
 name and includes notices, schemas and generated contract data.
+Both native and Browser release entrypoints reject the import memory, ownership
+and native comparison probe switches with `CONFIGURATOR_PROBE_RELEASE_FORBIDDEN`
+before running generators or changing output. Measurement candidates use direct
+project build/publish to isolated output; see
+[instrumentation ownership](IMPORT_COMPARISON.md#instrumentation-ownership).
+This release gate complements ordinary assembly metadata checks; it does not
+inspect metadata inside compressed native bundles or Browser Webcil files.
 For CLI packages, the release target copies the canonical portable integration
 skill and resources to `skills/configurator-integrate/`. The internal repository
 skill is only a router and is not a second distributed workflow.
@@ -165,6 +172,8 @@ package or offline-cache assets.
 
 The published PWA includes `manifest.webmanifest`, `service-worker.js`, the
 SDK-generated `service-worker-assets.js`, `pwa-lifecycle.js` and original icons.
+Ordinary interop modules live under `js/`; the PWA bootstrap and service workers
+remain at the application root so their registration and scope stay aligned.
 The worker caches only allowlisted public SDK-manifest app assets; explicit
 definition retention is separate. No answers or output enter either cache.
 Publish all assets as one static tree with correct MIME types, HTTPS/localhost

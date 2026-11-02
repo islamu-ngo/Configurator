@@ -12,6 +12,10 @@ public sealed class BoundedFileInput : IDisposable
     {
         _storage = storage;
         _length = length;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.NativeImportComparisonProbe.Input?.Invoke(this, storage);
+        Configurator.Engineering.NativeImportComparisonProbe.ReadComplete?.Invoke();
+#endif
     }
 
     public ReadOnlyMemory<byte> Bytes
@@ -78,6 +82,12 @@ public sealed class BoundedFileInput : IDisposable
     public void Dispose()
     {
         byte[]? storage = Interlocked.Exchange(ref _storage, null);
-        if (storage is not null) CryptographicOperations.ZeroMemory(storage);
+        if (storage is not null)
+        {
+            CryptographicOperations.ZeroMemory(storage);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.NativeImportComparisonProbe.DisposeInput?.Invoke(storage);
+#endif
+        }
     }
 }

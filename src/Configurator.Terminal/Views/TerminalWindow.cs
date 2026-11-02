@@ -118,6 +118,9 @@ internal sealed partial class TerminalWindow : Window
         _importOperation = new(operation.Form, _dispatch, readImport,
             cooperativeYield: cooperativeYield ?? YieldToApplicationAsync);
         _importOperation.Settled += ImportSettled;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        _application.Invoke(() => Configurator.Engineering.MeasureNativeImportComparison.Attach(this));
+#endif
         _editor = new(operation.Form);
         Title = LocalizedText("WindowTitle");
         Width = Dim.Fill();

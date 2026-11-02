@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6F8M6QJE9B7YE37SRY8749V
+Title: "isolate import probes from ordinary release packages"
+Type: fix
+Scope: privacy
+Summary: "isolate import probes from ordinary release packages."
+Group: final-07-probe-boundary
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "isolate import probes from ordinary release packages. Existing custody and output authority boundaries remain enforced."
+  Migration:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "isolate import probes from ordinary release packages."

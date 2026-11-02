@@ -59,6 +59,12 @@ public sealed class StandaloneArchitectureTests
         await Assert.That(metadata.GetString(metadata.GetAssemblyDefinition().Name)).IsEqualTo($"Configurator.{owner}");
         string[] references = metadata.AssemblyReferences.Select(handle => metadata.GetString(metadata.GetAssemblyReference(handle).Name)).ToArray();
         await Assert.That(FirstPartyDependencyViolations(owner, metadata)).IsEmpty();
+        await Assert.That(metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)
+            .Where(type => metadata.GetString(type.Namespace) == "Configurator.Engineering"))
+            .IsEmpty().Because("Ordinary product assemblies must exclude measurement observers and their retained state.");
+        await Assert.That(metadata.MethodDefinitions.Select(metadata.GetMethodDefinition)
+            .Where(method => metadata.GetString(method.Name) == "ReadImportOwnershipProbeState"))
+            .IsEmpty().Because("Probe access to workspace ownership exists only in instrumented builds.");
         await Assert.That(references.Where(name => name.StartsWith("Event.", StringComparison.Ordinal)
             || name.StartsWith("Explore.", StringComparison.Ordinal)
             || name.Contains("Tests", StringComparison.Ordinal)

@@ -14,6 +14,9 @@ public sealed partial class MainWindow : Window
         AvaloniaXamlLoader.Load(this);
         Closing += OnClosing;
         Closed += OnClosed;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Opened += (_, _) => Configurator.Engineering.MeasureNativeImportComparison.Attach(this);
+#endif
     }
 
     private async void OnClosing(object? sender, WindowClosingEventArgs args)

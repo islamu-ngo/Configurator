@@ -148,7 +148,17 @@ public partial class ConfigurationEditor
         }
         return length;
     }
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+    private Task LoadAsync(Func<Memory<byte>, CancellationToken, Task<int>> read)
+    {
+        Task operation = LoadOwnershipObservedAsync(read);
+        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveTask(operation, handler: true);
+        return operation;
+    }
+    private async Task LoadOwnershipObservedAsync(Func<Memory<byte>, CancellationToken, Task<int>> read)
+#else
     private async Task LoadAsync(Func<Memory<byte>, CancellationToken, Task<int>> read)
+#endif
     {
         if (_disposed || !_ready) return;
         InvalidateImport(releaseFileControl: false);
@@ -167,6 +177,16 @@ public partial class ConfigurationEditor
         _readCancellation = cancellation;
         byte[] buffer = new byte[MaximumImportBytes + 1];
         _readBuffer = buffer;
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+        Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveInput(buffer, this, form, generation,
+            static owner =>
+            {
+                var editor = (ConfigurationEditor)owner;
+                return [editor._generation, editor._readBuffer is null ? 0 : 1,
+                    editor._importPending ? 1 : 0, editor._readCancellation is null ? 0 : 1, editor._disposed ? 1 : 0];
+            },
+            static owner => ((DefinitionFormModel)owner).ReadImportOwnershipProbeState());
+#endif
         _importPending = true;
         _navigation?.RefreshWork(this, _navigationLease);
         bool tooLarge = false;
@@ -184,6 +204,9 @@ public partial class ConfigurationEditor
                 }
                 return buffer.AsMemory(0, length);
             }, YieldComparisonAsync, cancellation.Token);
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+            Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveTask(comparison, handler: false);
+#endif
             var result = await comparison;
             // Paint the detached report before remounting the file control and restoring focus.
             if (result.Succeeded) await YieldComparisonAsync(cancellation.Token);
@@ -225,6 +248,9 @@ public partial class ConfigurationEditor
             }
             cancellation.Dispose();
             if (!_disposed) await InvokeAsync(StateHasChanged);
+#if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
+            Configurator.Engineering.ImportComparisonOwnershipProbe.CompleteInput(buffer);
+#endif
         }
     }
 }
