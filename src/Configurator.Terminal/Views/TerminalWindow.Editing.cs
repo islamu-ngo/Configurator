@@ -1,0 +1,407 @@
+namespace Configurator.Terminal;
+
+using System.ComponentModel;
+using System.Drawing;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Configurator.Artifacts;
+using Configurator.Core.Definitions;
+using Configurator.Presentation;
+using global::Terminal.Gui.App;
+using global::Terminal.Gui.Drawing;
+using global::Terminal.Gui.Text;
+using global::Terminal.Gui.ViewBase;
+using global::Terminal.Gui.Views;
+
+internal sealed partial class TerminalWindow
+{
+    private void EditorChanged()
+    {
+        if (_loading || _disposed || Volatile.Read(ref _closeRequested) != 0) return;
+        _draftEdited = true;
+        _confirmRemove = false;
+        _importOperation.RequestCancellationAsync();
+        _operation.Invalidate();
+        if (_slot is { IsMap: true })
+        {
+            _draftEdited = false;
+            Status("MapKeyHelp");
+            return;
+        }
+        Status(CommitField() ? "InputChanged" : "DraftInvalid");
+        ShowFieldLabel(VisibleSlots.Length);
+        ShowHelp();
+        RefreshCommands();
+    }
+
+    internal bool CommitField()
+    {
+        if (Volatile.Read(ref _closeRequested) != 0) return false;
+        if (_slot is null) return true;
+        if (_slot.IsMap) { _draftEdited = false; return true; }
+        if (!_draftEdited) return _draftValid;
+        _draftEdited = false;
+        byte[] bytes = [];
+        try
+        {
+            string text = _value.Text;
+            if (_slot.RequiresMasking)
+            {
+                bytes = _secret.Count == 0 ? [] : _secret.CopyUtf8Bytes();
+                text = Encoding.UTF8.GetString(bytes);
+            }
+            _draftValid = TerminalFieldEditor.Write(_slot, text, _itemIndex);
+            if (!_draftValid)
+            {
+                Status("DraftInvalid");
+                return false;
+            }
+            return true;
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+    }
+
+    internal void MoveField(int delta)
+    {
+        CommitField();
+        var slots = VisibleSlots;
+        if (slots.Length == 0) { ShowField(); return; }
+        int current = _slot is null ? 0 : slots.ToList().FindIndex(slot =>
+            slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
+        _fieldIndex = (Math.Max(0, current) + delta + slots.Length) % slots.Length;
+        if (_slot is { IsObjectList: true } collection && delta > 0)
+        {
+            string[] rowPath = [.. collection.Path, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+            int firstRowField = slots.ToList().FindIndex(slot => slot.Input == collection.Input &&
+                slot.Path.Length > rowPath.Length && slot.Path.Take(rowPath.Length).SequenceEqual(rowPath));
+            if (firstRowField >= 0) _fieldIndex = firstRowField;
+        }
+        _itemIndex = 0;
+        _helpPage = 0;
+        ShowField(preserveLocation: false);
+        FocusInput();
+    }
+
+    private void MoveItem(int delta)
+    {
+        if (_slot is null || !_slot.IsList) return;
+        CommitField();
+        int requested = _itemIndex + delta;
+        _itemIndex = Math.Clamp(requested, 0, TerminalFieldEditor.LastItemPosition(_slot));
+        _helpPage = 0;
+        ShowField();
+        if (requested > _itemIndex) Status("ListBound");
+        FocusInput();
+    }
+
+    private void RemoveItem()
+    {
+        if (_slot is null || !_slot.IsList) return;
+        if (!_confirmRemove && TerminalFieldEditor.HasItem(_slot, _itemIndex))
+        {
+            _confirmRemove = true;
+            Status("ConfirmRemove");
+            return;
+        }
+        TerminalFieldEditor.Remove(_slot, _itemIndex);
+        _itemIndex = Math.Min(_itemIndex, Math.Max(0, TerminalFieldEditor.ItemCount(_slot) - 1));
+        ShowField();
+        FocusInput();
+    }
+
+    private void AddItem()
+    {
+        if (_slot is { IsMap: true } map)
+        {
+            byte[] keyBytes = _secret.Count == 0 ? [] : _secret.CopyUtf8Bytes();
+            try
+            {
+                string key = Encoding.UTF8.GetString(keyBytes);
+                if (!TerminalFieldEditor.AddMapEntry(map, key)) { Status("MapKeyInvalid"); return; }
+                string[] path = [.. map.FullPath, key];
+                _operation.Form.FocusEditor(path);
+                var slots = VisibleSlots;
+                _fieldIndex = slots.ToList().FindIndex(slot => slot.FullPath.SequenceEqual(path));
+                ShowField(preserveLocation: false);
+                FocusInput();
+            }
+            finally { CryptographicOperations.ZeroMemory(keyBytes); }
+            return;
+        }
+        if (_slot is not { IsList: true } collection || !CommitField()) return;
+        if (TerminalFieldEditor.ItemCount(collection) >= TerminalFieldEditor.MaximumItems(collection))
+        {
+            Status("ListBound");
+            return;
+        }
+        if (!collection.IsObjectList)
+        {
+            if (!TerminalFieldEditor.AddItem(collection)) { Status("DraftInvalid"); return; }
+            _itemIndex = TerminalFieldEditor.ItemCount(collection) - 1;
+            ShowField();
+            FocusInput();
+            return;
+        }
+        if (!TerminalFieldEditor.AddItem(collection)) { Status("DraftInvalid"); return; }
+        _itemIndex = TerminalFieldEditor.ItemCount(collection) - 1;
+        MoveField(1);
+    }
+
+    private void SupplyContainer()
+    {
+        if (!CommitField()) return;
+        if (_slot is null || !TerminalFieldEditor.Supply(_slot)) { Status("DraftInvalid"); return; }
+        ShowField();
+        FocusInput();
+    }
+
+    private void ClearContainer()
+    {
+        if (_slot is null || !TerminalFieldEditor.Clear(_slot)) { Status("DraftInvalid"); return; }
+        _itemIndex = 0;
+        ShowField();
+        FocusInput();
+    }
+
+    private void ShowField(bool preserveLocation = true)
+    {
+        _loading = true;
+        try
+        {
+            _confirmRemove = false;
+            _draftEdited = false;
+            _draftValid = true;
+            _masked.ClearSensitiveState();
+            _value.Text = string.Empty;
+            var slots = VisibleSlots;
+            if (preserveLocation && _slot is not null)
+            {
+                int current = slots.ToList().FindIndex(slot => slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
+                if (current >= 0) _fieldIndex = current;
+            }
+            _fieldIndex = Math.Clamp(_fieldIndex, 0, Math.Max(0, slots.Length - 1));
+            _slot = slots.Length == 0 ? null : slots[_fieldIndex];
+            if (_slot?.IsList == true) _itemIndex = Math.Clamp(_itemIndex, 0, TerminalFieldEditor.LastItemPosition(_slot));
+            ShowFieldLabel(slots.Length);
+            ShowHelp();
+            if (_slot is not null)
+            {
+                string text = TerminalFieldEditor.Read(_slot, _itemIndex);
+                _draftValid = !_operation.Form.HasInputError(_slot.IsList
+                    ? [.. _slot.FullPath, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)] : _slot.FullPath);
+                if (_slot.RequiresMasking && text.Length > 0) _masked.TryReplaceSensitiveInput(text);
+                else if (!_slot.RequiresMasking) _value.Text = text;
+            }
+            SetEditorVisibility();
+            var experience = _operation.Form.DisplayExperiences.Single(item => item.Id == _operation.Form.SelectedExperienceId);
+            _experience.Text = Safe(experience.Title);
+            _experience.Enabled = _operation.Form.Experiences.Count > 1;
+            _optionalEditors.Text = _operation.Form.OptionalEditorsExpanded
+                ? TerminalStrings.Get("DefaultDisclosure") : TerminalStrings.Get("OptionalEditors");
+            _locale.Text = TerminalStrings.Get("Locale") + ": " + _operation.Form.Locale + " (" + _operation.Form.Direction + ")";
+            _locale.Enabled = _operation.Form.Definition.Locales.Count > 1;
+            bool rtl = _operation.Form.Direction == "rtl";
+            // Align RTL metadata without reversing Latin fallback or technical text.
+            _fieldLabel.TextDirection = _help.TextDirection = _experience.TextDirection = TextDirection.LeftRight_TopBottom;
+            _fieldLabel.TextAlignment = _help.TextAlignment = _experience.TextAlignment = rtl ? Alignment.End : Alignment.Start;
+            RefreshCommands();
+        }
+        finally { _loading = false; }
+    }
+
+    private void ShowFieldLabel(int count) => _fieldLabel.Text = _slot is null ? TerminalStrings.Get("NoFields")
+        : Safe($"{_fieldIndex + 1}/{count} {_slot.Title} ({_slot.ScalarType})"
+            + (_slot.IsList ? $" [{_itemIndex + 1}/{TerminalFieldEditor.ItemCount(_slot) + 1}]" : "")
+            + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + TerminalStrings.Get("Required") : "")
+            + (TerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + TerminalStrings.Get("NullValue")
+                : _operation.Form.AnswerOrigin(_slot.FullPath) switch
+                {
+                    DefinitionAnswerOrigin.Omitted => " | " + TerminalStrings.Get("Omitted"),
+                    DefinitionAnswerOrigin.Generated => " | " + TerminalStrings.Get("GeneratedValue"),
+                    _ => ""
+                }));
+
+    private void SetEditorVisibility()
+    {
+        bool scalar = !_tooSmall && _slot is { IsObject: false, IsObjectList: false }
+            && (!_slot.IsList || TerminalFieldEditor.MaximumItems(_slot) > 0);
+        _value.Visible = scalar && _slot is { RequiresMasking: false };
+        _masked.Visible = scalar && _slot is { RequiresMasking: true } || !_tooSmall && _slot is { IsMap: true };
+        _addItem.Visible = !_tooSmall && (_slot is { IsList: true } or { IsMap: true });
+        _addItem.Text = TerminalStrings.Get(_slot is { IsMap: true } ? "AddMapEntry" : "AddItem");
+        _supplyContainer.Visible = !_tooSmall && _slot is { IsContainer: true } && _slot.Schema.Variants.Count == 0;
+        _clearContainer.Visible = !_tooSmall && _slot is not null;
+        _clearContainer.Text = TerminalStrings.Get("OmitValue");
+        _choice.Visible = !_tooSmall && _slot is not null &&
+            (_slot.Schema.Variants.Count > 0 || TerminalFieldEditor.Choices(_slot).Count > 0);
+        _choice.Text = TerminalStrings.Get(_slot is not null && _slot.Schema.Variants.Count > 0 ? "ChooseVariant" : "Choose");
+        _null.Visible = !_tooSmall && _slot is not null && _slot.Schema.IsNullable;
+        _reset.Visible = !_tooSmall && _slot is not null;
+        _suggest.Visible = !_tooSmall && _slot is not null && HasSuggestion(_slot.Schema);
+        for (int index = 0; index < _itemActions.Length; index++)
+            _itemActions[index].Visible = !_tooSmall && _slot is { IsList: true, IsObjectList: false } &&
+                TerminalFieldEditor.HasItem(_slot, _itemIndex) &&
+                (index == 0 ? _slot.Schema.Items!.IsNullable : HasSuggestion(_slot.Schema.Items!));
+        foreach (var button in _listButtons) button.Visible = !_tooSmall && _slot is { IsList: true };
+        bool secret = scalar && _slot is { RequiresMasking: true };
+        _generateSecret.Visible = secret;
+        _revealSecret.Visible = secret;
+        _copySecret.Visible = secret;
+        _revealSecret.Text = TerminalStrings.Get(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
+    }
+
+    private void FocusInput()
+    {
+        if (_slot?.IsMap == true) _masked.SetFocus();
+        else if (_slot is not null && _slot.Schema.Variants.Count > 0) _choice.SetFocus();
+        else if (_slot?.IsObject == true) _supplyContainer.SetFocus();
+        else if (_slot?.IsObjectList == true) _addItem.SetFocus();
+        else if (_slot is { IsList: true } && TerminalFieldEditor.MaximumItems(_slot) == 0) _supplyContainer.SetFocus();
+        else if (_slot?.RequiresMasking == true) _masked.SetFocus();
+        else _value.SetFocus();
+    }
+
+    internal void CycleExperience()
+    {
+        var form = _operation.Form;
+        var experiences = form.Experiences;
+        int current = experiences.ToList().FindIndex(item => item.Id == form.SelectedExperienceId);
+        form.SelectExperience(experiences[(current + 1) % experiences.Count].Id);
+    }
+
+    internal void ToggleOptionalEditors() =>
+        _operation.Form.SetAllSectionsExpanded(!_operation.Form.OptionalEditorsExpanded);
+
+    private void FormViewChanged(object? sender, EventArgs args) =>
+        DispatchToOwner(static window =>
+        {
+            if (Volatile.Read(ref window._closeRequested) == 0) window.ShowField();
+        });
+
+    private void CycleChoice()
+    {
+        if (_slot is null) return;
+        if (_slot.Schema.Variants.Count > 0)
+        {
+            int currentVariant = _slot.Schema.Variants.ToList().FindIndex(variant => ReferenceEquals(variant, _slot.ObjectSchema));
+            int nextVariant = (currentVariant + 1) % _slot.Schema.Variants.Count;
+            if (!_operation.Form.SelectVariant(_slot.FullPath, nextVariant)) { Status("DraftInvalid"); return; }
+            ShowField();
+            _status.Text = Safe(_operation.Form.GetVariantTitle(_slot.FullPath, nextVariant) ?? "");
+            FocusInput();
+            return;
+        }
+        var choices = TerminalFieldEditor.Choices(_slot);
+        if (choices.Count == 0) return;
+        if (!CommitField()) return;
+        int current = TerminalFieldEditor.ChoiceIndex(_slot, _itemIndex);
+        if (current < 0 && (_slot.IsList ? TerminalFieldEditor.HasItem(_slot, _itemIndex)
+            : TerminalFieldEditor.Value(_slot) is not null))
+        {
+            Status("DraftInvalid");
+            return;
+        }
+        int next = (current + 1) % choices.Count;
+        if (!TerminalFieldEditor.SelectChoice(_slot, next, _itemIndex)) { Status("DraftInvalid"); return; }
+        ShowField();
+        if (!_slot.RequiresMasking) _status.Text = Safe($"{next + 1}/{choices.Count} " + choices[next]);
+        FocusInput();
+    }
+
+    private static bool HasSuggestion(DefinitionNode schema) =>
+        schema.Keywords.TryGetProperty("x-configurator", out JsonElement extension) &&
+        extension.TryGetProperty("suggestedValue", out _);
+
+    private void EditTyped(string action, bool item = false)
+    {
+        if (_slot is null) return;
+        string[] path = item ? TerminalFieldEditor.EditPath(_slot, _itemIndex) : _slot.FullPath;
+        bool accepted = action switch
+        {
+            "SetNull" => _operation.Form.SetNull(path),
+            "ResetValue" => _operation.Form.ResetValue(path),
+            _ => _operation.Form.ApplySuggestion(path)
+        };
+        if (!accepted) { Status("DraftInvalid"); return; }
+        ShowField();
+        Status("InputChanged");
+        FocusInput();
+    }
+
+    private void CycleLocale()
+    {
+        var form = _operation.Form;
+        var locales = form.Definition.Locales;
+        int current = locales.ToList().IndexOf(form.Locale);
+        _helpPage = 0;
+        form.SelectLocale(locales[(current + 1) % locales.Count]);
+    }
+
+    private void ShowHelp()
+    {
+        string text = _slot is null ? "" : _slot.Title + " (" + _slot.Type + ")\n" + _slot.Help;
+        if (_slot is not null && _slot.Schema.Variants.Count > 0)
+        {
+            int selected = _slot.Schema.Variants.ToList().FindIndex(variant => ReferenceEquals(variant, _slot.ObjectSchema));
+            if (selected >= 0)
+                text += $"\n{selected + 1}/{_slot.Schema.Variants.Count} " +
+                    _operation.Form.GetVariantTitle(_slot.FullPath, selected);
+        }
+        if (_slot is { IsMap: true }) text = TerminalStrings.Get("MapKeyHelp") + "\n" + text;
+        if (_slot is { IsList: true } list && TerminalFieldEditor.HasItem(list, _itemIndex))
+            text += "\n" + TerminalStrings.FormatHelp(
+                _operation.Form.GetEditorPresentation(TerminalFieldEditor.EditPath(list, _itemIndex)), list.Schema.Items!.Keywords);
+        if (_slot is { RequiresMasking: true, IsObject: false, IsObjectList: false })
+        {
+            DefinitionSecretValidation rules = _operation.Form.GetSecretValidation(
+                TerminalFieldEditor.EditPath(_slot, _itemIndex));
+            text += "\n" + string.Join("\n", rules.Requirements.Select(rule => rule.Message)
+                .Concat(rules.Failures.Select(rule => TerminalStrings.Get("SecretRuleFailed") + " " + rule.Message)));
+        }
+        IReadOnlyList<string> pages = TerminalStrings.HelpPages(text, Math.Max(2, (Viewport.Width - 4) / 2));
+        _helpPage %= Math.Max(1, pages.Count);
+        _help.Text = pages.Count > 0 ? pages[_helpPage] : "";
+        _helpNext.Text = TerminalStrings.Get("Help") + $" {_helpPage + 1}/{Math.Max(1, pages.Count)}";
+        _helpNext.Enabled = pages.Count > 1;
+    }
+
+    internal void FocusNextCorrection()
+    {
+        CommitField();
+        var form = _operation.Form;
+        var diagnostics = form.InputDiagnostics.Concat(form.Validate().Diagnostics).ToArray();
+        for (int offset = 0; offset < diagnostics.Length; offset++)
+        {
+            _correctionIndex = (_correctionIndex + 1) % diagnostics.Length;
+            DefinitionDiagnostic diagnostic = diagnostics[_correctionIndex];
+            IReadOnlyList<string> path;
+            if (diagnostic.Location is { } location)
+            {
+                if (!form.TryResolveCorrection(diagnostic.FieldId, location, out path) ||
+                    !form.FocusCorrection(diagnostic.FieldId, location)) continue;
+            }
+            else
+            {
+                path = new[] { diagnostic.FieldId }.Concat(diagnostic.RelativePath).ToArray();
+                if (!form.FocusEditor(path)) continue;
+            }
+            var slots = VisibleSlots;
+            int index = slots.ToList().FindIndex(slot => slot.FullPath.SequenceEqual(path));
+            if (index < 0 && path.Count > 1)
+            {
+                index = slots.ToList().FindIndex(slot => slot.IsList && slot.FullPath.SequenceEqual(path.SkipLast(1)));
+                if (index >= 0 && int.TryParse(path[^1], out int row)) _itemIndex = row;
+            }
+            if (index < 0) continue;
+            _fieldIndex = index;
+            _helpPage = 0;
+            ShowField(preserveLocation: false);
+            _status.Text = Safe(diagnostic.Code + ":" + diagnostic.FieldId);
+            FocusInput();
+            return;
+        }
+        Status("DraftInvalid");
+    }
+
+}

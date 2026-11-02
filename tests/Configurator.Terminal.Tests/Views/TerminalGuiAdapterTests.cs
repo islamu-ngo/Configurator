@@ -41,10 +41,10 @@ public sealed class TerminalGuiAdapterTests
         Label label = harness.Window.SubViews.OfType<Label>()
             .Single(item => item.Text.StartsWith("1/1 Value ", StringComparison.Ordinal));
         var editor = harness.Window.PublicInput;
-        await Assert.That(label.Text).Contains(" | " + TerminalText.Get("Omitted"));
+        await Assert.That(label.Text).Contains(" | " + TerminalStrings.Get("Omitted"));
         editor.Text = "supplied";
         await Assert.That(harness.Form.Snapshot().Values["value"].GetString()).IsEqualTo("supplied");
-        await Assert.That(label.Text).DoesNotContain(" | " + TerminalText.Get("Omitted"));
+        await Assert.That(label.Text).DoesNotContain(" | " + TerminalStrings.Get("Omitted"));
         await Assert.That(ReferenceEquals(editor, harness.Window.PublicInput)).IsTrue();
     }
 
@@ -69,7 +69,7 @@ public sealed class TerminalGuiAdapterTests
             "items":{"title":"Items","type":"array","items":{"type":"string","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public","detail":"basic"}},
             "after":{"title":"After","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
             """)));
-        Button add = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("AddItem"));
+        Button add = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("AddItem"));
         add.InvokeCommand(Command.Accept);
         await Assert.That(harness.Form.Snapshot().Values["items"].GetRawText()).IsEqualTo("""[""]""");
         harness.Window.PublicInput.Text = "erase";
@@ -104,7 +104,7 @@ public sealed class TerminalGuiAdapterTests
         using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
             "choice":{"title":"Choice","type":"string","enum":["one","two","three"],"x-configurator":{"sensitivity":"public","detail":"basic"}}
             """)));
-        Button choice = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("Choose"));
+        Button choice = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("Choose"));
         harness.Window.PublicInput.Text = "two";
         choice.InvokeCommand(Command.Accept);
         await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("three");
@@ -149,7 +149,7 @@ public sealed class TerminalGuiAdapterTests
         };
         if (shape == "nested") harness.Window.MoveField(1);
         if (shape == "list")
-            harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("NextItem"))
+            harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("NextItem"))
                 .InvokeCommand(Command.Accept);
         string identity = form.GetEditorIdentity(path);
         string draft = masked ? shape == "list" ? "9x" : "7x" : "  not-an-integer  ";
@@ -228,7 +228,7 @@ public sealed class TerminalGuiAdapterTests
         }
         using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
         if (existingItem)
-            harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("NextItem"))
+            harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("NextItem"))
                 .InvokeCommand(Command.Accept);
         long revision = form.InputRevision;
         await harness.ChangeView(harness.Window.ToggleOptionalEditors);
@@ -252,7 +252,7 @@ public sealed class TerminalGuiAdapterTests
         using var items = System.Text.Json.JsonDocument.Parse("[7,9]");
         form.SetValue(["value"], items.RootElement);
         using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
-        harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("NextItem"))
+        harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("NextItem"))
             .InvokeCommand(Command.Accept);
         await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("synthetic-invalid")).IsTrue();
         await Assert.That(harness.Window.CommitField()).IsFalse();
@@ -316,7 +316,7 @@ public sealed class TerminalGuiAdapterTests
         using var items = System.Text.Json.JsonDocument.Parse(maximum == 0 ? "[]" : "[7]");
         form.SetValue(["items"], items.RootElement);
         using var harness = new Harness(initialize: true, form: form);
-        Button nextItem = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("NextItem"));
+        Button nextItem = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("NextItem"));
         nextItem.InvokeCommand(Command.Accept);
         harness.Window.MoveField(1);
         harness.Window.PublicInput.Text = "reachable";
@@ -358,8 +358,8 @@ public sealed class TerminalGuiAdapterTests
             "object":{"title":"Object","type":"object","additionalProperties":false,"properties":{},"x-configurator":{"sensitivity":"public","detail":"basic"}},
             "list":{"title":"List","type":"array","items":{"type":"integer","x-configurator":{"sensitivity":"public"}},"maxItems":0,"x-configurator":{"sensitivity":"public","detail":"basic"}}
             """, """["object","list"]""")));
-        Button supply = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("SupplyContainer"));
-        Button clear = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("OmitValue"));
+        Button supply = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("SupplyContainer"));
+        Button clear = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("OmitValue"));
         await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
         await Assert.That(supply.Visible).IsTrue();
         supply.InvokeCommand(Command.Accept);
@@ -399,7 +399,7 @@ public sealed class TerminalGuiAdapterTests
         using var items = System.Text.Json.JsonDocument.Parse("[7]");
         form.SetValue(["items"], items.RootElement);
         using var harness = new Harness(initialize: true, form: form);
-        Button supply = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("SupplyContainer"));
+        Button supply = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("SupplyContainer"));
         harness.Window.PublicInput.Text = "invalid";
         supply.InvokeCommand(Command.Accept);
         await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("invalid");
@@ -407,8 +407,8 @@ public sealed class TerminalGuiAdapterTests
         harness.Window.PublicInput.Text = "8";
         supply.InvokeCommand(Command.Accept);
         await Assert.That(form.Snapshot().Values["items"].GetRawText()).IsEqualTo("[8]");
-        Button remove = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("RemoveItem"));
-        Button artifact = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("Artifact"));
+        Button remove = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("RemoveItem"));
+        Button artifact = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("Artifact"));
         remove.InvokeCommand(Command.Accept);
         artifact.InvokeCommand(Command.Accept);
         remove.InvokeCommand(Command.Accept);
@@ -462,8 +462,8 @@ public sealed class TerminalGuiAdapterTests
             foreach (string culture in new[] { "en", "ar" })
             {
                 CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
-                await Assert.That(keys.All(key => TerminalText.Get(key) != key
-                    && !string.IsNullOrWhiteSpace(TerminalText.Get(key)))).IsTrue();
+                await Assert.That(keys.All(key => TerminalStrings.Get(key) != key
+                    && !string.IsNullOrWhiteSpace(TerminalStrings.Get(key)))).IsTrue();
             }
         }
         finally { CultureInfo.CurrentUICulture = previous; }
@@ -478,7 +478,7 @@ public sealed class TerminalGuiAdapterTests
         window.ApplyViewportPolicy(window.Frame.Size);
         await Assert.That(window.SubViews.Where(view => view.CanFocus && view.Visible)).IsEmpty();
         await Assert.That(window.SubViews.OfType<Label>().Any(view =>
-            view.Visible && view.Text == TerminalText.Get("TerminalTooSmall"))).IsTrue();
+            view.Visible && view.Text == TerminalStrings.Get("TerminalTooSmall"))).IsTrue();
         window.Frame = new Rectangle(0, 0, 100, 30);
         window.ApplyViewportPolicy(window.Frame.Size);
         foreach (View view in window.SubViews)
@@ -558,8 +558,8 @@ public sealed class TerminalGuiAdapterTests
                 if (args.PropertyName == nameof(PresentationWorkspace.IsBusy) && !harness.Workspace.IsBusy)
                     settled.TrySetResult();
             };
-            Button prepare = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("PreparePreview"));
-            Button save = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("SaveProtected"));
+            Button prepare = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("PreparePreview"));
+            Button save = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("SaveProtected"));
             await Assert.That(prepare.InvokeCommand(Command.Accept)).IsTrue();
             await Assert.That(harness.Operation.IsPrepared).IsTrue();
             await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
@@ -599,7 +599,7 @@ public sealed class TerminalGuiAdapterTests
             TextField path = harness.Window.SubViews.OfType<TextField>().Single(field => field.Y == 14);
             path.Text = input;
             Button compare = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("ImportSelected"));
+                .Single(button => button.Text == TerminalStrings.Get("ImportSelected"));
             await Assert.That(compare.InvokeCommand(Command.Accept)).IsTrue();
             await harness.CompleteImport();
 
@@ -609,7 +609,7 @@ public sealed class TerminalGuiAdapterTests
             await Assert.That(harness.Window.PublicInput.Text).IsEqualTo(text);
             await Assert.That(harness.Operation.IsPrepared).IsEqualTo(prepared);
             Button next = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("NextFinding"));
+                .Single(button => button.Text == TerminalStrings.Get("NextFinding"));
             await Assert.That(next.InvokeCommand(Command.Accept)).IsTrue();
             await Assert.That(form.InputRevision).IsEqualTo(original.InputRevision);
             await Assert.That(harness.Window.PublicInput.Text).IsEqualTo(text);
@@ -635,14 +635,14 @@ public sealed class TerminalGuiAdapterTests
                 .Single(field => field.Y == 14);
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("FillFields"));
+                .Single(button => button.Text == TerminalStrings.Get("FillFields"));
             await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
             await harness.CompleteImport();
             await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
             Button cycle = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("Artifact"));
+                .Single(button => button.Text == TerminalStrings.Get("Artifact"));
             Button select = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("SelectOutput"));
+                .Single(button => button.Text == TerminalStrings.Get("SelectOutput"));
             await Assert.That(cycle.InvokeCommand(Command.Accept)).IsTrue();
             await Assert.That(select.InvokeCommand(Command.Accept)).IsTrue();
             await Assert.That(harness.Operation.PrepareAsync().GetAwaiter().GetResult()).IsTrue();
@@ -671,7 +671,7 @@ public sealed class TerminalGuiAdapterTests
                 .Single(field => field.Y == 14);
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("FillFields"));
+                .Single(button => button.Text == TerminalStrings.Get("FillFields"));
             await Assert.That(import.InvokeCommand(Command.Accept)).IsTrue();
             await harness.CompleteImport();
             await Assert.That(harness.Form.Snapshot().Values["token"].GetString()).IsEqualTo("privateValue");
@@ -696,7 +696,7 @@ public sealed class TerminalGuiAdapterTests
         ], true);
         harness.Window.PresentReceipt(receipt);
         Button next = harness.Window.SubViews.OfType<Button>()
-            .Single(button => button.Text == TerminalText.Get("NextOutcome"));
+            .Single(button => button.Text == TerminalStrings.Get("NextOutcome"));
         await Assert.That(next.Visible).IsTrue();
         string first = harness.Window.StatusText;
         await Assert.That(next.InvokeCommand(Command.Accept)).IsTrue();
@@ -705,8 +705,8 @@ public sealed class TerminalGuiAdapterTests
         string third = harness.Window.StatusText;
         await Assert.That(first).Contains("config: Written");
         await Assert.That(second).Contains("environment: TargetExists");
-        await Assert.That(third).Contains("yaml: " + TerminalText.Get("NotAttempted"));
-        await Assert.That(first).Contains(TerminalText.Get("ManualRecovery"));
+        await Assert.That(third).Contains("yaml: " + TerminalStrings.Get("NotAttempted"));
+        await Assert.That(first).Contains(TerminalStrings.Get("ManualRecovery"));
         await Assert.That(first).DoesNotContain("privateValue");
     }
 
@@ -756,7 +756,7 @@ public sealed class TerminalGuiAdapterTests
             }
             harness.Window.ClearPrivateState();
             Button history = harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("NextAttempt"));
+                .Single(button => button.Text == TerminalStrings.Get("NextAttempt"));
             await Assert.That(history.Visible).IsTrue();
             await Assert.That(history.InvokeCommand(Command.Accept)).IsTrue();
             string first = harness.Window.StatusText;
@@ -770,7 +770,7 @@ public sealed class TerminalGuiAdapterTests
             await Assert.That(harness.Workspace.Result).IsNull();
             await Assert.That(harness.Window.ExitCode).IsEqualTo(4);
             await Assert.That(harness.Window.SubViews.OfType<Button>()
-                .Single(button => button.Text == TerminalText.Get("SaveProtected")).Enabled).IsFalse();
+                .Single(button => button.Text == TerminalStrings.Get("SaveProtected")).Enabled).IsFalse();
             await Assert.That(Directory.GetFiles(directory)).Count().IsEqualTo(1);
         }
         finally { Directory.Delete(directory, true); }
@@ -873,8 +873,8 @@ public sealed class TerminalGuiAdapterTests
     public async Task NativeObjectRowButtonsAddFocusEditAndRemoveUsingTheSharedForm()
     {
         using var harness = new Harness(initialize: true, form: new DefinitionFormModel(ObjectListDefinition()));
-        var add = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("AddItem"));
-        var remove = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalText.Get("RemoveItem"));
+        var add = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("AddItem"));
+        var remove = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("RemoveItem"));
         await Assert.That(add.Visible).IsTrue();
         await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
         await Assert.That(add.InvokeCommand(Command.Accept)).IsTrue();

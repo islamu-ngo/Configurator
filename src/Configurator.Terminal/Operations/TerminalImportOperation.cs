@@ -8,11 +8,6 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
 
-internal sealed record TerminalImportResult(bool IsCurrent, bool Succeeded, string Code)
-{
-    internal bool IsComparison { get; init; }
-}
-
 /// <summary>Owns physical input and cooperative comparison or adoption until cleanup on the current UI owner.</summary>
 internal sealed class TerminalImportOperation : IDisposable
 {

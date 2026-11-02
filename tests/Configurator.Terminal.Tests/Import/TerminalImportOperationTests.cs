@@ -383,7 +383,7 @@ public sealed class TerminalImportOperationTests
             {
                 if (harness.Form.Snapshot().Values["name"].GetString() != "imported")
                     throw new InvalidOperationException("import-not-applied");
-                if (harness.Window.StatusText != TerminalText.Get("ImportReady"))
+                if (harness.Window.StatusText != TerminalStrings.Get("ImportReady"))
                     throw new InvalidOperationException("import-status-missing");
             });
             await Assert.That(changedOn).IsEqualTo(owner.OwnerThreadId);
@@ -422,7 +422,7 @@ public sealed class TerminalImportOperationTests
                 status = harness.Window.StatusText;
                 if (harness.Form.Snapshot().Values.ContainsKey("token")) throw new InvalidOperationException("rejected-import-applied");
             });
-            await Assert.That(status).Contains(TerminalText.Get("ImportFailed"));
+            await Assert.That(status).Contains(TerminalStrings.Get("ImportFailed"));
             await Assert.That(status).DoesNotContain("synthetic-private");
             if (failure is "oversize" or "invalid") await Assert.That(bytes.All(value => value == 0)).IsTrue();
         }
@@ -481,7 +481,7 @@ public sealed class TerminalImportOperationTests
                     harness.Button("FillFields").InvokeCommand(Command.Accept);
                     if (!ReferenceEquals(report, harness.Form.ImportComparison))
                         throw new InvalidOperationException("fill-replaced-retained-report");
-                    if (harness.Window.StatusText != TerminalText.Get("ImportAdopting"))
+                    if (harness.Window.StatusText != TerminalStrings.Get("ImportAdopting"))
                         throw new InvalidOperationException("retained-adoption-status-not-shown");
                 });
             }
@@ -509,7 +509,7 @@ public sealed class TerminalImportOperationTests
                         throw new InvalidOperationException("closed-adoption-published");
                 }
                 else if (harness.Form.Snapshot().Values["name"].GetString() != "filled-value" ||
-                    harness.Window.StatusText != TerminalText.Get("ImportReady"))
+                    harness.Window.StatusText != TerminalStrings.Get("ImportReady"))
                     throw new InvalidOperationException("fill-did-not-settle-on-owner");
             });
         }
@@ -565,7 +565,7 @@ public sealed class TerminalImportOperationTests
         }
 
         internal Button Button(string key) => Window.SubViews.OfType<Button>()
-            .Single(button => button.Text == TerminalText.Get(key));
+            .Single(button => button.Text == TerminalStrings.Get(key));
 
         internal void Begin() => _run = _application.Begin(Window);
         internal void QueueFrameworkStop() => _application.Invoke(() => _application.RequestStop(Window));
@@ -710,10 +710,10 @@ public sealed class TerminalImportOperationTests
             await Assert.That(stopped).IsTrue();
             if (previousSave)
             {
-                await Assert.That(status).Contains(TerminalText.Get("ShutdownUnknown"));
+                await Assert.That(status).Contains(TerminalStrings.Get("ShutdownUnknown"));
                 await Assert.That(status).Contains("config: Written");
             }
-            else await Assert.That(status).IsEqualTo(TerminalText.Get("ShutdownUnknown"));
+            else await Assert.That(status).IsEqualTo(TerminalStrings.Get("ShutdownUnknown"));
             release.TrySetResult();
             await harness.Window.ImportCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(bytes.All(value => value == 0)).IsTrue();
@@ -771,7 +771,7 @@ public sealed class TerminalImportOperationTests
             await Assert.That(status).Contains("config");
             await Assert.That(status).Contains(nameof(ProtectedArtifactStatus.Written));
             await Assert.That(status).Contains("environment");
-            await Assert.That(status).Contains(TerminalText.Get("PublicationUnknown"));
+            await Assert.That(status).Contains(TerminalStrings.Get("PublicationUnknown"));
             await Assert.That(status).DoesNotContain(directory);
             await Assert.That(status).DoesNotContain("synthetic-private");
         }

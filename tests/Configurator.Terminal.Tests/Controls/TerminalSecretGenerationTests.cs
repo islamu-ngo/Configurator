@@ -137,7 +137,7 @@ public sealed class TerminalSecretGenerationTests
             using var harness = new Harness();
             harness.Window.MaskedInput.TryReplaceSensitiveInput("synthetic-value");
             harness.Window.CopySecret();
-            await Assert.That(harness.Window.StatusText).IsEqualTo(TerminalText.Get("SecretClipboardUnavailable"));
+            await Assert.That(harness.Window.StatusText).IsEqualTo(TerminalStrings.Get("SecretClipboardUnavailable"));
             await Assert.That(harness.Form.Snapshot().Values["password"].GetString()).IsEqualTo("synthetic-value");
             await Assert.That(harness.Window.MaskedInput.IsRevealed).IsFalse();
         }

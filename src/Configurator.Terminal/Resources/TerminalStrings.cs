@@ -6,10 +6,10 @@ using System.Text.Json;
 using Configurator.Artifacts;
 using Configurator.Presentation;
 
-internal static class TerminalText
+internal static class TerminalStrings
 {
     private static readonly ResourceManager Resources = new(
-        "Configurator.Terminal.Resources.TerminalText", typeof(TerminalText).Assembly);
+        typeof(TerminalStrings));
     internal static string Get(string key) => Resources.GetString(key, CultureInfo.CurrentUICulture) ?? key;
 
     internal static string FormatHelp(DefinitionEditorPresentation? presentation, JsonElement metadata)

@@ -1,9 +1,9 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Terminal;
 
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using Configurator.Core.Dotenv;
 using Configurator.Core.Environment;
 
 internal sealed class TerminalSecretBuffer : IDisposable

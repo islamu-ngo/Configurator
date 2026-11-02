@@ -41,15 +41,15 @@ public sealed class TerminalPublicationReceiptTests
         await Assert.That(receipt.Outcomes[1].Result).IsNull();
         await Assert.That(operation.IsPrepared).IsFalse();
         await Assert.That(form.Snapshot().Values.ContainsKey("token")).IsFalse();
-        string status = TerminalText.FormatReceipt(receipt, 0);
+        string status = TerminalStrings.FormatReceipt(receipt, 0);
         await Assert.That(status).Contains("installation-established");
         await Assert.That(status).Contains("verification-failed");
         await Assert.That(status).Contains("current-integrity-not-guaranteed");
-        await Assert.That(status).DoesNotContain(TerminalText.Get("ProtectedDraftSaved"));
+        await Assert.That(status).DoesNotContain(TerminalStrings.Get("ProtectedDraftSaved"));
         await Assert.That(status).DoesNotContain("privateValue");
         await Assert.That(status).DoesNotContain("/synthetic/private-output");
-        await Assert.That(TerminalText.FormatReceipt(receipt, 1)).Contains(TerminalText.Get("NotAttempted"));
-        await Assert.That(TerminalText.FormatClosingReceipt(receipt)).Contains("installation-established");
+        await Assert.That(TerminalStrings.FormatReceipt(receipt, 1)).Contains(TerminalStrings.Get("NotAttempted"));
+        await Assert.That(TerminalStrings.FormatClosingReceipt(receipt)).Contains("installation-established");
     }
 
     [Test]
@@ -65,9 +65,9 @@ public sealed class TerminalPublicationReceiptTests
         await Assert.That(receipt.IsUnknown).IsTrue();
         await Assert.That(receipt.IsSettled).IsTrue();
         await Assert.That(receipt.Outcomes[0].Result).IsNull();
-        string status = TerminalText.FormatReceipt(receipt, 0);
+        string status = TerminalStrings.FormatReceipt(receipt, 0);
         await Assert.That(status).Contains("terminal-operation-failed");
-        await Assert.That(status).Contains(TerminalText.Get("PublicationUnknown"));
+        await Assert.That(status).Contains(TerminalStrings.Get("PublicationUnknown"));
         await Assert.That(status).DoesNotContain("synthetic-private-path");
     }
 

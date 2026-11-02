@@ -21,7 +21,7 @@ public sealed class TerminalOfflineWorkflowTests
         form.SetAllSectionsExpanded(true);
         using var harness = new ExperienceHarness(form, initialize: true);
         void Click(string key) => harness.Window.SubViews.OfType<global::Terminal.Gui.Views.Button>()
-            .Single(button => button.Text == TerminalText.Get(key))
+            .Single(button => button.Text == TerminalStrings.Get(key))
             .InvokeCommand(global::Terminal.Gui.Input.Command.Accept);
         Click("Choose");
         Click("Choose");
@@ -47,7 +47,7 @@ public sealed class TerminalOfflineWorkflowTests
         await Assert.That(form.Snapshot().Values["provider"].GetProperty("kind").GetString()).IsEqualTo("second");
         long revision = form.InputRevision;
         harness.Window.SubViews.OfType<global::Terminal.Gui.Views.Button>()
-            .Single(button => button.Text.StartsWith(TerminalText.Get("Locale") + ":", StringComparison.Ordinal))
+            .Single(button => button.Text.StartsWith(TerminalStrings.Get("Locale") + ":", StringComparison.Ordinal))
             .InvokeCommand(global::Terminal.Gui.Input.Command.Accept);
         await Assert.That(form.Locale).IsEqualTo("ar");
         await Assert.That(form.InputRevision).IsEqualTo(revision);

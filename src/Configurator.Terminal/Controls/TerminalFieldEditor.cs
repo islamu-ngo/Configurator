@@ -28,7 +28,7 @@ internal sealed class TerminalFieldEditor
         internal bool RequiresMasking => Input.RequiresMasking ||
             Form.GetEditorState(FullPath)?.Sensitivity is { } sensitivity && sensitivity != FieldSensitivity.Public;
         internal string[] FullPath => [Input.Definition.Id, .. Path];
-        internal string Help => TerminalText.FormatHelp(Presentation, Metadata);
+        internal string Help => TerminalStrings.FormatHelp(Presentation, Metadata);
     }
 
     private readonly DefinitionFormModel _form;
@@ -59,7 +59,7 @@ internal sealed class TerminalFieldEditor
                 foreach (JsonProperty property in mapping.EnumerateObject().Where(property =>
                     !active.Properties.ContainsKey(property.Name)))
                     foreach (Slot slot in Expand(input, entry, [.. path, property.Name],
-                        TerminalText.Get("MapEntry") + " " + (++index).ToString(CultureInfo.InvariantCulture)))
+                        TerminalStrings.Get("MapEntry") + " " + (++index).ToString(CultureInfo.InvariantCulture)))
                         yield return slot;
             }
             yield break;

@@ -4,28 +4,6 @@ using Configurator.Artifacts;
 using Configurator.Core.Artifacts;
 using Configurator.Presentation;
 
-internal sealed record TerminalArtifactResult
-{
-    internal TerminalArtifactResult(IEnumerable<ProtectedArtifactBundleOutcome> outcomes,
-        ProtectedArtifactBundleCompletionCode completionCode = ProtectedArtifactBundleCompletionCode.Completed,
-        bool cleanupFailed = false)
-    {
-        Outcomes = Array.AsReadOnly(outcomes.ToArray());
-        CompletionCode = completionCode;
-        CleanupFailed = cleanupFailed || Outcomes.Any(item => item.Result is { CleanupFailed: true });
-    }
-    internal IReadOnlyList<ProtectedArtifactBundleOutcome> Outcomes { get; }
-    internal ProtectedArtifactBundleCompletionCode CompletionCode { get; }
-    internal bool CleanupFailed { get; }
-    internal bool Succeeded => CompletionCode == ProtectedArtifactBundleCompletionCode.Completed && !CleanupFailed && Outcomes.Count > 0
-        && Outcomes.All(item => item.Result is { Succeeded: true });
-    public override string ToString() => $"{nameof(TerminalArtifactResult)}:Succeeded={Succeeded}:Count={Outcomes.Count}";
-}
-
-internal sealed record TerminalPreparation(long InputRevision, int ArtifactCount)
-{
-    public override string ToString() => $"{nameof(TerminalPreparation)}:Count={ArtifactCount}";
-}
 
 /// <summary>Tracks selected outputs and current readiness while the workspace fences native publication.</summary>
 internal sealed class TerminalArtifactOperation : IPresentationOperation, IDisposable
