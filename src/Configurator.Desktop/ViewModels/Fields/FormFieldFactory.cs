@@ -1,10 +1,11 @@
 namespace Configurator.Desktop.ViewModels.Fields;
 
 using Configurator.Core.Definitions;
+using Configurator.Desktop.Services;
 using Configurator.Presentation;
 
 /// <summary>Owns one workspace's binding projections and its single shared-form refresh subscription.</summary>
-public sealed class FormFieldFactory : IDisposable
+public sealed class FormFieldFactory(ISecretClipboardService? clipboard = null) : IDisposable
 {
     private DefinitionFormModel? _form;
     private IReadOnlyList<FieldViewModel> _fields = [];
@@ -19,6 +20,7 @@ public sealed class FormFieldFactory : IDisposable
             var field = Project(input.Definition.Node, input.Definition.Name, input.Definition.Required,
                 null, false, input.RequiresMasking);
             field.Attach(form, input);
+            field.Clipboard = clipboard;
             return field;
         }).ToArray());
         form.InputChanged += FormChanged;
@@ -54,7 +56,7 @@ public sealed class FormFieldFactory : IDisposable
 
     internal static FieldViewModel Project(DefinitionNode schema, string name, bool required,
         FieldViewModel? parent, bool listItem, bool inheritedMasking = false) =>
-        schema.Keywords.TryGetProperty("enum", out _)
+        schema.Secret is null && schema.Keywords.TryGetProperty("enum", out _)
             ? new EnumFieldViewModel(schema, name, required, parent, listItem, inheritedMasking)
             : schema.Type switch
             {

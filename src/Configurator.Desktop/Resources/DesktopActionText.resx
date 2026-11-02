@@ -35,4 +35,19 @@
   <data name="DismissImportLabel" xml:space="preserve"><value>Discard comparison</value></data>
   <data name="PreviousImportPageLabel" xml:space="preserve"><value>Previous findings</value></data>
   <data name="NextImportPageLabel" xml:space="preserve"><value>Next findings</value></data>
+  <data name="GenerateLabel" xml:space="preserve"><value>Generate</value></data>
+  <data name="RegenerateLabel" xml:space="preserve"><value>Regenerate</value></data>
+  <data name="ShowLabel" xml:space="preserve"><value>Show</value></data>
+  <data name="HideLabel" xml:space="preserve"><value>Hide</value></data>
+  <data name="CopySecretLabel" xml:space="preserve"><value>Copy value</value></data>
+  <data name="SecretInputLabel" xml:space="preserve"><value>Private derivation input</value></data>
+  <data name="GeneratedPasswordLabel" xml:space="preserve"><value>Original generated password</value></data>
+  <data name="CopyGeneratedPasswordLabel" xml:space="preserve"><value>Copy generated password</value></data>
+  <data name="DismissSecretResultLabel" xml:space="preserve"><value>Dismiss generated password</value></data>
+  <data name="CancelGenerationLabel" xml:space="preserve"><value>Cancel generation</value></data>
+  <data name="SecretGenerated" xml:space="preserve"><value>Value generated locally.</value></data>
+  <data name="SecretCopied" xml:space="preserve"><value>Copied to the system clipboard. Clipboard history may retain this value.</value></data>
+  <data name="SecretClipboardUnavailable" xml:space="preserve"><value>The clipboard is unavailable. Your value is still in this workspace.</value></data>
+  <data name="SecretCancelled" xml:space="preserve"><value>Generation was cancelled or superseded by an edit.</value></data>
+  <data name="SecretOperationFailed" xml:space="preserve"><value>The secret operation could not complete. Check the declared requirements and try again.</value></data>
 </root>

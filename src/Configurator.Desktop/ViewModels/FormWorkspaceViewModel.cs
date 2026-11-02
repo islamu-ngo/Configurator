@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.Messages;
+using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Presentation;
 
@@ -13,7 +14,7 @@ using Configurator.Presentation;
 public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposable
 {
     private readonly IMessenger _messenger;
-    private readonly FormFieldFactory _factory = new();
+    private readonly FormFieldFactory _factory;
     private DefinitionFormModel? _form;
     private IReadOnlyList<FieldViewModel> _fields = [];
     private IReadOnlyList<DefinitionFormExperience> _experiences = [];
@@ -31,9 +32,10 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private bool _followLocaleDirection = true;
     partial void OnIsRightToLeftChanged(bool value) => FollowLocaleDirection = false;
 
-    public FormWorkspaceViewModel(IMessenger messenger)
+    public FormWorkspaceViewModel(IMessenger messenger, ISecretClipboardService? clipboard = null)
     {
         _messenger = messenger;
+        _factory = new FormFieldFactory(clipboard);
         ValidateCommand = new RelayCommand(() => Validate(), () => CanValidate);
         messenger.Register<FormWorkspaceViewModel, DefinitionClearedMessage>(this,
             static (workspace, _) => workspace.Replace(null));

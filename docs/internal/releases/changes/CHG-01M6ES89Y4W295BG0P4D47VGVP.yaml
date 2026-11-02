@@ -1,0 +1,25 @@
+Change-Id: CHG-01M6ES89Y4W295BG0P4D47VGVP
+Title: "Generate secrets in the desktop workspace"
+Type: feat
+Scope: privacy
+Summary: "Expose shared local secret generation, safe validation feedback and deliberate native clipboard actions."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: documented
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented

@@ -330,14 +330,17 @@ is not a Configurator command. Package prerequisites remain in `PROJECTS.md`.
 
 `tests/Configurator.Desktop.NativeHost` is an isolated executable, not an MTP
 project. It initializes the real Desktop App and classic lifetime on the main
-thread and requires Linux x64/X11. Twenty required named scenarios exercise actual
+thread and requires Linux x64/X11. Twenty-one required named scenarios exercise actual
 controls, JSON/YAML/dotenv import, preparation, native owner-only/create-only
 saves, bundle preflight/recovery, stale import, close and one/two/three-tenant
 Event manifests with independent expected fields. Missing display, wrong
 backend/RID, timeout, failure and incomplete counts reject the run.
 
-The required set preserves all nineteen previous names and adds
-`D20-read-only-import-comparison`. Comparison tests use real form/publisher
+The required set preserves all twenty previous names, including
+`D20-read-only-import-comparison`, and adds `D21-secret-generation-validation`.
+The secret scenario exercises shared generation and validation through actual
+Desktop controls. Its inclusion is a required check, not a claim that the new
+candidate passed native or published-package qualification. Comparison tests use real form/publisher
 behavior and controlled external acquisition and owner-thread gates. They check
 read-only answers/drafts/preparation, schema-only explanations, deliberate
 adoption refusal and stale completion separately from physical read cleanup.

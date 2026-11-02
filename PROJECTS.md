@@ -60,6 +60,7 @@ Browser package suite continues to check the static publication independently.
 | `eng/configurator/probes/communitytoolkit/Configurator.DependencyProbes.CommunityToolkit.csproj` | Approved MVVM dependency closure. |
 | `eng/configurator/probes/dependency-injection/Configurator.DependencyProbes.DependencyInjection.csproj` | Approved DI dependency closure. |
 | `eng/configurator/probes/yamldotnet/Configurator.DependencyProbes.YamlDotNet.csproj` | Approved YAML dependency closure. |
+| `eng/configurator/probes/cryptography/Configurator.DependencyProbes.Cryptography.csproj` | Browser AOT qualification of bounded secret generation and cryptographic formats; probe evidence does not qualify the product payload. |
 
 ---
 
@@ -213,13 +214,16 @@ Desktop native qualification runs separately from MTP/headless tests:
 
 ```bash
 dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet
-dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 20
+dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 21
 ```
 
-Its twenty required named scenarios preserve all nineteen existing guards,
+Its twenty-one required named scenarios preserve all twenty existing guards,
 including `D18-shared-editing-presence-localized-actions` and
 `D19-typed-map-variant-null-reset-locale`, and add
-`D20-read-only-import-comparison`. The count is the actual required name set,
+`D20-read-only-import-comparison`, and add `D21-secret-generation-validation`.
+The new scenario exercises rendered generation, validation correction, reveal,
+explicit clipboard transfer and separate generated-password dismissal.
+The count is the actual required name set,
 not a claim that the current source has passed native qualification.
 Parent-owned startup cohorts use
 `CONFIGURATOR_NATIVE_UI_CULTURE=en` and `CONFIGURATOR_NATIVE_UI_CULTURE=ar`.

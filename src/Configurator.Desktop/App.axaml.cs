@@ -25,6 +25,8 @@ public sealed partial class App : Application
             services.AddSingleton<IMessenger, WeakReferenceMessenger>();
             services.AddSingleton<IStorageDialogService>(provider =>
                 new AvaloniaStorageDialogService(() => provider.GetRequiredService<MainWindow>().StorageProvider));
+            services.AddSingleton<ISecretClipboardService>(provider =>
+                new AvaloniaSecretClipboardService(() => provider.GetRequiredService<MainWindow>().Clipboard));
             services.AddSingleton<DefinitionLoaderViewModel>();
             services.AddSingleton<FormWorkspaceViewModel>();
             services.AddSingleton<Func<CancellationToken, ValueTask>>(

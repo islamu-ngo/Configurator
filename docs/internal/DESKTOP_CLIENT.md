@@ -1,7 +1,7 @@
 # Definition-driven Avalonia Desktop
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Implemented typed v2 adapters; physical host qualification is separate
+> **Status:** Typed definition adapters; schema-driven secret qualification is pending
 > **Owner:** Desktop
 > **Last Verified:** 2026-10-28
 > **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/Presentation/`
@@ -356,13 +356,37 @@ translation quality or native assistive-technology qualification.
 See the [public workflow](../public/desktop.md) and
 [Core definition contract](CORE_DEFINITION_CONTRACT.md).
 
+### Schema-driven secret controls
+
+PKCS#8 PEM fields enable native `TextBox.AcceptsReturn`; D21 checks a real
+clipboard copy/paste round trip preserves the complete envelope and readiness.
+
+`StringFieldViewModel` projects the shared secret operation beside its masked
+editor. Generate and Regenerate are deliberate commands; the admitted Core
+policy chooses the algorithm and bounds. The Presentation workspace owns the
+operation revision and editor identity, so a late completion cannot write into
+a replaced workspace or a shifted collection row. Inline rule feedback comes
+from shared validation; the control retains invalid draft text for correction.
+
+Show/Hide changes visibility only. Editing or disposing the editor hides the
+value and clears transient derivation state. Entered derivation input and a
+generated original password use separate masked controls; copying the final
+hash and copying its original password are distinct actions. The thin
+`ISecretClipboardService` adapter invokes Avalonia's native clipboard only
+after an explicit Copy command. Clipboard failure leaves the answer intact
+and reports a safe status. Clearing a workspace cannot retract clipboard
+history, and immutable strings cannot promise complete memory erasure.
+
 ## Native qualification
 
-The current executable requires twenty distinct names: all nineteen original
-guards, including `D19-typed-map-variant-null-reset-locale`, plus
-`D20-read-only-import-comparison`. The new guard exercises actual controls for
-read-only comparison, safe declared-schema explanation, refusal and deliberate
-adoption. This required set is not evidence of an executed current host run.
+The current executable requires twenty-one distinct names: all twenty existing
+guards, including `D19-typed-map-variant-null-reset-locale` and
+`D20-read-only-import-comparison`, plus `D21-secret-generation-validation`.
+The secret guard exercises native masked input, invalid-value correction focus,
+Generate, Show/Hide, deliberate clipboard copy, hiding after editing,
+validation recovery, and separate digest/original-password copy and dismissal.
+Its clipboard payload is synthetic and is cleared after
+the check. This required set is not evidence of an executed current host run.
 Parent-owned actual published/manual QA and comparison resource measurements
 must be recorded separately from focused headless checks.
 
@@ -409,7 +433,7 @@ the verification boundary. No new release platform or installer is admitted.
 Synthetic visual evidence can be captured with:
 
 ```bash
-xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 20 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
+xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release -- --expected-rid linux-x64 --minimum-expected-checks 21 --capture-directory "$PWD/.tmp/desktop-mvvm-qa"
 ```
 
 The harness captures loaded/edited workspaces at 960x800 and the 600x540 minimum,

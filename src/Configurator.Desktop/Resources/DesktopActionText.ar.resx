@@ -35,4 +35,19 @@
   <data name="DismissImportLabel" xml:space="preserve"><value>تجاهل المقارنة</value></data>
   <data name="PreviousImportPageLabel" xml:space="preserve"><value>النتائج السابقة</value></data>
   <data name="NextImportPageLabel" xml:space="preserve"><value>النتائج التالية</value></data>
+  <data name="GenerateLabel" xml:space="preserve"><value>توليد</value></data>
+  <data name="RegenerateLabel" xml:space="preserve"><value>إعادة التوليد</value></data>
+  <data name="ShowLabel" xml:space="preserve"><value>إظهار</value></data>
+  <data name="HideLabel" xml:space="preserve"><value>إخفاء</value></data>
+  <data name="CopySecretLabel" xml:space="preserve"><value>نسخ القيمة</value></data>
+  <data name="SecretInputLabel" xml:space="preserve"><value>مدخل الاشتقاق الخاص</value></data>
+  <data name="GeneratedPasswordLabel" xml:space="preserve"><value>كلمة المرور الأصلية المولدة</value></data>
+  <data name="CopyGeneratedPasswordLabel" xml:space="preserve"><value>نسخ كلمة المرور المولدة</value></data>
+  <data name="DismissSecretResultLabel" xml:space="preserve"><value>إزالة كلمة المرور المولدة</value></data>
+  <data name="CancelGenerationLabel" xml:space="preserve"><value>إلغاء التوليد</value></data>
+  <data name="SecretGenerated" xml:space="preserve"><value>تم توليد القيمة محلياً.</value></data>
+  <data name="SecretCopied" xml:space="preserve"><value>تم النسخ إلى حافظة النظام. قد يحتفظ سجل الحافظة بهذه القيمة.</value></data>
+  <data name="SecretClipboardUnavailable" xml:space="preserve"><value>الحافظة غير متاحة. لا تزال قيمتك في مساحة العمل هذه.</value></data>
+  <data name="SecretCancelled" xml:space="preserve"><value>أُلغي التوليد أو تجاوزه تعديل.</value></data>
+  <data name="SecretOperationFailed" xml:space="preserve"><value>تعذر إكمال العملية. راجع المتطلبات المحددة وحاول مجدداً.</value></data>
 </root>

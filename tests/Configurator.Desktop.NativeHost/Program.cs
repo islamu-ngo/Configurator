@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
@@ -36,7 +37,7 @@ internal static class Program
         "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force",
         "D18-shared-editing-presence-localized-actions",
         "D19-typed-map-variant-null-reset-locale",
-        "D20-read-only-import-comparison"
+        "D20-read-only-import-comparison", "D21-secret-generation-validation"
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
@@ -332,6 +333,10 @@ internal static class Program
             await ImportComparisonAsync(window, shell, directory, definitionPath);
             Pass();
 
+            _currentCheck = "D21-secret-generation-validation";
+            await SecretControlsAsync(window, shell);
+            Pass();
+
             for (int count = 1; count <= 3; count++)
             {
                 _currentCheck = count switch { 1 => "D12-event-one-tenant", 2 => "D12-event-two-tenants", _ => "D12-event-three-tenants" };
@@ -362,7 +367,7 @@ internal static class Program
 
     private static byte[] NativeDefinition() => SetupDefinitionSourceCodec.ParseJson("""
         {
-          "$schema":"urn:islamu:configurator:authoring:v2",
+          "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"8508c82b-2f4a-42b5-af54-0e48c8c89a6e","revision":1},
           "project":{"id":"example.native-qualification","name":"Native qualification fixture","publisher":"example"},
           "applicationVersions":["1.0"],"entryPoints":["setup"],
@@ -404,7 +409,7 @@ internal static class Program
 
     private static byte[] EditingDefinition() => SetupDefinitionSourceCodec.ParseJson("""
         {
-          "$schema":"urn:islamu:configurator:authoring:v2",
+          "$schema":"urn:islamu:configurator:authoring:v0.0.1",
           "identity":{"familyId":"8508c82b-2f4a-42b5-af54-0e48c8c89a6e","revision":2},
           "project":{"id":"example.native-editing","name":"Native structured editing","publisher":"example"},
           "applicationVersions":["1.0"],
@@ -857,13 +862,13 @@ internal static class Program
     {
         _currentStep = "event-load";
         await LoadAsync(window, shell, Path.Combine(AppContext.BaseDirectory, "Fixtures", "Event", "definition.json"), true);
-        SelectChoice(window, shell, "operation", "Artifact to prepare", "configuration-manifest");
+        SelectChoice(window, shell, "operation", "File to prepare", "configuration-manifest");
         window.GetControl<CheckBox>("OptionalEditors").IsChecked = true;
         Select(window, shell, "configuration-manifest");
         await FlushAsync();
         _currentStep = "event-name";
         var name = Field(window, "configuration-manifest.metadata.name");
-        name.GetLogicalDescendants().OfType<TextBox>().Single().Text = "qa-config";
+        name.GetLogicalDescendants().OfType<TextBox>().Single(control => control.IsEffectivelyVisible).Text = "qa-config";
         _currentStep = "event-settings";
         var settings = Field(window, "configuration-manifest.spec.instance.settings");
         _currentStep = "event-settings-value";
@@ -975,6 +980,131 @@ internal static class Program
         Require(form.Snapshot().Values["name"].GetString() == "Imported candidate" &&
             !publisher.HasImportComparison && publisher.Preparation is null,
             "comparison-deliberate-adoption-failed");
+    }
+
+    private static async Task SecretControlsAsync(MainWindow window, DesktopShellViewModel shell)
+    {
+        byte[] definition = SetupDefinitionSourceCodec.ParseJson("""
+            {
+              "$schema":"urn:islamu:configurator:authoring:v0.0.1",
+              "identity":{"familyId":"63895608-e6ed-43a5-884c-62bdd1f00913","revision":1},
+              "project":{"id":"example.native-secrets","name":"Native secret controls","publisher":"example"},
+              "applicationVersions":["1.0"],
+              "configuration":{"type":"object","additionalProperties":false,"required":["password"],
+                "x-configurator":{"sensitivity":"public"},"properties":{
+                  "password":{"type":"string","title":"Synthetic password","minLength":16,"maxLength":64,
+                    "x-configurator":{"detail":"basic","secret":{"kind":"password","acquisition":"local",
+                      "constraints":{"characterSet":"ascii-printable","allowWhitespace":false,
+                        "minLowercase":1,"minUppercase":1,"minDigits":1,"minSymbols":1},
+                      "generation":{"length":32}}}},
+                  "digest":{"type":"string","title":"Synthetic digest",
+                    "x-configurator":{"detail":"basic","secret":{"kind":"digest","acquisition":"local",
+                      "algorithm":"SHA256","encoding":"hex","generation":{"input":"generated",
+                        "password":{"kind":"password","acquisition":"local","generation":{"length":32}}}}}},
+                  "privateKey":{"type":"string","title":"Synthetic private key",
+                    "x-configurator":{"detail":"basic","secret":{"kind":"private-key","acquisition":"local",
+                      "algorithm":"ES256","encoding":"pkcs8-pem","generation":{}}}}}},
+              "outputs":{"config.json":{"id":"config","format":"json","targetUpdateMode":"create","restartRequirement":"process"}}
+            }
+            """u8.ToArray()).CanonicalBytes.ToArray();
+        Require(shell.Loader.LoadDefinition(definition), "secret-definition");
+        await FlushAsync();
+        var field = (StringFieldViewModel)shell.Workspace.Fields.Single(item => item.Id == "password");
+        TextBox input = Input<TextBox>(window, "Synthetic password");
+        Require(input.PasswordChar != '\0', "secret-default-unmasked");
+        input.Text = "short";
+        await FlushAsync();
+        Require(!shell.Workspace.Validate() && field.HasError, "secret-invalid-ready");
+        await FlushAsync();
+        Require(input.IsFocused, "secret-correction-focus");
+        Click(CommandButton(window, field.GenerateCommand));
+        await field.GenerateCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(20));
+        await FlushAsync();
+        Require(input.Text is { Length: 32 } && !field.HasError && shell.Workspace.Validate(), "secret-generation-invalid");
+        Require(input.PasswordChar != '\0', "secret-generation-unmasked");
+        Click(CommandButton(window, field.RevealCommand));
+        await FlushAsync();
+        Require(input.PasswordChar == '\0', "secret-reveal-failed");
+        Click(CommandButton(window, field.RevealCommand));
+        await FlushAsync();
+        Require(input.PasswordChar != '\0', "secret-hide-failed");
+        var clipboard = window.Clipboard ?? throw new QualificationException("secret-clipboard-unavailable");
+        try
+        {
+            Click(CommandButton(window, field.CopyCommand));
+            await field.CopyCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+            Require(await clipboard.TryGetTextAsync() == input.Text, "secret-explicit-copy-failed");
+        }
+        finally { await clipboard.ClearAsync(); }
+        Click(CommandButton(window, field.RevealCommand));
+        input.Text = "another-short";
+        await FlushAsync();
+        Require(input.PasswordChar != '\0' && field.HasError, "secret-edit-retained-reveal");
+        Require(!field.ErrorText.Contains("another-short", StringComparison.Ordinal), "secret-diagnostic-value");
+        Click(CommandButton(window, field.GenerateCommand));
+        await field.GenerateCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(20));
+        await FlushAsync();
+        Require(!field.HasError && shell.Workspace.Validate(), "secret-correction-failed");
+        var digest = (StringFieldViewModel)shell.Workspace.Fields.Single(item => item.Id == "digest");
+        Click(CommandButton(window, digest.GenerateCommand));
+        await digest.GenerateCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(20));
+        await FlushAsync();
+        Require(digest.HasGeneratedPassword && digest.GeneratedPassword.Length == 32 && digest.Text.Length == 64,
+            "secret-derived-result-missing");
+        TextBox original = window.GetLogicalDescendants().OfType<TextBox>()
+            .Single(control => ReferenceEquals(control.DataContext, digest) && control.IsReadOnly);
+        Require(original.PasswordChar != '\0', "secret-original-unmasked");
+        await CaptureAsync(window, "secret-generated");
+        try
+        {
+            Click(CommandButton(window, digest.CopyGeneratedPasswordCommand));
+            await digest.CopyGeneratedPasswordCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+            Require(await clipboard.TryGetTextAsync() == digest.GeneratedPassword, "secret-original-copy-failed");
+            Click(CommandButton(window, digest.CopyCommand));
+            await digest.CopyCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+            Require(await clipboard.TryGetTextAsync() == digest.Text, "secret-digest-copy-failed");
+        }
+        finally { await clipboard.ClearAsync(); }
+        Click(CommandButton(window, digest.DismissSecretResultCommand));
+        await FlushAsync();
+        Require(!digest.HasGeneratedPassword && original.Text == string.Empty && digest.Text.Length == 64,
+            "secret-original-dismissal-failed");
+        var key = (StringFieldViewModel)shell.Workspace.Fields.Single(item => item.Id == "privateKey");
+        Click(CommandButton(window, key.GenerateCommand));
+        await key.GenerateCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(20));
+        await FlushAsync();
+        Require(key.OperationStatus == "secret-generated", "secret-pem-operation-" + key.OperationStatus);
+        TextBox keyInput = Input<TextBox>(window, "Synthetic private key");
+        string generatedPem = key.Text;
+        Require(keyInput.AcceptsReturn, "secret-pem-editor-not-multiline");
+        Require(generatedPem.Contains('\n'), "secret-pem-value-not-multiline");
+        try
+        {
+            Click(CommandButton(window, key.CopyCommand));
+            await key.CopyCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
+            Require(await clipboard.TryGetTextAsync() == generatedPem, "secret-pem-copy-changed");
+            keyInput.Text = string.Empty;
+            await FlushAsync();
+            var pasted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Pasted(object? sender, TextChangedEventArgs args) => pasted.TrySetResult();
+            keyInput.TextChanged += Pasted;
+            try
+            {
+                keyInput.Paste();
+                await pasted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                await FlushAsync();
+                Require(key.Text == generatedPem && !key.HasError, "secret-pem-paste-changed");
+            }
+            finally { keyInput.TextChanged -= Pasted; }
+        }
+        finally { await clipboard.ClearAsync(); }
+        // The UI dispatcher cannot resume generation's first yield until this edit is complete.
+        Click(CommandButton(window, field.GenerateCommand));
+        input.Text = "synthetic-edited-during-generation";
+        await field.GenerateCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(20));
+        await FlushAsync();
+        Require(input.Text == "synthetic-edited-during-generation" && field.OperationStatus == "secret-stale",
+            "secret-stale-overwrote-edit");
     }
 
     private static async Task PrepareAsync(MainWindow window, DesktopShellViewModel shell)

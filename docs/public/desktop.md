@@ -90,11 +90,33 @@ Navigate quickly using native keyboard controls:
 
 ### Form Controls
 
-Fields dynamically render native controls matching their admitted v2 types:
+Fields dynamically render native controls matching their admitted types:
 - **Strings and Numbers:** Ordinary text inputs validating invariant decimal formatting.
 - **Booleans:** Three-state checkboxes distinguish true, false and not supplied.
 - **Enums:** Dropdown choices retain their declared ordinal and exact JSON type/value. Labels are display metadata, not identity: two choices with the same localized label remain distinct, and an empty-string choice is not **Not supplied**.
 - **Protected Secrets:** Password-masked controls. Protected booleans and enums use masked inputs instead of open dropdowns to avoid leaking values.
+
+### Secret Generation and Deliberate Copy
+
+PEM private-key fields accept multiple lines, preserving the original key envelope
+when pasted or copied. Visibility remains a deliberate Show/Hide action.
+
+For a field with an admitted local generation recipe, choose **Generate** to
+create a value using its declared policy. **Regenerate** deliberately replaces
+the current value. Existing or issuer-supplied credentials remain manual input;
+Configurator does not contact the issuer or prove that a target accepts a key.
+
+Secret fields start masked. **Show/Hide** changes visibility, and editing or
+closing the workspace hides the value again. **Copy value** deliberately sends
+the value to the native clipboard. A clipboard failure leaves the answer
+intact; clipboard history is outside the workspace's custody.
+
+Hash and digest recipes that require input provide a separate masked input.
+When a recipe generates an original password, its transient result has separate
+Show/Hide and Copy actions, distinct from copying the final hash. Save or copy
+that original credential deliberately before dismissing the result; it is not
+silently included in ordinary output artifacts. Inline rule feedback explains
+corrections without echoing a secret, and invalid drafts remain editable.
 
 ### Presence, Initialization and Suggestions
 

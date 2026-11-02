@@ -43,8 +43,39 @@
     <StackPanel Spacing="5" IsVisible="{Binding IsVisible}">
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
       <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" MaxLength="{Binding MaxLength}"
-               AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+               AcceptsReturn="{Binding AcceptsReturn}"
+               AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding InputHelpText}"
                local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+      <StackPanel IsVisible="{Binding RequiresSecretInput}" Spacing="4">
+        <TextBlock Text="{Binding SecretInputLabel}" />
+        <TextBox Text="{Binding SecretInput, Mode=TwoWay}" PasswordChar="●" MaxLength="65536"
+                 AutomationProperties.Name="{Binding SecretInputLabel}" />
+      </StackPanel>
+      <TextBlock Text="{Binding SecretRequirements}" TextWrapping="Wrap" />
+      <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+        <Button Content="{Binding GenerateLabel}" Command="{Binding GenerateCommand}" IsVisible="{Binding HasSecretGeneration}"
+                AutomationProperties.Name="{Binding GenerateName}" />
+        <Button Content="{Binding CancelGenerationLabel}" Command="{Binding CancelGenerationCommand}" IsVisible="{Binding GenerateCommand.IsRunning}"
+                AutomationProperties.Name="{Binding CancelGenerationLabel}" />
+        <Button Content="{Binding RevealLabel}" Command="{Binding RevealCommand}" IsVisible="{Binding RequiresMasking}"
+                AutomationProperties.Name="{Binding RevealName}" />
+        <Button Content="{Binding CopyLabel}" Command="{Binding CopyCommand}" IsVisible="{Binding RequiresMasking}"
+                AutomationProperties.Name="{Binding CopyName}" />
+      </WrapPanel>
+      <TextBlock Text="{Binding OperationMessage}" TextWrapping="Wrap" />
+      <StackPanel IsVisible="{Binding HasGeneratedPassword}" Spacing="4">
+        <TextBlock Text="{Binding GeneratedPasswordLabel}" />
+        <TextBox Text="{Binding GeneratedPassword, Mode=OneWay}" IsReadOnly="True" PasswordChar="{Binding GeneratedPasswordChar}"
+                 AutomationProperties.Name="{Binding GeneratedPasswordLabel}" />
+        <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+          <Button Content="{Binding RevealGeneratedPasswordLabel}" Command="{Binding RevealGeneratedPasswordCommand}"
+                  AutomationProperties.Name="{Binding RevealGeneratedPasswordName}" />
+          <Button Content="{Binding CopyGeneratedPasswordLabel}" Command="{Binding CopyGeneratedPasswordCommand}"
+                  AutomationProperties.Name="{Binding CopyGeneratedPasswordName}" />
+          <Button Content="{Binding DismissSecretResultLabel}" Command="{Binding DismissSecretResultCommand}"
+                  AutomationProperties.Name="{Binding DismissSecretResultName}" />
+        </WrapPanel>
+      </StackPanel>
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldActions}" />
     </StackPanel>
   </DataTemplate>
