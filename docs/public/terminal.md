@@ -22,8 +22,7 @@ All inputs and intermediate states are processed strictly in local memory. Sensi
 
 > [!IMPORTANT]
 > **Terminal Viewport Requirements:**
-> - **Minimum Content Viewport:** 80 columns × 26 rows.
-> - **Minimum Outer Terminal Frame:** 82 columns × 28 rows (Linux terminal frame).
+> - **Minimum Outer Terminal Frame:** 80 columns × 24 rows. Keyboard focus scrolls the content to keep the active control visible.
 > - **Recommended Viewport:** 110 columns × 36 rows to keep all field guidance, container lists, and action buttons comfortably visible without clipping.
 
 Run Configurator Terminal interactively in a standard terminal emulator. Standard input and output redirection (`<`, `>`, `|`) is refused for interactive sessions. To run noninteractive validations or scripts, use the [CLI](cli.md) instead.

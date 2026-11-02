@@ -8,7 +8,7 @@
   <data name="Close" xml:space="preserve"><value>إ_غلاق / إلغاء</value></data>
   <data name="Ready" xml:space="preserve"><value>إعداد محلي فقط. لا تُستبدل الملفات الموجودة.</value></data>
   <data name="Limitations" xml:space="preserve"><value>تنقل بلوحة المفاتيح. تبدأ الأسرار محجوبة ويتطلب نسخها زر نسخ السر. قارئ الشاشة وبرايل وتشكيل RTL ومسح ذاكرة .NET غير متحقق منها.</value></data>
-  <data name="TerminalTooSmall" xml:space="preserve"><value>غيّر الحجم إلى 80 عمودًا و26 صفًا على الأقل. التحرير مخفي حتى ذلك الحين.</value></data>
+  <data name="TerminalTooSmall" xml:space="preserve"><value>غيّر الحجم إلى 80 عمودًا و24 صفًا على الأقل. التحرير مخفي حتى ذلك الحين.</value></data>
   <data name="InvalidSecret" xml:space="preserve"><value>الإدخال يتجاوز الحد المدعوم.</value></data>
   <data name="SecretCommandsDisabled" xml:space="preserve"><value>أوامر الحافظة وقائمة السياق والسجل معطلة في الإدخال المحمي.</value></data>
   <data name="InvalidOutput" xml:space="preserve"><value>أعد تجهيز ملفات الإخراج المحددة قبل الحفظ.</value></data>
@@ -123,4 +123,5 @@
   <data name="CompletionCompleted" xml:space="preserve"><value>اكتملت العملية</value></data>
   <data name="CompletionCancelled" xml:space="preserve"><value>أُلغيت العملية</value></data>
   <data name="CompletionObserverFailed" xml:space="preserve"><value>فشل عرض نتيجة الحفظ</value></data>
+  <data name="Preparing" xml:space="preserve"><value>جارٍ إعداد المخرجات المحددة. يؤدي التحرير أو المسح إلى إبطال هذه النتيجة.</value></data>
 </root>

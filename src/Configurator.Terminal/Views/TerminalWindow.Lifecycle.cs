@@ -33,6 +33,7 @@ internal sealed partial class TerminalWindow
         _secret.Clear();
         if (Volatile.Read(ref _disposed) || Interlocked.Exchange(ref _closeRequested, 1) != 0) return;
         _secretCancellation.Cancel();
+        _preparationCancellation.Cancel();
         Observe(_importOperation.RequestCancellationAsync());
         Observe(_workspace.RequestCancellationAsync());
         DispatchToOwner(static window => window.BeginClose());
@@ -43,7 +44,7 @@ internal sealed partial class TerminalWindow
         ClearPrivateState();
         foreach (View view in _normal) view.Enabled = false;
         Status("ShutdownWaiting");
-        Task pending = Task.WhenAll(_importOperation.Completion, _workspace.WaitForPendingOperationsAsync(), _secretCompletion);
+        Task pending = Task.WhenAll(_importOperation.Completion, _workspace.WaitForPendingOperationsAsync(), _secretCompletion, _preparationCompletion);
         Observe(pending);
         _shutdown = FinishCloseAsync(pending, _timeProvider, _dispatch, _owner, _callbackGeneration);
         Observe(_shutdown);
@@ -144,6 +145,8 @@ internal sealed partial class TerminalWindow
             ClearSecretDialog();
             _secretCancellation.Cancel();
             _secretCancellation.Dispose();
+            _preparationCancellation.Cancel();
+            _preparationCancellation.Dispose();
             DetachObservers();
             _masked.ClearSensitiveState();
             _importPath.Text = string.Empty;

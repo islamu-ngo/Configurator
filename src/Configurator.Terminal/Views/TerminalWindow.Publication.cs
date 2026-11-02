@@ -1,23 +1,38 @@
 namespace Configurator.Terminal;
 
 using Configurator.Artifacts;
-using Configurator.Core.Definitions;
 
 internal sealed partial class TerminalWindow
 {
     internal void Prepare()
     {
-        if (_importOperation.IsBusy || _operation.IsPublishing || Volatile.Read(ref _closeRequested) != 0) return;
+        if (_preparing || _importOperation.IsBusy || _operation.IsPublishing || Volatile.Read(ref _closeRequested) != 0) return;
         if (!CommitField()) return;
+        _preparing = true;
+        Status("Preparing");
+        Task<bool> preparation = _operation.PrepareAsync(_preparationCancellation.Token);
+        _preparationCompletion = ObservePreparationAsync(preparation, _dispatch, _owner, _callbackGeneration);
+        Observe(_preparationCompletion);
+        RefreshCommands();
+    }
+
+    private static async Task ObservePreparationAsync(Task<bool> preparation, Action<Action> dispatch,
+        WeakReference<TerminalWindow> owner, int generation)
+    {
+        bool ready;
         try
         {
-            bool ready = _operation.PrepareAsync().GetAwaiter().GetResult();
-            _status.Text = ready ? LocalizedText("PreviewReady") + " "
-                + _operation.Preparation!.ArtifactCount + " " + LocalizedText("Selected")
-                : LocalizedText("DraftInvalid");
+            ready = await preparation.ConfigureAwait(false);
         }
-        catch (DefinitionException) { Status("DraftInvalid"); }
-        RefreshCommands();
+        catch (Exception) when (preparation.IsFaulted || preparation.IsCanceled) { ready = false; }
+        TryDispatch(dispatch, () =>
+        {
+            if (!owner.TryGetTarget(out TerminalWindow? window) || window._disposed
+                || window._callbackGeneration != generation || Volatile.Read(ref window._closeRequested) != 0) return;
+            window._preparing = false;
+            window.Status(ready && window._operation.IsPrepared ? "PreviewReady" : "DraftInvalid");
+            window.RefreshCommands();
+        });
     }
 
     internal void Save()

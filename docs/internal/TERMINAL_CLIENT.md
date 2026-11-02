@@ -26,6 +26,17 @@ cleanup facts. User guidance translates those facts; adapter diagnostic codes
 remain separate from rendered prose in `StatusCode`.
 
 
+and secret-dialog behavior in cohesive partial files. Preparation captures an
+immutable answer snapshot and selected outputs before composing on a worker.
+Its generation/revision checks reject readiness after edits, clearing, selection
+changes or disposal. The dispatcher observes completion, and close cancellation
+includes preparation in the existing bounded drain. Composition bytes remain
+scoped to the worker's disposable bundle.
+
+
+The content scrolls within an 80×24 outer terminal. Relative button columns and
+focus-driven scrolling keep controls reachable after resize.
+
 ### Schema-driven secret actions
 
 `TerminalWindow.Secrets` delegates generation and derivation to

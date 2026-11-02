@@ -473,6 +473,79 @@ public sealed class TerminalGuiAdapterTests
     }
 
     [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task MinimumOuterViewportKeepsEveryActionReachable(string locale)
+    {
+        using var form = TerminalDefinitionFixture.Form();
+        form.SelectLocale(locale);
+        using var harness = new Harness(initialize: true, form: form);
+        var window = harness.Window;
+        window.BeginInit();
+        window.EndInit();
+        window.Frame = new Rectangle(0, 0, 80, 24);
+        window.ApplyViewportPolicy(window.Viewport.Size);
+        foreach (View view in window.SubViews) view.SetRelativeLayout(window.GetContentSize());
+        await Assert.That(window.PublicInput.Visible).IsTrue();
+        View[] controls = window.SubViews.Where(view => view.CanFocus && view.Visible && view.Enabled).ToArray();
+        foreach (View control in controls)
+        {
+            await Assert.That(control.SetFocus()).IsTrue();
+            await Assert.That(window.Viewport.Contains(control.Frame)).IsTrue();
+        }
+        await Assert.That(controls.SelectMany((left, index) => controls.Skip(index + 1)
+            .Select(right => Rectangle.Intersect(left.Frame, right.Frame)))
+            .All(rectangle => rectangle.Width == 0 || rectangle.Height == 0)).IsTrue();
+    }
+
+    [Test]
+    [Arguments("edit")]
+    [Arguments("clear")]
+    [Arguments("selection")]
+    [Arguments("dispose")]
+    public async Task SuspendedPreparationKeepsOwnerResponsiveAndRejectsRetiredReadiness(string transition)
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var harness = new Harness(manualDispatch: true, beforePreparation: async token =>
+        {
+            entered.SetResult();
+            await release.Task.WaitAsync(token);
+        });
+        harness.Window.Prepare();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(harness.Window.PreparationCompletion.IsCompleted).IsFalse();
+        try
+        {
+            switch (transition)
+            {
+                case "edit": harness.Window.PublicInput.Text = "new-public-value"; break;
+                case "clear": harness.Window.ClearPrivateState(); break;
+                case "selection": harness.Operation.ToggleCurrentArtifact(); break;
+                case "dispose": harness.Operation.Dispose(); break;
+            }
+        }
+        finally { release.TrySetResult(); }
+        await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+        harness.DrainCallbacks();
+        await Assert.That(harness.Operation.IsPrepared).IsFalse();
+        await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
+    }
+
+    [Test]
+    public async Task EditingAfterPreparationStartsCannotRestoreReadiness()
+    {
+        using var harness = new Harness(manualDispatch: true);
+        harness.Window.Prepare();
+        harness.Form.Fields.Single(field => field.Definition.Id == "name").Text = "changed-after-start";
+        await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+        harness.DrainCallbacks();
+        await Assert.That(harness.Operation.IsPrepared).IsFalse();
+        await Assert.That(harness.Form.Snapshot().Values["name"].GetString()).IsEqualTo("changed-after-start");
+    }
+
+    [Test]
     public async Task SmallViewportHidesEditingAndNormalViewportRestoresNativeControls()
     {
         using var harness = new Harness();
@@ -564,6 +637,7 @@ public sealed class TerminalGuiAdapterTests
             Button prepare = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("PreparePreview"));
             Button save = harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("SaveProtected"));
             await Assert.That(prepare.InvokeCommand(Command.Accept)).IsTrue();
+            await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             harness.DrainCallbacks();
             await Assert.That(harness.Operation.IsPrepared).IsTrue();
             await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
@@ -727,6 +801,7 @@ public sealed class TerminalGuiAdapterTests
                 beforePublication: _ => ++attempt == 1 ? Task.CompletedTask
                     : throw new InvalidOperationException("synthetic-private-fault"));
             harness.Window.Prepare();
+            await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             harness.DrainCallbacks();
             harness.Window.Save();
             await harness.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
@@ -734,6 +809,7 @@ public sealed class TerminalGuiAdapterTests
             await Assert.That(harness.Window.ExitCode).IsEqualTo(0);
             harness.Form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-retry";
             harness.Window.Prepare();
+            await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             harness.DrainCallbacks();
             harness.Window.Save();
             await harness.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
@@ -939,13 +1015,14 @@ public sealed class TerminalGuiAdapterTests
         private readonly System.Threading.Channels.Channel<Action> _dispatch = System.Threading.Channels.Channel.CreateUnbounded<Action>();
         internal Harness(bool initialize = false, bool empty = false, string? directory = null,
             Func<CancellationToken, Task>? beforePublication = null, DefinitionFormModel? form = null,
-            bool manualDispatch = false)
+            bool manualDispatch = false, Func<CancellationToken, Task>? beforePreparation = null)
         {
             _application = Application.Create();
             if (initialize) _application.Init("dotnet");
             Form = form ?? (empty ? new DefinitionFormModel(TerminalDefinitionFixture.Definition()) : TerminalDefinitionFixture.Form());
             Secret = new TerminalSecretBuffer(262144, urlSafeOnly: false);
-            Operation = new TerminalArtifactOperation(Form, new ProtectedArtifactWriter(), directory ?? Path.GetTempPath(), beforePublication);
+            Operation = new TerminalArtifactOperation(Form, new ProtectedArtifactWriter(), directory ?? Path.GetTempPath(), beforePublication,
+                beforePreparation: beforePreparation);
             _session = new PresentationSession(new StrongReferenceMessenger());
             WorkspaceId.TryCreate("definition", out var id);
             Workspace = _session.CreateWorkspace(id, Operation);

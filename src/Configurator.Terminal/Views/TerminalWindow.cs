@@ -13,8 +13,8 @@ using global::Terminal.Gui.Views;
 
 internal sealed partial class TerminalWindow : Window
 {
-    internal const int MinimumTerminalWidth = 80;
-    internal const int MinimumTerminalHeight = 26;
+    internal const int MinimumTerminalWidth = 76;
+    internal const int MinimumTerminalHeight = 20;
     private readonly IApplication _application;
     private readonly PresentationWorkspace _workspace;
     private readonly TerminalArtifactOperation _operation;
@@ -78,6 +78,9 @@ internal sealed partial class TerminalWindow : Window
     private bool _allowStop;
     private Task _shutdown = Task.CompletedTask;
     private Task _saveObservation = Task.CompletedTask;
+    private Task _preparationCompletion = Task.CompletedTask;
+    private readonly CancellationTokenSource _preparationCancellation = new();
+    private bool _preparing;
     private readonly Dictionary<View, string> _localizedControls = [];
     private string? _renderedLocale;
     private string _statusKey = "Ready";
@@ -115,20 +118,20 @@ internal sealed partial class TerminalWindow : Window
         _importOperation = new(operation.Form, _dispatch, readImport,
             cooperativeYield: cooperativeYield ?? YieldToApplicationAsync);
         _importOperation.Settled += ImportSettled;
-#if CONFIGURATOR_NATIVE_IMPORT_PROBE
-        _application.Invoke(() => Configurator.Engineering.MeasureNativeImportComparison.Attach(this));
-#endif
         _editor = new(operation.Form);
         Title = LocalizedText("WindowTitle");
         Width = Dim.Fill();
         Height = Dim.Fill();
+        SetContentHeight(25);
+        ViewportSettings |= ViewportSettingsFlags.HasVerticalScrollBar;
+        FocusedChanged += (_, _) => RevealFocusedControl();
         var definition = operation.Form.Definition;
         var heading = new Label
         {
             X = 1,
             Y = 0,
             Width = Dim.Fill(2),
-            Text = Safe($"{definition.Title} | {definition.ApplicationId} | r{definition.Revision}")
+            Text = Safe(FormattableString.Invariant($"{definition.Title} | {definition.ApplicationId} | r{definition.Revision}"))
         };
         _locale = Button("Locale", 1, 1, CycleLocale);
         _correction = Button("NextCorrection", 25, 1, FocusNextCorrection);
@@ -234,6 +237,7 @@ internal sealed partial class TerminalWindow : Window
     internal bool IsImportBusy => _importOperation.IsBusy;
     internal Task ShutdownCompletion => _shutdown;
     internal Task SaveCompletion => _saveObservation;
+    internal Task PreparationCompletion => _preparationCompletion;
     private TerminalFieldEditor.Slot[] VisibleSlots =>
         _editor.Slots.Where(slot => _operation.Form.IsEditorVisible(slot.FullPath)).ToArray();
 
@@ -241,8 +245,9 @@ internal sealed partial class TerminalWindow : Window
     {
         var button = new Button
         {
-            X = x,
+            X = x < 20 ? 1 : x < 40 ? Pos.Percent(33) : Pos.Percent(66),
             Y = y,
+            Width = Dim.Percent(33) - 1,
             Height = 1,
             Text = LocalizedText(key),
             BorderStyle = LineStyle.None,
@@ -322,7 +327,7 @@ internal sealed partial class TerminalWindow : Window
     private void RefreshCommands()
     {
         bool available = !_tooSmall && !_workspace.IsBusy && !_importOperation.IsBusy
-            && !_operation.IsPublishing && Volatile.Read(ref _closeRequested) == 0;
+            && !_operation.IsPublishing && !_preparing && Volatile.Read(ref _closeRequested) == 0;
         _save.Enabled = available && _operation.ProtectedOutputAvailable
             && _operation.IsPrepared;
         _prepare.Enabled = available;
@@ -339,6 +344,14 @@ internal sealed partial class TerminalWindow : Window
 
     private void ViewportUpdated(object? sender, DrawEventArgs args) => ApplyViewportPolicy(args.NewViewport.Size);
 
+    private void RevealFocusedControl()
+    {
+        if (_tooSmall || Focused is not { } focused || focused.Frame.Height == 0) return;
+        int top = Viewport.Y;
+        if (focused.Frame.Top < top) top = focused.Frame.Top;
+        else if (focused.Frame.Bottom > Viewport.Bottom) top = focused.Frame.Bottom - Viewport.Height;
+        if (top != Viewport.Y) ScrollVertical(top - Viewport.Y);
+    }
     internal void ApplyViewportPolicy(Size size)
     {
         _tooSmall = size.Width < MinimumTerminalWidth || size.Height < MinimumTerminalHeight;
@@ -350,6 +363,7 @@ internal sealed partial class TerminalWindow : Window
         else ShowComparison();
         SetEditorVisibility();
         RefreshCommands();
+        RevealFocusedControl();
     }
 
 }

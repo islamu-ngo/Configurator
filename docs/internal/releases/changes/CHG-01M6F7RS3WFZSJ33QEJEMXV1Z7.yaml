@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7RS3WFZSJ33QEJEMXV1Z7
+Title: "keep terminal preparation and small viewports responsive"
+Type: fix
+Scope: accessibility
+Summary: "keep terminal preparation and small viewports responsive."
+Group: terminal-03
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "keep terminal preparation and small viewports responsive."

@@ -8,6 +8,30 @@ using Configurator.Terminal;
 public sealed class TerminalPublicationReceiptTests
 {
     [Test]
+    public async Task CancelledSuspendedPreparationDoesNotPublishReadinessOrEraseAnswers()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var form = TerminalDefinitionFixture.Form();
+        long revision = form.InputRevision;
+        using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath(),
+            beforePreparation: async token =>
+            {
+                entered.SetResult();
+                await release.Task.WaitAsync(token);
+            });
+        Task<bool> preparing = operation.PrepareAsync(cancellation.Token);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await cancellation.CancelAsync();
+        await Assert.That(async () => await preparing.WaitAsync(TimeSpan.FromSeconds(5))).Throws<OperationCanceledException>();
+        await Assert.That(operation.IsPrepared).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values.ContainsKey("token")).IsTrue();
+        await Assert.That(operation.PublicationHistory).IsEmpty();
+    }
+
+    [Test]
     public async Task ReceiptGuidanceUsesExplicitLocaleAndPreservesTypedFacts()
     {
         var receipt = new ProtectedArtifactPublicationReceipt(Guid.NewGuid(),

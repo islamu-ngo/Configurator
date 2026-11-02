@@ -11,6 +11,7 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
     private readonly IProtectedArtifactWriter _writer;
     private readonly string _baseDirectory;
     private readonly Func<CancellationToken, Task>? _beforePublication;
+    private readonly Func<CancellationToken, Task>? _beforePreparation;
     private readonly Action<ProtectedArtifactBundleOutcome>? _outcomeObserver;
     private readonly Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>,
         CancellationToken, Task<TerminalArtifactResult>> _publishBundle;
@@ -21,18 +22,21 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
     private bool _publishing;
     private string _artifactId;
     private bool _disposed;
+    private long _preparationGeneration;
 
     internal TerminalArtifactOperation(
         DefinitionFormModel form, IProtectedArtifactWriter writer, string baseDirectory,
         Func<CancellationToken, Task>? beforePublication = null,
         Action<ProtectedArtifactBundleOutcome>? outcomeObserver = null,
         Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>,
-            CancellationToken, Task<TerminalArtifactResult>>? publishBundle = null)
+            CancellationToken, Task<TerminalArtifactResult>>? publishBundle = null,
+        Func<CancellationToken, Task>? beforePreparation = null)
     {
         Form = form;
         _writer = writer;
         _baseDirectory = baseDirectory;
         _beforePublication = beforePublication;
+        _beforePreparation = beforePreparation;
         _outcomeObserver = outcomeObserver;
         _publishBundle = publishBundle ?? (async (artifacts, directory, observe, token) =>
         {
@@ -59,7 +63,10 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
     internal event EventHandler? PublicationChanged;
     internal event EventHandler? Invalidated;
     internal TerminalPreparation? Preparation { get; private set; }
-    internal bool IsPrepared => !IsPublishing && Preparation?.InputRevision == Form.InputRevision;
+    internal bool IsPrepared
+    {
+        get { lock (_receiptGate) return !_disposed && !_publishing && Preparation?.InputRevision == Form.InputRevision; }
+    }
     internal bool ProtectedOutputAvailable => _writer.IsAvailable;
     internal IReadOnlyList<string> SelectedArtifactIds => Form.Definition.Artifacts
         .Where(item => _selected.Contains(item.Id)).Select(item => item.Id).ToArray();
@@ -83,19 +90,31 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
         Invalidate();
     }
 
-    internal Task<bool> PrepareAsync(CancellationToken cancellationToken = default)
+    internal async Task<bool> PrepareAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (IsPublishing) return Task.FromResult(false);
+        if (IsPublishing) return false;
         Invalidate();
         cancellationToken.ThrowIfCancellationRequested();
-        if (Form.HasInputErrors) return Task.FromResult(false);
+        if (Form.HasInputErrors) return false;
+        long generation = Volatile.Read(ref _preparationGeneration);
         var snapshot = Form.Snapshot();
-        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
-            Form.Definition, SelectedArtifactIds, snapshot, cancellationToken);
-        if (!bundle.Succeeded || snapshot.InputRevision != Form.InputRevision) return Task.FromResult(false);
-        Preparation = new(snapshot.InputRevision, bundle.Artifacts.Count);
-        return Task.FromResult(true);
+        var definition = Form.Definition;
+        string[] selected = SelectedArtifactIds.ToArray();
+        int count = await Task.Run(async () =>
+        {
+            if (_beforePreparation is not null) await _beforePreparation(cancellationToken).ConfigureAwait(false);
+            using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
+                definition, selected, snapshot, cancellationToken);
+            return bundle.Succeeded ? bundle.Artifacts.Count : 0;
+        }, cancellationToken).ConfigureAwait(false);
+        lock (_receiptGate)
+        {
+            if (_disposed || _publishing || cancellationToken.IsCancellationRequested || count == 0
+                || generation != _preparationGeneration || snapshot.InputRevision != Form.InputRevision) return false;
+            Preparation = new(snapshot.InputRevision, count);
+            return true;
+        }
     }
 
     public async Task<PresentationOutcome> ExecuteAsync(CancellationToken cancellationToken)
@@ -205,7 +224,11 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
 
     internal void Invalidate()
     {
-        Preparation = null;
+        lock (_receiptGate)
+        {
+            _preparationGeneration++;
+            Preparation = null;
+        }
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 

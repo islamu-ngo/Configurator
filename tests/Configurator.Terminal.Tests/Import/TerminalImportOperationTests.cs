@@ -756,6 +756,7 @@ public sealed class TerminalImportOperationTests
                 harness.Window.Prepare();
                 harness.Begin();
             });
+            await harness!.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             publication = Task.Run(() => harness!.Workspace.ExecuteAsync(Guid.CreateVersion7()));
             await reached.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Guid attempt = harness!.Operation.CurrentPublication!.AttemptId;
@@ -831,6 +832,7 @@ public sealed class TerminalImportOperationTests
                 harness.Form.Fields.Single(input => input.Definition.Id == "token").Text = "synthetic-private";
                 harness.Window.Prepare();
             });
+            await harness!.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             await owner.InvokeAsync(() => harness.Button("SaveProtected").InvokeCommand(Command.Accept));
             await harness!.Window.SaveCompletion.WaitAsync(TimeSpan.FromSeconds(5));
             string status = string.Empty;

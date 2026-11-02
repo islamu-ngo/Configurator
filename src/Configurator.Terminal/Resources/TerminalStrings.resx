@@ -8,7 +8,7 @@
   <data name="Close" xml:space="preserve"><value>Cl_ose / cancel</value></data>
   <data name="Ready" xml:space="preserve"><value>Local preparation only. Existing files are never overwritten.</value></data>
   <data name="Limitations" xml:space="preserve"><value>Tab/Shift+Tab and button shortcuts. Secrets start masked; copying requires Copy secret. Screen-reader, braille, RTL shaping and managed-heap erasure are unverified.</value></data>
-  <data name="TerminalTooSmall" xml:space="preserve"><value>Resize to at least 80 columns by 26 rows. Editing is hidden until then.</value></data>
+  <data name="TerminalTooSmall" xml:space="preserve"><value>Resize to at least 80 columns by 24 rows. Editing is hidden until then.</value></data>
   <data name="InvalidSecret" xml:space="preserve"><value>Input exceeds the supported bound.</value></data>
   <data name="SecretCommandsDisabled" xml:space="preserve"><value>Clipboard, context-menu and history commands are disabled for protected input.</value></data>
   <data name="InvalidOutput" xml:space="preserve"><value>Prepare the selected outputs again before saving.</value></data>
@@ -123,4 +123,5 @@
   <data name="CompletionCompleted" xml:space="preserve"><value>Completed</value></data>
   <data name="CompletionCancelled" xml:space="preserve"><value>Cancelled</value></data>
   <data name="CompletionObserverFailed" xml:space="preserve"><value>Save reporting failed</value></data>
+  <data name="Preparing" xml:space="preserve"><value>Preparing selected outputs. Editing or clearing invalidates this result.</value></data>
 </root>
