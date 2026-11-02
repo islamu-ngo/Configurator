@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property NuGetLockFilePath=obj/Configurator.BrowserServer/packages.lock.json
 
 using System.Globalization;
 using System.Net;
