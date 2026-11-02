@@ -449,22 +449,34 @@ public sealed class BrowserDeveloperEditingTests
     }
 
     [Test]
-    public async Task ConsentRevokedDuringImportCannotMountALateEditor()
+    [Arguments("revoke", "import")]
+    [Arguments("dispose", "import")]
+    [Arguments("replacement", "import")]
+    [Arguments("revoke", "bridge")]
+    [Arguments("dispose", "bridge")]
+    [Arguments("replacement", "bridge")]
+    public async Task RetiredInitializationReleasesLateHandleWithoutMounting(string transition, string boundary)
     {
         await using var context = BrowserFixture.Context();
         using var form = Form();
         await using var engine = Boundary(context);
-        engine.ImportRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var replacement = new DefinitionFormModel(BrowserFixture.Revision(2), DefinitionSessionPrivacy.BrowserNoSecrets);
+        if (boundary == "import") engine.ImportRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        else engine.BridgeRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var component = Render(context, form);
-        await engine.ImportStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await component.InvokeAsync(() => form.SetSecretEntryEnabled(false));
-        engine.ImportRelease.TrySetResult();
-        await engine.ImportReturned.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await component.InvokeAsync(() => { });
+        await (boundary == "import" ? engine.ImportStarted.Task : engine.BridgeStarted.Task).WaitAsync(TimeSpan.FromSeconds(5));
+        if (transition == "revoke") await component.InvokeAsync(() => form.SetSecretEntryEnabled(false));
+        else if (transition == "dispose") await component.InvokeAsync(async () => await component.Instance.DisposeAsync());
+        else await component.InvokeAsync(() => component.Render(parameters => parameters.Add(item => item.Form, replacement)));
+        int priorDisposals = engine.DisposeCount;
+        await component.InvokeAsync(() => (boundary == "import" ? engine.ImportRelease : engine.BridgeRelease)!.TrySetResult());
+        await engine.LateHandleDisposed.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(engine.Active).IsFalse();
         await Assert.That(engine.MountCount).IsEqualTo(0);
-        await Assert.That(component.FindAll("[data-developer-editor]")).IsEmpty();
+        await Assert.That(engine.DisposeCount).IsGreaterThan(priorDisposals);
+        await Assert.That(component.Instance.HasWork).IsFalse();
         await Assert.That(form.Snapshot().Values).IsEmpty();
+        await Assert.That(replacement.Snapshot().Values).IsEmpty();
     }
 
     [Test]
@@ -810,11 +822,16 @@ public sealed class BrowserDeveloperEditingTests
         internal TaskCompletionSource ReadStarted { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource ImportStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource ImportReturned { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource BridgeStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource LateHandleDisposed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal int DisposeCount { get; private set; }
+        private bool _delayedHandleReturned;
         internal TaskCompletionSource FreezeStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource FrameStarted { get; set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource TaskStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource? ReadRelease { get; set; }
         internal TaskCompletionSource? ImportRelease { get; set; }
+        internal TaskCompletionSource? BridgeRelease { get; set; }
         internal TaskCompletionSource? FreezeRelease { get; set; }
         internal TaskCompletionSource? FrameRelease { get; set; }
         internal TaskCompletionSource? TaskRelease { get; set; }
@@ -855,12 +872,25 @@ public sealed class BrowserDeveloperEditingTests
                 if (args?[0]?.ToString() != "./js/configuration-rendering.js")
                 {
                     ImportStarted.TrySetResult();
-                    if (ImportRelease is not null) await ImportRelease.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                    if (ImportRelease is not null)
+                    {
+                        await ImportRelease.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                        _delayedHandleReturned = true;
+                    }
                     ImportReturned.TrySetResult();
                 }
                 result = this;
             }
-            else if (identifier == "createBridge") result = this;
+            else if (identifier == "createBridge")
+            {
+                BridgeStarted.TrySetResult();
+                if (BridgeRelease is not null)
+                {
+                    await BridgeRelease.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                    _delayedHandleReturned = true;
+                }
+                result = this;
+            }
             else if (identifier == "nextFrame")
             {
                 FrameStarted.TrySetResult();
@@ -946,6 +976,8 @@ public sealed class BrowserDeveloperEditingTests
         }
         public ValueTask DisposeAsync()
         {
+            DisposeCount++;
+            if (_delayedHandleReturned) LateHandleDisposed.TrySetResult();
             CryptographicOperations.ZeroMemory(_source);
             _source = [];
             Active = false;
