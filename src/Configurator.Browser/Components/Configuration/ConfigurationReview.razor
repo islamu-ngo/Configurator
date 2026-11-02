@@ -46,7 +46,7 @@
         <ul class="configuration-review__outputs">
             @foreach (var artifact in SelectedArtifacts())
             {
-                <li data-review-output="@artifact.Id"><strong>@artifact.FileName</strong> · @artifact.Format · @artifact.ApplySemantics · @UiFormat("ReviewRestart", artifact.Restart)</li>
+                <li data-review-output="@artifact.Id"><strong>@artifact.FileName</strong> · @artifact.Format.ToToken() · @artifact.ApplySemantics.ToToken() · @UiFormat("ReviewRestart", artifact.Restart.ToToken())</li>
             }
         </ul>
         <div class="actions">

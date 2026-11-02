@@ -347,6 +347,14 @@ internal static class SetupCoreAssemblyVerifier
         "Configurator.Core.Definitions.DefinitionSensitivityPolicy" => name is "ContainsSecret" or "DeclaresSecret",
         "Configurator.Core.Definitions.DefinitionSecretConstraints" => name == owner.Name,
         "Configurator.Core.Definitions.DefinitionSecretSpecification" => name == owner.Name,
+        "Configurator.Core.Definitions.DefinitionSecretAcquisition"
+            or "Configurator.Core.Definitions.DefinitionSecretAlgorithm"
+            or "Configurator.Core.Definitions.DefinitionSecretCharacterSet"
+            or "Configurator.Core.Definitions.DefinitionSecretCurve"
+            or "Configurator.Core.Definitions.DefinitionSecretEncoding"
+            or "Configurator.Core.Definitions.DefinitionSecretInput"
+            or "Configurator.Core.Definitions.DefinitionSecretKind"
+            or "Configurator.Core.Definitions.DefinitionSecretVocabulary" => name == owner.Name,
         "Configurator.Core.Definitions.DefinitionSecretGeneration" => name == owner.Name || name is "Password" or "get_Password" or "set_Password",
         "Configurator.Core.Secrets.SecretGenerationResult" => name == owner.Name || name is "GeneratedPassword" or "get_GeneratedPassword",
         "Configurator.Core.Secrets.SecretGenerator" or "Configurator.Core.Secrets.SecretDerivation"

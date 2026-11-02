@@ -30,7 +30,7 @@ public static class SecretKeyMaterial
     public static string Generate(DefinitionSecretSpecification specification)
     {
         ArgumentNullException.ThrowIfNull(specification);
-        if (!ValidPolicy(specification) || specification.Acquisition != "local" || specification.Generation is null)
+        if (!ValidPolicy(specification) || specification.Acquisition != DefinitionSecretAcquisition.Local || specification.Generation is null)
             throw new CryptographicException("secret-generation-unavailable");
 
         var random = new SecureRandom(new PlatformRandom());
@@ -48,7 +48,7 @@ public static class SecretKeyMaterial
             pair = generator.GenerateKeyPair();
         }
 
-        if (specification.Encoding == "jwk") return WriteJwk(specification, pair);
+        if (specification.Encoding == DefinitionSecretEncoding.Jwk) return WriteJwk(specification, pair);
         byte[] encoded = PrivateKeyInfoFactory.CreatePrivateKeyInfo(pair.Private).GetEncoded();
         try { return PemEncoding.WriteString("PRIVATE KEY", encoded); }
         finally { CryptographicOperations.ZeroMemory(encoded); }
@@ -62,7 +62,7 @@ public static class SecretKeyMaterial
         if (value.Length > 65536 || Encoding.UTF8.GetByteCount(value) > 65536) return InvalidFormat;
         try
         {
-            bool valid = specification.Encoding == "jwk"
+            bool valid = specification.Encoding == DefinitionSecretEncoding.Jwk
                 ? ValidateJwk(specification, value)
                 : ValidatePem(specification, value);
             return valid ? null : InvalidFormat;
@@ -77,32 +77,33 @@ public static class SecretKeyMaterial
 
     private static bool ValidPolicy(DefinitionSecretSpecification specification)
     {
-        if (specification.Kind != "private-key" || specification.Encoding is not ("pkcs8-pem" or "jwk")) return false;
+        if (!DefinitionSecretVocabulary.IsDefined(specification)) return false;
+        if (specification.Kind != DefinitionSecretKind.PrivateKey || specification.Encoding is not (DefinitionSecretEncoding.Pkcs8Pem or DefinitionSecretEncoding.Jwk)) return false;
         if (IsRsa(specification)) return specification.Constraints.KeySize is 2048 or 3072 or 4096 && specification.Constraints.Curve is null;
-        return specification.Algorithm is "ES256" or "ES384" or "ES512" &&
+        return specification.Algorithm is DefinitionSecretAlgorithm.Es256 or DefinitionSecretAlgorithm.Es384 or DefinitionSecretAlgorithm.Es512 &&
             (specification.Constraints.Curve is null || specification.Constraints.Curve == CurveName(specification));
     }
 
-    private static bool IsRsa(DefinitionSecretSpecification specification) => specification.Algorithm is "RS256" or "PS256";
-    private static string CurveName(DefinitionSecretSpecification specification) => specification.Algorithm switch
+    private static bool IsRsa(DefinitionSecretSpecification specification) => specification.Algorithm is DefinitionSecretAlgorithm.Rs256 or DefinitionSecretAlgorithm.Ps256;
+    private static DefinitionSecretCurve CurveName(DefinitionSecretSpecification specification) => specification.Algorithm switch
     {
-        "ES256" => "P-256",
-        "ES384" => "P-384",
-        "ES512" => "P-521",
+        DefinitionSecretAlgorithm.Es256 => DefinitionSecretCurve.P256,
+        DefinitionSecretAlgorithm.Es384 => DefinitionSecretCurve.P384,
+        DefinitionSecretAlgorithm.Es512 => DefinitionSecretCurve.P521,
         _ => throw new ArgumentException("secret-key-policy-invalid"),
     };
     private static DerObjectIdentifier CurveOid(DefinitionSecretSpecification specification) => specification.Algorithm switch
     {
-        "ES256" => SecObjectIdentifiers.SecP256r1,
-        "ES384" => SecObjectIdentifiers.SecP384r1,
-        "ES512" => SecObjectIdentifiers.SecP521r1,
+        DefinitionSecretAlgorithm.Es256 => SecObjectIdentifiers.SecP256r1,
+        DefinitionSecretAlgorithm.Es384 => SecObjectIdentifiers.SecP384r1,
+        DefinitionSecretAlgorithm.Es512 => SecObjectIdentifiers.SecP521r1,
         _ => throw new ArgumentException("secret-key-policy-invalid"),
     };
     private static int CoordinateBytes(DefinitionSecretSpecification specification) => specification.Algorithm switch
     {
-        "ES256" => 32,
-        "ES384" => 48,
-        "ES512" => 66,
+        DefinitionSecretAlgorithm.Es256 => 32,
+        DefinitionSecretAlgorithm.Es384 => 48,
+        DefinitionSecretAlgorithm.Es512 => 66,
         _ => throw new ArgumentException("secret-key-policy-invalid"),
     };
 
@@ -115,7 +116,7 @@ public static class SecretKeyMaterial
             {
                 writer.WriteStartObject();
                 writer.WriteString("kty", IsRsa(specification) ? "RSA" : "EC");
-                writer.WriteString("alg", specification.Algorithm);
+                writer.WriteString("alg", DefinitionSecretVocabulary.Token(specification.Algorithm!.Value));
                 if (pair.Private is RsaPrivateCrtKeyParameters rsa)
                 {
                     WriteInteger(writer, "n", rsa.Modulus);
@@ -132,7 +133,7 @@ public static class SecretKeyMaterial
                     var key = (ECPrivateKeyParameters)pair.Private;
                     var point = ((ECPublicKeyParameters)pair.Public).Q.Normalize();
                     int width = CoordinateBytes(specification);
-                    writer.WriteString("crv", CurveName(specification));
+                    writer.WriteString("crv", DefinitionSecretVocabulary.Token(CurveName(specification)));
                     WriteInteger(writer, "x", point.AffineXCoord.ToBigInteger(), width);
                     WriteInteger(writer, "y", point.AffineYCoord.ToBigInteger(), width);
                     WriteInteger(writer, "d", key.D, width);
@@ -169,14 +170,14 @@ public static class SecretKeyMaterial
                 if (!names.Add(property.Name)) return false;
                 if (property.Name is not ("kty" or "alg" or "kid" or "use" or "key_ops" or "crv" or "x" or "y" or "d" or "n" or "e" or "p" or "q" or "dp" or "dq" or "qi")) return false;
             }
-            if (root.TryGetProperty("alg", out JsonElement algorithm) && algorithm.GetString() != specification.Algorithm) return false;
+            if (root.TryGetProperty("alg", out JsonElement algorithm) && algorithm.GetString() != DefinitionSecretVocabulary.Token(specification.Algorithm!.Value)) return false;
             if (IsRsa(specification))
             {
                 if (root.GetProperty("kty").GetString() != "RSA" || names.Overlaps(["crv", "x", "y"])) return false;
                 return ValidateRsa(specification, ReadInteger(root, "n"), ReadInteger(root, "e"), ReadInteger(root, "d"),
                     ReadInteger(root, "p"), ReadInteger(root, "q"), ReadInteger(root, "dp"), ReadInteger(root, "dq"), ReadInteger(root, "qi"));
             }
-            if (root.GetProperty("kty").GetString() != "EC" || root.GetProperty("crv").GetString() != CurveName(specification) ||
+            if (root.GetProperty("kty").GetString() != "EC" || root.GetProperty("crv").GetString() != DefinitionSecretVocabulary.Token(CurveName(specification)) ||
                 names.Overlaps(["n", "e", "p", "q", "dp", "dq", "qi"])) return false;
             int width = CoordinateBytes(specification);
             return ValidateEc(specification, ReadInteger(root, "d", width), ReadInteger(root, "x", width), ReadInteger(root, "y", width));

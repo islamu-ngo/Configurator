@@ -1,663 +1,34 @@
 namespace Configurator.Core.Definitions;
 
 using System.Buffers;
-using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Configurator.Core.Artifacts;
 using Configurator.Core.Composition;
 using Configurator.Core.Secrets;
-
-public sealed class FieldState
-{
-    internal FieldState(FieldDefinition field, bool active, bool required, bool provided, bool error)
-    {
-        Definition = field;
-        IsActive = active;
-        IsRequired = required;
-        IsProvided = provided;
-        HasError = error;
-    }
-
-    public FieldDefinition Definition { get; }
-    public string Id => Definition.Id;
-    public bool IsActive { get; }
-    public bool IsRequired { get; }
-    public bool IsProvided { get; }
-    public bool HasError { get; }
-}
-
-public sealed class DefinitionValidationResult
-{
-    internal DefinitionValidationResult(IEnumerable<FieldState> fields,
-        IEnumerable<DefinitionDiagnostic> diagnostics, Dictionary<string, JsonElement> values,
-        IReadOnlySet<string>? deferred = null, IReadOnlySet<string>? unresolved = null,
-        IEnumerable<DefinitionNodeState>? nodes = null, IReadOnlySet<DefinitionPath>? deferredLocations = null)
-    {
-        Fields = Array.AsReadOnly(fields.ToArray());
-        Diagnostics = Array.AsReadOnly(diagnostics.OrderBy(item => item.FieldId, StringComparer.Ordinal)
-            .ThenBy(item => item.Code, StringComparer.Ordinal).ToArray());
-        Values = new ReadOnlyDictionary<string, JsonElement>(values);
-        DeferredFields = deferred ?? new HashSet<string>(StringComparer.Ordinal);
-        UnresolvedFields = unresolved ?? new HashSet<string>(StringComparer.Ordinal);
-        Nodes = Array.AsReadOnly(nodes?.ToArray() ?? []);
-        DeferredLocations = deferredLocations ?? new HashSet<DefinitionPath>();
-    }
-
-    public IReadOnlyList<FieldState> Fields { get; }
-    public IReadOnlyList<DefinitionDiagnostic> Diagnostics { get; }
-    public IReadOnlyList<DefinitionNodeState> Nodes { get; }
-    public bool IsReady => Diagnostics.Count == 0;
-    internal IReadOnlyDictionary<string, JsonElement> Values { get; }
-    internal IReadOnlySet<string> DeferredFields { get; }
-    internal IReadOnlySet<string> UnresolvedFields { get; }
-    internal IReadOnlySet<DefinitionPath> DeferredLocations { get; }
-    /// <summary>Explicitly reads a resolved private value; serialized validation facts remain value-free.</summary>
-    public bool TryGetEffectiveValue(DefinitionPath location, out JsonElement value)
-    {
-        ArgumentNullException.ThrowIfNull(location);
-        JsonElement reference = JsonSerializer.SerializeToElement(new { scope = "root", path = location.ToPointer() });
-        if (DefinitionValidator.TryResolveReference(reference, Values, null, out JsonElement resolved))
-        {
-            value = resolved.Clone();
-            return true;
-        }
-        value = default;
-        return false;
-    }
-    public override string ToString() => $"{nameof(DefinitionValidationResult)}:Ready={IsReady}:Diagnostics={Diagnostics.Count}";
-}
-
-/// <summary>Value-free validation facts for one literal editor path, including required-work obligations.</summary>
-public sealed class DefinitionNodeState
-{
-    internal DefinitionNodeState(string fieldId, IReadOnlyList<string> relativePath,
-        bool active, bool required, bool provided, bool valid, bool obligation, bool obligationReady, bool missing,
-        FieldSensitivity sensitivity, DefinitionCorrectionLocation location)
-    {
-        FieldId = fieldId;
-        RelativePath = Array.AsReadOnly(relativePath.ToArray());
-        IsActive = active;
-        IsRequired = active && required;
-        IsProvided = provided;
-        IsReady = valid;
-        HasError = active && !valid;
-        IsObligation = active && obligation;
-        IsObligationReady = active && obligationReady;
-        IsMissing = missing;
-        Sensitivity = sensitivity;
-        Location = location;
-    }
-
-    public string FieldId { get; }
-    public IReadOnlyList<string> RelativePath { get; }
-    public bool IsActive { get; }
-    public bool IsRequired { get; }
-    public bool IsProvided { get; }
-    public bool IsReady { get; }
-    public bool HasError { get; }
-    public bool IsObligation { get; }
-    public bool IsObligationReady { get; }
-    public bool IsMissing { get; }
-    public FieldSensitivity Sensitivity { get; }
-    public DefinitionCorrectionLocation Location { get; }
-}
 
 public static class DefinitionValidator
 {
     public static DefinitionValidationResult Validate(Definition definition, AnswerSnapshot answers,
         CancellationToken cancellationToken = default) =>
-        DefinitionImportWork.CompleteSynchronously(ValidateCoreAsync(definition, answers, false, cancellationToken));
+        DefinitionImportWork.CompleteSynchronously(DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken));
 
     /// <summary>Defers missing secret leaves only. Supplied invalid values remain blocking.</summary>
     public static DefinitionValidationResult ValidateDraft(Definition definition, AnswerSnapshot answers,
         CancellationToken cancellationToken = default) =>
-        DefinitionImportWork.CompleteSynchronously(ValidateCoreAsync(definition, answers, true, cancellationToken));
+        DefinitionImportWork.CompleteSynchronously(DefinitionValidationSession.RunAsync(definition, answers, true, cancellationToken));
 
     internal static ValueTask<DefinitionValidationResult> ValidateSuppliedAsync(Definition definition,
         DefinitionImportEvidence evidence, DefinitionImportWork work, Func<DefinitionDiagnostic, ValueTask> diagnosticObserved,
         CancellationToken cancellationToken) =>
-        ValidateCoreAsync(definition, evidence.Answers, false, cancellationToken, evidence, work, diagnosticObserved);
+        DefinitionValidationSession.RunAsync(definition, evidence.Answers, false, cancellationToken, evidence, work, diagnosticObserved);
 
     internal static ValueTask<DefinitionValidationResult> ValidateImportAsync(Definition definition, AnswerSnapshot answers,
         DefinitionImportWork work, CancellationToken cancellationToken) =>
-        ValidateCoreAsync(definition, answers, false, cancellationToken, work: work);
+        DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken, work: work);
 
-    private static async ValueTask<DefinitionValidationResult> ValidateCoreAsync(Definition definition, AnswerSnapshot answers,
-        bool draft, CancellationToken cancellationToken, DefinitionImportEvidence? observations = null,
-        DefinitionImportWork? work = null, Func<DefinitionDiagnostic, ValueTask>? diagnosticObserved = null)
-    {
-        ArgumentNullException.ThrowIfNull(definition);
-        ArgumentNullException.ThrowIfNull(answers);
-        DefinitionNode rootSchema = definition.Configuration;
-        if (rootSchema.Discriminator is { } discriminator)
-        {
-            if (!answers.Values.TryGetValue(discriminator, out JsonElement selection) ||
-                DiscriminatedBranch(rootSchema, selection) is not { } branch)
-            {
-                var diagnostic = new DefinitionDiagnostic(observations?.State(DefinitionPath.FromSegments([discriminator])) ==
-                    DefinitionImportObservationState.Unobserved ? "value-unobserved" : "value-variant", "");
-                if (diagnosticObserved is not null) await diagnosticObserved(diagnostic);
-                return new([], [diagnostic], new(StringComparer.Ordinal));
-            }
-            rootSchema = branch;
-        }
-        var rootSensitivity = (FieldSensitivity)Math.Max(
-            (int)FieldDefinition.SensitivityOf(definition.Configuration), (int)FieldDefinition.SensitivityOf(rootSchema));
-        IReadOnlyList<FieldDefinition> rootFields = ReferenceEquals(rootSchema, definition.Configuration) ? definition.Fields
-            : Array.AsReadOnly(rootSchema.Properties.Select(property => new FieldDefinition(property.Key, property.Value,
-                rootSchema.Required.Contains(property.Key, StringComparer.Ordinal), rootSensitivity)).ToArray());
-        var effective = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        var diagnostics = new List<DefinitionDiagnostic>();
-        var states = new Dictionary<string, FieldState>(StringComparer.Ordinal);
-        var nodes = new List<DefinitionNodeState>();
-        var deferred = new HashSet<string>(StringComparer.Ordinal);
-        var deferredLocations = new HashSet<DefinitionPath>();
-        var unresolved = new HashSet<string>(StringComparer.Ordinal);
-        var invalidControllers = new HashSet<string>(StringComparer.Ordinal);
-        var invalidLocations = new HashSet<DefinitionPath>();
-        var fields = rootFields.ToDictionary(field => field.Name, StringComparer.Ordinal);
-        var visiting = new HashSet<string>(StringComparer.Ordinal);
-        var budget = new CompositionBudget(CompositionLimits.Default);
-        var missing = new List<(string Root, string Id, string[] Path, DefinitionLocationSegment[] Correction)>();
-        try
-        {
-            if (rootSchema.AdditionalProperties is null && answers.Values.Keys.Any(name => !fields.ContainsKey(name)))
-                await Emit(new("field-unknown", ""));
-            foreach (DefinitionPath omission in answers.Omitted)
-            {
-                DefinitionNode current = rootSchema;
-                for (int index = 0; index < omission.Segments.Count; index++)
-                {
-                    if (current.Type == DefinitionNodeType.Mapping &&
-                        current.Properties.TryGetValue(omission.Segments[index], out DefinitionNode? child))
-                        current = child;
-                    else if (current.Type == DefinitionNodeType.Sequence && omission.TryGetArrayIndex(index, out int row) &&
-                        row < CompositionLimits.DefaultSequenceEntries) current = current.Items!;
-                    else if (current.Type == DefinitionNodeType.Mapping && current.AdditionalProperties is { } map)
-                        current = map;
-                    else { await Emit(new("answer-omission", "")); break; }
-                }
-            }
-            foreach (FieldDefinition field in rootFields) await Activate(field);
-            if (rootSchema.AdditionalProperties is { } rootMap)
-            {
-                int entry = 0;
-                foreach ((string name, JsonElement supplied) in answers.Values)
-                {
-                    if (fields.ContainsKey(name)) continue;
-                    var resolved = await Resolve(rootMap, JsonNode.Parse(supplied.GetRawText()), true, [name], "",
-                        ["@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, rootSensitivity,
-                        correction: [DefinitionLocationSegment.MapEntry(entry)]);
-                    if (resolved.Present) effective.Add(name, await ElementAsync(resolved.Value, work));
-                    entry++;
-                }
-            }
-            await SettleRequirements();
-            bool rootComplete = observations is null || observations.Complete(DefinitionPath.Parse(""));
-            if (!rootComplete && (rootSchema.Keywords.TryGetProperty("minProperties", out _) ||
-                rootSchema.Keywords.TryGetProperty("maxProperties", out _)))
-                await Emit(new("value-partially-observed", ""));
-            if (!PropertyCountValid(rootSchema, effective.Count, rootComplete))
-                await Emit(new("value-invalid", ""));
-            if (DefinitionArtifactComposer.PreparationDiagnostics.IsEnabled("ValidationCompleted"))
-                DefinitionArtifactComposer.PreparationDiagnostics.Write("ValidationCompleted", draft);
-            return new(rootFields.Select(field => states[field.Name]), diagnostics, effective, deferred, unresolved, nodes,
-                deferredLocations);
-        }
-        catch (CompositionException)
-        {
-            if (diagnosticObserved is not null) await diagnosticObserved(new("validation-limit", ""));
-            return new([], [new("validation-limit", "")], new(StringComparer.Ordinal));
-        }
-        catch (DefinitionException exception) when (exception.Code == "path-limit")
-        {
-            if (diagnosticObserved is not null) await diagnosticObserved(new("validation-limit", ""));
-            return new([], [new("validation-limit", "")], new(StringComparer.Ordinal));
-        }
-
-        async ValueTask Emit(DefinitionDiagnostic diagnostic)
-        {
-            diagnostics.Add(diagnostic);
-            if (diagnosticObserved is not null) await diagnosticObserved(diagnostic);
-        }
-
-        async ValueTask Activate(FieldDefinition field)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (work is not null) await work.VisitAsync();
-            if (states.ContainsKey(field.Name)) return;
-            if (!visiting.Add(field.Name)) throw new DefinitionException("activation-cycle");
-            foreach (string dependency in await SchemaReferencesAsync(field.Node, "root", work))
-                if (fields.TryGetValue(dependency, out FieldDefinition? controller)) await Activate(controller);
-            var unknown = Unknown();
-            bool? applies = field.ActiveWhen is { } condition ? await Evaluate(condition, unknown) : true;
-            if (applies is null) unresolved.Add(field.Name);
-            bool active = applies == true;
-            bool supplied = answers.Values.TryGetValue(field.Name, out JsonElement source);
-            JsonNode? value = supplied ? JsonNode.Parse(source.GetRawText()) : null;
-            int before = diagnostics.Count;
-            var resolved = await Resolve(field.Node, value, supplied, [field.Name], field.Id, [], active,
-                active && field.Required, rootSensitivity);
-            if (active && resolved.Present) effective.Add(field.Name, await ElementAsync(resolved.Value, work));
-            bool error = diagnostics.Count != before;
-            if (error) invalidControllers.Add(field.Name);
-            states.Add(field.Name, new(field, active, active && field.Required, active && resolved.Present, error));
-            visiting.Remove(field.Name);
-        }
-
-        async ValueTask<(bool Present, JsonNode? Value, bool Valid)> Resolve(DefinitionNode schema,
-            JsonNode? value, bool present, string[] location, string fieldId,
-            string[] safePath, bool active, bool required, FieldSensitivity inherited,
-            JsonObject? row = null, HashSet<string>? rowUnknown = null,
-            DefinitionLocationSegment[]? correction = null, DefinitionPath? rowLocation = null)
-        {
-            correction ??= [];
-            cancellationToken.ThrowIfCancellationRequested();
-            if (work is not null) await work.ValidationAsync();
-            budget.Node(location.Length);
-            DefinitionPath observedPath = DefinitionPath.FromSegments(location);
-            bool observed = observations is null || observations.State(observedPath) != DefinitionImportObservationState.Unobserved;
-            bool complete = observations is null || observations.Complete(observedPath);
-            int start = nodes.Count;
-            int diagnosticsBefore = diagnostics.Count;
-            var sensitivity = (FieldSensitivity)Math.Max((int)inherited, (int)FieldDefinition.SensitivityOf(schema));
-            if (!active || answers.Omitted.Contains(DefinitionPath.FromSegments(location))) present = false;
-            else if (observations is null && !present && schema.Keywords.TryGetProperty("x-configurator", out JsonElement metadata)
-                && metadata.TryGetProperty("initialValue", out JsonElement initial))
-            {
-                value = JsonNode.Parse(initial.GetRawText());
-                present = true;
-            }
-            if (active && present && value is not null && schema.Variants.Count > 0)
-            {
-                DefinitionNode? branch = SelectVariant(schema, await ElementAsync(value, work));
-                if (branch is null)
-                {
-                    invalidLocations.Add(observedPath);
-                    await Emit(new("value-variant", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-                    nodes.Add(new(fieldId, safePath, true, required, true, false, required, false, false,
-                        FieldDefinition.EffectiveSensitivity(schema, inherited),
-                        new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-                    return (true, value, false);
-                }
-                var resolvedBranch = await Resolve(branch, value, true, location, fieldId, safePath, true, required, sensitivity,
-                    row, rowUnknown, correction, rowLocation);
-                if (resolvedBranch.Valid && !await LocalValueValidAsync(schema,
-                    await ElementAsync(resolvedBranch.Value, work), complete, work))
-                {
-                    await Emit(new("value-invalid", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-                    return (resolvedBranch.Present, resolvedBranch.Value, false);
-                }
-                return resolvedBranch;
-            }
-            bool missingSecret = active && !present && draft && sensitivity == FieldSensitivity.Secret
-                && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
-            if (missingSecret)
-            {
-                deferred.Add(location[0]);
-                deferredLocations.Add(DefinitionPath.FromSegments(location));
-            }
-            bool valid = !active || !present;
-            if (active && required && !observed)
-            {
-                await Emit(new("value-unobserved", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-            }
-            if (active && !present && required && !missingSecret && observed)
-            {
-                missing.Add((location[0], fieldId, safePath, correction));
-                if (observations is not null && diagnosticObserved is not null)
-                    await diagnosticObserved(new("value-required", fieldId,
-                        new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-            }
-            JsonElement resolvedElement = default;
-            bool containerPresent = active && present && value is JsonObject;
-            if (active && present && !complete && schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)
-                await Emit(new("value-partially-observed", fieldId,
-                    new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-            if (schema.Type == DefinitionNodeType.Mapping)
-            {
-                var mapping = value as JsonObject;
-                bool childrenValid = true;
-                if (containerPresent && schema.AdditionalProperties is null && mapping!.Any(member => !schema.Properties.ContainsKey(member.Key)))
-                {
-                    await Emit(new("value-invalid", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-                    childrenValid = false;
-                }
-                var resolvedNames = new HashSet<string>(schema.Properties.Count, StringComparer.Ordinal);
-                var localUnknown = ReferenceEquals(row, mapping) && rowUnknown is not null
-                    ? rowUnknown : new HashSet<string>(StringComparer.Ordinal);
-                if (observations is not null)
-                    foreach (string name in schema.Properties.Keys)
-                        if (observations.State(DefinitionPath.FromSegments(location.Append(name))) == DefinitionImportObservationState.Unobserved)
-                            localUnknown.Add(name);
-                foreach (string name in schema.Properties.Keys) await ResolveProperty(name);
-
-                async ValueTask ResolveProperty(string name)
-                {
-                    if (!resolvedNames.Add(name)) return;
-                    DefinitionNode childSchema = schema.Properties[name];
-                    JsonElement? condition = childSchema.Keywords.TryGetProperty("x-configurator", out var extension)
-                        && extension.TryGetProperty("applicableWhen", out var predicate) ? predicate : null;
-                    foreach (string dependency in await SchemaReferencesAsync(childSchema, row is null ? "root" : "item", work))
-                        if (schema.Properties.ContainsKey(dependency) && dependency != name) await ResolveProperty(dependency);
-                    bool? applicable = condition is { } test ? await Evaluate(test, Unknown(),
-                        row is null ? null : await ElementAsync(row, work), rowUnknown, rowLocation) : true;
-                    if (applicable is null)
-                    {
-                        localUnknown.Add(name);
-                        if (observations is null) unresolved.Add(location[0]);
-                        else await Emit(new("condition-unobserved", fieldId, new DefinitionCorrectionLocation(
-                            answers.InputRevision, [.. correction, DefinitionLocationSegment.Property(name)])));
-                    }
-                    bool childPresent = containerPresent && mapping!.ContainsKey(name);
-                    JsonNode? childValue = childPresent ? mapping![name] : null;
-                    bool childRequired = containerPresent && schema.Required.Contains(name, StringComparer.Ordinal);
-                    var child = await Resolve(childSchema, childValue, childPresent, [.. location, name], fieldId,
-                        [.. safePath, name], containerPresent && applicable == true, childRequired, sensitivity,
-                        row, rowUnknown, [.. correction, DefinitionLocationSegment.Property(name)], rowLocation);
-                    childrenValid &= child.Valid;
-                    if (applicable == true && (!child.Valid || childRequired && !child.Present || draft && !child.Present &&
-                        FieldDefinition.EffectiveSensitivity(childSchema, sensitivity) == FieldSensitivity.Secret))
-                        localUnknown.Add(name);
-                    if (containerPresent)
-                    {
-                        if (!child.Present) mapping!.Remove(name);
-                        else if (!ReferenceEquals(mapping![name], child.Value)) mapping![name] = child.Value;
-                    }
-                }
-                if (containerPresent)
-                {
-                    var requiredNames = new HashSet<string>(StringComparer.Ordinal);
-                    JsonElement keywords = schema.Keywords;
-                    if (keywords.TryGetProperty("if", out var guard))
-                    {
-                        bool? holds = await EvaluateGuardAsync(guard, mapping!, localUnknown, observations, work, observedPath, invalidLocations);
-                        if (holds == true) RequireLocal(keywords.GetProperty("then").GetProperty("required"));
-                        else if (holds == false && keywords.TryGetProperty("else", out var alternative))
-                            RequireLocal(alternative.GetProperty("required"));
-                        else if (holds is null)
-                        {
-                            if (observations is null) unresolved.Add(location[0]);
-                            else await Emit(new("condition-unobserved", fieldId,
-                                new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-                        }
-                    }
-                    if (keywords.TryGetProperty("dependentRequired", out var relationships))
-                        foreach (JsonProperty dependency in relationships.EnumerateObject())
-                            if (localUnknown.Contains(dependency.Name)) unresolved.Add(location[0]);
-                            else if (mapping!.ContainsKey(dependency.Name)) RequireLocal(dependency.Value);
-                    foreach (string name in requiredNames)
-                    {
-                        string[] requiredPath = [.. safePath, name];
-                        int nodeIndex = -1;
-                        for (int candidate = start; candidate < nodes.Count; candidate++)
-                        {
-                            if (work is not null) await work.VisitAsync();
-                            DefinitionNodeState node = nodes[candidate];
-                            if (node.FieldId != fieldId ||
-                                !node.RelativePath.SequenceEqual(requiredPath, StringComparer.Ordinal)) continue;
-                            nodeIndex = candidate;
-                            break;
-                        }
-                        if (nodeIndex >= 0)
-                        {
-                            DefinitionNodeState node = nodes[nodeIndex];
-                            if (!node.IsActive) continue;
-                            bool hasChildObligation = false;
-                            foreach (DefinitionNodeState descendant in nodes.Skip(start))
-                            {
-                                if (work is not null) await work.VisitAsync();
-                                if (descendant.FieldId == fieldId && descendant.IsObligation &&
-                                    descendant.RelativePath.Count > requiredPath.Length &&
-                                    descendant.RelativePath.Take(requiredPath.Length).SequenceEqual(requiredPath, StringComparer.Ordinal))
-                                {
-                                    hasChildObligation = true;
-                                    break;
-                                }
-                            }
-                            nodes[nodeIndex] = new(node.FieldId, node.RelativePath, node.IsActive, true, node.IsProvided,
-                                node.IsReady, !hasChildObligation, node.IsProvided && node.IsReady, node.IsMissing, node.Sensitivity, node.Location);
-                        }
-                        if (localUnknown.Contains(name))
-                        {
-                            if (observations is not null) await Emit(new("value-unobserved", fieldId,
-                                new DefinitionCorrectionLocation(answers.InputRevision, [.. correction, DefinitionLocationSegment.Property(name)])));
-                            continue;
-                        }
-                        if (mapping!.ContainsKey(name)) continue;
-                        DefinitionNode child = schema.Properties[name];
-                        if (draft && FieldDefinition.EffectiveSensitivity(child, sensitivity) == FieldSensitivity.Secret)
-                            deferred.Add(location[0]);
-                        else missing.Add((location[0], fieldId, [.. safePath, name],
-                            [.. correction, DefinitionLocationSegment.Property(name)]));
-                    }
-                    void RequireLocal(JsonElement names)
-                    {
-                        foreach (JsonElement name in names.EnumerateArray()) requiredNames.Add(name.GetString()!);
-                    }
-                }
-                if (containerPresent && schema.AdditionalProperties is { } mapSchema)
-                {
-                    int entry = 0;
-                    foreach ((string name, JsonNode? childValue) in mapping!.ToArray())
-                    {
-                        if (schema.Properties.ContainsKey(name)) continue;
-                        budget.Scalar(name);
-                        var child = await Resolve(mapSchema, childValue, true, [.. location, name], fieldId,
-                            [.. safePath, "@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, sensitivity,
-                            row, rowUnknown, [.. correction, DefinitionLocationSegment.MapEntry(entry)], rowLocation);
-                        childrenValid &= child.Valid;
-                        if (!ReferenceEquals(mapping![name], child.Value)) mapping[name] = child.Value;
-                        entry++;
-                    }
-                }
-                if (active && present)
-                {
-                    resolvedElement = await ElementAsync(value, work);
-                    valid = childrenValid && await LocalValueValidAsync(schema, resolvedElement, complete, work);
-                }
-            }
-            else if (schema.Type == DefinitionNodeType.Sequence && active && present
-                && value is JsonArray sequence)
-            {
-                valid = true;
-                for (int index = 0; index < sequence.Count; index++)
-                {
-                    string ordinal = index.ToString(CultureInfo.InvariantCulture);
-                    var child = await Resolve(schema.Items!, sequence[index], true, [.. location, ordinal], fieldId,
-                        [.. safePath, ordinal], true, true, sensitivity, sequence[index] as JsonObject,
-                        new(StringComparer.Ordinal), [.. correction, DefinitionLocationSegment.ArrayRow(index)],
-                        DefinitionPath.FromSegments(location.Append(ordinal)));
-                    valid &= child.Valid;
-                    if (!ReferenceEquals(sequence[index], child.Value)) sequence[index] = child.Value;
-                }
-                resolvedElement = await ElementAsync(value, work);
-                valid &= await LocalValueValidAsync(schema, resolvedElement, complete, work);
-                int duplicate = await DuplicateIndexAsync(schema, resolvedElement, work);
-                if (duplicate >= 0)
-                {
-                    JsonElement uniqueBy = schema.Keywords.GetProperty("x-configurator").GetProperty("uniqueBy");
-                    await Emit(new("value-duplicate", fieldId, new DefinitionCorrectionLocation(answers.InputRevision,
-                        [.. correction, DefinitionLocationSegment.ArrayRow(duplicate),
-                         .. DefinitionPath.Parse(uniqueBy.GetString()!).Segments.Select(DefinitionLocationSegment.Property)])));
-                }
-            }
-            else if (active && present)
-            {
-                resolvedElement = await ElementAsync(value, work);
-                valid = await LocalValueValidAsync(schema, resolvedElement, complete, work);
-            }
-            if (active && present && !valid && !await LocalValueValidAsync(schema, resolvedElement, complete, work))
-                invalidLocations.Add(observedPath);
-            if (active && present && !valid && diagnostics.Count == diagnosticsBefore)
-            {
-                IReadOnlyList<string> secretFailures = schema.Secret is { } secret && resolvedElement.ValueKind == JsonValueKind.String
-                    ? SecretValueValidator.Validate(secret, resolvedElement.GetString()!) : [];
-                IReadOnlyList<string> codes = secretFailures.Count == 0 ? ["value-invalid"] : secretFailures;
-                foreach (string code in codes)
-                    await Emit(new(code, fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-            }
-            bool childObligation = false;
-            foreach (DefinitionNodeState node in nodes.Skip(start))
-            {
-                if (work is not null) await work.VisitAsync();
-                if (!node.IsObligation) continue;
-                childObligation = true;
-                break;
-            }
-            bool obligation = active && required && (schema.Type != DefinitionNodeType.Mapping || !childObligation);
-            bool obligationReady = present && (schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence
-                ? await LocalValueValidAsync(schema, resolvedElement, complete, work) : valid);
-            nodes.Insert(start, new(fieldId, safePath, active, required, active && present, valid,
-                obligation, obligationReady, !present, FieldDefinition.EffectiveSensitivity(schema, inherited),
-                new DefinitionCorrectionLocation(answers.InputRevision, correction)));
-            return (active && present, value, valid);
-
-        }
-
-        async ValueTask SettleRequirements()
-        {
-            var unknown = Unknown();
-            var relationshipRequired = new HashSet<string>(StringComparer.Ordinal);
-            var witnesses = new HashSet<string>(StringComparer.Ordinal);
-            await CloseUncertainty();
-            foreach (var absent in missing)
-            {
-                if (work is not null) await work.VisitAsync();
-                if (absent.Path.Length > 0 || !unknown.Contains(absent.Root))
-                {
-                    witnesses.Add(absent.Root);
-                    await Emit(new("value-required", absent.Id,
-                        new DefinitionCorrectionLocation(answers.InputRevision, absent.Correction)));
-                }
-            }
-            foreach (string name in relationshipRequired)
-            {
-                if (work is not null) await work.VisitAsync();
-                if (observations?.State(DefinitionPath.FromSegments([name])) == DefinitionImportObservationState.Unobserved)
-                {
-                    await Emit(new("value-unobserved", fields[name].Id));
-                    continue;
-                }
-                if (!effective.ContainsKey(name) && !unknown.Contains(name) && states[name].IsActive)
-                {
-                    if (draft && FieldDefinition.EffectiveSensitivity(fields[name].Node) == FieldSensitivity.Secret)
-                        deferred.Add(name);
-                    else
-                    {
-                        witnesses.Add(name);
-                        await Emit(new("value-required", fields[name].Id,
-                            new DefinitionCorrectionLocation(answers.InputRevision, [])));
-                    }
-                }
-            }
-            unknown.UnionWith(witnesses);
-            unknown.UnionWith(deferred);
-            await CloseUncertainty();
-            var diagnosticFields = new HashSet<string>(StringComparer.Ordinal);
-            var diagnosticPaths = new HashSet<(string FieldId, DefinitionPath Path)>();
-            foreach (DefinitionDiagnostic diagnostic in diagnostics)
-            {
-                if (work is not null) await work.VisitAsync();
-                diagnosticFields.Add(diagnostic.FieldId);
-                diagnosticPaths.Add((diagnostic.FieldId, DefinitionPath.FromSegments(diagnostic.RelativePath)));
-            }
-            var childObligations = new HashSet<string>(StringComparer.Ordinal);
-            foreach (DefinitionNodeState node in nodes)
-            {
-                if (work is not null) await work.VisitAsync();
-                if (node.RelativePath.Count > 0 && node.IsObligation) childObligations.Add(node.FieldId);
-            }
-            var fieldsById = rootFields.ToDictionary(field => field.Id, StringComparer.Ordinal);
-            foreach (FieldDefinition field in rootFields)
-            {
-                FieldState previous = states[field.Name];
-                if (work is not null) await work.VisitAsync();
-                bool? applicable = field.ActiveWhen is { } condition ? await Evaluate(condition, unknown) : true;
-                bool active = applicable == true;
-                if (applicable is null) unresolved.Add(field.Name);
-                if (!active) effective.Remove(field.Name);
-                bool required = active && (field.Required || relationshipRequired.Contains(field.Name));
-                states[field.Name] = new(field, active, required, active && previous.IsProvided,
-                    diagnosticFields.Contains(field.Id));
-            }
-            unresolved.UnionWith(unknown.Except(deferred).Except(invalidControllers)
-                .Except(observations is null ? [] : witnesses));
-            for (int index = 0; index < nodes.Count; index++)
-            {
-                if (work is not null) await work.VisitAsync();
-                DefinitionNodeState node = nodes[index];
-                if (node.FieldId.Length == 0) continue;
-                FieldState root = states[fieldsById[node.FieldId].Name];
-                bool active = root.IsActive && node.IsActive;
-                bool required = node.RelativePath.Count == 0 ? root.IsRequired : node.IsRequired;
-                bool error = diagnosticPaths.Contains((node.FieldId, DefinitionPath.FromSegments(node.RelativePath)));
-                bool rootObligation = required && node.RelativePath.Count == 0 &&
-                    (root.Definition.Node.Type != DefinitionNodeType.Mapping ||
-                     !childObligations.Contains(node.FieldId));
-                nodes[index] = new(node.FieldId, node.RelativePath, active, required, active && node.IsProvided,
-                    !error && node.IsReady, active && (node.IsObligation || rootObligation),
-                    node.IsObligationReady, node.IsMissing, node.Sensitivity, node.Location);
-            }
-
-            async ValueTask CloseUncertainty()
-            {
-                for (int scan = 0; scan <= fields.Count; scan++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    int count = unknown.Count;
-                    relationshipRequired.Clear();
-                    foreach (FieldDefinition field in rootFields)
-                    {
-                        if (work is not null) await work.VisitAsync();
-                        if (field.ActiveWhen is { } condition && await Evaluate(condition, unknown) is null)
-                            unknown.Add(field.Name);
-                    }
-                    JsonElement keywords = rootSchema.Keywords;
-                    if (keywords.TryGetProperty("if", out JsonElement guard))
-                    {
-                        bool? holds = await EvaluateGuardAsync(guard, effective, unknown, observations, work,
-                            DefinitionPath.Parse(""), invalidLocations);
-                        Require(keywords.GetProperty("then").GetProperty("required"), holds);
-                        if (keywords.TryGetProperty("else", out var alternative))
-                            Require(alternative.GetProperty("required"), !holds);
-                    }
-                    if (keywords.TryGetProperty("dependentRequired", out JsonElement dependencies))
-                        foreach (JsonProperty dependency in dependencies.EnumerateObject())
-                            Require(dependency.Value, unknown.Contains(dependency.Name) ||
-                                invalidControllers.Contains(dependency.Name) ||
-                                observations?.State(DefinitionPath.FromSegments([dependency.Name])) == DefinitionImportObservationState.Unobserved
-                                    ? null : effective.ContainsKey(dependency.Name));
-                    if (unknown.Count == count) return;
-                }
-                throw new DefinitionException("validation-limit");
-            }
-
-            void Require(JsonElement targets, bool? holds)
-            {
-                if (holds == false) return;
-                foreach (JsonElement target in targets.EnumerateArray())
-                {
-                    string name = target.GetString()!;
-                    if (holds == true) relationshipRequired.Add(name);
-                    else if (!effective.ContainsKey(name) && states[name].IsActive) unknown.Add(name);
-                }
-            }
-        }
-
-        HashSet<string> Unknown() => deferred.Concat(unresolved)
-            .Concat(observations is null ? invalidControllers : []).ToHashSet(StringComparer.Ordinal);
-
-        ValueTask<bool?> Evaluate(JsonElement condition, IReadOnlySet<string> unknown, JsonElement? item = null,
-            IReadOnlySet<string>? itemUnknown = null, DefinitionPath? itemLocation = null) =>
-            EvaluateConditionAsync(condition, effective, unknown, item, itemUnknown, itemLocation: itemLocation,
-                observations: observations, work: work, invalidLocations: invalidLocations);
-    }
-
-    private static async ValueTask<JsonElement> ElementAsync(JsonNode? value, DefinitionImportWork? work)
+    internal static async ValueTask<JsonElement> ElementAsync(JsonNode? value, DefinitionImportWork? work)
     {
         if (work is null) return Element(value);
         CancellationToken cancellationToken = work.CancellationToken;
@@ -746,11 +117,11 @@ public static class DefinitionValidator
         return DiscriminatedBranch(schema, discriminator);
     }
 
-    private static DefinitionNode? DiscriminatedBranch(DefinitionNode schema, JsonElement discriminator) =>
+    internal static DefinitionNode? DiscriminatedBranch(DefinitionNode schema, JsonElement discriminator) =>
         schema.Variants.FirstOrDefault(branch =>
             JsonElement.DeepEquals(branch.Properties[schema.Discriminator!].Keywords.GetProperty("const"), discriminator));
 
-    private static async ValueTask<bool> LocalValueValidAsync(DefinitionNode schema, JsonElement value, bool complete = true,
+    internal static async ValueTask<bool> LocalValueValidAsync(DefinitionNode schema, JsonElement value, bool complete = true,
         DefinitionImportWork? work = null)
     {
         if (work is not null) await work.VisitAsync();
@@ -825,7 +196,7 @@ public static class DefinitionValidator
         return true;
     }
 
-    private static bool PropertyCountValid(DefinitionNode schema, int count, bool complete = true) =>
+    internal static bool PropertyCountValid(DefinitionNode schema, int count, bool complete = true) =>
         (!complete || !schema.Keywords.TryGetProperty("minProperties", out JsonElement minimum) || count >= minimum.GetInt32()) &&
         (!schema.Keywords.TryGetProperty("maxProperties", out JsonElement maximum) || count <= maximum.GetInt32());
 
@@ -856,7 +227,7 @@ public static class DefinitionValidator
         }
     }
 
-    private static async ValueTask<int> DuplicateIndexAsync(DefinitionNode schema, JsonElement value, DefinitionImportWork? work = null)
+    internal static async ValueTask<int> DuplicateIndexAsync(DefinitionNode schema, JsonElement value, DefinitionImportWork? work = null)
     {
         if (value.ValueKind != JsonValueKind.Array || !schema.Keywords.TryGetProperty("x-configurator", out var metadata)
             || !metadata.TryGetProperty("uniqueBy", out var uniqueBy)) return -1;
@@ -888,7 +259,7 @@ public static class DefinitionValidator
         DefinitionImportWork.CompleteSynchronously(
             EvaluateConditionAsync(condition, values, unresolved, item, itemUnknown, deferredLocations, itemLocation));
 
-    private static async ValueTask<bool?> EvaluateConditionAsync(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values,
+    internal static async ValueTask<bool?> EvaluateConditionAsync(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values,
         IReadOnlySet<string>? unresolved, JsonElement? item = null, IReadOnlySet<string>? itemUnknown = null,
         IReadOnlySet<DefinitionPath>? deferredLocations = null, DefinitionPath? itemLocation = null,
         DefinitionImportEvidence? observations = null, DefinitionImportWork? work = null,
@@ -979,7 +350,7 @@ public static class DefinitionValidator
     internal static IEnumerable<string> SchemaReferences(DefinitionNode schema, string scope) =>
         DefinitionImportWork.CompleteSynchronously(SchemaReferencesAsync(schema, scope));
 
-    private static async ValueTask<IEnumerable<string>> SchemaReferencesAsync(DefinitionNode schema, string scope,
+    internal static async ValueTask<IEnumerable<string>> SchemaReferencesAsync(DefinitionNode schema, string scope,
         DefinitionImportWork? work = null)
     {
         if (work is not null) await work.VisitAsync();
@@ -1014,13 +385,13 @@ public static class DefinitionValidator
         return references.ToArray();
     }
 
-    private static ValueTask<bool?> EvaluateGuardAsync(JsonElement guard, JsonObject values, IReadOnlySet<string> unknown,
+    internal static ValueTask<bool?> EvaluateGuardAsync(JsonElement guard, JsonObject values, IReadOnlySet<string> unknown,
         DefinitionImportEvidence? observations = null, DefinitionImportWork? work = null,
         DefinitionPath? observationBase = null, IReadOnlySet<DefinitionPath>? invalidLocations = null) =>
         EvaluateGuardAsync(guard, values.ToDictionary(property => property.Key, property => Element(property.Value),
             StringComparer.Ordinal), unknown, observations, work, observationBase, invalidLocations);
 
-    private static ValueTask<bool?> EvaluateGuardAsync(JsonElement guard, IReadOnlyDictionary<string, JsonElement> values,
+    internal static ValueTask<bool?> EvaluateGuardAsync(JsonElement guard, IReadOnlyDictionary<string, JsonElement> values,
         IReadOnlySet<string> unknown, DefinitionImportEvidence? observations = null, DefinitionImportWork? work = null,
         DefinitionPath? observationBase = null, IReadOnlySet<DefinitionPath>? invalidLocations = null)
     {

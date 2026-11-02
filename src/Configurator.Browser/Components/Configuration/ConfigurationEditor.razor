@@ -54,7 +54,7 @@
         @if (_developerMode)
         {
             <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="_form"
-                                    EnvironmentArtifactId="@(Definition.Artifacts.FirstOrDefault(artifact => artifact.Format == "dotenv")?.Id)"
+                                    EnvironmentArtifactId="@(Definition.Artifacts.FirstOrDefault(artifact => artifact.Format == DefinitionArtifactFormat.Dotenv)?.Id)"
                                     DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
                                     RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
         }

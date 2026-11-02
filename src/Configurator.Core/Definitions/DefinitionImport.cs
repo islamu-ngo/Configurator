@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Definitions;
 
 using System.Globalization;
@@ -7,15 +6,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
+using Configurator.Core.Dotenv;
 using Configurator.Core.Environment;
-
-public sealed record DefinitionImportResult(bool Succeeded, AnswerSnapshot? Answers, string Code)
-{
-    public IReadOnlyList<string> ProvidedFields { get; init; } = [];
-    public DefinitionDiagnostic? Diagnostic { get; init; }
-    public DefinitionImportSchemaLocation? Schema { get; init; }
-    public override string ToString() => $"{nameof(DefinitionImportResult)}:{Code}";
-}
 
 public static class DefinitionImport
 {
@@ -341,13 +333,13 @@ public static class DefinitionImport
         return false;
     }
 
-    private static async ValueTask<JsonElement> ParseAsync(string format, ReadOnlyMemory<byte> bytes,
+    private static async ValueTask<JsonElement> ParseAsync(DefinitionArtifactFormat format, ReadOnlyMemory<byte> bytes,
         DefinitionImportWork work, CancellationToken cancellationToken)
     {
         if (bytes.IsEmpty || bytes.Length > CompositionLimits.DefaultAggregateSourceBytes)
             throw new DefinitionException("input-invalid");
         cancellationToken.ThrowIfCancellationRequested();
-        if (format == "dotenv")
+        if (format == DefinitionArtifactFormat.Dotenv)
         {
             DotenvParseResult parsed = DotenvCodec.Parse(bytes, DotenvPurpose.TemplatePlaceholders, cancellationToken);
             if (!parsed.Succeeded) throw new DefinitionException("input-invalid");
@@ -361,7 +353,7 @@ public static class DefinitionImport
             return JsonSerializer.SerializeToElement(entries);
         }
         byte[] normalized;
-        if (format == "yaml")
+        if (format == DefinitionArtifactFormat.Yaml)
             normalized = CompositionNormalizer.WriteJson(CompositionYamlParser.Parse(bytes, CompositionLimits.Default,
                 cancellationToken, keyPolicy: CompositionKeyPolicy.Exact), cancellationToken);
         else

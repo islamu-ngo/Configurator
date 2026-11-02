@@ -49,7 +49,7 @@ internal sealed partial class TerminalWindow
         if (!_operation.Form.CanGenerateSecret(path)) return;
         DefinitionSecretSpecification? policy = (_slot.IsList ? _slot.Schema.Items : _slot.Schema)?.Secret;
         char[] input = [];
-        if (policy is { Kind: "password-hash" or "digest", Generation.Input: "entered" })
+        if (policy is { Kind: DefinitionSecretKind.PasswordHash or DefinitionSecretKind.Digest, Generation.Input: DefinitionSecretInput.Entered })
         {
             using var buffer = new TerminalSecretBuffer(65536, urlSafeOnly: false);
             using var dialog = new Dialog { Title = TerminalText.Get("SecretDerivationInput"), Width = Dim.Percent(90), Height = 9 };

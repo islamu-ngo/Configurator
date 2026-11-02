@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6F5ABCBYMMN4N22T7R9Z6C8
+Title: "Type admitted secret and artifact contracts explicitly"
+Type: refactor
+Scope: definitions
+Summary: "Use closed C# vocabulary with exact public wire mappings and bounded definition processing."
+Group: typed-definitions
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: Replace string assignments and comparisons on admitted secret and artifact properties with the corresponding closed enums and explicit wire-token maps.
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: Reject undefined enum values at cryptographic boundaries and retain bounded admission and owned buffer clearing.
+  Migration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: Rebuild C# consumers against the typed properties; canonical definition tokens and schema version remain unchanged.
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable

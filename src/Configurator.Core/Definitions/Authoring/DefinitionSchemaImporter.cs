@@ -4,32 +4,6 @@ using System.Text.Json.Nodes;
 
 namespace Configurator.Core.Definitions.Authoring;
 
-/// <summary>A value-free account of one public schema concept. Document zero is the supplied root.</summary>
-public sealed record DefinitionSchemaTransformation(string Classification, string Code, string Location, int DocumentOrdinal);
-
-/// <summary>Snapshots a configuration schema and its explicit transformation ledger.</summary>
-public sealed class DefinitionSchemaImportResult
-{
-    internal DefinitionSchemaImportResult(JsonElement configuration, IEnumerable<DefinitionSchemaTransformation> transformations)
-    {
-        Configuration = configuration.Clone();
-        Transformations = Array.AsReadOnly(transformations.ToArray());
-    }
-    public JsonElement Configuration { get; }
-    public IReadOnlyList<DefinitionSchemaTransformation> Transformations { get; }
-}
-
-public sealed class DefinitionSchemaImportException : Exception
-{
-    internal DefinitionSchemaImportException(string code, IEnumerable<DefinitionSchemaTransformation>? transformations = null) : base(code)
-    {
-        Code = code;
-        Transformations = Array.AsReadOnly((transformations ?? []).ToArray());
-    }
-    public string Code { get; }
-    public IReadOnlyList<DefinitionSchemaTransformation> Transformations { get; }
-}
-
 /// <summary>Translates a closed JSON Schema subset without granting reference, filesystem or network authority.</summary>
 public static class DefinitionSchemaImporter
 {
@@ -371,7 +345,7 @@ public static class DefinitionSchemaImporter
 
         private static void ValidateText(string text, int maximum)
         {
-            try { _ = DefinitionCodec.Text(JsonSerializer.SerializeToElement(text), maximum); }
+            try { _ = DefinitionAdmission.Text(JsonSerializer.SerializeToElement(text), maximum); }
             catch (DefinitionException) { throw new DefinitionSchemaImportException("schema-annotation-bound"); }
         }
 

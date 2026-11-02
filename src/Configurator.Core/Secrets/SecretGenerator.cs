@@ -6,38 +6,6 @@ using Configurator.Core.Definitions;
 
 namespace Configurator.Core.Secrets;
 
-/// <summary>Mutable operation output with explicit ownership and redacted diagnostics.</summary>
-public sealed class SecretValue : IDisposable
-{
-    private char[]? _characters;
-    public SecretValue(ReadOnlySpan<char> value) => _characters = value.ToArray();
-    public string CopyValue() => new(_characters ?? throw new ObjectDisposedException(nameof(SecretValue)));
-    internal ReadOnlySpan<char> Characters => _characters ?? throw new ObjectDisposedException(nameof(SecretValue));
-    public byte[] CopyUtf8Bytes() => Encoding.UTF8.GetBytes(_characters ?? throw new ObjectDisposedException(nameof(SecretValue)));
-    public void Dispose()
-    {
-        char[]? characters = Interlocked.Exchange(ref _characters, null);
-        if (characters is not null) CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(characters.AsSpan()));
-    }
-    public override string ToString() => "SecretValue:Redacted";
-}
-
-public sealed class SecretGenerationResult : IDisposable
-{
-    public SecretGenerationResult(SecretValue? output, SecretValue? generatedPassword = null, string? errorCode = null)
-    {
-        Output = output;
-        GeneratedPassword = generatedPassword;
-        ErrorCode = errorCode;
-    }
-    public SecretValue? Output { get; }
-    public SecretValue? GeneratedPassword { get; }
-    public string? ErrorCode { get; }
-    public bool Succeeded => Output is not null && ErrorCode is null;
-    public void Dispose() { Output?.Dispose(); GeneratedPassword?.Dispose(); }
-    public override string ToString() => $"SecretGenerationResult:Succeeded={Succeeded}";
-}
-
 public static class SecretGenerator
 {
     internal static void FillRandom(Span<byte> destination, RandomNumberGenerator? entropy = null)
@@ -49,7 +17,9 @@ public static class SecretGenerator
         RandomNumberGenerator? entropy = null)
     {
         ArgumentNullException.ThrowIfNull(specification);
-        if (specification.Acquisition != "local" || specification.Generation is null)
+        if (!DefinitionSecretVocabulary.IsDefined(specification))
+            return Denied("secret-profile-unavailable");
+        if (specification.Acquisition != DefinitionSecretAcquisition.Local || specification.Generation is null)
             return Denied("secret-generation-unavailable");
         SecretValue? original = null;
         try
@@ -57,22 +27,22 @@ public static class SecretGenerator
             string value;
             switch (specification.Kind)
             {
-                case "password": value = Password(specification); break;
-                case "opaque-token":
-                case "symmetric-key": value = RandomBytes(specification, entropy); break;
-                case "private-key": value = SecretKeyMaterial.Generate(specification); break;
-                case "password-hash":
-                case "digest":
-                    if (specification.Generation.Input == "generated")
+                case DefinitionSecretKind.Password: value = Password(specification); break;
+                case DefinitionSecretKind.OpaqueToken:
+                case DefinitionSecretKind.SymmetricKey: value = RandomBytes(specification, entropy); break;
+                case DefinitionSecretKind.PrivateKey: value = SecretKeyMaterial.Generate(specification); break;
+                case DefinitionSecretKind.PasswordHash:
+                case DefinitionSecretKind.Digest:
+                    if (specification.Generation.Input == DefinitionSecretInput.Generated)
                     {
-                        if (!input.IsEmpty || specification.Generation.Password is not { Kind: "password" } password)
+                        if (!input.IsEmpty || specification.Generation.Password is not { Kind: DefinitionSecretKind.Password } password)
                             return Denied("secret-input-invalid");
                         using var generated = Generate(password, entropy: entropy);
                         if (!generated.Succeeded) return Denied(generated.ErrorCode!);
                         original = new SecretValue(generated.Output!.Characters);
                         input = original.Characters;
                     }
-                    else if (specification.Generation.Input != "entered") return Denied("secret-input-invalid");
+                    else if (specification.Generation.Input != DefinitionSecretInput.Entered) return Denied("secret-input-invalid");
                     value = SecretDerivation.Derive(specification, input, entropy);
                     break;
                 default: return Denied("secret-generation-unavailable");
@@ -93,8 +63,8 @@ public static class SecretGenerator
     private static string RandomBytes(DefinitionSecretSpecification specification, RandomNumberGenerator? entropy)
     {
         int length = specification.Generation!.Bytes;
-        int floor = specification.Algorithm switch { "HS384" => 48, "HS512" => 64, "HS256" => 32, _ => 16 };
-        int exact = specification.Algorithm switch { "AES128" => 16, "AES192" => 24, "AES256" => 32, _ => 0 };
+        int floor = specification.Algorithm switch { DefinitionSecretAlgorithm.Hs384 => 48, DefinitionSecretAlgorithm.Hs512 => 64, DefinitionSecretAlgorithm.Hs256 => 32, _ => 16 };
+        int exact = specification.Algorithm switch { DefinitionSecretAlgorithm.Aes128 => 16, DefinitionSecretAlgorithm.Aes192 => 24, DefinitionSecretAlgorithm.Aes256 => 32, _ => 0 };
         if (length < floor || length > 4096 || length < specification.Constraints.MinBytes
             || length > specification.Constraints.MaxBytes || exact != 0 && length != exact)
             throw new ArgumentException("secret-generation-policy-invalid");
@@ -104,9 +74,9 @@ public static class SecretGenerator
             FillRandom(bytes, entropy);
             return specification.Encoding switch
             {
-                "base64" => Convert.ToBase64String(bytes),
-                "base64url" => Base64Url.EncodeToString(bytes),
-                "hex" => Convert.ToHexStringLower(bytes),
+                DefinitionSecretEncoding.Base64 => Convert.ToBase64String(bytes),
+                DefinitionSecretEncoding.Base64Url => Base64Url.EncodeToString(bytes),
+                DefinitionSecretEncoding.Hex => Convert.ToHexStringLower(bytes),
                 _ => throw new ArgumentException("secret-encoding-invalid")
             };
         }

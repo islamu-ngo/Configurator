@@ -24,7 +24,7 @@ public static class SecretDerivation
         RandomNumberGenerator? entropy = null)
     {
         ArgumentNullException.ThrowIfNull(specification);
-        if (specification.Acquisition != "local" || specification.Generation is null)
+        if (specification.Acquisition != DefinitionSecretAcquisition.Local || specification.Generation is null)
             throw new ArgumentException("secret-generation-unavailable");
         string? policyFailure = ValidatePolicy(specification);
         if (policyFailure is not null) throw new ArgumentException(policyFailure);
@@ -32,9 +32,9 @@ public static class SecretDerivation
         byte[] bytes = DecodeInput(specification, input);
         try
         {
-            if (bytes.Length > 65536 || (specification.Algorithm == "bcrypt" &&
+            if (bytes.Length > 65536 || (specification.Algorithm == DefinitionSecretAlgorithm.Bcrypt &&
                 (bytes.Length > 72 || input.Contains('\0')))) throw new ArgumentException(InvalidInput);
-            return specification.Kind == "digest"
+            return specification.Kind == DefinitionSecretKind.Digest
                 ? DeriveDigest(specification, bytes)
                 : DeriveHash(specification, bytes, entropy);
         }
@@ -50,13 +50,13 @@ public static class SecretDerivation
         if (failure is not null) return failure;
         try
         {
-            if (specification.Kind == "digest") return ValidateDigest(specification, value);
+            if (specification.Kind == DefinitionSecretKind.Digest) return ValidateDigest(specification, value);
             return specification.Algorithm switch
             {
-                "argon2id" => ValidateArgon(specification.Constraints, value),
-                "bcrypt" => ValidateBcrypt(specification.Constraints, value),
-                "aspnet-identity-v3" => ValidateIdentity(value),
-                "pbkdf2-sha256" or "pbkdf2-sha512" => ValidatePbkdf2(specification, value),
+                DefinitionSecretAlgorithm.Argon2id => ValidateArgon(specification.Constraints, value),
+                DefinitionSecretAlgorithm.Bcrypt => ValidateBcrypt(specification.Constraints, value),
+                DefinitionSecretAlgorithm.AspNetIdentityV3 => ValidateIdentity(value),
+                DefinitionSecretAlgorithm.Pbkdf2Sha256 or DefinitionSecretAlgorithm.Pbkdf2Sha512 => ValidatePbkdf2(specification, value),
                 _ => "secret-profile-unavailable",
             };
         }
@@ -68,28 +68,29 @@ public static class SecretDerivation
 
     private static string? ValidatePolicy(DefinitionSecretSpecification specification)
     {
+        if (!DefinitionSecretVocabulary.IsDefined(specification)) return "secret-profile-unavailable";
         DefinitionSecretConstraints policy = specification.Constraints;
-        if (specification.Kind == "digest")
-            return specification.Algorithm is "SHA256" or "SHA384" or "SHA512" &&
-                specification.Encoding is "hex" or "base64" or "base64url" ? null : "secret-profile-unavailable";
-        if (specification.Kind != "password-hash") return "secret-profile-unavailable";
+        if (specification.Kind == DefinitionSecretKind.Digest)
+            return specification.Algorithm is DefinitionSecretAlgorithm.Sha256 or DefinitionSecretAlgorithm.Sha384 or DefinitionSecretAlgorithm.Sha512 &&
+                specification.Encoding is DefinitionSecretEncoding.Hex or DefinitionSecretEncoding.Base64 or DefinitionSecretEncoding.Base64Url ? null : "secret-profile-unavailable";
+        if (specification.Kind != DefinitionSecretKind.PasswordHash) return "secret-profile-unavailable";
         return specification.Algorithm switch
         {
-            "argon2id" => ArgonCostAllowed(policy.MemoryKiB, policy.Iterations, policy.Parallelism) &&
+            DefinitionSecretAlgorithm.Argon2id => ArgonCostAllowed(policy.MemoryKiB, policy.Iterations, policy.Parallelism) &&
                 LengthsAllowed(policy.SaltBytes, policy.DerivedBytes) ? null : InvalidCost,
-            "pbkdf2-sha256" or "pbkdf2-sha512" => PbkdfCostAllowed(specification.Algorithm, policy.Iterations) &&
+            DefinitionSecretAlgorithm.Pbkdf2Sha256 or DefinitionSecretAlgorithm.Pbkdf2Sha512 => PbkdfCostAllowed(specification.Algorithm, policy.Iterations) &&
                 LengthsAllowed(policy.SaltBytes, policy.DerivedBytes) ? null : InvalidCost,
-            "bcrypt" => policy.Cost is >= 10 and <= 14 ? null : InvalidCost,
-            "aspnet-identity-v3" => null,
+            DefinitionSecretAlgorithm.Bcrypt => policy.Cost is >= 10 and <= 14 ? null : InvalidCost,
+            DefinitionSecretAlgorithm.AspNetIdentityV3 => null,
             _ => "secret-profile-unavailable",
         };
     }
 
     private static byte[] DecodeInput(DefinitionSecretSpecification specification, ReadOnlySpan<char> input)
     {
-        string encoding = specification.Generation!.InputEncoding;
-        if (specification.Kind == "password-hash" && encoding != "utf8") throw new ArgumentException(InvalidInput);
-        if (encoding == "utf8")
+        DefinitionSecretEncoding encoding = specification.Generation!.InputEncoding;
+        if (specification.Kind == DefinitionSecretKind.PasswordHash && encoding != DefinitionSecretEncoding.Utf8) throw new ArgumentException(InvalidInput);
+        if (encoding == DefinitionSecretEncoding.Utf8)
         {
             int length = StrictUtf8.GetByteCount(input);
             if (length > 65536) throw new ArgumentException(InvalidInput);
@@ -99,9 +100,9 @@ public static class SecretDerivation
         }
         byte[] decoded = encoding switch
         {
-            "hex" => Convert.FromHexString(input),
-            "base64url" => Base64Url.DecodeFromChars(input),
-            "base64" => DecodeBase64(input),
+            DefinitionSecretEncoding.Hex => Convert.FromHexString(input),
+            DefinitionSecretEncoding.Base64Url => Base64Url.DecodeFromChars(input),
+            DefinitionSecretEncoding.Base64 => DecodeBase64(input),
             _ => throw new ArgumentException(InvalidInput),
         };
         if (Encode(decoded, encoding).AsSpan().SequenceEqual(input)) return decoded;
@@ -124,9 +125,9 @@ public static class SecretDerivation
     {
         byte[] digest = specification.Algorithm switch
         {
-            "SHA256" => SHA256.HashData(input),
-            "SHA384" => SHA384.HashData(input),
-            "SHA512" => SHA512.HashData(input),
+            DefinitionSecretAlgorithm.Sha256 => SHA256.HashData(input),
+            DefinitionSecretAlgorithm.Sha384 => SHA384.HashData(input),
+            DefinitionSecretAlgorithm.Sha512 => SHA512.HashData(input),
             _ => throw new ArgumentException("secret-profile-unavailable"),
         };
         try { return Encode(digest, specification.Encoding!); }
@@ -136,7 +137,7 @@ public static class SecretDerivation
     private static string DeriveHash(DefinitionSecretSpecification specification, byte[] input, RandomNumberGenerator? entropy)
     {
         DefinitionSecretConstraints policy = specification.Constraints;
-        bool fixedFormat = specification.Algorithm is "aspnet-identity-v3" or "bcrypt";
+        bool fixedFormat = specification.Algorithm is DefinitionSecretAlgorithm.AspNetIdentityV3 or DefinitionSecretAlgorithm.Bcrypt;
         byte[] salt = new byte[fixedFormat ? 16 : policy.SaltBytes];
         byte[] derived = new byte[fixedFormat ? 32 : policy.DerivedBytes];
         try
@@ -144,16 +145,16 @@ public static class SecretDerivation
             SecretGenerator.FillRandom(salt, entropy);
             switch (specification.Algorithm)
             {
-                case "bcrypt":
+                case DefinitionSecretAlgorithm.Bcrypt:
                     return DeriveBcrypt(input, salt, policy.Cost);
-                case "argon2id":
+                case DefinitionSecretAlgorithm.Argon2id:
                     return DeriveArgon(policy, input, salt, derived);
-                case "aspnet-identity-v3":
+                case DefinitionSecretAlgorithm.AspNetIdentityV3:
                     Rfc2898DeriveBytes.Pbkdf2(input, salt, derived, 210000, HashAlgorithmName.SHA512);
                     return EncodeIdentity(salt, derived);
                 default:
                     Rfc2898DeriveBytes.Pbkdf2(input, salt, derived, policy.Iterations,
-                        specification.Algorithm == "pbkdf2-sha256" ? HashAlgorithmName.SHA256 : HashAlgorithmName.SHA512);
+                        specification.Algorithm == DefinitionSecretAlgorithm.Pbkdf2Sha256 ? HashAlgorithmName.SHA256 : HashAlgorithmName.SHA512);
                     return PbkdfEnvelope(specification.Algorithm!, policy.Iterations,
                         Convert.ToBase64String(salt), Convert.ToBase64String(derived));
             }
@@ -245,7 +246,7 @@ public static class SecretDerivation
         int index = 0;
         foreach (JsonProperty property in root.EnumerateObject()) if (property.Name != expected[index++]) return InvalidFormat;
         if (!root.GetProperty("version").TryGetInt32(out int version) || version != 1 ||
-            root.GetProperty("algorithm").GetString() != specification.Algorithm ||
+            root.GetProperty("algorithm").GetString() != DefinitionSecretVocabulary.Token(specification.Algorithm!.Value) ||
             !root.GetProperty("iterations").TryGetInt32(out int iterations)) return InvalidFormat;
         if (!PbkdfCostAllowed(specification.Algorithm!, iterations) || iterations != specification.Constraints.Iterations) return InvalidCost;
         string? salt = root.GetProperty("salt").GetString();
@@ -257,12 +258,12 @@ public static class SecretDerivation
 
     private static string? ValidateDigest(DefinitionSecretSpecification specification, string value)
     {
-        int size = specification.Algorithm switch { "SHA256" => 32, "SHA384" => 48, _ => 64 };
-        if (specification.Encoding == "base64") return CanonicalBase64(value, size) ? null : "secret-encoding-invalid";
+        int size = specification.Algorithm switch { DefinitionSecretAlgorithm.Sha256 => 32, DefinitionSecretAlgorithm.Sha384 => 48, _ => 64 };
+        if (specification.Encoding == DefinitionSecretEncoding.Base64) return CanonicalBase64(value, size) ? null : "secret-encoding-invalid";
         Span<byte> decoded = stackalloc byte[64];
         try
         {
-            if (specification.Encoding == "hex")
+            if (specification.Encoding == DefinitionSecretEncoding.Hex)
                 return value.Length == size * 2 && value.All(character => char.IsAsciiDigit(character) || character is >= 'a' and <= 'f')
                     ? null : "secret-encoding-invalid";
             if (!Base64Url.TryDecodeFromChars(value, decoded, out int written) || written != size ||
@@ -296,15 +297,15 @@ public static class SecretDerivation
     private static bool ArgonCostAllowed(int memory, int iterations, int parallelism) =>
         memory is >= 19456 and <= 65536 && iterations is >= 2 and <= 6 && parallelism is >= 1 and <= 4;
     private static bool LengthsAllowed(int salt, int derived) => salt is >= 16 and <= 64 && derived is >= 16 and <= 64;
-    private static bool PbkdfCostAllowed(string algorithm, int iterations) =>
-        iterations >= (algorithm == "pbkdf2-sha256" ? 600000 : 210000) && iterations <= 2000000;
-    private static string PbkdfEnvelope(string algorithm, int iterations, string salt, string derived) =>
-        FormattableString.Invariant($"{{\"version\":1,\"algorithm\":\"{algorithm}\",\"iterations\":{iterations},\"salt\":\"{salt}\",\"derivedKey\":\"{derived}\"}}");
-    private static string Encode(ReadOnlySpan<byte> bytes, string encoding) => encoding switch
+    private static bool PbkdfCostAllowed(DefinitionSecretAlgorithm? algorithm, int iterations) =>
+        iterations >= (algorithm == DefinitionSecretAlgorithm.Pbkdf2Sha256 ? 600000 : 210000) && iterations <= 2000000;
+    private static string PbkdfEnvelope(DefinitionSecretAlgorithm? algorithm, int iterations, string salt, string derived) =>
+        FormattableString.Invariant($"{{\"version\":1,\"algorithm\":\"{DefinitionSecretVocabulary.Token(algorithm!.Value)}\",\"iterations\":{iterations},\"salt\":\"{salt}\",\"derivedKey\":\"{derived}\"}}");
+    private static string Encode(ReadOnlySpan<byte> bytes, DefinitionSecretEncoding? encoding) => encoding switch
     {
-        "hex" => Convert.ToHexStringLower(bytes),
-        "base64" => Convert.ToBase64String(bytes),
-        "base64url" => Base64Url.EncodeToString(bytes),
+        DefinitionSecretEncoding.Hex => Convert.ToHexStringLower(bytes),
+        DefinitionSecretEncoding.Base64 => Convert.ToBase64String(bytes),
+        DefinitionSecretEncoding.Base64Url => Base64Url.EncodeToString(bytes),
         _ => throw new ArgumentException(InvalidInput),
     };
 }

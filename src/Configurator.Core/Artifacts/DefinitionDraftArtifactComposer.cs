@@ -3,44 +3,6 @@ namespace Configurator.Core.Artifacts;
 using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 
-public sealed record DefinitionDraftCompletion(string ArtifactId, string FieldPath, string OutputPath);
-
-public sealed class DefinitionDraftArtifactResult : IDisposable
-{
-    internal DefinitionDraftArtifactResult(DefinitionArtifact? artifact,
-        IEnumerable<DefinitionDiagnostic> diagnostics, IEnumerable<DefinitionDraftCompletion> completions)
-    {
-        Artifact = artifact;
-        Diagnostics = Array.AsReadOnly(diagnostics.ToArray());
-        Completions = Array.AsReadOnly(completions.ToArray());
-    }
-    public DefinitionArtifact? Artifact { get; }
-    public IReadOnlyList<DefinitionDiagnostic> Diagnostics { get; }
-    public IReadOnlyList<DefinitionDraftCompletion> Completions { get; }
-    public bool Succeeded => Artifact is not null && Diagnostics.Count == 0;
-    public bool IsDraft => Completions.Count != 0;
-    public void Dispose() { Artifact?.Dispose(); GC.SuppressFinalize(this); }
-    public override string ToString() => $"{nameof(DefinitionDraftArtifactResult)}:Succeeded={Succeeded}:Deferred={Completions.Count}";
-}
-
-public sealed class DefinitionDraftBundleResult : IDisposable
-{
-    internal DefinitionDraftBundleResult(IEnumerable<DefinitionArtifact> artifacts,
-        IEnumerable<DefinitionDiagnostic> diagnostics, IEnumerable<DefinitionDraftCompletion> completions)
-    {
-        Artifacts = Array.AsReadOnly(artifacts.ToArray());
-        Diagnostics = Array.AsReadOnly(diagnostics.ToArray());
-        Completions = Array.AsReadOnly(completions.ToArray());
-    }
-    public IReadOnlyList<DefinitionArtifact> Artifacts { get; }
-    public IReadOnlyList<DefinitionDiagnostic> Diagnostics { get; }
-    public IReadOnlyList<DefinitionDraftCompletion> Completions { get; }
-    public bool Succeeded => Artifacts.Count > 0 && Diagnostics.Count == 0;
-    public bool IsDraft => Completions.Count != 0;
-    public void Dispose() { foreach (DefinitionArtifact artifact in Artifacts) artifact.Dispose(); GC.SuppressFinalize(this); }
-    public override string ToString() => $"{nameof(DefinitionDraftBundleResult)}:Succeeded={Succeeded}:Deferred={Completions.Count}";
-}
-
 /// <summary>Prepares explicitly incomplete output while complete composition remains strict.</summary>
 public static class DefinitionDraftArtifactComposer
 {

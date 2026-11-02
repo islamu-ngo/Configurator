@@ -656,7 +656,7 @@ internal sealed partial class TerminalWindow : Window
         _artifactLabel.Text = Safe($"{artifact.Id} | "
             + $"{(_operation.CurrentArtifactSelected ? TerminalText.Get("Selected") : TerminalText.Get("NotSelected"))} "
             + $"{_operation.SelectedArtifactIds.Count}/{_operation.Form.Definition.Artifacts.Count} | "
-            + $"{artifact.FileName} | {artifact.Format} | {artifact.ApplySemantics} | {artifact.Restart}");
+            + $"{artifact.FileName} | {artifact.Format.ToToken()} | {artifact.ApplySemantics.ToToken()} | {artifact.Restart.ToToken()}");
     }
 
     private void ImportSelected() => StartImport(compare: true);

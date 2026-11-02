@@ -7,12 +7,39 @@ namespace Configurator.Core.Tests.Secrets;
 public sealed class SecretGenerationTests
 {
     [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Arguments(2)]
+    [Arguments(3)]
+    [Arguments(4)]
+    public async Task UndefinedPolicyEnumsNeverGenerateOutput(int member)
+    {
+        var policy = new DefinitionSecretSpecification
+        {
+            Kind = DefinitionSecretKind.Password,
+            Acquisition = DefinitionSecretAcquisition.Local,
+            Generation = new()
+        };
+        policy = member switch
+        {
+            0 => policy with { Kind = default },
+            1 => policy with { Acquisition = (DefinitionSecretAcquisition)999 },
+            2 => policy with { Algorithm = (DefinitionSecretAlgorithm)999 },
+            3 => policy with { Encoding = (DefinitionSecretEncoding)999 },
+            _ => policy with { Generation = new() { Input = (DefinitionSecretInput)999 } }
+        };
+        using SecretGenerationResult result = SecretGenerator.Generate(policy);
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.Output).IsNull();
+    }
+
+    [Test]
     public async Task PasswordSatisfiesCategoriesExclusionsAndDisposal()
     {
         var specification = new DefinitionSecretSpecification
         {
-            Kind = "password",
-            Acquisition = "local",
+            Kind = DefinitionSecretKind.Password,
+            Acquisition = DefinitionSecretAcquisition.Local,
             MinLength = 32,
             MaxLength = 64,
             Constraints = new() { MinLowercase = 2, MinUppercase = 2, MinDigits = 2, MinSymbols = 2, AllowedSymbols = "!@", ForbiddenCharacters = "0O", AllowWhitespace = false },
@@ -32,7 +59,7 @@ public sealed class SecretGenerationTests
     [Test]
     public async Task TokenIsCanonicalFreshAndCarries256Bits()
     {
-        var specification = new DefinitionSecretSpecification { Kind = "opaque-token", Acquisition = "local", Encoding = "hex", Generation = new() { Bytes = 32 } };
+        var specification = new DefinitionSecretSpecification { Kind = DefinitionSecretKind.OpaqueToken, Acquisition = DefinitionSecretAcquisition.Local, Encoding = DefinitionSecretEncoding.Hex, Generation = new() { Bytes = 32 } };
         using var entropy = new SequenceEntropy();
         using var first = SecretGenerator.Generate(specification, entropy: entropy);
         using var second = SecretGenerator.Generate(specification, entropy: entropy);
@@ -45,9 +72,9 @@ public sealed class SecretGenerationTests
     [Test]
     public async Task InfeasibleOrUnauthorizedGenerationFailsWithoutOutput()
     {
-        var specification = new DefinitionSecretSpecification { Kind = "password", Acquisition = "local", Generation = new() { Length = 4 } };
+        var specification = new DefinitionSecretSpecification { Kind = DefinitionSecretKind.Password, Acquisition = DefinitionSecretAcquisition.Local, Generation = new() { Length = 4 } };
         using var shortResult = SecretGenerator.Generate(specification);
-        using var issuerResult = SecretGenerator.Generate(specification with { Acquisition = "issuer" });
+        using var issuerResult = SecretGenerator.Generate(specification with { Acquisition = DefinitionSecretAcquisition.Issuer });
         using var absentResult = SecretGenerator.Generate(specification with { Generation = null });
         await Assert.That(shortResult.Succeeded || issuerResult.Succeeded || absentResult.Succeeded).IsFalse();
     }
@@ -56,7 +83,7 @@ public sealed class SecretGenerationTests
     public async Task DeterministicEntropyHasIndependentBase64UrlEncoding()
     {
         using var entropy = new ZeroEntropy();
-        var specification = new DefinitionSecretSpecification { Kind = "opaque-token", Acquisition = "local", Encoding = "base64url", Generation = new() { Bytes = 32 } };
+        var specification = new DefinitionSecretSpecification { Kind = DefinitionSecretKind.OpaqueToken, Acquisition = DefinitionSecretAcquisition.Local, Encoding = DefinitionSecretEncoding.Base64Url, Generation = new() { Bytes = 32 } };
         using var result = SecretGenerator.Generate(specification, entropy: entropy);
         await Assert.That(result.Output!.CopyValue()).IsEqualTo("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     }
@@ -64,14 +91,14 @@ public sealed class SecretGenerationTests
     [Test]
     public async Task GeneratedPasswordHasSeparateDisposableCustody()
     {
-        var password = new DefinitionSecretSpecification { Kind = "password", Acquisition = "local", Generation = new() };
+        var password = new DefinitionSecretSpecification { Kind = DefinitionSecretKind.Password, Acquisition = DefinitionSecretAcquisition.Local, Generation = new() };
         var specification = new DefinitionSecretSpecification
         {
-            Kind = "digest",
-            Acquisition = "local",
-            Algorithm = "SHA256",
-            Encoding = "hex",
-            Generation = new() { Input = "generated", Password = password },
+            Kind = DefinitionSecretKind.Digest,
+            Acquisition = DefinitionSecretAcquisition.Local,
+            Algorithm = DefinitionSecretAlgorithm.Sha256,
+            Encoding = DefinitionSecretEncoding.Hex,
+            Generation = new() { Input = DefinitionSecretInput.Generated, Password = password },
         };
         using var result = SecretGenerator.Generate(specification);
         await Assert.That(result.Succeeded).IsTrue();

@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Definitions;
 
 using System.Globalization;
@@ -37,7 +36,7 @@ internal sealed class DefinitionImportProjection
     {
         string code = "import-unsupported";
         ArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
-        if (artifact is null || artifact.Format is not ("json" or "yaml" or "dotenv")) return (null, code);
+        if (artifact is null || artifact.Format is not (DefinitionArtifactFormat.Json or DefinitionArtifactFormat.Yaml or DefinitionArtifactFormat.Dotenv)) return (null, code);
         code = "inverse-unsupported";
         bool ambiguous = false;
         DefinitionPath? selector = null;
@@ -46,7 +45,7 @@ internal sealed class DefinitionImportProjection
         try
         {
             JsonElement projection = artifact.Projection;
-            if (artifact.Format == "dotenv" && projection.GetProperty("op").GetString() != "object") return (null, code);
+            if (artifact.Format == DefinitionArtifactFormat.Dotenv && projection.GetProperty("op").GetString() != "object") return (null, code);
             if (projection.TryGetProperty("when", out JsonElement condition))
             {
                 if (condition.GetProperty("op").GetString() != "equals" ||
@@ -64,7 +63,7 @@ internal sealed class DefinitionImportProjection
             if (ambiguous) code = "inverse-ambiguous";
             if (root is null) return (null, code);
             // The existing YAML codec admits object documents, not scalar/sequence documents.
-            if (artifact.Format == "yaml" && projection.GetProperty("op").GetString() is not ("object" or "copy")) return (null, code);
+            if (artifact.Format == DefinitionArtifactFormat.Yaml && projection.GetProperty("op").GetString() is not ("object" or "copy")) return (null, code);
             return (new(artifact, root, selector, selectorValue), "inverse-supported");
         }
         catch (DefinitionException exception) when (exception.Code == "path-limit") { return (null, code); }
@@ -105,22 +104,21 @@ internal sealed class DefinitionImportProjection
                     return null;
                 }
                 position.Assigned = true;
-                if (artifact.Format == "dotenv" && (op != "copy" || target.Segments.Count != 1 ||
+                if (artifact.Format == DefinitionArtifactFormat.Dotenv && (op != "copy" || target.Segments.Count != 1 ||
                     schema.IsNullable || schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)) return null;
             }
             switch (op)
             {
                 case "copy": break;
                 case "literal":
-                    if (artifact.Format == "dotenv" && projection.GetProperty("value").ValueKind
+                    if (artifact.Format == DefinitionArtifactFormat.Dotenv && projection.GetProperty("value").ValueKind
                         is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null) return null;
                     break;
                 case "index":
                     if (!item) return null;
                     break;
                 case "object":
-                    if (artifact.Format == "dotenv" && target.Segments.Count != 0) return null;
-                    if (artifact.Format == "dotenv" && target.Segments.Count != 0) return null;
+                    if (artifact.Format == DefinitionArtifactFormat.Dotenv && target.Segments.Count != 0) return null;
                     foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
                     {
                         Instruction? child = await Compile(member.Value, scope, item, assigned,
@@ -130,7 +128,7 @@ internal sealed class DefinitionImportProjection
                     }
                     break;
                 case "list":
-                    if (artifact.Format == "dotenv") return null;
+                    if (artifact.Format == DefinitionArtifactFormat.Dotenv) return null;
                     int index = 0;
                     foreach (JsonElement entry in projection.GetProperty("items").EnumerateArray())
                     {
@@ -194,7 +192,7 @@ internal sealed class DefinitionImportProjection
             var origin = new DefinitionImportSourceLocation(source);
             if (op == "copy")
             {
-                if (present && Artifact.Format == "dotenv")
+                if (present && Artifact.Format == DefinitionArtifactFormat.Dotenv)
                 {
                     if (DefinitionImport.TryDotenvValue(instruction.Schema!, value.GetString()!, out JsonElement converted))
                         value = converted;
@@ -239,7 +237,7 @@ internal sealed class DefinitionImportProjection
                 if (op == "literal")
                 {
                     JsonElement expected = instruction.Projection.GetProperty("value");
-                    if (Artifact.Format == "dotenv" && expected.ValueKind != JsonValueKind.String)
+                    if (Artifact.Format == DefinitionArtifactFormat.Dotenv && expected.ValueKind != JsonValueKind.String)
                         expected = JsonSerializer.SerializeToElement(expected.GetRawText());
                     if (!present || !JsonElement.DeepEquals(value, expected)) await Structural();
                 }

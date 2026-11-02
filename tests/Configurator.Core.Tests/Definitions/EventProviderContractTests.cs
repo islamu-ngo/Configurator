@@ -65,11 +65,11 @@ public sealed class EventProviderContractTests
 
     [Test]
     [Arguments("INFISICAL_CLIENT_SECRET", null)]
-    [Arguments("DATABASE_RUNTIME_PASSWORD", "password")]
+    [Arguments("DATABASE_RUNTIME_PASSWORD", DefinitionSecretKind.Password)]
     [Arguments("VAPID_PRIVATE_KEY", null)]
-    [Arguments("EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING", "connection-string")]
+    [Arguments("EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING", DefinitionSecretKind.ConnectionString)]
     [Arguments("CONTROL_PLANE_REGISTRATION_TOKEN", null)]
-    public async Task TargetCredentialsRequireSecretCustodyWithoutInventingUnknownFormats(string name, string? expectedKind)
+    public async Task TargetCredentialsRequireSecretCustodyWithoutInventingUnknownFormats(string name, DefinitionSecretKind? expectedKind)
     {
         foreach (Definition definition in new[] { Definition(), StoreDefinition() })
         {

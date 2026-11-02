@@ -39,10 +39,10 @@ public sealed class SecretDerivationTests
     {
         var spec = new DefinitionSecretSpecification
         {
-            Kind = "digest",
-            Acquisition = "local",
-            Algorithm = algorithm,
-            Encoding = "hex",
+            Kind = DefinitionSecretKind.Digest,
+            Acquisition = DefinitionSecretAcquisition.Local,
+            Algorithm = DefinitionSecretVocabulary.ParseAlgorithm(algorithm),
+            Encoding = DefinitionSecretEncoding.Hex,
             Generation = new(),
         };
         string result = SecretDerivation.Derive(spec, "abc");
@@ -143,11 +143,11 @@ public sealed class SecretDerivationTests
     {
         var spec = new DefinitionSecretSpecification
         {
-            Kind = "digest",
-            Acquisition = "local",
-            Algorithm = "SHA256",
-            Encoding = "hex",
-            Generation = new() { InputEncoding = encoding },
+            Kind = DefinitionSecretKind.Digest,
+            Acquisition = DefinitionSecretAcquisition.Local,
+            Algorithm = DefinitionSecretAlgorithm.Sha256,
+            Encoding = DefinitionSecretEncoding.Hex,
+            Generation = new() { InputEncoding = DefinitionSecretVocabulary.ParseEncoding(encoding) },
         };
         await Assert.That(SecretDerivation.Derive(spec, input))
             .IsEqualTo("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
@@ -186,9 +186,9 @@ public sealed class SecretDerivationTests
 
     private static DefinitionSecretSpecification Hash(string algorithm) => new()
     {
-        Kind = "password-hash",
-        Acquisition = "local",
-        Algorithm = algorithm,
+        Kind = DefinitionSecretKind.PasswordHash,
+        Acquisition = DefinitionSecretAcquisition.Local,
+        Algorithm = DefinitionSecretVocabulary.ParseAlgorithm(algorithm),
         Generation = new(),
         Constraints = new() { Iterations = algorithm == "pbkdf2-sha256" ? 600000 : algorithm == "pbkdf2-sha512" ? 210000 : 2 },
     };

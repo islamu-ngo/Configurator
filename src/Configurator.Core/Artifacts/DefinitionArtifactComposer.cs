@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Artifacts;
 
 using System.Diagnostics;
@@ -9,81 +8,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
-using Configurator.Core.Environment;
-
-public sealed class DefinitionArtifact : IDisposable
-{
-    private readonly byte[] _bytes;
-    private readonly object _sync = new();
-    private bool _disposed;
-    internal DefinitionArtifact(Definition definition, ArtifactDefinition artifact,
-        AnswerSnapshot answers, byte[] bytes)
-    {
-        _bytes = (byte[])bytes.Clone();
-        Digest = ArtifactDigest.Compute(bytes);
-        DefinitionDigest = definition.Digest;
-        DefinitionRevision = definition.Revision;
-        InputRevision = answers.InputRevision;
-        ArtifactId = artifact.Id;
-        FileName = artifact.FileName;
-        ApplySemantics = artifact.ApplySemantics;
-        Restart = artifact.Restart;
-        MediaType = artifact.Format switch
-        {
-            "json" => "application/json",
-            "yaml" => "application/yaml",
-            "markdown" => "text/markdown",
-            _ => "text/plain"
-        };
-    }
-    /// <summary>Returns a caller-owned copy. Disposal clears the artifact's retained buffer, not copies already returned.</summary>
-    public ReadOnlyMemory<byte> Bytes
-    {
-        get
-        {
-            lock (_sync)
-            {
-                ObjectDisposedException.ThrowIf(_disposed, this);
-                return new((byte[])_bytes.Clone());
-            }
-        }
-    }
-    public int ByteLength => _bytes.Length;
-    public void Dispose()
-    {
-        lock (_sync)
-        {
-            if (_disposed) return;
-            CryptographicOperations.ZeroMemory(_bytes);
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
-    }
-    public ArtifactDigest Digest { get; }
-    public ArtifactDigest DefinitionDigest { get; }
-    public long DefinitionRevision { get; }
-    public long InputRevision { get; }
-    public string ArtifactId { get; }
-    public string FileName { get; }
-    public string MediaType { get; }
-    public string ApplySemantics { get; }
-    public string Restart { get; }
-    public ArtifactSensitivity Sensitivity => ArtifactSensitivity.Restricted;
-    public override string ToString() => $"{nameof(DefinitionArtifact)}:Restricted:Revision={InputRevision}";
-}
-
-public sealed class DefinitionArtifactResult
-{
-    internal DefinitionArtifactResult(DefinitionArtifact? artifact, IEnumerable<DefinitionDiagnostic> diagnostics)
-    {
-        Artifact = artifact;
-        Diagnostics = Array.AsReadOnly(diagnostics.ToArray());
-    }
-    public DefinitionArtifact? Artifact { get; }
-    public IReadOnlyList<DefinitionDiagnostic> Diagnostics { get; }
-    public bool Succeeded => Artifact is not null && Diagnostics.Count == 0;
-    public override string ToString() => $"{nameof(DefinitionArtifactResult)}:Succeeded={Succeeded}";
-}
 
 public static class DefinitionArtifactComposer
 {
@@ -152,13 +76,13 @@ public static class DefinitionArtifactComposer
             {
                 bytes = artifact.Format switch
                 {
-                    "json" => canonical,
-                    "yaml" => WriteYaml(document.RootElement),
-                    "dotenv" => WriteDotenv(document.RootElement, draft),
-                    "markdown" => WriteMarkdown(document.RootElement),
+                    DefinitionArtifactFormat.Json => canonical,
+                    DefinitionArtifactFormat.Yaml => DefinitionArtifactSerializer.WriteYaml(document.RootElement),
+                    DefinitionArtifactFormat.Dotenv => DefinitionArtifactSerializer.WriteDotenv(document.RootElement, draft),
+                    DefinitionArtifactFormat.Markdown => DefinitionArtifactSerializer.WriteMarkdown(document.RootElement),
                     _ => throw new DefinitionException("format-invalid")
                 };
-                if (draft && completions.Count > 0 && artifact.Format == "dotenv")
+                if (draft && completions.Count > 0 && artifact.Format == DefinitionArtifactFormat.Dotenv)
                 {
                     byte[] original = bytes;
                     bytes = Encoding.UTF8.GetBytes("# Draft: fill deferred secret keys before use.\n" + Encoding.UTF8.GetString(original));
@@ -331,7 +255,7 @@ public static class DefinitionArtifactComposer
                 {
                     budget.Node(depth);
                     completions.Add(new(artifact.Id, completionFieldPath, completionOutputPath));
-                    return (true, schema.Type == DefinitionNodeType.Text || artifact.Format is "dotenv" or "markdown"
+                    return (true, schema.Type == DefinitionNodeType.Text || artifact.Format is DefinitionArtifactFormat.Dotenv or DefinitionArtifactFormat.Markdown
                         ? JsonValue.Create("") : null);
                 }
                 if (!value.HasValue) return (false, null);
@@ -408,76 +332,4 @@ public static class DefinitionArtifactComposer
 
     private static string Pointer(string name) => name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 
-    private static byte[] WriteDotenv(JsonElement value, bool draft = false)
-    {
-        if (value.ValueKind != JsonValueKind.Object) throw new DefinitionException("dotenv-shape");
-        var entries = new List<DotenvEntry>();
-        foreach (JsonProperty property in value.EnumerateObject())
-        {
-            if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null)
-                throw new DefinitionException("dotenv-shape");
-            string text = property.Value.ValueKind == JsonValueKind.String
-                ? property.Value.GetString()! : property.Value.GetRawText();
-            bool placeholder = draft && text.Length == 0;
-            entries.Add(new(property.Name, placeholder ? null : text,
-                placeholder ? DotenvEntryKind.EmptyPlaceholder : DotenvEntryKind.LocalHumanValue, true, DotenvProvenance.UserInput));
-        }
-        DotenvRenderResult rendered = DotenvCodec.Render(new DotenvDocument(entries), true);
-        if (!rendered.Succeeded) throw new DefinitionException("dotenv-value");
-        return rendered.Bytes.ToArray();
-    }
-
-    private static byte[] WriteYaml(JsonElement value)
-    {
-        var result = new StringBuilder();
-        Write(value, 0);
-        return Encoding.UTF8.GetBytes(result.ToString());
-        void Write(JsonElement node, int indent)
-        {
-            if (node.ValueKind == JsonValueKind.Object && node.EnumerateObject().Any())
-            {
-                foreach (JsonProperty property in node.EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
-                {
-                    result.Append(' ', indent).Append(JsonSerializer.Serialize(property.Name)).Append(':');
-                    Child(property.Value, indent);
-                }
-            }
-            else if (node.ValueKind == JsonValueKind.Array && node.GetArrayLength() > 0)
-            {
-                foreach (JsonElement child in node.EnumerateArray())
-                {
-                    result.Append(' ', indent).Append('-');
-                    Child(child, indent);
-                }
-            }
-            else result.Append(' ', indent).Append(node.GetRawText()).Append('\n');
-        }
-        void Child(JsonElement child, int indent)
-        {
-            if (child.ValueKind == JsonValueKind.Object && child.EnumerateObject().Any()
-                || child.ValueKind == JsonValueKind.Array && child.GetArrayLength() > 0)
-            {
-                result.Append('\n');
-                Write(child, indent + 2);
-            }
-            else result.Append(' ').Append(child.GetRawText()).Append('\n');
-        }
-    }
-
-    private static byte[] WriteMarkdown(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.Array
-            || value.EnumerateArray().Any(item => item.ValueKind != JsonValueKind.String))
-            throw new DefinitionException("markdown-shape");
-        var output = new StringBuilder();
-        foreach (JsonElement item in value.EnumerateArray())
-        {
-            foreach (char character in item.GetString()!)
-            {
-                if ("\\`*_{}[]()#+-.!|><&".Contains(character, StringComparison.Ordinal)) output.Append('\\');
-                if (character != '\r') output.Append(character);
-            }
-        }
-        return Encoding.UTF8.GetBytes(output.ToString());
-    }
 }

@@ -5,8 +5,6 @@ using System.Text;
 using System.Text.Json;
 using Configurator.Core.Composition;
 
-public enum DefinitionNodeType { Text, Boolean, WholeNumber, Number, Mapping, Sequence }
-
 /// <summary>Immutable recursive shape data. Constructing a shape does not admit a definition or validate answers.</summary>
 public sealed record DefinitionNode
 {

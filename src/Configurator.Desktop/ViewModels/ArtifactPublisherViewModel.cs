@@ -153,7 +153,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         ? "Protected create-only save is available on this host."
         : "Protected save is unavailable on this host; prepared output cannot be saved here.";
     public string ArtifactConsequences => SelectedArtifact is { } artifact
-        ? $"Format: {artifact.Format} | apply: {artifact.ApplySemantics} | restart: {artifact.Restart}\n" +
+        ? $"Format: {artifact.Format.ToToken()} | apply: {artifact.ApplySemantics.ToToken()} | restart: {artifact.Restart.ToToken()}\n" +
           "Restricted output. Save creates a new owner-only file; it never overwrites or applies it."
         : "Select a declared artifact.";
     public DefinitionPreparationMetadata? Preparation => _preparationWorkspace?.Result as DefinitionPreparationMetadata;

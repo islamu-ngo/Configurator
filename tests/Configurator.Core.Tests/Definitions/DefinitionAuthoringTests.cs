@@ -31,8 +31,8 @@ public sealed class DefinitionAuthoringTests
         await Assert.That(definition.ApplicationId).IsEqualTo("example.service");
         await Assert.That(definition.Fields.Select(field => field.Id).ToArray()).IsEquivalentTo(ExpectedFieldIds);
         await Assert.That(definition.Artifacts.Single().FileName).IsEqualTo(".env");
-        await Assert.That(definition.Artifacts.Single().Restart).IsEqualTo("unspecified");
-        await Assert.That(definition.Artifacts.Single().ApplySemantics).IsEqualTo("unspecified");
+        await Assert.That(definition.Artifacts.Single().Restart).IsEqualTo(DefinitionRestartRequirement.Unspecified);
+        await Assert.That(definition.Artifacts.Single().ApplySemantics).IsEqualTo(DefinitionTargetUpdateMode.Unspecified);
     }
 
     [Test]

@@ -271,8 +271,8 @@ public sealed class DefinitionPresentationAdmissionTests
         await Assert.That(() => ((IList<DefinitionExperience>)presentation.Experiences).Clear()).Throws<NotSupportedException>();
         FieldDefinition field = definition.Fields.Single(field => field.Id == "TOKEN");
         await Assert.That(field.Disclosure).IsEqualTo(FieldDisclosure.Essential);
-        await Assert.That(field.Node.Secret!.Kind).IsEqualTo("opaque-token");
-        await Assert.That(field.Node.Secret.Acquisition).IsEqualTo("issuer");
+        await Assert.That(field.Node.Secret!.Kind).IsEqualTo(DefinitionSecretKind.OpaqueToken);
+        await Assert.That(field.Node.Secret.Acquisition).IsEqualTo(DefinitionSecretAcquisition.Issuer);
         await Assert.That(field.Guidance!.Links[0].Url).IsEqualTo("https://example.org/docs/credentials");
         await Assert.That(() => ((IList<DefinitionGuidanceLink>)field.Guidance.Links).Clear()).Throws<NotSupportedException>();
         await Assert.That(() => ((IList<string>)field.Guidance.SearchTerms).Clear()).Throws<NotSupportedException>();
@@ -587,7 +587,7 @@ public sealed class DefinitionPresentationAdmissionTests
         }
         JsonObject enumeration = Authoring();
         Token(enumeration)["enum"] = new JsonArray("c3ludGhldGlj");
-        await Assert.That(Compile(enumeration).Fields.Single(field => field.Id == "TOKEN").Node.Secret!.Kind).IsEqualTo("opaque-token");
+        await Assert.That(Compile(enumeration).Fields.Single(field => field.Id == "TOKEN").Node.Secret!.Kind).IsEqualTo(DefinitionSecretKind.OpaqueToken);
     }
 
     [Test]

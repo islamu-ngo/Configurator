@@ -63,7 +63,16 @@ is metadata; relative segments identify declared properties/rows without echoing
 answer values. `TryGetEffectiveValue` is an explicit private-value read seam,
 not serialized validation telemetry. Presentation owns disclosure, not validity.
 
+`DefinitionValidationSession` owns one traversal's effective values, diagnostics,
+dependency resolution and composition budget. `DefinitionValidator` retains the
+shared value and condition rules; session state is never cached between answers.
+
 ## Definition JSON
+
+The codec decodes and canonicalizes source before `DefinitionAdmission` checks
+the complete document contract. `DefinitionNodeReader` recursively admits the
+configuration schema with the same depth, reference and composition budgets.
+These are internal owners; source format does not bypass admission.
 
 Runtime is a closed object with `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1`,
 `familyId`, `revision`, `project`, `applicationVersions`, `entryPoints`, `locales`,
@@ -135,7 +144,11 @@ clearing temporary canonical byte buffers; hashes are not value-equality proof.
 ### Paths, conditions and presence relationships
 
 `DefinitionPath` uses RFC6901 concrete pointers, ordinal segments and structural
-equality. Empty string selects root; `/` selects an empty-name property. Escape
+equality. Segment construction snapshots the caller's collection and checks the
+escaped pointer length without serializing it. Equality compares segments and
+hashing uses their ordinal content; pointer text is produced only when requested
+or retained from parsed input. Empty string selects root; `/` selects an
+empty-name property. Escape
 tilde/slash with `~0`/`~1`, decoded once. Dots and asterisks are literal. Existing
 array indices use canonical nonnegative decimal tokens with no leading zeroes;
 `-` is not an item. Invalid escapes and Unicode reject.
@@ -223,9 +236,15 @@ remain separate.
 `DefinitionArtifactResult` with success, artifact and diagnostics. Artifact bytes,
 digest, definition/input revisions, artifact ID, filename, media type and
 sensitivity bind the result to admitted content and one answer snapshot.
-All answer-derived artifacts are restricted. Managed `ApplySemantics`/`Restart`
-properties currently read wire `targetUpdateMode`/`restartRequirement`; those
-property names are not old wire aliases.
+`DefinitionArtifactSerializer` writes admitted projected values as YAML, dotenv
+or Markdown. Composition retains validation, projection, size checks and owned
+buffer clearing; serialization does not grant publication authority.
+All answer-derived artifacts are restricted. Managed `Format`, `ApplySemantics`
+and `Restart` use `DefinitionArtifactFormat`, `DefinitionTargetUpdateMode` and
+`DefinitionRestartRequirement`. `DefinitionArtifactVocabulary` maps their exact
+wire tokens, including `generationOnly`, and rejects undefined enum values on
+output. Admission remains case-sensitive and rejects numeric, null and missing
+runtime tokens. Internal enum numbering never enters canonical definition bytes.
 
 Source targetUpdateMode is unspecified/create/merge/replace/import/reconcile/
 generationOnly; restartRequirement is unspecified/none/process/deployment.
@@ -401,7 +420,9 @@ Strings retain explicit emptiness when allowed; booleans require `true`/`false`;
 integer/decimal text must match the inverse primitive's exact serialized spelling.
 Null and composite conversion are not inferred.
 
-The shared codec's explicit `DotenvPurpose.EditableValues` preserves empty strings
+Dotenv codecs and contracts belong to `Configurator.Core.Dotenv`; the separate
+`Configurator.Core.Environment` namespace owns the environment catalogue and its
+diagnostics. The shared codec's explicit `DotenvPurpose.EditableValues` preserves empty strings
 and normalizes one leading BOM and CRLF; default `TemplatePlaceholders` behavior
 and ordinary import remain strict. The
 [codec and import boundary](IMPORT_COMPARISON.md#editable-value-dotenv-codec)
@@ -484,6 +505,8 @@ Unicode-composition keys remain distinct.
 Native `Configurator.DefinitionSchemaGenerator` owns --write/--check schemas and
 --write-examples/--renew-example-families/--check-examples. Maintained source/runtime
 pairs are minimal-self-hosted, grafana-13.2.2, islamu-event and secret-generation.
+`DefinitionSecretSchema` assembles the closed secret recipe alternatives inside
+the shared schema; the native generator remains the only generated-file owner.
 Fresh definition families/revision 1 are recorded from source in the
 [integration guide](../public/integrate-your-tool.md#complete-minimal-configuratoryaml-example).
 Changing the development contract requires regenerated current runtimes and a fresh
@@ -529,6 +552,14 @@ Generation requires an explicit caller action; admission and validation never
 generate a value. A 32-byte opaque token encodes to 43 unpadded Base64url
 characters: decoded byte policy and ordinary string length constraints both
 apply, in different units.
+
+Secret kind, acquisition, algorithm, encoding, character set, curve and input
+source are closed typed contracts. `DefinitionSecretVocabulary` maps their exact
+wire spellings explicitly, including `password-hash`, `RS256`, `P-256` and
+`pkcs8-pem`; CLR casing and numeric enum values do not define the format.
+Undefined enum values reject at cryptographic entry points. Canonical definition
+bytes remain owned by admission, so this internal typing does not alter digests.
+
 
 Archived `SetupCompositionInvariantTests` inventory checks are not parser-attack
 proof. Production boundary tests and actual target acceptance must be recorded

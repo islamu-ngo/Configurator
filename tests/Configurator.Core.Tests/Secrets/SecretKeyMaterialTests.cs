@@ -161,11 +161,11 @@ public sealed class SecretKeyMaterialTests
 
     private static DefinitionSecretSpecification Policy(string algorithm, string encoding, string? curve = null) => new()
     {
-        Kind = "private-key",
-        Acquisition = "local",
-        Algorithm = algorithm,
-        Encoding = encoding,
-        Constraints = new() { KeySize = 2048, Curve = curve },
+        Kind = DefinitionSecretKind.PrivateKey,
+        Acquisition = DefinitionSecretAcquisition.Local,
+        Algorithm = DefinitionSecretVocabulary.ParseAlgorithm(algorithm),
+        Encoding = DefinitionSecretVocabulary.ParseEncoding(encoding),
+        Constraints = new() { KeySize = 2048, Curve = curve is null ? null : DefinitionSecretVocabulary.ParseCurve(curve) },
         Generation = new(),
     };
 }

@@ -19,13 +19,13 @@ internal static class CliSecretHandlers
         DefinitionPath path = DefinitionPath.Parse(command.Pointer!);
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, answers, cancellationToken);
         DefinitionNode? node = Resolve(definition, answers, validation, path, out DefinitionLocationSegment[] location);
-        if (node?.Secret is not { Acquisition: "local", Generation: not null } specification)
+        if (node?.Secret is not { Acquisition: DefinitionSecretAcquisition.Local, Generation: not null } specification)
             return CliResults.Failure(CliExitCode.Blocked, "secret-operation-unavailable", "/input");
-        bool derives = specification.Kind is "password-hash" or "digest";
-        bool entered = derives && specification.Generation.Input == "entered";
+        bool derives = specification.Kind is DefinitionSecretKind.PasswordHash or DefinitionSecretKind.Digest;
+        bool entered = derives && specification.Generation.Input == DefinitionSecretInput.Entered;
         if (entered != (command.Operation == "derive"))
             return CliResults.Failure(CliExitCode.Usage, "secret-operation-mismatch");
-        bool sidecar = derives && specification.Generation.Input == "generated";
+        bool sidecar = derives && specification.Generation.Input == DefinitionSecretInput.Generated;
         if (sidecar && command.GeneratedPasswordOutput is null)
             return CliResults.Failure(CliExitCode.Usage, "generated-password-output-required");
         if (!sidecar && command.GeneratedPasswordOutput is not null)

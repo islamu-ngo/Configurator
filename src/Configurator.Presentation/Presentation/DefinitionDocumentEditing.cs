@@ -23,7 +23,7 @@ public sealed partial class DefinitionFormModel
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (representation == DefinitionDocumentRepresentation.Environment
-                && !Definition.Artifacts.Any(artifact => artifact.Id == artifactId && artifact.Format == "dotenv"))
+                && !Definition.Artifacts.Any(artifact => artifact.Id == artifactId && artifact.Format == DefinitionArtifactFormat.Dotenv))
                 throw new ArgumentException("document-artifact-invalid", nameof(artifactId));
             RetireDocument();
             return _documentSession = new(this, representation, artifactId, _documentPrivacyGeneration);

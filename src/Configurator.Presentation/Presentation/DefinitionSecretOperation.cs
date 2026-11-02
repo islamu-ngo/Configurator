@@ -35,7 +35,7 @@ public sealed partial class DefinitionFormModel
     {
         if (_disposed || !TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) || !CanEdit(path) ||
             Facts.EditorState(path)?.IsActive != true ||
-            node.Schema.Secret is not { Acquisition: "local", Generation: not null }) return false;
+            node.Schema.Secret is not { Acquisition: DefinitionSecretAcquisition.Local, Generation: not null }) return false;
         if (ReadOnly(Definition.Configuration) || Omitted.Any(omitted =>
             omitted.Segments.Count < path.Count && path.Take(omitted.Segments.Count).SequenceEqual(omitted.Segments))) return false;
         for (int count = 1; count <= path.Count; count++)

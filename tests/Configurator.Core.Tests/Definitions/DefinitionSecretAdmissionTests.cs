@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
 
@@ -6,6 +7,26 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionSecretAdmissionTests
 {
     [Test]
+    [Arguments("RS256", "pkcs8-pem", DefinitionSecretAlgorithm.Rs256, DefinitionSecretEncoding.Pkcs8Pem)]
+    [Arguments("PS256", "jwk", DefinitionSecretAlgorithm.Ps256, DefinitionSecretEncoding.Jwk)]
+    [Arguments("ES256", "pkcs8-pem", DefinitionSecretAlgorithm.Es256, DefinitionSecretEncoding.Pkcs8Pem)]
+    public async Task ExactKeyVocabularyPreservesCanonicalIdentityAcrossJsonAndYaml(string algorithm, string encoding,
+        DefinitionSecretAlgorithm expectedAlgorithm, DefinitionSecretEncoding expectedEncoding)
+    {
+        JsonObject source = JsonNode.Parse(DefinitionFixture.Json)!.AsObject();
+        JsonObject policy = new() { ["kind"] = "private-key", ["acquisition"] = "existing", ["algorithm"] = algorithm, ["encoding"] = encoding };
+        if (algorithm == "ES256") policy["constraints"] = new JsonObject { ["curve"] = "P-256" };
+        source["configuration"]!["properties"]!["service.name"]!["x-configurator"] = new JsonObject { ["secret"] = policy };
+        Definition json = DefinitionFixture.Parse(source.ToJsonString());
+        Definition yaml = DefinitionSourceCodec.ParseYaml(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        DefinitionSecretSpecification secret = json.Fields.Single().Node.Secret!;
+        await Assert.That(secret.Algorithm).IsEqualTo(expectedAlgorithm);
+        await Assert.That(secret.Encoding).IsEqualTo(expectedEncoding);
+        await Assert.That(yaml.Digest).IsEqualTo(json.Digest);
+        if (algorithm == "ES256") await Assert.That(secret.Constraints.Curve).IsEqualTo(DefinitionSecretCurve.P256);
+    }
+
+    [Test]
     [Arguments("kind", "\"Password\"")]
     [Arguments("kind", "\"unknown\"")]
     [Arguments("kind", "0")]
@@ -13,6 +34,11 @@ public sealed class DefinitionSecretAdmissionTests
     [Arguments("acquisition", "\"Local\"")]
     [Arguments("acquisition", "0")]
     [Arguments("acquisition", "null")]
+    [Arguments("algorithm", "\"unknown\"")]
+    [Arguments("algorithm", "0")]
+    [Arguments("algorithm", "null")]
+    [Arguments("encoding", "0")]
+    [Arguments("encoding", "null")]
     public async Task ClosedPolicyTokensRejectUnknownCasingNumericAndNull(string member, string token)
     {
         JsonObject source = JsonNode.Parse(DefinitionFixture.Json)!.AsObject();

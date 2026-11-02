@@ -38,16 +38,16 @@ public sealed partial class DefinitionFormModel
             if (constraints.MinDigits > 0) Add("secret-digit-required", $"At least {Number(constraints.MinDigits)} digits.", $"ما لا يقل عن {Number(constraints.MinDigits)} من الأرقام.");
             if (constraints.MinSymbols > 0) Add("secret-symbol-required", $"At least {Number(constraints.MinSymbols)} symbols from {constraints.AllowedSymbols}.", $"ما لا يقل عن {Number(constraints.MinSymbols)} من الرموز التالية: {constraints.AllowedSymbols}.");
             if (constraints.MaxUtf8Bytes is { } bytes) Add("secret-utf8-limit", $"At most {Number(bytes)} UTF-8 bytes.", $"ما لا يزيد عن {Number(bytes)} بايت بترميز UTF-8.");
-            if (constraints.CharacterSet == "ascii-printable") Add("secret-character-set-invalid", "Printable ASCII characters only.", "يسمح بمحارف ASCII القابلة للطباعة فقط.");
+            if (constraints.CharacterSet == DefinitionSecretCharacterSet.AsciiPrintable) Add("secret-character-set-invalid", "Printable ASCII characters only.", "يسمح بمحارف ASCII القابلة للطباعة فقط.");
             if (constraints.ForbiddenCharacters.Length > 0) Add("secret-character-forbidden", "Exclude the characters forbidden by this definition.", "استبعد المحارف المحظورة في هذا التعريف.");
-            if (specification.Encoding is not null) Add("secret-encoding-invalid", $"Required encoding: {specification.Encoding}.", $"الترميز المطلوب: {specification.Encoding}.");
-            if (specification.Algorithm is not null) Add("secret-format-required", $"Required algorithm: {specification.Algorithm}.", $"الخوارزمية المطلوبة: {specification.Algorithm}.");
-            if (specification.Kind is "opaque-token" or "symmetric-key")
+            if (specification.Encoding is not null) Add("secret-encoding-invalid", $"Required encoding: {DefinitionSecretVocabulary.Token(specification.Encoding.Value)}.", $"الترميز المطلوب: {DefinitionSecretVocabulary.Token(specification.Encoding.Value)}.");
+            if (specification.Algorithm is not null) Add("secret-format-required", $"Required algorithm: {DefinitionSecretVocabulary.Token(specification.Algorithm.Value)}.", $"الخوارزمية المطلوبة: {DefinitionSecretVocabulary.Token(specification.Algorithm.Value)}.");
+            if (specification.Kind is DefinitionSecretKind.OpaqueToken or DefinitionSecretKind.SymmetricKey)
                 Add("secret-byte-length-invalid", $"Decoded size: {Number(constraints.MinBytes)}–{Number(constraints.MaxBytes)} bytes.", $"الحجم بعد فك الترميز: {Number(constraints.MinBytes)}–{Number(constraints.MaxBytes)} بايت.");
-            if (specification.Kind == "private-key" && specification.Algorithm is "RS256" or "PS256")
+            if (specification.Kind == DefinitionSecretKind.PrivateKey && specification.Algorithm is DefinitionSecretAlgorithm.Rs256 or DefinitionSecretAlgorithm.Ps256)
                 Add("secret-key-size-invalid", $"RSA key size: {Number(constraints.KeySize)} bits.", $"حجم مفتاح RSA: {Number(constraints.KeySize)} بت.");
-            if (specification.Kind == "private-key" && constraints.Curve is { } curve)
-                Add("secret-key-curve-invalid", $"Required curve: {curve}.", $"المنحنى المطلوب: {curve}.");
+            if (specification.Kind == DefinitionSecretKind.PrivateKey && constraints.Curve is { } curve)
+                Add("secret-key-curve-invalid", $"Required curve: {DefinitionSecretVocabulary.Token(curve)}.", $"المنحنى المطلوب: {DefinitionSecretVocabulary.Token(curve)}.");
             var failures = new List<DefinitionSecretRule>();
             if (visible && active && !deferred)
                 foreach (DefinitionDiagnostic diagnostic in Facts.Validation.Diagnostics.Concat(Facts.InputDiagnostics))

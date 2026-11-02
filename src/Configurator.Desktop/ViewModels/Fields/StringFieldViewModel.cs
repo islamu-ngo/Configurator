@@ -34,10 +34,10 @@ public sealed class StringFieldViewModel : FieldViewModel
         });
     }
     public int MaxLength => 65_536;
-    public bool AcceptsReturn => Schema.Secret is { Kind: "private-key", Encoding: "pkcs8-pem" };
+    public bool AcceptsReturn => Schema.Secret is { Kind: DefinitionSecretKind.PrivateKey, Encoding: DefinitionSecretEncoding.Pkcs8Pem };
     public bool HasSecretPolicy => Schema.Secret is not null;
-    public bool HasSecretGeneration => Schema.Secret is { Acquisition: "local", Generation: not null };
-    public bool RequiresSecretInput => Schema.Secret is { Kind: "password-hash" or "digest", Generation.Input: "entered" };
+    public bool HasSecretGeneration => Schema.Secret is { Acquisition: DefinitionSecretAcquisition.Local, Generation: not null };
+    public bool RequiresSecretInput => Schema.Secret is { Kind: DefinitionSecretKind.PasswordHash or DefinitionSecretKind.Digest, Generation.Input: DefinitionSecretInput.Entered };
     public bool IsRevealed => _isRevealed;
     public override char PasswordChar => RequiresMasking && !_isRevealed ? '●' : '\0';
     public string GenerateLabel => Text.Length == 0 ? DesktopActionText.GenerateLabel : DesktopActionText.RegenerateLabel;

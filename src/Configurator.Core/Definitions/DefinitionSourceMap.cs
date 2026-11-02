@@ -3,32 +3,6 @@ namespace Configurator.Core.Definitions;
 using System.Collections.Frozen;
 using Configurator.Core.Composition;
 
-/// <summary>A definition-only span. Lines and columns are one-based; the end is exclusive.</summary>
-public readonly record struct DefinitionSourceSpan
-{
-    public DefinitionSourceSpan(int documentIndex, int startLine, int startColumn, int endLine, int endColumn)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(documentIndex);
-        ArgumentOutOfRangeException.ThrowIfLessThan(startLine, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(startColumn, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(endLine, startLine);
-        ArgumentOutOfRangeException.ThrowIfLessThan(endColumn, 1);
-        if (endLine == startLine && endColumn < startColumn)
-            throw new ArgumentOutOfRangeException(nameof(endColumn));
-        DocumentIndex = documentIndex;
-        StartLine = startLine;
-        StartColumn = startColumn;
-        EndLine = endLine;
-        EndColumn = endColumn;
-    }
-
-    public int DocumentIndex { get; }
-    public int StartLine { get; }
-    public int StartColumn { get; }
-    public int EndLine { get; }
-    public int EndColumn { get; }
-}
-
 /// <summary>Immutable public schema positions, separate from canonical definition identity.</summary>
 public sealed class DefinitionSourceMap
 {
@@ -150,71 +124,4 @@ public sealed class DefinitionSourceMap
     }
 
     public override string ToString() => $"{nameof(DefinitionSourceMap)}:Count={_spans.Count}";
-}
-
-public enum DefinitionLocationSegmentKind { Property, ArrayRow, MapEntry }
-
-/// <summary>A declared property or numeric position; dynamic map keys never enter this model.</summary>
-public sealed record DefinitionLocationSegment
-{
-    private DefinitionLocationSegment(DefinitionLocationSegmentKind kind, string? propertyName, int? index)
-    {
-        Kind = kind;
-        PropertyName = propertyName;
-        Index = index;
-    }
-
-    public DefinitionLocationSegmentKind Kind { get; }
-    public string? PropertyName { get; }
-    public int? Index { get; }
-
-    public static DefinitionLocationSegment Property(string name)
-    {
-        ArgumentNullException.ThrowIfNull(name);
-        DefinitionProfile.ValidateScalar(name);
-        return new(DefinitionLocationSegmentKind.Property, name, null);
-    }
-
-    public static DefinitionLocationSegment ArrayRow(int index) => Indexed(DefinitionLocationSegmentKind.ArrayRow, index);
-    public static DefinitionLocationSegment MapEntry(int index) => Indexed(DefinitionLocationSegmentKind.MapEntry, index);
-
-    private static DefinitionLocationSegment Indexed(DefinitionLocationSegmentKind kind, int index)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(index);
-        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, kind == DefinitionLocationSegmentKind.MapEntry
-            ? CompositionLimits.DefaultMappingEntries : CompositionLimits.DefaultSequenceEntries);
-        return new(kind, null, index);
-    }
-
-    public override string ToString() => Kind.ToString();
-}
-
-/// <summary>Correction coordinates are meaningful only for the answer revision that produced them.</summary>
-public sealed class DefinitionCorrectionLocation : IEquatable<DefinitionCorrectionLocation>
-{
-    public DefinitionCorrectionLocation(long inputRevision, IReadOnlyList<DefinitionLocationSegment> segments)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(inputRevision);
-        ArgumentNullException.ThrowIfNull(segments);
-        if (segments.Count > CompositionLimits.DefaultNestingDepth)
-            throw new ArgumentOutOfRangeException(nameof(segments));
-        if (segments.Any(segment => segment is null))
-            throw new ArgumentException("Location segments must be present.", nameof(segments));
-        InputRevision = inputRevision;
-        Segments = Array.AsReadOnly(segments.ToArray());
-    }
-
-    public long InputRevision { get; }
-    public IReadOnlyList<DefinitionLocationSegment> Segments { get; }
-    public bool Equals(DefinitionCorrectionLocation? other) => other is not null
-        && InputRevision == other.InputRevision && Segments.SequenceEqual(other.Segments);
-    public override bool Equals(object? obj) => obj is DefinitionCorrectionLocation other && Equals(other);
-    public override int GetHashCode()
-    {
-        var hash = new HashCode();
-        hash.Add(InputRevision);
-        foreach (DefinitionLocationSegment segment in Segments) hash.Add(segment);
-        return hash.ToHashCode();
-    }
-    public override string ToString() => $"{nameof(DefinitionCorrectionLocation)}:Revision={InputRevision}:Count={Segments.Count}";
 }

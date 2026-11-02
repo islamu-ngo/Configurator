@@ -40,7 +40,7 @@ internal static class DefinitionSecretAdmission
         int maximumBytes = algorithm is "AES128" or "AES192" or "AES256" ? minimumBytes : 4096;
         int iterations = algorithm switch { "pbkdf2-sha256" => 600000, "pbkdf2-sha512" or "aspnet-identity-v3" => 210000, _ => 2 };
         string? curve = algorithm switch { "ES256" => "P-256", "ES384" => "P-384", "ES512" => "P-521", _ => null };
-        var constraints = new DefinitionSecretConstraints { MinBytes = minimumBytes, MaxBytes = maximumBytes, Iterations = iterations, Curve = curve };
+        var constraints = new DefinitionSecretConstraints { MinBytes = minimumBytes, MaxBytes = maximumBytes, Iterations = iterations, Curve = curve is null ? null : DefinitionSecretVocabulary.ParseCurve(curve) };
         if (secret.TryGetProperty("constraints", out JsonElement source))
         {
             Only(source, kind switch
@@ -59,7 +59,7 @@ internal static class DefinitionSecretAdmission
             });
             constraints = constraints with
             {
-                CharacterSet = Text(source, "characterSet", constraints.CharacterSet),
+                CharacterSet = DefinitionSecretVocabulary.ParseCharacterSet(Text(source, "characterSet", DefinitionSecretVocabulary.Token(constraints.CharacterSet))),
                 AllowWhitespace = source.TryGetProperty("allowWhitespace", out JsonElement whitespace) ? whitespace.GetBoolean() : constraints.AllowWhitespace,
                 MaxUtf8Bytes = source.TryGetProperty("maxUtf8Bytes", out _) ? Number(source, "maxUtf8Bytes", 0, 1, 65536) : null,
                 MinLowercase = Number(source, "minLowercase", 0, 0, 1024),
@@ -71,7 +71,7 @@ internal static class DefinitionSecretAdmission
                 MinBytes = Number(source, "minBytes", minimumBytes, minimumBytes, 4096),
                 MaxBytes = Number(source, "maxBytes", maximumBytes, minimumBytes, maximumBytes),
                 KeySize = Number(source, "keySize", 2048, 2048, 4096),
-                Curve = Text(source, "curve", curve ?? "") is { Length: > 0 } suppliedCurve ? suppliedCurve : null,
+                Curve = Text(source, "curve", curve ?? "") is { Length: > 0 } suppliedCurve ? DefinitionSecretVocabulary.ParseCurve(suppliedCurve) : null,
                 MemoryKiB = Number(source, "memoryKiB", 19456, 19456, 65536),
                 Iterations = Number(source, "iterations", iterations, iterations, algorithm == "argon2id" ? 6 : 2000000),
                 Parallelism = Number(source, "parallelism", 1, 1, 4),
@@ -80,10 +80,9 @@ internal static class DefinitionSecretAdmission
                 Cost = Number(source, "cost", 12, 10, 14)
             };
         }
-        Require(constraints.CharacterSet is "unicode" or "ascii-printable");
         Require(constraints.MinBytes <= constraints.MaxBytes);
         Require(constraints.KeySize is 2048 or 3072 or 4096);
-        Require(constraints.Curve == curve);
+        Require(constraints.Curve == (curve is null ? null : DefinitionSecretVocabulary.ParseCurve(curve)));
         Require(constraints.AllowedSymbols.Length <= 94 && constraints.AllowedSymbols.Distinct().Count() == constraints.AllowedSymbols.Length
             && constraints.AllowedSymbols.All(c => c is >= '!' and <= '~' && !char.IsAsciiLetterOrDigit(c)));
         Require(constraints.MinSymbols == 0 || constraints.AllowedSymbols.Length != 0);
@@ -144,7 +143,7 @@ internal static class DefinitionSecretAdmission
                 Require(input == "generated" && passwordSource.TryGetProperty("kind", out JsonElement passwordKind)
                     && passwordKind.GetString() == "password");
                 password = Read(passwordSource, default);
-                Require(password.Acquisition == "local" && password.Generation is not null);
+                Require(password.Acquisition == DefinitionSecretAcquisition.Local && password.Generation is not null);
                 Require(algorithm != "bcrypt" || password.Generation!.Length <= 72);
             }
             Require(input != "generated" || password is not null);
@@ -152,8 +151,8 @@ internal static class DefinitionSecretAdmission
             {
                 Length = Number(recipe, "length", 32, 1, 1024),
                 Bytes = Number(recipe, "bytes", Math.Min(maximumBytes, Math.Max(32, minimumBytes)), 1, 4096),
-                Input = input,
-                InputEncoding = inputEncoding,
+                Input = DefinitionSecretVocabulary.ParseInput(input),
+                InputEncoding = DefinitionSecretVocabulary.ParseEncoding(inputEncoding),
                 Password = password
             };
             if (kind == "password")
@@ -177,10 +176,10 @@ internal static class DefinitionSecretAdmission
         }
         return new()
         {
-            Kind = kind,
-            Acquisition = acquisition,
-            Algorithm = algorithm,
-            Encoding = encoding,
+            Kind = DefinitionSecretVocabulary.ParseKind(kind),
+            Acquisition = DefinitionSecretVocabulary.ParseAcquisition(acquisition),
+            Algorithm = algorithm is null ? null : DefinitionSecretVocabulary.ParseAlgorithm(algorithm),
+            Encoding = encoding is null ? null : DefinitionSecretVocabulary.ParseEncoding(encoding),
             MinLength = minimum,
             MaxLength = maximum,
             Constraints = constraints,

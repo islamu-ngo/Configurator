@@ -24,10 +24,10 @@ internal static class CliArtifactHandlers
         ArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == command.Artifact);
         if (artifact is null)
             return CliResults.Failure(CliExitCode.Validation, "artifact-unknown", "$.artifact");
-        if (command.Family == "env" && artifact.Format != "dotenv"
-            || command.Format is not null && artifact.Format != command.Format)
+        if (command.Family == "env" && artifact.Format != DefinitionArtifactFormat.Dotenv
+            || command.Format is not null && artifact.Format.ToToken() != command.Format)
             return CliResults.Failure(CliExitCode.Usage, "artifact-format-mismatch", "$.artifact");
-        if (artifact.ApplySemantics == "import"
+        if (artifact.ApplySemantics == DefinitionTargetUpdateMode.Import
             && command.Operation is "create" or "format" or "export" or "preview" or "render")
             return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "$.artifact");
 
@@ -40,7 +40,7 @@ internal static class CliArtifactHandlers
             command.Answers ?? command.Input!, command.InputRevision, cancellationToken);
         if (command.Operation == "import")
         {
-            if (artifact.ApplySemantics != "import"
+            if (artifact.ApplySemantics != DefinitionTargetUpdateMode.Import
                 || !definition.Fields.Any(field => field.Id == command.RevisionField && field.Type == "string")
                 || !CopiesRevision(definition, artifact.Id,
                     definition.Fields.Single(field => field.Id == command.RevisionField).Name))
@@ -81,13 +81,13 @@ internal static class CliArtifactHandlers
         try
         {
             if (command.Answers is not null && !await EquivalentInputAsync(
-                invocation, command.Input!, artifact.Format, outputBytes, cancellationToken))
+                invocation, command.Input!, artifact.Format.ToToken(), outputBytes, cancellationToken))
                 return CliResults.Failure(CliExitCode.Data, "artifact-projection-mismatch", "$.input");
             if (command.Operation == "diff")
             {
                 if (command.Answers is not null)
                 {
-                    bool equal = await EquivalentInputAsync(invocation, command.Baseline!, artifact.Format, outputBytes, cancellationToken);
+                    bool equal = await EquivalentInputAsync(invocation, command.Baseline!, artifact.Format.ToToken(), outputBytes, cancellationToken);
                     var compared = new CliMachineCoverage(equal ? [artifact.Id] : [], equal ? [] : [artifact.Id]);
                     return CliResults.Success(coverage: compared);
                 }
@@ -122,7 +122,7 @@ internal static class CliArtifactHandlers
             cancellationToken.ThrowIfCancellationRequested();
             ledger.BeginPublication();
             CliPublicationResult publication = await invocation.Io.Output.WriteArtifactAsync(command.Output!,
-                artifact.Format == "dotenv" ? ArtifactKind.Environment : ArtifactKind.Configuration,
+                artifact.Format == DefinitionArtifactFormat.Dotenv ? ArtifactKind.Environment : ArtifactKind.Configuration,
                 outputBytes, invocation.Io.MaximumBytes, cancellationToken);
             return ledger.Apply(publication, result);
         }
@@ -262,7 +262,7 @@ internal static class CliArtifactHandlers
     {
         string[] ids = command.Artifacts!;
         if (definition.Artifacts.Any(item => ids.Contains(item.Id, StringComparer.Ordinal)
-            && item.ApplySemantics == "import"))
+            && item.ApplySemantics == DefinitionTargetUpdateMode.Import))
             return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "$.artifacts");
         AnswerSnapshot answers = await CliIoOperations.AnswersAsync(invocation, command.Input!, command.InputRevision, cancellationToken);
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers, cancellationToken);

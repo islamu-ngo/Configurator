@@ -1,7 +1,7 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Definitions;
 
 using System.Text.Json;
+using Configurator.Core.Dotenv;
 using Configurator.Core.Environment;
 
 /// <summary>A captured, value-free subset of direct Environment mappings.</summary>
@@ -74,7 +74,7 @@ public sealed class DefinitionEditableProjection
         var schemas = new Dictionary<string, DefinitionNode>(StringComparer.Ordinal);
         var controllers = new HashSet<DefinitionPath>();
         ArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId);
-        if (artifact is null || artifact.Format != "dotenv" ||
+        if (artifact is null || artifact.Format != DefinitionArtifactFormat.Dotenv ||
             artifact.Projection.GetProperty("op").GetString() != "object") return Result();
 
         DefinitionValidationResult validation = DefinitionValidator.ValidateDraft(definition, answers, cancellationToken);
@@ -214,19 +214,3 @@ public sealed class DefinitionEditableProjection
         }
     }
 }
-
-public sealed record DefinitionEditableMapping(string Key, DefinitionPath Path);
-
-public enum DefinitionEditableCoverageKind
-{
-    Editable,
-    ReadOnly,
-    Protected,
-    Inactive,
-    ConditionUnresolved,
-    Unsupported,
-    Ambiguous,
-    Controller,
-}
-
-public sealed record DefinitionEditableCoverage(string Key, DefinitionPath? Path, DefinitionEditableCoverageKind Kind);

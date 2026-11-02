@@ -188,7 +188,7 @@ public partial class ConfigurationField
     private static bool DeclaresSecret(DefinitionNode schema) => DefinitionSensitivityPolicy.DeclaresSecret(schema);
     private bool IsSecret => InheritedSecret || DeclaresSecret(Schema)
         || Path.Count == 1 && DeclaresSecret(Form.Definition.Configuration);
-    private bool IsMultilineSecret => Schema.Secret is { Kind: "private-key", Encoding: "pkcs8-pem" };
+    private bool IsMultilineSecret => Schema.Secret is { Kind: DefinitionSecretKind.PrivateKey, Encoding: DefinitionSecretEncoding.Pkcs8Pem };
     private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
     private bool IsMasked => IsSecret || InheritedSensitive || DefinitionSensitivityPolicy.SensitivityOf(Schema) != FieldSensitivity.Public
         || Path.Count == 1 && DefinitionSensitivityPolicy.SensitivityOf(Form.Definition.Configuration) != FieldSensitivity.Public;
@@ -197,18 +197,18 @@ public partial class ConfigurationField
     private string Text => !Form.CanEdit(Path) ? string.Empty : Path.Count == 1
         ? _rootInput!.Text
         : Form.ReadDraftText(Path) ?? (Value is { } value ? Display(value) : string.Empty);
-    private string Autocomplete => Form.CanEdit(Path) && Schema.Secret is { Kind: "password" } secret
+    private string Autocomplete => Form.CanEdit(Path) && Schema.Secret is { Kind: DefinitionSecretKind.Password } secret
         ? secret.Acquisition switch
         {
-            "local" => "section-" + ControlId + " new-password",
-            "existing" => "section-" + ControlId + " current-password",
+            DefinitionSecretAcquisition.Local => "section-" + ControlId + " new-password",
+            DefinitionSecretAcquisition.Existing => "section-" + ControlId + " current-password",
             _ => "off"
         } : "off";
     private string? InputPurposeHelp => Schema.Secret is { } secret
         ? secret.Acquisition switch
         {
-            "issuer" => Ui("CredentialIssuerHelp"),
-            "local" => Ui("CredentialCreateHelp"),
+            DefinitionSecretAcquisition.Issuer => Ui("CredentialIssuerHelp"),
+            DefinitionSecretAcquisition.Local => Ui("CredentialCreateHelp"),
             _ => Ui("CredentialExistingHelp")
         } + " " + Ui("CredentialCustodyHelp")
         : null;

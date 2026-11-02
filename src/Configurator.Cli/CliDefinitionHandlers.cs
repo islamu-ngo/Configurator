@@ -159,8 +159,8 @@ internal static class CliDefinitionHandlers
         {
             ArtifactDefinition artifact = definition.Artifacts[index];
             string path = "/artifacts/" + index.ToString(CultureInfo.InvariantCulture);
-            if (artifact.ApplySemantics == "unspecified") Warn("target-update-unspecified", path + "/targetUpdateMode");
-            if (artifact.Restart == "unspecified") Warn("restart-unspecified", path + "/restartRequirement");
+            if (artifact.ApplySemantics == DefinitionTargetUpdateMode.Unspecified) Warn("target-update-unspecified", path + "/targetUpdateMode");
+            if (artifact.Restart == DefinitionRestartRequirement.Unspecified) Warn("restart-unspecified", path + "/restartRequirement");
         }
         return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input") with
         {

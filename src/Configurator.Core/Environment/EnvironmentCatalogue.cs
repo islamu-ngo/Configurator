@@ -1,4 +1,3 @@
-using Configurator.Core.Dotenv;
 namespace Configurator.Core.Environment;
 
 public sealed class EnvironmentCatalogue
