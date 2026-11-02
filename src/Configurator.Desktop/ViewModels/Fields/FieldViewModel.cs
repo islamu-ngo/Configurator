@@ -114,8 +114,6 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             return text.Length > 0 ? text : Title;
         }
     }
-    public string Group => string.Empty;
-    public string Consequence => string.Empty;
     public string Format => ReadMetadata("format");
     public string ConstraintsSummary => string.Join(" | ", ConstraintNames
         .Where(name => Schema.Keywords.TryGetProperty(name, out _))

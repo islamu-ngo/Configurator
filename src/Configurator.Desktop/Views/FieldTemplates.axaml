@@ -8,12 +8,8 @@
   <DataTemplate x:Key="FieldHeader" x:DataType="fields:FieldViewModel">
     <StackPanel Spacing="4">
       <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding Group}" TextWrapping="Wrap"
-                 IsVisible="{Binding Group, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
       <TextBlock Text="{Binding Help}" TextWrapping="Wrap"
                  IsVisible="{Binding Help, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="{Binding Consequence}" TextWrapping="Wrap"
-                 IsVisible="{Binding Consequence, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
       <TextBlock Text="{Binding Format}" TextWrapping="Wrap"
                  IsVisible="{Binding Format, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
       <TextBlock Text="{Binding ConstraintsSummary}" TextWrapping="Wrap"
