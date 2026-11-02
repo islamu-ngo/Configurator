@@ -58,6 +58,16 @@ selection cannot change a previously published view. Choice values, schema
 identity, numeric values and artifact composition remain unchanged. Guidance
 links remain static admitted metadata; these APIs fetch or execute nothing.
 
+Provider-owned guidance uses `PresentationStrings` in the Presentation resource
+owner. English and Arabic catalogs are embedded in the main assembly so browser
+offline behavior does not depend on loading a language satellite. Diagnostic,
+secret-requirement and import descriptions take an explicit workspace locale;
+unsupported languages fall back to English. Number substitution uses that locale
+without changing process culture. Generated section/journey titles refresh through
+the display projections; definition-authored titles continue to use admitted
+translation metadata. Resource substitutions contain only public requirements,
+never collected answers or unknown diagnostic input.
+
 Consent checks and revocation traverse declared properties, typed maps and the
 Core-selected variant. Revocation mutates the existing transient JSON tree
 without reparenting surviving array nodes; public nulls and safe siblings remain.

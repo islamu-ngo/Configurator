@@ -459,6 +459,12 @@ or per-journey validation aliases in the 0.0.1 source.
 
 ### Localization
 
+Configurator's shared secret requirements and generated navigation use the
+workspace language, with English fallback for unsupported languages. Changing a
+workspace language refreshes guidance and generated navigation titles without
+changing answers or prepared output. Definition-authored titles remain governed
+by the translation metadata below.
+
 `localization` contains `defaultLocale` and `translations`. Each translation is
 keyed by locale and may carry `direction: ltr|rtl` plus `overrides`. Override
 keys are pointers into the **public runtime definition document**, not private

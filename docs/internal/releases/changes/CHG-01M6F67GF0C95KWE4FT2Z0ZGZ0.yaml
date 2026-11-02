@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F67GF0C95KWE4FT2Z0ZGZ0
+Title: "Refresh shared guidance in the workspace language"
+Type: feat
+Scope: localization
+Summary: "Use explicit English and Arabic resources for secret requirements, diagnostics and generated navigation titles without changing answers."
+Group: workspace-guidance
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: Shared secret requirements and generated navigation refresh with the explicit workspace language without altering answers.

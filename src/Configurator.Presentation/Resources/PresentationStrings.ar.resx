@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Configure" xml:space="preserve"><value>الإعداد</value></data>
+  <data name="SecretTooShort" xml:space="preserve"><value>ما لا يقل عن {0} من محارف يونيكود.</value></data>
+  <data name="SecretTooLong" xml:space="preserve"><value>ما لا يزيد عن {0} من محارف يونيكود.</value></data>
+  <data name="SecretWhitespace" xml:space="preserve"><value>لا يسمح بالمسافات البيضاء.</value></data>
+  <data name="SecretLowercase" xml:space="preserve"><value>ما لا يقل عن {0} من الأحرف الصغيرة.</value></data>
+  <data name="SecretUppercase" xml:space="preserve"><value>ما لا يقل عن {0} من الأحرف الكبيرة.</value></data>
+  <data name="SecretDigits" xml:space="preserve"><value>ما لا يقل عن {0} من الأرقام.</value></data>
+  <data name="SecretSymbols" xml:space="preserve"><value>ما لا يقل عن {0} من الرموز التالية: {1}.</value></data>
+  <data name="SecretUtf8Limit" xml:space="preserve"><value>ما لا يزيد عن {0} بايت بترميز UTF-8.</value></data>
+  <data name="SecretCharacterSet" xml:space="preserve"><value>يسمح بمحارف ASCII القابلة للطباعة فقط.</value></data>
+  <data name="SecretForbiddenCharacters" xml:space="preserve"><value>استبعد المحارف المحظورة في هذا التعريف.</value></data>
+  <data name="SecretEncoding" xml:space="preserve"><value>الترميز المطلوب: {0}.</value></data>
+  <data name="SecretAlgorithm" xml:space="preserve"><value>الخوارزمية المطلوبة: {0}.</value></data>
+  <data name="SecretByteLength" xml:space="preserve"><value>الحجم بعد فك الترميز: {0}–{1} بايت.</value></data>
+  <data name="SecretKeySize" xml:space="preserve"><value>حجم مفتاح RSA: {0} بت.</value></data>
+  <data name="SecretCurve" xml:space="preserve"><value>المنحنى المطلوب: {0}.</value></data>
+  <data name="ValueRequired" xml:space="preserve"><value>أدخل القيمة المطلوبة.</value></data>
+  <data name="ValueTypeInvalid" xml:space="preserve"><value>استخدم نوع الحقل المعلن.</value></data>
+  <data name="ValueDuplicate" xml:space="preserve"><value>يجب أن يكون لكل عنصر مفتاح معلن فريد.</value></data>
+  <data name="ValueConstraintInvalid" xml:space="preserve"><value>القيمة لا تستوفي متطلبات هذا الحقل.</value></data>
+  <data name="AnswerBudgetExceeded" xml:space="preserve"><value>قلل الإدخال الزائد أو امسحه.</value></data>
+  <data name="DraftDependencyUnresolved" xml:space="preserve"><value>أكمل السر المؤجل محلياً قبل تقييم الإعدادات التابعة.</value></data>
+  <data name="ArtifactOmitted" xml:space="preserve"><value>تستبعد هذه المسودة ناتجاً له تبعيات لم تُحل.</value></data>
+  <data name="SecretHashFormatInvalid" xml:space="preserve"><value>استخدم صيغة التجزئة المشفرة المطلوبة.</value></data>
+  <data name="SecretCostOutOfRange" xml:space="preserve"><value>معاملات العمل المشفرة خارج الحدود المسموح بها.</value></data>
+  <data name="SecretProfileUnavailable" xml:space="preserve"><value>ملف السر هذا غير متاح.</value></data>
+  <data name="SecretInputInvalid" xml:space="preserve"><value>تحقق من ترميز الإدخال وحدود الخوارزمية. يقبل Bcrypt حتى 72 بايت بترميز UTF-8 دون محارف NUL.</value></data>
+  <data name="SecretInputLimit" xml:space="preserve"><value>يتجاوز الإدخال المؤقت الحد المدعوم للحجم.</value></data>
+  <data name="SecretEncodingInvalid" xml:space="preserve"><value>استخدم الترميز المطلوب في التعريف.</value></data>
+  <data name="SecretCancelled" xml:space="preserve"><value>أُلغي التوليد ولم تُطبق قيمة مولّدة.</value></data>
+  <data name="SecretStale" xml:space="preserve"><value>تغيرت مساحة العمل فتُم تجاهل النتيجة المولّدة.</value></data>
+  <data name="SecretBusy" xml:space="preserve"><value>انتظر اكتمال عملية السر الحالية.</value></data>
+  <data name="SecretOperationUnavailable" xml:space="preserve"><value>هذا الحقل غير مؤهل حالياً للتوليد المحلي. تحقق من الموافقة والتفعيل ووصفة التوليد المحددة.</value></data>
+  <data name="SecretGeneratedValueInvalid" xml:space="preserve"><value>لم يستوف الناتج المولّد جميع متطلبات الحقل؛ احتُفظ بالقيمة السابقة.</value></data>
+  <data name="ImportMissingRequired" xml:space="preserve"><value>إعداد مطلوب مفقود من الملف</value></data>
+  <data name="ImportInvalidValue" xml:space="preserve"><value>قيمة غير صالحة في الملف</value></data>
+  <data name="ImportUnrecognizedInput" xml:space="preserve"><value>إدخال غير معروف</value></data>
+  <data name="ImportStructuralChange" xml:space="preserve"><value>تغيير في بنية الناتج</value></data>
+  <data name="ImportUnassessed" xml:space="preserve"><value>لم يُقيّم الإعداد</value></data>
+  <data name="ImportInformation" xml:space="preserve"><value>محدد مستمد من السياق العام</value></data>
+  <data name="ImportCompatible" xml:space="preserve"><value>متوافق ضمن النطاق الذي تم تقييمه</value></data>
+  <data name="ImportChangesRequired" xml:space="preserve"><value>يلزم تعديل الملف المستورد</value></data>
+  <data name="ImportIncomplete" xml:space="preserve"><value>التقييم غير مكتمل</value></data>
+  <data name="ImportUnsupported" xml:space="preserve"><value>التحويل العكسي غير مدعوم</value></data>
+  <data name="ImportInvalid" xml:space="preserve"><value>إدخال غير صالح</value></data>
+  <data name="ImportReady" xml:space="preserve"><value>متاح بعد إجراء مقصود؛ اجتازت مساحة العمل الفحوص الحالية.</value></data>
+  <data name="ImportAnswerConflict" xml:space="preserve"><value>مرفوض: تتعارض الإجابات الصريحة أو العناصر المحذوفة أو المسودات المعلقة.</value></data>
+  <data name="ImportConsentRequired" xml:space="preserve"><value>مرفوض: يلزم السماح بإدخال الأسرار في مساحة العمل.</value></data>
+  <data name="ImportStale" xml:space="preserve"><value>مرفوض: قارن الملف الحالي مجدداً.</value></data>
+  <data name="ImportWorkspaceUnsupported" xml:space="preserve"><value>مرفوض: لا يمكن لمساحة العمل تخزين جميع الإعدادات المستردة.</value></data>
+  <data name="ImportAutofillRefused" xml:space="preserve"><value>مرفوض: الملف غير مؤهل للتعبئة التلقائية الصارمة.</value></data>
+</root>

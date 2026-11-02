@@ -81,7 +81,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         int index = Definition.Presentation?.Sections.ToList().FindIndex(item => item.Id == section.Id) ?? -1;
         string prefix = "/presentation/sections/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return index < 0 ? section : new DefinitionFormSection(section.Id,
+        return index < 0 ? new DefinitionFormSection(section.Id, PresentationStrings.Get("Configure", Locale),
+            section.Description, section.Fields, section.Disclosure) : new DefinitionFormSection(section.Id,
             _localization.Text(Locale, prefix + "/title", section.Title)!,
             _localization.Text(Locale, prefix + "/description", section.Description), section.Fields, section.Disclosure);
     }).ToArray());
@@ -89,7 +90,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         int index = Definition.Presentation?.Experiences.ToList().FindIndex(item => item.Id == experience.Id) ?? -1;
         string prefix = "/presentation/journeys/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return index < 0 ? experience : new DefinitionFormExperience(experience.Id,
+        return index < 0 ? new DefinitionFormExperience(experience.Id, PresentationStrings.Get("Configure", Locale),
+            experience.InitialDisclosure, experience.Navigation, experience.Sections, experience.Description) : new DefinitionFormExperience(experience.Id,
             _localization.Text(Locale, prefix + "/title", experience.Title)!, experience.InitialDisclosure,
             experience.Navigation, experience.Sections, _localization.Text(Locale, prefix + "/description", experience.Description));
     }).ToArray());

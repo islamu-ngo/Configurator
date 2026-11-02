@@ -19,4 +19,10 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources/PresentationStrings.resx" WithCulture="false"
+                      LogicalName="Configurator.Presentation.Resources.PresentationStrings.resources" />
+    <EmbeddedResource Update="Resources/PresentationStrings.ar.resx" WithCulture="false"
+                      LogicalName="Configurator.Presentation.Resources.PresentationStrings.ar.resources" />
+  </ItemGroup>
 </Project>

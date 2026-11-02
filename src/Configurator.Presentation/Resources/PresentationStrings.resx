@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Configure" xml:space="preserve"><value>Configure</value></data>
+  <data name="SecretTooShort" xml:space="preserve"><value>At least {0} Unicode characters.</value></data>
+  <data name="SecretTooLong" xml:space="preserve"><value>At most {0} Unicode characters.</value></data>
+  <data name="SecretWhitespace" xml:space="preserve"><value>No whitespace.</value></data>
+  <data name="SecretLowercase" xml:space="preserve"><value>At least {0} lowercase letters.</value></data>
+  <data name="SecretUppercase" xml:space="preserve"><value>At least {0} uppercase letters.</value></data>
+  <data name="SecretDigits" xml:space="preserve"><value>At least {0} digits.</value></data>
+  <data name="SecretSymbols" xml:space="preserve"><value>At least {0} symbols from {1}.</value></data>
+  <data name="SecretUtf8Limit" xml:space="preserve"><value>At most {0} UTF-8 bytes.</value></data>
+  <data name="SecretCharacterSet" xml:space="preserve"><value>Printable ASCII characters only.</value></data>
+  <data name="SecretForbiddenCharacters" xml:space="preserve"><value>Exclude the characters forbidden by this definition.</value></data>
+  <data name="SecretEncoding" xml:space="preserve"><value>Required encoding: {0}.</value></data>
+  <data name="SecretAlgorithm" xml:space="preserve"><value>Required algorithm: {0}.</value></data>
+  <data name="SecretByteLength" xml:space="preserve"><value>Decoded size: {0}–{1} bytes.</value></data>
+  <data name="SecretKeySize" xml:space="preserve"><value>RSA key size: {0} bits.</value></data>
+  <data name="SecretCurve" xml:space="preserve"><value>Required curve: {0}.</value></data>
+  <data name="ValueRequired" xml:space="preserve"><value>Enter a required value.</value></data>
+  <data name="ValueTypeInvalid" xml:space="preserve"><value>Use the declared field type.</value></data>
+  <data name="ValueDuplicate" xml:space="preserve"><value>Each item must have a unique declared key.</value></data>
+  <data name="ValueConstraintInvalid" xml:space="preserve"><value>The value does not meet this field's requirements.</value></data>
+  <data name="AnswerBudgetExceeded" xml:space="preserve"><value>Reduce or clear the oversized input.</value></data>
+  <data name="DraftDependencyUnresolved" xml:space="preserve"><value>Finish the deferred secret locally before evaluating dependent settings.</value></data>
+  <data name="ArtifactOmitted" xml:space="preserve"><value>This draft omits an artifact with unresolved dependencies.</value></data>
+  <data name="SecretHashFormatInvalid" xml:space="preserve"><value>Use the required encoded hash format.</value></data>
+  <data name="SecretCostOutOfRange" xml:space="preserve"><value>The encoded work parameters are outside the allowed bounds.</value></data>
+  <data name="SecretProfileUnavailable" xml:space="preserve"><value>This secret profile is unavailable.</value></data>
+  <data name="SecretInputInvalid" xml:space="preserve"><value>Check the input encoding and algorithm limits. Bcrypt accepts at most 72 UTF-8 bytes and no NUL characters.</value></data>
+  <data name="SecretInputLimit" xml:space="preserve"><value>The transient input exceeds the supported size limit.</value></data>
+  <data name="SecretEncodingInvalid" xml:space="preserve"><value>Use the encoding required by the definition.</value></data>
+  <data name="SecretCancelled" xml:space="preserve"><value>Generation was cancelled; no generated value was applied.</value></data>
+  <data name="SecretStale" xml:space="preserve"><value>The workspace changed; the generated result was discarded.</value></data>
+  <data name="SecretBusy" xml:space="preserve"><value>Wait for the current secret operation to finish.</value></data>
+  <data name="SecretOperationUnavailable" xml:space="preserve"><value>This field is not currently eligible for local generation. Check consent, activation and the declared recipe.</value></data>
+  <data name="SecretGeneratedValueInvalid" xml:space="preserve"><value>Generated output did not meet all field requirements; the previous value was preserved.</value></data>
+  <data name="ImportMissingRequired" xml:space="preserve"><value>Missing required file setting</value></data>
+  <data name="ImportInvalidValue" xml:space="preserve"><value>Invalid supplied file value</value></data>
+  <data name="ImportUnrecognizedInput" xml:space="preserve"><value>Unrecognized input</value></data>
+  <data name="ImportStructuralChange" xml:space="preserve"><value>Structural output change</value></data>
+  <data name="ImportUnassessed" xml:space="preserve"><value>Setting not assessed</value></data>
+  <data name="ImportInformation" xml:space="preserve"><value>Public context-derived selector</value></data>
+  <data name="ImportCompatible" xml:space="preserve"><value>Compatible within assessed scope</value></data>
+  <data name="ImportChangesRequired" xml:space="preserve"><value>Changes required in the imported file</value></data>
+  <data name="ImportIncomplete" xml:space="preserve"><value>Incomplete assessment</value></data>
+  <data name="ImportUnsupported" xml:space="preserve"><value>Unsupported inverse</value></data>
+  <data name="ImportInvalid" xml:space="preserve"><value>Invalid input</value></data>
+  <data name="ImportReady" xml:space="preserve"><value>Available after a deliberate action; current workspace checks passed.</value></data>
+  <data name="ImportAnswerConflict" xml:space="preserve"><value>Refused: explicit answers, omissions or pending drafts conflict.</value></data>
+  <data name="ImportConsentRequired" xml:space="preserve"><value>Refused: workspace secret consent is required.</value></data>
+  <data name="ImportStale" xml:space="preserve"><value>Refused: compare the current file again.</value></data>
+  <data name="ImportWorkspaceUnsupported" xml:space="preserve"><value>Refused: this workspace cannot store all recovered settings.</value></data>
+  <data name="ImportAutofillRefused" xml:space="preserve"><value>Refused: the file is not eligible for strict autofill.</value></data>
+</root>
