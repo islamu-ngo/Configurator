@@ -2,5 +2,7 @@
 *.nupkg binary
 *.png binary
 *.ico binary
+# Preserve the reviewed upstream license bytes, including line endings.
+eng/configurator/dependency-notices/bouncycastle.cryptography/2.7.0/LICENSE -text whitespace=cr-at-eol
 # Frozen upstream patch contexts are hash-verified input, not source indentation.
 eng/release/dependencies/terminal-gui/patches/*.patch -whitespace
