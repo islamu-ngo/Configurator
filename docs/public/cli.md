@@ -89,10 +89,16 @@ conformance, not acceptance or permission to apply configuration at the target.
 ## Invocation Basics & Confidentiality
 
 The CLI operates in two mutually exclusive output modes:
+
 - `--text`: Human-readable terminal output formatted using Spectre.Console.
 - `--machine`: Healthy delivery emits one UTF-8 JSON envelope and one trailing
   newline, together at most 65,536 bytes. A broken stream may leave partial
   output; no replacement envelope or automatic replay follows.
+
+Human result panels use English or Arabic according to the invocation's captured
+UI culture, with English fallback for other languages. Machine output keeps the
+same identifiers and format in every locale. Command help uses Spectre's standard
+formatting.
 
 All command blocks below use **Bash**, with a current packaged
 `islamu-configurator` on `PATH`, from the checkout root. For source invocation,

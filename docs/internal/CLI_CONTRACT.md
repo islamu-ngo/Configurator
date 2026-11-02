@@ -93,6 +93,13 @@ boundary as other usage failures, without fabricating a different command.
 Diagnostic producers supply JSON Pointers directly; rendering validates pointer
 syntax without interpreting dots in property names as path separators.
 
+Each invocation captures an immutable culture snapshot. Human result labels,
+guidance and status descriptions use the CLI-owned `CliStrings` English/Arabic
+resources with English fallback; count formatting uses that invocation's culture.
+Embedding callers can supply a culture explicitly without changing process-wide
+state. Machine codes, identifiers, schema output and envelopes remain unchanged.
+Spectre's command-help formatting remains framework-owned.
+
 ### Bounded operation execution
 
 `CliIo` requires separate `ISetupCliAuthoringFiles` authority in addition
