@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Desktop.Messages;
+using Configurator.Desktop.Resources;
 
 /// <summary>Coordinates operation lifetime and status without owning field or artifact behavior.</summary>
 public sealed partial class DesktopShellViewModel : ObservableObject, IDisposable
@@ -16,6 +17,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     private Task<bool>? _closeTask;
     private long _generation;
     private bool _disposed;
+    private DesktopStatusGuidance _guidance = DesktopStatusGuidance.DefinitionRequired;
 
     [ObservableProperty]
     private bool _isBusy;
@@ -58,7 +60,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         messenger.Register<DesktopShellViewModel, StatusChangedMessage>(this, static (root, message) =>
         {
             if (!root._disposed && (message.Generation is null || message.Generation == root._generation))
-                root.Status = message.Status;
+                root.SetStatus(message.Status, message.Guidance);
         });
         messenger.Register<DesktopShellViewModel, FocusRequestedMessage>(this, static (root, message) =>
         {
@@ -74,31 +76,17 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     /// <summary>Physical settlement, including consumer-owned cleanup; cancellation alone never completes this task.</summary>
     public Task ActiveCompletion => _activeOperation?.Completion ?? Task.CompletedTask;
     public bool IsCloseAuthorized { get; private set; }
-    public string CloseMessage => CloseDecisionRequired
-        ? "The native operation has not settled. Its outcome is unknown. Stay open to keep waiting, or deliberately force close. Force close cannot guarantee no write or managed memory erasure."
-        : "Waiting for the native consumer and cleanup. Cancellation does not prove that nothing was written.";
+    public string CloseMessage => DesktopActionText.Read(CloseDecisionRequired ? "CloseUnknown" : "ClosePending");
     public bool CanForceClose => !_disposed && CloseDecisionRequired;
     public bool CanStayOpen => !_disposed && IsClosing;
-    public string StatusHelp => Status.Split(':')[0] switch
+    public string StatusHelp => DesktopActionText.Read("Status" + _guidance);
+
+    private void SetStatus(string status, DesktopStatusGuidance guidance)
     {
-        "definition-required" => "Choose a local JSON or YAML definition, then load it.",
-        "definition-invalid" or "definition-unreadable" => "Check the local definition and its supported format, size and permissions, then load it again.",
-        "validation-invalid" => "Correct the marked fields, then validate or prepare again.",
-        "bundle-invalid" or "preparation-invalid" => "Correct the answers or select active declared outputs, then prepare again.",
-        "selection-unavailable" => "Native selection is unavailable. Enter a local path and use the adjacent action.",
-        "selection-nonlocal" => "Choose a file or folder on this computer; remote locations are not accepted.",
-        "import-unreadable" => "Check the existing file and its permissions, then retry the import.",
-        "import-unsupported" or "inverse-unsupported" or "inverse-ambiguous" => "Select an artifact with a supported unambiguous inverse mapping, then retry the import.",
-        "answer-conflict" => "Resolve conflicting current answers before retrying the whole import.",
-        "input-invalid" or "input-ambiguous" or "import-field-invalid" => "Correct the existing file's format and declared field values, then retry the whole import.",
-        "save-failed" or "bundle-save-blocked" => "Check host protection, the existing destination and file conflicts; prepare again before retrying.",
-        "save-installed-unverified" => "Installation occurred, but verification did not succeed. Inspect the destination manually; its current contents are not guaranteed. Keep existing files and use a fresh destination before retrying.",
-        "save-installed-verified" => "Installation was verified, but cleanup failed. Keep the file and review the cleanup problem; retrying cannot overwrite it.",
-        "bundle-save-partial" => "Keep installed files and inspect unverified destinations manually. Select only failed or unattempted outputs, resolve the problem and prepare again using fresh destinations.",
-        "save-cancelled" or "bundle-save-cancelled" or "operation-cancelled" => "Preparation was discarded. Prepare current answers again when ready.",
-        "inputs-changed" => "Validate and prepare the current answers before saving.",
-        _ => "Local preparation does not apply configuration to the target application."
-    };
+        _guidance = guidance;
+        Status = status;
+        OnPropertyChanged(nameof(StatusHelp));
+    }
 
     private void Begin(OperationRequestedMessage message)
     {
@@ -147,7 +135,8 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         checked { _generation++; }
         _operationCancellation?.Cancel();
         _messenger.Send(new WorkspaceInvalidatedMessage(_generation));
-        if (!_disposed) Status = Workspace.Form is null ? "definition-required" : "inputs-changed";
+        if (!_disposed) SetStatus(Workspace.Form is null ? "definition-required" : "inputs-changed",
+            Workspace.Form is null ? DesktopStatusGuidance.DefinitionRequired : DesktopStatusGuidance.InputsChanged);
     }
 
     [RelayCommand]
@@ -155,7 +144,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     {
         if (_disposed) return;
         Invalidate();
-        Status = "operation-cancelled";
+        SetStatus("operation-cancelled", DesktopStatusGuidance.Cancelled);
     }
 
     [RelayCommand]

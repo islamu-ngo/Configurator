@@ -50,4 +50,23 @@
   <data name="SecretClipboardUnavailable" xml:space="preserve"><value>The clipboard is unavailable. Your value is still in this workspace.</value></data>
   <data name="SecretCancelled" xml:space="preserve"><value>Generation was cancelled or superseded by an edit.</value></data>
   <data name="SecretOperationFailed" xml:space="preserve"><value>The secret operation could not complete. Check the declared requirements and try again.</value></data>
+  <data name="StatusGeneral" xml:space="preserve"><value>Local preparation does not apply configuration to the target application.</value></data>
+  <data name="StatusDefinitionRequired" xml:space="preserve"><value>Choose a local JSON or YAML definition, then load it.</value></data>
+  <data name="StatusDefinitionInvalid" xml:space="preserve"><value>Check the local definition and its supported format, size and permissions, then load it again.</value></data>
+  <data name="StatusValidationInvalid" xml:space="preserve"><value>Correct the marked fields, then validate or prepare again.</value></data>
+  <data name="StatusPreparationInvalid" xml:space="preserve"><value>Correct the answers or select active declared outputs, then prepare again.</value></data>
+  <data name="StatusSelectionUnavailable" xml:space="preserve"><value>Native selection is unavailable. Enter a local path and use the adjacent action.</value></data>
+  <data name="StatusSelectionNonlocal" xml:space="preserve"><value>Choose a file or folder on this computer; remote locations are not accepted.</value></data>
+  <data name="StatusImportUnreadable" xml:space="preserve"><value>Check the existing file and its permissions, then retry the import.</value></data>
+  <data name="StatusImportUnsupported" xml:space="preserve"><value>Select an artifact with a supported unambiguous inverse mapping, then retry the import.</value></data>
+  <data name="StatusAnswerConflict" xml:space="preserve"><value>Resolve conflicting current answers before retrying the whole import.</value></data>
+  <data name="StatusInputInvalid" xml:space="preserve"><value>Correct the existing file's format and declared field values, then retry the whole import.</value></data>
+  <data name="StatusSaveFailed" xml:space="preserve"><value>Check host protection, the existing destination and file conflicts; prepare again before retrying.</value></data>
+  <data name="StatusSaveInstalledUnverified" xml:space="preserve"><value>Installation occurred, but verification did not succeed. Inspect the destination manually; its current contents are not guaranteed. Keep existing files and use a fresh destination before retrying.</value></data>
+  <data name="StatusSaveInstalledVerified" xml:space="preserve"><value>Installation was verified, but cleanup failed. Keep the file and review the cleanup problem; retrying cannot overwrite it.</value></data>
+  <data name="StatusBundleSavePartial" xml:space="preserve"><value>Keep installed files and inspect unverified destinations manually. Select only failed or unattempted outputs, resolve the problem and prepare again using fresh destinations.</value></data>
+  <data name="StatusCancelled" xml:space="preserve"><value>Preparation was discarded. Prepare current answers again when ready.</value></data>
+  <data name="StatusInputsChanged" xml:space="preserve"><value>Validate and prepare the current answers before saving.</value></data>
+  <data name="ClosePending" xml:space="preserve"><value>Waiting for the native consumer and cleanup. Cancellation does not prove that nothing was written.</value></data>
+  <data name="CloseUnknown" xml:space="preserve"><value>The native operation has not settled. Its outcome is unknown. Stay open to keep waiting, or deliberately force close. Force close cannot guarantee no write or managed memory erasure.</value></data>
 </root>

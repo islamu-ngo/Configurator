@@ -11,7 +11,8 @@ public sealed record FormInputsChangedMessage;
 public sealed record InputsInvalidatedMessage;
 public sealed record WorkspaceInvalidatedMessage(long Generation);
 public sealed record OperationStateMessage(bool IsBusy, string? Kind);
-public sealed record StatusChangedMessage(string Status, long? Generation = null);
+public sealed record StatusChangedMessage(string Status, long? Generation = null,
+    DesktopStatusGuidance Guidance = DesktopStatusGuidance.General);
 public sealed record FocusRequestedMessage(string Target);
 public sealed record FormFocusRequestedMessage;
 public sealed record FormValidationRequestedMessage(Action<bool> Reply);

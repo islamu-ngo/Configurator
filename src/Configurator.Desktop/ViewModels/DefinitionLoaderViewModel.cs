@@ -80,36 +80,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         }
         catch (DefinitionException exception)
         {
-            _messenger.Send(new StatusChangedMessage($"definition-invalid:{exception.Code}", _generation));
-            return false;
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanSelectPath))]
-    public async Task<bool> LoadDefinitionAsync(CancellationToken cancellationToken = default)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!CanSelectPath) return false;
-        ClearDefinition();
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "load", cancellationToken);
-        if (operation is null) return false;
-        string path = DefinitionPath;
-        try
-        {
-            string extension = Path.GetExtension(path).ToLowerInvariant();
-            if (extension is not (".json" or ".yaml" or ".yml"))
-            {
-                _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation));
-                return false;
-            }
-            using BoundedFileInput source = await BoundedFileInput.ReadAsync(() => _openRead(path),
-                ProtectedArtifactWriter.MaximumBytes, operation.Token);
-            if (!operation.IsCurrent) return false;
-            return Admit(source.Bytes, extension is ".yaml" or ".yml");
-        }
-        catch (InvalidDataException)
-        {
-            _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation));
+            _messenger.Send(new StatusChangedMessage($"definition-invalid:{exception.Code}", _generation, DesktopStatusGuidance.DefinitionInvalid));
             return false;
         }
         catch (OperationCanceledException)
@@ -119,7 +90,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            _messenger.Send(new StatusChangedMessage("definition-unreadable", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("definition-unreadable", operation.Generation, DesktopStatusGuidance.DefinitionInvalid));
             return false;
         }
     }
@@ -138,13 +109,13 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
             if (!operation.IsCurrent || selected.Status == StorageSelectionStatus.Cancelled) return false;
             if (selected.Status == StorageSelectionStatus.Unavailable)
             {
-                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation, DesktopStatusGuidance.SelectionUnavailable));
                 return false;
             }
             if (selected.Status != StorageSelectionStatus.Selected || selected.Value is null ||
                 !AvaloniaStorageDialogService.TryGetLocalPath(selected.Value, out string path))
             {
-                _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
+                _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation, DesktopStatusGuidance.SelectionNonlocal));
                 return false;
             }
             operation.Dispose();
@@ -157,13 +128,13 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         catch (OperationCanceledException) { return false; }
         catch (ArgumentException)
         {
-            _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation, DesktopStatusGuidance.SelectionNonlocal));
             return false;
         }
         catch (Exception exception) when (exception is NotSupportedException or IOException or
             UnauthorizedAccessException or InvalidOperationException)
         {
-            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation, DesktopStatusGuidance.SelectionUnavailable));
             return false;
         }
         finally
@@ -188,7 +159,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
             string extension = Path.GetExtension(path).ToLowerInvariant();
             if (extension is not (".json" or ".yaml" or ".yml"))
             {
-                _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation));
+                _messenger.Send(new StatusChangedMessage("definition-invalid:source-format-invalid", operation.Generation, DesktopStatusGuidance.DefinitionInvalid));
                 return false;
             }
             using BoundedFileInput source = await BoundedFileInput.ReadAsync(() => _openRead(path),
@@ -198,7 +169,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         }
         catch (InvalidDataException)
         {
-            _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("definition-invalid:source-limit", operation.Generation, DesktopStatusGuidance.DefinitionInvalid));
             return false;
         }
         catch (OperationCanceledException)

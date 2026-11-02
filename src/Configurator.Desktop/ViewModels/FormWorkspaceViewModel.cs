@@ -148,7 +148,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         if (_disposed || IsBusy) return false;
         if (Form is null)
         {
-            _messenger.Send(new StatusChangedMessage("definition-required"));
+            _messenger.Send(new StatusChangedMessage("definition-required", Guidance: DesktopStatusGuidance.DefinitionRequired));
             return false;
         }
         try
@@ -159,7 +159,8 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
             _messenger.Send(new StatusChangedMessage(ready ? "validation-ready" : "validation-invalid:" +
                 string.Join(",", result.Diagnostics.Select(item => $"{item.FieldId}:{item.Code}")
                     .Concat(Form.Fields.Where(item => item.InputDiagnosticCode is not null || !item.TryValue(out _))
-                        .Select(item => $"{item.Definition.Id}:input-invalid")))));
+                        .Select(item => $"{item.Definition.Id}:input-invalid"))), Guidance:
+                ready ? DesktopStatusGuidance.General : DesktopStatusGuidance.ValidationInvalid));
             if (!ready) FirstError?.RequestFocus();
             return ready;
         }
@@ -167,7 +168,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         {
             NotifyFieldState();
             FirstError?.RequestFocus();
-            _messenger.Send(new StatusChangedMessage($"validation-invalid:{exception.Code}"));
+            _messenger.Send(new StatusChangedMessage($"validation-invalid:{exception.Code}", Guidance: DesktopStatusGuidance.ValidationInvalid));
             return false;
         }
     }

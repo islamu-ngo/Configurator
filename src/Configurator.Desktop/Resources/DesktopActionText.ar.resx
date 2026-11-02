@@ -50,4 +50,23 @@
   <data name="SecretClipboardUnavailable" xml:space="preserve"><value>الحافظة غير متاحة. لا تزال قيمتك في مساحة العمل هذه.</value></data>
   <data name="SecretCancelled" xml:space="preserve"><value>أُلغي التوليد أو تجاوزه تعديل.</value></data>
   <data name="SecretOperationFailed" xml:space="preserve"><value>تعذر إكمال العملية. راجع المتطلبات المحددة وحاول مجدداً.</value></data>
+  <data name="StatusGeneral" xml:space="preserve"><value>التحضير المحلي لا يطبّق الإعدادات على التطبيق المستهدف.</value></data>
+  <data name="StatusDefinitionRequired" xml:space="preserve"><value>اختر تعريفًا محليًا بتنسيق JSON أو YAML ثم حمّله.</value></data>
+  <data name="StatusDefinitionInvalid" xml:space="preserve"><value>تحقق من تنسيق التعريف المحلي وحجمه وأذوناته ثم أعد تحميله.</value></data>
+  <data name="StatusValidationInvalid" xml:space="preserve"><value>صحح الحقول المحددة ثم أعد التحقق أو التحضير.</value></data>
+  <data name="StatusPreparationInvalid" xml:space="preserve"><value>صحح الإجابات أو اختر المخرجات المعلنة النشطة ثم أعد التحضير.</value></data>
+  <data name="StatusSelectionUnavailable" xml:space="preserve"><value>اختيار الملفات غير متاح. أدخل مسارًا محليًا واستخدم الإجراء المجاور.</value></data>
+  <data name="StatusSelectionNonlocal" xml:space="preserve"><value>اختر ملفًا أو مجلدًا على هذا الجهاز؛ المواقع البعيدة غير مقبولة.</value></data>
+  <data name="StatusImportUnreadable" xml:space="preserve"><value>تحقق من الملف الموجود وأذوناته ثم أعد الاستيراد.</value></data>
+  <data name="StatusImportUnsupported" xml:space="preserve"><value>اختر مخرجًا يدعم تحويلًا عكسيًا واضحًا ثم أعد الاستيراد.</value></data>
+  <data name="StatusAnswerConflict" xml:space="preserve"><value>حل تعارضات الإجابات الحالية قبل إعادة الاستيراد بالكامل.</value></data>
+  <data name="StatusInputInvalid" xml:space="preserve"><value>صحح تنسيق الملف الموجود وقيم الحقول المعلنة ثم أعد الاستيراد بالكامل.</value></data>
+  <data name="StatusSaveFailed" xml:space="preserve"><value>تحقق من حماية النظام والوجهة وتعارضات الملفات ثم أعد التحضير قبل المحاولة.</value></data>
+  <data name="StatusSaveInstalledUnverified" xml:space="preserve"><value>تم تثبيت الملف لكن التحقق لم ينجح. افحص الوجهة يدويًا؛ محتواها الحالي غير مضمون. احتفظ بالملفات الموجودة واستخدم وجهة جديدة قبل المحاولة.</value></data>
+  <data name="StatusSaveInstalledVerified" xml:space="preserve"><value>تم التحقق من تثبيت الملف لكن التنظيف فشل. احتفظ بالملف وراجع مشكلة التنظيف؛ إعادة المحاولة لا تستبدله.</value></data>
+  <data name="StatusBundleSavePartial" xml:space="preserve"><value>احتفظ بالملفات المثبتة وافحص الوجهات غير المتحقق منها يدويًا. اختر فقط المخرجات الفاشلة أو التي لم تُحاول، وحل المشكلة ثم أعد التحضير بوجهات جديدة.</value></data>
+  <data name="StatusCancelled" xml:space="preserve"><value>تم إلغاء التحضير. أعد تحضير الإجابات الحالية عندما تكون جاهزًا.</value></data>
+  <data name="StatusInputsChanged" xml:space="preserve"><value>تحقق من الإجابات الحالية وحضّرها قبل الحفظ.</value></data>
+  <data name="ClosePending" xml:space="preserve"><value>بانتظار اكتمال العملية الأصلية والتنظيف. الإلغاء لا يثبت عدم كتابة أي شيء.</value></data>
+  <data name="CloseUnknown" xml:space="preserve"><value>لم تكتمل العملية الأصلية ونتيجتها غير معروفة. أبقِ النافذة مفتوحة للانتظار أو أغلقها قسرًا عن قصد. الإغلاق القسري لا يضمن عدم الكتابة أو محو الذاكرة المُدارة.</value></data>
 </root>

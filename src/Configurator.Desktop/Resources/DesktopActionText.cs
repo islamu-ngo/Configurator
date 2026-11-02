@@ -46,5 +46,5 @@ public static class DesktopActionText
     public static string SupplyName(string title) => string.Format(CultureInfo.CurrentCulture, Read(nameof(SupplyName)), title);
     public static string ClearName(string title) => string.Format(CultureInfo.CurrentCulture, Read(nameof(ClearName)), title);
 
-    private static string Read(string key) => Resources.GetString(key, CultureInfo.CurrentUICulture)!;
+    internal static string Read(string key) => Resources.GetString(key, CultureInfo.CurrentUICulture)!;
 }

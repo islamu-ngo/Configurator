@@ -347,7 +347,8 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (!operation.IsCurrent || !ReferenceEquals(_preparationWorkspace, workspace)) return false;
         _messenger.Send(new StatusChangedMessage(Preparation is { Succeeded: true } metadata
             ? $"artifact-ready:{metadata.ArtifactId}:{metadata.Digest?.Value}"
-            : "preparation-invalid:" + string.Join(",", Preparation?.DiagnosticCodes ?? []), operation.Generation));
+            : "preparation-invalid:" + string.Join(",", Preparation?.DiagnosticCodes ?? []), operation.Generation,
+            Preparation?.Succeeded == true ? DesktopStatusGuidance.General : DesktopStatusGuidance.PreparationInvalid));
         NotifyCommands();
         return Preparation?.Succeeded == true;
     }
@@ -365,7 +366,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (!bundle.Succeeded)
         {
             _messenger.Send(new StatusChangedMessage("bundle-invalid:" +
-                string.Join(",", bundle.Diagnostics.Select(item => item.Code)), operation.Generation));
+                string.Join(",", bundle.Diagnostics.Select(item => item.Code)), operation.Generation, DesktopStatusGuidance.PreparationInvalid));
             return false;
         }
         _preparedBundleSelection = selection;
@@ -405,19 +406,22 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                 ? ProtectedArtifactBundleCompletionCode.Cancelled : ProtectedArtifactBundleCompletionCode.Completed);
             if (operation.IsCurrent)
                 _messenger.Send(new StatusChangedMessage(result.Succeeded ? "save-complete"
-                    : "save-" + FormatCommitResult(result), operation.Generation));
+                    : "save-" + FormatCommitResult(result), operation.Generation,
+                    result.Succeeded ? DesktopStatusGuidance.General : !result.InstallationEstablished
+                        ? DesktopStatusGuidance.SaveFailed : result.VerificationSucceeded
+                            ? DesktopStatusGuidance.SaveInstalledVerified : DesktopStatusGuidance.SaveInstalledUnverified));
             return result;
         }
         catch (OperationCanceledException)
         {
             publication.MarkUnknown(cancelled: true);
-            _messenger.Send(new StatusChangedMessage("save-cancelled", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("save-cancelled", operation.Generation, DesktopStatusGuidance.Cancelled));
             return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
             publication.MarkUnknown(failed: true);
-            _messenger.Send(new StatusChangedMessage("save-failed:IoFailure", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("save-failed:IoFailure", operation.Generation, DesktopStatusGuidance.SaveFailed));
             return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure);
         }
         catch (Exception)
@@ -442,7 +446,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         {
             if (!ProtectedSaveAvailable)
             {
-                _messenger.Send(new StatusChangedMessage("bundle-save-blocked:UnsupportedPlatform", operation.Generation));
+                _messenger.Send(new StatusChangedMessage("bundle-save-blocked:UnsupportedPlatform", operation.Generation, DesktopStatusGuidance.SaveFailed));
                 return null;
             }
             if (!operation.IsCurrent || _form.InputRevision != inputRevision) return null;
@@ -450,7 +454,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             if (!bundle.Succeeded)
             {
                 _messenger.Send(new StatusChangedMessage("bundle-invalid:" +
-                    string.Join(",", bundle.Diagnostics.Select(item => item.Code)), operation.Generation));
+                    string.Join(",", bundle.Diagnostics.Select(item => item.Code)), operation.Generation, DesktopStatusGuidance.PreparationInvalid));
                 bundle.Dispose();
                 return null;
             }
@@ -472,7 +476,10 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                             ? "bundle-save-partial:" : "bundle-save-blocked:") +
                         string.Join(",", result.Outcomes.Select(item =>
                             $"{item.ArtifactId}:{(item.Result is { } commit ? FormatCommitResult(commit) : "not-attempted")}"))
-                        + (result.CleanupFailed ? ";cleanup-failed" : string.Empty), operation.Generation));
+                        + (result.CleanupFailed ? ";cleanup-failed" : string.Empty), operation.Generation,
+                        result.Succeeded ? DesktopStatusGuidance.General
+                            : result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
+                                ? DesktopStatusGuidance.BundleSavePartial : DesktopStatusGuidance.SaveFailed));
                 return result;
             }
             catch (OperationCanceledException)
@@ -488,12 +495,12 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }
         catch (OperationCanceledException)
         {
-            _messenger.Send(new StatusChangedMessage("bundle-save-cancelled", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("bundle-save-cancelled", operation.Generation, DesktopStatusGuidance.Cancelled));
             return null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            _messenger.Send(new StatusChangedMessage("bundle-save-blocked:IoFailure", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("bundle-save-blocked:IoFailure", operation.Generation, DesktopStatusGuidance.SaveFailed));
             return null;
         }
     }
@@ -549,20 +556,20 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             if (compare)
             {
                 _messenger.Send(new StatusChangedMessage(comparison.Code == "import-read-failed"
-                    ? "import-unreadable" : comparison.Code, operation.Generation));
+                    ? "import-unreadable" : comparison.Code, operation.Generation, ImportGuidance(comparison.Code)));
                 return comparison.Succeeded;
             }
             if (!comparison.Succeeded)
             {
                 _messenger.Send(new StatusChangedMessage(comparison.Code == "import-read-failed"
-                    ? "import-unreadable" : comparison.Code, operation.Generation));
+                    ? "import-unreadable" : comparison.Code, operation.Generation, ImportGuidance(comparison.Code)));
                 return false;
             }
             return await AdoptImportComparisonAsync(form, operation);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
         {
-            _messenger.Send(new StatusChangedMessage("import-unreadable", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("import-unreadable", operation.Generation, DesktopStatusGuidance.ImportUnreadable));
             return false;
         }
     }
@@ -627,12 +634,12 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (result.Succeeded && _generation == operation.Generation + 1)
         {
             long generation = _generation;
-            _messenger.Send(new StatusChangedMessage(result.Code, generation));
+            _messenger.Send(new StatusChangedMessage(result.Code, generation, ImportGuidance(result.Code)));
             if (!_disposed && _generation == generation && ReferenceEquals(_form, form))
                 _messenger.Send(new FormFocusRequestedMessage());
         }
         else if (!result.Succeeded && operation.IsCurrent)
-            _messenger.Send(new StatusChangedMessage(result.Code, operation.Generation));
+            _messenger.Send(new StatusChangedMessage(result.Code, operation.Generation, ImportGuidance(result.Code)));
         return result.Succeeded;
     }
 
@@ -652,6 +659,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     }
 
     [RelayCommand(CanExecute = nameof(CanPreviousImportPage))]
+    private static DesktopStatusGuidance ImportGuidance(string code) => code switch
+    {
+        "import-read-failed" => DesktopStatusGuidance.ImportUnreadable,
+        "import-unsupported" or "inverse-unsupported" or "inverse-ambiguous" => DesktopStatusGuidance.ImportUnsupported,
+        "answer-conflict" => DesktopStatusGuidance.AnswerConflict,
+        "input-invalid" or "input-ambiguous" or "import-field-invalid" => DesktopStatusGuidance.InputInvalid,
+        _ => DesktopStatusGuidance.General
+    };
+
     private void PreviousImportPage() { _importPage--; RefreshImportPage(); }
 
     [RelayCommand(CanExecute = nameof(CanNextImportPage))]
@@ -683,7 +699,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             if (operation.IsCurrent && selected.Status is StorageSelectionStatus.Nonlocal or StorageSelectionStatus.Unavailable)
             {
                 _messenger.Send(new StatusChangedMessage(selected.Status == StorageSelectionStatus.Nonlocal
-                    ? "selection-nonlocal" : "selection-unavailable", operation.Generation));
+                    ? "selection-nonlocal" : "selection-unavailable", operation.Generation,
+                    selected.Status == StorageSelectionStatus.Nonlocal
+                        ? DesktopStatusGuidance.SelectionNonlocal : DesktopStatusGuidance.SelectionUnavailable));
                 return false;
             }
             if (!operation.IsCurrent || selected.Status != StorageSelectionStatus.Selected || input is null || generation != _reviewGeneration ||
@@ -693,12 +711,12 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         catch (OperationCanceledException) { return false; }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            _messenger.Send(new StatusChangedMessage("import-unreadable", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("import-unreadable", operation.Generation, DesktopStatusGuidance.ImportUnreadable));
             return false;
         }
         catch (Exception exception) when (exception is NotSupportedException or InvalidOperationException)
         {
-            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation, DesktopStatusGuidance.SelectionUnavailable));
             return false;
         }
         finally
@@ -721,13 +739,13 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             if (!operation.IsCurrent || selected.Status == StorageSelectionStatus.Cancelled) return false;
             if (selected.Status == StorageSelectionStatus.Unavailable)
             {
-                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+                _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation, DesktopStatusGuidance.SelectionUnavailable));
                 return false;
             }
             if (selected.Status != StorageSelectionStatus.Selected || selected.Value is null ||
                 !AvaloniaStorageDialogService.TryGetLocalPath(selected.Value, out string path))
             {
-                _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
+                _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation, DesktopStatusGuidance.SelectionNonlocal));
                 return false;
             }
             operation.Dispose();
@@ -738,13 +756,13 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         catch (OperationCanceledException) { return false; }
         catch (ArgumentException)
         {
-            _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("selection-nonlocal", operation.Generation, DesktopStatusGuidance.SelectionNonlocal));
             return false;
         }
         catch (Exception exception) when (exception is NotSupportedException or IOException or
             UnauthorizedAccessException or InvalidOperationException)
         {
-            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation));
+            _messenger.Send(new StatusChangedMessage("selection-unavailable", operation.Generation, DesktopStatusGuidance.SelectionUnavailable));
             return false;
         }
         finally

@@ -16,9 +16,10 @@ internal static class DesktopTestContext
             Task<ProtectedArtifactBundleResult>>? publishBundle = null,
         Func<DesktopPathSelectionKind, CancellationToken, Task<Uri?>>? select = null,
         Func<string, Stream>? openDefinition = null, Func<string, Stream>? openImport = null,
-        TimeProvider? timeProvider = null, Func<CancellationToken, ValueTask>? cooperativeYield = null)
+        TimeProvider? timeProvider = null, Func<CancellationToken, ValueTask>? cooperativeYield = null,
+        IMessenger? messenger = null)
     {
-        var messenger = new WeakReferenceMessenger();
+        messenger ??= new WeakReferenceMessenger();
         var dialogs = new Dialogs(select ?? ((_, _) => Task.FromResult<Uri?>(null)));
         cooperativeYield ??= _ => ValueTask.CompletedTask;
         DefinitionLoaderViewModel? loader = null;
