@@ -1,4 +1,5 @@
 @using Microsoft.JSInterop
+@using MudBlazor.Extensions
 @implements IAsyncDisposable
 @inject WorkspaceSearchState SearchState
 @inject IJSRuntime Javascript
@@ -58,7 +59,7 @@
     }
     private void Changed(object? sender, EventArgs args)
     {
-        if (_generation == SearchState.Generation && !_open && _input?.Value == SearchState.Query)
+        if (_generation == SearchState.Generation && !_open && _input?.GetState(input => input.Value) == SearchState.Query)
             return;
         if (_generation != SearchState.Generation)
         {
