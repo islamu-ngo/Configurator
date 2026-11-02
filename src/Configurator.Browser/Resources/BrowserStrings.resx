@@ -222,14 +222,6 @@
   <data name="ReviewStateRequiredMissing" xml:space="preserve"><value>Required answer missing</value></data>
   <data name="ReviewStateOptionalMissing" xml:space="preserve"><value>Optional; no supplied answer</value></data>
   <data name="ReviewPreparation" xml:space="preserve"><value>Preparation</value></data>
-  <data name="ReviewValueRequired" xml:space="preserve"><value>Supply the required value.</value></data>
-  <data name="ReviewTypeInvalid" xml:space="preserve"><value>Use the declared field type.</value></data>
-  <data name="ReviewUniqueKey" xml:space="preserve"><value>Each item must have a unique declared key.</value></data>
-  <data name="ReviewConstraints" xml:space="preserve"><value>Check the declared field constraints.</value></data>
-  <data name="ReviewInputTooLarge" xml:space="preserve"><value>Reduce or clear the oversized input.</value></data>
-  <data name="ReviewDeferredDependency" xml:space="preserve"><value>Finish the deferred secret locally before evaluating dependent settings.</value></data>
-  <data name="ReviewArtifactOmitted" xml:space="preserve"><value>This draft omits an artifact with unresolved dependencies.</value></data>
-  <data name="ReviewCheckDefinition" xml:space="preserve"><value>Check this setting against the declared definition.</value></data>
   <data name="FilesTitle" xml:space="preserve"><value>Prepare and export files</value></data>
   <data name="FilesHelp" xml:space="preserve"><value>Prepare a complete configuration or an incomplete draft, then deliberately copy or download each file for target validation.</value></data>
   <data name="ClearWorkspace" xml:space="preserve"><value>Clear workspace</value></data>
@@ -409,4 +401,129 @@
   <data name="SecretGeneratedOrigin" xml:space="preserve"><value>Generated locally</value></data>
   <data name="SecretCancel" xml:space="preserve"><value>Cancel generation</value></data>
   <data name="SecretMultilineHelp" xml:space="preserve"><value>Use Show to enter or edit a multiline private key. Hide returns to a read-only masked view.</value></data>
+  <data name="FormMode" xml:space="preserve"><value>Form</value></data>
+  <data name="DeveloperMode" xml:space="preserve"><value>Developer</value></data>
+  <data name="Title" xml:space="preserve"><value>Developer</value></data>
+  <data name="Introduction" xml:space="preserve"><value>Edit a bounded public scope, preview changes, then explicitly apply them to this workspace.</value></data>
+  <data name="Representation" xml:space="preserve"><value>Representation</value></data>
+  <data name="Canonical" xml:space="preserve"><value>Editable answers (public scope)</value></data>
+  <data name="Environment" xml:space="preserve"><value>Environment (constrained scope)</value></data>
+  <data name="ApplyMode" xml:space="preserve"><value>Missing Environment keys</value></data>
+  <data name="Merge" xml:space="preserve"><value>Merge: retain missing keys</value></data>
+  <data name="ReplaceScope" xml:space="preserve"><value>Replace represented scope: omit missing keys</value></data>
+  <data name="CanonicalScope" xml:space="preserve"><value>Supplied public answers and explicit omissions only, not a complete backup. Protected settings and excluded compound regions remain in Form.</value></data>
+  <data name="EnvironmentScope" xml:space="preserve"><value>Only active, unambiguous direct scalar mappings are editable. Read-only, protected, inactive, ambiguous and controlling settings remain outside this scope.</value></data>
+  <data name="CoverageSummary" xml:space="preserve"><value>Coverage: {0} editable, {1} excluded</value></data>
+  <data name="CoverageHelp" xml:space="preserve"><value>This list contains admitted definition metadata, never your answers. Use Form for excluded settings.</value></data>
+  <data name="CoverageEditable" xml:space="preserve"><value>Editable</value></data>
+  <data name="CoverageProtected" xml:space="preserve"><value>Excluded: protected region</value></data>
+  <data name="CoverageReadOnly" xml:space="preserve"><value>Excluded: read-only output</value></data>
+  <data name="CoverageInactive" xml:space="preserve"><value>Excluded: inactive</value></data>
+  <data name="CoverageConditionUnresolved" xml:space="preserve"><value>Excluded: unresolved condition</value></data>
+  <data name="CoverageUnsupported" xml:space="preserve"><value>Excluded: unsupported mapping</value></data>
+  <data name="CoverageAmbiguous" xml:space="preserve"><value>Excluded: ambiguous mapping</value></data>
+  <data name="CoverageController" xml:space="preserve"><value>Excluded: activation controller</value></data>
+  <data name="CoveragePages" xml:space="preserve"><value>Coverage pages</value></data>
+  <data name="Page" xml:space="preserve"><value>Page {0} of {1}</value></data>
+  <data name="ConsentTitle" xml:space="preserve"><value>Private input requires workspace consent</value></data>
+  <data name="ConsentPending" xml:space="preserve"><value>The editor is waiting for workspace consent.</value></data>
+  <data name="ConsentRequired" xml:space="preserve"><value>No editor or source has been opened. Anything you type or paste is private, even in a public-scope document. Review the existing workspace consent control to continue. Accepted secrets are never prepopulated.</value></data>
+  <data name="RequestConsent" xml:space="preserve"><value>Review workspace consent</value></data>
+  <data name="EditorLabel" xml:space="preserve"><value>Pending configuration document</value></data>
+  <data name="EditorHelpTitle" xml:space="preserve"><value>Keyboard and formatting help</value></data>
+  <data name="EditorHelp" xml:space="preserve"><value>Pending text and undo history stay in this private editor until retirement. Tab leaves the editor. Preview never applies changes. Formatting is explicit; invalid text is retained. Environment formatting removes comments and normalizes to LF without a BOM.</value></data>
+  <data name="Preview" xml:space="preserve"><value>Parse and preview</value></data>
+  <data name="Format" xml:space="preserve"><value>Format</value></data>
+  <data name="Apply" xml:space="preserve"><value>Apply</value></data>
+  <data name="DeveloperCancel" xml:space="preserve"><value>Cancel editing</value></data>
+  <data name="Reopen" xml:space="preserve"><value>Open current workspace source</value></data>
+  <data name="DeveloperReady" xml:space="preserve"><value>Nothing is applied while you type.</value></data>
+  <data name="Changed" xml:space="preserve"><value>Pending text or application mode changed. Parse again to refresh the preview.</value></data>
+  <data name="PreviewReady" xml:space="preserve"><value>Preview ready. Accepted workspace answers are unchanged until Apply.</value></data>
+  <data name="Invalid" xml:space="preserve"><value>The document cannot be applied. Correct the indicated code and location; pending text is retained.</value></data>
+  <data name="SourceUnavailable" xml:space="preserve"><value>Source could not be opened. Resolve invalid supplied values or pending Form drafts within this scope, then reopen. No Form draft was discarded.</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>The local editor is unavailable. No fallback editor or remote service is used. Form remains available; reopen after the local editor assets are ready.</value></data>
+  <data name="Retired" xml:space="preserve"><value>The previous editor, history and preview have been retired. Reopen explicitly to edit the current workspace.</value></data>
+  <data name="Applied" xml:space="preserve"><value>Applied to this workspace. The same text and undo history remain; no automatic formatting or reload occurred.</value></data>
+  <data name="AppliedEditorUnavailable" xml:space="preserve"><value>Applied to this workspace, but the local editor could not be rebound. This was not a rejection. Review the workspace before reopening the editor.</value></data>
+  <data name="AppliedObserverFailed" xml:space="preserve"><value>Applied to this workspace, but an observer failed after commit. This was not a rejection. Review the current workspace before continuing.</value></data>
+  <data name="Formatted" xml:space="preserve"><value>Formatted pending text without applying it. Parse again to preview changes.</value></data>
+  <data name="HistoryLimited" xml:space="preserve"><value>History is limited to 100 undo groups and a 4 MiB retained-text budget. Older history may be retired; edits exceeding the budget are rejected, not silently truncated.</value></data>
+  <data name="InvalidJson" xml:space="preserve"><value>Invalid JSON syntax. Correct the document before applying.</value></data>
+  <data name="InvalidEnvironment" xml:space="preserve"><value>Invalid Environment syntax. Use an uppercase key and a supported single-line value.</value></data>
+  <data name="Diagnostics" xml:space="preserve"><value>Document diagnostics</value></data>
+  <data name="CanonicalCoordinates" xml:space="preserve"><value>Canonical admission errors currently use document-level coordinates. The local editor supplies syntax markers.</value></data>
+  <data name="EnvironmentCoordinates" xml:space="preserve"><value>Coordinates refer to the acquired source before line-ending normalization. The constrained codec, not shell syntax, determines valid input.</value></data>
+  <data name="Coordinates" xml:space="preserve"><value>line {0}, column {1}</value></data>
+  <data name="DiagnosticsTruncated" xml:space="preserve"><value>Only the first 100 diagnostics are shown. Correct them and parse again.</value></data>
+  <data name="ChangeCount" xml:space="preserve"><value>{0} represented changes</value></data>
+  <data name="CanonicalSummary" xml:space="preserve"><value>Public-scope replacement: absent from both values and omitted resets only that captured scope; omitted suppresses initialization. Excluded regions are unchanged.</value></data>
+  <data name="MergeSummary" xml:space="preserve"><value>Merge: supplied keys set represented answers. Missing keys retain existing answers and omissions. Unrepresented settings are unchanged.</value></data>
+  <data name="ReplaceSummary" xml:space="preserve"><value>Replace represented scope: supplied keys set answers; missing represented keys become explicit omissions. Unrepresented settings and defaults are not reset.</value></data>
+  <data name="ChangeSet" xml:space="preserve"><value>Set supplied answer</value></data>
+  <data name="ChangeReset" xml:space="preserve"><value>Reset within represented scope</value></data>
+  <data name="ChangeOmit" xml:space="preserve"><value>Explicitly omit</value></data>
+  <data name="ApplyBoundary" xml:space="preserve"><value>One atomic workspace update. Missing required answers remain Review work. Preparation does not grant target acceptance or administration.</value></data>
+  <data name="PendingTitle" xml:space="preserve"><value>Resolve pending Developer work</value></data>
+  <data name="PendingHelp" xml:space="preserve"><value>Apply valid text, discard the private document and history, or stay here. Invalid text is retained after a failed Apply. Revoking consent always retires it immediately.</value></data>
+  <data name="Discard" xml:space="preserve"><value>Discard</value></data>
+  <data name="Stay" xml:space="preserve"><value>Stay</value></data>
+  <data name="Search" xml:space="preserve"><value>Search</value></data>
+  <data name="Replace" xml:space="preserve"><value>Replace</value></data>
+  <data name="Next" xml:space="preserve"><value>Next</value></data>
+  <data name="Previous" xml:space="preserve"><value>Previous</value></data>
+  <data name="Find" xml:space="preserve"><value>Find</value></data>
+  <data name="ReplaceAll" xml:space="preserve"><value>Replace all</value></data>
+  <data name="NoMatches" xml:space="preserve"><value>No matches found</value></data>
+  <data name="AllMatches" xml:space="preserve"><value>All matches</value></data>
+  <data name="MatchCase" xml:space="preserve"><value>Match case</value></data>
+  <data name="RegularExpression" xml:space="preserve"><value>Regular expression</value></data>
+  <data name="WholeWords" xml:space="preserve"><value>Whole words</value></data>
+  <data name="Completions" xml:space="preserve"><value>Completions</value></data>
+  <data name="ImportComparisonTitle" xml:space="preserve"><value>Imported file comparison</value></data>
+  <data name="ImportComparisonScope" xml:space="preserve"><value>These are facts about the selected file, not current workspace validity. Answers, drafts and prepared files are unchanged.</value></data>
+  <data name="ImportExecution" xml:space="preserve"><value>Execution</value></data>
+  <data name="ImportCompleted" xml:space="preserve"><value>Completed</value></data>
+  <data name="ImportNotCompleted" xml:space="preserve"><value>Not completed</value></data>
+  <data name="ImportCompatibility" xml:space="preserve"><value>Compatibility</value></data>
+  <data name="ImportCoverage" xml:space="preserve"><value>Assessed coverage</value></data>
+  <data name="ImportCoverageComplete" xml:space="preserve"><value>Complete within the represented artifact scope</value></data>
+  <data name="ImportCoveragePartial" xml:space="preserve"><value>Partial; unassessed settings remain</value></data>
+  <data name="ImportInventory" xml:space="preserve"><value>Finding inventory</value></data>
+  <data name="ImportInventoryComplete" xml:space="preserve"><value>{0} findings; inventory complete</value></data>
+  <data name="ImportInventoryStopped" xml:space="preserve"><value>At least {0} findings; inventory stopped</value></data>
+  <data name="ImportFileAutofill" xml:space="preserve"><value>File-level autofill</value></data>
+  <data name="ImportEligible" xml:space="preserve"><value>Eligible for strict workspace checks</value></data>
+  <data name="ImportIneligible" xml:space="preserve"><value>Ineligible; no partial adoption</value></data>
+  <data name="ImportTargetAcceptance" xml:space="preserve"><value>Target acceptance</value></data>
+  <data name="ImportNotAssessed" xml:space="preserve"><value>Not assessed</value></data>
+  <data name="ImportFillWorkspace" xml:space="preserve"><value>Fill this workspace:</value></data>
+  <data name="ImportRepairCopy" xml:space="preserve"><value>Repair a separate copy under operator review, then choose it again. Preserve the source file; unknown content, structural changes and invalid supplied values cannot be merged best-effort.</value></data>
+  <data name="ImportUnsupportedWorkspace" xml:space="preserve"><value>This workspace cannot store every recovered setting. Use the machine CLI to prepare the complete configuration; clearing workspace inputs cannot resolve this restriction.</value></data>
+  <data name="ImportConflictHelp" xml:space="preserve"><value>File eligibility does not permit overwriting explicit answers, omissions or pending drafts. Deliberately clear/reset conflicting workspace inputs before re-importing.</value></data>
+  <data name="ImportComparisonBoundary" xml:space="preserve"><value>Only represented content is assessed. Unobserved settings and context-derived selectors are distinguished from supplied values; initialization is not proof that a file member was present. No rename, release provenance or live deployment state is inferred.</value></data>
+  <data name="ImportSeverityBlocking" xml:space="preserve"><value>Blocking</value></data>
+  <data name="ImportSeverityUnassessed" xml:space="preserve"><value>Unassessed</value></data>
+  <data name="ImportSeverityInformation" xml:space="preserve"><value>Information</value></data>
+  <data name="ImportExplainSchema" xml:space="preserve"><value>Explain schema</value></data>
+  <data name="ImportFindingPages" xml:space="preserve"><value>Imported file finding pages</value></data>
+  <data name="ImportPrevious" xml:space="preserve"><value>Previous findings</value></data>
+  <data name="ImportNext" xml:space="preserve"><value>Next findings</value></data>
+  <data name="ImportDeclaredSchema" xml:space="preserve"><value>Declared schema:</value></data>
+  <data name="ImportSchemaPath" xml:space="preserve"><value>Schema path:</value></data>
+  <data name="ImportExplanationBoundary" xml:space="preserve"><value>This explanation does not select a current workspace row or map entry, commit drafts, or mark workspace values invalid.</value></data>
+  <data name="ImportFillFields" xml:space="preserve"><value>Fill fields from comparison</value></data>
+  <data name="ImportClearComparison" xml:space="preserve"><value>Clear comparison</value></data>
+  <data name="ImportDeclaredSetting" xml:space="preserve"><value>Declared setting</value></data>
+  <data name="ImportFileStructure" xml:space="preserve"><value>File structure</value></data>
+  <data name="InspectorDefinitionPath" xml:space="preserve"><value>Definition path</value></data>
+  <data name="InspectorDeclaredType" xml:space="preserve"><value>Declared type</value></data>
+  <data name="InspectorUnits" xml:space="preserve"><value>Units</value></data>
+  <data name="InspectorSensitivity" xml:space="preserve"><value>Declared sensitivity</value></data>
+  <data name="InspectorDetailHelp" xml:space="preserve"><value>Detail changes which optional settings are shown. Required work and active errors remain reachable. Comfortable and Compact change spacing, not answers or validation.</value></data>
+  <data name="InspectorOutputBindings" xml:space="preserve"><value>Declared output bindings</value></data>
+  <data name="InspectorArtifactIds" xml:space="preserve"><value>Artifact IDs:</value></data>
+  <data name="InspectorBindingsBoundary" xml:space="preserve"><value>These are declared references, not a guarantee that a conditional output is included.</value></data>
+  <data name="InspectorPublicBoundary" xml:space="preserve"><value>Help contains public definition and interface guidance, never your answers. Preparation does not grant target acceptance or apply permission.</value></data>
+  <data name="InspectorCloseHelp" xml:space="preserve"><value>Close field help</value></data>
 </root>

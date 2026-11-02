@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6F7YQA0E1DRJYW2DQMSBNZ4
+Title: "use workspace language across browser guidance"
+Type: fix
+Scope: localization
+Summary: "use workspace language across browser guidance."
+Group: browser-07-localized-browser-resources
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "use workspace language across browser guidance."

@@ -13,6 +13,13 @@ provides skip navigation, the header, application navigation, main landmark and 
 Store, Open configuration and Help are route destinations; the configuration
 workspace remains owned by Presentation and the Browser editor.
 
+`BrowserStrings` contains both interface catalogs, including Developer chrome and
+import-review labels; both languages are embedded in the main assembly. Shared
+diagnostic, import-finding, compatibility and autofill guidance comes from
+Presentation's explicit-locale resources. Counts use the workspace culture,
+without changing process culture. Machine finding codes and severity attributes
+remain stable while their displayed descriptions localize.
+
 `Configurator.Browser.csproj` owns Release AOT compilation; `global.json` selects
 the SDK and workload set. CI and the Browser container build explicitly provision
 the WebAssembly tools, including Python on Linux. Debug stays interpreted.

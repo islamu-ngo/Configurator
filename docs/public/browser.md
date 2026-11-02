@@ -303,6 +303,10 @@ copies already placed on the system clipboard.
 Use an ordinary local `.json`, `.yaml`, or `.env` export with the currently
 selected definition. No old definition, upload or target connection is needed.
 
+Comparison guidance, finding severity and schema explanations use the workspace's
+English or Arabic interface language. Definition-authored titles and machine
+diagnostic codes retain their own identities when you switch language.
+
 1. Start the local workspace and accept its custody acknowledgment. Enable
    **secret entry for this workspace** before choosing any configuration file,
    even with a public-only definition: unknown or obsolete content may contain

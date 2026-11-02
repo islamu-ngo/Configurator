@@ -4,7 +4,7 @@
 
 <MudDialog>
     <DialogContent>
-        <div class="configuration-inspector">
+        <div class="configuration-inspector" lang="@Locale" dir="@(PresentationStrings.Culture(Locale).TextInfo.IsRightToLeft ? "rtl" : "ltr")">
             @if (!string.IsNullOrWhiteSpace(ContextTitle)) { <p><strong>@ContextTitle</strong></p> }
             @if (!string.IsNullOrWhiteSpace(PublicTitle)) { <p data-help-title><strong>@PublicTitle</strong></p> }
             @if (!string.IsNullOrWhiteSpace(Description)) { <p data-experience-description>@Description</p> }
@@ -22,7 +22,7 @@
                         @foreach (var link in Links)
                         {
                             <li><a href="@link.Url" target="_blank"
-                                   rel="noopener noreferrer" referrerpolicy="no-referrer">@link.Title<span class="sr-only"> (new tab)</span></a></li>
+                                   rel="noopener noreferrer" referrerpolicy="no-referrer">@link.Title<span class="sr-only"> @Ui("NewTab")</span></a></li>
                         }
                     </ul>
             }
@@ -36,46 +36,47 @@
                 </dl>
             }
             <dl>
-                <dt>Definition path</dt><dd><code data-definition-path>@FieldPath</code></dd>
-                <dt>Declared type</dt><dd>@(PublicSchema.GetProperty("type").ValueKind == JsonValueKind.Array
-                    ? string.Join(" or ", PublicSchema.GetProperty("type").EnumerateArray().Select(item => item.GetString()))
+                <dt>@Ui("InspectorDefinitionPath")</dt><dd><code data-definition-path>@FieldPath</code></dd>
+                <dt>@Ui("InspectorDeclaredType")</dt><dd>@(PublicSchema.GetProperty("type").ValueKind == JsonValueKind.Array
+                    ? string.Join(" / ", PublicSchema.GetProperty("type").EnumerateArray().Select(item => item.GetString()))
                     : PublicSchema.GetProperty("type").GetString())</dd>
                 @if (!string.IsNullOrWhiteSpace(Units))
                 {
-                    <dt>Units</dt><dd data-help-units>@Units</dd>
+                    <dt>@Ui("InspectorUnits")</dt><dd data-help-units>@Units</dd>
                 }
                 @if (Metadata.ValueKind == JsonValueKind.Object && Metadata.TryGetProperty("sensitivity", out var sensitivity))
                 {
-                    <dt>Declared sensitivity</dt><dd>@sensitivity.GetString()</dd>
+                    <dt>@Ui("InspectorSensitivity")</dt><dd>@sensitivity.GetString()</dd>
                 }
             </dl>
             }
             else
             {
-                <p>Detail changes which optional settings are shown. Required work and active errors remain reachable. Comfortable and Compact change spacing, not answers or validation.</p>
+                <p>@Ui("InspectorDetailHelp")</p>
             }
             @if (OutputArtifactIds.Count > 0)
             {
-                <section aria-label="Declared output bindings">
-                    <h3>Declared output bindings</h3>
-                    <p>Artifact IDs: <code>@string.Join(", ", OutputArtifactIds)</code></p>
+                <section aria-label="@Ui("InspectorOutputBindings")">
+                    <h3>@Ui("InspectorOutputBindings")</h3>
+                    <p>@Ui("InspectorArtifactIds") <code>@string.Join(", ", OutputArtifactIds)</code></p>
                     <ul>
                         @foreach (string key in BindingKeys) { <li><code data-output-key>@key</code></li> }
                     </ul>
-                    <p class="form-help">These are declared references, not a guarantee that a conditional output is included.</p>
+                    <p class="form-help">@Ui("InspectorBindingsBoundary")</p>
                 </section>
             }
-            <p class="form-help">Help contains public definition and interface guidance, never your answers. Preparation does not grant target acceptance or apply permission.</p>
+            <p class="form-help">@Ui("InspectorPublicBoundary")</p>
         </div>
     </DialogContent>
     <DialogActions>
-        <AppButton Variant="Variant.Outlined" OnClick="Close" aria-label="Close field help">Close</AppButton>
+        <AppButton Variant="Variant.Outlined" OnClick="Close" data-action="close-field-help" aria-label="@Ui("InspectorCloseHelp")">@Ui("Close")</AppButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
     [Parameter] public JsonElement Schema { get; set; }
+    [Parameter] public string Locale { get; set; } = "en";
     [Parameter] public DefinitionEditorPresentation? Presentation { get; set; }
     [Parameter] public string FieldPath { get; set; } = string.Empty;
     [Parameter] public string? ContextTitle { get; set; }
@@ -107,5 +108,6 @@
         .Where(choice => !string.IsNullOrWhiteSpace(choice.Explanation));
     private static string? Text(JsonElement source, string name) => source.ValueKind == JsonValueKind.Object &&
         source.TryGetProperty(name, out var text) ? text.GetString() : null;
+    private string Ui(string key) => BrowserStrings.Get(key, Locale);
     private void Close() => Dialog.Close();
 }

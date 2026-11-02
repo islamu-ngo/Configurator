@@ -4,7 +4,7 @@
 <div class="configuration-discovery">
     <div class="configuration-discovery__matches">
     <p aria-live="polite" aria-atomic="true" data-discovery-count="@Form.Projection.Discovery.TotalCount">
-        @string.Format(System.Globalization.CultureInfo.CurrentCulture, T("DiscoveryMatches"), Form.Projection.Discovery.TotalCount)
+        @string.Format(System.Globalization.CultureInfo.GetCultureInfo(Form.Locale), T("DiscoveryMatches"), Form.Projection.Discovery.TotalCount)
     </p>
     @if (Form.Projection.Matches.Count == 0)
     {

@@ -187,23 +187,7 @@
         : entry.NeedsAttention ? "ReviewStateCorrection"
         : entry.IsProvided && entry.IsReady ? "ReviewStateReady"
         : entry.IsRequired ? "ReviewStateRequiredMissing" : "ReviewStateOptionalMissing");
-    private string DescribeDiagnostic(string code)
-    {
-        if (code.StartsWith("secret-", StringComparison.Ordinal))
-            return DefinitionFormModel.SecretRuleMessage(code, Form?.Locale ?? "en") + " (" + code + ")";
-        string key = code switch
-        {
-            "value-required" => "ReviewValueRequired",
-            "value-type-invalid" or "input-type-invalid" => "ReviewTypeInvalid",
-            "value-duplicate" => "ReviewUniqueKey",
-            "value-invalid" or "value-constraint-invalid" => "ReviewConstraints",
-            "answer-budget-exceeded" => "ReviewInputTooLarge",
-            "draft-dependency-unresolved" => "ReviewDeferredDependency",
-            "artifact-omitted" => "ReviewArtifactOmitted",
-            _ => "ReviewCheckDefinition"
-        };
-        return $"{Ui(key)} ({code})";
-    }
+    private string DescribeDiagnostic(string code) => ConfigurationDiagnosticText.Describe(code, Form?.Locale ?? "en");
     private string FieldTitle(DefinitionDiagnostic diagnostic)
     {
         var entry = Form?.Projection.Entries.FirstOrDefault(entry => entry.FieldId == diagnostic.FieldId &&

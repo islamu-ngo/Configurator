@@ -79,8 +79,8 @@ public sealed class BrowserDeveloperEditingTests
     public async Task BothDeveloperLanguagesAreAvailableWithoutSatelliteLoading()
     {
         string[] resources = typeof(ConfigurationDeveloper).Assembly.GetManifestResourceNames();
-        await Assert.That(resources.Contains("Configurator.Browser.Resources.BrowserUi.resources", StringComparer.Ordinal)).IsTrue();
-        await Assert.That(resources.Contains("Configurator.Browser.Resources.BrowserUi.ar.resources", StringComparer.Ordinal)).IsTrue();
+        await Assert.That(resources.Contains("Configurator.Browser.Resources.BrowserStrings.resources", StringComparer.Ordinal)).IsTrue();
+        await Assert.That(resources.Contains("Configurator.Browser.Resources.BrowserStrings.ar.resources", StringComparer.Ordinal)).IsTrue();
     }
 
     [Test]

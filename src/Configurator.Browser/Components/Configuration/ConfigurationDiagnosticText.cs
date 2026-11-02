@@ -2,6 +2,7 @@ namespace Configurator.Browser.Components.Configuration;
 
 using System.Text;
 using Configurator.Core.Definitions;
+using Configurator.Presentation;
 
 internal static class ConfigurationDiagnosticText
 {
@@ -26,15 +27,5 @@ internal static class ConfigurationDiagnosticText
         return result.ToString().Trim();
     }
 
-    internal static string Describe(string code) => (code switch
-    {
-        "value-required" => "Supply the required value.",
-        "value-type-invalid" or "input-type-invalid" => "Use the declared field type.",
-        "value-duplicate" => "Each item must have a unique declared key.",
-        "value-invalid" or "value-constraint-invalid" => "Check the declared field constraints.",
-        "answer-budget-exceeded" => "Reduce or clear the oversized input.",
-        "draft-dependency-unresolved" => "Finish the deferred secret locally before evaluating dependent settings.",
-        "artifact-omitted" => "This draft omits an artifact with unresolved dependencies.",
-        _ => "Check this setting against the declared definition."
-    }) + " (" + code + ")";
+    internal static string Describe(string code, string locale) => $"{PresentationStrings.Diagnostic(code, locale)} ({code})";
 }

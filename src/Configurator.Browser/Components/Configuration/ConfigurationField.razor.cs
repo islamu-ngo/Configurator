@@ -110,7 +110,7 @@ public partial class ConfigurationField
 
     private string Error => string.Join(" ", Schema.Secret is not null
         ? Form.GetSecretValidation(Path, Validation is not null).Failures.Select(item => item.Message)
-        : Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code)) ?? []);
+        : Validation?.Diagnostics.Where(MatchesDiagnostic).Select(item => ConfigurationDiagnosticText.Describe(item.Code, Form.Locale)) ?? []);
     private bool MatchesDiagnostic(DefinitionDiagnostic diagnostic) => diagnostic.FieldId == Path[0] &&
         (diagnostic.Location is { } location
             ? Form.TryResolveCorrection(diagnostic.FieldId, location, out IReadOnlyList<string> resolved) &&

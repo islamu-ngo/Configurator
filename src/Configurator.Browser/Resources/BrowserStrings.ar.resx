@@ -222,14 +222,6 @@
   <data name="ReviewStateRequiredMissing" xml:space="preserve"><value>الإجابة المطلوبة ناقصة</value></data>
   <data name="ReviewStateOptionalMissing" xml:space="preserve"><value>اختياري؛ لم تُقدَّم إجابة</value></data>
   <data name="ReviewPreparation" xml:space="preserve"><value>التحضير</value></data>
-  <data name="ReviewValueRequired" xml:space="preserve"><value>قدّم القيمة المطلوبة.</value></data>
-  <data name="ReviewTypeInvalid" xml:space="preserve"><value>استخدم النوع المعلَن للحقل.</value></data>
-  <data name="ReviewUniqueKey" xml:space="preserve"><value>يجب أن يكون لكل عنصر مفتاح معلَن فريد.</value></data>
-  <data name="ReviewConstraints" xml:space="preserve"><value>تحقّق من القيود المعلَنة للحقل.</value></data>
-  <data name="ReviewInputTooLarge" xml:space="preserve"><value>قلّل حجم المدخل المتجاوز للحد أو امسحه.</value></data>
-  <data name="ReviewDeferredDependency" xml:space="preserve"><value>أكمل السر المؤجَّل محليًا قبل تقييم الإعدادات المعتمدة عليه.</value></data>
-  <data name="ReviewArtifactOmitted" xml:space="preserve"><value>تستبعد هذه المسودة ملفًا له اعتماديات غير محسومة.</value></data>
-  <data name="ReviewCheckDefinition" xml:space="preserve"><value>تحقّق من هذا الإعداد وفق التعريف المعلَن.</value></data>
   <data name="FilesTitle" xml:space="preserve"><value>حضّر الملفات وصدّرها</value></data>
   <data name="FilesHelp" xml:space="preserve"><value>حضّر إعدادًا مكتملًا أو مسودة غير مكتملة، ثم اختر نسخ كل ملف أو تنزيله للتحقق منه في التطبيق الهدف.</value></data>
   <data name="ClearWorkspace" xml:space="preserve"><value>امسح مساحة العمل</value></data>
@@ -409,4 +401,129 @@
   <data name="SecretGeneratedOrigin" xml:space="preserve"><value>مولّدة محليًا</value></data>
   <data name="SecretCancel" xml:space="preserve"><value>إلغاء التوليد</value></data>
   <data name="SecretMultilineHelp" xml:space="preserve"><value>استخدم إظهار لإدخال مفتاح خاص متعدد الأسطر أو تعديله. يعيد إخفاء العرض المقنّع للقراءة فقط.</value></data>
+  <data name="FormMode" xml:space="preserve"><value>النموذج</value></data>
+  <data name="DeveloperMode" xml:space="preserve"><value>المطوّر</value></data>
+  <data name="Title" xml:space="preserve"><value>المطوّر</value></data>
+  <data name="Introduction" xml:space="preserve"><value>حرّر نطاقًا عامًا محدودًا، ثم عاين التغييرات وطبّقها صراحةً على مساحة العمل.</value></data>
+  <data name="Representation" xml:space="preserve"><value>تمثيل المستند</value></data>
+  <data name="Canonical" xml:space="preserve"><value>إجابات قابلة للتحرير (نطاق عام)</value></data>
+  <data name="Environment" xml:space="preserve"><value>متغيرات البيئة (نطاق مقيّد)</value></data>
+  <data name="ApplyMode" xml:space="preserve"><value>مفاتيح البيئة الغائبة</value></data>
+  <data name="Merge" xml:space="preserve"><value>دمج: الاحتفاظ بالمفاتيح الغائبة</value></data>
+  <data name="ReplaceScope" xml:space="preserve"><value>استبدال النطاق الممثّل: إغفال المفاتيح الغائبة</value></data>
+  <data name="CanonicalScope" xml:space="preserve"><value>الإجابات العامة المقدَّمة والإغفالات الصريحة فقط، وليست نسخة احتياطية كاملة. تبقى الإعدادات المحمية والمناطق المركّبة المستبعدة في النموذج.</value></data>
+  <data name="EnvironmentScope" xml:space="preserve"><value>لا يمكن تحرير إلا تعيينات القيم المفردة المباشرة والنشطة وغير الملتبسة. تبقى الإعدادات المحمية والخاملة والثابتة والمتحكّمة خارج هذا النطاق.</value></data>
+  <data name="CoverageSummary" xml:space="preserve"><value>التغطية: {0} قابل للتحرير، {1} مستبعد</value></data>
+  <data name="CoverageHelp" xml:space="preserve"><value>تحتوي هذه القائمة على بيانات التعريف المعتمدة فقط، لا إجاباتك. استخدم النموذج للإعدادات المستبعدة.</value></data>
+  <data name="CoverageEditable" xml:space="preserve"><value>قابل للتحرير</value></data>
+  <data name="CoverageProtected" xml:space="preserve"><value>مستبعد: منطقة محمية</value></data>
+  <data name="CoverageReadOnly" xml:space="preserve"><value>مستبعد: مخرج للقراءة فقط</value></data>
+  <data name="CoverageInactive" xml:space="preserve"><value>مستبعد: غير نشط</value></data>
+  <data name="CoverageConditionUnresolved" xml:space="preserve"><value>مستبعد: شرط غير محسوم</value></data>
+  <data name="CoverageUnsupported" xml:space="preserve"><value>مستبعد: تعيين غير مدعوم</value></data>
+  <data name="CoverageAmbiguous" xml:space="preserve"><value>مستبعد: تعيين ملتبس</value></data>
+  <data name="CoverageController" xml:space="preserve"><value>مستبعد: متحكّم في التفعيل</value></data>
+  <data name="CoveragePages" xml:space="preserve"><value>صفحات التغطية</value></data>
+  <data name="Page" xml:space="preserve"><value>الصفحة {0} من {1}</value></data>
+  <data name="ConsentTitle" xml:space="preserve"><value>يتطلب الإدخال الخاص موافقة مساحة العمل</value></data>
+  <data name="ConsentPending" xml:space="preserve"><value>ينتظر المحرّر موافقة مساحة العمل.</value></data>
+  <data name="ConsentRequired" xml:space="preserve"><value>لم يُفتح أي محرّر أو مصدر. يُعد كل ما تكتبه أو تلصقه خاصًا حتى في مستند ذي نطاق عام. راجع عنصر الموافقة الحالي للمتابعة. لا تُملأ الأسرار المقبولة تلقائيًا.</value></data>
+  <data name="RequestConsent" xml:space="preserve"><value>مراجعة موافقة مساحة العمل</value></data>
+  <data name="EditorLabel" xml:space="preserve"><value>مستند الإعداد المعلّق</value></data>
+  <data name="EditorHelpTitle" xml:space="preserve"><value>مساعدة لوحة المفاتيح والتنسيق</value></data>
+  <data name="EditorHelp" xml:space="preserve"><value>يبقى النص المعلّق وسجل التراجع في هذا المحرّر الخاص حتى إنهائه. ينقلك Tab خارج المحرّر. لا تطبّق المعاينة التغييرات. التنسيق صريح ويحتفظ بالنص غير الصالح. يزيل تنسيق البيئة التعليقات ويوحّد نهايات الأسطر إلى LF دون BOM.</value></data>
+  <data name="Preview" xml:space="preserve"><value>تحليل ومعاينة</value></data>
+  <data name="Format" xml:space="preserve"><value>تنسيق</value></data>
+  <data name="Apply" xml:space="preserve"><value>تطبيق</value></data>
+  <data name="DeveloperCancel" xml:space="preserve"><value>إلغاء التحرير</value></data>
+  <data name="Reopen" xml:space="preserve"><value>فتح مصدر مساحة العمل الحالية</value></data>
+  <data name="DeveloperReady" xml:space="preserve"><value>لا تُطبَّق التغييرات أثناء الكتابة.</value></data>
+  <data name="Changed" xml:space="preserve"><value>تغيّر النص المعلّق أو نمط التطبيق. حلّل المستند مجددًا لتحديث المعاينة.</value></data>
+  <data name="PreviewReady" xml:space="preserve"><value>المعاينة جاهزة. تبقى إجابات مساحة العمل كما هي حتى التطبيق.</value></data>
+  <data name="Invalid" xml:space="preserve"><value>لا يمكن تطبيق المستند. صحّح الرمز والموضع المحدّدين؛ يبقى النص المعلّق محفوظًا.</value></data>
+  <data name="SourceUnavailable" xml:space="preserve"><value>تعذّر فتح المصدر. صحّح القيم غير الصالحة أو مسودات النموذج المعلّقة ضمن هذا النطاق ثم أعد الفتح. لم تُحذف أي مسودة.</value></data>
+  <data name="Unavailable" xml:space="preserve"><value>المحرّر المحلي غير متاح. لا يُستخدم محرّر بديل أو خدمة بعيدة. يبقى النموذج متاحًا؛ أعد الفتح بعد تجهيز أصول المحرّر المحلية.</value></data>
+  <data name="Retired" xml:space="preserve"><value>أُنهي المحرّر السابق وسجلّه ومعاينته. أعد الفتح صراحةً لتحرير مساحة العمل الحالية.</value></data>
+  <data name="Applied" xml:space="preserve"><value>طُبّق المستند على مساحة العمل. بقي النص وسجل التراجع كما هما دون تنسيق أو إعادة تحميل تلقائية.</value></data>
+  <data name="AppliedEditorUnavailable" xml:space="preserve"><value>طُبّق المستند على مساحة العمل، لكن تعذّر إعادة ربط المحرّر المحلي. لم يُرفض التغيير. راجع مساحة العمل قبل إعادة فتح المحرّر.</value></data>
+  <data name="AppliedObserverFailed" xml:space="preserve"><value>طُبّق المستند، لكن أخفق مراقب بعد الحفظ. لم يُرفض التغيير. راجع مساحة العمل الحالية قبل المتابعة.</value></data>
+  <data name="Formatted" xml:space="preserve"><value>نُسّق النص المعلّق دون تطبيقه. حلّله مجددًا لمعاينة التغييرات.</value></data>
+  <data name="HistoryLimited" xml:space="preserve"><value>يقتصر السجل على 100 مجموعة تراجع وميزانية نص محتفَظ به قدرها 4 MiB. قد تُحذف أقدم مجموعات السجل؛ تُرفض التعديلات المتجاوزة للميزانية دون اقتطاع النص الحالي بصمت.</value></data>
+  <data name="InvalidJson" xml:space="preserve"><value>صياغة JSON غير صالحة. صحّح المستند قبل التطبيق.</value></data>
+  <data name="InvalidEnvironment" xml:space="preserve"><value>صياغة البيئة غير صالحة. استخدم مفتاحًا بأحرف لاتينية كبيرة وقيمة مدعومة في سطر واحد.</value></data>
+  <data name="Diagnostics" xml:space="preserve"><value>تشخيصات المستند</value></data>
+  <data name="CanonicalCoordinates" xml:space="preserve"><value>تستخدم أخطاء قبول الإجابات حاليًا إحداثيات على مستوى المستند. يوفّر المحرّر المحلي علامات أخطاء الصياغة.</value></data>
+  <data name="EnvironmentCoordinates" xml:space="preserve"><value>تشير الإحداثيات إلى المصدر قبل توحيد نهايات الأسطر. يحدّد المُرمّز المقيّد الإدخال الصالح، لا صياغة الصدفة.</value></data>
+  <data name="Coordinates" xml:space="preserve"><value>السطر {0}، العمود {1}</value></data>
+  <data name="DiagnosticsTruncated" xml:space="preserve"><value>تُعرض أول 100 رسالة تشخيص فقط. صحّحها ثم حلّل مجددًا.</value></data>
+  <data name="ChangeCount" xml:space="preserve"><value>{0} تغييرات ضمن النطاق الممثّل</value></data>
+  <data name="CanonicalSummary" xml:space="preserve"><value>استبدال النطاق العام: غياب الإعداد عن values وomitted يعيد ضبطه ضمن النطاق الملتقط فقط؛ أما omitted فيمنع تهيئته. لا تتغيّر المناطق المستبعدة.</value></data>
+  <data name="MergeSummary" xml:space="preserve"><value>دمج: تضبط المفاتيح المقدَّمة الإجابات الممثّلة. تحتفظ المفاتيح الغائبة بالإجابات والإغفالات الحالية. لا تتغيّر الإعدادات غير الممثّلة.</value></data>
+  <data name="ReplaceSummary" xml:space="preserve"><value>استبدال النطاق الممثّل: تضبط المفاتيح المقدَّمة الإجابات؛ تصبح المفاتيح الممثّلة الغائبة إغفالات صريحة. لا تُعاد تهيئة الإعدادات أو القيم الافتراضية خارج النطاق.</value></data>
+  <data name="ChangeSet" xml:space="preserve"><value>تعيين إجابة مقدَّمة</value></data>
+  <data name="ChangeReset" xml:space="preserve"><value>إعادة ضبط ضمن النطاق الممثّل</value></data>
+  <data name="ChangeOmit" xml:space="preserve"><value>إغفال صريح</value></data>
+  <data name="ApplyBoundary" xml:space="preserve"><value>تحديث ذري واحد لمساحة العمل. تبقى الإجابات المطلوبة الناقصة عملًا للمراجعة. لا يمنح التحضير قبول التطبيق الهدف أو صلاحيات إدارته.</value></data>
+  <data name="PendingTitle" xml:space="preserve"><value>حسم عمل المطوّر المعلّق</value></data>
+  <data name="PendingHelp" xml:space="preserve"><value>طبّق النص الصالح، أو تجاهل المستند الخاص وسجلّه، أو ابقَ هنا. يبقى النص غير الصالح بعد إخفاق التطبيق. يؤدي سحب الموافقة إلى إنهائه فورًا.</value></data>
+  <data name="Discard" xml:space="preserve"><value>تجاهل</value></data>
+  <data name="Stay" xml:space="preserve"><value>البقاء</value></data>
+  <data name="Search" xml:space="preserve"><value>بحث</value></data>
+  <data name="Replace" xml:space="preserve"><value>استبدال</value></data>
+  <data name="Next" xml:space="preserve"><value>التالي</value></data>
+  <data name="Previous" xml:space="preserve"><value>السابق</value></data>
+  <data name="Find" xml:space="preserve"><value>بحث</value></data>
+  <data name="ReplaceAll" xml:space="preserve"><value>استبدال الكل</value></data>
+  <data name="NoMatches" xml:space="preserve"><value>لا توجد نتائج</value></data>
+  <data name="AllMatches" xml:space="preserve"><value>كل النتائج</value></data>
+  <data name="MatchCase" xml:space="preserve"><value>مطابقة حالة الأحرف</value></data>
+  <data name="RegularExpression" xml:space="preserve"><value>تعبير نمطي</value></data>
+  <data name="WholeWords" xml:space="preserve"><value>كلمات كاملة</value></data>
+  <data name="Completions" xml:space="preserve"><value>اقتراحات الإكمال</value></data>
+  <data name="ImportComparisonTitle" xml:space="preserve"><value>مقارنة الملف المستورد</value></data>
+  <data name="ImportComparisonScope" xml:space="preserve"><value>هذه معلومات عن الملف المحدد وليست حكمًا على صلاحية مساحة العمل الحالية. لم تتغير الإجابات أو المسودات أو الملفات المعدّة.</value></data>
+  <data name="ImportExecution" xml:space="preserve"><value>التنفيذ</value></data>
+  <data name="ImportCompleted" xml:space="preserve"><value>مكتمل</value></data>
+  <data name="ImportNotCompleted" xml:space="preserve"><value>غير مكتمل</value></data>
+  <data name="ImportCompatibility" xml:space="preserve"><value>التوافق</value></data>
+  <data name="ImportCoverage" xml:space="preserve"><value>نطاق التقييم</value></data>
+  <data name="ImportCoverageComplete" xml:space="preserve"><value>مكتمل ضمن نطاق الملف الممثّل</value></data>
+  <data name="ImportCoveragePartial" xml:space="preserve"><value>جزئي؛ توجد إعدادات لم تُقيَّم</value></data>
+  <data name="ImportInventory" xml:space="preserve"><value>حصر النتائج</value></data>
+  <data name="ImportInventoryComplete" xml:space="preserve"><value>{0} نتيجة؛ اكتمل الحصر</value></data>
+  <data name="ImportInventoryStopped" xml:space="preserve"><value>{0} نتيجة على الأقل؛ توقف الحصر</value></data>
+  <data name="ImportFileAutofill" xml:space="preserve"><value>التعبئة من الملف</value></data>
+  <data name="ImportEligible" xml:space="preserve"><value>مؤهل لفحوص مساحة العمل الصارمة</value></data>
+  <data name="ImportIneligible" xml:space="preserve"><value>غير مؤهل؛ لا اعتماد جزئي</value></data>
+  <data name="ImportTargetAcceptance" xml:space="preserve"><value>قبول التطبيق المستهدف</value></data>
+  <data name="ImportNotAssessed" xml:space="preserve"><value>لم يُقيَّم</value></data>
+  <data name="ImportFillWorkspace" xml:space="preserve"><value>تعبئة مساحة العمل:</value></data>
+  <data name="ImportRepairCopy" xml:space="preserve"><value>أصلح نسخة منفصلة بعد مراجعتها ثم اخترها مجددًا. احتفظ بالملف الأصلي؛ لا يمكن دمج المحتوى المجهول أو التغييرات البنيوية أو القيم غير الصالحة على نحو تقريبي.</value></data>
+  <data name="ImportUnsupportedWorkspace" xml:space="preserve"><value>لا تستطيع مساحة العمل حفظ جميع الإعدادات المستردة. استخدم واجهة سطر الأوامر لإعداد التكوين الكامل؛ مسح المدخلات لا يزيل هذا القيد.</value></data>
+  <data name="ImportConflictHelp" xml:space="preserve"><value>أهلية الملف لا تسمح باستبدال الإجابات الصريحة أو الحذف أو المسودات المعلقة. امسح المدخلات المتعارضة أو أعد ضبطها عمدًا قبل الاستيراد مجددًا.</value></data>
+  <data name="ImportComparisonBoundary" xml:space="preserve"><value>يقتصر التقييم على المحتوى الممثّل. تُميَّز الإعدادات غير المرصودة والمحددات المستمدة من السياق عن القيم المقدمة؛ التهيئة لا تثبت وجود العنصر في الملف. لا يُستنتج تغيير أسماء أو مصدر إصدار أو حالة نشر فعلية.</value></data>
+  <data name="ImportSeverityBlocking" xml:space="preserve"><value>مانع</value></data>
+  <data name="ImportSeverityUnassessed" xml:space="preserve"><value>غير مقيَّم</value></data>
+  <data name="ImportSeverityInformation" xml:space="preserve"><value>معلومة</value></data>
+  <data name="ImportExplainSchema" xml:space="preserve"><value>شرح المخطط</value></data>
+  <data name="ImportFindingPages" xml:space="preserve"><value>صفحات نتائج الملف المستورد</value></data>
+  <data name="ImportPrevious" xml:space="preserve"><value>النتائج السابقة</value></data>
+  <data name="ImportNext" xml:space="preserve"><value>النتائج التالية</value></data>
+  <data name="ImportDeclaredSchema" xml:space="preserve"><value>المخطط المعلن:</value></data>
+  <data name="ImportSchemaPath" xml:space="preserve"><value>مسار المخطط:</value></data>
+  <data name="ImportExplanationBoundary" xml:space="preserve"><value>لا يحدد هذا الشرح صفًا أو عنصر خريطة في مساحة العمل، ولا يعتمد المسودات أو يصنّف قيم مساحة العمل على أنها غير صالحة.</value></data>
+  <data name="ImportFillFields" xml:space="preserve"><value>تعبئة الحقول من المقارنة</value></data>
+  <data name="ImportClearComparison" xml:space="preserve"><value>مسح المقارنة</value></data>
+  <data name="ImportDeclaredSetting" xml:space="preserve"><value>الإعداد المعلن</value></data>
+  <data name="ImportFileStructure" xml:space="preserve"><value>بنية الملف</value></data>
+  <data name="InspectorDefinitionPath" xml:space="preserve"><value>مسار التعريف</value></data>
+  <data name="InspectorDeclaredType" xml:space="preserve"><value>النوع المعلن</value></data>
+  <data name="InspectorUnits" xml:space="preserve"><value>الوحدات</value></data>
+  <data name="InspectorSensitivity" xml:space="preserve"><value>الحساسية المعلنة</value></data>
+  <data name="InspectorDetailHelp" xml:space="preserve"><value>يغير مستوى التفاصيل الإعدادات الاختيارية المعروضة. تظل المهام المطلوبة والأخطاء الحالية قابلة للوصول. يغير العرض المريح أو المضغوط المسافات دون تغيير الإجابات أو التحقق.</value></data>
+  <data name="InspectorOutputBindings" xml:space="preserve"><value>روابط المخرجات المعلنة</value></data>
+  <data name="InspectorArtifactIds" xml:space="preserve"><value>معرّفات الملفات:</value></data>
+  <data name="InspectorBindingsBoundary" xml:space="preserve"><value>هذه مراجع معلنة، ولا تضمن تضمين ملف إخراج مشروط.</value></data>
+  <data name="InspectorPublicBoundary" xml:space="preserve"><value>تحتوي المساعدة على إرشادات عامة للتعريف والواجهة، ولا تحتوي على إجاباتك. الإعداد لا يمنح قبول التطبيق المستهدف أو إذن التطبيق.</value></data>
+  <data name="InspectorCloseHelp" xml:space="preserve"><value>إغلاق مساعدة الحقل</value></data>
 </root>

@@ -3,11 +3,50 @@ namespace Configurator.Browser.Tests;
 using System.Collections;
 using System.Globalization;
 using System.Resources;
+using Bunit;
 using Configurator.Browser.Resources;
 using Configurator.Browser.Services;
+using Configurator.Core.Definitions;
+using Configurator.Presentation;
 
 public sealed class BrowserLocalizationTests
 {
+    [Test]
+    public async Task ImportReviewUsesIndependentWorkspaceLanguagesAndPreservesMachineFacts()
+    {
+        var definition = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"0f2bf156-925c-43d0-a917-ed7ed45b1dc3","revision":1},
+             "project":{"id":"localized-import","name":"Localized import"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["name"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "name":{"type":"string","title":"Declared name","x-configurator":{"sensitivity":"public"}}}},
+             "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """u8.ToArray());
+        using var english = new DefinitionFormModel(definition);
+        using var arabic = new DefinitionFormModel(definition);
+        await Assert.That(arabic.SelectLocale("ar")).IsTrue();
+        await english.CompareAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>("{}"u8.ToArray()));
+        await arabic.CompareAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>("{}"u8.ToArray()));
+        await using var context = BrowserFixture.Context();
+        var first = context.Render<ConfigurationImportReview>(parameters => parameters.Add(item => item.Form, english));
+        var second = context.Render<ConfigurationImportReview>(parameters => parameters.Add(item => item.Form, arabic));
+        string englishHeading = first.Find("h3").TextContent;
+        await Assert.That(second.Find("h3").TextContent.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+        await Assert.That(first.Find("h3").TextContent).IsEqualTo(englishHeading);
+        await Assert.That(second.Find("[data-import-severity]").GetAttribute("data-import-severity"))
+            .IsEqualTo(first.Find("[data-import-severity]").GetAttribute("data-import-severity"));
+        var report = arabic.ImportComparison;
+        long revision = arabic.InputRevision;
+        await second.InvokeAsync(() => arabic.SelectLocale("en"));
+        second.Render();
+        await Assert.That(second.Find("h3").TextContent).IsEqualTo(englishHeading);
+        await Assert.That(arabic.ImportComparison).IsSameReferenceAs(report!);
+        await Assert.That(arabic.InputRevision).IsEqualTo(revision);
+        await Assert.That(arabic.Snapshot().Values).IsEmpty();
+    }
+
     [Test]
     public async Task BothLanguagesShipInMainAssemblyWithCompleteMatchingKeys()
     {

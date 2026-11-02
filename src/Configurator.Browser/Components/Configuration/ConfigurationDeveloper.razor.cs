@@ -3,7 +3,7 @@ namespace Configurator.Browser.Components.Configuration;
 
 using System.Buffers;
 using System.Globalization;
-using System.Resources;
+using Configurator.Browser.Resources;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Configurator.Core.Definitions;
@@ -25,8 +25,6 @@ public partial class ConfigurationDeveloper : ComponentBase
     private ElementReference _heading;
     public ElementReference? Heading => _disposed ? null : _heading;
 
-    private static readonly ResourceManager English = new("Configurator.Browser.Resources.BrowserUi", typeof(ConfigurationDeveloper).Assembly);
-    private static readonly ResourceManager Arabic = new("Configurator.Browser.Resources.BrowserUi.ar", typeof(ConfigurationDeveloper).Assembly);
     private readonly string _id = "developer-" + Guid.NewGuid().ToString("N");
     private DefinitionFormModel? _observedForm;
     private DefinitionDocumentSession? _session;
@@ -81,9 +79,7 @@ public partial class ConfigurationDeveloper : ComponentBase
     private int CoverageCount => Coverage.Count();
     private int CoveragePages => Math.Max(1, (CoverageCount + PageSize - 1) / PageSize);
     private static string LocalizedText(string key, string locale) =>
-        (CultureInfo.GetCultureInfo(locale).TwoLetterISOLanguageName == "ar" ? Arabic : English)
-        .GetString(key, CultureInfo.InvariantCulture)
-        ?? throw new MissingManifestResourceException("Missing Developer UI resource.");
+        BrowserStrings.Get(key is "Ready" or "Cancel" ? "Developer" + key : key, locale);
     private string Text(string key) => LocalizedText(key, Form.Locale);
     private string FormatText(string key, params object[] arguments) => string.Format(CultureInfo.GetCultureInfo(Form.Locale), Text(key), arguments);
 

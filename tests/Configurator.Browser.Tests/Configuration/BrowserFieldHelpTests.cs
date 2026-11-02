@@ -3,13 +3,30 @@ namespace Configurator.Browser.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
-using Configurator.Browser.Layout;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
 public sealed class BrowserFieldHelpTests
 {
+    [Test]
+    public async Task InspectorUsesTheFieldLocaleForAccessibleActionsAndKeepsPublicPaths()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = BrowserFixture.RenderWorkspace(context, BrowserFixture.Definition);
+        var actions = component.FindComponents<ConfigurationFieldActions>()
+            .Single(item => item.Instance.Path.Count == 1 && item.Instance.Path[0] == "hostname");
+        actions.Render(parameters => parameters.Add(item => item.Locale, "ar"));
+        await actions.Find("[data-action='field-help']").ClickAsync(new MouseEventArgs());
+        var inspector = component.FindComponent<ConfigurationInspector>();
+        await Assert.That(inspector.Instance.Locale).IsEqualTo("ar");
+        await Assert.That(inspector.Find("[data-definition-path]").TextContent).IsEqualTo("hostname");
+        var close = inspector.Find("[data-action='close-field-help']");
+        await Assert.That(close.GetAttribute("aria-label")!.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
+        await close.ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[role='dialog']")).IsEmpty();
+    }
+
     [Test]
     public async Task OmissionMenuStaysClosedBetweenEditsAndReopensWithCurrentAnswer()
     {
@@ -107,5 +124,4 @@ public sealed class BrowserFieldHelpTests
         await component.Find("[aria-label='Close field help']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[role='dialog']")).IsEmpty();
     }
-
 }
