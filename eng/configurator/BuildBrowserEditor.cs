@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property PublishAot=false
 #:property NuGetLockFilePath=$(BaseIntermediateOutputPath)browser-editor.packages.lock.json
 #:property JsonSerializerIsReflectionEnabledByDefault=true
 #:property AssemblyName=Configurator.BrowserEditorBuilder

@@ -64,6 +64,12 @@ the embedded .NET native/Mono runtime's own notices are retained; those runtime
 packs are not ordinary NuGet asset libraries. This conservative inventory also retains build-time
 package notices; it does not copy assemblies or executable inputs.
 
+The ratchet, definition Store, browser editor and dependency-notice file-based
+engineering tools explicitly use managed execution (`PublishAot=false`). They
+run during packaging and need no native AOT compiler dependency. This setting
+does not alter the packaged native single-file contract or the Browser Release
+`RunAOTCompilation=true` setting; Browser publication still compiles WASM AOT.
+
 RID-specific restore uses separate `obj/configurator-release/<rid>/packages.lock.json`
 files so native publication never rewrites framework-only development locks.
 Those ephemeral locks are generated from pinned dependencies for packaging;
@@ -199,6 +205,17 @@ substitute for running the actual published Browser. The portable
 distributed closure. See [cryptographic contracts](SECRET_CRYPTOGRAPHY.md).
 
 ## Browser container
+
+Deployment-aware browser delivery uses the framework `System.IO.Compression`
+ZIP implementation; it adds no package or archive artifact format to Core.
+The browser adapter bounds source and final delivery bytes separately to
+4,194,304 and limits entries to 64, including archive metadata in the delivery
+bound. Component tests inspect actual ZIP names and contents and generation
+refusal. They do not establish WASM peak allocation, actual browser clipboard
+or download behavior, keyboard/RTL/reflow, or assistive-technology qualification.
+Record those observations separately against the actual locally published
+package; a successful build or headless component run cannot substitute for
+those host observations.
 
 `src/Configurator.Browser/Dockerfile` builds from the repository root and invokes
 `PublishConfiguratorBrowser`; it does not bypass ratchet checks, locked project

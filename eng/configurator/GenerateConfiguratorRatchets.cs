@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property PublishAot=false
 #:property NuGetLockFilePath=obj/Configurator.RatchetGenerator/packages.lock.json
 #:property AssemblyName=Configurator.RatchetGenerator
 #:property RootNamespace=Configurator.Engineering

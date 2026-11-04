@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property PublishAot=false
 #:property AssemblyName=Configurator.DependencyNotices
 #:property RootNamespace=Configurator.Ci
 

@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property PublishAot=false
 #:property NuGetLockFilePath=obj/Configurator.DefinitionStoreBuilder/packages.lock.json
 #:property JsonSerializerIsReflectionEnabledByDefault=true
 #:property AssemblyName=Configurator.DefinitionStoreBuilder
