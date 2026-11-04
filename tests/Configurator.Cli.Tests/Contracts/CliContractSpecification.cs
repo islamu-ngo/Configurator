@@ -35,7 +35,8 @@ internal static class CliContractSpecification
             "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
             "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
             "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",
-            "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "schema.secret", "values.initial", "values.suggested"], StringComparer.Ordinal);
+            "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "schema.secret", "values.initial", "values.suggested",
+            "deployment.scope", "environment.docker-run", "environment.compose"], StringComparer.Ordinal);
 
     internal static readonly IReadOnlySet<string> FindingClassifications = new HashSet<string>(
         ["missing-required", "invalid-supplied-value", "unrecognized-input", "structural-output-change",

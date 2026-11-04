@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6K7QAF0JC45MS4ZG8H26SRR
+Title: "compare artifacts under explicit deployment context"
+Type: feat
+Scope: self-hosting
+Summary: "Use ordinary answers for comparison context and publish current command metadata and destination dialect behavior."
+Group: commit-all-cli
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Use ordinary answers for comparison context and publish current command metadata and destination dialect behavior."
+  Migration:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Use ordinary answers for comparison context and publish current command metadata and destination dialect behavior."
+  OpenAPI:
+    Reference: docs/public/cli.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Use ordinary answers for comparison context and publish current command metadata and destination dialect behavior."

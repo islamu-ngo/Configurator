@@ -156,6 +156,35 @@ Values use exact schema property names, not generated presentation field IDs.
 Omissions are concrete RFC 6901 pointers (`~0` escapes tilde; `~1` escapes slash).
 Supplied and omitted locations cannot conflict, and omissions cannot overlap.
 
+### Deployment recipes, component scopes and destinations
+
+When a definition declares deployment choices, put its ordinary recipe and
+scope answers in this same answer workspace. The definition owns their exact
+property names, compatible choices and initial values. There are no separate
+recipe or scope command options. An explicit answer takes precedence over an
+initial value; an explicit omission does not silently restore that value.
+
+Readiness covers the selected component scope. A complete dashboard-only
+workspace can prepare its declared dashboard destination without worker
+credentials. Selecting a dashboard artifact from an all-component workspace
+still requires every obligation in that scope. An artifact outside the selected
+scope rejects, including requests through `bundle-check` and `bundle-create`.
+Inactive answers may remain in the private input workspace but are excluded
+from prepared output.
+
+For `artifact compare`, `check-existing` and `prefill`, supply `--answers` with
+the current workspace when the definition uses deployment context. Inspection
+uses those explicit public controls and the selected artifact's declared
+environment dialect; it does not infer deployment choices from a filename or
+imported keys. Compare does not write or mutate that workspace. Use the declared
+artifact ID to choose between process environment files and Compose inputs;
+their quoting rules differ. Component readiness never establishes complete
+deployment readiness or target acceptance.
+In machine receipts, `preparation: "ready"` records successful local preparation
+for the selected scope. `readiness` can still be `incomplete` because
+`host-validation-required` remains outstanding; `targetAcceptance` stays
+`unassessed`.
+
 Required means presence, not nonblank: false, zero, empty strings and empty
 containers remain supplied values, subject to their constraints. Null counts as
 present only where nullable. Standard `default` is descriptive and never
@@ -199,7 +228,7 @@ The CLI uses strict, case-sensitive option parsing:
 | `artifact export` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Publish artifact using canonical output writer |
 | `artifact import` | `--definition`, `--artifact`, `--input`, `--output`, `--expected-revision`, `--revision-field` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Prepare an import artifact with explicit revision binding |
 | `artifact check-existing` | `--definition`, `--artifact`, `--input` | `--answers`, `--input-revision` | Verify if a local file can be reverse-mapped to answers |
-| `artifact compare` | `--definition`, `--artifact`, `--input` | `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Assess an existing file against the selected definition without changing answers or files |
+| `artifact compare` | `--definition`, `--artifact`, `--input` | `--answers`, `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Assess an existing file against the selected definition without changing answers or files |
 | `artifact prefill` | `--definition`, `--artifact`, `--input`, `--output` | `--answers`, `--input-revision`, `--format`, `--dry-run` | Ingest local configuration into a JSON answer workspace |
 | `artifact bundle-check` | `--definition`, repeated `--artifact`, `--input` | `--input-revision` | Validate multi-artifact bundle readiness |
 | `artifact bundle-create` | `--definition`, repeated `--artifact`, `--input`, `--output` | `--input-revision`, `--dry-run` | Create all bundle artifacts in the target directory |
@@ -227,7 +256,9 @@ repeated `--artifact` flags, not CSV `--artifacts`.
 Normally `--input` supplies private answers. For `check-existing`, `compare`
 and `prefill`, it supplies an existing projected file. On `check-existing` and
 `prefill`, `--answers` optionally supplies the current workspace for conflict
-checks. On other operations admitting `--answers`, it supplies answers while
+checks and explicit deployment context. On `compare`, it supplies the context
+for inspection without adopting or comparing private workspace values. On
+other operations admitting `--answers`, it supplies answers while
 `--input` becomes an artifact to verify against recomposition; `format` writes
 canonical composed bytes, not arbitrary reformatted input. At most one private
 input can use redirected stdin; definitions must be local files. Interactive

@@ -291,6 +291,7 @@
           {
             "name": "compare",
             "options": [
+              "--answers",
               "--artifact",
               "--definition",
               "--detail",
@@ -1172,6 +1173,9 @@
           "uniqueItems": true,
           "items": {
             "enum": [
+              "deployment.scope",
+              "environment.docker-run",
+              "environment.compose",
               "predicate.item",
               "predicate.root",
               "projection.copy",

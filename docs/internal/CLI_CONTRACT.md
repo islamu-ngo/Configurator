@@ -131,6 +131,22 @@ an optional existing answer workspace, and `prefill` writes one new restricted
 answer snapshot to a create-only destination. Its values never enter the
 machine envelope.
 
+Deployment recipes and component scopes use the definition's ordinary answer
+selectors, not CLI flags or a separate configuration channel. Core resolves
+their initial values, explicit assignments and omissions before requiredness.
+`CliArtifactHandlers` composes against the resulting selected-scope readiness;
+an export subset does not narrow that validation scope. Both single-artifact
+and bundle requests reject destinations outside the admitted current context,
+and inactive retained answers never become output solely through retention.
+
+For deployment-aware inverses, `compare`, `check-existing` and `prefill` pass
+the captured `--answers` workspace to Core inspection. Public controller
+values establish inverse context without promoting private answer values to
+authority or guessing selectors from imported keys. The selected artifact's
+environment dialect also governs proof comparison of prepared dotenv input.
+Inspection without a resolvable context fails closed. Definitions without
+deployment metadata retain their ordinary inverse behavior.
+
 `artifact compare --definition <local> --artifact <id> --input <existing-file>`
 uses Core inspection directly and disposes the owned assessment and input buffer.
 It writes no artifact or answer snapshot. Its detached `assessment` contains
@@ -143,7 +159,8 @@ Root completion comes from inspection, not exit-zero inference; preparation is
 changes 2 even with incomplete coverage, otherwise incomplete coverage/evaluation
 3, and compatibility 0. Usage/I/O/cancellation retain 64/74/130.
 Host-specific imports must describe their fields/request projection as data.
-With `--answers`, input is a prepared artifact and the answers provide a
+For ordinary artifact operations such as `open`, `validate`, `format` and
+`export`, `--answers` means input is a prepared artifact and the answers provide a
 recomposition proof: bounded Core JSON/YAML normalization, dotenv parsing, or
 exact Markdown comparison checks it against the composer's output. A mismatch
 returns data failure without publication. Formatting writes canonical composer

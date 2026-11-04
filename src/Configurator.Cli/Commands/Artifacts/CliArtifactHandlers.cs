@@ -82,13 +82,13 @@ internal static class CliArtifactHandlers
         try
         {
             if (command.Answers is not null && !await EquivalentInputAsync(
-                invocation, command.Input!, artifact.Format.ToToken(), outputBytes, cancellationToken))
+                invocation, command.Input!, artifact, outputBytes, cancellationToken))
                 return CliResults.Failure(CliExitCode.Data, "artifact-projection-mismatch", "/input");
             if (command.Operation == "diff")
             {
                 if (command.Answers is not null)
                 {
-                    bool equal = await EquivalentInputAsync(invocation, command.Baseline!, artifact.Format.ToToken(), outputBytes, cancellationToken);
+                    bool equal = await EquivalentInputAsync(invocation, command.Baseline!, artifact, outputBytes, cancellationToken);
                     var compared = new CliMachineCoverage(equal ? [artifact.Id] : [], equal ? [] : [artifact.Id]);
                     return CliResults.Success(coverage: compared);
                 }
@@ -142,8 +142,11 @@ internal static class CliArtifactHandlers
     private static async Task<CliCommandResult> CompareAsync(CliCommand command, CliInvocation invocation,
         Definition definition, ArtifactDefinition artifact, CancellationToken cancellationToken)
     {
+        AnswerSnapshot? context = command.Answers is null ? null
+            : await CliIoOperations.AnswersAsync(invocation, command.Answers, command.InputRevision, cancellationToken);
         using CliInputBuffer source = await CliIoOperations.ReadAsync(invocation, command.Input!, cancellationToken);
-        using DefinitionImportAssessment assessment = DefinitionImport.Inspect(definition, artifact.Id, source.Bytes, cancellationToken);
+        using DefinitionImportAssessment assessment = DefinitionImport.Inspect(definition, artifact.Id, source.Bytes,
+            context: context, cancellationToken: cancellationToken);
         DefinitionImportReport report = assessment.Report;
         string compatibility = report.Compatibility switch
         {
@@ -216,7 +219,8 @@ internal static class CliArtifactHandlers
                 new Dictionary<string, JsonElement>(StringComparer.Ordinal))
             : await CliIoOperations.AnswersAsync(invocation, command.Answers, command.InputRevision, cancellationToken);
         using CliInputBuffer source = await CliIoOperations.ReadAsync(invocation, command.Input!, cancellationToken);
-        using DefinitionImportAssessment assessment = DefinitionImport.Inspect(definition, artifact.Id, source.Bytes, cancellationToken);
+        using DefinitionImportAssessment assessment = DefinitionImport.Inspect(definition, artifact.Id, source.Bytes,
+            context: current, cancellationToken: cancellationToken);
         DefinitionImportResult result = assessment.AssessAutofill(current, cancellationToken: cancellationToken);
         if (!result.Succeeded)
             return CliResults.Failure(result.Code == "answer-conflict" ? CliExitCode.Validation
@@ -291,10 +295,10 @@ internal static class CliArtifactHandlers
     }
 
     private static async Task<bool> EquivalentInputAsync(CliInvocation invocation, string path,
-        string format, ReadOnlyMemory<byte> expected, CancellationToken cancellationToken)
+        ArtifactDefinition artifact, ReadOnlyMemory<byte> expected, CancellationToken cancellationToken)
     {
         using CliInputBuffer candidate = await CliIoOperations.ReadAsync(invocation, path, cancellationToken);
-        return await EquivalentAsync(format, candidate.Bytes, expected, cancellationToken);
+        return await EquivalentAsync(artifact, candidate.Bytes, expected, cancellationToken);
     }
 
     private static void Clear(ReadOnlyMemory<byte> bytes)
@@ -323,15 +327,17 @@ internal static class CliArtifactHandlers
             && !projection.TryGetProperty("when", out _);
     }
 
-    private static async Task<bool> EquivalentAsync(string format, ReadOnlyMemory<byte> source,
+    private static async Task<bool> EquivalentAsync(ArtifactDefinition artifact, ReadOnlyMemory<byte> source,
         ReadOnlyMemory<byte> expected, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        string format = artifact.Format.ToToken();
         if (format == "markdown") return source.Span.SequenceEqual(expected.Span);
         if (format == "dotenv")
         {
-            DotenvParseResult candidate = DotenvCodec.Parse(source);
-            DotenvParseResult reference = DotenvCodec.Parse(expected);
+            EnvironmentDestinationDialect dialect = artifact.EnvironmentDialect ?? EnvironmentDestinationDialect.DockerRun;
+            DotenvParseResult candidate = DotenvCodec.Parse(source, dialect, cancellationToken: cancellationToken);
+            DotenvParseResult reference = DotenvCodec.Parse(expected, dialect, cancellationToken: cancellationToken);
             if (!candidate.Succeeded || !reference.Succeeded) throw new JsonException();
             return candidate.Document!.Entries
                 .OrderBy(entry => entry.Key, StringComparer.Ordinal).Select(entry => (entry.Key, entry.Value))
