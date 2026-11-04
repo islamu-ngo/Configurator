@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6K7QJGX45Q8CZPE9V7GVKRM
+Title: "select deployment scope before terminal preparation"
+Type: feat
+Scope: self-hosting
+Summary: "Expose compatible choices through native keyboard controls and restrict preparation and protected saves to eligible destinations."
+Group: commit-all-terminal
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Expose compatible choices through native keyboard controls and restrict preparation and protected saves to eligible destinations."
+  Migration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Expose compatible choices through native keyboard controls and restrict preparation and protected saves to eligible destinations."
+  OpenAPI:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Expose compatible choices through native keyboard controls and restrict preparation and protected saves to eligible destinations."

@@ -15,6 +15,7 @@
   <data name="Cancelled" xml:space="preserve"><value>Operation cancelled; private state cleared.</value></data>
   <data name="Writing" xml:space="preserve"><value>Writing protected output...</value></data>
   <data name="Choose" xml:space="preserve"><value>Cycle _choice</value></data>
+  <data name="Configuration" xml:space="preserve"><value>Choose configuration</value></data>
   <data name="Previous" xml:space="preserve"><value>_Previous field</value></data>
   <data name="Next" xml:space="preserve"><value>_Next field</value></data>
   <data name="ApplyField" xml:space="preserve"><value>_Apply field</value></data>

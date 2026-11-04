@@ -205,11 +205,16 @@ internal sealed partial class TerminalWindow : Window
             Text = LocalizedText("TerminalTooSmall"),
             Visible = false
         };
-        Add(heading, _locale, _correction, _experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
+        View[] configurationChoices = CreateConfigurationChoices();
+        Add(heading, _locale, _correction);
+        Add(configurationChoices);
+        Add(_experience, _optionalEditors, _fieldLabel, _value, _masked, _help, _choice, _supplyContainer, _clearContainer, previous, next, apply,
             _artifactLabel, artifact, selectOutput, fileLabel, _importPath, _import, _fillImport, _nextFinding,
             validate, _prepare, _save, _nextOutcome, _nextAttempt, _status,
             clear, close, limitations, previousItem, nextItem, removeItem, _addItem, _helpNext, _null, _reset, _suggest, itemNull, itemSuggestion,
             _generateSecret, _revealSecret, _copySecret);
+        _configurationContent = SubViews.Where(view => view != heading && view != _locale && view != _correction
+            && !configurationChoices.Contains(view)).ToArray();
         _normal = SubViews.ToArray();
         Add(_smallNotice);
         _value.ValueChanged += (_, _) => EditorChanged();
@@ -274,7 +279,8 @@ internal sealed partial class TerminalWindow : Window
     {
         if (!CommitField()) return;
         CancelImport();
-        var artifacts = _operation.Form.Definition.Artifacts;
+        var artifacts = _operation.EligibleArtifacts;
+        if (artifacts.Count == 0) return;
         int index = artifacts.ToList().FindIndex(item => item.Id == _operation.ArtifactId);
         _operation.ArtifactId = artifacts[(index + 1) % artifacts.Count].Id;
         ShowArtifact();
@@ -293,10 +299,14 @@ internal sealed partial class TerminalWindow : Window
 
     private void ShowArtifact()
     {
-        var artifact = _operation.Form.Definition.Artifacts.Single(item => item.Id == _operation.ArtifactId);
-        _artifactLabel.Text = Safe($"{artifact.Id} | "
+        var artifact = _operation.EligibleArtifacts.SingleOrDefault(item => item.Id == _operation.ArtifactId);
+        if (artifact is null) { _artifactLabel.Text = LocalizedText("InvalidOutput"); return; }
+        int artifactIndex = _operation.Form.Definition.Artifacts.ToList().IndexOf(artifact);
+        string? title = _operation.Form.LocalizedText(DefinitionPath.FromSegments(["artifacts",
+            artifactIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), "title"]), artifact.Title);
+        _artifactLabel.Text = Safe($"{title} | "
             + $"{(_operation.CurrentArtifactSelected ? LocalizedText("Selected") : LocalizedText("NotSelected"))} "
-            + $"{LocalizedNumber(_operation.SelectedArtifactIds.Count)}/{LocalizedNumber(_operation.Form.Definition.Artifacts.Count)} | "
+            + $"{LocalizedNumber(_operation.SelectedArtifactIds.Count)}/{LocalizedNumber(_operation.EligibleArtifacts.Count)} | "
             + $"{artifact.FileName} | {artifact.Format.ToToken()} | {artifact.ApplySemantics.ToToken()} | {artifact.Restart.ToToken()}");
     }
 
@@ -329,13 +339,14 @@ internal sealed partial class TerminalWindow : Window
 
     private void RefreshCommands()
     {
+        RefreshConfigurationChoices();
         bool available = !_tooSmall && !_workspace.IsBusy && !_importOperation.IsBusy
             && !_operation.IsPublishing && !_preparing && Volatile.Read(ref _closeRequested) == 0;
         _save.Enabled = available && _operation.ProtectedOutputAvailable
             && _operation.IsPrepared;
         _prepare.Enabled = available;
-        _import.Enabled = available && !string.IsNullOrWhiteSpace(_importPath.Text);
-        _fillImport.Enabled = available && !_draftEdited && (_operation.Form.ImportComparison is null
+        _import.Enabled = available && _operation.EligibleArtifacts.Count > 0 && !string.IsNullOrWhiteSpace(_importPath.Text);
+        _fillImport.Enabled = available && _operation.EligibleArtifacts.Count > 0 && !_draftEdited && (_operation.Form.ImportComparison is null
             ? !string.IsNullOrWhiteSpace(_importPath.Text) : _operation.Form.CanAdoptImportComparison);
         _nextFinding.Enabled = available && _operation.Form.ImportComparison is { Findings.Count: > 0 };
         _generateSecret.Enabled = available && _slot is not null && _operation.Form.CanGenerateSecret(

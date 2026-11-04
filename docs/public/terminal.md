@@ -53,34 +53,28 @@ Local definition files can contain either a compact maintainer source (`$schema:
 
 ## TUI Layout
 
-The terminal interface organizes configuration into distinct navigation, editing, guidance, and action regions:
+The current interface presents **one selected field at a time**. Its editor,
+help and applicable container/list/secret actions change with that selection.
+Use **Previous field** and **Next field** to move through the definition;
+artifact, import, preparation, save and status controls serve the workspace.
+Nested objects, lists, maps and variants use the same selected-field workflow.
 
-```text
-┌─────────────────────────── ISLAMU Configurator TUI ───────────────────────────┐
-│ Definition: Minimal Self-Hosted v1.0.0      Digest: sha256:7f83b1a2...        │
-├──────────────────────────────────────┬────────────────────────────────────────┤
-│ Configuration Fields                 │ Guidance & Consequence                 │
-│                                      │                                        │
-│ [*] Service Domain Name              │ Fully qualified domain name where      │
-│     [ api.example.com              ] │ this service will receive traffic.     │
-│                                      │ Type: string (FQDN)                    │
-│ [ ] Enable TLS Termination           │ Requirement: Mandatory                 │
-│     ( ) Yes   (*) No                 │                                        │
-│                                      │ Consequence:                           │
-│ [ ] Admin Password (Secret)          │ Stored in .env as SERVICE_PASSWORD.    │
-│     [ •••••••••••••••••            ] │ Value is masked during editing.        │
-│                                      │                                        │
-│ Containers & Lists:                  │                                        │
-│   [Supply container] [Clear]         │                                        │
-│   [Previous item]    [Next/add]      │                                        │
-│   [Add item]         [Remove item]   │                                        │
-├──────────────────────────────────────┴────────────────────────────────────────┤
-│ [Experience: Recommended ▼]  [Cycle choice]  [Apply field]  [Omit value]      │
-│ [Validate fields]  [Cycle artifact]  [Prepare artifact]  [Save protected]     │
-├───────────────────────────────────────────────────────────────────────────────┤
-│ Status: Ready to prepare • 3 of 3 required fields completed                   │
-└───────────────────────────────────────────────────────────────────────────────┘
-```
+### Direction and current limits
+
+The terminal is intended to grow into a sustained configuration workbench for
+operators and developers. Richer navigation, compact/comfortable presentation,
+contextual comparison and developer text editing are future direction; there
+is no full terminal document editor today. The project has chosen to retain
+official Terminal.Gui for this work. Browser-first development also supports
+opening the static browser client from a project's README Configure link.
+
+Current comparison checks an imported local configuration against the selected
+definition and workspace. It does not compare arbitrary schemas or infer
+migrations. Local file import does not upload the file. Future opt-in native
+Infisical/Azure Key Vault operations require separate design and are not
+available in this client. Target validation and apply permission remain with
+the application. See the [decision and tradeoffs](../internal/adr/ADR-terminal-framework-and-workbench.md)
+for the direction and its qualification boundaries.
 
 ---
 
@@ -102,6 +96,25 @@ The TUI is designed for swift, keyboard-driven navigation:
 ---
 
 ## Workflow & Features
+
+### Deployment recipe and component scope
+
+Definitions that declare deployment choices show each compatible recipe and
+component scope before the field controls. The selected pair is marked
+**selected**. Use Tab or Shift+Tab to focus a different labelled pair and Enter
+to choose it. Both answers change together; an invalid field draft must be
+corrected before switching. Detail and language controls do not change scope.
+
+Required fields and available output destinations follow that scope. A
+dashboard-only or API-only workspace can be complete without another
+component's credentials. Selecting fewer output files inside an all-component
+workspace still requires completing that workspace's scope. Inactive answers
+remain in transient memory for switching back; they do not become output.
+
+Changing the pair retires preparation and import results. Review the current
+destination, prepare again, and use the existing protected-save action.
+Completion describes local preparation for the selected components; the target
+application still owns acceptance and apply permission.
 
 ### Form Navigation and Field Editing
 

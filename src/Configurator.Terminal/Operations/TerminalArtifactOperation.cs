@@ -2,6 +2,7 @@ namespace Configurator.Terminal;
 
 using Configurator.Artifacts;
 using Configurator.Core.Artifacts;
+using Configurator.Core.Definitions;
 using Configurator.Presentation;
 
 
@@ -21,6 +22,7 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
     private ProtectedArtifactPublicationReceipt? _currentPublication;
     private bool _publishing;
     private string _artifactId;
+    private string[] _eligibleArtifactIds;
     private bool _disposed;
     private long _preparationGeneration;
 
@@ -44,8 +46,9 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
                 writer, artifacts, directory, observe, token).ConfigureAwait(false);
             return new(result.Outcomes, result.CompletionCode, result.CleanupFailed);
         });
-        _artifactId = form.Definition.Artifacts[0].Id;
-        _selected.Add(_artifactId);
+        _eligibleArtifactIds = form.EligibleArtifacts.Select(artifact => artifact.Id).ToArray();
+        _artifactId = form.ConfigurationContext?.PrimaryArtifactId ?? _eligibleArtifactIds.FirstOrDefault() ?? string.Empty;
+        if (_artifactId.Length > 0) _selected.Add(_artifactId);
         Form.InputChanged += InputChanged;
     }
 
@@ -68,7 +71,8 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
         get { lock (_receiptGate) return !_disposed && !_publishing && Preparation?.InputRevision == Form.InputRevision; }
     }
     internal bool ProtectedOutputAvailable => _writer.IsAvailable;
-    internal IReadOnlyList<string> SelectedArtifactIds => Form.Definition.Artifacts
+    internal IReadOnlyList<ArtifactDefinition> EligibleArtifacts => Form.EligibleArtifacts;
+    internal IReadOnlyList<string> SelectedArtifactIds => EligibleArtifacts
         .Where(item => _selected.Contains(item.Id)).Select(item => item.Id).ToArray();
     internal string ArtifactId
     {
@@ -76,7 +80,7 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
         set
         {
             if (_artifactId == value) return;
-            _ = Form.Definition.Artifacts.Single(item => item.Id == value);
+            _ = EligibleArtifacts.Single(item => item.Id == value);
             _artifactId = value;
         }
     }
@@ -86,6 +90,7 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
     internal void ToggleCurrentArtifact()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!EligibleArtifacts.Any(artifact => artifact.Id == _artifactId)) return;
         if (!_selected.Add(_artifactId)) _selected.Remove(_artifactId);
         Invalidate();
     }
@@ -220,7 +225,19 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
                 _currentPublication = new(current.AttemptId, current.Outcomes, false, isUnknown: true);
     }
 
-    private void InputChanged(object? sender, EventArgs args) => Invalidate();
+    private void InputChanged(object? sender, EventArgs args)
+    {
+        string[] eligible = EligibleArtifacts.Select(artifact => artifact.Id).ToArray();
+        if (!_eligibleArtifactIds.SequenceEqual(eligible))
+        {
+            _eligibleArtifactIds = eligible;
+            _selected.IntersectWith(eligible);
+            if (!eligible.Contains(_artifactId, StringComparer.Ordinal))
+                _artifactId = Form.ConfigurationContext?.PrimaryArtifactId ?? eligible.FirstOrDefault() ?? string.Empty;
+            if (_selected.Count == 0 && _artifactId.Length > 0) _selected.Add(_artifactId);
+        }
+        Invalidate();
+    }
 
     internal void Invalidate()
     {

@@ -15,6 +15,7 @@
   <data name="Cancelled" xml:space="preserve"><value>أُلغيت العملية ومُسحت البيانات الخاصة.</value></data>
   <data name="Writing" xml:space="preserve"><value>جارٍ كتابة الإخراج المحمي...</value></data>
   <data name="Choose" xml:space="preserve"><value>تبديل ال_خيار</value></data>
+  <data name="Configuration" xml:space="preserve"><value>اختيار الإعداد</value></data>
   <data name="Previous" xml:space="preserve"><value>الحقل ال_سابق</value></data>
   <data name="Next" xml:space="preserve"><value>الحقل ال_تالي</value></data>
   <data name="ApplyField" xml:space="preserve"><value>اع_تماد الحقل</value></data>

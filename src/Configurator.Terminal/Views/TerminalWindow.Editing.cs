@@ -162,6 +162,7 @@ internal sealed partial class TerminalWindow
     private void ShowField(bool preserveLocation = true)
     {
         RefreshLocale();
+        ShowArtifact();
         _loading = true;
         try
         {

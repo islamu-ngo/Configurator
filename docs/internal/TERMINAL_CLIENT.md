@@ -1,10 +1,12 @@
 # Definition-driven Terminal.Gui adapter
 
 > **Audience:** Contributors | Integrators | AI agents
+> **Kind:** Living contract
 > **Status:** Typed offline adapter with shared secret operations; local Linux process qualification recorded below
 > **Owner:** Terminal
-> **Last Verified:** 2026-11-02
+> **Last Verified:** 2026-11-04
 > **Source Anchors:** `src/Configurator.Terminal/`, `src/Configurator.Presentation/`
+> **Review basis:** Source and direction review at `97c5a1789545b73a9536a4b9d4fa934976afb16c`; deployment-scope Release tests and Linux PTY qualification on 2026-11-04, recorded below.
 
 The client uses official Terminal.Gui with an exact central package pin and
 generated locks. Its published package retains reviewed embedded-asset notices;
@@ -12,7 +14,57 @@ see [the dependency decision and history](TERMINAL_GUI_DEPENDENCY.md).
 It references Core, Artifacts and Presentation; no Event wire
 DTOs, built-in catalogue, HTTP client or implicit application selection remain.
 
+## Workbench direction and current limits
+
+The [framework and workbench decision](adr/ADR-terminal-framework-and-workbench.md)
+retains official Terminal.Gui. Browser-first development supports a README
+Configure link into static WASM; the TUI direction remains a long-lived operator
+and developer workbench, including large nested definitions. The framework
+choice does not authorize an exact layout or imply delivered Browser parity.
+
+| Area | Current adapter | Planned direction or limit |
+|---|---|---|
+| Form workspace | One selected field editor, typed nested containers/maps/variants, help and correction navigation. | Evaluate richer navigation, field-specific controls, density and contextual panes while preserving keyboard reachability. |
+| Secret custody | Shared generation/derivation, masked buffers, guarded reveal/copy and explicit clearing. | Preserve these controls through every editor; immutable strings and clipboard history cannot be universally erased. |
+| Local files | Bounded import, comparison, deliberate Fill fields, preparation and create-only protected publication. | File pickers only select paths; they do not provide protected save. |
+| Developer editing | No full terminal document editor. | Reuse `DefinitionDocumentSession` for public-scope answer projections where applicable. This is not arbitrary definition/schema editing. |
+| Comparison | Imported configuration/artifact against the selected admitted definition and current workspace. | Schema-to-schema structural comparison and migration inference need separate design. |
+| Providers | No secret-store connector or network operation. | Eventual opt-in native Infisical/Azure Key Vault REST workflows require separate connector/privacy design and authority. |
+
+Browser has richer renderer/density and developer-editor integration source;
+that observation does not complete its delivery qualification. Its shared
+document contract edits a canonical public-scope answer envelope or bounded
+Environment projection, with detached parse candidates and one revision-fenced
+Apply. A future terminal editor must preserve that contract; schema authoring
+needs separate admission and must not change an active session's frozen identity.
+See [document ownership](PRESENTATION_STATE.md#bounded-document-sessions-and-atomic-apply).
+
+The ADR owns the balanced toolkit comparison, reconsideration triggers and next
+vertical-slice qualification. Provider direction follows the existing
+[secret-store backlog](../../dev/backlog/universal-configurator-followups.md#secret-store-inspection-and-completion),
+starting with one concrete pilot. No HTTP/native authority enters Core or Browser;
+the offline baseline and target acceptance/apply boundaries remain intact.
+
 ## Data and control flow
+
+### Deployment context and eligible destinations
+
+`TerminalWindow.Deployment` renders the admitted compatible recipe/scope pairs
+before field navigation, with the current pair marked and translated metadata
+resolved through the shared form. Native focusable buttons preserve Tab,
+Shift+Tab and Enter interaction within the scrollable window. A choice first
+commits the current typed field and calls
+`DefinitionFormModel.SelectConfigurationContext` once. The terminal has no
+document editor or independent recipe state.
+
+`TerminalArtifactOperation` derives its available destinations from
+`DefinitionFormModel.EligibleArtifacts`. On input change it removes ineligible
+selections, moves an obsolete current destination to the declared primary or
+first eligible destination, and invalidates existing preparation. Ordinary
+edits preserve an intentional empty output selection. Explicit selection of an
+ineligible artifact is refused. Core remains responsible for scope readiness
+and recipient isolation; the adapter retains its captured revision/generation
+checks and existing protected bundle publication and receipts.
 
 ### Workspace language and status
 
@@ -316,6 +368,41 @@ barrier, signal cleanup and small-viewport focus safety. Tests use observable
 behavior, not source/prose scraping or sleeps.
 
 ## Targeted verification
+
+### Deployment scope qualification (2026-11-04)
+
+The untouched Terminal suite passed 150 tests. Before adapter implementation,
+the focused native adapter run passed 47 tests and failed both new scope
+invariants on the missing early configuration controls. After implementation,
+the Release project build completed with zero warnings/errors, and the complete
+built MTP executable passed 153 tests with zero failures/skips:
+
+```bash
+dotnet build src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release --verbosity quiet --no-restore -m:1 /p:BuildInParallel=false /p:UseSharedCompilation=false
+dotnet run --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --no-build -- --minimum-expected-tests 153
+```
+
+The new tests exercise compatible pair selection as one revision, narrowed
+readiness and destination refusal, a scope switch during held preparation with
+an inactive synthetic secret retained, and an actual Linux protected save with
+independent expected bytes, no unrelated recipient file, and mode `0600`.
+
+The actual Release DLL was also launched through an owned Linux PTY using a
+synthetic worker/dashboard definition. At 110×36, Tab/Enter selected
+dashboard-only: the visible fields and destinations changed from two to one.
+Alt+E prepared without a worker credential; Alt+S produced the declared
+dashboard JSON with independently checked content and mode `0600`, while no
+worker file existed. Keyboard navigation reached Close and exited successfully.
+At 90×30, a second session switched locale to Arabic, rendered the translated
+recipe/scope titles and RTL metadata, and selected the same narrowed scope via
+Tab/Enter; closing without saving returned the documented non-success outcome.
+
+The PTY wrapper used `script --quiet --return --command` around `stty` and the
+Release DLL with `TERM=xterm-256color`; direct output-capturing invocation was
+correctly refused as `interactive-terminal-required`. No Event process,
+answer-bearing network request or ordinary-file save fallback was involved.
+These checks do not qualify screen readers, braille, Arabic shaping, other
+operating systems, or the later published distribution package.
 
 ### Architecture and convention qualification (2026-11-02)
 

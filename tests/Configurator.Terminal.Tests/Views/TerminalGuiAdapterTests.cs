@@ -17,6 +17,129 @@ public sealed class TerminalGuiAdapterTests
 {
     [Test]
     [NotInParallel]
+    public async Task EarlyScopeActionChangesOneRevisionAndRestrictsDestinationNavigation()
+    {
+        using var form = new DefinitionFormModel(DeploymentDefinition());
+        form.SetValue(["dashboardName"], System.Text.Json.JsonSerializer.SerializeToElement("dashboard"));
+        using var harness = new Harness(initialize: true, manualDispatch: true,
+            form: form);
+        Button scope = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text.Contains("Dashboard only", StringComparison.Ordinal));
+        long revision = harness.Form.InputRevision;
+        await Assert.That(scope.SetFocus()).IsTrue();
+        scope.InvokeCommand(Command.Accept);
+        harness.DrainCallbacks();
+        await Assert.That(harness.Form.InputRevision).IsEqualTo(revision + 1);
+        await Assert.That(harness.Form.Snapshot().Values["scope"].GetString()).IsEqualTo("dashboard");
+        await Assert.That(harness.Form.Validate().IsReady).IsTrue();
+        await Assert.That(harness.Operation.ArtifactId).IsEqualTo("dashboard");
+        await Assert.That(harness.Operation.SelectedArtifactIds.SequenceEqual(["dashboard"])).IsTrue();
+        Button artifact = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("Artifact"));
+        artifact.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Operation.ArtifactId).IsEqualTo("dashboard");
+        await Assert.That(() => harness.Operation.ArtifactId = "worker").Throws<InvalidOperationException>();
+        await Assert.That(harness.Window.SubViews.OfType<Label>().Any(label =>
+            label.Text.Contains("Worker password", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ScopeChangeRejectsHeldPreparationAndPreservesInactiveAnswers()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var form = new DefinitionFormModel(DeploymentDefinition());
+        form.SetValue(["workerPassword"], System.Text.Json.JsonSerializer.SerializeToElement("synthetic-worker-sentinel"));
+        form.SetValue(["dashboardName"], System.Text.Json.JsonSerializer.SerializeToElement("dashboard"));
+        using var harness = new Harness(manualDispatch: true, form: form, beforePreparation: async token =>
+        {
+            entered.SetResult();
+            await release.Task.WaitAsync(token);
+        });
+        harness.Operation.ArtifactId = "worker";
+        harness.Operation.ToggleCurrentArtifact();
+        harness.Window.Prepare();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text.Contains("Dashboard only", StringComparison.Ordinal))
+                .InvokeCommand(Command.Accept);
+            harness.DrainCallbacks();
+        }
+        finally { release.TrySetResult(); }
+        await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+        harness.DrainCallbacks();
+        await Assert.That(harness.Operation.IsPrepared).IsFalse();
+        await Assert.That(form.Snapshot().Values["workerPassword"].GetString()).IsEqualTo("synthetic-worker-sentinel");
+        await Assert.That(harness.Window.StatusText).DoesNotContain("synthetic-worker-sentinel");
+        await Assert.That(harness.Operation.SelectedArtifactIds.SequenceEqual(["dashboard"])).IsTrue();
+    }
+
+    private static Definition DeploymentDefinition()
+    {
+        var source = EditingSource("""
+            "recipe":{"title":"Recipe","type":"string","enum":["split"],"x-configurator":{"sensitivity":"public","initialValue":"split"}},
+            "scope":{"title":"Scope","type":"string","enum":["all","dashboard"],"x-configurator":{"sensitivity":"public","initialValue":"all"}},
+            "workerPassword":{"title":"Worker password","type":"string","x-configurator":{"sensitivity":"secret"}},
+            "dashboardName":{"title":"Dashboard name","type":"string","x-configurator":{"sensitivity":"public"}}
+            """, """["recipe","scope","workerPassword","dashboardName"]""");
+        source["deployment"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"recipePointer":"/recipe","scopePointer":"/scope",
+             "components":[{"id":"worker","title":"Worker"},{"id":"dashboard","title":"Dashboard"}],
+             "recipes":[{"id":"split","title":"Separate processes","scopes":[
+               {"id":"all","title":"All components","componentIds":["worker","dashboard"],"artifactIds":["worker","dashboard"]},
+               {"id":"dashboard","title":"Dashboard only","componentIds":["dashboard"],"artifactIds":["dashboard"],"primaryArtifactId":"dashboard"}]}]}
+            """);
+        source["outputs"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"worker.json":{"id":"worker","format":"json","targetUpdateMode":"create","restartRequirement":"process",
+              "consumerIds":["worker"],"bindings":{"/password":{"scope":"root","path":"/workerPassword"}}},
+             "dashboard.json":{"id":"dashboard","format":"json","targetUpdateMode":"create","restartRequirement":"process",
+              "consumerIds":["dashboard"],"bindings":{"/name":{"scope":"root","path":"/dashboardName"}}}}
+            """);
+        return DefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(source.ToJsonString()));
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ScopedNativeSaveCreatesOnlyItsDeclaredRecipientFile()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string directory = Directory.CreateTempSubdirectory("configurator-scoped-terminal-").FullName;
+        try
+        {
+            using var form = new DefinitionFormModel(DeploymentDefinition());
+            form.SetValue(["workerPassword"], System.Text.Json.JsonSerializer.SerializeToElement("synthetic-worker-sentinel"));
+            form.SetValue(["dashboardName"], System.Text.Json.JsonSerializer.SerializeToElement("dashboard"));
+            using var harness = new Harness(initialize: true, directory: directory, manualDispatch: true, form: form);
+            harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text.Contains("Dashboard only", StringComparison.Ordinal))
+                .InvokeCommand(Command.Accept);
+            harness.DrainCallbacks();
+            harness.Window.Prepare();
+            await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            harness.DrainCallbacks();
+            await Assert.That(harness.Operation.IsPrepared).IsTrue();
+            var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.Workspace.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(PresentationWorkspace.IsBusy) && !harness.Workspace.IsBusy)
+                    settled.TrySetResult();
+            };
+            harness.Window.Save();
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(await File.ReadAllTextAsync(Path.Combine(directory, "dashboard.json")))
+                .IsEqualTo("""{"name":"dashboard"}""");
+            await Assert.That(File.Exists(Path.Combine(directory, "worker.json"))).IsFalse();
+            await Assert.That(File.GetUnixFileMode(Path.Combine(directory, "dashboard.json")))
+                .IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Test]
+    [NotInParallel]
     public async Task RtlLocaleAlignsMetadataWithoutReversingLatinFallback()
     {
         using var harness = new Harness(initialize: true, manualDispatch: true);
