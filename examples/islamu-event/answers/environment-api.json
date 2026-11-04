@@ -1,0 +1,15 @@
+{
+  "answerContractVersion": "0.0.1",
+  "values": {
+    "operation": "environment",
+    "deployment.recipe": "separate-images",
+    "deployment.scope": "api",
+    "env.AUTHENTICATION_PROVIDER": "local",
+    "env.SECRET_PROVIDER": "Environment",
+    "env.EVENT_DP_API_RING": "synthetic-api-authority-ring",
+    "env.EVENT_DP_API_ADMISSION": "synthetic-api-authority-admission",
+    "env.EVENT_DP_API_ADMISSION_SHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "env.EVENT_DP_API_MINIMUM_GENERATION": "1"
+  },
+  "omitted": []
+}

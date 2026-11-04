@@ -15,7 +15,6 @@ public sealed class EventProviderContractTests
     [Arguments("DATABASE_TLS_MODE", "Prefer,Required,Disabled")]
     [Arguments("IDENTITY_DATABASE_TLS_MODE", "Prefer,Required,Disabled")]
     [Arguments("ERASURE_DATABASE_TLS_MODE", "Prefer,Required,Disabled")]
-    [Arguments("PRIVACY_ERASURE_AUTHORITY_TLS_MODE", "Prefer,Required,Disabled")]
     [Arguments("SECRET_PROVIDER", "Environment,UserSecrets,Infisical")]
     [Arguments("AI_PROVIDER", "NONE,FAKE,OPENAI_COMPATIBLE,ANTHROPIC_COMPATIBLE,OPENAI,AZURE_OPENAI,ANTHROPIC")]
     [Arguments("GEOCODING_PROVIDER", "None,Photon")]
@@ -64,7 +63,7 @@ public sealed class EventProviderContractTests
     }
 
     [Test]
-    [Arguments("INFISICAL_CLIENT_SECRET", null)]
+    [Arguments("INFISICAL_COMBINED_CLIENT_SECRET", null)]
     [Arguments("DATABASE_RUNTIME_PASSWORD", DefinitionSecretKind.Password)]
     [Arguments("VAPID_PRIVATE_KEY", null)]
     [Arguments("EMAIL_DISPATCH_RABBITMQ_CONNECTION_STRING", DefinitionSecretKind.ConnectionString)]

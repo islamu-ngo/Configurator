@@ -53,7 +53,10 @@ public sealed class ExternalDefinitionConformanceTests
     }
 
     [Test]
-    [Arguments("environment", "environment", "environment.env")]
+    [Arguments("environment-standalone", "environment-standalone", "environment-standalone.env")]
+    [Arguments("environment-api", "environment-api", "environment-api.env")]
+    [Arguments("environment-blazor", "environment-blazor", "environment-blazor.env")]
+    [Arguments("environment-compose", "environment-compose", "environment-compose.env")]
     [Arguments("configuration-manifest", "configuration-manifest", "configuration-manifest.json")]
     [Arguments("configuration-manifest", "configuration-manifest-1-tenants", "configuration-manifest-1-tenants.json")]
     [Arguments("configuration-manifest", "configuration-manifest-2-tenants", "configuration-manifest-2-tenants.json")]

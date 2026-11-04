@@ -1,9 +1,9 @@
 # Event provider contract inventory
 
 > **Audience:** Definition maintainers
-> **Status:** Baseline classification audited; downstream image compatibility remains target-owned
+> **Status:** Source consumer review; runtime and image qualification remain target-owned
 > **Owner:** Event definition integration
-> **Last Verified:** 2026-11-01
+> **Last Verified:** 2026-11-04
 > **Source Anchors:** `configurator.json`, `README.md`
 
 This inventory covers the 361 environment fields in the Configurator baseline
@@ -12,6 +12,148 @@ first-party Event checkout at `b6ad1594b7f92ac3399a5a8bf8d241e4f8d69c66`.
 The definition declares `0.0.0-development`; these facts do not promise support
 for another Event revision. Source paths below are relative to that Event checkout.
 Its modified standalone appsettings and documentation were not used as authority.
+
+## Deployment consumer review
+
+Reviewed Event source remains commit
+`b6ad1594b7f92ac3399a5a8bf8d241e4f8d69c66` on 2026-11-04. The working
+checkout contains modified `src/Event.Standalone/appsettings.json` and operator
+documentation. The committed appsettings were read with `git show HEAD:...`;
+local optional-worker changes are not published image defaults. No Event build,
+service startup, private environment file or production authority was used.
+No deployed application image tag or digest has been qualified by this review.
+
+The independently maintained target fixture
+`tests/Event.Wire.Contracts.UnitTests/Fixtures/Configurator/islamu-event/environment-catalogue.json`
+contains 452 definitions. The reviewed Configurator source contains 360 `env.`
+properties; the old 361-row baseline below includes the retired `AI_API_KEY`.
+There are 92 target catalogue names absent from that maintained source. The
+catalogue itself omits the live BFF session inputs and Infisical token-policy
+inputs described below, and still contains retired aliases. Neither a name's
+presence nor its catalogue category proves that a process consumes it.
+
+This section records destination ownership and remaining admission limits.
+The historical field table remains the exhaustive original-name inventory;
+the delta table covers all 92 additional reviewed target names. A designation
+here is source evidence, not a claim that a new field or destination has already
+been admitted by the maintained definition. The current source and its tests
+determine which inputs Configurator actually supports.
+
+### Current authoring contract
+
+Deployment recipes use public `deployment.recipe` and `deployment.scope` answers.
+Standalone admits the combined API/Blazor scope. Separate images admit API,
+Blazor or both. Compose additionally declares its separate migration recipient
+in the all-component scope; component-only output excludes that role's identity.
+The maintained source declares explicit eligible artifact IDs and consumers,
+so generic product code never infers recipients from environment-key spelling.
+
+Each role has independent Infisical identity/token answers. Direct process
+destinations map them into that process's `SecretProvider__Infisical__*` keys;
+Compose input retains the `INFISICAL_{API,BFF,MIGRATION}_*` namespace.
+The old undifferentiated `INFISICAL_CLIENT_ID`/`INFISICAL_CLIENT_SECRET` answers
+are removed. Data Protection fields are partitioned explicitly by recipe and
+recipient; only Environment acquisition requests ring/admission bytes directly.
+Pins and generation floors stay outside that candidate material.
+
+Erasure configuration has one logical answer for each setting, using the
+`ERASURE_*` fields. Duplicate `PRIVACY_ERASURE_AUTHORITY_*` answer aliases are
+removed. Compose and process destinations emit the canonical `ERASURE_DATABASE_*`
+names once. Event's `SecretStartupConfigurationProjection` and
+`PrivacyErasureAuthorityDatabaseConfiguration.ProjectDiscreteConfiguration`
+project that group into the internal API and authority sections; duplicate
+`PrivacyErasureAuthorityDatabase__*` exports are unnecessary.
+The historical inventory below preserves the retired names as provenance,
+without retaining an accepted alias or precedence rule.
+
+`INSTANCE_ADMIN_PUBLIC_ORIGIN` remains one answer with two actual Combined
+consumers: API instance-domain queries read its origin, while
+`Event.Web.BffHosting` binds `Bff:AdminHosts` for host classification. The
+Standalone output supplies both keys, and the field is applicable to every
+Environment recipe. Strict inverse handling must require equal typed values
+and matching presence for this declared same-source scalar group; contradictory
+keys cannot select a winner. This does not permit ancestor/descendant or
+container overlap.
+
+The synthetic complete vectors demonstrate bounded configuration preparation,
+recipient isolation and independent destination bytes. Their deliberately
+synthetic Data Protection material is not a valid promoted target authority,
+and no fixture establishes Event startup or target acceptance.
+
+### Host and prerequisite boundaries
+
+| Concern | Independent source evidence | Configuration consequence |
+| --- | --- | --- |
+| Combined host | `src/Event.Standalone/Program.cs`: Combined secret consumer, API and Blazor host services, combined Data Protection and internal API bridge | Standalone configures both recipients. A split API endpoint is unnecessary for its internal transport. |
+| Committed defaults | `HEAD:src/Event.Standalone/appsettings.json`: Database Provider `Sqlite`, Database `/app/data/islamu_event.db`, local storage `/app/data/storage`, Hosting ReplicaCount `1` | Omission inherits these source defaults only when that target build retains them. It does not assert that an arbitrary image has them. |
+| Container setup file | `src/Event.Standalone/Dockerfile`: HTTP port `8080`, `SETUP_SECRET_FILE=/app/data/setup-secret` | Port publication and persisted writable setup-file storage remain deployment prerequisites, not ordinary API environment aliases. |
+| Setup authority | `src/Explore.Infrastructure/Services/SetupSecretProvider.cs`: absent secret allowed at replica count at most one; a deployment-owned secret required above one; generation and persistence occur in target startup | Do not require a synthetic administrator secret just to match a fixture. Configuration completeness does not prove host persistence or setup success. |
+| SQLite | `src/Explore.Persistence/Database/PrimaryDatabaseConfiguration.cs`; Standalone startup checks replica count | Exclude server role credentials, host/port, server flavor/version and certificate override; the host requires one replica. |
+| BFF external API | `src/Explore.Blazor/Extensions/ConfigurationExtension.cs` and `HttpClientExtensions.cs` | Split BFF requires its API connection; this does not grant database, setup administration, migrator or API signing authority. |
+| BFF session | `ConfigurationExtension.cs`, `Services/Auth/BffSessionAuthorityOptions.cs`, `RedisBffTicketStore.cs` | `BFF_SESSION_REDIS_ENDPOINT`, `BFF_SESSION_NAMESPACE`, `BFF_SESSION_REDIS_PASSWORD` belong only to BFF/Combined. Namespace is 1–64 ASCII letters/digits/hyphen/underscore; session authority remains a separate externally provisioned Redis service. |
+| Provider selection | `src/Explore.ServiceDefaults/Secrets/SecretAuthoritySelection.cs` | `SECRET_PROVIDER` is explicit; conflicting flat/structured declarations reject. `UserSecrets` is restricted to Development/Testing. |
+| Infisical identity | `SecretAuthorityBootstrap.cs`, `RuntimeSecretEnvironment.cs`, `docker-compose.yml` | Shared URL/project/environment do not make credentials shared. API, BFF, Combined and Migration each need their own machine identity. Orchestrator role aliases must map explicitly to the process's `SecretProvider__Infisical__ClientId` and `ClientSecret`; they are not direct runtime aliases. |
+| Infisical token policy | `SecretAuthorityBootstrap.cs`: explicit TokenLifetime, Periodic requires TokenPeriodSeconds, Finite forbids period; positive finite seconds at most 86400; renew/request fallback 60/15 | Five connection/credential fields alone are insufficient. Process keys are `SecretProvider__Infisical__TokenLifetime`, `TokenPeriodSeconds`, `RenewBeforeSeconds`, `RequestTimeoutSeconds`. Role-prefixed `INFISICAL_*` token inputs belong to orchestration mappings. |
+| Data Protection | `src/Explore.ServiceDefaults/DataProtection/ExternalDataProtectionRegistration.cs`, `ExternalDataProtectionSource.cs` | API/BFF/Combined each use their own `EVENT_DP_{API,BFF,COMBINED}_{RING,ADMISSION,ADMISSION_SHA256,MINIMUM_GENERATION}` group. Ring/admission come from the selected authority; SHA256 pin and positive generation floor are independent process inputs. Configurator never signs or promotes them. |
+
+### Destination classification for maintained baseline names
+
+Apply these source-reviewed groups to the names in the historical baseline table.
+They describe recipient boundaries, not prefix inference in the generic engine.
+Every other baseline name retains its named source owner in C01–C24/D01–D26;
+its historical inclusion does not establish a new direct-process mapping.
+
+| Destination | Exact names or bounded group | Source / practical limit |
+| --- | --- | --- |
+| BFF/Combined only | `API_ENDPOINT`, `KEYCLOAK_BLAZOR_CLIENT_SECRET`, `ATPROTO_OAUTH_CLIENT_PRIVATE_JWKS` | Blazor `ConfigurationExtension.cs` acquisition/mapping; never API administrator or database authority. |
+| Shared public connection/selection | `AUTHENTICATION_PROVIDER`, `KEYCLOAK_ENDPOINT`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_BLAZOR_CLIENT_ID`, `SECRET_PROVIDER`, `INFISICAL_URL`, `INFISICAL_PROJECT_ID`, `INFISICAL_ENV`, `ASPNETCORE_ENVIRONMENT`, `DOTNET_ENVIRONMENT` | Secret selection/bootstrap and explicit API/BFF mappings. Client IDs and realms are public identifiers; client secrets remain separate. |
+| Compose public host input with distinct consumers | `INSTANCE_ADMIN_PUBLIC_ORIGIN`, `PUBLIC_BASE_URL`, `KEYCLOAK_INTERNAL_URL`, `REDIS_CONNECTION_STRING` | `docker-compose.yml` maps these into API/BFF-specific structured keys. The input name alone does not prove a direct runtime alias; `PUBLIC_BASE_URL` maps to `PublicBaseUrl`, admin origin to BFF admin hosts. |
+| Compose ports | `API_HTTP_PORT`, `UI_HTTP_PORT`, `KEYCLOAK_HTTP_PORT`, `MAILPIT_UI_PORT`, `MINIO_API_PORT`, `MINIO_CONSOLE_PORT`, `CERBOS_HTTP_PORT`, `CERBOS_GRPC_PORT`, `SVIX_HTTP_PORT`, `WEBLATE_HTTP_PORT`, `COOP_HTTP_PORT`, `COOP_CLIENT_HTTP_PORT`, `OSPREY_BIDI_STREAM_PORT`, `OSPREY_SYNC_ACTION_PORT`, `FORMBRICKS_HTTP_PORT` | Host port interpolation in Compose; these do not alter process listening configuration by themselves. |
+| Supporting service containers | Baseline `COOP_*`, `OSPREY_*`, `FORMBRICKS_*`, `SVIX_*`, `WEBLATE_*`; `KEYCLOAK_DB_DATABASE`, `KEYCLOAK_DB_USERNAME`, `KEYCLOAK_DB_PASSWORD`, `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`; `CERBOS_ADMIN_USERNAME`, `CERBOS_ADMIN_PASSWORD_HASH`, `CERBOS_PG_URL`, `CERBOS_POSTGRES_USER`, `CERBOS_POSTGRES_PASSWORD`, `CERBOS_POSTGRES_DB` | Compose forwards these to separate service containers. They are not API/BFF runtime settings. Provider selection does not demand locally hosting those services. |
+| API/Combined application configuration | Baseline database/identity-database/erasure fields, setup/bootstrap/operator identity, local identity, payments/admissions/ticketing, AI/geocoding, storage, email/RabbitMQ, web push, reporting/webhooks/Listmonk, MCP, control plane and provisioning groups | C01–C24/D01–D26 identify their target binders. These must never be included just because a BFF connects to an external API. `DATABASE_MIGRATOR_*` and erasure/identity migrator credentials additionally belong to a deliberate migration process, or Combined when it owns migration. |
+| Alternate erasure inputs | `ERASURE_*` versus `PRIVACY_ERASURE_AUTHORITY_*` database/role/path settings | Compose maps authority inputs to the same structured authority settings. They are alternatives, not independent identities; conflicting aliases need explicit refusal rather than enumeration-order precedence. |
+| Unqualified historical pass-through | `POSTGRESQL_*`, `ANALYTICS_POSTHOG_PUBLIC_KEY`, `ANALYTICS_POSTHOG_HOST`, `ANALYTICS_PERSONAL_API_KEY`, `LOCALIZATION_TMS_API_KEY`, `CONTROL_PLANE_REGISTRATION_CREDENTIALS`, `IDENTITY_DATABASE_CONNECTION_STRING`, `CERBOS_ADMIN_PASSWORD` | D26 records historical exporter/pass-through ownership, not a reviewed new deployment mapping. Do not advertise direct process acceptance from this inventory alone. |
+| Retired / unsupported | `AI_API_KEY` | Retired generic credential alias; current maintained source rejects it. Select a provider-specific credential instead. |
+
+### Complete target-catalogue delta disposition
+
+Names below are exactly the 92 target-catalogue names absent from the reviewed
+360-field maintained source. Unsupported groups remain explicit admission
+limits until the owning source and independently expected destination tests
+are delivered; no default credentials or target trust are manufactured.
+
+| Names | Recipient and disposition | Reason / source |
+| --- | --- | --- |
+| `EFFECTIVEHOSTAUTHORITY__INSTANCEHOSTS__0`, `EFFECTIVEHOSTAUTHORITY__SUBDOMAINBASEDOMAINS__0`, `FORWARDEDHEADERSTRUST__FORWARDLIMIT`, `FORWARDEDHEADERSTRUST__TRUSTLOOPBACKPROXY`, `FORWARDEDHEADERSTRUST__KNOWNPROXIES__0`, `FORWARDEDHEADERSTRUST__KNOWNNETWORKS__0`, `OPERATIONALENDPOINTS__ADDRESS`, `OPERATIONALENDPOINTS__PORT` | API/Combined host overrides; unsupported in the reviewed maintained source | Effective host/proxy/operational endpoint policy requires host-specific topology; committed Standalone proxy defaults are source evidence only. Target catalogue deployment category is not an all-client trust decision. |
+| `INFISICAL_COMBINED_CLIENT_ID`, `INFISICAL_COMBINED_CLIENT_SECRET`, `INFISICAL_API_CLIENT_ID`, `INFISICAL_API_CLIENT_SECRET`, `INFISICAL_BFF_CLIENT_ID`, `INFISICAL_BFF_CLIENT_SECRET`, `INFISICAL_MIGRATION_CLIENT_ID`, `INFISICAL_MIGRATION_CLIENT_SECRET` | Orchestration role inputs; separate identities for Combined/API/BFF/Migration | `RuntimeSecretEnvironment.Build` enforces distinct role client IDs and explicitly maps them; Compose explicitly maps API/BFF/Migration roles. No generic alias or shared identity is valid. |
+| `KEYCLOAK__AUDIENCE`, `KEYCLOAK__PERMITTEDCLIENTS__0` | API/Combined Keycloak validation; unsupported in the reviewed source | Compose API environment and target Keycloak authentication contract; BFF client credentials are a different responsibility. |
+| `EVENT_DP_API_RING`, `EVENT_DP_API_ADMISSION`, `EVENT_DP_API_ADMISSION_SHA256`, `EVENT_DP_API_MINIMUM_GENERATION`, `EVENT_DP_BFF_RING`, `EVENT_DP_BFF_ADMISSION`, `EVENT_DP_BFF_ADMISSION_SHA256`, `EVENT_DP_BFF_MINIMUM_GENERATION`, `EVENT_DP_COMBINED_RING`, `EVENT_DP_COMBINED_ADMISSION`, `EVENT_DP_COMBINED_ADMISSION_SHA256`, `EVENT_DP_COMBINED_MINIMUM_GENERATION` | Externally provisioned per-partition material and independent deployment pins | External Data Protection owners above. Omission does not imply ready host authority. Ring/admission must remain restricted; a pin is never fetched from the candidate authority. |
+| `DATABASE_GLOBAL_USERNAME`, `DATABASE_GLOBAL_PASSWORD`, `DATABASE_INSTANCE_KEY_READ_USERNAME`, `DATABASE_INSTANCE_KEY_READ_PASSWORD`, `DATABASE_INSTANCE_KEY_WRITE_USERNAME`, `DATABASE_INSTANCE_KEY_WRITE_PASSWORD`, `DATABASE_INSTANCE_KEY_ISSUANCE_USERNAME`, `DATABASE_INSTANCE_KEY_ISSUANCE_PASSWORD`, `DATABASE_PLATFORM_KEY_REPORT_USERNAME`, `DATABASE_PLATFORM_KEY_REPORT_PASSWORD`, `DATABASE_EMAIL_POLICY_INSTANCE_MUTATION_USERNAME`, `DATABASE_EMAIL_POLICY_INSTANCE_MUTATION_PASSWORD`, `DATABASE_EMAIL_POLICY_TENANT_MUTATION_USERNAME`, `DATABASE_EMAIL_POLICY_TENANT_MUTATION_PASSWORD` | API/Combined specialized database roles; unsupported in reviewed source | Target catalogue server-database prerequisites and `PrimaryDatabaseConfiguration`; never collapse least-privilege roles into runtime or migrator credentials, never require for SQLite. |
+| `AUTHENTICATION_CREDENTIAL_PROFILE_REVISION` | Shared admission profile identifier; externally provisioned | `SecretAuthoritySelection.Select` parses the optional GUID and preserves invalid declarations for fail-closed handling; Configurator does not promote an authentication profile. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | BFF/Combined provider group; unsupported in reviewed source | Blazor `ConfigurationExtension.cs` acquires the complete group; no API bootstrap administrator authority follows. |
+| `AUTHENTICATION_LOCAL_PASSWORD_BLOCKLIST_PATH`, `AUTHENTICATION_LOCAL_PASSWORD_BLOCKLIST_SHA256`, `AUTHENTICATION_LOCAL_PASSWORD_HASH_ITERATIONS` | API/Combined local-identity policy; unsupported in reviewed source | Target local authentication options and catalogue security group; path/content pin and password policy must remain a coherent target-owned contract. |
+| `KEYCLOAK_LIFECYCLE_CLIENT_SECRET`, `KEYCLOAKLIFECYCLEEMAIL__ENABLED`, `KEYCLOAKLIFECYCLEEMAIL__BASEURL`, `KEYCLOAKLIFECYCLEEMAIL__REALM`, `KEYCLOAKLIFECYCLEEMAIL__CLIENTID`, `KEYCLOAKLIFECYCLEEMAIL__DEFAULTCLIENTID`, `KEYCLOAKLIFECYCLEEMAIL__PROVIDERVERSION`, `KEYCLOAKLIFECYCLEEMAIL__ALLOWLOCALURLS` | API/Combined lifecycle worker identity; unsupported in reviewed source | Target lifecycle-email provider settings are separate from interactive BFF OIDC identity. |
+| `ISLAMU_SETUP_SIGNING`, `ISLAMU_SETUP_ENCRYPTION` | External setup authority; unsupported | Presence in a catalogue does not authorize transferring Event signing/encryption authority into Configurator. |
+| `MODERATION__RECONCILIATION__ENABLED`, `MODERATION__RECONCILIATION__TENANTID`, `MODERATION__RECONCILIATION__BATCHSIZE`, `MODERATION__RECONCILIATION__INITIALDELAYSECONDS`, `MODERATION__RECONCILIATION__INTERVALSECONDS`, `MODERATION__RECONCILIATION__APIKEY`, `MODERATION_MEASUREMENT_SIGNING_PRIVATE_KEY_PEM`, `MODERATION__MEASUREMENTTESTDATABASE__PROVIDER`, `MODERATION__MEASUREMENTTESTDATABASE__HOST`, `MODERATION__MEASUREMENTTESTDATABASE__PORT`, `MODERATION__MEASUREMENTTESTDATABASE__DATABASE`, `MODERATION__MEASUREMENTTESTDATABASE__SCHEMA`, `MODERATION__MEASUREMENTTESTDATABASE__USERNAME`, `MODERATION__MEASUREMENTTESTDATABASE__PASSWORD`, `MODERATION__MEASUREMENTTESTDATABASE__TLSMODE`, `MODERATION__MEASUREMENTTESTDATABASE__TRUSTSERVERCERTIFICATE`, `MODERATION__MEASUREMENTTESTDATABASE__SERVERFLAVOR`, `MODERATION__MEASUREMENTTESTDATABASE__SERVERVERSION` | Separate moderation worker/test and signing authority; unsupported | Target catalogue names a reconciliation/measurement workflow, not basic API/BFF deployment. No worker signing or test-database authority is implied. |
+| `CERBOS_PUBLICATION_RECEIPT_BASE64`, `CERBOS_PUBLICATION_SIGNATURE_BASE64`, `CERBOS_PUBLICATION_PUBLIC_KEY_PEM`, `CERBOS_PUBLICATION_REVISION`, `CERBOS_PUBLICATION_ENVIRONMENT` | External Cerbos policy-publication authority; unsupported | Compose API maps the policy package publication group explicitly. Configurator does not transfer Event publication receipts, signers or release history. |
+| `AI_CREDENTIAL_SCOPE`, `AI_OPENAI_COMPATIBLE_API_KEY`, `AI_ANTHROPIC_COMPATIBLE_API_KEY`, `AI_AZURE_API_KEY` | API/Combined provider-specific AI credentials; unsupported in reviewed source | Target AI settings/secret projection require a provider-scoped contract. Generic `AI_API_KEY` is not an alternative. |
+| `DATABASE_LOCAL_IDENTITY_WRITER_USERNAME`, `DATABASE_LOCAL_IDENTITY_WRITER_PASSWORD`, `IDENTITY_DATABASE_LOCAL_IDENTITY_WRITER_USERNAME`, `IDENTITY_DATABASE_LOCAL_IDENTITY_WRITER_PASSWORD` | API/Combined local-identity writer roles; unsupported in reviewed source | `RuntimeSecretEnvironment.Forbidden` explicitly excludes writer passwords from other consumers; keep role separation. |
+| `AI_API_KEY` | Retired / unsupported | Still present in the target catalogue but absent from current maintained source; do not restore it. |
+
+### Mapping and qualification evidence limits
+
+The reviewed Compose source maps `DATABASE_NAME` to both `Database:Database`
+and `Database:Name`; erasure input families and flat/structured secret provider
+keys also have overlapping target identities. .NET environment normalization
+converts double underscores to hierarchy separators and matches configuration
+keys without case. Author one logical answer per setting, select one declared
+mapping per recipient and reject conflicts rather than relying on provider order.
+Direct environment names and Compose input aliases are not interchangeable.
+
+This review executed only read-only source/catalogue inspection and documentation
+edits. No actual Docker/Compose consumer, published Event image, target startup,
+database migration, credential acquisition or host acceptance was tested. The
+Core destination tests and local consumer exercise must record their own results.
 
 ## Closed choices and owning source
 

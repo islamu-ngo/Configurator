@@ -1,0 +1,31 @@
+Change-Id: CHG-01M6K7PT9RSTKKDW2M6X981X78
+Title: "prepare Event configuration for each deployment recipient"
+Type: feat
+Scope: self-hosting
+Summary: "Separate Standalone, API, Blazor and Compose destinations and preserve independent role credentials using reviewed target mappings."
+Group: commit-all-event
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+    Detail: "Replace the environment artifact ID with declared environment destination IDs and use the revised recipe and scope answers."
+  Security:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+    Detail: "Replace the environment artifact ID with declared environment destination IDs and use the revised recipe and scope answers."
+  Migration:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+    Detail: "Replace the environment artifact ID with declared environment destination IDs and use the revised recipe and scope answers."
+  Configuration:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+    Detail: "Replace the environment artifact ID with declared environment destination IDs and use the revised recipe and scope answers."
+  OpenAPI:
+    Reference: examples/islamu-event/README.md
+    Disposition: not-applicable
+  Operator:
+    Reference: examples/islamu-event/README.md
+    Disposition: documented
+    Detail: "Replace the environment artifact ID with declared environment destination IDs and use the revised recipe and scope answers."

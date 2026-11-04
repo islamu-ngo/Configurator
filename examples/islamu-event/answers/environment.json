@@ -1,1 +1,0 @@
-{"answerContractVersion":"0.0.1","values":{"env.API_HTTP_PORT":8080,"env.UI_HTTP_PORT":8081,"operation":"environment","select.feature.deployment-config":true,"select.feature.platform-config":false},"omitted":[]}

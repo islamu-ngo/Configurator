@@ -8,8 +8,9 @@ allocated through Configurator's native identity editor. The admitted runtime
 owns its current revision and canonical digest. The prior Event family
 and its publication facts are historical, not authority for this new family.
 
-`configurator.json` is the maintained neutral source, preserving five output
-mappings. Configurator's compiler produces the sole canonical
+`configurator.json` is the maintained neutral source with declared deployment
+recipes, component scopes and recipient-specific environment mappings.
+Configurator's compiler produces the sole canonical
 `definition.json`, admitted by Configurator Core's bounded parser. `answers/` and
 `expected/` carry environment, manifest, tenant package, operator-identity and
 legal-draft vectors. Configurator's actual CLI composes these answer workspaces,
@@ -38,12 +39,17 @@ No supplied answers, private defaults or private literals are embedded.
 ## Choose an offline task
 
 The definition binds its public `/operation` enum to five output choices through
-`presentation.outputSelector`. All five artifact IDs and target mappings remain
-unchanged:
+`presentation.outputSelector`. Environment destinations follow the selected
+deployment context; the other four task mappings retain their target bytes.
 
 | Choice | Artifact ID | File |
 |---|---|---|
-| Environment | `environment` | `event.env` |
+| Standalone process | `environment-standalone` | `event-standalone.env` |
+| API process | `environment-api` | `event-api.env` |
+| Blazor process | `environment-blazor` | `event-blazor.env` |
+| All Compose inputs | `environment-compose` | `event-compose.env` |
+| API Compose inputs | `environment-compose-api` | `event-compose-api.env` |
+| Blazor Compose inputs | `environment-compose-blazor` | `event-compose-blazor.env` |
 | Configuration manifest | `configuration-manifest` | `configuration-manifest.json` |
 | Tenant package | `tenant-package` | `tenant-package.json` |
 | Operator identity | `operator-identity` | `operator-identity.json` |
@@ -58,13 +64,32 @@ consent. Public API/site addresses and the authentication provider remain unset
 until supplied. Explicit false, another output choice and explicit omissions
 take precedence; reset makes initialization eligible again.
 
-Essentials includes the existing required setup secret and its explicit secret-entry
-consent path. The [provider contract inventory](provider-contract-inventory.md)
-records all 361 baseline environment fields against the reviewed Event revision,
-including canonical choice values and target-owned provider requirements.
+Environment starts with `deployment.recipe=standalone` and
+`deployment.scope=all`. Standalone configures both API and Blazor. The
+`separate-images` and `docker-compose` recipes allow `all`, `api` or `blazor`.
+These are ordinary public answer keys, so CLI callers use the existing answers
+input. Component scope determines obligations before validation. Choosing a
+smaller export does not bypass incomplete work inside the selected scope.
+Blazor-only requires its external API connection and session authority; it
+does not require API administration, database or migration credentials.
+
+Secret-provider selection is always explicit. Data Protection ring/admission
+material belongs to the selected provider; its pin and generation floor are
+independent process inputs. BFF session Redis authority is separately provisioned.
+Infisical machine identities and token policies remain separate for API, BFF,
+Combined and Migration. Process destinations map them to the target's structured
+keys; Compose destinations preserve orchestration role namespaces.
+
+Event can generate and persist its setup secret on a single-replica host with
+a writable persistent `SETUP_SECRET_FILE`. Multiple replicas require one shared
+deployment-owned secret. Configurator neither provisions this authority nor
+proves the target filesystem or host startup.
+The [provider contract inventory](provider-contract-inventory.md) records the
+baseline plus every reviewed target-catalogue delta, including unsupported inputs,
+canonical choice values and target-owned provider requirements.
 Dropdowns preserve exact wire values across locale changes. Target parser aliases
 are not additional Configurator choices; unknown values fail shared validation.
-The inventory is scoped to this baseline, not every field in newer Event builds.
+The inventory distinguishes reviewed source behavior from unqualified image behavior.
 The unsupported `AI_API_KEY` alias is removed; use the target's provider-specific
 credential fields. Its audit row remains recorded rather than hiding the removal.
 
@@ -107,21 +132,21 @@ generation. From the repository root, with a current CLI build, create distinct
 next-revision source candidates:
 
 ```bash
-mkdir -p .tmp/browser-ux-simplification
+mkdir -p .tmp/deployment-aware-configuration
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
   definition revise --source examples/islamu-event/configurator.json \
   --against examples/islamu-event/definition.json \
-  --output .tmp/browser-ux-simplification/event-example-next.json
+  --output .tmp/deployment-aware-configuration/event-example-next.json
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
   definition revise --source store/islamu-event/configurator.json \
-  --against store/islamu-event/releases/6.json \
-  --output .tmp/browser-ux-simplification/event-store-next.json
+  --against store/islamu-event/releases/3.json \
+  --output .tmp/deployment-aware-configuration/event-store-next.json
 ```
 
 These destinations are create-only. Review both native receipts and candidates,
 then adopt each candidate as its corresponding handwritten source. Never
 hand-increment identity or change historical snapshots. The store command above
-uses the current revision-5 anchor; use the matching immutable anchor when
+uses the current revision-3 anchor; use the matching immutable anchor when
 revising a later release.
 
 Regenerate the local current runtime and append the store release through their
@@ -133,20 +158,18 @@ dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator/Con
 dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
   --configuration Release -- --check-examples
 dotnet run eng/configurator/BuildDefinitionStore.cs -- \
-  --source store --output .tmp/browser-ux-definition-store --write
+  --source store --output .tmp/deployment-aware-configuration/store --write
 dotnet run eng/configurator/BuildDefinitionStore.cs -- \
-  --source store --output .tmp/browser-ux-definition-store --check
+  --source store --output .tmp/deployment-aware-configuration/store --check
 ```
 
 The example generator also visits the minimal and Grafana examples; their
 unchanged canonical bytes must remain unchanged. The store builder appends the
 new release and generates its catalog; it must not rewrite the prior release.
-The synthetic answer fixtures use the private 0.0.1 answer envelope.
-The deployment-only environment vector must explicitly exclude platform
-settings to keep its original output and readiness: platform inclusion now
-exposes the existing required `env.SETUP_SECRET`. Do not invent a setup secret,
-weaken its requirement or change the independent expected bytes to mask that
-newly applicable work.
+The synthetic answer fixtures use the private 0.0.1 answer envelope and cover
+Standalone, API-only, Blazor-only and full Compose inputs. Their independent
+expected bytes include recipient-specific Data Protection/session material;
+synthetic material cannot establish target authority or startup readiness.
 Regeneration does not contact Event or establish target acceptance.
 
 ## Historical Event exporter workflow

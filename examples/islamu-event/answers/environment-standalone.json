@@ -1,0 +1,18 @@
+{
+  "answerContractVersion": "0.0.1",
+  "values": {
+    "operation": "environment",
+    "deployment.recipe": "standalone",
+    "deployment.scope": "all",
+    "env.AUTHENTICATION_PROVIDER": "local",
+    "env.SECRET_PROVIDER": "Environment",
+    "env.BFF_SESSION_REDIS_ENDPOINT": "redis://session.example.test:6379",
+    "env.BFF_SESSION_NAMESPACE": "synthetic-event",
+    "env.BFF_SESSION_REDIS_PASSWORD": "synthetic-bff-session-password",
+    "env.EVENT_DP_COMBINED_RING": "synthetic-combined-authority-ring",
+    "env.EVENT_DP_COMBINED_ADMISSION": "synthetic-combined-authority-admission",
+    "env.EVENT_DP_COMBINED_ADMISSION_SHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "env.EVENT_DP_COMBINED_MINIMUM_GENERATION": "1"
+  },
+  "omitted": []
+}
