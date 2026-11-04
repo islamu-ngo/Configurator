@@ -92,6 +92,23 @@ Navigate quickly using native keyboard controls:
 
 ## Configuration & Form Editing
 
+### Deployment recipe and component scope
+
+Definitions that declare deployment choices show a **Deployment recipe and
+component scope** picker before the fields. Each choice names a compatible
+recipe and scope; selecting it changes both answers together. Event starts
+with Standalone and all applicable components. Separate images and Compose
+can offer API-only or Blazor-only configuration.
+
+Readiness and available output destinations follow the selected scope. Choosing
+a subset of files within an incomplete all-component scope does not bypass its
+remaining requirements. Changing scope keeps inactive answers in the local
+workspace for switching back, removes ineligible destinations and retires
+prepared output and pending imports. Prepare again after the change. A completed
+native save retains its publication receipt; it cannot be recalled by changing
+scope. Component configuration does not establish a complete deployment or
+target acceptance.
+
 ### Form Controls
 
 Fields dynamically render native controls matching their admitted types:

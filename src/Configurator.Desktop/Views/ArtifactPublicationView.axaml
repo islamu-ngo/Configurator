@@ -13,7 +13,7 @@
                     SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="definitions:ArtifactDefinition">
-                <TextBlock Text="{Binding Id}" />
+                <TextBlock Text="{Binding Title}" ToolTip.Tip="{Binding Description}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
@@ -30,7 +30,7 @@
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ArtifactSelectionViewModel">
-            <CheckBox Content="{Binding Id}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0"
+            <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0"
                       AutomationProperties.Name="{Binding AutomationName}"
                       AutomationProperties.HelpText="{Binding Title}" />
           </DataTemplate>

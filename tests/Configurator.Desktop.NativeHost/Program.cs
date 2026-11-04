@@ -37,7 +37,8 @@ internal static class Program
         "D15-close-drain-settles", "D16-close-deadline-unknown", "D17-close-stay-force",
         "D18-shared-editing-presence-localized-actions",
         "D19-typed-map-variant-null-reset-locale",
-        "D20-read-only-import-comparison", "D21-secret-generation-validation"
+        "D20-read-only-import-comparison", "D21-secret-generation-validation",
+        "D22-deployment-context-destinations"
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
@@ -136,6 +137,56 @@ internal static class Program
         {
             return Reject("native-startup-failed");
         }
+    }
+
+    private static async Task DeploymentContextAsync(MainWindow window, DesktopShellViewModel shell, string directory)
+    {
+        Definition definition = DefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"54dd865a-e11f-4b54-9fd7-753e05831e8b","revision":1},
+             "project":{"id":"native-scope","name":"Native scope"},"applicationVersions":["1"],
+             "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{
+              "/deployment/recipes/0/title":"منفصل","/deployment/recipes/0/scopes/1/title":"لوحة التحكم"}}}},
+             "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"required":["recipe","scope","worker","dashboard"],"properties":{
+              "recipe":{"type":"string","enum":["split"],"x-configurator":{"sensitivity":"public","initialValue":"split"}},
+              "scope":{"type":"string","enum":["all","dashboard"],"x-configurator":{"sensitivity":"public","initialValue":"all"}},
+              "worker":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"synthetic-worker"}},
+              "dashboard":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"synthetic-dashboard"}}}},
+             "deployment":{"recipePointer":"/recipe","scopePointer":"/scope","components":[{"id":"worker","title":"Worker"},{"id":"dashboard","title":"Dashboard"}],
+              "recipes":[{"id":"split","title":"Split","scopes":[
+               {"id":"all","title":"All","componentIds":["worker","dashboard"],"artifactIds":["worker","dashboard"]},
+               {"id":"dashboard","title":"Dashboard","componentIds":["dashboard"],"artifactIds":["dashboard"]}]}]},
+             "outputs":{
+              "worker.json":{"id":"worker","format":"json","consumerIds":["worker"],"bindings":{"/value":{"scope":"root","path":"/worker"}}},
+              "dashboard.json":{"id":"dashboard","format":"json","consumerIds":["dashboard"],"bindings":{"/value":{"scope":"root","path":"/dashboard"}}}}}
+            """));
+        Require(shell.Loader.LoadDefinition(definition.CanonicalBytes), "deployment-load");
+        shell.Workspace.SelectedLocale = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        window.UpdateLayout();
+        ComboBox selector = window.GetNamedControl<ComboBox>("ConfigurationContext");
+        Require(selector.IsVisible && selector.Focus() && selector.IsFocused, "deployment-selector-focus");
+        Require(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(selector)), "deployment-selector-name");
+        shell.Publisher.ArtifactId = "worker";
+        Require(await shell.Publisher.PrepareAsync() && shell.Publisher.CanSave, "deployment-prepare");
+        long revision = shell.Workspace.Form!.InputRevision;
+        selector.SelectedItem = shell.Workspace.ConfigurationChoices.Single(choice => choice.ScopeId == "dashboard");
+        Require(shell.Workspace.Form.InputRevision == revision + 1 &&
+            shell.Workspace.Form.ConfigurationContext?.ScopeId == "dashboard", "deployment-atomic-binding");
+        Require(shell.Publisher.Artifacts.Count == 1 && shell.Publisher.ArtifactId == "dashboard" &&
+            !shell.Publisher.CanSave && shell.Publisher.Preparation is null, "deployment-stale-output");
+        shell.Publisher.OutputDirectory = directory;
+        shell.Publisher.FileName = "deployment-dashboard.json";
+        Require(await shell.Publisher.PrepareAsync(), "deployment-scoped-prepare");
+        ProtectedArtifactCommitResult saved = await shell.Publisher.SaveAsync();
+        string output = Path.Combine(directory, "deployment-dashboard.json");
+        Require(saved.VerificationSucceeded && await File.ReadAllTextAsync(output) == """{"value":"synthetic-dashboard"}""",
+            "deployment-scoped-output");
+        Require(OperatingSystem.IsLinux() && File.GetUnixFileMode(output) == (UnixFileMode.UserRead | UnixFileMode.UserWrite),
+            "deployment-scoped-permissions");
+        selector.SelectedItem = shell.Workspace.ConfigurationChoices.Single(choice => choice.ScopeId == "all");
+        Require(shell.Publisher.Artifacts.Count == 2 && shell.Workspace.Form.ConfigurationContext?.ScopeId == "all",
+            "deployment-switch-back");
+        await CaptureAsync(window, "deployment-context");
     }
 
     private static async Task RunAsync(MainWindow window, DesktopShellViewModel shell)
@@ -337,6 +388,10 @@ internal static class Program
             await SecretControlsAsync(window, shell);
             Pass();
 
+            _currentCheck = "D22-deployment-context-destinations";
+            await DeploymentContextAsync(window, shell, directory);
+            Pass();
+
             for (int count = 1; count <= 3; count++)
             {
                 _currentCheck = count switch { 1 => "D12-event-one-tenant", 2 => "D12-event-two-tenants", _ => "D12-event-three-tenants" };
@@ -396,7 +451,7 @@ internal static class Program
             "service.json":{"id":"config","format":"json","targetUpdateMode":"create","restartRequirement":"process",
               "bindings":{"/name":{"scope":"root","path":"/name"},"/owner":{"scope":"root","path":"/owner"},
                 "/hosts":{"scope":"root","path":"/hosts"}}},
-            "service.env":{"id":"environment","format":"dotenv","targetUpdateMode":"create","restartRequirement":"process",
+            "service.env":{"id":"environment","format":"dotenv","surface":"process-environment","environmentDialect":"docker-run","targetUpdateMode":"create","restartRequirement":"process",
               "bindings":{"NAME":{"scope":"root","path":"/name"}}},
             "service.yaml":{"id":"yaml","format":"yaml","targetUpdateMode":"replace","restartRequirement":"none",
               "bindings":{"/name":{"scope":"root","path":"/name"}}},
@@ -701,7 +756,7 @@ internal static class Program
                         Click(force);
                         await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
                         Require(!physical.IsCompleted &&
-                            borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8), "force-close-cleared-consumer");
+                            borrowed.Span.SequenceEqual("NAME=Example service\n"u8), "force-close-cleared-consumer");
                     }
                 }
                 release.TrySetResult();
@@ -795,13 +850,13 @@ internal static class Program
             Click(window.GetNamedControl<Button>("Cancel"));
             Require(!completion.IsCompleted && shell.IsBusy && !shell.Publisher.CanSave &&
                 !await shell.Publisher.PrepareAsync(), "physical-owner-released");
-            Require(borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8), "borrowed-input-cleared");
+            Require(borrowed.Span.SequenceEqual("NAME=Example service\n"u8), "borrowed-input-cleared");
             await CaptureAsync(window, "settlement-pending");
             release.TrySetResult();
             await completion.WaitAsync(TimeSpan.FromSeconds(10));
             await FlushAsync();
             ProtectedArtifactPublicationReceipt receipt = shell.Publisher.PublicationHistory.Single();
-            Require(consumed.AsSpan().SequenceEqual("NAME=\"Example service\"\n"u8) &&
+            Require(consumed.AsSpan().SequenceEqual("NAME=Example service\n"u8) &&
                 borrowed.ToArray().All(value => value == 0), "physical-consumption-or-cleanup");
             Require(receipt.IsSettled && receipt.CleanupFailed &&
                 receipt.Outcomes.Single().Result is { InstallationEstablished: true, VerificationSucceeded: false } &&

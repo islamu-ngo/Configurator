@@ -21,6 +21,20 @@
   <ScrollViewer Name="WorkspaceScroll" Margin="20" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Spacing="14">
     <local:DefinitionLoaderView />
+    <StackPanel IsVisible="{Binding Workspace.HasConfigurationContext}" Spacing="6">
+      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContext]}" />
+      <ComboBox Name="ConfigurationContext" ItemsSource="{Binding Workspace.ConfigurationChoices}"
+                SelectedItem="{Binding Workspace.SelectedConfigurationContext, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Workspace.Strings[ConfigurationContext]}"
+                AutomationProperties.HelpText="{Binding Workspace.Strings[ConfigurationContextHelp]}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ConfigurationContextChoice">
+            <TextBlock Text="{Binding Title}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContextHelp]}" TextWrapping="Wrap" />
+    </StackPanel>
       <ItemsControl Name="Fields" ItemsSource="{Binding Workspace.Fields}">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate><StackPanel Spacing="14" /></ItemsPanelTemplate>

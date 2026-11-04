@@ -145,4 +145,6 @@
   <data name="DefinitionPinFormat" xml:space="preserve"><value>{0} | {1} | الناشر: {2}
 العائلة: {3} | المراجعة: {4} | SHA-256: {5}
 بيانات الناشر ليست إثباتًا للثقة. التحضير المحلي لا يطبّق الإعداد.</value></data>
+  <data name="ConfigurationContext" xml:space="preserve"><value>طريقة النشر ونطاق المكوّنات</value></data>
+  <data name="ConfigurationContextHelp" xml:space="preserve"><value>اختر طريقة ونطاقاً متوافقين قبل التحرير. تتبع الجاهزية ووجهات الملفات هذه المكوّنات، ويؤدي تغيير النطاق إلى إبطال المخرجات المُحضّرة.</value></data>
 </root>

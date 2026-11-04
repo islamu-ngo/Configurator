@@ -22,6 +22,37 @@ using Configurator.Desktop.Views;
 
 public sealed class DesktopApplicationTests
 {
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task DeploymentPickerAcceptsOneCompatiblePairAndRemovesOrdinarySelectorEditors(string locale)
+    {
+        var result = await InWindow(window =>
+        {
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            shell.Loader.LoadDefinition(DesktopDeploymentContextTests.Definition().CanonicalBytes);
+            shell.Workspace.SelectedLocale = locale;
+            window.UpdateLayout();
+            var selector = window.GetNamedControl<ComboBox>("ConfigurationContext");
+            long revision = shell.Workspace.Form!.InputRevision;
+            selector.SelectedItem = shell.Workspace.ConfigurationChoices.Single(choice => choice.ScopeId == "dashboard");
+            Dispatcher.UIThread.RunJobs();
+            bool focused = selector.Focus();
+            return (revision: shell.Workspace.Form.InputRevision - revision,
+                scope: shell.Workspace.Form.ConfigurationContext?.ScopeId,
+                selected: shell.Workspace.SelectedConfigurationContext?.ScopeId,
+                focused, named: !string.IsNullOrWhiteSpace(AutomationProperties.GetName(selector)),
+                duplicateSelectors: shell.Workspace.Fields.Any(field => field.IsVisible && (field.Id is "recipe" or "scope")));
+        });
+        await Assert.That(result.revision).IsEqualTo(1);
+        await Assert.That(result.scope).IsEqualTo("dashboard");
+        await Assert.That(result.selected).IsEqualTo("dashboard");
+        await Assert.That(result.focused).IsTrue();
+        await Assert.That(result.named).IsTrue();
+        await Assert.That(result.duplicateSelectors).IsFalse();
+    }
+
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<Configurator.Desktop.App>()
             .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = true });
@@ -1116,7 +1147,7 @@ public sealed class DesktopApplicationTests
                     Click(force);
                     await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
                     bool retained = !shell.ActiveCompletion.IsCompleted &&
-                        borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8);
+                        borrowed.Span.SequenceEqual("NAME=Example service\n"u8);
                     release.TrySetResult();
                     await saving.WaitAsync(TimeSpan.FromSeconds(10));
                     await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
@@ -1145,7 +1176,7 @@ public sealed class DesktopApplicationTests
           "schemaVersion":"0.0.1","profile":"bounded-v0.0.1","familyId":"69cdb122-41d2-4fab-9b82-7929a889c726",
           "revision":REVISION,"project":{"id":"example.service","name":"Example setup","publisher":"example"},
           "applicationVersions":["1.0"],"entryPoints":["setup"],"locales":["en"],
-          "requiredCapabilities":["predicate.root","projection.copy","projection.list","projection.object",
+          "requiredCapabilities":["environment.docker-run","predicate.root","projection.copy","projection.list","projection.object",
             "schema.array","schema.boolean","schema.bounds","schema.enum","schema.integer","schema.notBlank",
             "schema.number","schema.object","schema.string","values.initial"],
           "configuration":{"type":"object","additionalProperties":false,"required":["name"],
@@ -1171,7 +1202,7 @@ public sealed class DesktopApplicationTests
             {"id":"config","format":"json","fileName":"service.json","targetUpdateMode":"create","restartRequirement":"process",
               "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}},
                 "owner":{"op":"copy","reference":{"scope":"root","path":"/owner"}},"hosts":{"op":"copy","reference":{"scope":"root","path":"/hosts"}}}}},
-            {"id":"environment","format":"dotenv","fileName":"service.env","targetUpdateMode":"create","restartRequirement":"process",
+            {"id":"environment","format":"dotenv","fileName":"service.env","surface":"process-environment","environmentDialect":"docker-run","targetUpdateMode":"create","restartRequirement":"process",
               "projection":{"op":"object","members":{"NAME":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}},
             {"id":"yaml","format":"yaml","fileName":"service.yaml","targetUpdateMode":"replace","restartRequirement":"none",
               "projection":{"op":"object","members":{"name":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}},

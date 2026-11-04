@@ -11,7 +11,7 @@ public sealed class ArtifactSelectionViewModel(string id, string title, string l
     private DesktopStrings _strings = new(locale);
     public string Id { get; } = id;
     public string Title { get; } = title;
-    public string AutomationName => _strings.Format("IncludeArtifact", Id);
+    public string AutomationName => _strings.Format("IncludeArtifact", Title);
     internal void SetLocale(string locale)
     {
         _strings = new(locale);

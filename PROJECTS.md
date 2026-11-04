@@ -214,15 +214,17 @@ Desktop native qualification runs separately from MTP/headless tests:
 
 ```bash
 dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet
-dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 21
+dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 22
 ```
 
-Its twenty-one required named scenarios preserve all twenty existing guards,
+Its twenty-two required named scenarios preserve all twenty existing guards,
 including `D18-shared-editing-presence-localized-actions` and
 `D19-typed-map-variant-null-reset-locale`, and add
 `D20-read-only-import-comparison`, and add `D21-secret-generation-validation`.
 The new scenario exercises rendered generation, validation correction, reveal,
 explicit clipboard transfer and separate generated-password dismissal.
+`D22-deployment-context-destinations` exercises the rendered atomic recipe/scope
+selection and eligible destination refresh.
 The count is the actual required name set,
 not a claim that the current source has passed native qualification.
 Parent-owned startup cohorts use

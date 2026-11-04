@@ -122,6 +122,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                 publisher._generation = message.Generation;
                 publisher.ClearImportComparison();
                 publisher.ClearPreparation();
+                publisher.RefreshEligibleArtifacts();
             });
         messenger.Register<ArtifactPublisherViewModel, OperationStateMessage>(this,
             static (publisher, message) =>
@@ -134,7 +135,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             });
     }
 
-    public IReadOnlyList<ArtifactDefinition> Artifacts => _form?.Definition.Artifacts ?? [];
+    public IReadOnlyList<ArtifactDefinition> Artifacts => _form?.EligibleArtifacts ?? [];
     public IReadOnlyList<ArtifactSelectionViewModel> ArtifactSelections => _artifactSelections;
     public ArtifactDefinition? SelectedArtifact
     {
@@ -151,7 +152,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     public DefinitionPreparationMetadata? Preparation => _preparationWorkspace?.Result as DefinitionPreparationMetadata;
     public bool CanSelectPath => !_disposed && !IsBusy;
     public bool CanPrepare => !_disposed && !IsBusy && _form is not null;
-    public bool CanImport => CanPrepare && ArtifactId is not null;
+    public bool CanImport => CanPrepare && Artifacts.Any(artifact => artifact.Id == ArtifactId);
     public IReadOnlyList<string> ImportPurposes => [Text("CompareLabel"), Text("FillFieldsLabel")];
     public string ImportPurposeLabel => Text(nameof(ImportPurposeLabel));
     public string ReviewFileLabel => Text(nameof(ReviewFileLabel));
@@ -278,7 +279,6 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     /// <summary>Replaces choices before selecting their default, so two-way picker reset cannot erase the new selection.</summary>
     private void ReplaceForm(DefinitionFormModel? form)
     {
-        ClearPreparation();
         if (_form is not null)
         {
             _form.ImportComparisonChanged -= ImportComparisonChanged;
@@ -286,6 +286,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             _form.ClearImportComparison();
         }
         _form = form;
+        ClearPreparation();
         if (form is not null)
         {
             form.ImportComparisonChanged += ImportComparisonChanged;
@@ -303,7 +304,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }
         finally { _replacingForm = false; }
         if (ArtifactId is not null) _selectedArtifactIds.Add(ArtifactId);
-        _artifactSelections = Artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.FileName, _form?.Locale ?? "en",
+        _artifactSelections = Artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.Title, _form?.Locale ?? "en",
             _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected))).ToArray();
         OnPropertyChanged(nameof(ArtifactSelections));
         OnPropertyChanged(nameof(SelectedArtifactIds));
@@ -312,6 +313,33 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         OnPropertyChanged(nameof(FileName));
         OnPropertyChanged(nameof(ArtifactConsequences));
         LocaleChanged(form, EventArgs.Empty);
+        NotifyCommands();
+    }
+
+    private void RefreshEligibleArtifacts()
+    {
+        IReadOnlyList<ArtifactDefinition> artifacts = Artifacts;
+        if (_artifactSelections.Select(item => item.Id).SequenceEqual(artifacts.Select(item => item.Id))) return;
+        string? previous = ArtifactId;
+        string previousFileName = FileName;
+        bool hadSelection = _selectedArtifactIds.Count > 0;
+        _selectedArtifactIds.IntersectWith(artifacts.Select(item => item.Id));
+        _replacingForm = true;
+        try
+        {
+            OnPropertyChanged(nameof(Artifacts));
+            ArtifactId = artifacts.FirstOrDefault(item => item.Id == previous)?.Id
+                ?? artifacts.FirstOrDefault(item => item.Id == _form?.ConfigurationContext?.PrimaryArtifactId)?.Id
+                ?? (artifacts.Count > 0 ? artifacts[0].Id : null);
+            if (ArtifactId == previous) FileName = previousFileName;
+        }
+        finally { _replacingForm = false; }
+        if (hadSelection && _selectedArtifactIds.Count == 0 && ArtifactId is not null) _selectedArtifactIds.Add(ArtifactId);
+        _artifactSelections = artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.Title, _form?.Locale ?? "en",
+            _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected))).ToArray();
+        OnPropertyChanged(nameof(ArtifactSelections));
+        OnPropertyChanged(nameof(SelectedArtifactIds));
+        OnPropertyChanged(nameof(SelectedArtifact));
         NotifyCommands();
     }
 

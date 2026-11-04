@@ -79,7 +79,7 @@ public sealed class DesktopCloseLifecycleTests
             shell.Dispose();
             shell.Dispose();
             await Assert.That(physical.IsCompleted).IsFalse();
-            await Assert.That(borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8)).IsTrue();
+            await Assert.That(borrowed.Span.SequenceEqual("NAME=Example service\n"u8)).IsTrue();
         }
         finally { release.TrySetResult(); }
         string status = shell.Status;
@@ -260,7 +260,7 @@ public sealed class DesktopCloseLifecycleTests
                     await Assert.That(window.IsVisible).IsTrue();
                     await Assert.That(closed.Task.IsCompleted).IsFalse();
                     await Assert.That(shell.IsBusy).IsTrue();
-                    await Assert.That(borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8)).IsTrue();
+                    await Assert.That(borrowed.Span.SequenceEqual("NAME=Example service\n"u8)).IsTrue();
                     window.Close();
                     release.TrySetResult();
                     await saving.WaitAsync(TimeSpan.FromSeconds(10));

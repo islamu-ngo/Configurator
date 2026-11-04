@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6K7QTF424H36FKHHAADDBX4
+Title: "select deployment scope before desktop preparation"
+Type: feat
+Scope: self-hosting
+Summary: "Bind atomic context choices and eligible destinations while preserving invalidation and installed save receipts."
+Group: commit-all-desktop
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Bind atomic context choices and eligible destinations while preserving invalidation and installed save receipts."
+  Migration:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Bind atomic context choices and eligible destinations while preserving invalidation and installed save receipts."
+  OpenAPI:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Bind atomic context choices and eligible destinations while preserving invalidation and installed save receipts."

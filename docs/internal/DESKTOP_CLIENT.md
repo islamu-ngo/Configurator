@@ -1,9 +1,9 @@
 # Definition-driven Avalonia Desktop
 
 > **Audience:** Contributors | Integrators | AI agents
-> **Status:** Typed definition adapters; schema-driven secret qualification is pending
+> **Status:** Definition and deployment adapters; published-package and manual qualification remain separate
 > **Owner:** Desktop
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-11-04
 > **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/`
 
 Desktop remains on the centrally pinned Avalonia 12.1.3 packages. It references
@@ -105,6 +105,23 @@ adoption, normal fresh workspace validation owns corrections. No report value,
 private unknown key, raw exception or native input path belongs in feedback.
 
 ## Editing and presentation flow
+
+`FormWorkspaceViewModel.ConfigurationChoices` contains declared compatible
+recipe/scope pairs, localized through the shared form metadata. The native
+`ConfigurationContext` ComboBox appears before the field list and binds its
+selection to `DefinitionFormModel.SelectConfigurationContext`; Presentation
+owns the single accepted mutation and revision. The two selector fields are
+represented by this picker rather than duplicate ordinary editors. Unsupported
+pairs do not change accepted answers. Desktop has no Developer document editor
+or separate pending document draft to resolve.
+
+`ArtifactPublisherViewModel.Artifacts` uses the form's current eligible outputs.
+Input changes reconcile single and bundle selections before their next use,
+retaining only eligible IDs and choosing the admitted primary destination when
+the previous selection is no longer available. Normal shell input invalidation
+retires preparation and import work; existing operation generations fence late
+completion and preserve truthful native publication receipts. No client-owned
+scope mask or second validation path is introduced.
 
 `DefinitionFormModel` owns a frozen admitted definition, typed field input text,
 input revision, validation, and cloned snapshots. Desktop's `FormFieldFactory`
@@ -396,9 +413,14 @@ history, and immutable strings cannot promise complete memory erasure.
 
 ## Native qualification
 
-The current executable requires twenty-one distinct names: all twenty existing
+The current executable requires twenty-two distinct names: all twenty existing
 guards, including `D19-typed-map-variant-null-reset-locale` and
-`D20-read-only-import-comparison`, plus `D21-secret-generation-validation`.
+`D20-read-only-import-comparison`, plus `D21-secret-generation-validation`
+and `D22-deployment-context-destinations`. The deployment guard checks the
+real native compatible-pair selector, its accessible name and focus, one
+accepted revision, eligible destinations, stale preparation retirement and
+switch-back, plus exact scoped output bytes and restricted file permissions.
+It does not certify manual keyboard or assistive-technology use.
 The secret guard exercises native masked input, invalid-value correction focus,
 Generate, Show/Hide, deliberate clipboard copy, hiding after editing,
 validation recovery, and separate digest/original-password copy and dismissal.
@@ -406,6 +428,19 @@ Its clipboard payload is synthetic and is cleared after
 the check. This required set is not evidence of an executed current host run.
 Parent-owned actual published/manual QA and comparison resource measurements
 must be recorded separately from focused headless checks.
+
+Deployment-context verification on 2026-11-04: the Desktop and NativeHost
+Release builds completed with zero warnings/errors, and the complete Desktop
+suite passed 304 tests without skips. The real Linux x64/X11 NativeHost passed
+all 22 required checks separately under English and Arabic, using isolated
+Xvfb displays. The deployment guard checked the rendered pair binding/focus,
+one accepted revision, stale preparation retirement, current destinations,
+exact scoped JSON output and mode `0600`, then switch-back. Local captures and
+`qualification.json` records are under
+`.tmp/deployment-aware-configuration/desktop-native-en/` and
+`.tmp/deployment-aware-configuration/desktop-native-ar/`.
+These are source-built native and headless observations, not installed-package,
+manual keyboard/dialog, scaling or assistive-technology certification.
 
 The following records earlier qualification scopes. It does not establish
 Phase 10 typed-map, variant, nullable or localized-metadata behavior on a

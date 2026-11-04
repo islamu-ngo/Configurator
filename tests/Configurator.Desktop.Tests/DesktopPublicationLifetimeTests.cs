@@ -38,7 +38,7 @@ public sealed class DesktopPublicationLifetimeTests
             else if (invalidation == "edit")
                 shell.Workspace.Form!.Fields.Single(field => field.Definition.Id == "name").Text = "Changed";
             else shell.Cancel();
-            await Assert.That(borrowed.Span.SequenceEqual("NAME=\"Example service\"\n"u8)).IsTrue();
+            await Assert.That(borrowed.Span.SequenceEqual("NAME=Example service\n"u8)).IsTrue();
             await Assert.That(shell.IsBusy).IsTrue();
             await Assert.That(shell.Publisher.CanSave).IsFalse();
             if (invalidation != "dispose")
@@ -46,7 +46,7 @@ public sealed class DesktopPublicationLifetimeTests
         }
         finally { release.TrySetResult(); }
         ProtectedArtifactCommitResult result = await saving.WaitAsync(TimeSpan.FromSeconds(10));
-        await Assert.That(consumed.AsSpan().SequenceEqual("NAME=\"Example service\"\n"u8)).IsTrue();
+        await Assert.That(consumed.AsSpan().SequenceEqual("NAME=Example service\n"u8)).IsTrue();
         await Assert.That(result.InstallationEstablished).IsTrue();
         await Assert.That(result.CleanupFailed).IsTrue();
         await Assert.That(borrowed.ToArray().All(value => value == 0)).IsTrue();
@@ -142,7 +142,7 @@ public sealed class DesktopPublicationLifetimeTests
         finally { release.TrySetResult(); }
         await Assert.That(await saving.WaitAsync(TimeSpan.FromSeconds(10))).IsNull();
         await settlement.WaitAsync(TimeSpan.FromSeconds(10));
-        await Assert.That(consumed.AsSpan().SequenceEqual("NAME=\"Example service\"\n"u8)).IsTrue();
+        await Assert.That(consumed.AsSpan().SequenceEqual("NAME=Example service\n"u8)).IsTrue();
         await Assert.That(() => borrowed!.Bytes).Throws<ObjectDisposedException>();
         ProtectedArtifactPublicationReceipt receipt = shell.Publisher.PublicationHistory.Single();
         await Assert.That(receipt.Failed && receipt.IsUnknown && receipt.IsSettled).IsTrue();
@@ -197,7 +197,7 @@ public sealed class DesktopPublicationLifetimeTests
             await Assert.That(receipt.Outcomes[0].Result!.Succeeded).IsTrue();
             await Assert.That(receipt.Outcomes[1].Result).IsNull();
             await Assert.That(File.ReadAllBytes(Path.Combine(directory, "service.env"))
-                .AsSpan().SequenceEqual("NAME=\"Example service\"\n"u8)).IsTrue();
+                .AsSpan().SequenceEqual("NAME=Example service\n"u8)).IsTrue();
             await Assert.That(File.Exists(Path.Combine(directory, "service.yaml"))).IsFalse();
             await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
         }

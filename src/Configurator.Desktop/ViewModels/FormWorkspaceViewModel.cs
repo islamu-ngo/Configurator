@@ -18,6 +18,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private DefinitionFormModel? _form;
     private IReadOnlyList<FieldViewModel> _fields = [];
     private IReadOnlyList<ExperienceChoiceViewModel> _experiences = [];
+    private IReadOnlyList<ConfigurationContextChoice> _configurationChoices = [];
     private string? _experienceLocale;
     private bool _disposed;
 
@@ -51,6 +52,19 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     public DefinitionFormModel? Form => _form;
     public IReadOnlyList<FieldViewModel> Fields => _fields;
+    public IReadOnlyList<ConfigurationContextChoice> ConfigurationChoices => _configurationChoices;
+    public bool HasConfigurationContext => Form?.ConfigurationContext is not null;
+    public ConfigurationContextChoice? SelectedConfigurationContext
+    {
+        get => ConfigurationChoices.FirstOrDefault(choice =>
+            choice.RecipeId == Form?.ConfigurationContext?.RecipeId && choice.ScopeId == Form?.ConfigurationContext?.ScopeId);
+        set
+        {
+            if (_disposed || value is null || value == SelectedConfigurationContext) return;
+            if (!ConfigurationChoices.Contains(value) || Form?.SelectConfigurationContext(value.RecipeId, value.ScopeId) != true)
+                OnPropertyChanged(nameof(SelectedConfigurationContext));
+        }
+    }
     public IReadOnlyList<ExperienceChoiceViewModel> Experiences => _experiences;
     public IReadOnlyList<string> Locales => Form?.Definition.Locales ?? [];
     public Configurator.Desktop.Resources.DesktopStrings Strings => new(Form?.Locale);
@@ -126,11 +140,28 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
 
     private void NotifyFieldState()
     {
+        RefreshConfigurationChoices();
         OnPropertyChanged(nameof(Strings));
         OnPropertyChanged(nameof(LocaleLabel));
         OnPropertyChanged(nameof(FollowLocaleDirectionLabel));
         OnPropertyChanged(nameof(FirstError));
         OnPropertyChanged(nameof(FirstVisible));
+    }
+
+    private void RefreshConfigurationChoices()
+    {
+        ConfigurationContextChoice[] choices = Form?.ConfigurationRecipes.SelectMany((recipe, recipeIndex) =>
+            recipe.Scopes.Select((scope, scopeIndex) => new ConfigurationContextChoice(recipe.Id, scope.Id,
+                Form.LocalizedText(DefinitionPath.Parse($"/deployment/recipes/{recipeIndex}/title"), recipe.Title) + " · " +
+                Form.LocalizedText(DefinitionPath.Parse($"/deployment/recipes/{recipeIndex}/scopes/{scopeIndex}/title"), scope.Title))))
+            .ToArray() ?? [];
+        if (!_configurationChoices.SequenceEqual(choices))
+        {
+            _configurationChoices = Array.AsReadOnly(choices);
+            OnPropertyChanged(nameof(ConfigurationChoices));
+        }
+        OnPropertyChanged(nameof(HasConfigurationContext));
+        OnPropertyChanged(nameof(SelectedConfigurationContext));
     }
 
     private void ViewChanged(object? sender, EventArgs args)

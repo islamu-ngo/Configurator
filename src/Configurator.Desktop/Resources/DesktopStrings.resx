@@ -145,4 +145,6 @@ Restricted output. Save creates a new owner-only file; it never overwrites or ap
   <data name="DefinitionPinFormat" xml:space="preserve"><value>{0} | {1} | publisher: {2}
 Family: {3} | revision: {4} | SHA-256: {5}
 Publisher metadata is not a trust assertion. Local preparation does not apply configuration.</value></data>
+  <data name="ConfigurationContext" xml:space="preserve"><value>Deployment recipe and component scope</value></data>
+  <data name="ConfigurationContextHelp" xml:space="preserve"><value>Choose a compatible recipe and scope before editing. Readiness and destinations follow these components; changing scope retires prepared output.</value></data>
 </root>
