@@ -6,13 +6,14 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Configurator.Core.Composition;
+using Configurator.Core.Dotenv;
 
-internal static class DefinitionAdmission
+internal static partial class DefinitionAdmission
 {
     internal static DefinitionNode Admit(JsonElement document, SortedSet<string> capabilities)
     {
         Only(document, "schemaVersion", "profile", "familyId", "revision", "project", "applicationVersions",
-            "entryPoints", "locales", "configuration", "artifacts", "requiredCapabilities", "presentation", "localization", "annotations");
+            "entryPoints", "locales", "configuration", "artifacts", "requiredCapabilities", "presentation", "localization", "annotations", "deployment");
         if (document.GetProperty("schemaVersion").ValueKind != JsonValueKind.String
             || document.GetProperty("schemaVersion").GetString() != DefinitionProfile.RuntimeSchemaVersion
             || document.GetProperty("profile").GetString() != DefinitionProfile.Id)
@@ -44,13 +45,15 @@ internal static class DefinitionAdmission
         var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (JsonElement artifact in artifacts.EnumerateArray())
         {
-            Only(artifact, "id", "fileName", "format", "targetUpdateMode", "restartRequirement", "projection");
+            Only(artifact, "id", "fileName", "format", "targetUpdateMode", "restartRequirement", "projection",
+                "title", "description", "consumerIds", "surface", "environmentDialect");
             string id = Text(artifact.GetProperty("id"), 128);
             if (!char.IsAsciiLetter(id[0]) || !id.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_')
                 || !ids.Add(id)) throw new DefinitionException("artifact-identifier");
             Choice(artifact, "format", DefinitionVocabulary.Formats);
             Choice(artifact, "targetUpdateMode", DefinitionVocabulary.TargetUpdateModes);
             Choice(artifact, "restartRequirement", DefinitionVocabulary.RestartRequirements);
+            ValidateArtifactUsage(artifact, capabilities);
             string file = Text(artifact.GetProperty("fileName"), 128);
             string stem = file.Split('.')[0];
             if (file is "." or ".." || file[^1] is '.' or ' '
@@ -65,6 +68,8 @@ internal static class DefinitionAdmission
             if (artifact.GetProperty("format").GetString() == "markdown")
                 ValidateMarkdown(artifact.GetProperty("projection"), configuration);
         }
+        if (document.TryGetProperty("deployment", out var deployment))
+            ValidateDeployment(deployment, configuration, artifacts, capabilities);
         if (document.TryGetProperty("presentation", out var presentation))
             ValidatePresentation(presentation, configuration, artifacts);
         return configuration;
@@ -224,8 +229,7 @@ internal static class DefinitionAdmission
         foreach (JsonProperty member in projection.GetProperty("members").EnumerateObject())
         {
             string key = member.Name;
-            if (key.Length == 0 || !(char.IsAsciiLetter(key[0]) || key[0] == '_')
-                || !key.All(c => char.IsAsciiLetterOrDigit(c) || c == '_')) throw new DefinitionException("dotenv-key");
+            if (!DotenvCodec.IsEnvironmentKey(key)) throw new DefinitionException("dotenv-key");
             JsonElement value = member.Value;
             switch (value.GetProperty("op").GetString())
             {

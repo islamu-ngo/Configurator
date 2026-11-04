@@ -47,6 +47,11 @@ public static class DefinitionArtifactComposer
 
         internal DefinitionArtifactResult Compose(string artifactId, List<DefinitionDraftCompletion> completions)
             => ComposeValidated(_definition, artifactId, _answers, _draft, completions, _validation, _cancellationToken);
+
+        internal bool IsEligible(string artifactId) => _validation.ConfigurationContext is not { } context
+            || context.EligibleArtifactIds.Contains(artifactId, StringComparer.Ordinal);
+
+        internal IReadOnlyList<DefinitionDiagnostic> ValidationDiagnostics => _validation.Diagnostics;
     }
 
     private static DefinitionArtifactResult ComposeValidated(Definition definition, string artifactId,
@@ -58,6 +63,8 @@ public static class DefinitionArtifactComposer
         ArtifactDefinition? artifact = definition.Artifacts.SingleOrDefault(item => item.Id == artifactId);
         if (artifact is null) return new(null, [new("artifact-unknown", "")]);
         if (!validation.IsReady) return new(null, validation.Diagnostics);
+        if (validation.ConfigurationContext is { } context && !context.EligibleArtifactIds.Contains(artifactId, StringComparer.Ordinal))
+            return new(null, [new("artifact-context", "")]);
         string unresolvedField = "";
         try
         {
@@ -78,7 +85,8 @@ public static class DefinitionArtifactComposer
                 {
                     DefinitionArtifactFormat.Json => canonical,
                     DefinitionArtifactFormat.Yaml => DefinitionArtifactSerializer.WriteYaml(document.RootElement),
-                    DefinitionArtifactFormat.Dotenv => DefinitionArtifactSerializer.WriteDotenv(document.RootElement, draft),
+                    DefinitionArtifactFormat.Dotenv => DefinitionArtifactSerializer.WriteDotenv(document.RootElement,
+                        artifact.EnvironmentDialect!.Value, draft),
                     DefinitionArtifactFormat.Markdown => DefinitionArtifactSerializer.WriteMarkdown(document.RootElement),
                     _ => throw new DefinitionException("format-invalid")
                 };
@@ -239,6 +247,8 @@ public static class DefinitionArtifactComposer
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DefinitionPath location = DefinitionPath.Parse(fieldPath);
+                if (validation.ConfigurationContext is { } context && !context.Includes(location.Segments))
+                    return (false, null);
                 if (location.Segments.Count > 0 && !activeRoots.Contains(location.Segments[0]))
                     return (false, null);
                 bool secret = secretAncestor || FieldDefinition.SensitivityOf(schema) == FieldSensitivity.Secret;

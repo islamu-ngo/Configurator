@@ -17,6 +17,7 @@ public static class DefinitionProfile
     /// <summary>Closed semantic capability registry. Required subsets are computed by admission.</summary>
     public static IReadOnlyList<string> Capabilities { get; } = Array.AsReadOnly(new[]
     {
+        "deployment.scope", "environment.docker-run", "environment.compose",
         "predicate.item", "predicate.root", "projection.copy", "projection.index", "projection.list", "projection.literal", "projection.object",
         "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
         "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object", "schema.secret",

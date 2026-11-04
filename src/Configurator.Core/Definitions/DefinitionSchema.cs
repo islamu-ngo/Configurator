@@ -46,6 +46,11 @@ public static class DefinitionSchema
             ["format"] = Choice(DefinitionVocabulary.Formats),
             ["targetUpdateMode"] = Choice(DefinitionVocabulary.TargetUpdateModes),
             ["restartRequirement"] = Choice(DefinitionVocabulary.RestartRequirements),
+            ["title"] = Text(256),
+            ["description"] = Text(4096),
+            ["consumerIds"] = Strings(64, 128),
+            ["surface"] = Choice("process-environment", "compose-input"),
+            ["environmentDialect"] = Choice("docker-run", "compose"),
             ["projection"] = Ref("projection")
         }, "id", "fileName", "format", "targetUpdateMode", "restartRequirement", "projection");
         JsonObject properties = new()
@@ -55,6 +60,7 @@ public static class DefinitionSchema
             ["entryPoints"] = Strings(128, 128),
             ["configuration"] = Ref("node"),
             ["presentation"] = Presentation(),
+            ["deployment"] = Deployment(),
             ["localization"] = Localization(),
             ["annotations"] = new JsonObject { ["type"] = "object" }
         };
@@ -129,6 +135,41 @@ public static class DefinitionSchema
             """);
         schema["description"] = "Bounded recursive structure. Admission checks exact numbers, Unicode, acyclic local references, discriminators, privacy, computed capabilities and resource limits; unsupported semantics reject.";
         return schema;
+    }
+
+    private static JsonObject Deployment()
+    {
+        JsonObject scope = Closed(new JsonObject
+        {
+            ["id"] = Text(128),
+            ["title"] = Text(256),
+            ["description"] = Text(4096),
+            ["componentIds"] = Strings(64, 128),
+            ["artifactIds"] = Strings(64, 128),
+            ["primaryArtifactId"] = Text(128),
+            ["prerequisitePointers"] = Strings(1024, 65536, minimum: 0)
+        }, "id", "title", "componentIds", "artifactIds");
+        JsonObject recipe = Closed(new JsonObject
+        {
+            ["id"] = Text(128),
+            ["title"] = Text(256),
+            ["description"] = Text(4096),
+            ["scopes"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 16, ["items"] = scope }
+        }, "id", "title", "scopes");
+        JsonObject component = Closed(new JsonObject
+        {
+            ["id"] = Text(128),
+            ["title"] = Text(256),
+            ["description"] = Text(4096)
+        }, "id", "title");
+        return Closed(new JsonObject
+        {
+            ["recipePointer"] = Text(65536),
+            ["scopePointer"] = Text(65536),
+            ["when"] = Ref("predicate"),
+            ["components"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 64, ["items"] = component },
+            ["recipes"] = new JsonObject { ["type"] = "array", ["minItems"] = 1, ["maxItems"] = 16, ["items"] = recipe }
+        }, "recipePointer", "scopePointer", "components", "recipes");
     }
 
     private static JsonObject Node()

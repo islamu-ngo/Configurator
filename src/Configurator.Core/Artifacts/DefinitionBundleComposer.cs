@@ -39,6 +39,7 @@ public static class DefinitionBundleComposer
             return new([], [new("artifact-unknown", "")]);
 
         var composition = new DefinitionArtifactComposer.ValidatedComposition(definition, answers, false, cancellationToken);
+        if (composition.ValidationDiagnostics.Count != 0) return new([], composition.ValidationDiagnostics);
         var composed = new List<DefinitionArtifact>(selected.Count);
         long totalBytes = 0;
         bool complete = false;
@@ -47,6 +48,7 @@ public static class DefinitionBundleComposer
             foreach (ArtifactDefinition artifact in definition.Artifacts)
             {
                 if (!selected.Contains(artifact.Id)) continue;
+                if (skipOmitted && !composition.IsEligible(artifact.Id)) continue;
                 DefinitionArtifactResult result = composition.Compose(artifact.Id, []);
                 if (!result.Succeeded)
                 {

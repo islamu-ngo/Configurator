@@ -66,12 +66,56 @@ explicit `null` is not a way to omit required metadata.
 | `configuration` | Required non-null object schema, recursively described below |
 | `outputs` | Required filename-keyed map containing 1-64 outputs |
 | `presentation` | Optional sections, journeys, default journey, and navigation |
+| `deployment` | Optional declared recipes and compatible component scopes, selected by ordinary public answers |
 | `localization` | Optional default locale and public text translations; absence means `en` |
 | `annotations` | Optional bounded inert object; not validation or execution instructions |
 
 Version, entry-point, and locale lists are bounded to 128 distinct nonblank
 strings of at most 128 characters. Public text metadata rejects control
 characters and angle brackets; multiline guidance has its own rules below.
+
+### Deployment recipes and component scopes
+
+A definition can declare deployment choices before the form. `recipePointer`
+and `scopePointer` refer to ordinary public string-enum answers; their
+`initialValue` selects the initial compatible pair. A recipe contains explicitly
+declared scopes, each naming its components, eligible artifacts and optional
+prerequisite pointers. An optional `when` predicate limits this behavior to a
+configuration task, such as environment preparation. A task outside that
+predicate keeps its existing validation and output behavior.
+
+Completeness follows the selected scope. For example, a worker-only scope can
+require its process settings without asking for unrelated dashboard credentials.
+Selecting a smaller export within a combined scope does not reduce that scope's
+requirements. Basic/Advanced detail changes presentation only.
+
+Recipe and component scope change together as one accepted edit. An incompatible
+pair leaves the current workspace untouched. Clients resolve pending document
+edits before switching; choosing Stay preserves them. Switching scope retains
+inactive answers locally for switch-back, but those answers do not become
+effective values or prepared output. Revoking secret entry clears secret leaves
+across every scope and retires prepared output. Already copied or downloaded
+bytes cannot be recalled. Document replacement is limited to the selected
+editable scope, so it preserves answers retained for another recipient.
+
+Output `consumerIds`, `surface` and `environmentDialect` describe who receives
+the declared projection and how its environment text is consumed. Shared values
+remain one answer mapped to several destinations; independent credentials remain
+separate answers. See the [deployment reference](definition-reference.md#deployment-context-and-destinations)
+for the closed metadata contract. Prepared files remain candidates for the
+target application to validate and authorize.
+
+The maintained Event definition initializes `standalone` / `all`.
+`separate-images` and `docker-compose` also offer `api` and `blazor` scopes.
+Blazor-only requires its external API connection, session authority and BFF
+Data Protection partition, while excluding API setup and migration authority.
+Full Compose inputs declare their separate migration recipient; component-only
+inputs are not a complete Compose deployment. Role-specific Infisical credentials
+map to structured process keys or explicit Compose input names. See the
+[Event guide](../../examples/islamu-event/README.md#choose-an-offline-task)
+and [reviewed inventory](../../examples/islamu-event/provider-contract-inventory.md)
+for target prerequisites and unsupported fields. Synthetic preparation evidence
+does not establish Event startup or promoted authority.
 
 ## Identity and Integrity Pinning
 

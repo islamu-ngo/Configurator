@@ -28,6 +28,19 @@ public static class DefinitionValidator
         DefinitionImportWork work, CancellationToken cancellationToken) =>
         DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken, work: work);
 
+    /// <summary>Resolves only scope-control observations through the ordinary effective-value kernel and shared operation budget.</summary>
+    internal static DefinitionValidationResult ObserveScope(Definition definition, AnswerSnapshot answers,
+        IEnumerable<DefinitionPath> locations, CompositionBudget budget, CancellationToken cancellationToken)
+    {
+        var observation = new DefinitionConfigurationContext(null, null, true, [], locations);
+        DefinitionValidationResult result = DefinitionImportWork.CompleteSynchronously(
+            DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken,
+                scopeObservation: observation, sharedBudget: budget));
+        if (result.Diagnostics.Any(diagnostic => diagnostic.Code == "validation-limit"))
+            throw new CompositionException(CompositionFailureCode.LimitExceeded);
+        return result;
+    }
+
     internal static async ValueTask<JsonElement> ElementAsync(JsonNode? value, DefinitionImportWork? work)
     {
         if (work is null) return Element(value);

@@ -8,7 +8,7 @@ using Configurator.Core.Environment;
 
 internal static class DefinitionArtifactSerializer
 {
-    internal static byte[] WriteDotenv(JsonElement value, bool draft = false)
+    internal static byte[] WriteDotenv(JsonElement value, EnvironmentDestinationDialect dialect, bool draft = false)
     {
         if (value.ValueKind != JsonValueKind.Object) throw new DefinitionException("dotenv-shape");
         var entries = new List<DotenvEntry>();
@@ -22,7 +22,8 @@ internal static class DefinitionArtifactSerializer
             entries.Add(new(property.Name, placeholder ? null : text,
                 placeholder ? DotenvEntryKind.EmptyPlaceholder : DotenvEntryKind.LocalHumanValue, true, DotenvProvenance.UserInput));
         }
-        DotenvRenderResult rendered = DotenvCodec.Render(new DotenvDocument(entries), true);
+        DotenvRenderResult rendered = DotenvCodec.Render(new DotenvDocument(entries), true, dialect,
+            draft ? DotenvPurpose.TemplatePlaceholders : DotenvPurpose.EditableValues);
         if (!rendered.Succeeded) throw new DefinitionException("dotenv-value");
         return rendered.Bytes.ToArray();
     }

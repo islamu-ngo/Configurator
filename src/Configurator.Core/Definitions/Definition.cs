@@ -22,15 +22,18 @@ public sealed class Definition
             item.Key, item.Value, configuration.Required.Contains(item.Key, StringComparer.Ordinal), inherited)).ToArray());
         Artifacts = Array.AsReadOnly(document.GetProperty("artifacts").EnumerateArray()
             .Select(item => new ArtifactDefinition(item)).ToArray());
+        ScopeIndex = new DefinitionScopeIndex(Artifacts);
         ApplicationVersions = Strings("applicationVersions");
         EntryPoints = Strings("entryPoints");
         Locales = Strings("locales");
         RequiredCapabilities = Strings("requiredCapabilities");
         Presentation = document.TryGetProperty("presentation", out var presentation)
             ? new DefinitionPresentation(presentation) : null;
+        Deployment = document.TryGetProperty("deployment", out var deployment) ? new DefinitionDeployment(deployment) : null;
     }
 
     internal JsonElement Document { get; }
+    internal DefinitionScopeIndex ScopeIndex { get; }
     public Guid FamilyId { get; }
     public long Revision { get; }
     public ArtifactDigest Digest { get; }
@@ -47,6 +50,7 @@ public sealed class Definition
     public IReadOnlyList<FieldDefinition> Fields { get; }
     public IReadOnlyList<ArtifactDefinition> Artifacts { get; }
     public DefinitionPresentation? Presentation { get; }
+    public DefinitionDeployment? Deployment { get; }
     public override string ToString() => $"{nameof(Definition)}:{FamilyId:D}:{Revision}:{Digest}";
 
     private ReadOnlyCollection<string> Strings(string name) => Array.AsReadOnly(

@@ -174,7 +174,7 @@ public sealed class DefinitionArtifactTests
         {
             ("json", """{"NAME":"line # text"}"""),
             ("yaml", "\"NAME\": \"line # text\"\n"),
-            ("dotenv", "NAME=\"line # text\"\n")
+            ("dotenv", "NAME=line # text\n")
         })
         {
             Definition definition = DefinitionFixture.Parse(DefinitionFixture.Json

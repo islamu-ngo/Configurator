@@ -16,6 +16,18 @@ public static class DefinitionDraftArtifactComposer
 
     public static DefinitionDraftBundleResult ComposeBundle(Definition definition,
         IEnumerable<string> artifactIds, AnswerSnapshot answers, CancellationToken cancellationToken = default)
+        => ComposeBundleCore(definition, artifactIds, answers, false, cancellationToken);
+
+    /// <summary>Prepares only destinations eligible for the current admitted context.</summary>
+    public static DefinitionDraftBundleResult ComposeActiveBundle(Definition definition, AnswerSnapshot answers,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return ComposeBundleCore(definition, definition.Artifacts.Select(artifact => artifact.Id), answers, true, cancellationToken);
+    }
+
+    private static DefinitionDraftBundleResult ComposeBundleCore(Definition definition,
+        IEnumerable<string> artifactIds, AnswerSnapshot answers, bool activeOnly, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(artifactIds);
@@ -33,6 +45,7 @@ public static class DefinitionDraftArtifactComposer
             return new([], [new("artifact-unknown", "")], []);
 
         var composition = new DefinitionArtifactComposer.ValidatedComposition(definition, answers, true, cancellationToken);
+        if (composition.ValidationDiagnostics.Count != 0) return new([], composition.ValidationDiagnostics, []);
         var artifacts = new List<DefinitionArtifact>();
         var completions = new List<DefinitionDraftCompletion>();
         var diagnostics = new List<DefinitionDiagnostic>();
@@ -43,6 +56,7 @@ public static class DefinitionDraftArtifactComposer
             foreach (ArtifactDefinition artifact in definition.Artifacts)
             {
                 if (!selected.Contains(artifact.Id)) continue;
+                if (activeOnly && !composition.IsEligible(artifact.Id)) continue;
                 var locations = new List<DefinitionDraftCompletion>();
                 DefinitionArtifactResult result = composition.Compose(artifact.Id, locations);
                 if (!result.Succeeded)

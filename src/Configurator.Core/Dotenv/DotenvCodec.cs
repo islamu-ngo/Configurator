@@ -18,7 +18,19 @@ public static class DotenvCodec
         Parse(input, DotenvPurpose.TemplatePlaceholders);
 
     public static DotenvParseResult Parse(ReadOnlyMemory<byte> input,
-        DotenvPurpose purpose, CancellationToken cancellationToken = default)
+        DotenvPurpose purpose, CancellationToken cancellationToken = default) =>
+        ParseCore(input, purpose, null, cancellationToken);
+
+    public static DotenvParseResult Parse(ReadOnlyMemory<byte> input,
+        EnvironmentDestinationDialect dialect, DotenvPurpose purpose = DotenvPurpose.EditableValues,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(dialect)) throw new ArgumentOutOfRangeException(nameof(dialect));
+        return ParseCore(input, purpose, dialect, cancellationToken);
+    }
+
+    private static DotenvParseResult ParseCore(ReadOnlyMemory<byte> input,
+        DotenvPurpose purpose, EnvironmentDestinationDialect? dialect, CancellationToken cancellationToken)
     {
         if (!Enum.IsDefined(purpose)) throw new ArgumentOutOfRangeException(nameof(purpose));
         cancellationToken.ThrowIfCancellationRequested();
@@ -68,7 +80,7 @@ public static class DotenvCodec
                 Add(diagnostics, "dotenv-line-too-large", path);
             else if (!line.IsEmpty && line[0] != '#')
             {
-                bool quoteContinues = newline >= 0
+                bool quoteContinues = dialect != EnvironmentDestinationDialect.DockerRun && newline >= 0
                     && line.IndexOf('=') >= 0
                     && line[(line.IndexOf('=') + 1)..].StartsWith("\"", StringComparison.Ordinal)
                     && !line[(line.IndexOf('=') + 2)..].Contains('"')
@@ -77,7 +89,7 @@ public static class DotenvCodec
                 else
                 {
                     int before = entries.Count;
-                    ParseLine(line, path, entries, exactKeys, foldedKeys, diagnostics, purpose);
+                    ParseLine(line, path, entries, exactKeys, foldedKeys, diagnostics, purpose, dialect);
                     if (entries.Count != before)
                         locations.Add(new(lineNumber, line.IndexOf('=') + 2));
                 }
@@ -107,7 +119,18 @@ public static class DotenvCodec
     public static DotenvRenderResult Render(DotenvDocument document, bool finalNewline) =>
         Render(document, finalNewline, DotenvPurpose.TemplatePlaceholders);
 
-    public static DotenvRenderResult Render(DotenvDocument document, bool finalNewline, DotenvPurpose purpose)
+    public static DotenvRenderResult Render(DotenvDocument document, bool finalNewline, DotenvPurpose purpose) =>
+        RenderCore(document, finalNewline, purpose, null);
+
+    public static DotenvRenderResult Render(DotenvDocument document, bool finalNewline,
+        EnvironmentDestinationDialect dialect, DotenvPurpose purpose = DotenvPurpose.EditableValues)
+    {
+        if (!Enum.IsDefined(dialect)) throw new ArgumentOutOfRangeException(nameof(dialect));
+        return RenderCore(document, finalNewline, purpose, dialect);
+    }
+
+    private static DotenvRenderResult RenderCore(DotenvDocument document, bool finalNewline,
+        DotenvPurpose purpose, EnvironmentDestinationDialect? dialect)
     {
         ArgumentNullException.ThrowIfNull(document);
         if (!Enum.IsDefined(purpose)) throw new ArgumentOutOfRangeException(nameof(purpose));
@@ -116,19 +139,33 @@ public static class DotenvCodec
         var exactKeys = new HashSet<string>(StringComparer.Ordinal);
         var foldedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (int index = 0; index < entries.Length; index++)
-            ValidateEntry(entries[index], $"$.entries[{index}]", exactKeys, foldedKeys, diagnostics, purpose);
+            ValidateEntry(entries[index], $"$.entries[{index}]", exactKeys, foldedKeys, diagnostics, purpose, dialect);
         if (entries.Length > MaximumEntryCount)
             Add(diagnostics, "dotenv-count-exceeded", "$.document");
         if (diagnostics.Count != 0)
             return new DotenvRenderResult([], Ordered(diagnostics));
 
         var builder = new StringBuilder();
+        int totalBytes = 0;
         DotenvEntry[] ordered = entries.OfType<DotenvEntry>()
             .OrderBy(item => item.Key, StringComparer.Ordinal).ToArray();
         for (int index = 0; index < ordered.Length; index++)
         {
             DotenvEntry entry = ordered[index];
-            builder.Append(entry.Key).Append('=').Append(RenderValue(entry.Value));
+            string? renderedValue = dialect switch
+            {
+                EnvironmentDestinationDialect.DockerRun => entry.Value,
+                EnvironmentDestinationDialect.Compose => RenderComposeValue(entry.Value),
+                _ => RenderValue(entry.Value),
+            };
+            int lineBytes = StrictUtf8.GetByteCount(entry.Key) + 1
+                + (renderedValue is null ? 0 : StrictUtf8.GetByteCount(renderedValue));
+            if (lineBytes > MaximumLineUtf8Bytes)
+                return new DotenvRenderResult([], [Diagnostic("dotenv-line-too-large", "$.document")]);
+            totalBytes += lineBytes + (index < ordered.Length - 1 || finalNewline ? 1 : 0);
+            if (totalBytes > MaximumFileUtf8Bytes)
+                return new DotenvRenderResult([], [Diagnostic("dotenv-file-too-large", "$.document")]);
+            builder.Append(entry.Key).Append('=').Append(renderedValue);
             if (index < ordered.Length - 1 || finalNewline) builder.Append('\n');
         }
         try
@@ -151,7 +188,8 @@ public static class DotenvCodec
         HashSet<string> exactKeys,
         HashSet<string> foldedKeys,
         List<EnvironmentDiagnostic> diagnostics,
-        DotenvPurpose purpose)
+        DotenvPurpose purpose,
+        EnvironmentDestinationDialect? dialect)
     {
         if (line.StartsWith("export ", StringComparison.Ordinal))
         {
@@ -173,18 +211,29 @@ public static class DotenvCodec
         string key = keySpan.ToString();
         if (keySpan.Length > 0 && char.IsWhiteSpace(keySpan[^1]))
             Add(diagnostics, "dotenv-whitespace-forbidden", path, key);
-        if (!IsKey(key)) Add(diagnostics, "dotenv-key-invalid", path);
+        bool validKey = dialect.HasValue ? IsEnvironmentKey(key) : IsKey(key);
+        if (!validKey) Add(diagnostics, "dotenv-key-invalid", path);
         if (!exactKeys.Add(key)) Add(diagnostics, "dotenv-duplicate-key", path, key);
         else if (!foldedKeys.Add(key)) Add(diagnostics, "dotenv-key-case-collision", path);
 
         ReadOnlySpan<char> source = line[(equals + 1)..];
-        if (!TryParseValue(source, path, diagnostics, out string? value)) return;
+        string value;
+        if (dialect == EnvironmentDestinationDialect.DockerRun) value = source.ToString();
+        else if (dialect == EnvironmentDestinationDialect.Compose)
+        {
+            if (!TryParseComposeValue(source, out value))
+            {
+                Add(diagnostics, "dotenv-literal-syntax", path);
+                return;
+            }
+        }
+        else if (!TryParseValue(source, path, diagnostics, out value)) return;
         if (StrictUtf8.GetByteCount(value) > MaximumValueUtf8Bytes)
         {
             Add(diagnostics, "dotenv-value-too-large", path, key);
             return;
         }
-        if (IsKey(key) && exactKeys.Contains(key))
+        if (validKey && exactKeys.Contains(key))
             entries.Add(new DotenvEntry(key, value.Length == 0 && purpose == DotenvPurpose.TemplatePlaceholders ? null : value,
                 value.Length == 0 && purpose == DotenvPurpose.TemplatePlaceholders
                     ? DotenvEntryKind.EmptyPlaceholder : DotenvEntryKind.LocalHumanValue,
@@ -259,14 +308,16 @@ public static class DotenvCodec
         HashSet<string> exactKeys,
         HashSet<string> foldedKeys,
         List<EnvironmentDiagnostic> diagnostics,
-        DotenvPurpose purpose)
+        DotenvPurpose purpose,
+        EnvironmentDestinationDialect? dialect)
     {
         if (entry is null)
         {
             Add(diagnostics, "dotenv-entry-null", path);
             return;
         }
-        if (!IsKey(entry.Key)) Add(diagnostics, "dotenv-key-invalid", path);
+        if (!(dialect.HasValue ? IsEnvironmentKey(entry.Key) : IsKey(entry.Key)))
+            Add(diagnostics, "dotenv-key-invalid", path);
         if (!exactKeys.Add(entry.Key)) Add(diagnostics, "dotenv-duplicate-key", path, entry.Key);
         else if (!foldedKeys.Add(entry.Key)) Add(diagnostics, "dotenv-key-case-collision", path);
         if (!Enum.IsDefined(entry.Kind)) Add(diagnostics, "dotenv-entry-kind-invalid", path, entry.Key);
@@ -289,7 +340,7 @@ public static class DotenvCodec
                 return;
             }
             if (HasControl(value.AsSpan()) || value.Contains('\r', StringComparison.Ordinal) || value.Contains('\n', StringComparison.Ordinal)
-                || ContainsForbiddenShell(value))
+                || !dialect.HasValue && ContainsForbiddenShell(value))
                 Add(diagnostics, "dotenv-value-forbidden", path, entry.Key);
         }
     }
@@ -301,6 +352,61 @@ public static class DotenvCodec
         return "\"" + value.Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
     }
+
+    private static string RenderComposeValue(string? value) => value is null ? string.Empty
+        : "\"" + value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal)
+            .Replace("$", "$$", StringComparison.Ordinal) + "\"";
+
+    private static bool TryParseComposeValue(ReadOnlySpan<char> source, out string value)
+    {
+        value = string.Empty;
+        source = source.Trim();
+        if (source.IsEmpty) return true;
+        bool quoted = source[0] is '\'' or '"';
+        char quote = quoted ? source[0] : '\0';
+        var builder = new StringBuilder(source.Length);
+        for (int index = quoted ? 1 : 0; index < source.Length; index++)
+        {
+            char character = source[index];
+            if (quoted && character == quote)
+            {
+                ReadOnlySpan<char> remainder = source[(index + 1)..].TrimStart();
+                if (!remainder.IsEmpty && remainder[0] != '#') return false;
+                value = builder.ToString();
+                return true;
+            }
+            if (!quoted && character == '#' && index > 0 && char.IsWhiteSpace(source[index - 1]))
+            {
+                value = builder.ToString().TrimEnd();
+                return true;
+            }
+            if (character == '\\' && index + 1 < source.Length)
+            {
+                char next = source[index + 1];
+                if (quote == '\'' && next == '\'') { builder.Append(next); index++; continue; }
+                if (quote == '"')
+                {
+                    if (next is not '\\' and not '"') return false;
+                    builder.Append(next); index++; continue;
+                }
+            }
+            if (quote != '\'' && character == '$')
+            {
+                if (index + 1 >= source.Length || source[index + 1] != '$') return false;
+                builder.Append('$'); index++; continue;
+            }
+            if (!quoted && character is '\'' or '"') return false;
+            builder.Append(character);
+        }
+        if (quoted) return false;
+        value = builder.ToString();
+        return true;
+    }
+
+    internal static bool IsEnvironmentKey(string key) => key.Length is > 0 and <= MaximumKeyCharacters
+        && (char.IsAsciiLetter(key[0]) || key[0] == '_')
+        && key.All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
 
     internal static bool IsKey(string key) => key.Length is > 0 and <= MaximumKeyCharacters
         && key[0] is >= 'A' and <= 'Z'
@@ -315,7 +421,7 @@ public static class DotenvCodec
     private static bool HasControl(ReadOnlySpan<char> value)
     {
         foreach (char character in value)
-            if (character < ' ') return true;
+            if (char.IsControl(character)) return true;
         return false;
     }
 

@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using Configurator.Core;
+using Configurator.Core.Dotenv;
 
 [Category("Architecture")]
 public sealed class CoreArchitectureTests
@@ -28,6 +29,24 @@ public sealed class CoreArchitectureTests
 
         await Assert.That(violations).IsEmpty()
             .Because(string.Join("; ", violations));
+    }
+
+    [Test]
+    public async Task OfflineClosureAllowsOnlyTheDeclaredDialectDataContract()
+    {
+        AssemblyBuilder assembly = AssemblyBuilder.DefineDynamicAssembly(
+            new AssemblyName("Configurator.SyntheticDialectBoundary"), AssemblyBuilderAccess.Run);
+        TypeBuilder contract = assembly.DefineDynamicModule("main").DefineType(
+            "Configurator.Core.Definitions.SyntheticDialectBoundary", TypeAttributes.Public | TypeAttributes.Abstract);
+        const MethodAttributes methods = MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual;
+        contract.DefineMethod("Dialect", methods, typeof(EnvironmentDestinationDialect), Type.EmptyTypes);
+        contract.DefineMethod("OptionalDialect", methods, typeof(EnvironmentDestinationDialect?), Type.EmptyTypes);
+        contract.DefineMethod("UseDocument", methods, typeof(void), [typeof(DotenvDocument)]);
+        Type compiled = contract.CreateType()!;
+
+        string[] violations = SetupCoreAssemblyVerifier.VerifyOfflinePortabilityClosure([compiled]);
+        await Assert.That(violations).HasSingleItem();
+        await Assert.That(violations[0]).Contains(".UseDocument");
     }
 
     [Test]
@@ -191,9 +210,12 @@ internal static class SetupCoreAssemblyVerifier
             .Select(reference => $"forbidden assembly reference {reference.Name}")
             .ToArray();
 
-    internal static string[] VerifyOfflinePortabilityClosure(Assembly assembly)
+    internal static string[] VerifyOfflinePortabilityClosure(Assembly assembly) =>
+        VerifyOfflinePortabilityClosure(assembly.GetExportedTypes());
+
+    internal static string[] VerifyOfflinePortabilityClosure(IEnumerable<Type> exportedTypes)
     {
-        Type[] types = assembly.GetExportedTypes().Where(type =>
+        Type[] types = exportedTypes.Where(type =>
             type.Namespace is "Configurator.Core.Definitions" or "Configurator.Core.Definitions.Authoring"
                 or "Configurator.Core.Artifacts").ToArray();
         string[] forbiddenCapabilities =
@@ -214,13 +236,15 @@ internal static class SetupCoreAssemblyVerifier
                     failures.Add($"offline authority method {type.FullName}.{method.Name}");
                 foreach (Type dependency in method.GetParameters().Select(parameter => parameter.ParameterType)
                              .Append(method.ReturnType))
-                    if (dependency.FullName?.Contains("Dotenv", StringComparison.OrdinalIgnoreCase) == true)
+                    if (dependency != typeof(EnvironmentDestinationDialect) && dependency != typeof(EnvironmentDestinationDialect?)
+                        && dependency.FullName?.Contains("Dotenv", StringComparison.OrdinalIgnoreCase) == true)
                         failures.Add($"offline dotenv dependency {type.FullName}.{method.Name}");
             }
 
             foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
-                if (property.PropertyType.FullName?.Contains("Dotenv", StringComparison.OrdinalIgnoreCase) == true)
+                if (property.PropertyType != typeof(EnvironmentDestinationDialect) && property.PropertyType != typeof(EnvironmentDestinationDialect?)
+                    && property.PropertyType.FullName?.Contains("Dotenv", StringComparison.OrdinalIgnoreCase) == true)
                     failures.Add($"offline dotenv property {type.FullName}.{property.Name}");
                 if (property.Name != "RequiresFreshAcceptance"
                     && forbiddenCapabilities.Any(fragment =>

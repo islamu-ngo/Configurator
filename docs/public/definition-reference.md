@@ -52,6 +52,7 @@ Source is a closed object. Unknown members reject; explicit null is not omission
 | `outputs` | Required nonempty filename-keyed map |
 | `entryPoints` | Optional; defaults to `["setup"]` |
 | `presentation` | Optional ordered sections/journeys |
+| `deployment` | Optional bounded recipe/component-scope declarations and selector pointers |
 | `localization` | Optional base locale and translations; absent means locale `en` |
 | `annotations` | Optional bounded inert object |
 
@@ -60,6 +61,49 @@ and `definitionLicense`. Store admission is separate from local use.
 Initialize identity with `definition init`, preserve the family across revisions,
 and use `definition revise` for changed canonical content. Build normally writes
 `dist/configurator/revisions/<revision>.json`.
+
+## Deployment context and destinations
+
+The optional `deployment` root is identical in authoring and runtime documents.
+It is closed data; it cannot execute launch commands or grant target authority.
+
+| Member | Contract |
+|---|---|
+| `recipePointer`, `scopePointer` | Distinct root answer pointers to public finite string enums; their `initialValue` values must select one compatible pair |
+| `when` | Optional existing predicate; when false, deployment scoping does not apply |
+| `components` | 1–64 objects with unique `id`, `title` and optional `description` |
+| `recipes` | 1–16 objects with unique `id`, `title`, optional `description`, and 1–16 `scopes` each |
+| Scope `id`, `title`, `description` | Unique scope ID within its recipe, public title and optional description |
+| Scope `componentIds`, `artifactIds` | Nonempty distinct lists of declared components and eligible destinations; each artifact's consumers must fit the selected components |
+| Scope `primaryArtifactId` | Optional artifact from that scope's eligible list |
+| Scope `prerequisitePointers` | Optional configuration pointers for requirements not emitted by a destination; at most 1,024 across deployment metadata |
+
+IDs are bounded public identifiers. Titles are at most 256 characters and
+descriptions at most 4,096. Existing localization overrides can address these
+title/description positions and destination titles. Selector defaults belong
+only to the field's `initialValue`; `default` remains descriptive. Unknown or
+incompatible selections block preparation and remain correctable.
+
+Scope is derived by Core from the admitted definition and accepted answers.
+Eligible projections and explicit prerequisites seed required fields, followed
+by activation controls and relevant presence relationships. Unrelated sibling
+credentials remain inactive even inside a shared object. Unknown fields,
+malformed omissions and resource limits still reject globally. Known inactive
+answers can remain in the local workspace for switching back, but cannot enter
+effective output. Complete and secret-deferred preparation share this rule.
+
+Artifact/output metadata optionally carries `title`, `description`, `consumerIds`,
+`surface` (`process-environment` or `compose-input`) and `environmentDialect`
+(`docker-run` or `compose`). A dialect is admitted only for dotenv output;
+the surface and dialect must agree. Scope artifact selection cannot add
+consumers or bypass the selected scope's remaining requirements. Filenames
+remain portable literal names, distinct without regard to case.
+
+Runtime admission computes `deployment.scope` when deployment metadata is used
+and the corresponding `environment.docker-run` or `environment.compose`
+capability for an explicitly declared dialect. These declarations are checked
+again when the canonical runtime document is admitted. Product and schema
+versions remain `0.0.1`; changed content still advances definition identity.
 
 ## Field properties
 
@@ -288,6 +332,19 @@ Outputs require `format`: `dotenv`, `json`, `yaml`, or `markdown`. Optional
 `reconcile`, `generationOnly`; `restartRequirement` is `unspecified`, `none`,
 `process`, `deployment`. Both default to `unspecified`. They are advice, not
 target acceptance, apply permission or filesystem authority.
+
+For dotenv outputs, `environmentDialect` selects `docker-run` or `compose`.
+Every dotenv output referenced by a deployment scope must declare both its
+`surface` and `environmentDialect`; no destination syntax is inferred from its name.
+Docker files contain literal assignments; Compose files escape values for
+Compose interpolation. Supply the destination's actual dialect when importing
+or editing its file. Empty strings remain empty assignments. Bare names that
+inherit host values, unresolved interpolation, control/multiline values and
+case-insensitive duplicate keys reject. Destination keys may contain ASCII
+letters, digits and underscores and start with a letter or underscore.
+These files are data for the declared consumer; they must not be sourced as
+shell scripts. Docker daemon and target application acceptance remain separate
+qualification steps.
 
 Choose `bindings` or `projection`, never both. Dotenv binding keys are literal
 environment names; values are scoped references to compatible non-null scalars.

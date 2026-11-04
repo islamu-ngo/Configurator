@@ -1,0 +1,31 @@
+Change-Id: CHG-01M6K7KQ9WMB9DZ4RAQXQJ8T8K
+Title: "validate configuration for the selected deployment scope"
+Type: feat
+Scope: self-hosting
+Summary: "Resolve recipe and component requirements before preparing destination-specific output through the existing validation kernel."
+Group: commit-all-core
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Declare destination surface and dialect for scoped dotenv artifacts and update consumers to the current deployment metadata contract."
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Declare destination surface and dialect for scoped dotenv artifacts and update consumers to the current deployment metadata contract."
+  Migration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Declare destination surface and dialect for scoped dotenv artifacts and update consumers to the current deployment metadata contract."
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Declare destination surface and dialect for scoped dotenv artifacts and update consumers to the current deployment metadata contract."
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Declare destination surface and dialect for scoped dotenv artifacts and update consumers to the current deployment metadata contract."

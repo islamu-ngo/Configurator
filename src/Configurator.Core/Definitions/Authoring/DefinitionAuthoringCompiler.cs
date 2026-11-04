@@ -16,7 +16,7 @@ public static class DefinitionAuthoringCompiler
         {
             JsonObject root = JsonNode.Parse(document.CanonicalBytes.Span)!.AsObject();
             Only(root, "$schema", "identity", "project", "applicationVersions", "entryPoints", "configuration",
-                "outputs", "presentation", "localization", "annotations");
+                "outputs", "presentation", "localization", "annotations", "deployment");
             if (root["$schema"]!.GetValue<string>() != DefinitionAuthoringCodec.SchemaId)
                 throw new DefinitionException("authoring-schema");
             JsonObject identity = root["identity"]!.AsObject();
@@ -41,7 +41,7 @@ public static class DefinitionAuthoringCompiler
                 ["locales"] = new JsonArray(locales.Select(locale => (JsonNode?)JsonValue.Create(locale)).ToArray()),
                 ["configuration"] = root["configuration"]!.DeepClone()
             };
-            foreach (string name in new[] { "presentation", "localization", "annotations" })
+            foreach (string name in new[] { "presentation", "localization", "annotations", "deployment" })
                 if (root.ContainsKey(name)) runtime[name] = root[name]!.DeepClone();
             runtime["artifacts"] = ExpandOutputs(root["outputs"]!.AsObject());
             Definition admitted = DefinitionCodec.AdmitCompiled(runtime);
@@ -71,7 +71,8 @@ public static class DefinitionAuthoringCompiler
         foreach ((string fileName, JsonNode? value) in outputs.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             JsonObject output = value!.AsObject();
-            Only(output, "id", "format", "targetUpdateMode", "restartRequirement", "bindings", "projection");
+            Only(output, "id", "format", "targetUpdateMode", "restartRequirement", "bindings", "projection",
+                "title", "description", "consumerIds", "surface", "environmentDialect");
             string format = output["format"]!.GetValue<string>();
             JsonNode projection;
             if (output.ContainsKey("projection"))
@@ -136,6 +137,8 @@ public static class DefinitionAuthoringCompiler
                 ["restartRequirement"] = output.ContainsKey("restartRequirement") ? output["restartRequirement"]!.DeepClone() : JsonValue.Create("unspecified"),
                 ["projection"] = projection
             };
+            foreach (string name in new[] { "title", "description", "consumerIds", "surface", "environmentDialect" })
+                if (output.ContainsKey(name)) artifact[name] = output[name]!.DeepClone();
             Charge(artifact, budget, 3);
             artifacts.Add(artifact);
         }

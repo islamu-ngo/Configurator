@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
 using Configurator.Core.Definitions.Authoring;
@@ -33,6 +34,49 @@ public sealed class DefinitionAuthoringTests
         await Assert.That(definition.Artifacts.Single().FileName).IsEqualTo(".env");
         await Assert.That(definition.Artifacts.Single().Restart).IsEqualTo(DefinitionRestartRequirement.Unspecified);
         await Assert.That(definition.Artifacts.Single().ApplySemantics).IsEqualTo(DefinitionTargetUpdateMode.Unspecified);
+    }
+
+    [Test]
+    public async Task DeploymentMetadataAndLocalizedDestinationRoundTripThroughRuntimeAdmission()
+    {
+        JsonObject source = JsonNode.Parse(Source)!.AsObject();
+        source["configuration"]!["properties"]!["recipe"] = JsonNode.Parse("""
+            {"type":"string","enum":["local"],"x-configurator":{"sensitivity":"public","initialValue":"local"}}
+            """);
+        source["configuration"]!["properties"]!["scope"] = JsonNode.Parse("""
+            {"type":"string","enum":["worker"],"x-configurator":{"sensitivity":"public","initialValue":"worker"}}
+            """);
+        source["deployment"] = JsonNode.Parse("""
+            {"recipePointer":"/recipe","scopePointer":"/scope",
+             "components":[{"id":"worker","title":"Worker"}],
+             "recipes":[{"id":"local","title":"Local process","scopes":[
+               {"id":"worker","title":"Worker only","componentIds":["worker"],
+                "artifactIds":["worker-env"],"primaryArtifactId":"worker-env","prerequisitePointers":[]}]}]}
+            """);
+        JsonNode output = source["outputs"]![".env"]!;
+        output["id"] = "worker-env";
+        output["title"] = "Worker environment";
+        output["description"] = "Inputs for the worker process.";
+        output["consumerIds"] = new JsonArray("worker");
+        output["surface"] = "process-environment";
+        output["environmentDialect"] = "docker-run";
+        source["localization"] = JsonNode.Parse("""
+            {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{
+             "/deployment/components/0/title":"عامل",
+             "/artifacts/0/title":"بيئة العامل"}}}}
+            """);
+
+        Definition compiled = Compile(source.ToJsonString());
+        Definition runtime = DefinitionCodec.ParseJson(compiled.CanonicalBytes);
+        using JsonDocument document = JsonDocument.Parse(runtime.CanonicalBytes);
+        await Assert.That(document.RootElement.GetProperty("deployment").GetProperty("recipePointer").GetString())
+            .IsEqualTo("/recipe");
+        await Assert.That(document.RootElement.GetProperty("artifacts")[0].GetProperty("consumerIds")[0].GetString())
+            .IsEqualTo("worker");
+        await Assert.That(runtime.RequiredCapabilities.Contains("deployment.scope", StringComparer.Ordinal)).IsTrue();
+        await Assert.That(runtime.RequiredCapabilities.Contains("environment.docker-run", StringComparer.Ordinal)).IsTrue();
+        await Assert.That(runtime.RequiredCapabilities.Contains("environment.compose", StringComparer.Ordinal)).IsFalse();
+        await Assert.That(runtime.Digest).IsEqualTo(compiled.Digest);
     }
 
     [Test]

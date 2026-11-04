@@ -24,7 +24,7 @@ canonical bytes; digest is computed, never supplied within the definition.
 `Definition` exposes `FamilyId`, `Revision`, `Digest`, `CanonicalBytes`,
 `Configuration`, `RequiredCapabilities`, `Title`, `Publisher`, `ApplicationId`,
 `ApplicationVersions`, `EntryPoints`, `Locales`, `Fields`, `Artifacts` and optional
-`Presentation` and immutable `SourceMap`. `Configuration` is the immutable recursive `DefinitionNode` tree.
+`Presentation`, `Deployment` and immutable `SourceMap`. `Configuration` is the immutable recursive `DefinitionNode` tree.
 Fields are root presentation projections, not a second schema authority.
 
 The promoted [Core overview](CORE_DEFINITIONS.md) and
@@ -77,7 +77,7 @@ These are internal owners; source format does not bypass admission.
 Runtime is a closed object with `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1`,
 `familyId`, `revision`, `project`, `applicationVersions`, `entryPoints`, `locales`,
 `configuration`, `artifacts`, and sorted `requiredCapabilities`. Optional roots
-are `presentation`, `localization`, `annotations`. It does not admit `$schema`,
+are `presentation`, `localization`, `annotations`, `deployment`. It does not admit `$schema`,
 the old flat project metadata or a root `fields` array.
 
 Authoring has `$schema: urn:islamu:configurator:authoring:v0.0.1`, nested identity,
@@ -94,6 +94,55 @@ are strings with that value; the [CLI contract](CLI_CONTRACT.md) owns the curren
 machine envelope. Definition revisions and canonical digests still bind content,
 and target-application versions retain their own meaning. The fixed development
 baseline never permits replacing an admitted family/revision with changed bytes.
+
+### Deployment context and destination admission
+
+Optional `deployment` metadata binds `recipePointer` and `scopePointer` to
+ordinary public finite string answers. Their explicit `initialValue` values
+must select a compatible pair. Metadata declares 1–64 components, 1–16 recipes
+and 1–16 scopes per recipe. Each scope contains nonempty `componentIds` and
+`artifactIds`, an optional eligible `primaryArtifactId`, and optional
+`prerequisitePointers` bounded to 1,024 across the deployment root. IDs and
+references are admitted before collecting answers. Localized public titles
+and descriptions use the existing override coordinates.
+
+`Definition.Deployment` snapshots these declarations. A selected context is
+evaluation-local: no accepted answer, readiness or active-location result is
+cached on the shared definition. Eligible projection references and explicit
+prerequisites seed scope closure; activation controls and relevant presence
+relationships extend it. Structural ancestors do not activate every required
+sibling. Global input shape, unknown-member, omission and work-limit checks
+remain independent of scoped requiredness. The optional deployment `when`
+predicate preserves unscoped task behavior when false.
+Scope-control observations use the existing initialization, activation and
+uncertainty kernel under the same operation budget. A deferred relationship
+trigger blocks an unresolved closure. Excluded array rows retain their concrete
+indices as null structural slots, without retaining private row values in the
+effective tree; accepted answers remain available for switching back.
+
+`DefinitionValidationResult.ConfigurationContext` publishes the current public
+recipe/scope and eligible artifacts with readiness facts. Bundle preparation
+uses current eligibility; an explicit artifact outside it rejects. Single,
+complete and draft composition derive context from the same accepted snapshot,
+so export selection cannot narrow validation or expose retained inactive secrets.
+
+Artifact/output usage metadata is closed: optional `title`, `description`,
+`consumerIds`, `surface` and `environmentDialect`. Supported surfaces are
+`process-environment` and `compose-input`; dotenv dialects are `docker-run`
+and `compose`. Non-dotenv dialects and inconsistent surface/dialect pairs
+reject. Scope consumers must contain every recipient of each eligible artifact.
+Every dotenv artifact referenced by a deployment scope explicitly declares both
+surface and dialect. Generic dotenv artifacts outside deployment metadata use
+the Docker run dialect when no dialect is declared.
+Portable literal filenames and case-insensitive uniqueness protect aggregate
+delivery without authorizing a native overwrite or target application.
+
+Admission computes `deployment.scope` and explicitly used dialect capabilities
+`environment.docker-run` / `environment.compose`; runtime parsing recomputes
+the exact required subset. Schema generation projects the same closed shape.
+The [decision record](adr/ADR-deployment-context-and-destinations.md) explains
+ownership and the distinction between local invariant evidence and actual
+destination/host qualification.
 
 ### Recursive configuration grammar
 
@@ -267,6 +316,27 @@ formatting/link-sensitive text. Admission checks Markdown list/copy/repeat/liter
 result shapes and rejects nullable repeat sources before answer collection.
 An explicit omit does not acquire a null result type.
 Output remains data, not executable templates.
+
+Dotenv destinations declare `environmentDialect`: `docker-run` uses literal
+`KEY=value` assignments; `compose` uses double-quoted literals with escaped
+backslashes/quotes and doubled dollars. A supplied empty value remains an
+assignment and never requests inheritance from the host environment. Destination
+keys use ASCII letters, digits and underscores, beginning with a letter or
+underscore; case-insensitive duplicates reject. Values containing controls,
+newlines, invalid Unicode or values exceeding the existing byte bounds reject
+without partial output. Encoded line/file limits include escaping overhead.
+`DotenvCodec` accepts the explicit `EnvironmentDestinationDialect` independently
+of `DotenvPurpose`: existing template-placeholder restrictions remain separate
+from actual destination values. Destination parsing never evaluates shell text;
+Compose interpolation that cannot be resolved literally is refused.
+
+Docker and Compose consumers were qualified using synthetic files with an
+allowlisted environment, including a negative Compose host-variable precedence
+case. Direct Docker used an installed image, an explicit reachable endpoint,
+disabled networking and `--pull=never`; a codec round-trip alone does not
+establish consumer qualification. See
+[Docker environment files](https://docs.docker.com/reference/cli/docker/container/run/#env)
+and [Compose interpolation](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/).
 
 `DefinitionDraftArtifactComposer.Compose/ComposeBundle` returns disposable draft
 artifacts, completions and value-free diagnostics. Only genuinely missing active
@@ -519,6 +589,23 @@ assets. Grafana format projections do not establish startup, provisioning or
 connectivity. Event target semantics remain Event's authority.
 
 ## Event coverage handoff
+
+The current Event example and separate Store family declare Standalone/all,
+separate-image scopes and Compose component scopes through the same admitted
+deployment metadata. Only full Compose includes the separate migration
+recipient. Explicit per-role predicates keep API setup, migration and other
+partition credentials inactive under Blazor-only scope, even when retained
+hosting controls would otherwise require API setup. Process projections map
+role Infisical identities into `SecretProvider__Infisical__*`; Compose preserves
+its orchestration namespaces. Canonical `ERASURE_*` answers replace duplicate
+`PRIVACY_ERASURE_AUTHORITY_*` answer aliases. Event projects the canonical
+erasure group into its own internal sections, so each setting is emitted once.
+Combined admin origin instead has two distinct consumers: API origin reporting
+and BFF host classification. Its two scalar target keys share one answer;
+inverse adoption requires matching presence and equal typed values. The
+[maintained inventory](../../examples/islamu-event/provider-contract-inventory.md)
+records committed defaults, source-only evidence and explicit unsupported
+target fields. Synthetic partition material is not target publication authority.
 
 Historical source/test evidence remains under
 `tests/Configurator.Core.Tests/EventHandoff/Source` and `EventHandoff/Tests` as
